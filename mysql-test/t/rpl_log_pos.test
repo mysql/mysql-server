@@ -14,15 +14,11 @@ source include/master-slave.inc;
 --replace_column 3 <Binlog_Ignore_DB>
 show master status;
 sync_slave_with_master;
-
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 
 change master to master_log_pos=75;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-query_vertical show slave status;
-
+source include/show_slave_status.inc;
 start slave;
 let $slave_param= Slave_SQL_Running;
 let $slave_param_value= Yes;
@@ -33,10 +29,7 @@ let $slave_param_value= No;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-query_vertical show slave status;
-
+source include/show_slave_status.inc;
 connection master;
 --replace_column 3 <Binlog_Ignore_DB>
 show master status;

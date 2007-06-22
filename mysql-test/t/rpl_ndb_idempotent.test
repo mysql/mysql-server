@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 #
 # Currently test only works with ndb since it retrieves "old"
@@ -43,7 +43,7 @@ SELECT * FROM t1 ORDER BY c3;
 SELECT * FROM t1 ORDER BY c3;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error>
 SHOW SLAVE STATUS;
 
 # stop slave and reset position to before the last changes
@@ -54,7 +54,7 @@ eval CHANGE MASTER TO
   master_log_pos = $the_pos ;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error>
 SHOW SLAVE STATUS;
 
 # start the slave again
@@ -107,7 +107,7 @@ COMMIT;
 --connection slave
 SELECT * FROM t1;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 34 <Last_IO_Errno> 35 <Last_IO_Error>
 SHOW SLAVE STATUS;
 
 connection master;

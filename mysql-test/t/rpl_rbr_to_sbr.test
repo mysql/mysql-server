@@ -21,7 +21,7 @@ SHOW BINLOG EVENTS;
 sync_slave_with_master;
 --echo **** On Slave ****
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #

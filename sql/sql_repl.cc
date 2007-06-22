@@ -991,7 +991,7 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
      Reset errors (the idea is that we forget about the
      old master).
   */
-  mi->rli.clear_slave_error();
+  mi->rli.clear_error();
   mi->rli.clear_until_condition();
 
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
@@ -1263,7 +1263,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the errors, for a clean start */
-  mi->rli.clear_slave_error();
+  mi->rli.clear_error();
   mi->rli.clear_until_condition();
   /*
     If we don't write new coordinates to disk now, then old will remain in

@@ -5,5 +5,7 @@
 # For different engines         #
 #################################
 -- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/ndb_master-slave.inc
 let $engine_type=NDBCLUSTER;
 -- source extra/rpl_tests/rpl_row_sp003.test

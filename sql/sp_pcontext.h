@@ -43,7 +43,7 @@ typedef struct sp_variable
   uint offset;
 
   Item *dflt;
-  create_field field_def;
+  Create_field field_def;
 } sp_variable_t;
 
 
@@ -234,7 +234,7 @@ public:
     children.
   */
   void
-  retrieve_field_definitions(List<create_field> *field_def_lst);
+  retrieve_field_definitions(List<Create_field> *field_def_lst);
 
   // Find by name
   sp_variable_t *

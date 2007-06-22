@@ -38,8 +38,8 @@
 *****************************************************************************/
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<create_field>;
-template class List_iterator<create_field>;
+template class List<Create_field>;
+template class List_iterator<Create_field>;
 #endif
 
 uchar Field_null::null[1]={1};
@@ -2631,7 +2631,7 @@ void Field_new_decimal::sql_type(String &str) const
 }
 
 
-uint Field_new_decimal::is_equal(create_field *new_field)
+uint Field_new_decimal::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
           ((new_field->flags & UNSIGNED_FLAG) == 
@@ -4366,7 +4366,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 				 const char *field_name_arg,
 				 TABLE_SHARE *share,
 				 CHARSET_INFO *cs)
-  :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
+  :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4383,7 +4383,8 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg,
                                  CHARSET_INFO *cs)
-  :Field_str((uchar*) 0, 19, maybe_null_arg ? (uchar*) "": 0, 0,
+  :Field_str((uchar*) 0, MAX_DATETIME_WIDTH,
+             maybe_null_arg ? (uchar*) "": 0, 0,
 	     NONE, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4916,7 +4917,7 @@ String *Field_time::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  val_buffer->alloc(19);
+  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
   long tmp=(long) sint3korr(ptr);
   ltime.neg= 0;
   if (tmp < 0)
@@ -5464,7 +5465,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[12];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5695,7 +5696,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[19];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5771,7 +5772,7 @@ String *Field_datetime::val_str(String *val_buffer,
   part1=(long) (tmp/LL(1000000));
   part2=(long) (tmp - (ulonglong) part1*LL(1000000));
 
-  pos=(char*) val_buffer->ptr()+19;
+  pos=(char*) val_buffer->ptr() + MAX_DATETIME_WIDTH;
   *pos--=0;
   *pos--= (char) ('0'+(char) (part2%10)); part2/=10;
   *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
@@ -5887,6 +5888,7 @@ void Field_datetime::sql_type(String &res) const
     well_formed_error_pos    - where not well formed data was first met
     cannot_convert_error_pos - where a not-convertable character was first met
     end                      - end of the string
+    cs                       - character set of the string
 
   NOTES
     As of version 5.0 both cases return the same error:
@@ -5906,7 +5908,8 @@ static bool
 check_string_copy_error(Field_str *field,
                         const char *well_formed_error_pos,
                         const char *cannot_convert_error_pos,
-                        const char *end)
+                        const char *end,
+                        CHARSET_INFO *cs)
 {
   const char *pos, *end_orig;
   char tmp[64], *t;
@@ -5920,8 +5923,18 @@ check_string_copy_error(Field_str *field,
 
   for (t= tmp; pos < end; pos++)
   {
+    /*
+      If the source string is ASCII compatible (mbminlen==1)
+      and the source character is in ASCII printable range (0x20..0x7F),
+      then display the character as is.
+      
+      Otherwise, if the source string is not ASCII compatible (e.g. UCS2),
+      or the source character is not in the printable range,
+      then print the character using HEX notation.
+    */
     if (((unsigned char) *pos) >= 0x20 &&
-        ((unsigned char) *pos) <= 0x7F)
+        ((unsigned char) *pos) <= 0x7F &&
+        cs->mbminlen == 1)
     {
       *t++= *pos;
     }
@@ -6003,7 +6016,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               field_charset->pad_char);
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   /*
@@ -6069,7 +6082,7 @@ int Field_str::store(double nr)
 }
 
 
-uint Field::is_equal(create_field *new_field)
+uint Field::is_equal(Create_field *new_field)
 {
   return (new_field->sql_type == real_type());
 }
@@ -6077,7 +6090,7 @@ uint Field::is_equal(create_field *new_field)
 
 /* If one of the fields is binary and the other one isn't return 1 else 0 */
 
-bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
+bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flags)
 {
   return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
           !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
@@ -6086,7 +6099,7 @@ bool Field_str::compare_str_field_flags(create_field *new_field, uint32 flags)
 }
 
 
-uint Field_str::is_equal(create_field *new_field)
+uint Field_str::is_equal(Create_field *new_field)
 {
   if (compare_str_field_flags(new_field, flags))
     return 0;
@@ -6468,7 +6481,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     int2store(ptr, copy_length);
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   // Check if we lost something other than just trailing spaces
@@ -6939,7 +6952,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_varstring::is_equal(create_field *new_field)
+uint Field_varstring::is_equal(Create_field *new_field)
 {
   if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
@@ -7145,7 +7158,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   bmove(ptr+packlength,(uchar*) &tmp,sizeof(char*));
 
   if (check_string_copy_error(this, well_formed_error_pos,
-                              cannot_convert_error_pos, from + length))
+                              cannot_convert_error_pos, from + length, cs))
     return 2;
 
   if (from_end_pos < from + length)
@@ -7621,7 +7634,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 }
 
 
-uint Field_blob::is_equal(create_field *new_field)
+uint Field_blob::is_equal(Create_field *new_field)
 {
   if (compare_str_field_flags(new_field, flags))
     return 0;
@@ -8159,7 +8172,7 @@ bool Field_num::eq_def(Field *field)
 }
 
 
-uint Field_num::is_equal(create_field *new_field)
+uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
 	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
@@ -8264,7 +8277,7 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_bit::is_equal(create_field *new_field) 
+uint Field_bit::is_equal(Create_field *new_field) 
 {
   return (new_field->sql_type == real_type() &&
           new_field->length == max_display_length());
@@ -8595,20 +8608,20 @@ void Field_bit_as_char::sql_type(String &res) const
 
 
 /*****************************************************************************
-  Handling of field and create_field
+  Handling of field and Create_field
 *****************************************************************************/
 
 /*
-  Convert create_field::length from number of characters to number of bytes
+  Convert Create_field::length from number of characters to number of bytes
 
   SYNOPSIS
-    create_field::create_length_to_internal_length()
+    Create_field::create_length_to_internal_length()
   
   DESCRIPTION
-    Convert create_field::length from number of characters to number of bytes.
+    Convert Create_field::length from number of characters to number of bytes.
 */
 
-void create_field::create_length_to_internal_length(void)
+void Create_field::create_length_to_internal_length(void)
 {
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
@@ -8655,7 +8668,7 @@ void create_field::create_length_to_internal_length(void)
 }
 
 
-void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
+void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned)
 {
@@ -8696,7 +8709,7 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     TRUE  on error
 */
 
-bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
+bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         char *fld_length, char *fld_decimals,
                         uint fld_type_modifier, Item *fld_default_value,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
@@ -8706,7 +8719,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
 
-  DBUG_ENTER("create_field::init()");
+  DBUG_ENTER("Create_field::init()");
   
   field= 0;
   field_name= fld_name;
@@ -8890,15 +8903,18 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case MYSQL_TYPE_TIMESTAMP:
     if (!fld_length)
-      length= 14;  /* Full date YYYYMMDDHHMMSS */
-    else if (length != 19)
+    {
+      /* Compressed date YYYYMMDDHHMMSS */
+      length= MAX_DATETIME_COMPRESSED_WIDTH;
+    }
+    else if (length != MAX_DATETIME_WIDTH)
     {
       /*
         We support only even TIMESTAMP lengths less or equal than 14
         and 19 as length of 4.1 compatible representation.
       */
       length= ((length+1)/2)*2; /* purecov: inspected */
-      length= min(length,14); /* purecov: inspected */
+      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH); /* purecov: inspected */
     }
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (fld_default_value)
@@ -8951,7 +8967,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     length= 10;
     break;
   case MYSQL_TYPE_DATETIME:
-    length= 19;
+    length= MAX_DATETIME_WIDTH;
     break;
   case MYSQL_TYPE_SET:
     {
@@ -9279,7 +9295,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 
 /* Create a field suitable for create of table */
 
-create_field::create_field(Field *old_field,Field *orig_field)
+Create_field::Create_field(Field *old_field,Field *orig_field)
 {
   field=      old_field;
   field_name=change=old_field->field_name;

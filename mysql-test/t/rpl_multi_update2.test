@@ -5,5 +5,6 @@
 # Default engine.                                     #
 #######################################################
 --source include/not_ndb_default.inc
+--source include/master-slave.inc
 let $engine_type=MyISAM;
 --source extra/rpl_tests/rpl_multi_update2.test
