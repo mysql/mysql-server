@@ -414,6 +414,10 @@ prepare stmt1 from ' execute stmt2 ' ;
 --error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
 
+## We don't support alter view as prepared statements
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from 'alter view v1 as select 2';
+
 ## switch the database connection
 --error ER_UNSUPPORTED_PS
 prepare stmt4 from ' use test ' ;

@@ -378,6 +378,8 @@ prepare stmt1 from ' execute stmt2 ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from 'alter view v1 as select 2';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' use test ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' create database mysqltest ';
