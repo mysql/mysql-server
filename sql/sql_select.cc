@@ -1347,8 +1347,7 @@ JOIN::optimize()
       there are aggregate functions, because in all these cases we need
       all result rows.
     */
-    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order ||
-                              test(select_options & OPTION_BUFFER_RESULT)) &&
+    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order) &&
                              !tmp_group &&
                              !thd->lex->current_select->with_sum_func) ?
                             select_limit : HA_POS_ERROR;
