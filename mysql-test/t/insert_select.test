@@ -233,7 +233,9 @@ drop table t1,t2;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 values (1), (2);
 
+flush status;
 INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
+show status like 'Handler_read%';
 
 DROP TABLE t1;
 
@@ -331,4 +333,27 @@ INSERT INTO t2 (d)
   FROM t1;
 
 SELECT * FROM t2;
+DROP TABLE t1,t2;
+
+#
+# Bug #29095: incorrect pushing of LIMIT into the temporary
+# table ignoring ORDER BY clause
+#
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  prev_id INT,
+  join_id INT DEFAULT 0);
+
+INSERT INTO t1 (prev_id) VALUES (NULL), (1), (2);
+SELECT * FROM t1;
+
+CREATE TABLE t2 (join_id INT);
+INSERT INTO t2 (join_id) VALUES (0);
+
+INSERT INTO t1 (prev_id) SELECT id
+  FROM t2 LEFT JOIN t1 ON t1.join_id = t2.join_id
+  ORDER BY id DESC LIMIT 1;
+SELECT * FROM t1;
+
 DROP TABLE t1,t2;
