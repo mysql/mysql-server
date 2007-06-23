@@ -2922,18 +2922,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if ((protocol->type() == Protocol::PROTOCOL_TEXT) && (param_count > 0))
-  {
-    /*
-      This is a mysql_sql_stmt_prepare(); query expansion will insert user
-      variable references, and user variables are uncacheable, thus we have to
-      mark this statement as uncacheable.
-      This has to be done before setup_set_params(), as it may make expansion
-      unneeded.
-    */
-    lex->safe_to_cache_query= FALSE;
-  }
-
   if (error == 0)
   {
     setup_set_params();
