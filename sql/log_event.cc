@@ -1133,7 +1133,6 @@ void Log_event::print_header(IO_CACHE* file,
     }
     *c= '\0';
 
-    /* Non-full last line */
     if (hex_string[0])
     {
       char emit_buf[256];
