@@ -116,13 +116,13 @@ static my_bool net_write_buff(NET *net,const uchar *packet,ulong len);
 my_bool my_net_init(NET *net, Vio* vio)
 {
   DBUG_ENTER("my_net_init");
+  net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
   if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
 				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
-  net->vio = vio;
   net->no_send_ok= net->no_send_eof= net->no_send_error= 0;
   net->error=0; net->return_errno=0; net->return_status=0;
   net->pkt_nr=net->compress_pkt_nr=0;

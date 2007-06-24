@@ -2507,12 +2507,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      if (mysql_bin_log.is_open())
-      {
-	thd->clear_error(); // No binlog error generated
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, 0, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2542,12 +2537,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      if (mysql_bin_log.is_open())
-      {
-	thd->clear_error(); // No binlog error generated
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, 0, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2569,12 +2559,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      if (mysql_bin_log.is_open())
-      {
-	thd->clear_error(); // No binlog error generated
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, 0, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3474,11 +3459,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        if (mysql_bin_log.is_open())
-        {
-          thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            thd->query, thd->query_length, 0, FALSE);
-        }
+        write_bin_log(thd, FALSE, thd->query, thd->query_length);
       }
       send_ok(thd);
     } 
