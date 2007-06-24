@@ -870,3 +870,25 @@ DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x
 SHOW STATUS LIKE 'handler_read__e%';
 
 DROP TABLE t1,t2,t3;
+
+#
+# Bug#25602: queries with DISTINCT and SQL_BIG_RESULT hint 
+#            for which loose scan optimization is applied
+#
+
+CREATE TABLE t1 (a int, INDEX idx(a));
+INSERT INTO t1 VALUES
+  (4), (2), (1), (2), (4), (2), (1), (4),
+  (4), (2), (1), (2), (2), (4), (1), (4);
+
+EXPLAIN SELECT DISTINCT(a) FROM t1;
+SELECT DISTINCT(a) FROM t1;
+EXPLAIN SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
+SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
+
+DROP TABLE t1;
+
+
+
+
+
