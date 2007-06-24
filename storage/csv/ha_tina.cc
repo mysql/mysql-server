@@ -590,6 +590,7 @@ int ha_tina::find_current_row(uchar *buf)
   int eoln_len;
   my_bitmap_map *org_bitmap;
   int error;
+  bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
   /*
@@ -601,6 +602,8 @@ int ha_tina::find_current_row(uchar *buf)
                        local_saved_data_file_length, &eoln_len)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
+  /* We must read all columns in case a table is opened for update */
+  read_all= !bitmap_is_clear_all(table->write_set);
   /* Avoid asserts in ::store() for columns that are not going to be updated */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
   error= HA_ERR_CRASHED_ON_USAGE;
@@ -678,7 +681,7 @@ int ha_tina::find_current_row(uchar *buf)
       goto err;
     }
 
-    if (bitmap_is_set(table->read_set, (*field)->field_index))
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index))
       (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
   }
   next_position= end_offset + eoln_len;
