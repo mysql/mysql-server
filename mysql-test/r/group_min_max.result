@@ -2286,3 +2286,24 @@ Variable_name	Value
 Handler_read_key	8
 Handler_read_next	1
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (a int, INDEX idx(a));
+INSERT INTO t1 VALUES
+(4), (2), (1), (2), (4), (2), (1), (4),
+(4), (2), (1), (2), (2), (4), (1), (4);
+EXPLAIN SELECT DISTINCT(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	idx	5	NULL	9	Using index for group-by
+SELECT DISTINCT(a) FROM t1;
+a
+1
+2
+4
+EXPLAIN SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	idx	5	NULL	9	Using index for group-by
+SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
+a
+1
+2
+4
+DROP TABLE t1;
