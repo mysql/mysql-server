@@ -174,12 +174,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   /* Lets hope this doesn't fail as the result will be messy */ 
   if (!silent && !error)
   {
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-      thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
-    }
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
     send_ok(thd);
   }
 

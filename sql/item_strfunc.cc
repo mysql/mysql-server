@@ -1143,8 +1143,9 @@ String *Item_func_substr::val_str(String *str)
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
 
-  /* Negative length, will return empty string. */
-  if ((arg_count == 3) && (length <= 0) && !args[2]->unsigned_flag)
+  /* Negative or zero length, will return empty string. */
+  if ((arg_count == 3) && (length <= 0) && 
+      (length == 0 || !args[2]->unsigned_flag))
     return &my_empty_string;
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */

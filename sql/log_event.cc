@@ -1132,7 +1132,6 @@ void Log_event::print_header(IO_CACHE* file,
     }
     *c= '\0';
 
-    /* Non-full last line */
     if (hex_string[0])
     {
       char emit_buf[256];
@@ -2138,6 +2137,7 @@ Default database: '%s'. Query: '%s'",
     {
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<RELAY_LOG_INFO*>(rli));
+      thd->killed= THD::NOT_KILLED;
     }
     /*
       Other cases: mostly we expected no error and get one.
