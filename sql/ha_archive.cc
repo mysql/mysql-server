@@ -205,7 +205,7 @@ bool archive_db_init()
   else
   {
     zoffset_size= 2 << ((zlibCompileFlags() >> 6) & 3);
-    switch (sizeof(z_off_t)) {
+    switch (zoffset_size) {
     case 2:
       max_zfile_size= INT_MAX16;
       break;
@@ -676,6 +676,7 @@ int ha_archive::real_write_row(byte *buf, gzFile writer)
     total_row_length+= ((Field_blob*) table->field[*ptr])->get_length();
   if (share->approx_file_size > max_zfile_size - total_row_length)
   {
+    gzflush(writer, Z_SYNC_FLUSH);
     info(HA_STATUS_TIME);
     share->approx_file_size= (ulong) data_file_length;
     if (share->approx_file_size > max_zfile_size - total_row_length)
