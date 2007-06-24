@@ -987,16 +987,11 @@ end:
   {
     if (!error)
     {
-      if (mysql_bin_log.is_open())
-      {
-        /*
-          TRUNCATE must always be statement-based binlogged (not row-based) so
-          we don't test current_stmt_binlog_row_based.
-        */
-        thd->clear_error();
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      /*
+        TRUNCATE must always be statement-based binlogged (not row-based) so
+        we don't test current_stmt_binlog_row_based.
+      */
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
       send_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));

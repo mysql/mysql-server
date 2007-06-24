@@ -362,6 +362,32 @@ cast(-19999999999999999999 as signed)
 -9223372036854775808
 Warnings:
 Error	1292	Truncated incorrect DECIMAL value: ''
+select -9223372036854775808;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					-9223372036854775808	8	20	20	N	32897	0	63
+-9223372036854775808
+-9223372036854775808
+select -(9223372036854775808);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					-(9223372036854775808)	8	20	20	N	32897	0	63
+-(9223372036854775808)
+-9223372036854775808
+select -((9223372036854775808));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					-((9223372036854775808))	8	20	20	N	32897	0	63
+-((9223372036854775808))
+-9223372036854775808
+select -(-(9223372036854775808));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					-(-(9223372036854775808))	246	21	19	N	129	0	63
+-(-(9223372036854775808))
+9223372036854775808
+select --9223372036854775808, ---9223372036854775808, ----9223372036854775808;
+--9223372036854775808	---9223372036854775808	----9223372036854775808
+9223372036854775808	-9223372036854775808	9223372036854775808
+select -(-9223372036854775808), -(-(-9223372036854775808));
+-(-9223372036854775808)	-(-(-9223372036854775808))
+9223372036854775808	-9223372036854775808
 create table t1 select -9223372036854775808 bi;
 describe t1;
 Field	Type	Null	Key	Default	Extra
