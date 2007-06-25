@@ -1347,8 +1347,7 @@ JOIN::optimize()
       there are aggregate functions, because in all these cases we need
       all result rows.
     */
-    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order ||
-                              test(select_options & OPTION_BUFFER_RESULT)) &&
+    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order) &&
                              !tmp_group &&
                              !thd->lex->current_select->with_sum_func) ?
                             select_limit : HA_POS_ERROR;
@@ -12552,10 +12551,14 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
   /*
     When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
-    and thus force sorting on disk.
+    and thus force sorting on disk unless a group min-max optimization
+    is going to be used as it is applied now only for one table queries
+    with covering indexes.
   */
   if ((order != join->group_list || 
-       !(join->select_options & SELECT_BIG_RESULT)) &&
+       !(join->select_options & SELECT_BIG_RESULT) ||
+       select && select->quick &&
+       select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
       test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
   for (ORDER *ord= join->order; ord; ord= ord->next)
@@ -14245,6 +14248,13 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (!item_field)
 	  DBUG_RETURN(TRUE);                    // Fatal error
 	item_field->name= item->name;
+        if (item->type() == Item::REF_ITEM)
+        {
+          Item_field *ifield= (Item_field *) item_field;
+          Item_ref *iref= (Item_ref *) item;
+          ifield->table_name= iref->table_name;
+          ifield->db_name= iref->db_name;
+        }
 #ifndef DBUG_OFF
 	if (_db_on_ && !item_field->name)
 	{

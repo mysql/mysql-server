@@ -90,5 +90,26 @@ select a.* from (select 2147483648 as v_large) a;
 select a.* from (select 214748364 as v_small) a;
 --disable_metadata
 
+#
+# Bug #28898: table alias and database name of VIEW columns is empty in the
+# metadata of # SELECT statement where join is executed via temporary table.
+#
+
+CREATE TABLE t1 (c1 CHAR(1));
+CREATE TABLE t2 (c2 CHAR(1));
+CREATE VIEW v1 AS SELECT t1.c1 FROM t1;
+CREATE VIEW v2 AS SELECT t2.c2 FROM t2;
+INSERT INTO t1 VALUES ('1'), ('2'), ('3');
+INSERT INTO t2 VALUES ('1'), ('2'), ('3'), ('2');
+
+--enable_metadata
+SELECT v1.c1 FROM v1 JOIN t2 ON c1=c2 ORDER BY 1;
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
+SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1 ORDER BY v2.c2;
+--disable_metadata
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
 
 --echo End of 5.0 tests
