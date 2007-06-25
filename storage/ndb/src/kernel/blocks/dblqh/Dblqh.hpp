@@ -1586,7 +1586,8 @@ public:
       ACTIVE_WRITE_LOG = 17,             ///< A write operation during 
                                         ///< writing of log
       READ_SR_INVALIDATE_PAGES = 18,
-      WRITE_SR_INVALIDATE_PAGES = 19
+      WRITE_SR_INVALIDATE_PAGES = 19,
+      WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0 = 20
     };
     /**
      * We have to remember the log pages read. 
@@ -2381,7 +2382,7 @@ private:
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal);
-  void readFileInInvalidate(Signal *signal);
+  void readFileInInvalidate(Signal *signal, bool stepNext);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
