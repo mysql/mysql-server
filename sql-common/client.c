@@ -2451,6 +2451,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   mysql_init(&tmp_mysql);
   tmp_mysql.options= mysql->options;
+  tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
   tmp_mysql.rpl_pivot= mysql->rpl_pivot;
   
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
