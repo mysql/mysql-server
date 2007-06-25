@@ -1523,16 +1523,20 @@ void Item_func_neg::fix_length_and_dec()
     Use val() to get value as arg_type doesn't mean that item is
     Item_int or Item_real due to existence of Item_param.
   */
-  if (hybrid_type == INT_RESULT &&
-      args[0]->type() == INT_ITEM &&
-      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
+  if (hybrid_type == INT_RESULT && args[0]->const_item())
   {
-    /*
-      Ensure that result is converted to DECIMAL, as longlong can't hold
-      the negated number
-    */
-    hybrid_type= DECIMAL_RESULT;
-    DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    longlong val= args[0]->val_int();
+    if ((ulonglong) val >= (ulonglong) LONGLONG_MIN &&
+        ((ulonglong) val != (ulonglong) LONGLONG_MIN ||
+          args[0]->type() != INT_ITEM))        
+    {
+      /*
+        Ensure that result is converted to DECIMAL, as longlong can't hold
+        the negated number
+      */
+      hybrid_type= DECIMAL_RESULT;
+      DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    }
   }
   unsigned_flag= 0;
   DBUG_VOID_RETURN;
@@ -2507,7 +2511,6 @@ longlong Item_func_coercibility::val_int()
 
 void Item_func_locate::fix_length_and_dec()
 {
-  maybe_null= 0;
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
