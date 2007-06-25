@@ -2586,6 +2586,21 @@ void Item_func_case::print(String *str)
   str->append(STRING_WITH_LEN("end)"));
 }
 
+
+void Item_func_case::cleanup()
+{
+  uint i;
+  DBUG_ENTER("Item_func_case::cleanup");
+  Item_func::cleanup();
+  for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+  {
+    delete cmp_items[i];
+    cmp_items[i]= 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Coalesce - return first not NULL argument.
 */
