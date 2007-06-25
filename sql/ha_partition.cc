@@ -3117,7 +3117,7 @@ int ha_partition::rnd_next(uchar *buf)
       continue;                               // Probably MyISAM
 
     if (result != HA_ERR_END_OF_FILE)
-      break;                                  // Return error
+      goto end_dont_reset_start_part;         // Return error
 
     /* End current partition */
     late_extra_no_cache(part_id);
@@ -3143,6 +3143,7 @@ int ha_partition::rnd_next(uchar *buf)
 
 end:
   m_part_spec.start_part= NO_CURRENT_PART_ID;
+end_dont_reset_start_part:
   table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(result);
 }
