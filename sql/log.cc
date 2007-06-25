@@ -3945,9 +3945,65 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     return ER_ERROR_ON_WRITE;
-  uint bytes= my_b_bytes_in_cache(cache);
+  uint bytes= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
+  long val;
+  uchar header[LOG_EVENT_HEADER_LEN];
+
+  group= my_b_tell(&log_file);
+  hdr_offs= carry= 0;
+
   do
   {
+    if (likely(carry > 0))
+    {
+      DBUG_ASSERT(carry < LOG_EVENT_HEADER_LEN);
+
+      memcpy(&header[carry], (char *)cache->read_pos, LOG_EVENT_HEADER_LEN - carry);
+
+      val= uint4korr(&header[LOG_POS_OFFSET]) + group;
+      int4store(&header[LOG_POS_OFFSET], val);
+
+      if (my_b_write(&log_file, header, carry))
+        return ER_ERROR_ON_WRITE;
+
+      memcpy((char *)cache->read_pos, &header[carry], LOG_EVENT_HEADER_LEN - carry);
+
+      hdr_offs = LOG_EVENT_HEADER_LEN - carry +
+        uint4korr(&header[EVENT_LEN_OFFSET]);
+
+      carry= 0;
+    }
+
+    if(likely(bytes > 0))
+    {
+      do {
+        DBUG_ASSERT((hdr_offs + max(EVENT_LEN_OFFSET, LOG_POS_OFFSET) + 4) <= bytes);
+
+        val= uint4korr((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET) + group;
+        int4store((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET, val);
+        hdr_offs += uint4korr((char *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET);
+
+        /* header beyond current read-buffer? */
+        if (hdr_offs >= bytes)
+        {
+          hdr_offs -= bytes;
+          break;
+        }
+
+        /* split header? */
+        if (hdr_offs + LOG_EVENT_HEADER_LEN > bytes)
+        {
+          carry= bytes - hdr_offs;
+
+          memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
+          bytes -= carry;
+        }
+
+      } while (hdr_offs < bytes);
+    }
+
+    /* Write data to the binary log file */
+
     if (my_b_write(&log_file, cache->read_pos, bytes))
       return ER_ERROR_ON_WRITE;
     cache->read_pos= cache->read_end;
@@ -4028,7 +4084,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
       if ((write_error= write_cache(cache, false, false)))
         goto err;
-      
+
       if (commit_event && commit_event->write(&log_file))
         goto err;
       if (flush_and_sync())

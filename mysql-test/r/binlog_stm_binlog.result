@@ -7,7 +7,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	106	Server ver: #, Binlog ver: #
 master-bin.000001	106	Query	1	213	use `test`; create table t1 (a int, b int) engine=innodb
 master-bin.000001	213	Query	1	281	use `test`; BEGIN
-master-bin.000001	281	Query	1	90	use `test`; insert into t1 values (1,2)
+master-bin.000001	281	Query	1	371	use `test`; insert into t1 values (1,2)
 master-bin.000001	371	Xid	1	398	COMMIT /* XID */
 drop table t1;
 drop table if exists t1, t2;
@@ -145,6 +145,122 @@ master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002' from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
+set @ac = @@autocommit;
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=innodb;
+begin;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
+master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	205	Query	1	273	use `test`; BEGIN
+master-bin.000001	273	Query	1	361	use `test`; insert into t1 values (1)
+master-bin.000001	361	Query	1	449	use `test`; insert into t1 values (2)
+master-bin.000001	449	Query	1	537	use `test`; insert into t1 values (3)
+master-bin.000001	537	Xid	1	564	COMMIT /* XID */
+master-bin.000001	564	Query	1	640	use `test`; drop table t1
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
+master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	205	Query	1	293	use `test`; insert into t1 values (1)
+master-bin.000001	293	Xid	1	320	COMMIT /* XID */
+master-bin.000001	320	Query	1	408	use `test`; insert into t1 values (2)
+master-bin.000001	408	Xid	1	435	COMMIT /* XID */
+master-bin.000001	435	Query	1	523	use `test`; insert into t1 values (3)
+master-bin.000001	523	Xid	1	550	COMMIT /* XID */
+master-bin.000001	550	Query	1	626	use `test`; drop table t1
+reset master;
+create table t1(n int) engine=myisam;
+begin;
+insert into t1 values (4);
+insert into t1 values (5);
+insert into t1 values (6);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
+master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=myisam
+master-bin.000001	205	Query	1	293	use `test`; insert into t1 values (4)
+master-bin.000001	293	Query	1	381	use `test`; insert into t1 values (5)
+master-bin.000001	381	Query	1	469	use `test`; insert into t1 values (6)
+master-bin.000001	469	Query	1	545	use `test`; drop table t1
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	205		
+insert into t1 values (1);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	320		
+insert into t1 values (2);
+insert into t1 values (3);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	550		
+commit;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	550		
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
+master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	205	Query	1	293	use `test`; insert into t1 values (1)
+master-bin.000001	293	Xid	1	320	COMMIT /* XID */
+master-bin.000001	320	Query	1	408	use `test`; insert into t1 values (2)
+master-bin.000001	408	Xid	1	435	COMMIT /* XID */
+master-bin.000001	435	Query	1	523	use `test`; insert into t1 values (3)
+master-bin.000001	523	Xid	1	550	COMMIT /* XID */
+master-bin.000001	550	Query	1	626	use `test`; drop table t1
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=myisam;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	205		
+insert into t1 values (4);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	293		
+insert into t1 values (5);
+insert into t1 values (6);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	469		
+commit;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	469		
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
+master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=myisam
+master-bin.000001	205	Query	1	293	use `test`; insert into t1 values (4)
+master-bin.000001	293	Query	1	381	use `test`; insert into t1 values (5)
+master-bin.000001	381	Query	1	469	use `test`; insert into t1 values (6)
+master-bin.000001	469	Query	1	545	use `test`; drop table t1
+set session autocommit = @ac;
+End of 5.0 tests
 reset master;
 create table t1 (id tinyint auto_increment primary key);
 set insert_id=128;
