@@ -1938,10 +1938,11 @@ bool Item_field::val_bool_result()
 
 bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FIELD_ITEM)
+  Item *real_item= ((Item *) item)->real_item();
+  if (real_item->type() != FIELD_ITEM)
     return 0;
   
-  Item_field *item_field= (Item_field*) item;
+  Item_field *item_field= (Item_field*) real_item;
   if (item_field->field && field)
     return item_field->field == field;
   /*
@@ -5501,6 +5502,21 @@ void Item_ref::make_field(Send_field *field)
 }
 
 
+Item *Item_ref::get_tmp_table_item(THD *thd)
+{
+  if (!result_field)
+    return (*ref)->get_tmp_table_item(thd);
+
+  Item_field *item= new Item_field(result_field);
+  if (item)
+  {
+    item->table_name= table_name;
+    item->db_name= db_name;
+  }
+  return item;
+}
+
+
 void Item_ref_null_helper::print(String *str)
 {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
@@ -5627,8 +5643,7 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   DESCRIPTION
     A view column reference is considered equal to another column
     reference if the second one is a view column and if both column
-    references resolve to the same item. It is assumed that both
-    items are of the same type.
+    references resolve to the same item.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -5644,8 +5659,6 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
     if (item_ref->ref_type() == VIEW_REF)
     {
       Item *item_ref_ref= *(item_ref->ref);
-      DBUG_ASSERT((*ref)->real_item()->type() == 
-                  item_ref_ref->real_item()->type());
       return ((*ref)->real_item() == item_ref_ref->real_item());
     }
   }
