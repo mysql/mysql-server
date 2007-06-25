@@ -49,6 +49,98 @@ show binlog events in 'master-bin.000001' from 106;
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events in 'master-bin.000002' from 106;
 
+
+#
+# Bug#22540 - Incorrect value in column End_log_pos of
+# SHOW BINLOG EVENTS using InnoDB
+#
+
+# the following tests will show that certain queries now return
+# absolute offsets (from binlog start, rather than relative to
+# the beginning of the current transaction).  under what
+# conditions it should be allowed / is sensible to put the
+# slider into the middle of a transaction is not our concern
+# here; we just guarantee that if and when it's done, the
+# user has valid offsets to use.  if the setter function still
+# wants to throw a "positioning into middle of transaction"
+# warning, that's its prerogative and handled elsewhere.
+
+set @ac = @@autocommit;
+
+# first show this to work for SHOW BINLOG EVENTS
+
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=innodb;
+begin;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+reset master;
+create table t1(n int) engine=myisam;
+begin;
+insert into t1 values (4);
+insert into t1 values (5);
+insert into t1 values (6);
+commit;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+# now show this also works for SHOW MASTER STATUS
+# as this is what "mysqldump --master-data=1" uses.
+
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+show master status;
+insert into t1 values (1);
+show master status;
+insert into t1 values (2);
+insert into t1 values (3);
+show master status;
+commit;
+show master status;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=myisam;
+show master status;
+insert into t1 values (4);
+show master status;
+insert into t1 values (5);
+insert into t1 values (6);
+
+show master status;
+commit;
+show master status;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+set session autocommit = @ac;
+
+--echo End of 5.0 tests
+
 # Test of a too big SET INSERT_ID: see if the truncated value goes
 # into binlog (right), or the too big value (wrong); we look at the
 # binlog further down with SHOW BINLOG EVENTS.
