@@ -15605,7 +15605,7 @@ loop:
   jam();
   ndbrequire(logFilePtr.p->logFileStatus == LogFileRecord::OPEN);
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSE_SR_INVALIDATE_PAGES;
-  closeFile(signal, logFilePtr);
+  closeFile(signal, logFilePtr, __LINE__);
   return;
 
 done:
