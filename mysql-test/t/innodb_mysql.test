@@ -636,4 +636,39 @@ SELECT * FROM t3 WHERE a = 'uk';
 
 DROP TABLE t1,t2,t3;
 
+
+#
+# Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
+#
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB; 
+CREATE TABLE t2 (a INT) ENGINE=InnoDB; 
+
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+
+--echo switch to connection c1
+CONNECTION c1;
+SET AUTOCOMMIT=0;
+INSERT INTO t2 VALUES (1);
+
+--echo switch to connection c2
+CONNECTION c2;
+SET AUTOCOMMIT=0;
+--error ER_LOCK_WAIT_TIMEOUT
+LOCK TABLES t1 READ, t2 READ;
+
+--echo switch to connection c1
+CONNECTION c1;
+COMMIT;
+INSERT INTO t1 VALUES (1);
+
+--echo switch to connection default
+CONNECTION default;
+SET AUTOCOMMIT=default;
+DISCONNECT c1;
+DISCONNECT c2;
+DROP TABLE t1,t2;
+
+
 --echo End of 5.0 tests
