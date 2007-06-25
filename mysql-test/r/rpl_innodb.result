@@ -35,3 +35,49 @@ SELECT * FROM t4;
 id	name	number
 3	XXX	12345
 4	XXY	12345
+FLUSH LOGS;
+FLUSH LOGS;
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT);
+CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE="InnoDB";
+SET AUTOCOMMIT = 0;
+-------- switch to slave --------
+SHOW CREATE TABLE mysqltest1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint(20) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+-------- switch to master --------
+INSERT INTO mysqltest1.t1 SET f1= 1;
+DROP TEMPORARY TABLE mysqltest1.tmp;
+ROLLBACK;
+SHOW CREATE TABLE mysqltest1.tmp;
+ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+0
+INSERT INTO mysqltest1.t1 SET f1= 2;
+CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
+ROLLBACK;
+SHOW CREATE TABLE mysqltest1.tmp2;
+Table	Create Table
+tmp2	CREATE TEMPORARY TABLE `tmp2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+0
+-------- switch to slave --------
+SHOW CREATE TABLE mysqltest1.tmp;
+ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
+SHOW CREATE TABLE mysqltest1.tmp2;
+ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
+SELECT COUNT(*) FROM mysqltest1.t1;
+COUNT(*)
+2
+FLUSH LOGS;
+-------- switch to master --------
+FLUSH LOGS;
+DROP DATABASE mysqltest1;
+End of 5.1 tests

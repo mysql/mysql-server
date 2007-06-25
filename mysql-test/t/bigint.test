@@ -295,6 +295,22 @@ drop table t1;
 select cast(19999999999999999999 as signed);
 select cast(-19999999999999999999 as signed);
 
+#
+# Bug #28625: -9223372036854775808 doesn't fit in BIGINT.
+#
+
+# PS protocol gives different metadata for `Max length' column
+--disable_ps_protocol
+--enable_metadata
+select -9223372036854775808;
+select -(9223372036854775808);
+select -((9223372036854775808));
+select -(-(9223372036854775808));
+--disable_metadata
+--endble_ps_protocol
+select --9223372036854775808, ---9223372036854775808, ----9223372036854775808;
+select -(-9223372036854775808), -(-(-9223372036854775808));
+
 # Bug #28005 Partitions: can't use -9223372036854775808 
 create table t1 select -9223372036854775808 bi;
 describe t1;

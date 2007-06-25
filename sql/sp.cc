@@ -654,13 +654,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   if (ret == SP_OK)
   {
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
-    }
-
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
     sp_cache_invalidate();
   }
 
@@ -727,13 +721,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   if (ret == SP_OK)
   {
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
-    }
-
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
     sp_cache_invalidate();
   }
 
