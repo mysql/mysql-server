@@ -636,6 +636,56 @@ static my_bool translog_write_file_header()
 
 
 /*
+  Information from transaction log file header
+*/
+
+typedef struct st_loghandler_file_info
+{
+  ulonglong timestamp;   /* Time stamp */
+  ulong maria_version;   /* Version of maria loghandler */
+  ulong mysql_versiob;   /* Version of mysql server */
+  ulong server_id;       /* Server ID */
+  uint page_size;        /* Loghandler page size */
+  uint file_number;      /* Number of the file (from the file header) */
+} LOGHANDLER_FILE_INFO;
+
+/*
+  @brief Read hander file information from last opened loghandler file
+
+  @param desc header information descriptor to be filled with information
+
+  @retval 0 OK
+  @retval 1 Error
+*/
+
+my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc)
+{
+  byte page_buff[TRANSLOG_PAGE_SIZE], *ptr;
+  DBUG_ENTER("translog_read_file_header");
+
+  if (my_pread(log_descriptor.log_file_num[0], page_buff,
+               sizeof(page_buff), 0, MYF(MY_FNABP | MY_WME)))
+  {
+    DBUG_PRINT("info", ("log read fail error: %d", my_errno));
+    DBUG_RETURN(1);
+  }
+  ptr= page_buff + sizeof(maria_trans_file_magic);
+  desc->timestamp= uint8korr(ptr);
+  ptr+= 8;
+  desc->maria_version= uint4korr(ptr);
+  ptr+= 4;
+  desc->mysql_versiob= uint4korr(ptr);
+  ptr+= 4;
+  desc->server_id= uint4korr(ptr);
+  ptr+= 2;
+  desc->page_size= uint2korr(ptr);
+  ptr+= 2;
+  desc->file_number= uint3korr(ptr);
+  DBUG_RETURN(0);
+}
+
+
+/*
   Initialize transaction log file buffer
 
   SYNOPSIS
@@ -1958,6 +2008,7 @@ my_bool translog_init(const char *directory,
   int old_log_was_recovered= 0, logs_found= 0;
   uint old_flags= flags;
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
+  my_bool version_changed= 0;
   DBUG_ENTER("translog_init");
 
   loghandler_init();                            /* Safe to do many times */
@@ -2201,6 +2252,13 @@ my_bool translog_init(const char *directory,
                                    buffer->buffer)));
       DBUG_EXECUTE("info", translog_check_cursor(&log_descriptor.bc););
     }
+    if (!old_log_was_recovered && old_flags == flags)
+    {
+      LOGHANDLER_FILE_INFO info;
+      if (translog_read_file_header(&info))
+        DBUG_RETURN(1);
+      version_changed= (info.maria_version != TRANSLOG_VERSION_ID);
+    }
   }
   DBUG_PRINT("info", ("Logs found: %d  was recovered: %d",
                       logs_found, old_log_was_recovered));
@@ -2221,7 +2279,7 @@ my_bool translog_init(const char *directory,
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
     translog_new_page_header(&log_descriptor.horizon, &log_descriptor.bc);
   }
-  else if (old_log_was_recovered || old_flags != flags)
+  else if (old_log_was_recovered || old_flags != flags || version_changed)
   {
     /* leave the damaged file untouched */
     log_descriptor.horizon+= LSN_ONE_FILE;
