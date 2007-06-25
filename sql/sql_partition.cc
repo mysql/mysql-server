@@ -3663,6 +3663,8 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
      table                         Table object of partitioned table
      create_table_ind              Is it called from CREATE TABLE
      default_db_type               What is the default engine of the table
+     work_part_info_used           Flag is raised if we don't create new
+                                   part_info, but used thd->work_part_info
 
    RETURN VALUE
      TRUE                          Error
@@ -3683,7 +3685,8 @@ bool mysql_unpack_partition(THD *thd,
                             const char *part_buf, uint part_info_len,
                             const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
-                            handlerton *default_db_type)
+                            handlerton *default_db_type,
+                            bool *work_part_info_used)
 {
   bool result= TRUE;
   partition_info *part_info;
@@ -3698,6 +3701,7 @@ bool mysql_unpack_partition(THD *thd,
   Lex_input_stream lip(thd, part_buf, part_info_len);
 
   lex_start(thd);
+  *work_part_info_used= false;
   /*
     We need to use the current SELECT_LEX since I need to keep the
     Name_resolution_context object which is referenced from the
@@ -3782,6 +3786,7 @@ bool mysql_unpack_partition(THD *thd,
       thd->free_items();
       part_info= thd->work_part_info;
       table->s->version= 0UL;
+      *work_part_info_used= true;
     }
   }
   table->part_info= part_info;

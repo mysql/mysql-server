@@ -1267,4 +1267,14 @@ ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
 ERROR HY000: Incorrect usage of PARTITION and log table
 ALTER TABLE general_log ENGINE = CSV;
 SET GLOBAL general_log = default;
+CREATE TABLE `t1` ( `a` varchar(1)) ENGINE=MyISAM
+PARTITION BY LIST (CASE a WHEN 'a' THEN 1
+WHEN 'b' THEN 2
+WHEN 'c' THEN 3
+END)  (
+PARTITION a VALUES IN (1), 
+PARTITION b VALUES IN (2),
+PARTITION c VALUES IN (3)
+);
+DROP TABLE t1;
 End of 5.1 tests
