@@ -3837,7 +3837,10 @@ end_with_restore_list:
     break;
   case SQLCOM_LOCK_TABLES:
     unlock_locked_tables(thd);
-    if (check_db_used(thd, all_tables) || end_active_trans(thd))
+    /* we must end the trasaction first, regardless of anything */
+    if (end_active_trans(thd))
+      goto error;
+    if (check_db_used(thd, all_tables))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
       goto error;
@@ -3855,7 +3858,15 @@ end_with_restore_list:
       send_ok(thd);
     }
     else
+    {
+      /* 
+        Need to end the current transaction, so the storage engine (InnoDB)
+        can free its locks if LOCK TABLES locked some tables before finding
+        that it can't lock a table in its list
+      */
+      end_active_trans(thd);
       thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+    }
     thd->in_lock_tables=0;
     break;
   case SQLCOM_CREATE_DB:
