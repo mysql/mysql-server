@@ -438,10 +438,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
     thd->m_lip= &lip;
     lex_start(thd);
+    thd->spcont= NULL;
     ret= MYSQLparse(thd);
   }
 
-  thd->spcont= 0;
   if (ret || thd->is_fatal_error || newlex.sphead == NULL)
   {
     sp_head *sp= newlex.sphead;
