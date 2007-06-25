@@ -134,7 +134,7 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_LOG::log_xid()
     DBUG_RETURN(0);
   }
-  if (all) 
+  if (all)
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -1835,7 +1835,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
   if (likely(is_open()))                       // Should always be true
   {
-    uint length;
+    uint length, group, carry, hdr_offs;
+    long val;
+    byte header[LOG_EVENT_HEADER_LEN];
 
     /*
       Log "BEGIN" at the beginning of the transaction.
@@ -1867,13 +1869,66 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
     /* Read from the file used to cache the queries .*/
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
       goto err;
-    length=my_b_bytes_in_cache(cache);
+
+    length= my_b_bytes_in_cache(cache);
     DBUG_EXECUTE_IF("half_binlogged_transaction", length-=100;);
+
+    group= my_b_tell(&log_file);
+    hdr_offs= carry= 0;
+
     do
     {
+      if (likely(carry > 0))
+      {
+        DBUG_ASSERT(carry < LOG_EVENT_HEADER_LEN);
+
+        memcpy(&header[carry], (char *)cache->read_pos, LOG_EVENT_HEADER_LEN - carry);
+
+        val= uint4korr(&header[LOG_POS_OFFSET]) + group;
+        int4store(&header[LOG_POS_OFFSET], val);
+
+        if (my_b_write(&log_file, header, carry))
+          goto err;
+
+        memcpy((char *)cache->read_pos, &header[carry], LOG_EVENT_HEADER_LEN - carry);
+
+        hdr_offs = LOG_EVENT_HEADER_LEN - carry +
+          uint4korr(&header[EVENT_LEN_OFFSET]);
+
+        carry= 0;
+      }
+
+      if(likely(length > 0))
+      {
+        do {
+          DBUG_ASSERT((hdr_offs + max(EVENT_LEN_OFFSET, LOG_POS_OFFSET) + 4) <= length);
+
+          val= uint4korr((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET) + group;
+          int4store((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET, val);
+          hdr_offs += uint4korr((char *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET);
+
+          /* header beyond current read-buffer? */
+          if (hdr_offs >= length)
+          {
+            hdr_offs -= length;
+            break;
+          }
+
+          /* split header? */
+          if (hdr_offs + LOG_EVENT_HEADER_LEN > length)
+          {
+            carry= length - hdr_offs;
+
+            memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
+            length -= carry;
+          }
+
+        } while (hdr_offs < length);
+      }
+
       /* Write data to the binary log file */
       if (my_b_write(&log_file, cache->read_pos, length))
-	goto err;
+        goto err;
       cache->read_pos=cache->read_end;		// Mark buffer used up
       DBUG_EXECUTE_IF("half_binlogged_transaction", goto DBUG_skip_commit;);
     } while ((length=my_b_fill(cache)));
