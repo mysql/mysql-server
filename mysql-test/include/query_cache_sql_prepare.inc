@@ -33,7 +33,7 @@ drop table if exists t1;
 create table t1(c1 int);
 insert into t1 values(1),(10),(100);
 
-# Prepared statements has no parameters, query caching should happen
+# First, prepared statements with no parameters
 prepare stmt1 from "select * from t1 where c1=10";
 show status like 'Qcache_hits';
 execute stmt1;
@@ -113,7 +113,9 @@ show status like 'Qcache_hits';
 --echo ---- switch to connection default ----
 connection default;
 
-# Prepared statement has parameters, query caching should not happen
+# Query caching also works when statement has parameters
+# (BUG#29318 Statements prepared with PREPARE and with one parameter don't use
+# query cache)
 prepare stmt1 from "select * from t1 where c1=?";
 show status like 'Qcache_hits';
 set @a=1;
@@ -125,6 +127,12 @@ show status like 'Qcache_hits';
 connection con1;
 set @a=1;
 prepare stmt4 from "select * from t1 where c1=?";
+execute stmt4 using @a;
+show status like 'Qcache_hits';
+# verify that presence of user variables forbids caching
+prepare stmt4 from "select @a from t1 where c1=?";
+execute stmt4 using @a;
+show status like 'Qcache_hits';
 execute stmt4 using @a;
 show status like 'Qcache_hits';
 --echo ---- switch to connection default ----
