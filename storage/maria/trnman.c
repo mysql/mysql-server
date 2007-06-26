@@ -209,16 +209,21 @@ static TrID new_trid()
 static void set_short_trid(TRN *trn)
 {
   int i= (global_trid_generator + (intptr)trn) * 312089 % SHORT_TRID_MAX + 1;
-  my_atomic_rwlock_wrlock(&LOCK_short_trid_to_trn);
-  for ( ; ; i= i % SHORT_TRID_MAX + 1) /* the range is [1..SHORT_TRID_MAX] */
+  for ( ; !trn->short_id ; i= 1)
   {
-    void *tmp= NULL;
-    if (short_trid_to_active_trn[i] == NULL &&
-        my_atomic_casptr((void **)&short_trid_to_active_trn[i], &tmp, trn))
-      break;
+    my_atomic_rwlock_wrlock(&LOCK_short_trid_to_trn);
+    for ( ; i <= SHORT_TRID_MAX; i++) /* the range is [1..SHORT_TRID_MAX] */
+    {
+      void *tmp= NULL;
+      if (short_trid_to_active_trn[i] == NULL &&
+          my_atomic_casptr((void **)&short_trid_to_active_trn[i], &tmp, trn))
+      {
+        trn->short_id= i;
+        break;
+      }
+    }
+    my_atomic_rwlock_wrunlock(&LOCK_short_trid_to_trn);
   }
-  my_atomic_rwlock_wrunlock(&LOCK_short_trid_to_trn);
-  trn->short_id= i;
 }
 
 /*
