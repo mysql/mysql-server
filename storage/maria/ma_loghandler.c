@@ -177,7 +177,6 @@ my_bool translog_inited= 0;
 #include <my_atomic.h>
 /* an array that maps id of a MARIA_SHARE to this MARIA_SHARE */
 static MARIA_SHARE **id_to_share= NULL;
-#define SHARE_ID_MAX 65535 /* array's size */
 /* lock for id_to_share */
 static my_atomic_rwlock_t LOCK_id_to_share;
 
@@ -2282,8 +2281,8 @@ my_bool translog_init(const char *directory,
     structures for generating 2-byte ids:
   */
   my_atomic_rwlock_init(&LOCK_id_to_share);
-  id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX*sizeof(MARIA_SHARE*),
-                                          MYF(MY_WME|MY_ZEROFILL));
+  id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX * sizeof(MARIA_SHARE*),
+                                          MYF(MY_WME | MY_ZEROFILL));
   if (unlikely(!id_to_share))
     DBUG_RETURN(1);
   id_to_share--; /* min id is 1 */
@@ -5682,21 +5681,23 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
   if (likely(share->id == 0))
   {
     /* Inspired by set_short_trid() of trnman.c */
-    int i= share->kfile.file % SHARE_ID_MAX + 1;
-    my_atomic_rwlock_wrlock(&LOCK_id_to_share);
-    /**
-       @todo RECOVERY BUG: if all slots are used, and we're using rwlocks
-       above, we will never exit the loop. To be discussed with Serg.
-    */
-    for ( ; ; i= i % SHARE_ID_MAX + 1) /* the range is [1..SHARE_ID_MAX] */
+    uint i= share->kfile.file % SHARE_ID_MAX + 1;
+    do
     {
-      void *tmp= NULL;
-      if (id_to_share[i] == NULL &&
-          my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
-        break;
-    }
-    my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
-    share->id= (uint16)i;
+      my_atomic_rwlock_wrlock(&LOCK_id_to_share);
+      for ( ; i <= SHARE_ID_MAX ; i++) /* the range is [1..SHARE_ID_MAX] */
+      {
+        void *tmp= NULL;
+        if (id_to_share[i] == NULL &&
+            my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
+        {
+          share->id= (uint16)i;
+          break;
+        }
+      }
+      my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
+      i= 1; /* scan the whole array */
+    } while (share->id == 0);
     DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, i));
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];

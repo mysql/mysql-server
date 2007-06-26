@@ -48,7 +48,9 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
 #define prototype_exec_hook(R)                                  \
 static int exec_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
 prototype_exec_hook(LONG_TRANSACTION_ID);
+#ifdef MARIA_CHECKPOINT
 prototype_exec_hook(CHECKPOINT);
+#endif
 prototype_exec_hook(REDO_CREATE_TABLE);
 prototype_exec_hook(FILE_ID);
 prototype_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -128,7 +130,9 @@ int main(int argc, char **argv)
   log_record_type_descriptor[LOGREC_ ## R].record_execute_in_redo_phase= \
     exec_LOGREC_ ## R;
   install_exec_hook(LONG_TRANSACTION_ID);
+#ifdef MARIA_CHECKPOINT
   install_exec_hook(CHECKPOINT);
+#endif
   install_exec_hook(REDO_CREATE_TABLE);
   install_exec_hook(FILE_ID);
   install_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -337,10 +341,11 @@ static void display_record_position(const LOG_DESC *log_desc,
     if number==0, we're going over records which we had already seen and which
     form a group, so we indent below the group's end record
   */
-  printf("%sRecord #%u LSN (%lu,0x%lx) short_trid %u %s(num_type:%u)\n",
+  printf("%sRec#%u LSN (%lu,0x%lx) short_trid %u %s(num_type:%u) len %lu\n",
          number ? "" : "   ", number,
          (ulong) LSN_FILE_NO(rec->lsn), (ulong) LSN_OFFSET(rec->lsn),
-         rec->short_trid, log_desc->name, rec->type);
+         rec->short_trid, log_desc->name, rec->type,
+         (ulong)rec->record_length);
 }
 
 
@@ -367,6 +372,7 @@ prototype_exec_hook(LONG_TRANSACTION_ID)
   TrID long_trid= all_active_trans[sid].long_trid;
   /* abort group of this trn (must be of before a crash) */
   LSN gslsn= all_active_trans[sid].group_start_lsn;
+  char llbuf[22];
   if (gslsn != LSN_IMPOSSIBLE)
   {
     printf("Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
@@ -378,16 +384,18 @@ prototype_exec_hook(LONG_TRANSACTION_ID)
     LSN ulsn= all_active_trans[sid].undo_lsn;
     if (ulsn != LSN_IMPOSSIBLE)
     {
-      fprintf(stderr, "Found an old transaction long_trid %llu short_trid %u"
+      llstr(long_trid, llbuf);
+      fprintf(stderr, "Found an old transaction long_trid %s short_trid %u"
               " with same short id as this new transaction, and has neither"
-              " committed nor rollback (undo_lsn: (%lu,0x%lx))\n", long_trid,
+              " committed nor rollback (undo_lsn: (%lu,0x%lx))\n", llbuf,
               sid, (ulong) LSN_FILE_NO(ulsn), (ulong) LSN_OFFSET(ulsn));
       goto err;
     }
   }
   long_trid= uint6korr(rec->header);
   all_active_trans[sid].long_trid= long_trid;
-  printf("Transaction long_trid %lu short_trid %u starts\n", long_trid, sid);
+  llstr(long_trid, llbuf);
+  printf("Transaction long_trid %s short_trid %u starts\n", llbuf, sid);
   goto end;
 err:
   DBUG_ASSERT(0);
@@ -396,11 +404,14 @@ end:
   return 0;
 }
 
+
+#ifdef MARIA_CHECKPOINT
 prototype_exec_hook(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
   return 0;
 }
+#endif
 
 
 prototype_exec_hook(REDO_CREATE_TABLE)
@@ -600,9 +611,11 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
   uint16 sid;
   ulonglong page;
   MARIA_HA *info;
+  char llbuf[22];
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
-  printf("For page %llu of table of short id %u", page, sid);
+  llstr(page, llbuf);
+  printf("For page %s of table of short id %u", llbuf, sid);
   info= all_tables[sid];
   if (info == NULL)
   {
@@ -623,6 +636,16 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
     assume we have made no checkpoint).
   */
   printf(", applying record\n");
+  /*
+    If REDO's LSN is > page's LSN (read from disk), we are going to modify the
+    page and change its LSN. The normal runtime code stores the UNDO's LSN
+    into the page; but here storing the REDO's LSN (rec->lsn) is more
+    straightforward and should not cause any problem (we are not writing to
+    the log here, so don't have to "flush up to UNDO's LSN").
+    If the UNDO's LSN is desired, it can be found, as we saw the UNDO record
+    before deciding to execute this REDO; UNDO's LSN could simply be stored in
+    all_trans[rec->short_trid].group_end_lsn for this.
+  */
   DBUG_ASSERT("Monty" == "this is the place");
 end:
   /* as we don't have apply working: */
@@ -635,14 +658,15 @@ prototype_exec_hook(COMMIT)
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
   LSN gslsn= all_active_trans[sid].group_start_lsn;
-
+  char llbuf[22];
   if (long_trid == 0)
   {
     printf("We don't know about transaction short_trid %u;"
            "it probably committed long ago, forget it\n", sid);
     return 0;
   }
-  printf("Transaction long_trid %lu short_trid %u committed", long_trid, sid);
+  llstr(long_trid, llbuf);
+  printf("Transaction long_trid %s short_trid %u committed", llbuf, sid);
   if (gslsn != LSN_IMPOSSIBLE)
   {
     /*
@@ -671,7 +695,7 @@ prototype_exec_hook(COMMIT)
 /* Just to inform about any aborted groups or unfinished transactions */
 static void end_of_redo_phase()
 {
-  uint sid;
+  uint sid, unfinished= 0;
   for (sid= 0; sid <= SHORT_TRID_MAX; sid++)
   {
     TrID long_trid= all_active_trans[sid].long_trid;
@@ -679,8 +703,12 @@ static void end_of_redo_phase()
     if (long_trid == 0)
       continue;
     if (all_active_trans[sid].undo_lsn != LSN_IMPOSSIBLE)
-      printf("Transaction long_trid %lu short_trid %u unfinished\n",
-             long_trid, sid);
+    {
+      char llbuf[22];
+      llstr(long_trid, llbuf);
+      printf("Transaction long_trid %s short_trid %u unfinished\n",
+             llbuf, sid);
+    }
     if (gslsn != LSN_IMPOSSIBLE)
     {
       printf("Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
@@ -693,5 +721,21 @@ static void end_of_redo_phase()
       list for soon purging.
     */
 #endif
+  }
+ /*
+    We don't close tables if there are some unfinished transactions, because
+    closing tables normally requires that all unfinished transactions on them
+    be rolled back.
+    For example, closing will soon write the state to disk and when doing that
+    it will think this is a committed state, but it may not be.
+  */
+  if (unfinished == 0)
+  {
+    for (sid= 0; sid <= SHORT_TRID_MAX; sid++)
+    {
+      MARIA_HA *info= all_tables[sid];
+      if (info != NULL)
+        maria_close(info);
+    }
   }
 }

@@ -1,4 +1,17 @@
-// TODO copyright
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifndef _ma_loghandler_h
 #define _ma_loghandler_h
@@ -251,6 +264,9 @@ extern my_bool translog_inited;
   all the rest added because of recovery; should we make
   ma_loghandler_for_recovery.h ?
 */
+
+#define SHARE_ID_MAX 65535 /* array's size */
+
 extern LSN first_lsn_in_log();
 
 /* record parts descriptor */
