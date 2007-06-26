@@ -38,6 +38,7 @@ struct TRN_FOR_RECOVERY
 
 struct TRN_FOR_RECOVERY all_active_trans[SHORT_TRID_MAX + 1];
 MARIA_HA *all_tables[SHORT_TRID_MAX + 1];
+LSN current_group_end_lsn= LSN_IMPOSSIBLE;
 
 static void end_of_redo_phase();
 static void display_record_position(const LOG_DESC *log_desc,
@@ -171,6 +172,10 @@ int main(int argc, char **argv)
       (e.g. a set of REDOs for an operation, terminated by an UNDO for this
       operation); if there is no "end mark" record the group is incomplete
       and won't be executed.
+      There are pitfalls: if a table write failed, the transaction may have
+      put an incomplete group in the log and then a COMMIT record, that will
+      make a complete group which is wrong. We say that we should mark the
+      table corrupted if such error happens (what if it cannot be marked?).
     */
     if (log_desc->record_ends_group)
     {
@@ -195,6 +200,7 @@ int main(int argc, char **argv)
           fprintf(stderr, "Scanner2 init failed\n");
           goto err;
         }
+        current_group_end_lsn= rec.lsn;
         do
         {
           if (rec2.short_trid == sid) /* it's in our group */
@@ -215,6 +221,7 @@ int main(int argc, char **argv)
         translog_free_record_header(&rec2);
         /* group finished */
         all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
+        current_group_end_lsn= LSN_IMPOSSIBLE; /* for debugging */
       }
       if (display_and_apply_record(log_desc, &rec))
         goto err;
@@ -639,12 +646,12 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
   /*
     If REDO's LSN is > page's LSN (read from disk), we are going to modify the
     page and change its LSN. The normal runtime code stores the UNDO's LSN
-    into the page; but here storing the REDO's LSN (rec->lsn) is more
-    straightforward and should not cause any problem (we are not writing to
-    the log here, so don't have to "flush up to UNDO's LSN").
-    If the UNDO's LSN is desired, it can be found, as we saw the UNDO record
-    before deciding to execute this REDO; UNDO's LSN could simply be stored in
-    all_trans[rec->short_trid].group_end_lsn for this.
+    into the page. Here storing the REDO's LSN (rec->lsn) would work
+    (we are not writing to the log here, so don't have to "flush up to UNDO's
+    LSN"). But in a test scenario where we do updates at runtime, then remove
+    tables, apply the log and check that this results in the same table as at
+    runtime, putting the same LSN as runtime had done will decrease
+    differences. So we use the UNDO's LSN which is current_group_end_lsn.
   */
   DBUG_ASSERT("Monty" == "this is the place");
 end:
