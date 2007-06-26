@@ -587,11 +587,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     DBUG_PRINT("info", ("Log handler call"));
     /* TODO: integrate with page format */
     lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
-    /*
-      check CONTROL_FILE_IMPOSSIBLE_FILENO &
-      CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET
-    */
-    DBUG_ASSERT(lsn != 0);
+    DBUG_ASSERT(LSN_VALID(lsn));
     translog_flush(lsn);
   }
   DBUG_RETURN(my_pwrite(filedesc->file, buffer, pagecache->block_size,
@@ -2474,7 +2470,7 @@ static void check_and_set_lsn(LSN lsn, PAGECACHE_BLOCK_LINK *block)
     lock                lock change
     pin                 pin page
     first_REDO_LSN_for_page do not set it if it is zero
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 
@@ -2566,7 +2562,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
     pagecache           pointer to a page cache data structure
     file                handler for the file for the block of data to be read
     pageno              number of the block of data in the file
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 */
@@ -2635,10 +2631,9 @@ void pagecache_unpin(PAGECACHE *pagecache,
     link                direct link to page (returned by read or write)
     lock                lock change
     pin                 pin page
-    first_REDO_LSN_for_page do not set it if it is zero
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
-                        is bigger then LSN on the page it will be written on
-                        the page
+    first_REDO_LSN_for_page do not set it if it is LSN_IMPOSSIBLE (0)
+    lsn                 if it is not LSN_IMPOSSIBLE and it is bigger then
+                        LSN on the page it will be written on the page
 */
 
 void pagecache_unlock_by_link(PAGECACHE *pagecache,
@@ -2681,7 +2676,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   DBUG_ASSERT(pagecache->can_be_used);
 
   inc_counter_for_resize_op(pagecache);
-  if (first_REDO_LSN_for_page)
+  if (first_REDO_LSN_for_page != LSN_IMPOSSIBLE)
   {
     /*
       LOCK_READ_UNLOCK is ok here as the page may have first locked
@@ -2694,10 +2689,8 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     if (block->rec_lsn == 0)
       block->rec_lsn= first_REDO_LSN_for_page;
   }
-  if (lsn != 0)
-  {
+  if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(lsn, block);
-  }
 
   if (make_lock_and_pin(pagecache, block, lock, pin))
     DBUG_ASSERT(0);                           /* should not happend */
@@ -2726,7 +2719,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     pagecache_unpin_by_link()
     pagecache           pointer to a page cache data structure
     link                direct link to page (returned by read or write)
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 */

@@ -19,27 +19,17 @@
 */
 
 #define CONTROL_FILE_BASE_NAME "maria_control"
-/*
-  indicate absence of the log file number; first log is always number 1, 0 is
-  impossible.
-*/
-#define CONTROL_FILE_IMPOSSIBLE_FILENO 0
-/* logs always have a header */
-#define CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET 0
-/* indicate absence of LSN.  */
-#define CONTROL_FILE_IMPOSSIBLE_LSN ((LSN)0)
 
 /* Here is the interface of this module */
 
 /*
   LSN of the last checkoint
-  (if last_checkpoint_lsn == CONTROL_FILE_IMPOSSIBLE_LSN
-  then there was never a checkpoint)
+  (if last_checkpoint_lsn == LSN_IMPOSSIBLE then there was never a checkpoint)
 */
 extern LSN last_checkpoint_lsn;
 /*
-  Last log number (if last_logno ==
-  CONTROL_FILE_IMPOSSIBLE_FILENO then there is no log file yet)
+  Last log number (if last_logno == FILENO_IMPOSSIBLE then there is no log
+  file yet)
 */
 extern uint32 last_logno;
 
@@ -51,6 +41,7 @@ typedef enum enum_control_file_error {
   CONTROL_FILE_TOO_BIG,
   CONTROL_FILE_BAD_MAGIC_STRING,
   CONTROL_FILE_BAD_CHECKSUM,
+  CONTROL_FILE_MISSING,
   CONTROL_FILE_UNKNOWN_ERROR /* any other error */
 } CONTROL_FILE_ERROR;
 
@@ -63,11 +54,11 @@ extern "C" {
 #endif
 
 /*
-  Looks for the control file. If absent, it's a fresh start, create file.
-  If present, read it to find out last checkpoint's LSN and last log.
+  Looks for the control file. If none and creation was requested, creates file.
+  If present, reads it to find out last checkpoint's LSN and last log.
   Called at engine's start.
 */
-CONTROL_FILE_ERROR ma_control_file_create_or_open();
+CONTROL_FILE_ERROR ma_control_file_create_or_open(my_bool);
 /*
   Write information durably to the control file.
   Called when we have created a new log (after syncing this log's creation)

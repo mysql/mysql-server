@@ -270,7 +270,7 @@ int main(int argc __attribute__((unused)),
 
   my_thread_global_init();
 
-  if (ma_control_file_create_or_open())
+  if (ma_control_file_create_or_open(TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
@@ -384,7 +384,7 @@ int main(int argc __attribute__((unused)),
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
+      if (rec.lsn == LSN_IMPOSSIBLE)
       {
         if (i != WRITERS * ITERATIONS * 2)
         {

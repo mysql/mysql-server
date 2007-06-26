@@ -52,8 +52,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
        unique_key_parts,fulltext_keys,offset, not_block_record_extra_length;
   uint max_field_lengths, extra_header_size;
   ulong reclength, real_reclength,min_pack_length;
-  char filename[FN_REFLEN], dlinkname[FN_REFLEN], *dlinkname_ptr= NULL,
-    klinkname[FN_REFLEN], *klinkname_ptr= NULL;
+  char filename[FN_REFLEN], linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
   ulonglong tot_length,max_rows, tmp;
   enum en_fieldtype type;
@@ -628,7 +627,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-  share.state.create_rename_lsn= 0;
+  share.state.create_rename_lsn= LSN_IMPOSSIBLE;
   share.state.process=	(ulong) getpid();
   share.state.unique=	(ulong) 0;
   share.state.update_count=(ulong) 0;
@@ -721,9 +720,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                 MY_UNPACK_FILENAME | (have_iext ? MY_REPLACE_EXT :
                                       MY_APPEND_EXT));
     }
-    fn_format(klinkname, name, "", MARIA_NAME_IEXT,
+    fn_format(linkname, name, "", MARIA_NAME_IEXT,
               MY_UNPACK_FILENAME|MY_APPEND_EXT);
-    klinkname_ptr= klinkname;
+    linkname_ptr= linkname;
     /*
       Don't create the table if the link or file exists to ensure that one
       doesn't accidently destroy another table.
@@ -739,6 +738,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
               (MY_UNPACK_FILENAME |
                (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
                 MY_APPEND_EXT);
+    linkname_ptr= NULL;
     /*
       Replace the current file.
       Don't sync dir now if the data file has the same path.
@@ -761,7 +761,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err;
   }
 
-  if ((file= my_create_with_symlink(klinkname_ptr, filename, 0, create_mode,
+  if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
 				    MYF(MY_WME|create_flag))) < 0)
     goto err;
   errpos=1;
@@ -788,19 +788,20 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                   MY_UNPACK_FILENAME |
                   (have_dext ? MY_REPLACE_EXT : MY_APPEND_EXT));
       }
-      fn_format(dlinkname, name, "",MARIA_NAME_DEXT,
+      fn_format(linkname, name, "",MARIA_NAME_DEXT,
                 MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      dlinkname_ptr= dlinkname;
+      linkname_ptr= linkname;
       create_flag=0;
     }
     else
     {
       fn_format(filename,name,"", MARIA_NAME_DEXT,
                 MY_UNPACK_FILENAME | MY_APPEND_EXT);
+      linkname_ptr= NULL;
       create_flag=MY_DELETE_OLD;
     }
     if ((dfile=
-         my_create_with_symlink(dlinkname_ptr, filename, 0, create_mode,
+         my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
                                 MYF(MY_WME | create_flag | sync_dir))) < 0)
       goto err;
     errpos=3;
@@ -948,15 +949,15 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       not log 1 KB of mostly zeroes if this is a small table.
     */
     char empty_string[]= "";
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
     uint total_rec_length= 0;
     uint i;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 1 + 2 +
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +
       kfile_size_before_extension;
     /* we are needing maybe 64 kB, so don't use the stack */
-    log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 0].length, MYF(0));
+    log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 1].length, MYF(0));
     if ((log_data == NULL) ||
-        my_pread(file, 1 + 2 + log_data, kfile_size_before_extension,
+        my_pread(file, 1 + 2 + 2 + log_data, kfile_size_before_extension,
                  0, MYF(MY_NABP)))
       goto err_no_lock;
     /*
@@ -965,16 +966,21 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     */
     log_data[0]= test(flags & HA_DONT_TOUCH_DATA);
     int2store(log_data + 1, kfile_size_before_extension);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= log_data;
+    int2store(log_data + 1 + 2, share.base.keystart);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)name;
+    /* we store the end-zero, for Recovery to just pass it to my_create() */
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= log_data;
     /* symlink description is also needed for re-creation by Recovery: */
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=
-      dlinkname_ptr ? dlinkname : empty_string;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 1].str);
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=
-      klinkname_ptr ? klinkname : empty_string;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)
+      (ci->data_file_name ? ci->data_file_name : empty_string);
     log_array[TRANSLOG_INTERNAL_PARTS + 2].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str);
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str) + 1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].str= (char *)
+      (ci->index_file_name ? ci->index_file_name : empty_string);
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].length=
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
     for (i= TRANSLOG_INTERNAL_PARTS;
          i < (sizeof(log_array)/sizeof(log_array[0])); i++)
       total_rec_length+= log_array[i].length;

@@ -40,15 +40,9 @@
 #define CONTROL_FILE_FILENO_SIZE 4
 #define CONTROL_FILE_SIZE (CONTROL_FILE_FILENO_OFFSET + CONTROL_FILE_FILENO_SIZE)
 
-/*
-  This module owns these two vars.
-  uint32 is always atomically updated, but LSN is 8 bytes, we will need
-  provisions to ensure that it's updated atomically in
-  ma_control_file_write_and_force(). Probably the log mutex could be
-  used. TODO.
-*/
-LSN last_checkpoint_lsn;
-uint32 last_logno;
+/* This module owns these two vars. */
+LSN    last_checkpoint_lsn= LSN_IMPOSSIBLE;
+uint32 last_logno=          FILENO_IMPOSSIBLE;
 
 /**
    @brief If log's lock should be asserted when writing to control file.
@@ -65,16 +59,16 @@ my_bool maria_multi_threaded= FALSE;
 static int control_file_fd= -1;
 
 /*
-  Initialize control file subsystem
+  @brief Initialize control file subsystem
 
-  SYNOPSIS
-    ma_control_file_create_or_open()
-
-  Looks for the control file. If absent, it's a fresh start, creates file.
+  Looks for the control file. If none and creation is requested, creates file.
   If present, reads it to find out last checkpoint's LSN and last log, updates
   the last_checkpoint_lsn and last_logno global variables.
   Called at engine's start.
 
+  @param  create_if_missing
+
+  @note
   The format of the control file is:
   4 bytes: magic string
   4 bytes: checksum of the following bytes
@@ -82,11 +76,11 @@ static int control_file_fd= -1;
   4 bytes: offset in log where last checkpoint is
   4 bytes: number of last log
 
-  RETURN
-    0 - OK
-    1 - Error (in which case the file is left closed)
+  @return Operation status
+    @retval 0      OK
+    @retval 1      Error (in which case the file is left closed)
 */
-CONTROL_FILE_ERROR ma_control_file_create_or_open()
+CONTROL_FILE_ERROR ma_control_file_create_or_open(my_bool create_if_missing)
 {
   char buffer[CONTROL_FILE_SIZE];
   char name[FN_REFLEN];
@@ -115,6 +109,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 
   if (create_file)
   {
+    if (!create_if_missing)
+      DBUG_RETURN(CONTROL_FILE_MISSING);
     if ((control_file_fd= my_create(name, 0,
                                     open_flags, MYF(MY_SYNC_DIR))) < 0)
       DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
@@ -136,8 +132,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     */
 
     /* init the file with these "undefined" values */
-    DBUG_RETURN(ma_control_file_write_and_force(CONTROL_FILE_IMPOSSIBLE_LSN,
-                                                CONTROL_FILE_IMPOSSIBLE_FILENO,
+    DBUG_RETURN(ma_control_file_write_and_force(LSN_IMPOSSIBLE,
+                                                FILENO_IMPOSSIBLE,
                                                 CONTROL_FILE_UPDATE_ALL));
   }
 
@@ -315,8 +311,8 @@ int ma_control_file_end()
     As this module owns these variables, closing the module forbids access to
     them (just a safety):
   */
-  last_checkpoint_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
-  last_logno= CONTROL_FILE_IMPOSSIBLE_FILENO;
+  last_checkpoint_lsn= LSN_IMPOSSIBLE;
+  last_logno= FILENO_IMPOSSIBLE;
 
   DBUG_RETURN(close_error);
 }

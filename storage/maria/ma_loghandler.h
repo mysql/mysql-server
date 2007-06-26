@@ -1,3 +1,8 @@
+// TODO copyright
+
+#ifndef _ma_loghandler_h
+#define _ma_loghandler_h
+
 /* transaction log default cache size  (TODO: make it global variable) */
 #define TRANSLOG_PAGECACHE_SIZE 1024*1024*2
 /* transaction log default file size  (TODO: make it global variable) */
@@ -20,6 +25,7 @@
 #define TRANSLOG_PAGE_SIZE (8*1024)
 
 #include "ma_loghandler_lsn.h"
+#include "trnman_public.h"
 
 /* short transaction ID type */
 typedef uint16 SHORT_TRANSACTION_ID;
@@ -41,6 +47,10 @@ struct st_maria_share;
 #define page_store(T,A)   int5store(T,A)
 #define dirpos_store(T,A) ((*(uchar*) (T)) = A)
 #define pagerange_store(T,A) int2store(T,A)
+#define fileid_korr(P) uint2korr(P)
+#define page_korr(P)   uint5korr(P)
+#define dirpos_korr(P) (P[0])
+#define pagerange_korr(P) uint2korr(P)
 
 /*
   Length of disk drive sector size (we assume that writing it
@@ -228,10 +238,99 @@ extern translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
 							*scanner,
 							TRANSLOG_HEADER_BUFFER
 							*buff);
+extern my_bool translog_lock();
+extern my_bool translog_unlock();
 extern void translog_lock_assert_owner();
 extern TRANSLOG_ADDRESS translog_get_horizon();
 extern int translog_assign_id_to_share(struct st_maria_share *share,
                                        struct st_transaction *trn);
 extern void translog_deassign_id_from_share(struct st_maria_share *share);
 extern my_bool translog_inited;
+
+/*
+  all the rest added because of recovery; should we make
+  ma_loghandler_for_recovery.h ?
+*/
+extern LSN first_lsn_in_log();
+
+/* record parts descriptor */
+struct st_translog_parts
+{
+  /* full record length */
+  translog_size_t record_length;
+  /* full record length with chunk headers */
+  translog_size_t total_record_length;
+  /* current part index */
+  uint current;
+  /* total number of elements in parts */
+  uint elements;
+  /* array of parts (LEX_STRING) */
+  LEX_STRING *parts;
+};
+
+typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
+                                     TRN *trn, struct st_maria_share *share,
+                                     struct st_translog_parts *parts);
+
+typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
+                                    TRN *trn,
+                                    LSN *lsn,
+                                    struct st_translog_parts *parts);
+
+typedef uint16(*read_rec_hook) (enum translog_record_type type,
+                                uint16 read_length, uchar *read_buff,
+                                byte *decoded_buff);
+
+
+/* record classes */
+enum record_class
+{
+  LOGRECTYPE_NOT_ALLOWED,
+  LOGRECTYPE_VARIABLE_LENGTH,
+  LOGRECTYPE_PSEUDOFIXEDLENGTH,
+  LOGRECTYPE_FIXEDLENGTH
+};
+
+/* C++ can't bear that a variable's name is "class" */
+#ifndef __cplusplus
+/*
+  Descriptor of log record type
+  Note: Don't reorder because of constructs later...
+*/
+typedef struct st_log_record_type_descriptor
+{
+  /* internal class of the record */
+  enum record_class class;
+  /*
+    length for fixed-size record, pseudo-fixed record
+    length with uncompressed LSNs
+  */
+  uint16 fixed_length;
+  /* how much record body (belonged to headers too) read with headers */
+  uint16 read_header_len;
+  /* HOOK for writing the record called before lock */
+  prewrite_rec_hook prewrite_hook;
+  /* HOOK for writing the record called when LSN is known, inside lock */
+  inwrite_rec_hook inwrite_hook;
+  /* HOOK for reading headers */
+  read_rec_hook read_hook;
+  /*
+     For pseudo fixed records number of compressed LSNs followed by
+     system header
+  */
+  int16 compressed_LSN;
+  /*  the rest is for maria_read_log & Recovery */
+  /** @brief for debug error messages or "maria_read_log" command-line tool */
+  const char *name;
+  my_bool record_ends_group;
+  /* a function to execute when we see the record during the REDO phase */
+  int (*record_execute_in_redo_phase)(const TRANSLOG_HEADER_BUFFER *);
+  /* a function to execute when we see the record during the UNDO phase */
+  int (*record_execute_in_undo_phase)(const TRANSLOG_HEADER_BUFFER *);
+} LOG_DESC;
+
+extern LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
+#endif
+
 C_MODE_END
+#endif

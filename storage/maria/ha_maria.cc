@@ -2241,7 +2241,7 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_data_root= mysql_real_data_home;
-  res= maria_init() || ma_control_file_create_or_open() ||
+  res= maria_init() || ma_control_file_create_or_open(TRUE) ||
     (init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE) == 0) ||

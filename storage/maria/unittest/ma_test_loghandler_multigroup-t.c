@@ -161,7 +161,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
 #endif
 
-  if (ma_control_file_create_or_open())
+  if (ma_control_file_create_or_open(TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
@@ -325,7 +325,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
 
-  if (ma_control_file_create_or_open())
+  if (ma_control_file_create_or_open(TRUE))
   {
     fprintf(stderr, "pass2: Can't init control file (%d)\n", errno);
     exit(1);
@@ -390,7 +390,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
+      if (rec.lsn == LSN_IMPOSSIBLE)
       {
         if (i != ITERATIONS)
         {
@@ -470,7 +470,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                 "failed (%d)\n", i, errno);
         goto err;
       }
-      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
+      if (rec.lsn == LSN_IMPOSSIBLE)
       {
         fprintf(stderr, "EOL met at the middle of iteration (first var) %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
@@ -568,7 +568,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == CONTROL_FILE_IMPOSSIBLE_LSN)
+      if (rec.lsn == LSN_IMPOSSIBLE)
       {
         fprintf(stderr, "EOL met at the middle of iteration %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
