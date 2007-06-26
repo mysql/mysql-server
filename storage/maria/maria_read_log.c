@@ -424,6 +424,7 @@ prototype_exec_hook(REDO_CREATE_TABLE)
   info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
   {
+    DBUG_ASSERT(info->s->reopen == 1); /* check that we're not using it */
     if (!info->s->base.transactional)
     {
       /*
@@ -437,8 +438,7 @@ prototype_exec_hook(REDO_CREATE_TABLE)
     }
     if (cmp_translog_addr(info->s->state.create_rename_lsn, rec->lsn) >= 0)
     {
-      printf(", has create_rename_lsn (%lu,0x%lx) is more recent than log"
-             " record\n",
+      printf(", has create_rename_lsn (%lu,0x%lx) is more recent than record",
              (ulong) LSN_FILE_NO(rec->lsn),
              (ulong) LSN_OFFSET(rec->lsn));
       goto end;
@@ -568,6 +568,7 @@ prototype_exec_hook(FILE_ID)
     fprintf(stderr, "Table is crashed, can't apply log records to it\n");
     goto err;
   }
+  DBUG_ASSERT(info->s->reopen == 1); /* should always be only one instance */
   if (!info->s->base.transactional)
   {
     printf(", is not transactional\n");
