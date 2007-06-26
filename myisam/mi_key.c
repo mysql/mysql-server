@@ -252,15 +252,15 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     if (keyseg->flag & HA_SPACE_PACK)
     {
       uchar *end=pos+length;
-      if (type != HA_KEYTYPE_NUM)
-      {
-	while (end > pos && end[-1] == ' ')
-	  end--;
-      }
-      else
+      if (type == HA_KEYTYPE_NUM)
       {
 	while (pos < end && pos[0] == ' ')
 	  pos++;
+      }
+      else if (type != HA_KEYTYPE_BINARY)
+      {
+	while (end > pos && end[-1] == ' ')
+	  end--;
       }
       k_length-=length;
       length=(uint) (end-pos);
