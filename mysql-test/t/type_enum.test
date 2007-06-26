@@ -156,4 +156,21 @@ drop table t1;
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡‰‹‘’“”•–—™› ΅Ά£¤¥¦§¨©ª«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡÒΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώÿ'));
 
+#
+# Bug #29251: MySQL coerces special 0 enum values to normal '' value
+# when ALTERing the column
+#
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 ENUM('a', '', 'b')
+);
+INSERT INTO t1 (c1) VALUES (0), ('a'), (''), ('b');
+SELECT id, c1 + 0, c1 FROM t1;
+
+ALTER TABLE t1 CHANGE c1 c1 ENUM('a', '') NOT NULL;
+SELECT id, c1 + 0, c1 FROM t1;
+
+DROP TABLE t1;
+
 --echo End of 4.1 tests
