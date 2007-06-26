@@ -383,7 +383,8 @@ bool ha_partition::initialise_partition(MEM_ROOT *mem_root)
     m_table_flags&= file->table_flags();
   } while (*(++file_array));
   m_table_flags&= ~(HA_CAN_GEOMETRY | HA_CAN_FULLTEXT | HA_DUPLICATE_POS |
-                    HA_CAN_SQL_HANDLER | HA_CAN_INSERT_DELAYED);
+                    HA_CAN_SQL_HANDLER | HA_CAN_INSERT_DELAYED |
+                    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
   m_table_flags|= HA_FILE_BASED | HA_REC_NOT_IN_SEQ;
   DBUG_RETURN(0);
 }
