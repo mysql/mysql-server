@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5047
 Next DBDICT 6007
-Next DBDIH 7184
+Next DBDIH 7186
 Next DBTC 8040
 Next CMVMI 9000
 Next BACKUP 10038
@@ -76,6 +76,10 @@ Delay GCP_SAVEREQ by 10 secs
 7180: Crash master during master-take-over in execMASTER_LCPCONF
 
 7183: Crash when receiving COPY_GCIREQ
+
+7184: Crash before starting next GCP after a node failure
+
+7185: Dont reply to COPY_GCI_REQ where reason == GCP
 
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
