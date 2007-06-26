@@ -1,0 +1,195 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_format = 'ROW';
+SET SESSION binlog_format = 'ROW';
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	ROW
+@@session.binlog_format	ROW
+DROP TABLE IF EXISTS t1, t2, t3;
+Warnings:
+Level	Note
+Code	1051
+Message	Unknown table 't1'
+Level	Note
+Code	1051
+Message	Unknown table 't2'
+Level	Note
+Code	1051
+Message	Unknown table 't3'
+DROP PROCEDURE IF EXISTS p1;
+Warnings:
+Level	Note
+Code	1305
+Message	PROCEDURE p1 does not exist
+DROP PROCEDURE IF EXISTS p2;
+Warnings:
+Level	Note
+Code	1305
+Message	PROCEDURE p2 does not exist
+DROP PROCEDURE IF EXISTS p3;
+Warnings:
+Level	Note
+Code	1305
+Message	PROCEDURE p3 does not exist
+CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
+fkid MEDIUMINT, filler VARCHAR(255),
+PRIMARY KEY(id)) ENGINE='innodb';
+CREATE TABLE t2(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
+fkid MEDIUMINT, filler VARCHAR(255),
+PRIMARY KEY(id)) ENGINE='innodb'
+PARTITION BY KEY(id) partitions 5;
+CREATE TABLE t3(id MEDIUMINT NOT NULL AUTO_INCREMENT,
+dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
+fkid MEDIUMINT, filler VARCHAR(255),
+PRIMARY KEY(id)) ENGINE='innodb' 
+PARTITION BY RANGE(id) 
+SUBPARTITION BY hash(id) subpartitions 2
+(PARTITION pa1 values less than (10),
+PARTITION pa2 values less than (20),
+PARTITION pa3 values less than (30),
+PARTITION pa4 values less than (40),
+PARTITION pa5 values less than (50),
+PARTITION pa6 values less than (60),
+PARTITION pa7 values less than (70),
+PARTITION pa8 values less than (80),
+PARTITION pa9 values less than (90),
+PARTITION pa10 values less than (100),
+PARTITION pa11 values less than MAXVALUE);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE ins_count INT DEFAULT 1000; 
+DECLARE del_count INT;
+DECLARE cur_user VARCHAR(255);
+DECLARE local_uuid VARCHAR(255);
+DECLARE local_time TIMESTAMP;
+SET local_time= NOW();
+SET cur_user= CURRENT_USER();
+SET local_uuid= UUID();
+WHILE ins_count > 0 DO
+INSERT INTO t1 VALUES (NULL, NOW(), USER() , UUID(),
+ins_count,'Going to test MBR for MySQL');
+SET ins_count = ins_count - 1;
+END WHILE;
+SELECT MAX(id) FROM t1 INTO del_count;
+WHILE del_count > 0 DO
+DELETE FROM t1 WHERE id = del_count;
+SET del_count = del_count - 2;
+END WHILE;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE ins_count INT DEFAULT 1000; 
+DECLARE del_count INT;
+DECLARE cur_user VARCHAR(255);
+DECLARE local_uuid VARCHAR(255);
+DECLARE local_time TIMESTAMP;
+SET local_time= NOW();
+SET cur_user= CURRENT_USER();
+SET local_uuid= UUID();
+WHILE ins_count > 0 DO
+INSERT INTO t2 VALUES (NULL, NOW(), USER() , UUID(),
+ins_count,'Going to test MBR for MySQL');
+SET ins_count = ins_count - 1;
+END WHILE;
+SELECT MAX(id) FROM t2 INTO del_count;
+WHILE del_count > 0 DO
+DELETE FROM t2 WHERE id = del_count;
+SET del_count = del_count - 2;
+END WHILE;
+END|
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE ins_count INT DEFAULT 1000; 
+DECLARE del_count INT;
+DECLARE cur_user VARCHAR(255);
+DECLARE local_uuid VARCHAR(255);
+DECLARE local_time TIMESTAMP;
+SET local_time= NOW();
+SET cur_user = CURRENT_USER();
+SET local_uuid=UUID();
+WHILE ins_count > 0 DO
+INSERT INTO t3 VALUES (NULL, NOW(), USER(), UUID(),
+ins_count,'Going to test MBR for MySQL');
+SET ins_count = ins_count - 1;
+END WHILE;
+SELECT MAX(id) FROM t3 INTO del_count;
+WHILE del_count > 0 DO
+DELETE FROM t3 WHERE id = del_count;
+SET del_count = del_count - 2;
+END WHILE;
+END|
+CALL p1();
+SELECT count(*) as "Master regular" FROM t1;
+Master regular	500
+CALL p2();
+SELECT count(*) as "Master bykey" FROM t2;
+Master bykey	500
+CALL p3();
+SELECT count(*) as "Master byrange" FROM t3;
+Master byrange	500
+show create table t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `id` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user` char(255) DEFAULT NULL,
+  `uuidf` longblob,
+  `fkid` mediumint(9) DEFAULT NULL,
+  `filler` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=9 DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM, PARTITION pa3 VALUES LESS THAN (30) ENGINE = MyISAM, PARTITION pa4 VALUES LESS THAN (40) ENGINE = MyISAM, PARTITION pa5 VALUES LESS THAN (50) ENGINE = MyISAM, PARTITION pa6 VALUES LESS THAN (60) ENGINE = MyISAM, PARTITION pa7 VALUES LESS THAN (70) ENGINE = MyISAM, PARTITION pa8 VALUES LESS THAN (80) ENGINE = MyISAM, PARTITION pa9 VALUES LESS THAN (90) ENGINE = MyISAM, PARTITION pa10 VALUES LESS THAN (100) ENGINE = MyISAM, PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+show slave status;
+Slave_IO_State	Waiting for master to send event
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	9306
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	876369
+Relay_Log_File	slave-relay-bin.000003
+Relay_Log_Pos	876515
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	876369
+Relay_Log_Space	876670
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	0
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+SELECT count(*) "Slave norm" FROM t1;
+Slave norm	500
+SELECT count(*) "Slave bykey" FROM t2;
+Slave bykey	500
+SELECT count(*) "Slave byrange" FROM t3;
+Slave byrange	500
+DROP TABLE t1, t2, t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
