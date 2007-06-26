@@ -97,9 +97,14 @@ sub mtr_timer_start($$$) {
       # clearing the signal handler.
       $SIG{INT}= 'DEFAULT';
 
+      $SIG{TERM}= sub {
+	mtr_verbose("timer woke up, exiting!");
+	exit(0);
+      };
+
       $0= "mtr_timer(timers,$name,$duration)";
-      mtr_verbose("timer child $name, sleep $duration");
       sleep($duration);
+      mtr_verbose("timer expired after $duration seconds");
       exit(0);
     }
   }
@@ -118,7 +123,7 @@ sub mtr_timer_stop ($$) {
 
     # FIXME as Cygwin reuses pids fast, maybe check that is
     # the expected process somehow?!
-    kill(9, $tpid);
+    kill(15, $tpid);
 
     # As the timers are so simple programs, we trust them to terminate,
     # and use blocking wait for it. We wait just to avoid a zombie.
