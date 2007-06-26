@@ -9,153 +9,191 @@ set binlog_format=row;
 DROP EVENT IF EXISTS test.justonce;
 drop table if exists t1,t2;
 CREATE TABLE `t1` (
-`id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+`id` INT(10) UNSIGNED NOT NULL,
 `c` VARCHAR(50) NOT NULL,
 `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-INSERT INTO t1 (c) VALUES ('manually');
-CREATE EVENT test.justonce ON SCHEDULE AT NOW() + INTERVAL 2 SECOND DO INSERT INTO t1
-(c) VALUES ('from justonce');
+INSERT INTO t1 (id, c) VALUES (1, 'manually');
+"Creating event test.justonce on the master"
+CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO 
+INSERT IGNORE INTO t1 (id, c) VALUES (2, 'from justonce');
+"Checking event is active on master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
 test	justonce	ENABLED	1
-"in the master"
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+"Checking event data on the master"
+SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
-"in the slave"
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+"Checking event data on the slave"
+SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
+"Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
+test	justonce	SLAVESIDE_DISABLED	1
+"Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
-INSERT INTO t1(c) VALUES ('from slave_once');
+INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
+"Checking event status on the slave for originator value = slave's server_id"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
 db	name	status	originator
 test	slave_once	ENABLED	2
+"Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
+"Dropping event test.justonce on the master"
 DROP EVENT IF EXISTS test.justonce;
+"Creating event test.er on the master"
 CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
-INSERT INTO t1(c) VALUES ('from er');
+INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
+"Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	ENABLED	1	INSERT INTO t1(c) VALUES ('from er')
-"in the slave"
+test	er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
+"Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	SLAVESIDE_DISABLED	1	INSERT INTO t1(c) VALUES ('from er')
-"in the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO INSERT into t1(c) VALUES ('from alter er');
+test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
+"Altering event test.er on the master"
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
+"Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	ENABLED	1	INSERT into t1(c) VALUES ('from alter er')
-"in the slave"
+test	er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
+"Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	SLAVESIDE_DISABLED	1	INSERT into t1(c) VALUES ('from alter er')
-"in the master"
+test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
+"Dropping event test.er on the master"
 DROP EVENT test.er;
+"Checking event status on the master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
-"in the slave"
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+"Creating event test.slave_terminate on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 db	name	status	originator
 test	slave_terminate	ENABLED	2
+"Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+"Creating event test.slave_terminate with DISABLE ON SLAVE on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO 
+INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 db	name	status	originator
 test	slave_terminate	SLAVESIDE_DISABLED	2
+"Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
-"in the master"
+"Cleanup"
 DROP TABLE t1;
 set binlog_format=statement;
 DROP EVENT IF EXISTS test.justonce;
 drop table if exists t1,t2;
 CREATE TABLE `t1` (
-`id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+`id` INT(10) UNSIGNED NOT NULL,
 `c` VARCHAR(50) NOT NULL,
 `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-INSERT INTO t1 (c) VALUES ('manually');
-CREATE EVENT test.justonce ON SCHEDULE AT NOW() + INTERVAL 2 SECOND DO INSERT INTO t1
-(c) VALUES ('from justonce');
+INSERT INTO t1 (id, c) VALUES (1, 'manually');
+"Creating event test.justonce on the master"
+CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO 
+INSERT IGNORE INTO t1 (id, c) VALUES (2, 'from justonce');
+"Checking event is active on master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
 test	justonce	ENABLED	1
-"in the master"
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+"Checking event data on the master"
+SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
-"in the slave"
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+"Checking event data on the slave"
+SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
 affected rows: 2
+"Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
+test	justonce	SLAVESIDE_DISABLED	1
+"Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
-INSERT INTO t1(c) VALUES ('from slave_once');
+INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
+"Checking event status on the slave for originator value = slave's server_id"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
 db	name	status	originator
 test	slave_once	ENABLED	2
+"Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
+"Dropping event test.justonce on the master"
 DROP EVENT IF EXISTS test.justonce;
+"Creating event test.er on the master"
 CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
-INSERT INTO t1(c) VALUES ('from er');
+INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
+"Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	ENABLED	1	INSERT INTO t1(c) VALUES ('from er')
-"in the slave"
+test	er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
+"Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	SLAVESIDE_DISABLED	1	INSERT INTO t1(c) VALUES ('from er')
-"in the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO INSERT into t1(c) VALUES ('from alter er');
+test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
+"Altering event test.er on the master"
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
+"Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	ENABLED	1	INSERT into t1(c) VALUES ('from alter er')
-"in the slave"
+test	er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
+"Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 db	name	status	originator	body
-test	er	SLAVESIDE_DISABLED	1	INSERT into t1(c) VALUES ('from alter er')
-"in the master"
+test	er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
+"Dropping event test.er on the master"
 DROP EVENT test.er;
+"Checking event status on the master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
-"in the slave"
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 db	name	status	originator
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+"Creating event test.slave_terminate on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 db	name	status	originator
 test	slave_terminate	ENABLED	2
+"Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+"Creating event test.slave_terminate with DISABLE ON SLAVE on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO 
+INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
+"Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 db	name	status	originator
 test	slave_terminate	SLAVESIDE_DISABLED	2
+"Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
-"in the master"
+"Cleanup"
 DROP TABLE t1;
 CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
 DO BEGIN
