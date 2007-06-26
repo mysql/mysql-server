@@ -5665,7 +5665,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1581	This function 'pi' has the same name as a native function
+Note	1582	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5714,15 +5714,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1581	This function 'database' has the same name as a native function
+Note	1582	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1581	This function 'current_user' has the same name as a native function
+Note	1582	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1581	This function 'md5' has the same name as a native function
+Note	1582	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
