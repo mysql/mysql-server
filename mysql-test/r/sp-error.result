@@ -982,9 +982,9 @@ ERROR HY000: Explicit or implicit commit is not allowed in stored function or tr
 CREATE FUNCTION bug_13627_f() returns int BEGIN create view v1 as select 1; return 1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN alter view v1 as select 1; END |
-ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+ERROR 0A000: ALTER VIEW is not allowed in stored procedures
 CREATE FUNCTION bug_13627_f() returns int BEGIN alter view v1 as select 1; return 1; END |
-ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+ERROR 0A000: ALTER VIEW is not allowed in stored procedures
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop view v1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN drop view v1; return 1; END |
