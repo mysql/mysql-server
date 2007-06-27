@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
   recinfo[0].type=FIELD_SKIP_ENDSPACE;
   recinfo[0].length=docid_length;
   recinfo[1].type=FIELD_BLOB;
-  recinfo[1].length= 4+mi_portable_sizeof_char_ptr;
+  recinfo[1].length= 4+portable_sizeof_char_ptr;
 
   /* Define a key over the first column */
   keyinfo[0].seg=keyseg;

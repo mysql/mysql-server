@@ -1,0 +1,10 @@
+silent="-s"
+suffix=""
+
+ma_test1$suffix -s ; maria_pack$suffix --force -s test1 ; maria_chk$suffix -es test1 ; maria_chk$suffix -rqs test1 ; maria_chk$suffix -es test1 ; maria_chk$suffix -us test1 ; maria_chk$suffix -es test1
+ma_test1$suffix -s -S ; maria_pack$suffix --force -s test1 ; maria_chk$suffix -es test1 ; maria_chk$suffix -rqs test1 ; maria_chk$suffix -es test1 ;maria_chk$suffix -us test1 ; maria_chk$suffix -es test1
+ma_test1$suffix -s -b ; maria_pack$suffix --force -s test1 ; maria_chk$suffix -es test1 ; maria_chk$suffix -rqs test1 ; maria_chk$suffix -es test1
+ma_test1$suffix -s -w ; maria_pack$suffix --force -s test1 ; maria_chk$suffix -es test1 ; maria_chk$suffix -ros test1 ; maria_chk$suffix -es test1
+
+ma_test2$suffix -s -t4 ; maria_pack$suffix --force -s test2 ; maria_chk$suffix -es test2 ; maria_chk$suffix -ros test2 ; maria_chk$suffix -es test2 ; maria_chk$suffix -s -u test2 ; maria_chk$suffix -sm test2
+ma_test2$suffix -s -t4 -b ; maria_pack$suffix --force -s test2 ; maria_chk$suffix -es test2 ; maria_chk$suffix -ros test2 ; maria_chk$suffix -es test2 ; maria_chk$suffix -s -u test2 ; maria_chk$suffix -sm test2

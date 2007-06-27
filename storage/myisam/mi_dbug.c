@@ -45,6 +45,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
 	fprintf(stream,"NULL");
 	continue;
       }
+      end++;
     }
 
     switch (keyseg->type) {
