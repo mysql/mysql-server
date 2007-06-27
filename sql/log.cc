@@ -1835,8 +1835,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
   if (likely(is_open()))                       // Should always be true
   {
-    uint length, group, carry, hdr_offs;
-    long val;
+    uint length, group, carry, hdr_offs, val;
     byte header[LOG_EVENT_HEADER_LEN];
 
     /*
@@ -1873,57 +1872,104 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
     length= my_b_bytes_in_cache(cache);
     DBUG_EXECUTE_IF("half_binlogged_transaction", length-=100;);
 
+    /*
+      The events in the buffer have incorrect end_log_pos data
+      (relative to beginning of group rather than absolute),
+      so we'll recalculate them in situ so the binlog is always
+      correct, even in the middle of a group. This is possible
+      because we now know the start position of the group (the
+      offset of this cache in the log, if you will); all we need
+      to do is to find all event-headers, and add the position of
+      the group to the end_log_pos of each event.  This is pretty
+      straight forward, except that we read the cache in segments,
+      so an event-header might end up on the cache-border and get
+      split.
+     */
+
     group= my_b_tell(&log_file);
     hdr_offs= carry= 0;
 
     do
     {
-      if (likely(carry > 0))
+
+      /*
+        if we only got a partial header in the last iteration,
+        get the other half now and process a full header.
+      */
+      if (unlikely(carry > 0))
       {
         DBUG_ASSERT(carry < LOG_EVENT_HEADER_LEN);
 
+        /* assemble both halves */
         memcpy(&header[carry], (char *)cache->read_pos, LOG_EVENT_HEADER_LEN - carry);
 
+        /* fix end_log_pos */
         val= uint4korr(&header[LOG_POS_OFFSET]) + group;
         int4store(&header[LOG_POS_OFFSET], val);
 
+        /* write the first half of the split header */
         if (my_b_write(&log_file, header, carry))
           goto err;
 
+        /*
+          copy fixed second half of header to cache so the correct
+          version will be written later.
+        */
         memcpy((char *)cache->read_pos, &header[carry], LOG_EVENT_HEADER_LEN - carry);
 
+        /* next event header at ... */
         hdr_offs = LOG_EVENT_HEADER_LEN - carry +
           uint4korr(&header[EVENT_LEN_OFFSET]);
 
         carry= 0;
       }
 
+      /* if there is anything to write, process it. */
+
       if(likely(length > 0))
       {
-        do {
-          DBUG_ASSERT((hdr_offs + max(EVENT_LEN_OFFSET, LOG_POS_OFFSET) + 4) <= length);
+        /*
+          next header beyond current read-buffer? we'll get it later
+          (though not necessarily in the very next iteration).
+        */
 
-          val= uint4korr((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET) + group;
-          int4store((char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET, val);
-          hdr_offs += uint4korr((char *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET);
+        if (hdr_offs >= length)
+          hdr_offs -= length;
+        else
+        {
 
-          /* header beyond current read-buffer? */
-          if (hdr_offs >= length)
-          {
-            hdr_offs -= length;
-            break;
-          }
+          /* process all event-headers in this (partial) cache. */
 
-          /* split header? */
-          if (hdr_offs + LOG_EVENT_HEADER_LEN > length)
-          {
-            carry= length - hdr_offs;
+          do {
 
-            memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
-            length -= carry;
-          }
+            /*
+              partial header only? save what we can get, process once
+              we get the rest.
+            */
 
-        } while (hdr_offs < length);
+            if (hdr_offs + LOG_EVENT_HEADER_LEN > length)
+            {
+              carry= length - hdr_offs;
+              memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
+              length= hdr_offs;
+            }
+            else
+            {
+              /* we've got a full event-header, and it came in one piece */
+
+              char *log_pos= cache->read_pos + hdr_offs + LOG_POS_OFFSET;
+
+              /* fix end_log_pos */
+              val= uint4korr(log_pos) + group;
+              int4store(log_pos, val);
+
+              /* next event header at ... */
+              log_pos= (char *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET;
+              hdr_offs += uint4korr(log_pos);
+
+            }
+          } while (hdr_offs < length);
+        }
       }
 
       /* Write data to the binary log file */
