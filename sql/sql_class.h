@@ -697,6 +697,13 @@ public:
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
 #endif
+  /*
+    The states relfects three diffrent life cycles for three
+    different types of statements:
+    Prepared statement: INITIALIZED -> PREPARED -> EXECUTED.
+    Stored procedure:   INITIALIZED_FOR_SP -> EXECUTED.
+    Other statements:   CONVENTIONAL_EXECUTION never changes.
+  */
   enum enum_state
   {
     INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
