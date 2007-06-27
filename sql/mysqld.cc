@@ -762,6 +762,7 @@ static void close_connections(void)
     DBUG_PRINT("info",("Waiting for select thread"));
 
 #ifndef DONT_USE_THR_ALARM
+    if (pthread_kill(select_thread, thr_client_alarm))
       break;					// allready dead
 #endif
     set_timespec(abstime, 2);
