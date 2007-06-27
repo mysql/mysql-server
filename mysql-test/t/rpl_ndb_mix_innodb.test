@@ -28,7 +28,7 @@
 --source include/have_ndb.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_mixed.inc
---source include/ndb_master-slave.inc
+--source include/master-slave.inc
 --enable_query_log
 let $off_set = 9;
 let $rpl_format = 'MIX';
