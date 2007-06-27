@@ -1957,7 +1957,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
             {
               /* we've got a full event-header, and it came in one piece */
 
-              char *log_pos= cache->read_pos + hdr_offs + LOG_POS_OFFSET;
+              char *log_pos= (char *)cache->read_pos + hdr_offs + LOG_POS_OFFSET;
 
               /* fix end_log_pos */
               val= uint4korr(log_pos) + group;
