@@ -22,11 +22,14 @@ connection con2;
 lock tables t1 read;
 unlock tables;
 lock tables t1 read;
+let $ID= `select connection_id()`;
 connection con1;
 --send
 update t1 set n = 3;
 connection con2;
-sleep 0.5;
+# wait for the other query to start executing
+let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = 0;
+--source include/wait_condition.inc
 unlock tables;
 connection con1;
 reap;
