@@ -65,6 +65,17 @@ void ft_free_stopwords(void);
 FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,CHARSET_INFO *, uchar *);
 my_bool ft_boolean_check_syntax_string(const uchar *);
 
+/* Internal symbols for fulltext between maria and MyISAM */
+
+#define HA_FT_WTYPE  HA_KEYTYPE_FLOAT
+#define HA_FT_WLEN   4
+#define FT_SEGS      2
+
+#define ft_sintXkorr(A)    mi_sint4korr(A)
+#define ft_intXstore(T,A)  mi_int4store(T,A)
+
+extern const HA_KEYSEG ft_keysegs[FT_SEGS];
+
 #ifdef  __cplusplus
 }
 #endif

@@ -1265,19 +1265,6 @@ sub command_line_setup () {
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
-
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    foreach my $mysqld (@{$master}, @{$slave})
-    {
-      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
-      $mysqld->{path_myerr}=
-	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
-    }
-  }
 }
 
 #
@@ -2329,6 +2316,25 @@ sub setup_vardir() {
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
   {
     unlink($name);
+  }
+  if ( $opt_valgrind and $opt_debug )
+  {
+    # When both --valgrind and --debug is selected, send
+    # all output to the trace file, making it possible to
+    # see the exact location where valgrind complains
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
+      my $trace_name= "$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
+      open(LOG, ">$mysqld->{path_myerr}") or die "Can't create $mysqld->{path_myerr}\n";
+      print LOG "
+NOTE: When running with --valgrind --debug the output from the .err file is
+stored together with the trace file to make it easier to find the exact
+position for valgrind errors.
+See trace file $trace_name.\n";
+      close(LOG);
+      $mysqld->{path_myerr}= $trace_name;
+    }
   }
 }
 

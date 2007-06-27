@@ -20,8 +20,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
+#include "../storage/maria/ma_pagecache.h"
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -272,6 +274,7 @@ enum legacy_db_type
   DB_TYPE_TABLE_FUNCTION,
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
+  DB_TYPE_MARIA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -851,7 +854,8 @@ typedef struct st_ha_check_opt
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
+  KEY_CACHE *key_cache; /* new key cache when changing key cache */
+  PAGECACHE *pagecache;	/* new pagecache when changing pagecache */
   void init();
 } HA_CHECK_OPT;
 
@@ -1806,6 +1810,15 @@ int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
+/* pagecache */
+int ha_init_pagecache(const char *name, PAGECACHE *pagecache);
+/*
+TODO: uncomment when resizing will be implemented
+int ha_resize_pagecache(PAGECACHE *pagecache);
+*/
+int ha_change_pagecache_param(PAGECACHE *pagecache);
+int ha_change_pagecache(PAGECACHE *old_pagecache, PAGECACHE *new_pagecache);
+int ha_end_pagecache(PAGECACHE *pagecache);
 
 /* report to InnoDB that control passes to the client */
 int ha_release_temporary_latches(THD *thd);
