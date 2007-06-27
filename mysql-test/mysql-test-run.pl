@@ -132,7 +132,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $default_vardir;
 
 our $opt_usage;
-our $opt_suite;
+our $opt_suites= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -404,7 +404,7 @@ sub main () {
   else
   {
     # Figure out which tests we are going to run
-    my $tests= collect_test_cases($opt_suite);
+    my $tests= collect_test_cases($opt_suites);
 
     # Turn off NDB and other similar options if no tests use it
     my ($need_ndbcluster,$need_im);
@@ -458,7 +458,7 @@ sub main () {
       run_report_features();
     }
 
-    run_suite($opt_suite, $tests);
+    run_tests($tests);
   }
 
   mtr_exit(0);
@@ -474,7 +474,6 @@ sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
 
-  $opt_suite=        "main";    # Special default suite
   my $opt_comment;
 
   $opt_master_myport=          9306;
@@ -534,7 +533,7 @@ sub command_line_setup () {
              'skip-slave-binlog'        => \$opt_skip_slave_binlog,
              'do-test=s'                => \$opt_do_test,
              'start-from=s'             => \$opt_start_from,
-             'suite=s'                  => \$opt_suite,
+             'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \$opt_skip_rpl,
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
@@ -2797,18 +2796,16 @@ sub run_benchmarks ($) {
 
 ##############################################################################
 #
-#  Run the test suite
+#  Run the tests
 #
 ##############################################################################
 
-sub run_suite () {
-  my ($suite, $tests)= @_;
+sub run_tests () {
+  my ($tests)= @_;
 
   mtr_print_thick_line();
 
   mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
-
-  mtr_report("Starting Tests in the '$suite' suite");
 
   mtr_report_tests_not_skipped_though_disabled($tests);
 
@@ -3272,18 +3269,14 @@ sub run_testcase_check_skip_test($)
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
-  my $tname= $tinfo->{'name'};
 
   # Remove old files produced by mysqltest
-  my $result_dir= "r";
-  if ( $opt_suite ne "main" )
-  {
-    $result_dir= "suite/$opt_suite/r";
-  }
-  unlink("$result_dir/$tname.reject");
-  unlink("$result_dir/$tname.progress");
-  unlink("$result_dir/$tname.log");
-  unlink("$result_dir/$tname.warnings");
+  my $base_file= mtr_match_extension($tinfo->{'result_file'},
+				    "result"); # Trim extension
+  unlink("$base_file.reject");
+  unlink("$base_file.progress");
+  unlink("$base_file.log");
+  unlink("$base_file.warnings");
 
   if (!$opt_extern)
   {
@@ -3302,7 +3295,6 @@ sub do_before_run_mysqltest($)
 sub do_after_run_mysqltest($)
 {
   my $tinfo= shift;
-  my $tname= $tinfo->{'name'};
 
   # Save info from this testcase run to mysqltest.log
   mtr_appendfile_to_file($path_current_test_log, $path_mysqltest_log)
@@ -3626,7 +3618,7 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'result_file'});
+  mtr_show_failed_diff($tinfo);
   print "\n";
   if ( $opt_force )
   {
@@ -3766,15 +3758,7 @@ sub mysqld_arguments ($$$$) {
   if ( $mysql_version_id >= 50036)
   {
     # By default, prevent the started mysqld to access files outside of vardir
-    my $secure_file_dir= $opt_vardir;
-    if ( $opt_suite ne "main" )
-    {
-      # When running a suite other than default allow the mysqld
-      # access to subdirs of mysql-test/ in order to make it possible
-      # to "load data" from the suites data/ directory.
-      $secure_file_dir= $glob_mysql_test_dir;
-    }
-    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $secure_file_dir);
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
   }
 
   if ( $mysql_version_id >= 50000 )
@@ -5147,7 +5131,9 @@ Options to control what test suites or cases to run
   ndb-extra             Run extra tests from ndb directory
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
-  suite=NAME            Run the test suite named NAME. The default is "main"
+  suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
+                        list of suite names.
+                        The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
