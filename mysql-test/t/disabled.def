@@ -21,32 +21,9 @@ im_instance_conf         : BUG#28743 Instance manager generates warnings in test
 im_utils                 : BUG#28743 Instance manager generates warnings in test suite
 innodb                   : Disabling test case awaiting reply from Innobase
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
-ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
-
-partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
-rpl_ndb_circular_simplex : BUG#27972 2007-04-20 mats Slave cannot start where it stopped
-rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
-rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
-rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
-rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-#rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_ndb_ddl              : BUG#28798 2007-05-31  lars  Valgrind failure in NDB
-
 rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
 ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
-# the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-#ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
-#ndb_binlog_discover      : bug#21806 2006-08-24
-#ndb_autodiscover3        : bug#21806
-
-#rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
-
-ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
 
 im_options_set       : Bug#20294: Instance manager tests fail randomly
 im_options_unset     : Bug#20294: Instance manager tests fail randomly
