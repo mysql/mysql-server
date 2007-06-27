@@ -4034,7 +4034,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
           {
             /* we've got a full event-header, and it came in one piece */
 
-            uchar *log_pos= cache->read_pos + hdr_offs + LOG_POS_OFFSET;
+            uchar *log_pos= (uchar *)cache->read_pos + hdr_offs + LOG_POS_OFFSET;
 
             /* fix end_log_pos */
             val= uint4korr(log_pos) + group;
