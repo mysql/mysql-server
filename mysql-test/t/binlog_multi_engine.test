@@ -20,9 +20,6 @@ INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
 
-# I cannot use these statements since the rows logged to the NDB table
-# eventually shows up in the binary log. I use them anyway, since once
-# BUG#29222 is fixed, there will be a difference here.
 echo *** Please look in binlog_multi_engine.test if you have a diff here ****;
 START TRANSACTION;
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
