@@ -1886,7 +1886,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       split.
      */
 
-    group= my_b_tell(&log_file);
+    group= (uint)my_b_tell(&log_file);
     hdr_offs= carry= 0;
 
     do
