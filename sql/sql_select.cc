@@ -258,11 +258,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		     thd->net.report_error));
   res|= thd->net.report_error;
   if (unlikely(res))
-  {
-    /* If we had a another error reported earlier then this will be ignored */
-    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
-  }
+
   DBUG_RETURN(res);
 }
 
