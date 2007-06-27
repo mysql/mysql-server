@@ -648,7 +648,64 @@ CREATE EVENT new_event ON SCHEDULE AT NOW() ENDS NOW() DO SELECT 1;
 --error ER_PARSE_ERROR
 CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
 
+#
+# START - BUG#28924 If I drop the user who is the definer of an active event then server cores
+#
+let $engine=MyISAM;
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+SET GLOBAL event_scheduler = ON;
+eval CREATE TABLE event_log (id int KEY AUTO_INCREMENT,
+                             ev_nm char(40), ev_cnt int,
+                             ev_tm timestamp) ENGINE=$engine; 
+SET @ev_base_date = 20281224180000;
+--disable_warnings
+SET autocommit=0;
+#DROP DATABASE IF EXISTS ev_db_1;
+#CREATE DATABASE ev_db_1;
+--enable_warnings
+CREATE USER evtest1@localhost;
+SET PASSWORD FOR evtest1@localhost = password('ev1');
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
+GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
+GRANT select,insert ON TEST.* TO evtest1@lcalhost;
+SHOW GRANTS FOR evtest1@localhost;
 
+--echo connection e1;
+--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
+connect (e1,localhost,evtest1,ev1,events_test,$MASTER_MYPORT,$MASTER_MYSOCK);
+USE events_test;
+
+DELIMITER |;
+CREATE EVENT ev_sched_1823 ON SCHEDULE EVERY 2 SECOND
+DO BEGIN
+       SET AUTOCOMMIT = 0;
+       SET @evname = 'ev_sched_1823';
+       SET @cnt = 0;
+       SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
+       INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+       COMMIT;
+       SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
+       INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+       ROLLBACK;
+END;|
+DELIMITER ;|
+
+--sleep 6
+--echo connection default;
+connection default;
+DROP USER evtest1@localhost;
+
+--sleep 6
+USE test;
+--echo =====================================================================================
+--sleep 5
+#--disable_result_log
+select id,ev_nm,ev_cnt from event_log order by id;
+#--enable_result_log
+DROP TABLE event_log;
+#DROP DATABASE ev_db_1;
+SET GLOBAL event_scheduler = OFF;
 
 # 
 # End of tests
