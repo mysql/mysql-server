@@ -13,3 +13,4 @@
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
 rpl_innodb_mixed_ddl     : Bug #29363 rpl.rpl_innodb_mixed_* test failures
 rpl_innodb_mixed_dml     : Bug #29363 rpl.rpl_innodb_mixed_* test failures
+rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
