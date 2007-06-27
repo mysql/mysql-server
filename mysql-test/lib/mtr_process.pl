@@ -142,6 +142,7 @@ sub spawn_impl ($$$$$$$) {
 
     if ( $pid )
     {
+      select(STDOUT) if $::glob_win32_perl;
       return spawn_parent_impl($pid,$mode,$path);
     }
     else
@@ -163,9 +164,6 @@ sub spawn_impl ($$$$$$$) {
 	{
 	  # Don't redirect stdout on ActiveState perl since this is
           # just another thread in the same process.
-          # Should be fixed so that the thread that is created with fork
-          # executes the exe in another process and wait's for it to return.
-          # In the meanwhile, we get all the output from mysqld's to screen
 	}
         elsif ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
@@ -175,7 +173,7 @@ sub spawn_impl ($$$$$$$) {
 
       if ( $error )
       {
-        if ( $output eq $error )
+        if ( !$::glob_win32_perl and $output eq $error )
         {
           if ( ! open(STDERR,">&STDOUT") )
           {
@@ -184,15 +182,7 @@ sub spawn_impl ($$$$$$$) {
         }
         else
         {
-	  if ( $::glob_win32_perl )
-	  {
-	    # Don't redirect stdout on ActiveState perl since this is
-	    # just another thread in the same process.
-	    # Should be fixed so that the thread that is created with fork
-	    # executes the exe in another process and wait's for it to return.
-	    # In the meanwhile, we get all the output from mysqld's to screen
-	  }
-          elsif ( ! open(STDERR,$log_file_open_mode,$error) )
+          if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
             mtr_child_error("can't redirect STDERR to \"$error\": $!");
           }
@@ -611,6 +601,11 @@ sub mtr_check_stop_servers ($) {
     if ( $pid )
     {
       # Server is still alive, put it in list to be hard killed
+      if ($::glob_win32_perl)
+      {
+	# Kill the real process if it's known
+	$pid= $srv->{'real_pid'} if ($srv->{'real_pid'});
+      }
       $kill_pids{$pid}= 1;
 
       # Write a message to the process's error log (if it has one)
@@ -662,6 +657,16 @@ sub mtr_check_stop_servers ($) {
 	    $errors++;
 	    mtr_warning("couldn't delete $file");
 	  }
+	}
+
+	if ($::glob_win32_perl and $srv->{'real_pid'})
+	{
+	  # Wait for the pseudo pid - if the real_pid was known
+	  # the pseudo pid has not been waited for yet, wai blocking
+	  # since it's "such a simple program"
+	  mtr_verbose("Wait for pseudo process $srv->{'pid'}");
+	  my $ret_pid= waitpid($srv->{'pid'}, 0);
+	  mtr_verbose("Pseudo process $ret_pid died");
 	}
 
 	$srv->{'pid'}= 0;
@@ -1041,7 +1046,7 @@ sub sleep_until_file_created ($$$) {
   {
     if ( -r $pidfile )
     {
-      return $pid;
+      return 1;
     }
 
     # Check if it died after the fork() was successful
