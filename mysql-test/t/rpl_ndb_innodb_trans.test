@@ -3,6 +3,7 @@
 -- source include/have_ndb.inc
 -- source include/have_innodb.inc
 -- source include/ndb_master-slave.inc
+-- source include/have_log_bin.inc
 
 create table t1 (a int, unique(a)) engine=ndbcluster;
 create table t2 (a int, unique(a)) engine=innodb;
