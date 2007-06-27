@@ -8,9 +8,6 @@ create table t1 (a int key, b int) engine innodb;
 create table t2 (a int key, b int) engine innodb;
 alter table t1 engine ndb;
 alter table t2 engine ndb;
-STOP SLAVE;
-SET GLOBAL BINLOG_FORMAT=MIXED;
-START SLAVE;
 insert into t1 values (1,2);
 select @start_pos:=start_pos, @end_pos:=end_pos from mysql.ndb_apply_status;
 @start_pos:=start_pos	@end_pos:=end_pos

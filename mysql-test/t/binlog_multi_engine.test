@@ -5,7 +5,6 @@
 
 source include/have_blackhole.inc;
 source include/have_ndb.inc;
-source include/have_binlog_format_mixed_or_row.inc;
 
 CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE;
