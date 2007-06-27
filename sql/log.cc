@@ -3963,7 +3963,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
     split.
   */
 
-  group= my_b_tell(&log_file);
+  group= (uint)my_b_tell(&log_file);
   hdr_offs= carry= 0;
 
   do
