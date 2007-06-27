@@ -4,7 +4,7 @@ Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5047
-Next DBDICT 6007
+Next DBDICT 6008
 Next DBDIH 7186
 Next DBTC 8040
 Next CMVMI 9000
@@ -509,6 +509,7 @@ Dbdict:
 6003 Crash in participant @ CreateTabReq::Prepare
 6004 Crash in participant @ CreateTabReq::Commit
 6005 Crash in participant @ CreateTabReq::CreateDrop
+6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

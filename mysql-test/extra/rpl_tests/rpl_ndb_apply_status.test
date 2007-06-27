@@ -265,7 +265,6 @@ connection master;
 
 connection master;
 DROP DATABASE tpcb;
-#SHOW BINLOG EVENTS;
 
 --sync_slave_with_master
 
