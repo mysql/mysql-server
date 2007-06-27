@@ -45,11 +45,12 @@ TODO:
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#define MYSQL_SERVER 1
 
+#include "mysql_priv.h"
+#include <mysql/plugin.h>
 #include "ha_tina.h"
 
-#include <mysql/plugin.h>
 
 /*
   uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
@@ -609,37 +610,41 @@ int ha_tina::find_current_row(uchar *buf)
 
   for (Field **field=table->field ; *field ; field++)
   {
+    char curr_char;
+    
     buffer.length(0);
-    if (curr_offset < end_offset &&
-        file_buff->get_value(curr_offset) == '"')
+    if (curr_offset >= end_offset)
+      goto err;
+    curr_char= file_buff->get_value(curr_offset);
+    if (curr_char == '"')
     {
       curr_offset++; // Incrementpast the first quote
 
-      for(;curr_offset < end_offset; curr_offset++)
+      for(; curr_offset < end_offset; curr_offset++)
       {
+        curr_char= file_buff->get_value(curr_offset);
         // Need to convert line feeds!
-        if (file_buff->get_value(curr_offset) == '"' &&
-            ((file_buff->get_value(curr_offset + 1) == ',') ||
-             (curr_offset == end_offset -1 )))
+        if (curr_char == '"' &&
+            (curr_offset == end_offset - 1 ||
+             file_buff->get_value(curr_offset + 1) == ','))
         {
           curr_offset+= 2; // Move past the , and the "
           break;
         }
-        if (file_buff->get_value(curr_offset) == '\\' &&
-            curr_offset != (end_offset - 1))
+        if (curr_char == '\\' && curr_offset != (end_offset - 1))
         {
           curr_offset++;
-          if (file_buff->get_value(curr_offset) == 'r')
+          curr_char= file_buff->get_value(curr_offset);
+          if (curr_char == 'r')
             buffer.append('\r');
-          else if (file_buff->get_value(curr_offset) == 'n' )
+          else if (curr_char == 'n' )
             buffer.append('\n');
-          else if ((file_buff->get_value(curr_offset) == '\\') ||
-                   (file_buff->get_value(curr_offset) == '"'))
-            buffer.append(file_buff->get_value(curr_offset));
+          else if (curr_char == '\\' || curr_char == '"')
+            buffer.append(curr_char);
           else  /* This could only happed with an externally created file */
           {
             buffer.append('\\');
-            buffer.append(file_buff->get_value(curr_offset));
+            buffer.append(curr_char);
           }
         }
         else // ordinary symbol
@@ -650,36 +655,29 @@ int ha_tina::find_current_row(uchar *buf)
           */
           if (curr_offset == end_offset - 1)
             goto err;
-          buffer.append(file_buff->get_value(curr_offset));
+          buffer.append(curr_char);
         }
       }
     }
-    else if (my_isdigit(system_charset_info, 
-                        file_buff->get_value(curr_offset))) 
+    else 
     {
-      for(;curr_offset < end_offset; curr_offset++)
+      for(; curr_offset < end_offset; curr_offset++)
       {
-        if (file_buff->get_value(curr_offset) == ',')
+        curr_char= file_buff->get_value(curr_offset);
+        if (curr_char == ',')
         {
-          curr_offset+= 1; // Move past the ,
+          curr_offset++;       // Skip the ,
           break;
         }
-
-        if (my_isdigit(system_charset_info, file_buff->get_value(curr_offset))) 
-          buffer.append(file_buff->get_value(curr_offset));
-        else if (file_buff->get_value(curr_offset) == '.')
-          buffer.append(file_buff->get_value(curr_offset));
-        else
-          goto err;
+        buffer.append(curr_char);
       }
-    }
-    else
-    {
-      goto err;
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index))
-      (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
+    {
+      if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset()))
+        goto err;
+    }
   }
   next_position= end_offset + eoln_len;
   error= 0;
@@ -1004,6 +1002,7 @@ int ha_tina::delete_row(const uchar * buf)
 
 int ha_tina::rnd_init(bool scan)
 {
+  THD *thd= table ? table->in_use : current_thd;
   DBUG_ENTER("ha_tina::rnd_init");
 
   /* set buffer to the beginning of the file */
@@ -1015,6 +1014,7 @@ int ha_tina::rnd_init(bool scan)
   stats.records= 0;
   records_is_known= 0;
   chain_ptr= chain;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong values
 
   DBUG_RETURN(0);
 }
@@ -1298,6 +1298,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   current_position= next_position= 0;
 
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong values
   while (!(rc= find_current_row(buf)))
   {
     rows_repaired++;
@@ -1463,6 +1464,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong values
   while (!(rc= find_current_row(buf)))
   {
     count--;

@@ -5261,3 +5261,34 @@ CREATE TABLE `bug21328` (
 insert into bug21328 values (1,NULL,NULL);
 alter table bug21328 engine=myisam;
 drop table bug21328;
+create table t1(a int) engine=csv;
+insert into t1 values(-1), (-123.34), (2), (-23);
+select * from t1;
+a
+-1
+-123
+2
+-23
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1(a int, b int) engine=csv;
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Warning	Data truncated for column 'a' at row 1
+test.t1	repair	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a	b
+1	0
+-200	1
+-1	-1
+-1	-100
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+End of 5.1 tests
