@@ -145,15 +145,15 @@ Create Table	CREATE TABLE `t3` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=9 DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM, PARTITION pa3 VALUES LESS THAN (30) ENGINE = MyISAM, PARTITION pa4 VALUES LESS THAN (40) ENGINE = MyISAM, PARTITION pa5 VALUES LESS THAN (50) ENGINE = MyISAM, PARTITION pa6 VALUES LESS THAN (60) ENGINE = MyISAM, PARTITION pa7 VALUES LESS THAN (70) ENGINE = MyISAM, PARTITION pa8 VALUES LESS THAN (80) ENGINE = MyISAM, PARTITION pa9 VALUES LESS THAN (90) ENGINE = MyISAM, PARTITION pa10 VALUES LESS THAN (100) ENGINE = MyISAM, PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 show slave status;
-Slave_IO_State	Waiting for master to send event
+Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	9306
+Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	876369
-Relay_Log_File	slave-relay-bin.000003
-Relay_Log_Pos	876515
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -166,8 +166,8 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	876369
-Relay_Log_Space	876670
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -177,10 +177,10 @@ Master_SSL_CA_Path
 Master_SSL_Cert	
 Master_SSL_Cipher	
 Master_SSL_Key	
-Seconds_Behind_Master	0
+Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 SELECT count(*) "Slave norm" FROM t1;
