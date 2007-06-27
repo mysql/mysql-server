@@ -89,9 +89,9 @@ int maria_delete_all_rows(MARIA_HA *info)
   {
     /* For now this record is only informative */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[LSN_STORE_SIZE];
+    uchar log_data[FILEID_STORE_SIZE];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (unlikely(translog_write_record(&share->state.create_rename_lsn,
                                        LOGREC_REDO_DELETE_ALL,
                                        info->trn, share, 0,
@@ -106,9 +106,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       Note that storing the LSN could not be done by _ma_writeinfo() above as
       the table is locked at this moment. So we need to do it by ourselves.
     */
-    lsn_store(log_data, share->state.create_rename_lsn);
-    if (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
-                  sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+    if (_ma_update_create_rename_lsn_on_disk(share, FALSE) ||
         _ma_sync_table_files(info))
       goto err;
     /**

@@ -587,7 +587,19 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
     if (share->base.transactional)
+    {
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
+      if (unlikely((share->state.create_rename_lsn == (LSN)ULONGLONG_MAX) &&
+                   (open_flags & HA_OPEN_FROM_SQL_LAYER)))
+      {
+        /*
+          This table was repaired with maria_chk. Past log records should be
+          ignored, future log records should not: we define the present.
+        */
+        share->state.create_rename_lsn= translog_get_horizon();
+        _ma_update_create_rename_lsn_on_disk(share, TRUE);
+      }
+    }
     share->base.default_rec_buff_size= max(share->base.pack_reclength,
                                            share->base.max_key_length);
     share->page_type= (share->base.transactional ? PAGECACHE_LSN_PAGE :

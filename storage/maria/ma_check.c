@@ -5200,12 +5200,9 @@ int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info)
       and to not apply old REDOs to the new table. The table's existence was
       made durable earlier (MY_SYNC_DIR passed to maria_change_to_newfile()).
     */
-    lsn_store(log_data, share->state.create_rename_lsn);
     DBUG_ASSERT(info->dfile.file >= 0);
-    DBUG_ASSERT(share->kfile.file >= 0);
-    return (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
-                      sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
-            _ma_sync_table_files(info));
+    return _ma_update_create_rename_lsn_on_disk(share, FALSE) ||
+      _ma_sync_table_files(info);
   }
   return 0;
 }

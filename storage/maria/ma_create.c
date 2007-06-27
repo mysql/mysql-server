@@ -1009,9 +1009,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       If such direct my_pwrite() to a fixed offset is too "hackish", I can
       call ma_state_info_write() again but it will be less efficient.
     */
-    lsn_store(log_data, share.state.create_rename_lsn);
-    if (my_pwrite(file, log_data, LSN_STORE_SIZE,
-                  sizeof(share.state.header) + 2, MYF(MY_NABP)))
+    share.kfile.file= file;
+    if (_ma_update_create_rename_lsn_on_disk(&share, FALSE))
       goto err_no_lock;
     my_free(log_data, MYF(0));
   }
@@ -1162,4 +1161,33 @@ int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
     _ma_bitmap_delete_all(share);
   }
   return 0;
+}
+
+
+/**
+   @brief Writes create_rename_lsn to disk, optionally forces
+
+   This is for special cases where:
+   - we don't want to write the full state to disk (so, not call
+   _ma_state_info_write()) because some parts of the state may be
+   currently inconsistent, or because it would be overkill
+   - we must sync this LSN immediately for correctness.
+
+   @param  share           table's share
+   @param  do_sync         if the write should be forced to disk
+
+   @return Operation status
+     @retval 0      ok
+     @retval 1      error (disk problem)
+*/
+
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync)
+{
+  char buf[LSN_STORE_SIZE];
+  File file= share->kfile.file;
+  DBUG_ASSERT(file >= 0);
+  lsn_store(buf, share->state.create_rename_lsn);
+  return (my_pwrite(file, buf, sizeof(buf),
+                    sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+          (do_sync && my_sync(file, MYF(0))));
 }

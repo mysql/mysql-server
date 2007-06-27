@@ -60,13 +60,13 @@ int maria_rename(const char *old_name, const char *new_name)
     MY_SYNC_DIR : 0;
   if (sync_dir)
   {
-    uchar log_data[LSN_STORE_SIZE];
+    uchar log_data[2 + 2];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
     uint old_name_len= strlen(old_name), new_name_len= strlen(new_name);
     int2store(log_data, old_name_len);
     int2store(log_data + 2, new_name_len);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str= log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 2 + 2;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *)old_name;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= old_name_len;
     log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)new_name;
@@ -93,10 +93,7 @@ int maria_rename(const char *old_name, const char *new_name)
       store LSN into file, needed for Recovery to not be confused if a
       RENAME happened (applying REDOs to the wrong table).
     */
-    lsn_store(log_data, share->state.create_rename_lsn);
-    if (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
-                  sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
-        my_sync(share->kfile.file, MYF(MY_WME)))
+    if (_ma_update_create_rename_lsn_on_disk(share, TRUE))
     {
       maria_close(info);
       DBUG_RETURN(1);
