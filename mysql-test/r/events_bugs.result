@@ -557,4 +557,51 @@ CREATE EVENT new_event ON SCHEDULE AT NOW() ENDS NOW() DO SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENDS NOW() DO SELECT 1' at line 1
 CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() ENDS NOW() DO SELECT 1' at line 1
+USE test;
+SHOW GRANTS FOR CURRENT_USER;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+SET GLOBAL event_scheduler = ON;
+CREATE TABLE event_log (id int KEY AUTO_INCREMENT,
+ev_nm char(40), ev_cnt int,
+ev_tm timestamp) ENGINE=MyISAM;
+SET @ev_base_date = 20281224180000;
+SET autocommit=0;
+CREATE USER evtest1@localhost;
+SET PASSWORD FOR evtest1@localhost = password('ev1');
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
+GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
+GRANT select,insert ON TEST.* TO evtest1@lcalhost;
+SHOW GRANTS FOR evtest1@localhost;
+Grants for evtest1@localhost
+GRANT USAGE ON *.* TO 'evtest1'@'localhost' IDENTIFIED BY PASSWORD '*3170F3644E31580C25DE4A08F4C07CC9A2D40C32'
+GRANT SELECT, INSERT, CREATE, EVENT ON `events_test`.* TO 'evtest1'@'localhost'
+connection e1;
+USE events_test;
+CREATE EVENT ev_sched_1823 ON SCHEDULE EVERY 2 SECOND
+DO BEGIN
+SET AUTOCOMMIT = 0;
+SET @evname = 'ev_sched_1823';
+SET @cnt = 0;
+SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
+INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+COMMIT;
+SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
+INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+ROLLBACK;
+END;|
+connection default;
+DROP USER evtest1@localhost;
+USE test;
+=====================================================================================
+select id,ev_nm,ev_cnt from event_log order by id;
+id	ev_nm	ev_cnt
+1	ev_sched_1823	1
+2	ev_sched_1823	2
+3	ev_sched_1823	3
+4	ev_sched_1823	4
+5	ev_sched_1823	5
+6	ev_sched_1823	6
+DROP TABLE event_log;
+SET GLOBAL event_scheduler = OFF;
 DROP DATABASE events_test;
