@@ -1627,7 +1627,7 @@ int ha_federated::write_row(byte *buf)
   */
   if (replace_duplicates)
     insert_string.append(STRING_WITH_LEN("REPLACE INTO "));
-  else if (ignore_duplicates)
+  else if (ignore_duplicates && !insert_dup_update)
     insert_string.append(STRING_WITH_LEN("INSERT IGNORE INTO "));
   else
     insert_string.append(STRING_WITH_LEN("INSERT INTO "));
@@ -2548,6 +2548,7 @@ int ha_federated::extra(ha_extra_function operation)
     ignore_duplicates= TRUE;
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
+    insert_dup_update= FALSE;
     ignore_duplicates= FALSE;
     break;
   case HA_EXTRA_WRITE_CAN_REPLACE:
@@ -2556,7 +2557,11 @@ int ha_federated::extra(ha_extra_function operation)
   case HA_EXTRA_WRITE_CANNOT_REPLACE:
     replace_duplicates= FALSE;
     break;
+  case HA_EXTRA_INSERT_WITH_UPDATE:
+    insert_dup_update= TRUE;
+    break;
   case HA_EXTRA_RESET:
+    insert_dup_update= FALSE;
     ignore_duplicates= FALSE;
     replace_duplicates= FALSE;
     break;
@@ -2699,6 +2704,9 @@ int ha_federated::stash_remote_error()
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
   strmake(remote_error_buf, mysql_error(mysql), sizeof(remote_error_buf)-1);
+  if (remote_error_number == ER_DUP_ENTRY ||
+      remote_error_number == ER_DUP_KEY)
+    DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 

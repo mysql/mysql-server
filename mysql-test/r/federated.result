@@ -1867,6 +1867,21 @@ a	b
 3	Curly
 drop table federated.t1;
 drop table federated.t1;
+create table federated.t1 (a int primary key, b varchar(64))
+DEFAULT CHARSET=utf8;
+create table federated.t1 (a int primary key, b varchar(64))
+ENGINE=FEDERATED
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe")
+on duplicate key update a=a+100;
+ERROR 23000: Can't write; duplicate key in table 't1'
+select * from federated.t1;
+a	b
+1	Larry
+2	Curly
+drop table federated.t1;
+drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
