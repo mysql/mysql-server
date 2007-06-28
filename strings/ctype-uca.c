@@ -7937,10 +7937,16 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   /* Now process contractions */
   if (ncontractions)
   {
-    uint size= 0x40*0x40*sizeof(uint16); /* 8K, for basic latin letter only */
+    /*
+      8K for weights for basic latin letter pairs,
+      plus 256 bytes for "is contraction part" flags.
+    */
+    uint size= 0x40*0x40*sizeof(uint16) + 256;
+    char *contraction_flags;
     if (!(cs->contractions= (uint16*) (*alloc)(size)))
         return 1;
     bzero((void*)cs->contractions, size);
+    contraction_flags= ((char*) cs->contractions) + 0x40*0x40;
     for (i=0; i < rc; i++)
     {
       if (rule[i].curr[1])
@@ -7966,6 +7972,9 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
         
         /* Copy base weight applying primary difference */
         cs->contractions[offsc]= offsb[0] + rule[i].diff[0];
+        /* Mark both letters as "is contraction part */
+        contraction_flags[rule[i].curr[0]]= 1;
+        contraction_flags[rule[i].curr[1]]= 1;
       }
     }
   }

@@ -2663,3 +2663,95 @@ COUNT(*)	c1
 1	
 1	a
 DROP TABLE IF EXISTS t1;
+set names utf8;
+create table t1 (
+a varchar(255),
+key a(a)
+) character set utf8 collate utf8_danish_ci;
+insert into t1 values ('åaaaa'),('ååaaa'),('aaaaa');
+select a as like_a from t1 where a like 'a%';
+like_a
+aaaaa
+select a as like_aa from t1 where a like 'aa%';
+like_aa
+aaaaa
+select a as like_aaa from t1 where a like 'aaa%';
+like_aaa
+aaaaa
+select a as like_aaaa from t1 where a like 'aaaa%';
+like_aaaa
+aaaaa
+select a as like_aaaaa from t1 where a like 'aaaaa%';
+like_aaaaa
+aaaaa
+alter table t1 convert to character set ucs2 collate ucs2_danish_ci;
+select a as like_a from t1 where a like 'a%';
+like_a
+aaaaa
+select a as like_aa from t1 where a like 'aa%';
+like_aa
+aaaaa
+select a as like_aaa from t1 where a like 'aaa%';
+like_aaa
+aaaaa
+select a as like_aaaa from t1 where a like 'aaaa%';
+like_aaaa
+aaaaa
+select a as like_aaaaa from t1 where a like 'aaaaa%';
+like_aaaaa
+aaaaa
+drop table t1;
+create table t1 (
+a varchar(255),
+key(a)
+) character set utf8 collate utf8_spanish2_ci;
+insert into t1 values ('aaaaa'),('lllll'),('zzzzz');
+select a as like_l from t1 where a like 'l%';
+like_l
+lllll
+select a as like_ll from t1 where a like 'll%';
+like_ll
+lllll
+select a as like_lll from t1 where a like 'lll%';
+like_lll
+lllll
+select a as like_llll from t1 where a like 'llll%';
+like_llll
+lllll
+select a as like_lllll from t1 where a like 'lllll%';
+like_lllll
+lllll
+alter table t1 convert to character set ucs2 collate ucs2_spanish2_ci;
+select a as like_l from t1 where a like 'l%';
+like_l
+lllll
+select a as like_ll from t1 where a like 'll%';
+like_ll
+lllll
+select a as like_lll from t1 where a like 'lll%';
+like_lll
+lllll
+select a as like_llll from t1 where a like 'llll%';
+like_llll
+lllll
+select a as like_lllll from t1 where a like 'lllll%';
+like_lllll
+lllll
+drop table t1;
+create table t1 (
+a varchar(255),
+key a(a)
+) character set utf8 collate utf8_czech_ci;
+insert into t1 values
+('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
+select * from t1 where a like 'c%';
+a
+c
+ch
+alter table t1 convert to character set ucs2 collate ucs2_czech_ci;
+select * from t1 where a like 'c%';
+a
+c
+ch
+drop table t1;
+End for 5.0 tests
