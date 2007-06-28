@@ -157,6 +157,7 @@ class ha_federated: public handler
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
   char remote_error_buf[FEDERATED_QUERY_BUFFER_SIZE];
+  bool ignore_duplicates, replace_duplicates;
 
 private:
   /*
@@ -284,6 +285,7 @@ public:
   int rnd_pos(byte *buf, byte *pos);                            //required
   void position(const byte *record);                            //required
   int info(uint);                                              //required
+  int extra(ha_extra_function operation);
 
   void update_auto_increment(void);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
