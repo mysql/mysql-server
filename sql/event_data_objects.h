@@ -20,8 +20,6 @@
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
-class sp_head;
-class Sql_alloc;
 
 class Event_queue_element_for_exec
 {
@@ -151,6 +149,9 @@ public:
 
   ulong sql_mode;
 
+  class Stored_program_creation_ctx *creation_ctx;
+  LEX_STRING body_utf8;
+
   Event_timed();
   virtual ~Event_timed();
 
@@ -173,6 +174,8 @@ public:
   LEX_STRING definer_host;
 
   ulong sql_mode;
+
+  class Stored_program_creation_ctx *creation_ctx;
 
   Event_job_data();
 

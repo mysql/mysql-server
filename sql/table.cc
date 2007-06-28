@@ -32,6 +32,127 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
 
+/**************************************************************************
+  Object_creation_ctx implementation.
+**************************************************************************/
+
+Object_creation_ctx *Object_creation_ctx::set_n_backup(THD *thd)
+{
+  Object_creation_ctx *backup_ctx= create_backup_ctx(thd);
+
+  change_env(thd);
+
+  return backup_ctx;
+}
+
+void Object_creation_ctx::restore_env(THD *thd, Object_creation_ctx *backup_ctx)
+{
+  if (!backup_ctx)
+    return;
+
+  backup_ctx->change_env(thd);
+
+  delete backup_ctx;
+}
+
+/**************************************************************************
+  Default_object_creation_ctx implementation.
+**************************************************************************/
+
+Default_object_creation_ctx::Default_object_creation_ctx(THD *thd)
+  : m_client_cs(thd->variables.character_set_client),
+    m_connection_cl(thd->variables.collation_connection)
+{ }
+
+Default_object_creation_ctx::Default_object_creation_ctx(
+  CHARSET_INFO *client_cs, CHARSET_INFO *connection_cl)
+  : m_client_cs(client_cs),
+    m_connection_cl(connection_cl)
+{ }
+
+Object_creation_ctx *
+Default_object_creation_ctx::create_backup_ctx(THD *thd)
+{
+  return new Default_object_creation_ctx(thd);
+}
+
+void Default_object_creation_ctx::change_env(THD *thd) const
+{
+  thd->variables.character_set_client= m_client_cs;
+  thd->variables.collation_connection= m_connection_cl;
+
+  thd->update_charset();
+}
+
+/**************************************************************************
+  View_creation_ctx implementation.
+**************************************************************************/
+
+View_creation_ctx *View_creation_ctx::create(THD *thd)
+{
+  View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
+
+  return ctx;
+}
+
+/*************************************************************************/
+
+View_creation_ctx * View_creation_ctx::create(THD *thd,
+                                              st_table_list *view)
+{
+  View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
+
+  /* Throw a warning if there is NULL cs name. */
+
+  if (!view->view_client_cs_name.str ||
+      !view->view_connection_cl_name.str)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_VIEW_NO_CREATION_CTX,
+                        ER(ER_VIEW_NO_CREATION_CTX),
+                        (const char *) view->db,
+                        (const char *) view->table_name);
+
+    ctx->m_client_cs= system_charset_info;
+    ctx->m_connection_cl= system_charset_info;
+
+    return ctx;
+  }
+
+  /* Resolve cs names. Throw a warning if there is unknown cs name. */
+
+  bool invalid_creation_ctx;
+
+  invalid_creation_ctx= resolve_charset(view->view_client_cs_name.str,
+                                        system_charset_info,
+                                        &ctx->m_client_cs);
+
+  invalid_creation_ctx= resolve_collation(view->view_connection_cl_name.str,
+                                          system_charset_info,
+                                          &ctx->m_connection_cl) ||
+                        invalid_creation_ctx;
+
+  if (invalid_creation_ctx)
+  {
+    sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
+                      "names (client: '%s'; connection: '%s').",
+                      (const char *) view->db,
+                      (const char *) view->table_name,
+                      (const char *) view->view_client_cs_name.str,
+                      (const char *) view->view_connection_cl_name.str);
+
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_VIEW_INVALID_CREATION_CTX,
+                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        (const char *) view->db,
+                        (const char *) view->table_name);
+  }
+
+  return ctx;
+}
+
+/*************************************************************************/
+
 /* Get column name from column hash */
 
 static uchar *get_field_name(Field **buff, size_t *length,
@@ -40,7 +161,6 @@ static uchar *get_field_name(Field **buff, size_t *length,
   *length= (uint) strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
-
 
 
 /*
@@ -2730,7 +2850,7 @@ void  st_table_list::calc_md5(char *buffer)
   my_MD5_CTX context;
   uchar digest[16];
   my_MD5Init(&context);
-  my_MD5Update(&context,(uchar *) query.str, query.length);
+  my_MD5Update(&context,(uchar *) select_stmt.str, select_stmt.length);
   my_MD5Final(digest, &context);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",

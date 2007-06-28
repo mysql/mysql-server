@@ -752,6 +752,11 @@ drop view v1;
 #
 # VIEWs with national characters
 #
+
+SET @old_cs_client = @@character_set_client;
+SET @old_cs_results = @@character_set_results;
+SET @old_cs_connection = @@character_set_connection;
+
 set names utf8;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -759,7 +764,10 @@ insert into vü values ('ü');
 select * from vü;
 drop view vü;
 drop table tü;
-set names latin1;
+
+SET character_set_client = @old_cs_client;
+SET character_set_results = @old_cs_results;
+SET character_set_connection = @old_cs_connection;
 
 #
 # problem with used_tables() of outer reference resolved in VIEW
