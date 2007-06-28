@@ -168,7 +168,13 @@ enum ha_extra_function {
     These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
   */
   HA_EXTRA_DELETE_CANNOT_BATCH,
-  HA_EXTRA_UPDATE_CANNOT_BATCH
+  HA_EXTRA_UPDATE_CANNOT_BATCH,
+  /*
+    Inform handler that write_row() should immediately report constraint
+    violations because a INSERT...ON DUPLICATE KEY UPDATE is in being
+    performed.
+  */
+  HA_EXTRA_INSERT_WITH_UPDATE
 };
 
 	/* The following is parameter to ha_panic() */
