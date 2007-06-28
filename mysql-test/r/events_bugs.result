@@ -571,10 +571,11 @@ CREATE USER evtest1@localhost;
 SET PASSWORD FOR evtest1@localhost = password('ev1');
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
 GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
-GRANT select,insert ON TEST.* TO evtest1@lcalhost;
+GRANT select,insert ON TEST.* TO evtest1@localhost;
 SHOW GRANTS FOR evtest1@localhost;
 Grants for evtest1@localhost
 GRANT USAGE ON *.* TO 'evtest1'@'localhost' IDENTIFIED BY PASSWORD '*3170F3644E31580C25DE4A08F4C07CC9A2D40C32'
+GRANT SELECT, INSERT ON `TEST`.* TO 'evtest1'@'localhost'
 GRANT SELECT, INSERT, CREATE, EVENT ON `events_test`.* TO 'evtest1'@'localhost'
 connection e1;
 USE events_test;
@@ -591,6 +592,7 @@ INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
 ROLLBACK;
 END;|
 connection default;
+DROP EVENT ev_sched_1823;
 DROP USER evtest1@localhost;
 USE test;
 =====================================================================================
