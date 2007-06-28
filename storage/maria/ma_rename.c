@@ -76,15 +76,16 @@ int maria_rename(const char *old_name, const char *new_name)
       MySQL layer to be crash-safe, which it is not now (that would require
       work using the ddl_log of sql/sql_table.cc); when it is, we should
       reconsider the moment of writing this log record (before or after op,
-      under THR_LOCK_maria or not...), how to use it in Recovery, and force
-      the log. For now this record is just informative.
+      under THR_LOCK_maria or not...), how to use it in Recovery.
+      For now it can serve to apply logs to a backup so we sync it.
     */
     if (unlikely(translog_write_record(&share->state.create_rename_lsn,
                                        LOGREC_REDO_RENAME_TABLE,
                                        &dummy_transaction_object, NULL,
                                        2 + 2 + old_name_len + new_name_len,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL)))
+                                       log_array, NULL) ||
+                 translog_flush(share->state.create_rename_lsn)))
     {
       maria_close(info);
       DBUG_RETURN(1);

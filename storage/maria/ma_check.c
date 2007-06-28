@@ -5176,7 +5176,23 @@ int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info)
   /* Only called from ha_maria.cc, not maria_check, so translog is inited */
   if (share->base.transactional && !share->temporary)
   {
-    /* For now this record is only informative */
+    /*
+      For now this record is only informative. It could serve when applying
+      logs to a backup, but that needs more thought. Assume table became
+      corrupted. It is repaired, then some writes happen to it.
+      Later we restore an old backup, and want to apply this REDO_REPAIR_TABLE
+      record. For it to give the same result as originally, the table should
+      be corrupted the same way, so applying previous REDOs should produce the
+      same corruption; that's really not guaranteed (different execution paths
+      in execution of REDOs vs runtime code so not same bugs hit, temporary
+      hardware issues not repeatable etc). Corruption may not be repeatable.
+      A reasonable solution is to execute the REDO_REPAIR_TABLE record and
+      check if the checksum of the resulting table matches what it was at the
+      end of the original repair (should be stored in log record); or execute
+      the REDO_REPAIR_TABLE if the checksum of the table-before-repair matches
+      was it was at the start of the original repair (should be stored in log
+      record).
+    */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[LSN_STORE_SIZE];
     compile_time_assert(LSN_STORE_SIZE >= (FILEID_STORE_SIZE + 4));
@@ -5193,7 +5209,8 @@ int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info)
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data)))
+                                       log_array, log_data) ||
+                 translog_flush(share->state.create_rename_lsn)))
       return 1;
     /*
       But this piece is really needed, to have the new table's content durable
