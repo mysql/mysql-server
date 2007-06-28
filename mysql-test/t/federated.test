@@ -1576,4 +1576,31 @@ connection slave;
 drop table federated.t1;
 
 
+#
+# BUG#21019 Federated Engine does not support REPLACE/INSERT IGNORE/UPDATE IGNORE
+#
+connection slave;
+create table federated.t1 (a int primary key, b varchar(64))
+  DEFAULT CHARSET=utf8;
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (a int primary key, b varchar(64))
+  ENGINE=FEDERATED
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+
+insert ignore into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+
+truncate federated.t1;
+replace into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+
+update ignore federated.t1 set a=a+1;
+select * from federated.t1;
+
+drop table federated.t1;
+connection slave;
+drop table federated.t1;
+
 source include/federated_cleanup.inc;
