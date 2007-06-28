@@ -1764,11 +1764,17 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
 
+/**
+  Item_empty_string -- is a utility class to put an item into List<Item>
+  which is then used in protocol.send_fields() when sending SHOW output to
+  the client.
+*/
+
 class Item_empty_string :public Item_string
 {
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
-    Item_string("",0, cs ? cs : &my_charset_bin)
+    Item_string("",0, cs ? cs : &my_charset_utf8_general_ci)
     { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
