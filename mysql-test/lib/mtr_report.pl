@@ -364,7 +364,12 @@ sub mtr_report_stats ($) {
 		# Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
 		#             server coredump
 		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/ or
-                /Statement is not safe to log in statement format/
+                /Statement is not safe to log in statement format/ or
+
+                # Test case for Bug#14233 produces the following warnings:
+                /Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc/ or
+                /Stored routine 'test'.'bug14233_2': invalid value in column mysql.proc/ or
+                /Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc/
 	       )
             {
               next;                       # Skip these lines

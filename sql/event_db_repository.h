@@ -42,6 +42,10 @@ enum enum_events_table_field
   ET_FIELD_COMMENT,
   ET_FIELD_ORIGINATOR,
   ET_FIELD_TIME_ZONE,
+  ET_FIELD_CHARACTER_SET_CLIENT,
+  ET_FIELD_COLLATION_CONNECTION,
+  ET_FIELD_DB_COLLATION,
+  ET_FIELD_BODY_UTF8,
   ET_FIELD_COUNT /* a cool trick to count the number of fields :) */
 };
 
@@ -52,6 +56,7 @@ events_table_index_read_for_db(THD *thd, TABLE *schema_table,
 
 int
 events_table_scan_all(THD *thd, TABLE *schema_table, TABLE *event_table);
+
 
 class Event_basic;
 class Event_parse_data;

@@ -1002,6 +1002,192 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   return 0;
 }
 
+
+static int fetch_db_collation(const char *db_name,
+                              char *db_cl_name,
+                              int db_cl_size)
+{
+  bool err_status= FALSE;
+  char query[QUERY_LENGTH];
+  MYSQL_RES *db_cl_res;
+  MYSQL_ROW db_cl_row;
+
+  my_snprintf(query, sizeof (query), "use %s", db_name);
+
+  if (mysql_query_with_error_report(mysql, NULL, query))
+    return 1;
+
+  if (mysql_query_with_error_report(mysql, &db_cl_res,
+                                    "select @@collation_database"))
+    return 1;
+
+  do
+  {
+    if (mysql_num_rows(db_cl_res) != 1)
+    {
+      err_status= TRUE;
+      break;
+    }
+
+    if (!(db_cl_row= mysql_fetch_row(db_cl_res)))
+    {
+      err_status= TRUE;
+      break;
+    }
+
+    strncpy(db_cl_name, db_cl_row[0], db_cl_size);
+    db_cl_name[db_cl_size - 1]= 0; /* just in case. */
+
+  } while (FALSE);
+
+  mysql_free_result(db_cl_res);
+
+  return err_status ? 1 : 0;
+}
+
+
+static char *my_case_str(const char *str,
+                         uint str_len,
+                         const char *token,
+                         uint token_len)
+{
+  my_match_t match;
+
+  uint status= my_charset_latin1.coll->instr(&my_charset_latin1,
+                                             str, str_len,
+                                             token, token_len,
+                                             &match, 1);
+
+  return status ? (char *) str + match.end : NULL;
+}
+
+
+static int switch_db_collation(FILE *sql_file,
+                               const char *db_name,
+                               const char *delimiter,
+                               const char *current_db_cl_name,
+                               const char *required_db_cl_name)
+{
+  if (strcmp(current_db_cl_name, required_db_cl_name) != 0)
+  {
+    CHARSET_INFO *db_cl= get_charset_by_name(required_db_cl_name, MYF(0));
+
+    fprintf(sql_file,
+            "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
+            (const char *) db_name,
+            (const char *) db_cl->csname,
+            (const char *) db_cl->name,
+            (const char *) delimiter);
+
+    return 1;
+  }
+
+  return 0;
+}
+
+
+static void restore_db_collation(FILE *sql_file,
+                                 const char *db_name,
+                                 const char *delimiter,
+                                 const char *db_cl_name)
+{
+  CHARSET_INFO *db_cl= get_charset_by_name(db_cl_name, MYF(0));
+
+  fprintf(sql_file,
+          "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
+          (const char *) db_name,
+          (const char *) db_cl->csname,
+          (const char *) db_cl->name,
+          (const char *) delimiter);
+}
+
+
+static void switch_cs_variables(FILE *sql_file,
+                                const char *delimiter,
+                                const char *character_set_client,
+                                const char *character_set_results,
+                                const char *collation_connection)
+{
+  fprintf(sql_file,
+          "/*!50003 SET @saved_cs_client      = @@character_set_client */ %s\n"
+          "/*!50003 SET @saved_cs_results     = @@character_set_results */ %s\n"
+          "/*!50003 SET @saved_col_connection = @@collation_connection */ %s\n"
+          "/*!50003 SET character_set_client  = %s */ %s\n"
+          "/*!50003 SET character_set_results = %s */ %s\n"
+          "/*!50003 SET collation_connection  = %s */ %s\n",
+          (const char *) delimiter,
+          (const char *) delimiter,
+          (const char *) delimiter,
+
+          (const char *) character_set_client,
+          (const char *) delimiter,
+
+          (const char *) character_set_results,
+          (const char *) delimiter,
+
+          (const char *) collation_connection,
+          (const char *) delimiter);
+}
+
+
+static void restore_cs_variables(FILE *sql_file,
+                                 const char *delimiter)
+{
+  fprintf(sql_file,
+          "/*!50003 SET character_set_client  = @saved_cs_client */ %s\n"
+          "/*!50003 SET character_set_results = @saved_cs_results */ %s\n"
+          "/*!50003 SET collation_connection  = @saved_col_connection */ %s\n",
+          (const char *) delimiter,
+          (const char *) delimiter,
+          (const char *) delimiter);
+}
+
+
+static void switch_sql_mode(FILE *sql_file,
+                            const char *delimiter,
+                            const char *sql_mode)
+{
+  fprintf(sql_file,
+          "/*!50003 SET @saved_sql_mode       = @@sql_mode */ %s\n"
+          "/*!50003 SET sql_mode              = '%s' */ %s\n",
+          (const char *) delimiter,
+
+          (const char *) sql_mode,
+          (const char *) delimiter);
+}
+
+
+static void restore_sql_mode(FILE *sql_file,
+                             const char *delimiter)
+{
+  fprintf(sql_file,
+          "/*!50003 SET sql_mode              = @saved_sql_mode */ %s\n",
+          (const char *) delimiter);
+}
+
+
+static void switch_time_zone(FILE *sql_file,
+                             const char *delimiter,
+                             const char *time_zone)
+{
+  fprintf(sql_file,
+          "/*!50003 SET @saved_time_zone      = @@time_zone */ %s\n"
+          "/*!50003 SET time_zone             = '%s' */ %s\n",
+          (const char *) delimiter,
+
+          (const char *) time_zone,
+          (const char *) delimiter);
+}
+
+
+static void restore_time_zone(FILE *sql_file,
+                              const char *delimiter)
+{
+  fprintf(sql_file,
+          "/*!50003 SET time_zone             = @saved_time_zone */ %s\n",
+          (const char *) delimiter);
+}
+
 /*
   Open a new .sql file to dump the table or view into
 
@@ -1470,10 +1656,14 @@ static uint dump_events_for_db(char *db)
   char       query_buff[QUERY_LENGTH];
   char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
   char       *event_name;
-  char       delimiter[QUERY_LENGTH], *delimit_test;
+  char       delimiter[QUERY_LENGTH];
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *event_res, *event_list_res;
   MYSQL_ROW  row, event_list_row;
+
+  char       db_cl_name[MY_CS_NAME_SIZE];
+  int        db_cl_altered;
+
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
@@ -1498,6 +1688,11 @@ static uint dump_events_for_db(char *db)
   {
     fprintf(sql_file, "/*!50106 SET @save_time_zone= @@TIME_ZONE */ ;\n");
 
+    /* Get database collation. */
+
+    if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
+      DBUG_RETURN(1);
+
     while ((event_list_row= mysql_fetch_row(event_list_res)) != NULL)
     {
       event_name= quote_name(event_list_row[1], name_buff, 0);
@@ -1520,17 +1715,41 @@ static uint dump_events_for_db(char *db)
             fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n", 
                 event_name, delimiter);
 
-          delimit_test= create_delimiter(row[3], delimiter, sizeof(delimiter)); 
-          if (delimit_test == NULL) {
-            fprintf(stderr, "%s: Warning: Can't dump event '%s'\n", 
-                event_name, my_progname);
+          if (create_delimiter(row[3], delimiter, sizeof(delimiter)) == NULL)
+          {
+            fprintf(stderr, "%s: Warning: Can't create delimiter for event '%s'\n",
+                    event_name, my_progname);
             DBUG_RETURN(1);
           }
 
           fprintf(sql_file, "DELIMITER %s\n", delimiter);
-          fprintf(sql_file, "/*!50106 SET TIME_ZONE= '%s' */ %s\n",
-                  row[2], delimiter);
-          fprintf(sql_file, "/*!50106 %s */ %s\n", row[3], delimiter);
+
+          db_cl_altered= switch_db_collation(sql_file,
+                                             db_name_buff,
+                                             delimiter,
+                                             db_cl_name,
+                                             row[6]);
+
+          switch_cs_variables(sql_file, delimiter,
+                              row[4],   /* character_set_client */
+                              row[4],   /* character_set_results */
+                              row[5]);  /* collation_connection */
+
+          switch_sql_mode(sql_file, delimiter, row[1]);
+
+          switch_time_zone(sql_file, delimiter, row[2]);
+
+          fprintf(sql_file,
+                  "/*!50106 %s */ %s\n",
+                  (const char *) row[3],
+                  (const char *) delimiter);
+
+          restore_time_zone(sql_file, delimiter);
+          restore_sql_mode(sql_file, delimiter);
+          restore_cs_variables(sql_file, delimiter);
+
+          if (db_cl_altered)
+            restore_db_collation(sql_file, db_name_buff, delimiter, db_cl_name);
         }
       } /* end of event printing */
       mysql_free_result(event_res);
@@ -1592,6 +1811,10 @@ static uint dump_routines_for_db(char *db)
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *routine_res, *routine_list_res;
   MYSQL_ROW  row, routine_list_row;
+
+  char       db_cl_name[MY_CS_NAME_SIZE];
+  int        db_cl_altered;
+
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
@@ -1608,10 +1831,10 @@ static uint dump_routines_for_db(char *db)
   if (lock_tables)
     mysql_query(mysql, "LOCK TABLES mysql.proc READ");
 
-  if (opt_compact)
-    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+  /* Get database collation. */
 
-  fprintf(sql_file, "DELIMITER ;;\n");
+  if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
+    DBUG_RETURN(1);
 
   /* 0, retrieve and dump functions, 1, procedures */
   for (i= 0; i <= 1; i++)
@@ -1658,26 +1881,34 @@ static uint dump_routines_for_db(char *db)
             char *definer_begin;
 
             if (opt_drop)
-              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;;\n",
+              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
 
             /*
               Cover DEFINER-clause in version-specific comments.
 
               TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
-              We should user INFORMATION_SCHEMA instead. The only problem is
-              that now INFORMATION_SCHEMA does not provide information about
-              routine parameters.
+              However, we can not use INFORMATION_SCHEMA instead:
+                1. INFORMATION_SCHEMA provides data in UTF8, but here we
+                   need data in the original character set;
+                2. INFORMATION_SCHEMA does not provide information about
+                   routine parameters now.
             */
 
-            definer_begin= strstr(row[2], " DEFINER");
+            definer_begin= my_case_str(row[2], strlen(row[2]),
+                                       C_STRING_WITH_LEN(" DEFINER"));
 
             if (definer_begin)
             {
-              char *definer_end= strstr(definer_begin, " PROCEDURE");
+              char *definer_end= my_case_str(definer_begin,
+                                             strlen(definer_begin),
+                                             C_STRING_WITH_LEN(" PROCEDURE"));
 
               if (!definer_end)
-                definer_end= strstr(definer_begin, " FUNCTION");
+              {
+                definer_end= my_case_str(definer_begin, strlen(definer_begin),
+                                         C_STRING_WITH_LEN(" FUNCTION"));
+              }
 
               if (definer_end)
               {
@@ -1703,13 +1934,28 @@ static uint dump_routines_for_db(char *db)
               we need to change sql_mode only for the CREATE
               PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
             */
-            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
-                    row[1] /* sql_mode */);
-            fprintf(sql_file, "/*!50003 %s */;;\n",
-                    (query_str != NULL ? query_str : row[2]));
+
+            db_cl_altered= switch_db_collation(sql_file, db_name_buff, ";",
+                                               db_cl_name, row[5]);
+
+            switch_cs_variables(sql_file, ";",
+                                row[3],   /* character_set_client */
+                                row[3],   /* character_set_results */
+                                row[4]);  /* collation_connection */
+
+            switch_sql_mode(sql_file, ";", row[1]);
+
             fprintf(sql_file,
-                    "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/"
-                    ";;\n");
+                    "DELIMITER ;;\n"
+                    "/*!50003 %s */;;\n"
+                    "DELIMITER ;\n",
+                    (const char *) (query_str != NULL ? query_str : row[2]));
+
+            restore_sql_mode(sql_file, ";");
+            restore_cs_variables(sql_file, ";");
+
+            if (db_cl_altered)
+              restore_db_collation(sql_file, db_name_buff, ";", db_cl_name);
 
             my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
           }
@@ -1720,8 +1966,6 @@ static uint dump_routines_for_db(char *db)
     }
     mysql_free_result(routine_list_res);
   } /* end of for i (0 .. 1)  */
-  /* set the delimiter back to ';' */
-  fprintf(sql_file, "DELIMITER ;\n");
 
   if (lock_tables)
     VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
@@ -2239,8 +2483,7 @@ continue_xml:
 
 */
 
-static void dump_triggers_for_table(char *table,
-                                    char *db __attribute__((unused)))
+static void dump_triggers_for_table(char *table, char *db_name)
 {
   char       *result_table;
   char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
@@ -2249,8 +2492,12 @@ static void dump_triggers_for_table(char *table,
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
+
+  char       db_cl_name[MY_CS_NAME_SIZE];
+  int        db_cl_altered;
+
   DBUG_ENTER("dump_triggers_for_table");
-  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+  DBUG_PRINT("enter", ("db: %s, table: %s", db_name, table));
 
   /* Do not use ANSI_QUOTES on triggers in dump */
   opt_compatible_mode&= ~MASK_ANSI_QUOTES;
@@ -2266,62 +2513,109 @@ static void dump_triggers_for_table(char *table,
       my_fclose(sql_file, MYF(MY_WME));
     DBUG_VOID_RETURN;
   }
-  if (mysql_num_rows(result))
-  {
-    if (opt_compact)
-      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
-    fprintf(sql_file, "\nDELIMITER ;;\n");
-  }
+
+  /* Get database collation. */
+
+  if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
+    DBUG_VOID_RETURN;
+
+  /* Dump triggers. */
+
   while ((row= mysql_fetch_row(result)))
   {
-    fprintf(sql_file,
-            "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
-            "/*!50003 CREATE */ ",
-            row[6] /* sql_mode */);
+    MYSQL_RES *res2;
 
-    if (mysql_num_fields(result) > 7)
+    my_snprintf(query_buff, sizeof (query_buff),
+                "SHOW CREATE TRIGGER %s",
+                quote_name(row[0], name_buff, TRUE));
+
+    if (mysql_query_with_error_report(mysql, &res2, query_buff))
     {
-      /*
-        mysqldump can be run against the server, that does not support definer
-        in triggers (there is no DEFINER column in SHOW TRIGGERS output). So,
-        we should check if we have this column before accessing it.
-      */
-
-      size_t     user_name_len;
-      char       user_name_str[USERNAME_LENGTH + 1];
-      char       quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
-      size_t     host_name_len;
-      char       host_name_str[HOSTNAME_LENGTH + 1];
-      char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
-
-      parse_user(row[7], strlen(row[7]), user_name_str, &user_name_len,
-                 host_name_str, &host_name_len);
-
-      fprintf(sql_file,
-              "/*!50017 DEFINER=%s@%s */ ",
-              quote_name(user_name_str, quoted_user_name_str, FALSE),
-              quote_name(host_name_str, quoted_host_name_str, FALSE));
+      if (path)
+        my_fclose(sql_file, MYF(MY_WME));
+      maybe_exit(EX_MYSQLERR);
+      DBUG_VOID_RETURN;
     }
 
-    fprintf(sql_file,
-            "/*!50003 TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
-            quote_name(row[0], name_buff, 0), /* Trigger */
-            row[4], /* Timing */
-            row[1], /* Event */
-            result_table,
-            (strchr(" \t\n\r", *(row[3]))) ? "" : " ",
-            row[3] /* Statement */);
+    while ((row= mysql_fetch_row(res2)))
+    {
+      char *query_str= NULL;
+      char *definer_begin;
+
+      /*
+        Cover DEFINER-clause in version-specific comments.
+
+        TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
+        However, we can not use INFORMATION_SCHEMA instead:
+          1. INFORMATION_SCHEMA provides data in UTF8, but here we
+             need data in the original character set;
+          2. INFORMATION_SCHEMA does not provide information about
+             routine parameters now.
+      */
+
+      definer_begin= my_case_str(row[2], strlen(row[2]),
+                                 C_STRING_WITH_LEN(" DEFINER"));
+
+      if (definer_begin)
+      {
+        char *definer_end= my_case_str(definer_begin, strlen(definer_begin),
+                                       C_STRING_WITH_LEN(" TRIGGER"));
+
+        if (definer_end)
+        {
+          char *query_str_tail;
+
+          /*
+             Allocate memory for new query string: original string
+             from SHOW statement and version-specific comments.
+           */
+          query_str= alloc_query_str(strlen(row[2]) + 23);
+
+          query_str_tail= strnmov(query_str, row[2],
+            definer_begin - row[2]);
+          query_str_tail= strmov(query_str_tail, "*/ /*!50017");
+          query_str_tail= strnmov(query_str_tail, definer_begin,
+            definer_end - definer_begin);
+          query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
+            definer_end, NullS);
+        }
+      }
+
+      db_cl_altered= switch_db_collation(sql_file, db_name, ";",
+                                         db_cl_name, row[5]);
+
+      switch_cs_variables(sql_file, ";",
+                          row[3],   /* character_set_client */
+                          row[3],   /* character_set_results */
+                          row[4]);  /* collation_connection */
+
+      switch_sql_mode(sql_file, ";", row[1]);
+
+      fprintf(sql_file,
+              "DELIMITER ;;\n"
+              "/*!50003 %s */;;\n"
+              "DELIMITER ;\n",
+              (const char *) (query_str != NULL ? query_str : row[2]));
+
+      restore_sql_mode(sql_file, ";");
+      restore_cs_variables(sql_file, ";");
+
+      if (db_cl_altered)
+        restore_db_collation(sql_file, db_name, ";", db_cl_name);
+
+      my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+    }
+    mysql_free_result(res2);
   }
-  if (mysql_num_rows(result))
-    fprintf(sql_file,
-            "DELIMITER ;\n"
-            "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
+
   mysql_free_result(result);
+
   /*
     make sure to set back opt_compatible mode to
     original value
   */
   opt_compatible_mode=old_opt_compatible_mode;
+
   DBUG_VOID_RETURN;
 }
 
@@ -4107,9 +4401,11 @@ static my_bool get_view_structure(char *table, char* db)
 
 
   my_snprintf(query, sizeof(query),
-              "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE "            \
-              "FROM information_schema.views "                          \
+              "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
+              "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION "
+              "FROM information_schema.views "
               "WHERE table_name=\"%s\" AND table_schema=\"%s\"", table, db);
+
   if (mysql_query(mysql, query))
   {
     /*
@@ -4195,7 +4491,23 @@ static my_bool get_view_structure(char *table, char* db)
     }
 
     /* Dump view structure to file */
-    fprintf(sql_file, "/*!50001 %s */;\n", ds_view.str);
+
+    fprintf(sql_file,
+            "/*!50001 SET @saved_cs_client          = @@character_set_client */;\n"
+            "/*!50001 SET @saved_cs_results         = @@character_set_results */;\n"
+            "/*!50001 SET @saved_col_connection     = @@collation_connection */;\n"
+            "/*!50001 SET character_set_client      = %s */;\n"
+            "/*!50001 SET character_set_results     = %s */;\n"
+            "/*!50001 SET collation_connection      = %s */;\n"
+            "/*!50001 %s */;\n"
+            "/*!50001 SET character_set_client      = @saved_cs_client */;\n"
+            "/*!50001 SET character_set_results     = @saved_cs_results */;\n"
+            "/*!50001 SET collation_connection      = @saved_col_connection */;\n",
+            (const char *) row[3],
+            (const char *) row[3],
+            (const char *) row[4],
+            (const char *) ds_view.str);
+
     check_io(sql_file);
     mysql_free_result(table_res);
     dynstr_free(&ds_view);

@@ -25,6 +25,29 @@ class partition_info;
 class COND_EQUAL;
 class Security_context;
 
+/*************************************************************************/
+
+/**
+ View_creation_ctx -- creation context of view objects.
+*/
+
+class View_creation_ctx : public Default_object_creation_ctx,
+                          public Sql_alloc
+{
+public:
+  static View_creation_ctx *create(THD *thd);
+
+  static View_creation_ctx *create(THD *thd,
+                                   struct st_table_list *view);
+
+private:
+  View_creation_ctx(THD *thd)
+    : Default_object_creation_ctx(thd)
+  { }
+};
+
+/*************************************************************************/
+
 /* Order clause list element */
 
 typedef struct st_order {
@@ -863,7 +886,7 @@ typedef struct st_table_list
   st_table_list	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
-  LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
+  LEX_STRING	select_stmt;		/* text of (CREATE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query text */
   LEX_STRING	source;			/* source of CREATE VIEW */
   LEX_STRING	view_db;		/* saved view database */
@@ -929,6 +952,32 @@ typedef struct st_table_list
     ... SELECT implementation).
   */
   bool          create;
+
+
+  /* View creation context. */
+
+  View_creation_ctx *view_creation_ctx;
+
+  /*
+    Attributes to save/load view creation context in/from frm-file.
+
+    Ther are required only to be able to use existing parser to load
+    view-definition file. As soon as the parser parsed the file, view
+    creation context is initialized and the attributes become redundant.
+
+    These attributes MUST NOT be used for any purposes but the parsing.
+  */
+
+  LEX_STRING view_client_cs_name;
+  LEX_STRING view_connection_cl_name;
+
+  /*
+    View definition (SELECT-statement) in the UTF-form.
+  */
+
+  LEX_STRING view_body_utf8;
+
+   /* End of view definition context. */
 
   enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);

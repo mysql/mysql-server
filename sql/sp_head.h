@@ -45,6 +45,58 @@ class sp_instr_jump_if_not;
 struct sp_cond_type;
 struct sp_variable;
 
+/*************************************************************************/
+
+/**
+  Stored_program_creation_ctx -- base class for creation context of stored
+  programs (stored routines, triggers, events).
+*/
+
+class Stored_program_creation_ctx :public Default_object_creation_ctx
+{
+public:
+  CHARSET_INFO *get_db_cl()
+  {
+    return m_db_cl;
+  }
+
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) = 0;
+
+protected:
+  Stored_program_creation_ctx(THD *thd)
+    : Default_object_creation_ctx(thd),
+      m_db_cl(thd->variables.collation_database)
+  { }
+
+  Stored_program_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl,
+                              CHARSET_INFO *db_cl)
+    : Default_object_creation_ctx(client_cs, connection_cl),
+      m_db_cl(db_cl)
+  { }
+
+protected:
+  virtual void change_env(THD *thd) const
+  {
+    thd->variables.collation_database= m_db_cl;
+
+    Default_object_creation_ctx::change_env(thd);
+  }
+
+protected:
+  /**
+    db_cl stores the value of the database collation. Both character set
+    and collation attributes are used.
+
+    Database collation is included into the context because it defines the
+    default collation for stored-program variables.
+  */
+  CHARSET_INFO *m_db_cl;
+};
+
+/*************************************************************************/
+
 class sp_name : public Sql_alloc
 {
 public:
@@ -136,9 +188,25 @@ public:
   LEX_STRING m_name;
   LEX_STRING m_params;
   LEX_STRING m_body;
+  LEX_STRING m_body_utf8;
   LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
+
+private:
+  Stored_program_creation_ctx *m_creation_ctx;
+
+public:
+  inline Stored_program_creation_ctx *get_creation_ctx()
+  {
+    return m_creation_ctx;
+  }
+
+  inline void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
+  {
+    m_creation_ctx= creation_ctx->clone(mem_root);
+  }
+
   longlong m_created;
   longlong m_modified;
   /* Recursion level of the current SP instance. The levels are numbered from 0 */
@@ -205,9 +273,13 @@ public:
   void
   init_sp_name(THD *thd, sp_name *spname);
 
-  // Initialize strings after parsing header
+  /** Set the body-definition start position. */
   void
-  init_strings(THD *thd, LEX *lex);
+  set_body_start(THD *thd, const char *begin_ptr);
+
+  /** Set the statement-definition (body-definition) end position. */
+  void
+  set_stmt_end(THD *thd);
 
   int
   create(THD *thd);
@@ -299,8 +371,6 @@ public:
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
-
-  void set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr);
 
   void set_definer(const char *definer, uint definerlen);
   void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);

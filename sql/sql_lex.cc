@@ -123,15 +123,19 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   m_end_of_query(buffer + length),
   m_tok_start_prev(NULL),
   m_buf(buffer),
+  m_buf_length(length),
   m_echo(true),
   m_cpp_tok_start(NULL),
   m_cpp_tok_start_prev(NULL),
   m_cpp_tok_end(NULL),
+  m_body_utf8(NULL),
+  m_cpp_utf8_processed_ptr(NULL),
   next_state(MY_LEX_START),
   found_semicolon(NULL),
   ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
   stmt_prepare_mode(FALSE),
-  in_comment(NO_COMMENT)
+  in_comment(NO_COMMENT),
+  m_underscore_cs(NULL)
 {
   m_cpp_buf= (char*) thd->alloc(length + 1);
   m_cpp_ptr= m_cpp_buf;
@@ -139,6 +143,133 @@ Lex_input_stream::Lex_input_stream(THD *thd,
 
 Lex_input_stream::~Lex_input_stream()
 {}
+
+/**
+  The operation is called from the parser in order to
+  1) designate the intention to have utf8 body;
+  1) Indicate to the lexer that we will need a utf8 representation of this
+     statement;
+  2) Determine the beginning of the body.
+
+  @param thd        Thread context.
+  @param begin_ptr  Pointer to the start of the body in the pre-processed
+                    buffer.
+*/
+
+void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
+{
+  DBUG_ASSERT(begin_ptr);
+  DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+
+  uint body_utf8_length=
+    (m_buf_length / thd->variables.character_set_client->mbminlen) *
+    my_charset_utf8_bin.mbmaxlen;
+
+  m_body_utf8= (char *) thd->alloc(body_utf8_length + 1);
+  m_body_utf8_ptr= m_body_utf8;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= begin_ptr;
+}
+
+/**
+  The operation appends unprocessed part of pre-processed buffer till
+  the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to end_ptr.
+
+  The idea is that some tokens in the pre-processed buffer (like character
+  set introducers) should be skipped.
+
+  Example:
+    CPP buffer: SELECT 'str1', _latin1 'str2';
+    m_cpp_utf8_processed_ptr -- points at the "SELECT ...";
+    In order to skip "_latin1", the following call should be made:
+      body_utf8_append(<pointer to "_latin1 ...">, <pointer to " 'str2'...">)
+
+  @param ptr      Pointer in the pre-processed buffer, which specifies the
+                  end of the chunk, which should be appended to the utf8
+                  body.
+  @param end_ptr  Pointer in the pre-processed buffer, to which
+                  m_cpp_utf8_processed_ptr will be set in the end of the
+                  operation.
+*/
+
+void Lex_input_stream::body_utf8_append(const char *ptr,
+                                        const char *end_ptr)
+{
+  DBUG_ASSERT(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  DBUG_ASSERT(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+
+  if (!m_body_utf8)
+    return;
+
+  if (m_cpp_utf8_processed_ptr >= ptr)
+    return;
+
+  int bytes_to_copy= ptr - m_cpp_utf8_processed_ptr;
+
+  memcpy(m_body_utf8_ptr, m_cpp_utf8_processed_ptr, bytes_to_copy);
+  m_body_utf8_ptr += bytes_to_copy;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= end_ptr;
+}
+
+/**
+  The operation appends unprocessed part of the pre-processed buffer till
+  the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to ptr.
+
+  @param ptr  Pointer in the pre-processed buffer, which specifies the end
+              of the chunk, which should be appended to the utf8 body.
+*/
+
+void Lex_input_stream::body_utf8_append(const char *ptr)
+{
+  body_utf8_append(ptr, ptr);
+}
+
+/**
+  The operation converts the specified text literal to the utf8 and appends
+  the result to the utf8-body.
+
+  @param thd      Thread context.
+  @param txt      Text literal.
+  @param txt_cs   Character set of the text literal.
+  @param end_ptr  Pointer in the pre-processed buffer, to which
+                  m_cpp_utf8_processed_ptr will be set in the end of the
+                  operation.
+*/
+
+void Lex_input_stream::body_utf8_append_literal(THD *thd,
+                                                const LEX_STRING *txt,
+                                                CHARSET_INFO *txt_cs,
+                                                const char *end_ptr)
+{
+  if (!m_cpp_utf8_processed_ptr)
+    return;
+
+  LEX_STRING utf_txt;
+
+  if (txt_cs->number != my_charset_utf8_general_ci.number)
+  {
+    thd->convert_string(&utf_txt,
+                        &my_charset_utf8_general_ci,
+                        txt->str, txt->length,
+                        txt_cs);
+  }
+  else
+  {
+    utf_txt.str= txt->str;
+    utf_txt.length= txt->length;
+  }
+
+  /* NOTE: utf_txt.length is in bytes, not in symbols. */
+
+  memcpy(m_body_utf8_ptr, utf_txt.str, utf_txt.length);
+  m_body_utf8_ptr += utf_txt.length;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= end_ptr;
+}
 
 
 /*
@@ -231,6 +362,7 @@ void lex_start(THD *thd)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
+
   DBUG_VOID_RETURN;
 }
 
@@ -311,6 +443,10 @@ static LEX_STRING get_token(Lex_input_stream *lip, uint skip, uint length)
   lip->yyUnget();                       // ptr points now after last token char
   tmp.length=lip->yytoklen=length;
   tmp.str= lip->m_thd->strmake(lip->get_tok_start() + skip, tmp.length);
+
+  lip->m_cpp_text_start= lip->get_cpp_tok_start() + skip;
+  lip->m_cpp_text_end= lip->m_cpp_text_start + tmp.length;
+
   return tmp;
 }
 
@@ -334,10 +470,17 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
   from= lip->get_tok_start() + skip;
   to= tmp.str;
   end= to+length;
+
+  lip->m_cpp_text_start= lip->get_cpp_tok_start() + skip;
+  lip->m_cpp_text_end= lip->m_cpp_text_start + length;
+
   for ( ; to != end; )
   {
     if ((*to++= *from++) == quote)
+    {
       from++;					// Skip double quotes
+      lip->m_cpp_text_start++;
+    }
   }
   *to= 0;					// End null for safety
   return tmp;
@@ -402,6 +545,10 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 
       if (!(start= (char*) lip->m_thd->alloc((uint) (end-str)+1)))
 	return (char*) "";		// Sql_alloc has set error flag
+
+      lip->m_cpp_text_start= lip->get_cpp_tok_start() + pre_skip;
+      lip->m_cpp_text_end= lip->get_cpp_ptr() - post_skip;
+
       if (!found_escape)
       {
 	lip->yytoklen=(uint) (end-str);
@@ -743,18 +890,33 @@ int MYSQLlex(void *arg, void *yythd)
       }
       yylval->lex_str=get_token(lip, 0, length);
 
-      /* 
+      /*
          Note: "SELECT _bla AS 'alias'"
          _bla should be considered as a IDENT if charset haven't been found.
-         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid 
+         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid
          producing an error.
       */
 
-      if ((yylval->lex_str.str[0]=='_') && 
-          (lex->underscore_charset=
-             get_charset_by_csname(yylval->lex_str.str + 1,
-                                   MY_CS_PRIMARY,MYF(0))))
-        return(UNDERSCORE_CHARSET);
+      if (yylval->lex_str.str[0] == '_')
+      {
+        CHARSET_INFO *cs= get_charset_by_csname(yylval->lex_str.str + 1,
+                                                MY_CS_PRIMARY, MYF(0));
+        if (cs)
+        {
+          yylval->charset= cs;
+          lip->m_underscore_cs= cs;
+
+          lip->body_utf8_append(lip->m_cpp_text_start,
+                                lip->get_cpp_tok_start() + length);
+          return(UNDERSCORE_CHARSET);
+        }
+      }
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);			// IDENT or IDENT_QUOTED
 
     case MY_LEX_IDENT_SEP:		// Found ident and now '.'
@@ -852,6 +1014,12 @@ int MYSQLlex(void *arg, void *yythd)
 	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
       yylval->lex_str= get_token(lip, 0, lip->yyLength());
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);
 
     case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
@@ -887,6 +1055,12 @@ int MYSQLlex(void *arg, void *yythd)
       if (c == quote_char)
         lip->yySkip();                  // Skip end `
       lip->next_state= MY_LEX_START;
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(IDENT_QUOTED);
     }
     case MY_LEX_INT_OR_REAL:		// Complete int or incomplete real
@@ -995,6 +1169,15 @@ int MYSQLlex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length=lip->yytoklen;
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str,
+        lip->m_underscore_cs ? lip->m_underscore_cs : cs,
+        lip->m_cpp_text_end);
+
+      lip->m_underscore_cs= NULL;
+
       return(TEXT_STRING);
 
     case MY_LEX_COMMENT:			//  Comment
@@ -1201,6 +1384,12 @@ int MYSQLlex(void *arg, void *yythd)
 	return(tokval);				// Was keyword
       }
       yylval->lex_str=get_token(lip, 0, length);
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);
     }
   }

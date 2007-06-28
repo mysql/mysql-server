@@ -12,8 +12,8 @@ insert into t1 values('test', 0);
 create procedure stamp(i int)
 insert into db1_secret.t1 values (user(), i);
 show procedure status like 'stamp';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 create function db() returns varchar(64)
 begin
 declare v varchar(64);
@@ -21,8 +21,8 @@ select u into v from t1 limit 1;
 return v;
 end|
 show function status like 'db';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 call stamp(1);
 select * from t1;
 u	i
@@ -71,12 +71,12 @@ user1@localhost	2
 anon@localhost	3
 alter procedure stamp sql security invoker;
 show procedure status like 'stamp';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
 alter function db sql security invoker;
 show function status like 'db';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
 call stamp(4);
 select * from t1;
 u	i
@@ -365,21 +365,21 @@ Note	1449	There is no 'a @ b @ c'@'localhost' registered
 ---> connection: con1root
 use mysqltest;
 SHOW CREATE PROCEDURE wl2897_p1;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p1		CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
-SELECT 1
+SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE wl2897_p3;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p3		CREATE DEFINER=`a @ b @ c`@`localhost` PROCEDURE `wl2897_p3`()
-SELECT 3
+SELECT 3	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION wl2897_f1;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f1		CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
-RETURN 1
+RETURN 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION wl2897_f3;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f3		CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
-RETURN 3
+RETURN 3	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
@@ -443,14 +443,14 @@ SET a=1;
 SELECT a;
 END //
 SHOW CREATE PROCEDURE test.sp19857;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp19857		CREATE DEFINER=`user19857`@`localhost` PROCEDURE `sp19857`()
     DETERMINISTIC
 BEGIN
 DECLARE a INT;
 SET a=1;
 SELECT a;
-END
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS test.sp19857;
 
 ---> connection: root

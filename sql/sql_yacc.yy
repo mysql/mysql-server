@@ -1089,7 +1089,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
-        UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
+        IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
 
@@ -1205,6 +1205,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	collation_name
 	collation_name_or_default
 	opt_load_data_charset
+        UNDERSCORE_CHARSET
 
 %type <variable> internal_variable_name
 
@@ -1716,21 +1717,24 @@ event_tail:
              YYTHD->client_capabilities is set back to original value
           */
           {
-            Lex->create_info.options= $2;
+            THD *thd= YYTHD;
+            LEX *lex=Lex;
 
-            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+            lex->create_info.options= $2;
+
+            if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
-            Lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->identifier= $3;
 
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
               at each ';'.
             */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+            thd->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
-            Lex->sql_command= SQLCOM_CREATE_EVENT;
+            lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
           }
           ON SCHEDULE_SYM ev_schedule_time
@@ -1863,16 +1867,16 @@ ev_sql_stmt:
             if (!(lex->sphead= new sp_head()))
               MYSQL_YYABORT;
 
-            lex->sphead->reset_thd_mem_root(YYTHD);
+            lex->sphead->reset_thd_mem_root(thd);
             lex->sphead->init(lex);
-            lex->sphead->init_sp_name(YYTHD, Lex->event_parse_data->identifier);
+	    lex->sphead->init_sp_name(thd, lex->event_parse_data->identifier);
 
             lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
-            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
+            lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
           }
           ev_sql_stmt_inner
           {
@@ -1880,7 +1884,7 @@ ev_sql_stmt:
             LEX *lex= thd->lex;
 
             /* return back to the original memory root ASAP */
-            lex->sphead->init_strings(thd, lex);
+            lex->sphead->set_stmt_end(thd);
             lex->sphead->restore_thd_mem_root(thd);
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
@@ -1946,7 +1950,7 @@ sp_name:
               MYSQL_YYABORT;
 	    $$= new sp_name(db, $1, false);
             if ($$)
-	      $$->init_qname(YYTHD);
+	      $$->init_qname(thd);
 	  }
 	;
 
@@ -2066,7 +2070,7 @@ create_function_tail:
             Lex_input_stream *lip= thd->m_lip;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
+            lex->sphead->set_body_start(thd, lip->get_cpp_tok_start());
 	  }
 	  sp_proc_stmt
 	  {
@@ -2078,7 +2082,7 @@ create_function_tail:
               MYSQL_YYABORT;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(thd, lex);
+	    sp->set_stmt_end(thd);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
             {
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
@@ -3604,14 +3608,20 @@ create2:
           create3 {}
         | LIKE table_ident
           {
-            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!Lex->select_lex.add_table_to_list(YYTHD, $2, NULL, 0, TL_READ))
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+
+            lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!lex->select_lex.add_table_to_list(thd, $2, NULL, 0, TL_READ))
               MYSQL_YYABORT;
           }
         | '(' LIKE table_ident ')'
           {
-            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!Lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0, TL_READ))
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+
+            lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0, TL_READ))
               MYSQL_YYABORT;
           }
         ;
@@ -8669,7 +8679,7 @@ show_param:
 	  { Lex->create_info.db_type= NULL; }
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
-            LEX *lex= Lex;
+	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
@@ -8865,6 +8875,12 @@ show_param:
 	    LEX *lex= Lex;
 
 	    lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
+	    lex->spname= $3;
+	  }
+	| CREATE TRIGGER_SYM sp_name
+	  {
+	    LEX *lex= Lex;
+	    lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
 	    lex->spname= $3;
 	  }
 	| PROCEDURE STATUS_SYM wild_and_where
@@ -9307,7 +9323,9 @@ text_literal:
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->underscore_charset); }
+	  {
+	    $$ = new Item_string($2.str, $2.length, $1);
+	  }
 	| text_literal TEXT_STRING_literal
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
@@ -9394,7 +9412,7 @@ literal:
 	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,
-				Lex->underscore_charset);
+				$1);
 	  }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
@@ -9669,6 +9687,7 @@ IDENT_sys:
 	| IDENT_QUOTED
 	  {
 	    THD *thd= YYTHD;
+
 	    if (thd->charset_is_system_charset)
             {
               CHARSET_INFO *cs= system_charset_info;
@@ -9694,6 +9713,7 @@ TEXT_STRING_sys:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
+
 	  if (thd->charset_is_system_charset)
 	    $$= $1;
 	  else
@@ -9706,6 +9726,7 @@ TEXT_STRING_literal:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
+
 	  if (thd->charset_is_collation_connection)
 	    $$= $1;
 	  else
@@ -9719,6 +9740,7 @@ TEXT_STRING_filesystem:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
+
 	  if (thd->charset_is_character_set_filesystem)
 	    $$= $1;
 	  else
@@ -10408,7 +10430,8 @@ option_value:
 internal_variable_name:
 	ident
 	{
-	  LEX *lex= Lex;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
           sp_pcontext *spc= lex->spcont;
 	  sp_variable_t *spv;
 
@@ -10416,7 +10439,7 @@ internal_variable_name:
 	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
-	    sys_var *tmp=find_sys_var(YYTHD, $1.str, $1.length);
+	    sys_var *tmp=find_sys_var(thd, $1.str, $1.length);
 	    if (!tmp)
 	      MYSQL_YYABORT;
 	    $$.var= tmp;
@@ -11376,8 +11399,27 @@ view_tail:
 	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
 	}
-	view_list_opt AS view_select
-	{}
+	view_list_opt AS
+	{
+	  THD *thd= YYTHD;
+	  Lex_input_stream *lip= thd->m_lip;
+
+	  lip->body_utf8_start(thd, lip->get_cpp_ptr());
+	}
+	view_select
+	{
+	  THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+	  Lex_input_stream *lip= thd->m_lip;
+
+	  lip->body_utf8_append(lip->get_cpp_ptr());
+
+          lex->view_body_utf8.str= thd->strmake(lip->get_body_utf8_str(),
+                                                lip->get_body_utf8_length());
+          lex->view_body_utf8.length= lip->get_body_utf8_length();
+
+          trim_whitespace(&my_charset_utf8_general_ci, &lex->view_body_utf8);
+	}
 	;
 
 view_list_opt:
@@ -11504,7 +11546,7 @@ trigger_tail:
 
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_ptr());
+          lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
 	}
         sp_proc_stmt /* $16 */
         { /* $17 */
@@ -11512,7 +11554,7 @@ trigger_tail:
 	  sp_head *sp= lex->sphead;
 
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
-	  sp->init_strings(YYTHD, lex);
+	  sp->set_stmt_end(YYTHD);
 	  /* Restore flag if it was cleared above */
 
 	  YYTHD->client_capabilities |= $<ulong_num>15;
@@ -11607,14 +11649,14 @@ sp_tail:
           Lex_input_stream *lip= thd->m_lip;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
-          lex->sphead->set_body_begin_ptr(lip, lip->get_cpp_tok_start());
+          lex->sphead->set_body_start(thd, lip->get_cpp_tok_start());
 	}
 	sp_proc_stmt
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  sp->init_strings(YYTHD, lex);
+	  sp->set_stmt_end(YYTHD);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           /*
             Restore flag if it was cleared above

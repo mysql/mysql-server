@@ -610,8 +610,8 @@ err:
 
 /* index of revision number in following table */
 static const int revision_number_position= 8;
-/* index of last required parameter for making view */
-static const int required_view_parameters= 10;
+/* number of required parameters for making view */
+static const int required_view_parameters= 16;
 /* number of backups */
 static const int num_view_backups= 3;
 
@@ -623,7 +623,7 @@ static const int num_view_backups= 3;
 */
 static File_option view_parameters[]=
 {{{ C_STRING_WITH_LEN("query")},
-  my_offsetof(TABLE_LIST, query),
+  my_offsetof(TABLE_LIST, select_stmt),
   FILE_OPTIONS_ESTRING},
  {{ C_STRING_WITH_LEN("md5")},
   my_offsetof(TABLE_LIST, md5),
@@ -658,6 +658,15 @@ static File_option view_parameters[]=
  {{ C_STRING_WITH_LEN("source")},
   my_offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
+ {{(char*) STRING_WITH_LEN("client_cs_name")},
+  my_offsetof(TABLE_LIST, view_client_cs_name),
+  FILE_OPTIONS_STRING},
+ {{(char*) STRING_WITH_LEN("connection_cl_name")},
+  my_offsetof(TABLE_LIST, view_connection_cl_name),
+  FILE_OPTIONS_STRING},
+ {{(char*) STRING_WITH_LEN("view_body_utf8")},
+  my_offsetof(TABLE_LIST, view_body_utf8),
+  FILE_OPTIONS_STRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
 };
@@ -685,7 +694,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 {
   LEX *lex= thd->lex;
   char buff[4096];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String view_query(buff, sizeof (buff), thd->charset());
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
@@ -694,18 +703,18 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_ENTER("mysql_register_view");
 
   /* print query */
-  str.length(0);
+  view_query.length(0);
   {
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-    lex->unit.print(&str);
+    lex->unit.print(&view_query);
     thd->variables.sql_mode|= sql_mode;
   }
-  DBUG_PRINT("info", ("View: %s", str.ptr()));
+  DBUG_PRINT("info", ("View: %s", view_query.ptr()));
 
   /* fill structure */
-  view->query.str= str.c_ptr_safe();
-  view->query.length= str.length();
+  view->select_stmt.str= view_query.c_ptr_safe();
+  view->select_stmt.length= view_query.length();
 
   view->source.str= (char*) thd->lex->create_view_select_start;
   view->source.length= (thd->lex->create_view_select_end
@@ -826,6 +835,23 @@ loop_out:
     }
   }
 
+  /* Initialize view creation context from the environment. */
+
+  view->view_creation_ctx= View_creation_ctx::create(thd);
+
+  /*
+    Set LEX_STRING attributes in view-structure for parser to create
+    frm-file.
+  */
+
+  lex_string_set(&view->view_client_cs_name,
+                 view->view_creation_ctx->get_client_cs()->csname);
+
+  lex_string_set(&view->view_connection_cl_name,
+                 view->view_creation_ctx->get_connection_cl()->name);
+
+  view->view_body_utf8= lex->view_body_utf8;
+
   /*
     Check that table of main select do not used in subqueries.
 
@@ -862,8 +888,8 @@ loop_out:
   }
   DBUG_RETURN(0);
 err:
-  view->query.str= NULL;
-  view->query.length= 0;
+  view->select_stmt.str= NULL;
+  view->select_stmt.length= 0;
   view->md5.str= NULL;
   view->md5.length= 0;
   DBUG_RETURN(error);
@@ -892,9 +918,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
-  bool res;
+  bool parse_status;
   bool result, view_is_mergeable;
   TABLE_LIST *view_main_select_tables;
+
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
@@ -995,6 +1022,14 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   /*TODO: md5 test here and warning if it is differ */
 
   /*
+    Initialize view definition context by character set names loaded from
+    the view definition file. Use UTF8 character set if view definition
+    file is of old version and does not contain the character set names.
+  */
+
+  table->view_creation_ctx= View_creation_ctx::create(thd, table);
+
+  /*
     TODO: TABLE mem root should be used here when VIEW will be stored in
     TABLE cache
 
@@ -1003,12 +1038,15 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
 
   {
-    Lex_input_stream lip(thd, table->query.str, table->query.length);
+    Lex_input_stream lip(thd,
+                         table->select_stmt.str,
+                         table->select_stmt.length);
+
     lex_start(thd);
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong save_mode= thd->variables.sql_mode;
+    ulong saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing
@@ -1035,18 +1073,20 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     */
     thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
-    CHARSET_INFO *save_cs= thd->variables.character_set_client;
-    thd->variables.character_set_client= system_charset_info;
-    res= parse_sql(thd, &lip);
+
+    /* Parse the query. */
+
+    parse_status= parse_sql(thd, &lip, table->view_creation_ctx);
+
+    /* Restore environment. */
 
     if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
         (old_lex->sql_command == SQLCOM_SHOW_CREATE))
         lex->sql_command= old_lex->sql_command;
 
-    thd->variables.character_set_client= save_cs;
-    thd->variables.sql_mode= save_mode;
+    thd->variables.sql_mode= saved_mode;
   }
-  if (!res)
+  if (!parse_status)
   {
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;

@@ -83,6 +83,14 @@ public:
 
   List<LEX_STRING>  definers_list;
 
+  /* Character set context, used for parsing and executing triggers. */
+
+  List<LEX_STRING> client_cs_names;
+  List<LEX_STRING> connection_cl_names;
+  List<LEX_STRING> db_cl_names;
+
+  /* End of character ser context. */
+
   Table_triggers_list(TABLE *table_arg):
     record1_field(0), trigger_table(table_arg)
   {
@@ -97,11 +105,26 @@ public:
   bool process_triggers(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         bool old_row_is_record1);
+
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
                         ulong *sql_mode,
-                        LEX_STRING *definer);
+                        LEX_STRING *definer,
+                        LEX_STRING *client_cs_name,
+                        LEX_STRING *connection_cl_name,
+                        LEX_STRING *db_cl_name);
+
+  void get_trigger_info(THD *thd,
+                        int trigger_idx,
+                        LEX_STRING *trigger_name,
+                        ulonglong *sql_mode,
+                        LEX_STRING *sql_original_stmt,
+                        LEX_STRING *client_cs_name,
+                        LEX_STRING *connection_cl_name,
+                        LEX_STRING *db_cl_name);
+
+  int find_trigger_by_name(const LEX_STRING *trigger_name);
 
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table, bool names_only);
@@ -144,7 +167,7 @@ extern const LEX_STRING trg_action_time_type_names[];
 extern const LEX_STRING trg_event_type_names[];
 
 bool add_table_for_trigger(THD *thd,
-                           sp_name *trg_name,
+                           const sp_name *trg_name,
                            bool continue_if_not_exist,
                            TABLE_LIST **table);
 
