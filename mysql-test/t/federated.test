@@ -1603,4 +1603,30 @@ drop table federated.t1;
 connection slave;
 drop table federated.t1;
 
+#
+# BUG#25511 Federated Insert failures.
+#
+# When the user performs a INSERT...ON DUPLICATE KEY UPDATE, we want
+# it to fail if a duplicate key exists instead of ignoring it.
+#
+connection slave;
+create table federated.t1 (a int primary key, b varchar(64))
+  DEFAULT CHARSET=utf8;
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (a int primary key, b varchar(64))
+  ENGINE=FEDERATED
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+
+--error ER_DUP_KEY
+insert into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe")
+on duplicate key update a=a+100;
+select * from federated.t1;
+
+drop table federated.t1;
+connection slave;
+drop table federated.t1;
+
+
 source include/federated_cleanup.inc;

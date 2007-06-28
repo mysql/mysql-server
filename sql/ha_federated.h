@@ -158,6 +158,7 @@ class ha_federated: public handler
   int remote_error_number;
   char remote_error_buf[FEDERATED_QUERY_BUFFER_SIZE];
   bool ignore_duplicates, replace_duplicates;
+  bool insert_dup_update;
 
 private:
   /*
