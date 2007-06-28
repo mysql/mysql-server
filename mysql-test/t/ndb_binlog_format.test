@@ -2,6 +2,7 @@
 # test different behavior of ndb using different binlog formats
 #
 
+-- source include/have_blackhole.inc
 -- source include/have_ndb.inc
 -- source include/have_log_bin.inc
 
