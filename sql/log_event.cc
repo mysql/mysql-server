@@ -7171,8 +7171,10 @@ replace_record(THD *thd, TABLE *table,
     {
       error=table->file->ha_update_row(table->record[1],
                                        table->record[0]);
-      if (error)
+      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
         table->file->print_error(error, MYF(0));
+      else
+        error= 0;
       DBUG_RETURN(error);
     }
     else
@@ -7856,6 +7858,8 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
     database into the after image delivered from the master.
   */
   error= table->file->ha_update_row(table->record[1], table->record[0]);
+  if (error == HA_ERR_RECORD_IS_THE_SAME)
+    error= 0;
 
   return error;
 }

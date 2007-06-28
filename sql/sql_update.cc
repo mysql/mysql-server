@@ -548,9 +548,12 @@ int mysql_update(THD *thd,
 	  error= table->file->ha_update_row(table->record[1],
                                             table->record[0]);
         }
-        if (!error)
+        if (!error || error == HA_ERR_RECORD_IS_THE_SAME)
 	{
-	  updated++;
+          if (error != HA_ERR_RECORD_IS_THE_SAME)
+            updated++;
+          else
+            error= 0;
           thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
@@ -1524,7 +1527,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
           main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
         }
         if ((error=table->file->ha_update_row(table->record[1],
-                                              table->record[0])))
+                                              table->record[0])) &&
+            error != HA_ERR_RECORD_IS_THE_SAME)
         {
           updated--;
           if (!ignore ||
@@ -1542,6 +1546,11 @@ bool multi_update::send_data(List<Item> &not_used_values)
         }
         else
         {
+          if (error == HA_ERR_RECORD_IS_THE_SAME)
+          {
+            error= 0;
+            updated--;
+          }
           /* non-transactional or transactional table got modified   */
           /* either multi_update class' flag is raised in its branch */
           if (table->file->has_transactions())
@@ -1768,13 +1777,17 @@ int multi_update::do_updates(bool from_send_error)
             goto err;
         }
 	if ((local_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])))
+						    table->record[0])) &&
+            local_error != HA_ERR_RECORD_IS_THE_SAME)
 	{
 	  if (!ignore ||
               table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
 	    goto err;
 	}
-	updated++;
+        if (local_error != HA_ERR_RECORD_IS_THE_SAME)
+          updated++;
+        else
+          local_error= 0;
 
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,

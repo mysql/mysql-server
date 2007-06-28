@@ -872,11 +872,15 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
     /* ok, so we can update since the record exists in the table */
     store_record(table,record[1]);
     store_server_fields(table, server);
-    if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
+    if ((error=table->file->ha_update_row(table->record[1],
+                                          table->record[0])) &&
+        error != HA_ERR_RECORD_IS_THE_SAME)
     {
       DBUG_PRINT("info",("problems with ha_update_row %d", error));
       goto end;
     }
+    else
+      error= 0;
   }
 
 end:
