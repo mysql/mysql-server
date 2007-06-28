@@ -1843,6 +1843,30 @@ C3A4C3B6C3BCC39F
 D18DD184D184D0B5D0BAD182D0B8D0B2D0BDD183D18E
 drop table federated.t1;
 drop table federated.t1;
+create table federated.t1 (a int primary key, b varchar(64))
+DEFAULT CHARSET=utf8;
+create table federated.t1 (a int primary key, b varchar(64))
+ENGINE=FEDERATED
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+insert ignore into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+a	b
+1	Larry
+2	Curly
+truncate federated.t1;
+replace into federated.t1 values (1,"Larry"), (2,"Curly"), (1,"Moe");
+select * from federated.t1;
+a	b
+1	Moe
+2	Curly
+update ignore federated.t1 set a=a+1;
+select * from federated.t1;
+a	b
+1	Moe
+3	Curly
+drop table federated.t1;
+drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
