@@ -715,8 +715,11 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
       table->field[MYSQL_PROC_FIELD_COMMENT]->store(chistics->comment.str,
 						    chistics->comment.length,
 						    system_charset_info);
-    if ((table->file->ha_update_row(table->record[1],table->record[0])))
+    if ((ret= table->file->ha_update_row(table->record[1],table->record[0])) &&
+        ret != HA_ERR_RECORD_IS_THE_SAME)
       ret= SP_WRITE_ROW_FAILED;
+    else
+      ret= 0;
   }
 
   if (ret == SP_OK)
