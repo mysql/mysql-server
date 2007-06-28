@@ -668,7 +668,7 @@ CREATE USER evtest1@localhost;
 SET PASSWORD FOR evtest1@localhost = password('ev1');
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
 GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
-GRANT select,insert ON TEST.* TO evtest1@lcalhost;
+GRANT select,insert ON TEST.* TO evtest1@localhost;
 SHOW GRANTS FOR evtest1@localhost;
 
 --echo connection e1;
@@ -693,6 +693,7 @@ DELIMITER ;|
 
 --sleep 6
 --echo connection default;
+DROP EVENT ev_sched_1823;
 connection default;
 DROP USER evtest1@localhost;
 
