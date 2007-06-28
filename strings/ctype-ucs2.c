@@ -1524,6 +1524,8 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   char *min_org=min_str;
   char *min_end=min_str+res_length;
   uint charlen= res_length / cs->mbmaxlen;
+  const char *contraction_flags= cs->contractions ?
+             ((const char*) cs->contractions) + 0x40*0x40 : NULL;
   
   for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
         ; ptr+=2, charlen--)
@@ -1545,6 +1547,7 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
     }
     if (ptr[0] == '\0' && ptr[1] == w_many)	/* '%' in SQL */
     {
+fill_max_and_min:
       /*
         Calculate length of keys:
         'a\0\0... is the smallest possible string when we have space expand
@@ -1561,6 +1564,38 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
       } while (min_str + 1 < min_end);
       return 0;
     }
+
+    if (contraction_flags && ptr + 3 < end &&
+        ptr[0] == '\0' && contraction_flags[(uchar) ptr[1]])
+    {
+      /* Contraction head found */
+      if (ptr[2] == '\0' && (ptr[3] == w_one || ptr[3] == w_many))
+      {
+        /* Contraction head followed by a wildcard, quit */
+        goto fill_max_and_min;
+      }
+      
+      /*
+        Check if the second letter can be contraction part,
+        and if two letters really produce a contraction.
+      */
+      if (ptr[2] == '\0' && contraction_flags[(uchar) ptr[3]] &&
+          cs->contractions[(ptr[1]-0x40)*0x40 + ptr[3] - 0x40])
+      {
+        /* Contraction found */
+        if (charlen == 1 || min_str + 2 >= min_end)
+        {
+          /* Full contraction doesn't fit, quit */
+          goto fill_max_and_min;
+        }
+        
+        /* Put contraction head */
+        *min_str++= *max_str++= *ptr++;
+        *min_str++= *max_str++= *ptr++;
+        charlen--;
+      }
+    }
+    /* Put contraction tail, or a single character */
     *min_str++= *max_str++ = ptr[0];
     *min_str++= *max_str++ = ptr[1];
   }

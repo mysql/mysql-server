@@ -563,6 +563,8 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   uint maxcharlen= res_length / cs->mbmaxlen;
+  const char *contraction_flags= cs->contractions ? 
+              ((const char*) cs->contractions) + 0x40*0x40 : NULL;
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -571,6 +573,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
       ptr++;                                    /* Skip escape */
     else if (*ptr == w_one || *ptr == w_many)   /* '_' and '%' in SQL */
     {      
+fill_max_and_min:
       /*
         Calculate length of keys:
         'a\0\0... is the smallest possible string when we have space expand
@@ -602,8 +605,74 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
        *min_str++= *max_str++= *ptr++;
     }
     else
-       *min_str++= *max_str++= *ptr++;    
+    {
+      /*
+        Special case for collations with contractions.
+        For example, in Chezh, 'ch' is a separate letter
+        which is sorted between 'h' and 'i'.
+        If the pattern 'abc%', 'c' at the end can mean:
+        - letter 'c' itself,
+        - beginning of the contraction 'ch'.
 
+        If we simply return this LIKE range:
+
+         'abc\min\min\min' and 'abc\max\max\max'
+
+        then this query: SELECT * FROM t1 WHERE a LIKE 'abc%'
+        will only find values starting from 'abc[^h]',
+        but won't find values starting from 'abch'.
+
+        We must ignore contraction heads followed by w_one or w_many.
+        ('Contraction head' means any letter which can be the first
+        letter in a contraction)
+
+        For example, for Czech 'abc%', we will return LIKE range,
+        which is equal to LIKE range for 'ab%':
+
+        'ab\min\min\min\min' and 'ab\max\max\max\max'.
+
+      */
+      if (contraction_flags && ptr + 1 < end &&
+          contraction_flags[(uchar) *ptr])
+      {
+        /* Ptr[0] is a contraction head. */
+        
+        if (ptr[1] == w_one || ptr[1] == w_many)
+        {
+          /* Contraction head followed by a wildcard, quit. */
+          goto fill_max_and_min;
+        }
+        
+        /*
+          Some letters can be both contraction heads and contraction tails.
+          For example, in Danish 'aa' is a separate single letter which
+          is sorted after 'z'. So 'a' can be both head and tail.
+          
+          If ptr[0]+ptr[1] is a contraction,
+          then put both letters together.
+          
+          If ptr[1] can be a contraction part, but ptr[0]+ptr[1]
+          is not a contraction, then we put only ptr[0],
+          and continue with ptr[1] on the next loop.
+        */
+        if (contraction_flags[(uchar) ptr[1]] &&
+            cs->contractions[(*ptr-0x40)*0x40 + ptr[1] - 0x40])
+        {
+          /* Contraction found */
+          if (maxcharlen == 1 || min_str + 1 >= min_end)
+          {
+            /* Both contraction parts don't fit, quit */
+            goto fill_max_and_min;
+          }
+          
+          /* Put contraction head */
+          *min_str++= *max_str++= *ptr++;
+          maxcharlen--;
+        }
+      }
+      /* Put contraction tail, or a single character */
+      *min_str++= *max_str++= *ptr++;    
+    }
   }
 
   *min_length= *max_length = (uint) (min_str - min_org);
