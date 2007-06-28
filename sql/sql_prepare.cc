@@ -1769,6 +1769,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_SHOW_CREATE_PROC:
   case SQLCOM_SHOW_CREATE_FUNC:
   case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE_TRIGGER:
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
@@ -2876,7 +2877,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
 
-  error= parse_sql(thd, &lip) ||
+  error= parse_sql(thd, &lip, NULL) ||
          thd->net.report_error ||
          init_param_array(this);
 

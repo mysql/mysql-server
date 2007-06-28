@@ -274,11 +274,11 @@ parameter_style	sql_data_access	dtd_identifier
 SQL	CONTAINS SQL	NULL
 SQL	CONTAINS SQL	int(11)
 show procedure status;
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	sel2	PROCEDURE	root@localhost	#	#	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 show function status;
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	sub1	FUNCTION	root@localhost	#	#	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	sub1	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
@@ -327,26 +327,26 @@ sel2	NULL
 sub1	NULL
 sub2	return i+1
 show create procedure sel2;
-Procedure	sql_mode	Create Procedure
-sel2		NULL
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+sel2		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub1;
-Function	sql_mode	Create Function
-sub1		NULL
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+sub1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub2;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 sub2		CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
-return i+1
+return i+1	latin1	latin1_swedish_ci	latin1_swedish_ci
 show function status like "sub2";
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 drop function sub2;
 show create procedure sel2;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sel2		CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
 begin
 select * from t1;
 select * from t2;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
@@ -386,12 +386,12 @@ latin1_spanish_ci
 show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
-NULL	test	v0	/* ALGORITHM=UNDEFINED */ select `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER
-NULL	test	v1	/* ALGORITHM=UNDEFINED */ select `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO	root@localhost	DEFINER
-NULL	test	v2	/* ALGORITHM=UNDEFINED */ select `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO	root@localhost	DEFINER
-NULL	test	v3	/* ALGORITHM=UNDEFINED */ select `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO	root@localhost	DEFINER
-NULL	test	v4	/* ALGORITHM=UNDEFINED */ select `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO	root@localhost	DEFINER
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	test	v0	select schema_name from information_schema.schemata	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v1	select table_name from information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select column_name from information_schema.columns	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v3	select CHARACTER_SET_NAME from information_schema.character_sets	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v4	select COLLATION_NAME from information_schema.collations	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -483,10 +483,10 @@ create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
-NULL	test	v1	/* ALGORITHM=UNDEFINED */ select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER
-NULL	test	v2	/* ALGORITHM=UNDEFINED */ select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER
-NULL	test	v3	/* ALGORITHM=UNDEFINED */ select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	test	v1	select a from t1 with check option	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select a from t1 WITH LOCAL CHECK OPTION	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v3	select a from t1 WITH CASCADED CHECK OPTION	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -586,6 +586,10 @@ proc	created	timestamp
 proc	modified	timestamp
 proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')
 proc	comment	char(64)
+proc	character_set_client	char(32)
+proc	collation_connection	char(32)
+proc	db_collation	char(32)
+proc	body_utf8	longblob
 drop table t115;
 create procedure p108 () begin declare c cursor for select data_type
 from information_schema.columns;  open c; open c; end;//
@@ -700,13 +704,13 @@ select constraint_name from information_schema.table_constraints
 where table_schema='test';
 constraint_name
 show create view v2;
-View	Create View
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
-View	Create View
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
@@ -872,39 +876,39 @@ set @fired:= "Yes";
 end if;
 end|
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	NULL		root@localhost
+end	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	NULL		root@localhost
+end	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	NULL		root@localhost
+end	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from information_schema.triggers;
-TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		root@localhost
+end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -1156,7 +1160,7 @@ drop table t1;
 use mysql;
 INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
 'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
-'2006-03-02 18:40:03','','');
+'2006-03-02 18:40:03','','','utf8','utf8_general_ci','utf8_general_ci','n/a');
 select routine_name from information_schema.routines;
 routine_name
 
@@ -1169,9 +1173,9 @@ create definer = mysqltest_1@localhost
 sql security definer view v2 as select 1;
 select * from information_schema.views
 where table_name='v1' or table_name='v2';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
-NULL	test	v1		NONE	YES	root@localhost	DEFINER
-NULL	test	v2	/* ALGORITHM=UNDEFINED */ select 1 AS `1`	NONE	NO	mysqltest_1@localhost	DEFINER
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	test	v1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select 1	NONE	NO	mysqltest_1@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
@@ -1196,23 +1200,23 @@ ROUTINE_NAME	ROUTINE_DEFINITION
 f1	RETURN @a + 1
 p1	SET @a= 1
 SHOW CREATE PROCEDURE p1;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-SET @a= 1
+SET @a= 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-RETURN @a + 1
+RETURN @a + 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	NULL
 p1	NULL
 SHOW CREATE PROCEDURE p1;
-Procedure	sql_mode	Create Procedure
-p1		NULL
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
-Function	sql_mode	Create Function
-f1		NULL
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 CALL p1();
 SELECT f1();
 f1()

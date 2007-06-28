@@ -3728,7 +3728,7 @@ bool mysql_unpack_partition(THD *thd,
   lex.part_info->part_state= part_state;
   lex.part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
-  if (parse_sql(thd, &lip))
+  if (parse_sql(thd, &lip, NULL))
   {
     thd->free_items();
     goto end;

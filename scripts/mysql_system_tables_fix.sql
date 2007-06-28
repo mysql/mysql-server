@@ -388,6 +388,29 @@ ALTER TABLE proc  MODIFY db
                   MODIFY comment
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
 
+ALTER TABLE proc ADD character_set_client
+                     char(32) collate utf8_bin DEFAULT NULL
+                     AFTER comment;
+ALTER TABLE proc MODIFY character_set_client
+                        char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE proc ADD collation_connection
+                     char(32) collate utf8_bin DEFAULT NULL
+                     AFTER character_set_client;
+ALTER TABLE proc MODIFY collation_connection
+                        char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE proc ADD db_collation
+                     char(32) collate utf8_bin DEFAULT NULL
+                     AFTER collation_connection;
+ALTER TABLE proc MODIFY db_collation
+                        char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
+                     AFTER db_collation;
+ALTER TABLE proc MODIFY body_utf8 longblob DEFAULT NULL;
+
+
 #
 # EVENT privilege
 #
@@ -445,6 +468,29 @@ ALTER TABLE event MODIFY COLUMN status ENUM('ENABLED','DISABLED','SLAVESIDE_DISA
 
 ALTER TABLE event ADD COLUMN time_zone char(64) CHARACTER SET latin1
         NOT NULL DEFAULT 'SYSTEM' AFTER originator;
+
+ALTER TABLE event ADD character_set_client
+                      char(32) collate utf8_bin DEFAULT NULL
+                      AFTER time_zone;
+ALTER TABLE event MODIFY character_set_client
+                         char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE event ADD collation_connection
+                      char(32) collate utf8_bin DEFAULT NULL
+                      AFTER character_set_client;
+ALTER TABLE event MODIFY collation_connection
+                         char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE event ADD db_collation
+                      char(32) collate utf8_bin DEFAULT NULL
+                      AFTER collation_connection;
+ALTER TABLE event MODIFY db_collation
+                         char(32) collate utf8_bin DEFAULT NULL;
+
+ALTER TABLE event ADD body_utf8 longblob DEFAULT NULL
+                      AFTER db_collation;
+ALTER TABLE event MODIFY body_utf8 longblob DEFAULT NULL;
+
 
 #
 # TRIGGER privilege

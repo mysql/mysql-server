@@ -150,6 +150,86 @@ extern MY_LOCALE *my_default_lc_time_names;
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
 
+/*************************************************************************/
+
+/**
+ Object_creation_ctx -- interface for creation context of database objects
+ (views, stored routines, events, triggers). Creation context -- is a set
+ of attributes, that should be fixed at the creation time and then be used
+ each time the object is parsed or executed.
+*/
+
+class Object_creation_ctx
+{
+public:
+  Object_creation_ctx *set_n_backup(THD *thd);
+
+  void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) = 0;
+
+  virtual void change_env(THD *thd) const = 0;
+
+public:
+  virtual ~Object_creation_ctx()
+  { }
+};
+
+/*************************************************************************/
+
+/**
+ Default_object_creation_ctx -- default implementation of
+ Object_creation_ctx.
+*/
+
+class Default_object_creation_ctx : public Object_creation_ctx
+{
+public:
+  CHARSET_INFO *get_client_cs()
+  {
+    return m_client_cs;
+  }
+
+  CHARSET_INFO *get_connection_cl()
+  {
+    return m_connection_cl;
+  }
+
+protected:
+  Default_object_creation_ctx(THD *thd);
+
+  Default_object_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl);
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd);
+
+  virtual void change_env(THD *thd) const;
+
+protected:
+  /**
+    client_cs stores the value of character_set_client session variable.
+    The only character set attribute is used.
+
+    Client character set is included into query context, because we save
+    query in the original character set, which is client character set. So,
+    in order to parse the query properly we have to switch client character
+    set on parsing.
+  */
+  CHARSET_INFO *m_client_cs;
+
+  /**
+    connection_cl stores the value of collation_connection session
+    variable. Both character set and collation attributes are used.
+
+    Connection collation is included into query context, becase it defines
+    the character set and collation of text literals in internal
+    representation of query (item-objects).
+  */
+  CHARSET_INFO *m_connection_cl;
+};
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -618,7 +698,9 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
 
-bool parse_sql(THD *thd, class Lex_input_stream *lip);
+bool parse_sql(THD *thd,
+               class Lex_input_stream *lip,
+               class Object_creation_ctx *creation_ctx);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -2156,11 +2238,23 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 int item_create_init();
 void item_create_cleanup();
 
+bool show_create_trigger(THD *thd, const sp_name *trg_name);
+
 inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {
   lex_str->str= (char *) c_str;
   lex_str->length= strlen(c_str);
 }
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  CHARSET_INFO *dflt_cs,
+                  CHARSET_INFO **cs);
+
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    CHARSET_INFO *dflt_cl,
+                    CHARSET_INFO **cl);
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

@@ -4074,6 +4074,19 @@ create_sp_error:
       break;
     }
 #endif // ifndef DBUG_OFF
+  case SQLCOM_SHOW_CREATE_TRIGGER:
+    {
+      if (lex->spname->m_name.length > NAME_LEN)
+      {
+        my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+        goto error;
+      }
+
+      if (show_create_trigger(thd, lex->spname))
+        goto error; /* Error has been already logged. */
+
+      break;
+    }
   case SQLCOM_CREATE_VIEW:
     {
       /*
@@ -5340,7 +5353,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
 
     Lex_input_stream lip(thd, inBuf, length);
 
-    bool err= parse_sql(thd, &lip);
+    bool err= parse_sql(thd, &lip, NULL);
     *found_semicolon= lip.found_semicolon;
 
     if (!err)
@@ -5424,7 +5437,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, &lip) &&
+  if (!parse_sql(thd, &lip, NULL) &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -7127,23 +7140,44 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
 
   @param thd Thread context.
   @param lip Lexer context.
+  @param creation_ctx Object creation context.
 
   @return Error status.
     @retval FALSE on success.
     @retval TRUE on parsing error.
 */
 
-bool parse_sql(THD *thd, Lex_input_stream *lip)
+bool parse_sql(THD *thd,
+               Lex_input_stream *lip,
+               Object_creation_ctx *creation_ctx)
 {
-  bool err_status;
-
   DBUG_ASSERT(thd->m_lip == NULL);
+
+  /* Backup creation context. */
+
+  Object_creation_ctx *backup_ctx= NULL;
+
+  if (creation_ctx)
+    backup_ctx= creation_ctx->set_n_backup(thd);
+
+  /* Set Lex_input_stream. */
 
   thd->m_lip= lip;
 
-  err_status= MYSQLparse(thd) != 0 || thd->is_fatal_error;
+  /* Parse the query. */
+
+  bool err_status= MYSQLparse(thd) != 0 || thd->is_fatal_error;
+
+  /* Reset Lex_input_stream. */
 
   thd->m_lip= NULL;
+
+  /* Restore creation context. */
+
+  if (creation_ctx)
+    creation_ctx->restore_env(thd, backup_ctx);
+
+  /* That's it. */
 
   return err_status;
 }

@@ -595,17 +595,17 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   parameter and FALSE is returned. If there is no such character set,
   "default_cs" is assigned to the "cs" and TRUE is returned.
 
-  @param[out] cs        Variable to store character set.
   @param[in] cs_name    Character set name.
   @param[in] default_cs Default character set.
+  @param[out] cs        Variable to store character set.
 
   @return FALSE if character set was resolved successfully; TRUE if there
   is no character set with given name.
 */
 
-bool resolve_charset(CHARSET_INFO **cs,
-                     const char *cs_name,
-                     CHARSET_INFO *default_cs)
+bool resolve_charset(const char *cs_name,
+                     CHARSET_INFO *default_cs,
+                     CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -635,9 +635,9 @@ bool resolve_charset(CHARSET_INFO **cs,
   collation with given name.
 */
 
-bool resolve_collation(CHARSET_INFO **cl,
-                       const char *cl_name,
-                       CHARSET_INFO *default_cl)
+bool resolve_collation(const char *cl_name,
+                       CHARSET_INFO *default_cl,
+                       CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 

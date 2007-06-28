@@ -6,8 +6,8 @@ use MySQLTest;
 create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
-View	Create View
-vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vie` AS select `tab`.`Field` AS `Field` from `tab`
+View	Create View	character_set_client	collation_connection
+vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vie` AS select `tab`.`Field` AS `Field` from `tab`	latin1	latin1_swedish_ci
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
@@ -118,8 +118,8 @@ drop table t1Aa,t2Aa;
 create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;
 show create view v1AA;
-View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`
+View	Create View	character_set_client	collation_connection
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`	latin1	latin1_swedish_ci
 drop view v1AA;
 select Aaa.col1 from t1Aa as AaA;
 col1
@@ -127,7 +127,7 @@ create view v1Aa as select Aaa.col1 from t1Aa as AaA;
 drop view v1AA;
 create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
-View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`
+View	Create View	character_set_client	collation_connection
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`	latin1	latin1_swedish_ci
 drop view v1AA;
 drop table t1Aa;

@@ -31,12 +31,12 @@ select @test_var;
 10
 alter procedure test_proc1 comment 'new comment';
 show create procedure test_proc1;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	Client_cs	Connection_cl	Database_cl
 test_proc1		CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
     COMMENT 'new comment'
 begin
 select * from t1 where a = var_in;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure test_proc1;
 drop procedure test_proc2;
 drop procedure test_proc3;

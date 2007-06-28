@@ -112,7 +112,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_CONTRIBUTORS,
   SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS, 
+  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
+  SQLCOM_SHOW_CREATE_TRIGGER,
 
   /* This should be the last !!! */
 
@@ -1330,6 +1331,26 @@ public:
     return (uint) ((m_ptr - m_tok_start) - 1);
   }
 
+  /** Get the utf8-body string. */
+  const char *get_body_utf8_str()
+  {
+    return m_body_utf8;
+  }
+
+  /** Get the utf8-body length. */
+  uint get_body_utf8_length()
+  {
+    return m_body_utf8_ptr - m_body_utf8;
+  }
+
+  void body_utf8_start(THD *thd, const char *begin_ptr);
+  void body_utf8_append(const char *ptr);
+  void body_utf8_append(const char *ptr, const char *end_ptr);
+  void body_utf8_append_literal(THD *thd,
+                                const LEX_STRING *txt,
+                                CHARSET_INFO *txt_cs,
+                                const char *end_ptr);
+
   /** Current thread. */
   THD *m_thd;
 
@@ -1361,6 +1382,9 @@ private:
   /** Begining of the query text in the input stream, in the raw buffer. */
   const char* m_buf;
 
+  /** Length of the raw buffer. */
+  uint m_buf_length;
+
   /** Echo the parsed stream to the pre-processed buffer. */
   bool m_echo;
 
@@ -1388,6 +1412,18 @@ private:
   */
   const char* m_cpp_tok_end;
 
+  /** UTF8-body buffer created during parsing. */
+  char *m_body_utf8;
+
+  /** Pointer to the current position in the UTF8-body buffer. */
+  char *m_body_utf8_ptr;
+
+  /**
+    Position in the pre-processed buffer. The query from m_cpp_buf to
+    m_cpp_utf_processed_ptr is converted to UTF8-body.
+  */
+  const char *m_cpp_utf8_processed_ptr;
+
 public:
 
   /** Current state of the lexical analyser. */
@@ -1410,6 +1446,29 @@ public:
 
   /** State of the lexical analyser for comments. */
   enum_comment_state in_comment;
+
+  /**
+    Starting position of the TEXT_STRING or IDENT in the pre-processed
+    buffer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+  */
+  const char *m_cpp_text_start;
+
+  /**
+    Ending position of the TEXT_STRING or IDENT in the pre-processed
+    buffer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+    */
+  const char *m_cpp_text_end;
+
+  /**
+    Character set specified by the character-set-introducer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+  */
+  CHARSET_INFO *m_underscore_cs;
 };
 
 
@@ -1444,7 +1503,7 @@ typedef struct st_lex : public Query_tables_list
   DYNAMIC_ARRAY plugins;
   plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
   
-  CHARSET_INFO *charset, *underscore_charset;
+  CHARSET_INFO *charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
@@ -1634,6 +1693,8 @@ typedef struct st_lex : public Query_tables_list
   */
   const char *fname_start;
   const char *fname_end;
+
+  LEX_STRING view_body_utf8;
 
   /*
     Reference to a struct that contains information in various commands
