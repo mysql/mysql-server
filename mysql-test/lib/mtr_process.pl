@@ -359,7 +359,7 @@ sub mtr_kill_leftovers () {
               "socket: '$srv->{path_sock}'; ".
               "port: $srv->{port})");
 
-    my $pid= mtr_mysqladmin_start($srv, "shutdown", 70);
+    my $pid= mtr_mysqladmin_start($srv, "shutdown", 20);
 
     # Save the pid of the mysqladmin process
     $admin_pids{$pid}= 1;
