@@ -6595,9 +6595,15 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       expansion of the size of the values because of character set
       conversions.
      */
-    max_length= max(old_max_chars * collation.collation->mbmaxlen,
-                    display_length(item) / item->collation.collation->mbmaxlen *
-                    collation.collation->mbmaxlen);
+    if (collation.collation != &my_charset_bin)
+    {
+      max_length= max(old_max_chars * collation.collation->mbmaxlen,
+                      display_length(item) /
+                      item->collation.collation->mbmaxlen *
+                      collation.collation->mbmaxlen);
+    }
+    else
+      set_if_bigger(max_length, display_length(item));
     break;
   }
   case REAL_RESULT:
