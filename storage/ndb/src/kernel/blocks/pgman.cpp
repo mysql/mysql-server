@@ -694,7 +694,14 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
     if (state & Page_entry::ONSTACK)
     {
       jam();
+      bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
+      if (at_bottom)
+      {
+        jam();
+        ndbassert(state & Page_entry::HOT);
+        lirs_stack_prune();
+      }
     }
     pl_stack.add(ptr);
     state |= Page_entry::ONSTACK;
@@ -1889,9 +1896,10 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
       bool at_bottom = ! pl_stack.hasPrev(ptr);
       pl_stack.remove(ptr);
       state &= ~ Page_entry::ONSTACK;
-      if (at_bottom && (state & Page_entry::HOT))
+      if (at_bottom)
       {
         jam();
+        ndbassert(state & Page_entry::HOT);
         lirs_stack_prune();
       }
     }
@@ -1903,6 +1911,7 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
       state &= ~ Page_entry::ONQUEUE;
     }
 
+    ndbassert(ptr.p->m_real_page_i != RNIL);
     if (ptr.p->m_real_page_i != RNIL)
     {
       jam();

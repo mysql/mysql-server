@@ -3674,15 +3674,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
   if (opt_bin_log)
   {
-    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW ||
-        global_system_variables.binlog_format == BINLOG_FORMAT_MIXED)
-    {
-      ndb_binlog_running= TRUE;
-    }
-    else
-    {
-      sql_print_error("NDB: only row based binary logging is supported");
-    }
+    ndb_binlog_running= TRUE;
   }
 
   /* Thread start up completed  */

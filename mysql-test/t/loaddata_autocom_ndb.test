@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/have_binlog_format_mixed_or_row.inc
 let $engine_type=ndbcluster;
 
 --source include/loaddata_autocom.inc

@@ -2812,7 +2812,8 @@ int ha_ndbcluster::write_row(uchar *record)
 
   if (unlikely(m_slow_path))
   {
-    if (!(thd->options & OPTION_BIN_LOG))
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (thd_ndb->trans_options & TNTO_NO_LOGGING)
       op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     else if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
@@ -3101,7 +3102,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
 
   if (unlikely(m_slow_path))
   {
-    if (!(thd->options & OPTION_BIN_LOG))
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (thd_ndb->trans_options & TNTO_NO_LOGGING)
       op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     else if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
@@ -3168,7 +3170,8 @@ int ha_ndbcluster::delete_row(const uchar *record)
 
     if (unlikely(m_slow_path))
     {
-      if (!(thd->options & OPTION_BIN_LOG))
+      Thd_ndb *thd_ndb= get_thd_ndb(thd);
+      if (thd_ndb->trans_options & TNTO_NO_LOGGING)
         ((NdbOperation *)trans->getLastDefinedOperation())->
           setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
       else if (thd->slave_thread)
@@ -3207,7 +3210,8 @@ int ha_ndbcluster::delete_row(const uchar *record)
 
     if (unlikely(m_slow_path))
     {
-      if (!(thd->options & OPTION_BIN_LOG))
+      Thd_ndb *thd_ndb= get_thd_ndb(thd);
+      if (thd_ndb->trans_options & TNTO_NO_LOGGING)
         op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
       else if (thd->slave_thread)
         op->setAnyValue(thd->server_id);
@@ -4385,8 +4389,13 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 	thd_ndb->query_state&= NDB_QUERY_NORMAL;
         thd_ndb->trans_options= 0;
         thd_ndb->m_slow_path= FALSE;
-        if (thd->slave_thread ||
-            !(thd->options & OPTION_BIN_LOG))
+        if (!(thd->options & OPTION_BIN_LOG) ||
+            thd->variables.binlog_format == BINLOG_FORMAT_STMT)
+        {
+          thd_ndb->trans_options|= TNTO_NO_LOGGING;
+          thd_ndb->m_slow_path= TRUE;
+        }
+        else if (thd->slave_thread)
           thd_ndb->m_slow_path= TRUE;
         trans_register_ha(thd, FALSE, ndbcluster_hton);
       } 
@@ -4406,8 +4415,13 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 	  thd_ndb->query_state&= NDB_QUERY_NORMAL;
           thd_ndb->trans_options= 0;
           thd_ndb->m_slow_path= FALSE;
-          if (thd->slave_thread ||
-              !(thd->options & OPTION_BIN_LOG))
+          if (!(thd->options & OPTION_BIN_LOG) ||
+              thd->variables.binlog_format == BINLOG_FORMAT_STMT)
+          {
+            thd_ndb->trans_options|= TNTO_NO_LOGGING;
+            thd_ndb->m_slow_path= TRUE;
+          }
+          else if (thd->slave_thread)
             thd_ndb->m_slow_path= TRUE;
           trans_register_ha(thd, TRUE, ndbcluster_hton);
 
