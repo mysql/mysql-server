@@ -686,6 +686,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'T':
     opt_disable_keys=0;
+
+    if (strlen(argument) >= FN_REFLEN)
+    {
+      /*
+        This check is made because the some the file functions below
+        have FN_REFLEN sized stack allocated buffers and will cause
+        a crash even if the input destination buffer is large enough
+        to hold the output.
+      */
+      die(EX_USAGE, "Input filename too long: %s", argument);
+    }
+
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -2323,17 +2335,6 @@ static void dump_table(char *table, char *db)
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-
-    if (strlen(path) >= FN_REFLEN)
-    {
-      /*
-        This check is made because the some the file functions below
-        have FN_REFLEN sized stack allocated buffers and will cause
-        a crash even if the input destination buffer is large enough
-        to hold the output.
-      */
-      die(EX_USAGE, "Input filename or options too long: %s", path);
-    }
 
     /*
       Convert the path to native os format
