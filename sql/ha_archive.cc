@@ -1205,7 +1205,6 @@ bool ha_archive::is_crashed() const
 int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
-  byte *buf; 
   const char *old_proc_info=thd->proc_info;
   ha_rows count= share->rows_recorded;
   DBUG_ENTER("ha_archive::check");
@@ -1214,25 +1213,13 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* Flush any waiting data */
   gzflush(share->archive_write, Z_SYNC_FLUSH);
 
-  /* 
-    First we create a buffer that we can use for reading rows, and can pass
-    to get_row().
-  */
-  if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
-    rc= HA_ERR_OUT_OF_MEM;
-
   /*
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
-  if (!rc)
-    read_data_header(archive);
-
-  if (!rc)
-    while (!(rc= get_row(archive, buf)))
-      count--;
-
-  my_free((char*)buf, MYF(0));
+  read_data_header(archive);
+  while (!(rc= get_row(archive, table->record[0])))
+    count--;
 
   thd->proc_info= old_proc_info;
 
