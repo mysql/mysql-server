@@ -178,6 +178,7 @@ enum THD_NDB_OPTIONS
 enum THD_NDB_TRANS_OPTIONS
 {
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
+  ,TNTO_NO_LOGGING=           1 << 1
 };
 
 struct Ndb_local_table_statistics {
