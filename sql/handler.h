@@ -1130,10 +1130,12 @@ public:
 
   int ha_index_init(uint idx, bool sorted)
   {
+    int result;
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
-    inited=INDEX;
-    DBUG_RETURN(index_init(idx, sorted));
+    if (!(result= index_init(idx, sorted)))
+      inited=INDEX;
+    DBUG_RETURN(result);
   }
   int ha_index_end()
   {
@@ -1144,10 +1146,11 @@ public:
   }
   int ha_rnd_init(bool scan)
   {
+    int result;
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
-    inited=RND;
-    DBUG_RETURN(rnd_init(scan));
+    inited= (result= rnd_init(scan)) ? NONE: RND;
+    DBUG_RETURN(result);
   }
   int ha_rnd_end()
   {
