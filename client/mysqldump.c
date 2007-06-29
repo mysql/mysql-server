@@ -1066,11 +1066,15 @@ static int switch_db_collation(FILE *sql_file,
                                const char *db_name,
                                const char *delimiter,
                                const char *current_db_cl_name,
-                               const char *required_db_cl_name)
+                               const char *required_db_cl_name,
+                               int *db_cl_altered)
 {
   if (strcmp(current_db_cl_name, required_db_cl_name) != 0)
   {
     CHARSET_INFO *db_cl= get_charset_by_name(required_db_cl_name, MYF(0));
+
+    if (!db_cl)
+      return 1;
 
     fprintf(sql_file,
             "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
@@ -1079,19 +1083,26 @@ static int switch_db_collation(FILE *sql_file,
             (const char *) db_cl->name,
             (const char *) delimiter);
 
-    return 1;
+    *db_cl_altered= 1;
+
+    return 0;
   }
+
+  *db_cl_altered= 0;
 
   return 0;
 }
 
 
-static void restore_db_collation(FILE *sql_file,
-                                 const char *db_name,
-                                 const char *delimiter,
-                                 const char *db_cl_name)
+static int restore_db_collation(FILE *sql_file,
+                                const char *db_name,
+                                const char *delimiter,
+                                const char *db_cl_name)
 {
   CHARSET_INFO *db_cl= get_charset_by_name(db_cl_name, MYF(0));
+
+  if (!db_cl)
+    return 1;
 
   fprintf(sql_file,
           "ALTER DATABASE %s CHARACTER SET %s COLLATE %s %s\n",
@@ -1099,6 +1110,8 @@ static void restore_db_collation(FILE *sql_file,
           (const char *) db_cl->csname,
           (const char *) db_cl->name,
           (const char *) delimiter);
+
+  return 0;
 }
 
 
@@ -1724,11 +1737,11 @@ static uint dump_events_for_db(char *db)
 
           fprintf(sql_file, "DELIMITER %s\n", delimiter);
 
-          db_cl_altered= switch_db_collation(sql_file,
-                                             db_name_buff,
-                                             delimiter,
-                                             db_cl_name,
-                                             row[6]);
+          if (switch_db_collation(sql_file, db_name_buff, delimiter, db_cl_name,
+                                  row[6], &db_cl_altered))
+          {
+            DBUG_RETURN(1);
+          }
 
           switch_cs_variables(sql_file, delimiter,
                               row[4],   /* character_set_client */
@@ -1749,7 +1762,11 @@ static uint dump_events_for_db(char *db)
           restore_cs_variables(sql_file, delimiter);
 
           if (db_cl_altered)
-            restore_db_collation(sql_file, db_name_buff, delimiter, db_cl_name);
+          {
+            if (restore_db_collation(sql_file, db_name_buff, delimiter,
+                                     db_cl_name))
+              DBUG_RETURN(1);
+          }
         }
       } /* end of event printing */
       mysql_free_result(event_res);
@@ -1935,8 +1952,11 @@ static uint dump_routines_for_db(char *db)
               PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
             */
 
-            db_cl_altered= switch_db_collation(sql_file, db_name_buff, ";",
-                                               db_cl_name, row[5]);
+            if (switch_db_collation(sql_file, db_name_buff, ";",
+                                    db_cl_name, row[5], &db_cl_altered))
+            {
+              DBUG_RETURN(1);
+            }
 
             switch_cs_variables(sql_file, ";",
                                 row[3],   /* character_set_client */
@@ -1955,7 +1975,10 @@ static uint dump_routines_for_db(char *db)
             restore_cs_variables(sql_file, ";");
 
             if (db_cl_altered)
-              restore_db_collation(sql_file, db_name_buff, ";", db_cl_name);
+            {
+              if (restore_db_collation(sql_file, db_name_buff, ";", db_cl_name))
+                DBUG_RETURN(1);
+            }
 
             my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
           }
@@ -2581,8 +2604,9 @@ static void dump_triggers_for_table(char *table, char *db_name)
         }
       }
 
-      db_cl_altered= switch_db_collation(sql_file, db_name, ";",
-                                         db_cl_name, row[5]);
+      if (switch_db_collation(sql_file, db_name, ";",
+                              db_cl_name, row[5], &db_cl_altered))
+        DBUG_VOID_RETURN;
 
       switch_cs_variables(sql_file, ";",
                           row[3],   /* character_set_client */
@@ -2601,7 +2625,10 @@ static void dump_triggers_for_table(char *table, char *db_name)
       restore_cs_variables(sql_file, ";");
 
       if (db_cl_altered)
-        restore_db_collation(sql_file, db_name, ";", db_cl_name);
+      {
+        if (restore_db_collation(sql_file, db_name, ";", db_cl_name))
+          DBUG_VOID_RETURN;
+      }
 
       my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
     }
