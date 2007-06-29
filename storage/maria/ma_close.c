@@ -85,6 +85,7 @@ int maria_close(register MARIA_HA *info)
         not change the crashed state.
         We can NOT write the state in other cases as other threads
         may be using the file at this point
+        IF using --external-locking, which does not apply to Maria.
       */
       if (share->mode != O_RDONLY && maria_is_crashed(info))
 	_ma_state_info_write(share->kfile.file, &share->state, 1);

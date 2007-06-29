@@ -17,7 +17,7 @@
 /* This clears the status information and truncates files */
 
 #include "maria_def.h"
-#include "trnman_public.h"
+#include "trnman.h"
 
 /**
    @brief deletes all rows from a table
@@ -52,6 +52,25 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (_ma_mark_file_changed(info))
     goto err;
 
+  if (log_record)
+  {
+    /*
+      This record will be used by Recovery to finish the deletion if it
+      crashed. We force it because it's a non-undoable operation.
+    */
+    LSN lsn;
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    uchar log_data[FILEID_STORE_SIZE];
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DELETE_ALL,
+                                       info->trn, share, 0,
+                                       sizeof(log_array)/sizeof(log_array[0]),
+                                       log_array, log_data) ||
+                 translog_flush(lsn)))
+      goto err;
+  }
+
   info->state->records=info->state->del=state->split=0;
   state->changed= 0;                            /* File is optimized */
   state->dellink = HA_OFFSET_ERROR;
@@ -78,6 +97,12 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (_ma_initialize_data_file(info->dfile.file, share))
     goto err;
 
+  /*
+    The operations above on the index/data file will be forced to disk at
+    Checkpoint or maria_close() time. So we can reset:
+  */
+  info->trn->rec_lsn= LSN_IMPOSSIBLE;
+
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP
   /* Resize mmaped area */
@@ -85,38 +110,6 @@ int maria_delete_all_rows(MARIA_HA *info)
   _ma_remap_file(info, (my_off_t)0);
   rw_unlock(&info->s->mmap_lock);
 #endif
-  if (log_record)
-  {
-    /* For now this record is only informative */
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[LSN_STORE_SIZE];
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE;
-    if (unlikely(translog_write_record(&share->state.create_rename_lsn,
-                                       LOGREC_REDO_DELETE_ALL,
-                                       info->trn, share, 0,
-                                       sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data)))
-      goto err;
-    /*
-      store LSN into file. It is an optimization so that all old REDOs for
-      this table are ignored (scenario: checkpoint, INSERT1s, DELETE ALL;
-      INSERT2s, crash: then Recovery can skip INSERT1s). It also allows us to
-      ignore the present record at Recovery.
-      Note that storing the LSN could not be done by _ma_writeinfo() above as
-      the table is locked at this moment. So we need to do it by ourselves.
-    */
-    lsn_store(log_data, share->state.create_rename_lsn);
-    if (my_pwrite(share->kfile.file, log_data, sizeof(log_data),
-                  sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
-        _ma_sync_table_files(info))
-      goto err;
-    /**
-       @todo RECOVERY Until we take into account the log record above
-       for log-low-water-mark calculation and use it in Recovery, we need
-       to sync above.
-    */
-  }
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
@@ -125,9 +118,11 @@ err:
     int save_errno=my_errno;
     VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    /** @todo RECOVERY until we use the log record above we have to sync */
-    if (log_record &&_ma_sync_table_files(info) && !save_errno)
-      save_errno= my_errno;
+    /**
+       @todo RECOVERY if we come here, Recovery may later apply the REDO above,
+       which may be wrong. Not fixing it now, as anyway this way of deleting
+       rows will have to be re-examined when we have versioning.
+    */
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);
   }

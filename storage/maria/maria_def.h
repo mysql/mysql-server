@@ -886,13 +886,13 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size);
 MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const byte *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
 
-/* Functions needed by _ma_check (are overrided in MySQL) */
 C_MODE_START
+int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info);
+/* Functions needed by _ma_check (are overrided in MySQL) */
 volatile int *_ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
-int  _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info);
 C_MODE_END
 
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);
@@ -909,6 +909,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(File dfile, MARIA_SHARE *share);
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 

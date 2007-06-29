@@ -78,9 +78,9 @@ int maria_delete_table(const char *name)
   {
     /*
       For this log record to be of any use for Recovery, we need the upper
-      MySQL layer to be crash-safe in DDLs; when it is we should reconsider
-      the moment of writing this log record, how to use it in Recovery, and
-      force the log. For now this record is only informative.
+      MySQL layer to be crash-safe in DDLs.
+      For now this record can serve when we apply logs to a backup, so we sync
+      it.
     */
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
@@ -91,7 +91,8 @@ int maria_delete_table(const char *name)
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL)))
+                                       log_array, NULL) ||
+                 translog_flush(lsn)))
       DBUG_RETURN(1);
   }
 

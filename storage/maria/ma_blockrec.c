@@ -557,7 +557,8 @@ static my_bool check_if_zero(byte *pos, uint length)
   SYNOPSIS
     _ma_unpin_all_pages()
     info	Maria handler
-    undo_lsn	LSN for undo pages. 0 if we shouldn't write undo (error)
+    undo_lsn	LSN for undo pages. LSN_IMPOSSIBLE if we shouldn't write undo
+                (error)
 
   NOTE
     We unpin pages in the reverse order as they where pinned; This may not
@@ -580,14 +581,15 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
 
   /* True if not disk error */
-  DBUG_ASSERT(undo_lsn != 0 || !info->s->base.transactional);
+  DBUG_ASSERT((undo_lsn != LSN_IMPOSSIBLE) || !info->s->base.transactional);
 
   if (!info->s->base.transactional)
   {
     /*
       If this is a transactional table but with transactionality temporarily
       disabled (like in ALTER TABLE) we need to give a sensible LSN to pages
-      and not 0. If this is not a transactional table it will reduce to 0.
+      and not LSN_IMPOSSIBLE. If this is not a transactional table it will
+      reduce to LSN_IMPOSSIBLE.
     */
     undo_lsn= info->s->state.create_rename_lsn;
   }
@@ -1958,8 +1960,8 @@ static my_bool write_block_record(MARIA_HA *info,
     size_t data_length= (size_t) (data - row_pos->data);
 
     /* Log REDO changes of head page */
-    page_store(log_data+ FILEID_STORE_SIZE, head_block->page);
-    dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+    page_store(log_data + FILEID_STORE_SIZE, head_block->page);
+    dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos->rownr);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
@@ -2183,12 +2185,22 @@ crashed:
 disk_err:
   /**
      @todo RECOVERY we are going to let dirty pages go to disk while we have
-     logged UNDO, this violates WAL. If we have not written any full pages,
-     all dirty pages are pinned so we could just delete them from the
-     pagecache. Moreover, we have written some REDOs without a closing UNDO,
+     logged UNDO, this violates WAL. We must mark the table corrupted!
+
+     @todo RECOVERY we have written some REDOs without a closing UNDO,
      it's possible that a next operation by this transaction succeeds and then
      Recovery would glue the "orphan REDOs" to the succeeded operation and
-     execute the failed REDOs.
+     execute the failed REDOs. We need some mark "abort this group" in the
+     log, or mark the table corrupted (then user will repair it and thus REDOs
+     will be skipped).
+
+     @todo RECOVERY to not let write errors go unnoticed, pagecache_write()
+     should take a MARIA_HA* in argument, and it it
+     fails when flushing a page to disk it should call
+     (*the_maria_ha->write_error_func)(the_maria_ha)
+     and this hook will mark the table corrupted.
+     Maybe hook should be stored in the pagecache's block structure, or in a
+     hash "file->maria_ha*".
   */
   /* Unpin all pinned pages to not cause problems for disk cache */
   _ma_unpin_all_pages(info, 0);

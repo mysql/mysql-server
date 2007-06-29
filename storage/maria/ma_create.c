@@ -52,8 +52,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
        unique_key_parts,fulltext_keys,offset, not_block_record_extra_length;
   uint max_field_lengths, extra_header_size;
   ulong reclength, real_reclength,min_pack_length;
-  char filename[FN_REFLEN], dlinkname[FN_REFLEN], *dlinkname_ptr= NULL,
-    klinkname[FN_REFLEN], *klinkname_ptr= NULL;
+  char filename[FN_REFLEN], linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
   ulonglong tot_length,max_rows, tmp;
   enum en_fieldtype type;
@@ -621,14 +620,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   mi_int2store(share.state.header.state_info_length,MARIA_STATE_INFO_SIZE);
   mi_int2store(share.state.header.base_info_length,MARIA_BASE_INFO_SIZE);
   mi_int2store(share.state.header.base_pos,base_pos);
-  share.state.header.data_file_type= datafile_type;
+  share.state.header.data_file_type= share.data_file_type= datafile_type;
   share.state.header.org_data_file_type= org_datafile_type;
   share.state.header.language= (ci->language ?
 				ci->language : default_charset_info->number);
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-  share.state.create_rename_lsn= 0;
+  share.state.create_rename_lsn= LSN_IMPOSSIBLE;
   share.state.process=	(ulong) getpid();
   share.state.unique=	(ulong) 0;
   share.state.update_count=(ulong) 0;
@@ -721,9 +720,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                 MY_UNPACK_FILENAME | (have_iext ? MY_REPLACE_EXT :
                                       MY_APPEND_EXT));
     }
-    fn_format(klinkname, name, "", MARIA_NAME_IEXT,
+    fn_format(linkname, name, "", MARIA_NAME_IEXT,
               MY_UNPACK_FILENAME|MY_APPEND_EXT);
-    klinkname_ptr= klinkname;
+    linkname_ptr= linkname;
     /*
       Don't create the table if the link or file exists to ensure that one
       doesn't accidently destroy another table.
@@ -739,6 +738,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
               (MY_UNPACK_FILENAME |
                (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
                 MY_APPEND_EXT);
+    linkname_ptr= NULL;
     /*
       Replace the current file.
       Don't sync dir now if the data file has the same path.
@@ -761,54 +761,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err;
   }
 
-  if ((file= my_create_with_symlink(klinkname_ptr, filename, 0, create_mode,
+  if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
 				    MYF(MY_WME|create_flag))) < 0)
     goto err;
   errpos=1;
 
-  if (!(flags & HA_DONT_TOUCH_DATA))
-  {
-    if (ci->data_file_name)
-    {
-      char *dext= strrchr(ci->data_file_name, '.');
-      int have_dext= dext && !strcmp(dext, MARIA_NAME_DEXT);
-
-      if (tmp_table)
-      {
-        char *path;
-        /* chop off the table name, tempory tables use generated name */
-        if ((path= strrchr(ci->data_file_name, FN_LIBCHAR)))
-          *path= '\0';
-        fn_format(filename, name, ci->data_file_name, MARIA_NAME_DEXT,
-                  MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      }
-      else
-      {
-        fn_format(filename, ci->data_file_name, "", MARIA_NAME_DEXT,
-                  MY_UNPACK_FILENAME |
-                  (have_dext ? MY_REPLACE_EXT : MY_APPEND_EXT));
-      }
-      fn_format(dlinkname, name, "",MARIA_NAME_DEXT,
-                MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      dlinkname_ptr= dlinkname;
-      create_flag=0;
-    }
-    else
-    {
-      fn_format(filename,name,"", MARIA_NAME_DEXT,
-                MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      create_flag=MY_DELETE_OLD;
-    }
-    if ((dfile=
-         my_create_with_symlink(dlinkname_ptr, filename, 0, create_mode,
-                                MYF(MY_WME | create_flag | sync_dir))) < 0)
-      goto err;
-    errpos=3;
-
-    share.data_file_type= datafile_type;
-    if (_ma_initialize_data_file(dfile, &share))
-      goto err;
-  }
   DBUG_PRINT("info", ("write state info and base info"));
   if (_ma_state_info_write(file, &share.state, 2) ||
       _ma_base_info_write(file, &share.base))
@@ -948,33 +905,38 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       not log 1 KB of mostly zeroes if this is a small table.
     */
     char empty_string[]= "";
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
     uint total_rec_length= 0;
     uint i;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 1 + 2 +
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +
       kfile_size_before_extension;
     /* we are needing maybe 64 kB, so don't use the stack */
-    log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 0].length, MYF(0));
+    log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 1].length, MYF(0));
     if ((log_data == NULL) ||
-        my_pread(file, 1 + 2 + log_data, kfile_size_before_extension,
+        my_pread(file, 1 + 2 + 2 + log_data, kfile_size_before_extension,
                  0, MYF(MY_NABP)))
-      goto err_no_lock;
+      goto err;
     /*
       remember if the data file was created or not, to know if Recovery can
       do it or not, in the future
     */
     log_data[0]= test(flags & HA_DONT_TOUCH_DATA);
     int2store(log_data + 1, kfile_size_before_extension);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= log_data;
+    int2store(log_data + 1 + 2, share.base.keystart);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)name;
+    /* we store the end-zero, for Recovery to just pass it to my_create() */
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= log_data;
     /* symlink description is also needed for re-creation by Recovery: */
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=
-      dlinkname_ptr ? dlinkname : empty_string;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 1].str);
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=
-      klinkname_ptr ? klinkname : empty_string;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)
+      (ci->data_file_name ? ci->data_file_name : empty_string);
     log_array[TRANSLOG_INTERNAL_PARTS + 2].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str);
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str) + 1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].str= (char *)
+      (ci->index_file_name ? ci->index_file_name : empty_string);
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].length=
+      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
     for (i= TRANSLOG_INTERNAL_PARTS;
          i < (sizeof(log_array)/sizeof(log_array[0])); i++)
       total_rec_length+= log_array[i].length;
@@ -983,8 +945,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       MySQL layer to be crash-safe, which it is not now (that would require
       work using the ddl_log of sql/sql_table.cc); when it is, we should
       reconsider the moment of writing this log record (before or after op,
-      under THR_LOCK_maria or not...), how to use it in Recovery, and force
-      the log. For now this record is just informative.
+      under THR_LOCK_maria or not...), how to use it in Recovery.
+      For now this record can serve when we apply logs to a backup,
+      so we sync it. This happens before the data file is created. If the data
+      file was created before, and we crashed before writing the log record,
+      at restart the table may be used, so we would not have a trustable
+      history in the log (impossible to apply this log to a backup). The way
+      we do it, if we crash before writing the log record then there is no
+      data file and the table cannot be used.
       Note that in case of TRUNCATE TABLE we also come here.
       When in CREATE/TRUNCATE (or DROP or RENAME or REPAIR) we have not called
       external_lock(), so have no TRN. It does not matter, as all these
@@ -995,19 +963,61 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                        &dummy_transaction_object, NULL,
                                        total_rec_length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL)))
-      goto err_no_lock;
+                                       log_array, NULL) ||
+                 translog_flush(share.state.create_rename_lsn)))
+      goto err;
     /*
       store LSN into file, needed for Recovery to not be confused if a
       DROP+CREATE happened (applying REDOs to the wrong table).
-      If such direct my_pwrite() to a fixed offset is too "hackish", I can
-      call ma_state_info_write() again but it will be less efficient.
     */
-    lsn_store(log_data, share.state.create_rename_lsn);
-    if (my_pwrite(file, log_data, LSN_STORE_SIZE,
-                  sizeof(share.state.header) + 2, MYF(MY_NABP)))
-      goto err_no_lock;
+    share.kfile.file= file;
+    if (_ma_update_create_rename_lsn_on_disk(&share, FALSE))
+      goto err;
     my_free(log_data, MYF(0));
+  }
+
+  if (!(flags & HA_DONT_TOUCH_DATA))
+  {
+    if (ci->data_file_name)
+    {
+      char *dext= strrchr(ci->data_file_name, '.');
+      int have_dext= dext && !strcmp(dext, MARIA_NAME_DEXT);
+
+      if (tmp_table)
+      {
+        char *path;
+        /* chop off the table name, tempory tables use generated name */
+        if ((path= strrchr(ci->data_file_name, FN_LIBCHAR)))
+          *path= '\0';
+        fn_format(filename, name, ci->data_file_name, MARIA_NAME_DEXT,
+                  MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
+      }
+      else
+      {
+        fn_format(filename, ci->data_file_name, "", MARIA_NAME_DEXT,
+                  MY_UNPACK_FILENAME |
+                  (have_dext ? MY_REPLACE_EXT : MY_APPEND_EXT));
+      }
+      fn_format(linkname, name, "",MARIA_NAME_DEXT,
+                MY_UNPACK_FILENAME | MY_APPEND_EXT);
+      linkname_ptr= linkname;
+      create_flag=0;
+    }
+    else
+    {
+      fn_format(filename,name,"", MARIA_NAME_DEXT,
+                MY_UNPACK_FILENAME | MY_APPEND_EXT);
+      linkname_ptr= NULL;
+      create_flag=MY_DELETE_OLD;
+    }
+    if ((dfile=
+         my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
+                                MYF(MY_WME | create_flag | sync_dir))) < 0)
+      goto err;
+    errpos=3;
+
+    if (_ma_initialize_data_file(dfile, &share))
+      goto err;
   }
 
 	/* Enlarge files */
@@ -1025,7 +1035,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     if (my_chsize(dfile,share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
       goto err;
 #endif
-    errpos=2;
     if ((sync_dir && my_sync(dfile, MYF(0))) || my_close(dfile,MYF(0)))
       goto err;
   }
@@ -1156,4 +1165,33 @@ int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
     _ma_bitmap_delete_all(share);
   }
   return 0;
+}
+
+
+/**
+   @brief Writes create_rename_lsn to disk, optionally forces
+
+   This is for special cases where:
+   - we don't want to write the full state to disk (so, not call
+   _ma_state_info_write()) because some parts of the state may be
+   currently inconsistent, or because it would be overkill
+   - we must sync this LSN immediately for correctness.
+
+   @param  share           table's share
+   @param  do_sync         if the write should be forced to disk
+
+   @return Operation status
+     @retval 0      ok
+     @retval 1      error (disk problem)
+*/
+
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync)
+{
+  char buf[LSN_STORE_SIZE];
+  File file= share->kfile.file;
+  DBUG_ASSERT(file >= 0);
+  lsn_store(buf, share->state.create_rename_lsn);
+  return (my_pwrite(file, buf, sizeof(buf),
+                    sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+          (do_sync && my_sync(file, MYF(0))));
 }

@@ -20,6 +20,9 @@
   to include my_atomic.h in C++ code.
 */
 
+#ifndef _trnman_public_h
+#define _trnman_public_h
+
 #include "ma_loghandler_lsn.h"
 
 C_MODE_START
@@ -52,3 +55,4 @@ my_bool trnman_has_locked_tables(TRN *trn);
 void trnman_reset_locked_tables(TRN *trn);
 
 C_MODE_END
+#endif

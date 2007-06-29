@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2006,2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,14 +21,61 @@
 
 /* This is the interface of this module. */
 
-typedef enum enum_checkpoint_level {
-  NONE=-1,
-  INDIRECT, /* just write dirty_pages, transactions table and sync files */
-  MEDIUM, /* also flush all dirty pages which were already dirty at prev checkpoint*/
-  FULL /* also flush all dirty pages */
+typedef enum enum_ma_checkpoint_level {
+  CHECKPOINT_NONE= 0,
+  /* just write dirty_pages, transactions table and sync files */
+  CHECKPOINT_INDIRECT,
+  /* also flush all dirty pages which were already dirty at prev checkpoint */
+  CHECKPOINT_MEDIUM,
+  /* also flush all dirty pages */
+  CHECKPOINT_FULL
 } CHECKPOINT_LEVEL;
 
-void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
-my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level);
-my_bool execute_asynchronous_checkpoint_if_any();
-/* that's all that's needed in the interface */
+C_MODE_START
+int ma_checkpoint_init();
+void ma_checkpoint_end();
+int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait);
+C_MODE_END
+
+/**
+   @brief reads some LSNs with special trickery
+
+   If a 64-bit variable transitions between both halves being zero to both
+   halves being non-zero, and back, this function can be used to do a read of
+   it (without mutex, without atomic load) which always produces a correct
+   (though maybe slightly old) value (even on 32-bit CPUs). The value is at
+   least as new as the latest mutex unlock done by the calling thread.
+   The assumption is that the system sets both 4-byte halves either at the
+   same time, or one after the other (in any order), but NOT some bytes of the
+   first half then some bytes of the second half then the rest of bytes of the
+   first half. With this assumption, the function can detect when it is
+   seeing an inconsistent value.
+
+   @param LSN              pointer to the LSN variable to read
+
+   @return LSN part (most significant byte always 0)
+*/
+#if ( SIZEOF_CHARP >= 8 )
+/* 64-bit CPU, 64-bit reads are atomic */
+#define lsn_read_non_atomic LSN_WITH_FLAGS_TO_LSN
+#else
+static inline LSN lsn_read_non_atomic_32(const volatile LSN *x)
+{
+  /*
+    32-bit CPU, 64-bit reads may give a mixed of old half and new half (old
+    low bits and new high bits, or the contrary).
+  */
+  for (;;) /* loop until no atomicity problems */
+  {
+    /*
+      Remove most significant byte in case this is a LSN_WITH_FLAGS object.
+      Those flags in TRN::first_undo_lsn break the condition on transitions so
+      they must be removed below.
+    */
+    LSN y= LSN_WITH_FLAGS_TO_LSN(*x);
+    if (likely((y == LSN_IMPOSSIBLE) || LSN_VALID(y)))
+      return y;
+  }
+}
+#define lsn_read_non_atomic(x) lsn_read_non_atomic_32(&x)
+#endif

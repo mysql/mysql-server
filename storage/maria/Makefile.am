@@ -33,7 +33,7 @@ SUBDIRS =		. unittest
 EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt plug.in
 pkgdata_DATA =		ma_test_all ma_test_all.res
 pkglib_LIBRARIES =	libmaria.a
-bin_PROGRAMS =		maria_chk maria_pack maria_ftdump
+bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
 # Only reason to link with libmyisam.a here is that it's where some fulltext
 # pieces are (but soon we'll remove fulltext dependencies from Maria).
@@ -45,6 +45,12 @@ maria_chk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 maria_pack_DEPENDENCIES=$(LIBRARIES)
 maria_pack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+maria_read_log_DEPENDENCIES=$(LIBRARIES)
+maria_read_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
