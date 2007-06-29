@@ -170,9 +170,8 @@ enum ha_extra_function {
   HA_EXTRA_DELETE_CANNOT_BATCH,
   HA_EXTRA_UPDATE_CANNOT_BATCH,
   /*
-    Inform handler that write_row() should immediately report constraint
-    violations because a INSERT...ON DUPLICATE KEY UPDATE is in being
-    performed.
+    Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
+    executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
   HA_EXTRA_INSERT_WITH_UPDATE
 };

@@ -2555,6 +2555,10 @@ int ha_federated::extra(ha_extra_function operation)
     replace_duplicates= TRUE;
     break;
   case HA_EXTRA_WRITE_CANNOT_REPLACE:
+    /*
+      We use this flag to ensure that we do not create an "INSERT IGNORE"
+      statement when inserting new rows into the remote table.
+    */
     replace_duplicates= FALSE;
     break;
   case HA_EXTRA_INSERT_WITH_UPDATE:
