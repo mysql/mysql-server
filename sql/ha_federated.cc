@@ -1686,7 +1686,7 @@ int ha_federated::write_row(byte *buf)
   uint tmp_length;
   int error= 0;
   bool use_bulk_insert;
-  bool auto_increment_update_required= table->next_number_field;
+  bool auto_increment_update_required= (table->next_number_field != NULL);
 
   /* The string containing the values to be added to the insert */
   String values_string(values_buffer, sizeof(values_buffer), &my_charset_bin);
