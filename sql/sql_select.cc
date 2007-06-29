@@ -611,7 +611,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;					/* purecov: inspected */
 
   /* Init join struct */
-  count_field_types(&tmp_table_param, all_fields, 0);
+  count_field_types(select_lex, &tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
   unit= unit_arg;
@@ -1766,7 +1766,7 @@ JOIN::exec()
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
-      count_field_types(&curr_join->tmp_table_param,
+      count_field_types(select_lex, &curr_join->tmp_table_param,
 			curr_join->tmp_all_fields1,
 			curr_join->select_distinct && !curr_join->group_list);
       curr_join->tmp_table_param.hidden_field_count= 
@@ -1886,11 +1886,13 @@ JOIN::exec()
     if (make_simple_join(curr_join, curr_tmp_table))
       DBUG_VOID_RETURN;
     calc_group_buffer(curr_join, curr_join->group_list);
-    count_field_types(&curr_join->tmp_table_param, *curr_all_fields, 0);
+    count_field_types(select_lex, &curr_join->tmp_table_param, 
+                      *curr_all_fields, 0);
     
   }
   if (procedure)
-    count_field_types(&curr_join->tmp_table_param, *curr_all_fields, 0);
+    count_field_types(select_lex, &curr_join->tmp_table_param, 
+                      *curr_all_fields, 0);
   
   if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
@@ -13678,8 +13680,8 @@ next_item:
 *****************************************************************************/
 
 void
-count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
-		  bool reset_with_sum_func)
+count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+                  List<Item> &fields, bool reset_with_sum_func)
 {
   List_iterator<Item> li(fields);
   Item *field;
@@ -13697,18 +13699,22 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
       if (! field->const_item())
       {
 	Item_sum *sum_item=(Item_sum*) field->real_item();
-	if (!sum_item->quick_group)
-	  param->quick_group=0;			// UDF SUM function
-	param->sum_func_count++;
-        param->func_count++;
+        if (!sum_item->depended_from() ||
+            sum_item->depended_from() == select_lex)
+        {
+          if (!sum_item->quick_group)
+            param->quick_group=0;			// UDF SUM function
+          param->sum_func_count++;
 
-	for (uint i=0 ; i < sum_item->arg_count ; i++)
-	{
-	  if (sum_item->args[0]->real_item()->type() == Item::FIELD_ITEM)
-	    param->field_count++;
-	  else
-	    param->func_count++;
-	}
+          for (uint i=0 ; i < sum_item->arg_count ; i++)
+          {
+            if (sum_item->args[0]->real_item()->type() == Item::FIELD_ITEM)
+              param->field_count++;
+            else
+              param->func_count++;
+          }
+        }
+        param->func_count++;
       }
     }
     else
@@ -14170,7 +14176,9 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
   func= sum_funcs;
   while ((item=it++))
   {
-    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
+    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+        (!((Item_sum*) item)->depended_from() ||
+         ((Item_sum *)item)->depended_from() == select_lex))
       *func++= (Item_sum*) item;
   }
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
@@ -14752,7 +14760,10 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	ref_array= ref_array_start;
       }
 
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+          (!((Item_sum*) item)->depended_from() ||
+           ((Item_sum *)item)->depended_from() == select_lex))
+          
       {
 	/*
 	  This is a top level summary function that must be replaced with
