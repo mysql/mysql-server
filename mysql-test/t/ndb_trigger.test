@@ -1,6 +1,5 @@
 # Tests which involve triggers and NDB storage engine
 --source include/have_ndb.inc
---source include/have_binlog_format_row.inc
 --source include/not_embedded.inc
 
 # 

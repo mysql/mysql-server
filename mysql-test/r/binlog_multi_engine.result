@@ -30,8 +30,6 @@ master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
