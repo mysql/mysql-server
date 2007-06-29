@@ -4328,7 +4328,7 @@ sub run_testcase_stop_servers($$$) {
     {
       if ( $mysqld->{'pid'} )
       {
-	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 20);
 
 	$admin_pids{$pid}= 1;
 
@@ -4380,7 +4380,7 @@ sub run_testcase_stop_servers($$$) {
     {
       if ( $mysqld->{'pid'} )
       {
-	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 20);
 
 	$admin_pids{$pid}= 1;
 
