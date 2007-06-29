@@ -1478,6 +1478,8 @@ ER_DUP_KEYNAME 42000 S1009
         spa "Nombre de clave duplicado '%-.192s'"
         swe "Nyckelnamn '%-.192s' finns flera gånger"
         ukr "äÕÂÌÀÀÞÅ ¦Í'Ñ ËÌÀÞÁ '%-.192s'"
+# When using this error code, please use ER(ER_DUP_ENTRY_WITH_KEY_NAME)
+# for the message string.  See, for example, code in handler.cc.
 ER_DUP_ENTRY 23000 S1009
 	cze "Zdvojen-Bý klíè '%-.192s' (èíslo klíèe %d)"
 	dan "Ens værdier '%-.192s' for indeks %d"
@@ -5022,7 +5024,9 @@ ER_UNKNOWN_STORAGE_ENGINE 42000
         ger "Unbekannte Speicher-Engine '%s'"
         por "Motor de tabela desconhecido '%s'"
         spa "Desconocido motor de tabla '%s'"
-ER_UNUSED_1
+# When using this error code, use ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER)
+# for the message string.  See, for example, code in mysql_priv.h.
+ER_WARN_DEPRECATED_SYNTAX  
         eng "'%s' is deprecated; use '%s' instead"
         ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
         por "'%s' é desatualizado. Use '%s' em seu lugar"
@@ -5606,8 +5610,6 @@ ER_SP_RECURSION_LIMIT
 ER_SP_PROC_TABLE_CORRUPT
         eng "Failed to load routine %-.192s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
         ger "Routine %-.192s konnte nicht geladen werden. Die Tabelle mysql.proc fehlt, ist beschädigt, oder enthält fehlerhaften Daten (interner Code: %d)"
-ER_FOREIGN_SERVER_EXISTS
-        eng "The foreign server, %s, you are trying to create already exists."
 ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
@@ -5629,6 +5631,34 @@ ER_NON_GROUPING_FIELD_USED 42000
 ER_TABLE_CANT_HANDLE_SPKEYS
         eng "The used table type doesn't support SPATIAL indexes"
         ger "Der verwendete Tabellentyp unterstützt keine SPATIAL-Indizes"
+ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+        eng "Triggers can not be created on system tables"
+        ger "Trigger können nicht auf Systemtabellen erzeugt werden"
+ER_REMOVED_SPACES
+        eng "Leading spaces are removed from name '%s'"
+        ger "Führende Leerzeichen werden aus dem Namen '%s' entfernt"
+ER_AUTOINC_READ_FAILED
+        eng "Failed to read auto-increment value from storage engine"
+        ger "Lesen des Autoincrement-Werts von der Speicher-Engine fehlgeschlagen"
+ER_USERNAME
+        eng "user name"
+        ger "Benutzername"
+ER_HOSTNAME
+        eng "host name"
+        ger "Hostname"
+ER_WRONG_STRING_LENGTH
+        eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+        ger "String '%-.70s' ist zu lang für %s (sollte nicht länger sein als %d)"
+ER_NON_INSERTABLE_TABLE  
+        eng "The target table %-.100s of the %s is not insertable-into"
+        ger "Die Zieltabelle %-.100s von %s ist nicht einfügbar"
+ER_ADMIN_WRONG_MRG_TABLE
+	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
+ER_FOREIGN_SERVER_EXISTS
+        eng "The foreign server, %s, you are trying to create already exists."
+ER_FOREIGN_SERVER_DOESNT_EXIST
+        eng "The foreign server name you are trying to reference does not exist. Data source error:  %-.64s"
+	ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
 ER_ILLEGAL_HA_CREATE_OPTION
         eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
         ger "Speicher-Engine '%-.64s' der Tabelle unterstützt die Option '%.64s' nicht"
@@ -5848,9 +5878,6 @@ ER_BINLOG_ROW_WRONG_TABLE_DEF
 ER_BINLOG_ROW_RBR_TO_SBR
         eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
         ger "Slave, die mit --log-slave-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
-ER_FOREIGN_SERVER_DOESNT_EXIST
-        eng "The foreign server name you are trying to reference does not exist. Data source error:  %-.64s"
-	ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
 ER_EVENT_ALREADY_EXISTS
         eng "Event '%-.192s' already exists"
         ger "Event '%-.192s' existiert bereits"
@@ -5901,7 +5928,9 @@ ER_EVENT_DATA_TOO_LONG
 ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.192s': needed in a foreign key constraint"
         ger "Kann Index '%-.192s' nicht löschen: wird für einen Fremdschlüssel benötigt"
-ER_WARN_DEPRECATED_SYNTAX  
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.  See, for example, code in mysql_priv.h.
+ER_WARN_DEPRECATED_SYNTAX_WITH_VER  
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead"
         ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt. Bitte benutzen Sie statt dessen %s"
 ER_CANT_WRITE_LOCK_LOG_TABLE
@@ -5916,9 +5945,6 @@ ER_FOREIGN_DUPLICATE_KEY 23000 S1009
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
-ER_REMOVED_SPACES
-        eng "Leading spaces are removed from name '%s'"
-        ger "Führende Leerzeichen werden aus dem Namen '%s' entfernt"
 ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
         eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
         ger "Kann nicht aus dem zeilenbasierten Binärlog-Format herauswechseln, wenn die Sitzung offene temporäre Tabellen hat"
@@ -5975,9 +6001,6 @@ ER_BASE64_DECODE_ERROR
         eng "Decoding of base64 string failed"
         swe "Avkodning av base64 sträng misslyckades"
         ger "Der Server hat keine zeilenbasierte Replikation"
-ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
-        eng "Triggers can not be created on system tables"
-        ger "Trigger können nicht auf Systemtabellen erzeugt werden"
 ER_EVENT_RECURSION_FORBIDDEN
         eng "Recursion of EVENT DDL statements is forbidden when body is present"
         ger "Rekursivität von EVENT-DDL-Anweisungen ist unzulässig wenn ein Hauptteil (Body) existiert"
@@ -5987,27 +6010,12 @@ ER_EVENTS_DB_ERROR
 ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
-ER_AUTOINC_READ_FAILED
-        eng "Failed to read auto-increment value from storage engine"
-        ger "Lesen des Autoincrement-Werts von der Speicher-Engine fehlgeschlagen"
-ER_USERNAME
-        eng "user name"
-        ger "Benutzername"
-ER_HOSTNAME
-        eng "host name"
-        ger "Hostname"
-ER_WRONG_STRING_LENGTH
-        eng "String '%-.70s' is too long for %s (should be no longer than %d)"
-        ger "String '%-.70s' ist zu lang für %s (sollte nicht länger sein als %d)"
 ER_UNSUPORTED_LOG_ENGINE
         eng "This storage engine cannot be used for log tables""
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
         ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
-ER_NON_INSERTABLE_TABLE  
-        eng "The target table %-.100s of the %s is not insertable-into"
-        ger "Die Zieltabelle %-.100s von %s ist nicht einfügbar"
 ER_CANT_RENAME_LOG_TABLE
         eng "Cannot rename '%s'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to '%s'"
         ger "Kann '%s' nicht umbenennen. Wenn Loggen angeschaltet ist, müssen beim Umbenennen zu/von einer Logtabelle zwei Tabellen angegeben werden: die Logtabelle zu einer Archivtabelle und eine weitere Tabelle zurück zu  '%s'"
@@ -6023,6 +6031,8 @@ ER_WRONG_PARAMETERS_TO_STORED_FCT 42000
 ER_NATIVE_FCT_NAME_COLLISION
         eng "This function '%-.192s' has the same name as a native function"
         ger "Die Funktion '%-.192s' hat denselben Namen wie eine native Funktion"
+# When using this error message, use the ER_DUP_ENTRY error code.  See, for
+# example, code in handler.cc.
 ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
         cze "Zvojen-Bý klíè '%-.64s' (èíslo klíèe '%-.192s')"
         dan "Ens værdier '%-.64s' for indeks '%-.192s'"
@@ -6059,8 +6069,6 @@ ER_SLAVE_INCIDENT
         eng "The incident %s occured on the master. Message: %-.64s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
-ER_ADMIN_WRONG_MRG_TABLE
-	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
 ER_BINLOG_UNSAFE_STATEMENT
         eng "Statement is not safe to log in statement format."
         swe "Detta är inte säkert att logga i statement-format."
