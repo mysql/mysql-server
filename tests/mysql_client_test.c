@@ -7564,7 +7564,9 @@ static void test_explain_bug()
   else
   {
     verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
-                         "", "", NAME_LEN*MAX_KEY, 0);
+                         "", "",
+                         NAME_LEN*MAX_KEY / my_charset_utf8_general_ci.mbmaxlen,
+                         0);
   }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
