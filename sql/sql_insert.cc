@@ -1423,7 +1423,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             compare_record(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
-                                                table->record[0])))
+                                                table->record[0])) &&
+              error != HA_ERR_RECORD_IS_THE_SAME)
           {
             if (info->ignore &&
                 !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
@@ -1433,7 +1434,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           }
 
-          info->updated++;
+          if (error != HA_ERR_RECORD_IS_THE_SAME)
+            info->updated++;
+          else
+            error= 0;
           /*
             If ON DUP KEY UPDATE updates a row instead of inserting one, it's
             like a regular UPDATE statement: it should not affect the value of a
@@ -1481,9 +1485,13 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             (!table->triggers || !table->triggers->has_delete_triggers()))
         {
           if ((error=table->file->ha_update_row(table->record[1],
-					        table->record[0])))
+					        table->record[0])) &&
+              error != HA_ERR_RECORD_IS_THE_SAME)
             goto err;
-          info->deleted++;
+          if (error != HA_ERR_RECORD_IS_THE_SAME)
+            info->deleted++;
+          else
+            error= 0;
           thd->record_first_successful_insert_id_in_cur_stmt(table->file->insert_id_for_cur_row);
           /*
             Since we pretend that we have done insert we should call

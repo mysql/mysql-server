@@ -1825,7 +1825,8 @@ static bool update_user_table(THD *thd, TABLE *table,
   }
   store_record(table,record[1]);
   table->field[2]->store(new_password, new_password_len, system_charset_info);
-  if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
+  if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
+      error != HA_ERR_RECORD_IS_THE_SAME)
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(1);
@@ -2041,12 +2042,18 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       We should NEVER delete from the user table, as a uses can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
-    if (cmp_record(table,record[1]) &&
-	(error=table->file->ha_update_row(table->record[1],table->record[0])))
-    {						// This should never happen
-      table->file->print_error(error,MYF(0));	/* purecov: deadcode */
-      error= -1;				/* purecov: deadcode */
-      goto end;					/* purecov: deadcode */
+    if (cmp_record(table,record[1]))
+    {
+      if ((error=
+           table->file->ha_update_row(table->record[1],table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+      {						// This should never happen
+        table->file->print_error(error,MYF(0));	/* purecov: deadcode */
+        error= -1;				/* purecov: deadcode */
+        goto end;				/* purecov: deadcode */
+      }
+      else
+        error= 0;
     }
   }
   else if ((error=table->file->ha_write_row(table->record[0]))) // insert
@@ -2161,7 +2168,8 @@ static int replace_db_table(TABLE *table, const char *db,
     if (rights)
     {
       if ((error= table->file->ha_update_row(table->record[1],
-                                             table->record[0])))
+                                             table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
 	goto table_error;			/* purecov: deadcode */
     }
     else	/* must have been a revoke of all privileges */
@@ -2543,12 +2551,14 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	error=table->file->ha_update_row(table->record[1],table->record[0]);
       else
 	error=table->file->ha_delete_row(table->record[1]);
-      if (error)
+      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
       {
 	table->file->print_error(error,MYF(0)); /* purecov: inspected */
 	result= -1;				/* purecov: inspected */
 	goto end;				/* purecov: inspected */
       }
+      else
+        error= 0;
       grant_column= column_hash_search(g_t, column->column.ptr(),
                                        column->column.length());
       if (grant_column)				// Should always be true
@@ -2608,7 +2618,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	{
 	  int tmp_error;
 	  if ((tmp_error=table->file->ha_update_row(table->record[1],
-						    table->record[0])))
+						    table->record[0])) &&
+              tmp_error != HA_ERR_RECORD_IS_THE_SAME)
 	  {					/* purecov: deadcode */
 	    table->file->print_error(tmp_error,MYF(0)); /* purecov: deadcode */
 	    result= -1;				/* purecov: deadcode */
@@ -2730,7 +2741,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   {
     if (store_table_rights || store_col_rights)
     {
-      if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
 	goto table_error;			/* purecov: deadcode */
     }
     else if ((error = table->file->ha_delete_row(table->record[1])))
@@ -2848,7 +2861,9 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   {
     if (store_proc_rights)
     {
-      if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
 	goto table_error;
     }
     else if ((error= table->file->ha_delete_row(table->record[1])))
@@ -4914,8 +4929,12 @@ static int modify_grant_table(TABLE *table, Field *host_field,
                       system_charset_info);
     user_field->store(user_to->user.str, user_to->user.length,
                       system_charset_info);
-    if ((error= table->file->ha_update_row(table->record[1], table->record[0])))
+    if ((error= table->file->ha_update_row(table->record[1], 
+                                           table->record[0])) &&
+        error != HA_ERR_RECORD_IS_THE_SAME)
       table->file->print_error(error, MYF(0));
+    else
+      error= 0;
   }
   else
   {
