@@ -608,7 +608,7 @@ static int check_foreign_data_source(FEDERATED_SHARE *share,
     query.append(STRING_WITH_LEN("SELECT * FROM "));
     append_ident(&query, share->table_name, share->table_name_length,
                  ident_quote_char);
-    query.append(STRING_WITH_LEN(" WHERE 1=0");
+    query.append(STRING_WITH_LEN(" WHERE 1=0"));
 
     if (mysql_real_query(mysql, query.ptr(), query.length()))
     {
@@ -1572,7 +1572,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     /* chops off trailing comma */
     query.length(query.length() - sizeof_trailing_comma);
 
-    query.append(STRING_WITH_LEN(" FROM `"));
+    query.append(STRING_WITH_LEN(" FROM "));
 
     append_ident(&query, tmp_share.table_name, 
                  tmp_share.table_name_length, ident_quote_char);
@@ -1809,6 +1809,7 @@ bool ha_federated::append_stmt_insert(String *query)
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   Field **field;
   uint tmp_length;
+  bool added_field= FALSE;
 
   /* The main insert query string */
   String insert_string(insert_buffer, sizeof(insert_buffer), &my_charset_bin);
@@ -1824,8 +1825,8 @@ bool ha_federated::append_stmt_insert(String *query)
     insert_string.append(STRING_WITH_LEN("INSERT INTO "));
   append_ident(&insert_string, share->table_name, share->table_name_length, 
                ident_quote_char);
-  insert_string.append(FEDERATED_OPENPAREN);
-  tmp_length= insert_string.length() - strlen(STRING_WITH_LEN(", "));
+  tmp_length= insert_string.length();
+  insert_string.append(STRING_WITH_LEN(" ("));
 
   /*
     loop through the field pointer array, add any fields to both the values
@@ -1846,22 +1847,20 @@ bool ha_federated::append_stmt_insert(String *query)
         next field is in the write set
       */
       insert_string.append(STRING_WITH_LEN(", "));
+      added_field= TRUE;
     }
   }
 
-  /*
-    remove trailing comma
-  */
-  insert_string.length(insert_string.length() - sizeof_trailing_comma);
-
-  /*
-    if there were no fields, we don't want to add a closing paren
-    AND, we don't want to chop off the last char '('
-    insert will be "INSERT INTO t1 VALUES ();"
-  */
-  if (insert_string.length() > tmp_length)
+  if (added_field)
   {
-    insert_string.append(STRING_WITH_LEN(") ");
+    /* Remove trailing comma. */
+    insert_string.length(insert_string.length() - sizeof_trailing_comma);
+    insert_string.append(STRING_WITH_LEN(") "));
+  }
+  else
+  {
+    /* If there were no fields, we don't want to add a closing paren. */
+    insert_string.length(tmp_length);
   }
 
   insert_string.append(STRING_WITH_LEN(" VALUES "));
@@ -2371,6 +2370,7 @@ int ha_federated::delete_row(const uchar *buf)
           delete_string.append(value_quote_char);
       }
       delete_string.append(STRING_WITH_LEN(" AND "));
+    }
   }
 
   // Remove trailing AND
@@ -2974,16 +2974,30 @@ int ha_federated::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
-  case HA_EXTRA_RESET:
-    insert_dup_update= FALSE;
-    ignore_duplicates= FALSE;
-    replace_duplicates= FALSE;
-    break;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
   }
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Reset state of file to after 'open'.
+
+  @detail This function is called after every statement for all tables
+    used by that statement.
+
+  @return Operation status
+    @retval     0       OK
+*/
+
+int ha_federated::reset(void)
+{
+  insert_dup_update= FALSE;
+  ignore_duplicates= FALSE;
+  replace_duplicates= FALSE;
+  return 0;
 }
 
 

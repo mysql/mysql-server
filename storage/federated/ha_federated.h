@@ -107,9 +107,9 @@ private:
 
   bool append_stmt_insert(String *query);
 
-  int read_next(byte *buf, MYSQL_RES *result);
-  int index_read_idx_with_result_set(byte *buf, uint index,
-                                     const byte *key,
+  int read_next(uchar *buf, MYSQL_RES *result);
+  int index_read_idx_with_result_set(uchar *buf, uint index,
+                                     const uchar *key,
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
@@ -251,5 +251,6 @@ public:
   int connection_rollback();
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
+  int reset(void);
 };
 

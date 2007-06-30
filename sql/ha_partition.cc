@@ -4714,6 +4714,12 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_KEY_CACHE:
   HA_EXTRA_NO_KEY_CACHE:
     This parameters are no longer used and could be removed.
+
+  7) Parameters only used by federated tables for query processing
+  ----------------------------------------------------------------
+  HA_EXTRA_INSERT_WITH_UPDATE:
+    Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
+    executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -4795,6 +4801,9 @@ int ha_partition::extra(enum ha_extra_function operation)
     */
     break;
   }
+    /* Category 7), used by federated handlers */
+  case HA_EXTRA_INSERT_WITH_UPDATE:
+    DBUG_RETURN(loop_extra(operation));
   default:
   {
     /* Temporary crash to discover what is wrong */
