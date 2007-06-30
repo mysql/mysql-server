@@ -3995,58 +3995,61 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
       memcpy((char *)cache->read_pos, &header[carry], LOG_EVENT_HEADER_LEN - carry);
 
       /* next event header at ... */
-      hdr_offs = LOG_EVENT_HEADER_LEN - carry +
-        uint4korr(&header[EVENT_LEN_OFFSET]);
+      hdr_offs = uint4korr(&header[EVENT_LEN_OFFSET]) - carry;
 
       carry= 0;
     }
 
     /* if there is anything to write, process it. */
 
-    if(likely(bytes > 0))
+    if (likely(bytes > 0))
     {
       /*
-        next header beyond current read-buffer? we'll get it later
-        (though not necessarily in the very next iteration).
+        process all event-headers in this (partial) cache.
+        if next header is beyond current read-buffer,
+        we'll get it later (though not necessarily in the
+        very next iteration, just "eventually").
       */
 
-      if (hdr_offs >= bytes)
-        hdr_offs -= bytes;
-      else
+      while (hdr_offs < bytes)
       {
+        /*
+          partial header only? save what we can get, process once
+          we get the rest.
+        */
 
-        /* process all event-headers in this (partial) cache. */
+        if (hdr_offs + LOG_EVENT_HEADER_LEN > bytes)
+        {
+          carry= bytes - hdr_offs;
+          memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
+          bytes= hdr_offs;
+        }
+        else
+        {
+          /* we've got a full event-header, and it came in one piece */
 
-        do {
+          uchar *log_pos= (uchar *)cache->read_pos + hdr_offs + LOG_POS_OFFSET;
 
-          /*
-            partial header only? save what we can get, process once
-            we get the rest.
-          */
+          /* fix end_log_pos */
+          val= uint4korr(log_pos) + group;
+          int4store(log_pos, val);
 
-          if (hdr_offs + LOG_EVENT_HEADER_LEN > bytes)
-          {
-            carry= bytes - hdr_offs;
-            memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
-            bytes= hdr_offs;
-          }
-          else
-          {
-            /* we've got a full event-header, and it came in one piece */
+          /* next event header at ... */
+          log_pos= (uchar *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET;
+          hdr_offs += uint4korr(log_pos);
 
-            uchar *log_pos= (uchar *)cache->read_pos + hdr_offs + LOG_POS_OFFSET;
-
-            /* fix end_log_pos */
-            val= uint4korr(log_pos) + group;
-            int4store(log_pos, val);
-
-            /* next event header at ... */
-            log_pos= (uchar *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET;
-            hdr_offs += uint4korr(log_pos);
-
-          }
-        } while (hdr_offs < bytes);
+        }
       }
+
+      /*
+        Adjust hdr_offs. Note that this doesn't mean it will necessarily
+        be valid in the next iteration; if the current event is very long,
+        it may take a couple of read-iterations (and subsequent fixings
+        of hdr_offs) for it to become valid again.
+        if we had a split header, hdr_offs was already fixed above.
+      */
+      if (carry == 0)
+        hdr_offs -= bytes;
     }
 
     /* Write data to the binary log file */
