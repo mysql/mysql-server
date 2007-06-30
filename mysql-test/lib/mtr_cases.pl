@@ -611,6 +611,7 @@ our @tags=
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
+ ["include/have_multi_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["require_manager", "require_manager", 1],
 );
