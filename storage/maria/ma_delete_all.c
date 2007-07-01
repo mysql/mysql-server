@@ -142,6 +142,7 @@ void _ma_reset_status(MARIA_HA *info)
   info->state->data_file_length= 0;
   info->state->empty= info->state->key_empty= 0;
   info->state->checksum= 0;
+  share->state.create_rename_lsn= LSN_IMPOSSIBLE;
 
   /* Drop the delete key chain. */
   state->key_del= HA_OFFSET_ERROR;

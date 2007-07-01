@@ -521,7 +521,7 @@ prototype_exec_hook(REDO_CREATE_TABLE)
       data file does not preclude this).
     */
     if (((info= maria_open(name, O_RDONLY, 0)) == NULL) ||
-        _ma_initialize_data_file(dfile, info->s))
+        _ma_initialize_data_file(info->s, dfile))
     {
       fprintf(stderr, "Failed to open new table or write to data file\n");
       goto err;
