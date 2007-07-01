@@ -745,10 +745,10 @@ drop table t1;
 drop procedure if exists fn3;
 create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
 show create function fn3;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3		CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return GeomFromText("point(1 1)")
+return GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
 select astext(fn3());
 astext(fn3())
 POINT(1 1)

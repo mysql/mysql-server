@@ -868,8 +868,8 @@ Tables_in_test (t_)
 t1
 t2
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	NULL		
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	NULL			latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM t1;
 c
 1
@@ -895,7 +895,7 @@ RESET SLAVE;
 SHOW TABLES LIKE 't_';
 Tables_in_test (t_)
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 RESET MASTER;
 START SLAVE;
 

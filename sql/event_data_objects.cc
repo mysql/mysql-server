@@ -23,6 +23,126 @@
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
+/*************************************************************************/
+
+/**
+  Event_creation_ctx -- creation context of events.
+*/
+
+class Event_creation_ctx :public Stored_program_creation_ctx,
+                          public Sql_alloc
+{
+public:
+  static bool load_from_db(THD *thd,
+                           MEM_ROOT *event_mem_root,
+                           const char *db_name,
+                           const char *event_name,
+                           TABLE *event_tbl,
+                           Stored_program_creation_ctx **ctx);
+
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  {
+    return new (mem_root)
+               Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+  }
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  {
+    /*
+      We can avoid usual backup/restore employed in stored programs since we
+      know that this is a top level statement and the worker thread is
+      allocated exclusively to execute this event.
+    */
+
+    return NULL;
+  }
+
+private:
+  Event_creation_ctx(CHARSET_INFO *client_cs,
+                     CHARSET_INFO *connection_cl,
+                     CHARSET_INFO *db_cl)
+    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
+  { }
+};
+
+/**************************************************************************
+  Event_creation_ctx implementation.
+**************************************************************************/
+
+bool
+Event_creation_ctx::load_from_db(THD *thd,
+                                 MEM_ROOT *event_mem_root,
+                                 const char *db_name,
+                                 const char *event_name,
+                                 TABLE *event_tbl,
+                                 Stored_program_creation_ctx **ctx)
+{
+  /* Load character set/collation attributes. */
+
+  CHARSET_INFO *client_cs;
+  CHARSET_INFO *connection_cl;
+  CHARSET_INFO *db_cl;
+
+  bool invalid_creation_ctx= FALSE;
+
+  if (load_charset(event_mem_root,
+                   event_tbl->field[ET_FIELD_CHARACTER_SET_CLIENT],
+                   thd->variables.character_set_client,
+                   &client_cs))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.character_set_client.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(event_mem_root,
+                     event_tbl->field[ET_FIELD_COLLATION_CONNECTION],
+                     thd->variables.collation_connection,
+                     &connection_cl))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.collation_connection.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(event_mem_root,
+                     event_tbl->field[ET_FIELD_DB_COLLATION],
+                     NULL,
+                     &db_cl))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.db_collation.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  /*
+    If we failed to resolve the database collation, load the default one
+    from the disk.
+  */
+
+  if (!db_cl)
+    db_cl= get_default_db_collation(thd, db_name);
+
+  /* Create the context. */
+
+  *ctx= new Event_creation_ctx(client_cs, connection_cl, db_cl);
+
+  return invalid_creation_ctx;
+}
+
+/*************************************************************************/
+
 /*
   Initiliazes dbname and name of an Event_queue_element_for_exec
   object
@@ -761,6 +881,7 @@ Event_timed::init()
 
 /**
   Load an event's body from a row from mysql.event.
+
   @details This method is silent on errors and should behave like that.
   Callers should handle throwing of error messages. The reason is that the
   class should not know about how to deal with communication.
@@ -796,6 +917,9 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
 
   if (load_time_zone(thd, tz_name))
     DBUG_RETURN(TRUE);
+
+  Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str, table,
+                                   &creation_ctx);
 
   ptr= strchr(definer.str, '@');
 
@@ -979,9 +1103,20 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
 
   if (load_string_fields(table->field,
                          ET_FIELD_BODY, &body,
+                         ET_FIELD_BODY_UTF8, &body_utf8,
                          ET_FIELD_COUNT))
     DBUG_RETURN(TRUE);
 
+  if (Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str,
+                                       table, &creation_ctx))
+  {
+    push_warning_printf(thd,
+                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_EVENT_INVALID_CREATION_CTX,
+                        ER(ER_EVENT_INVALID_CREATION_CTX),
+                        (const char *) dbname.str,
+                        (const char *) name.str);
+  }
 
   ptr= strchr(definer.str, '@');
 
@@ -1743,7 +1878,6 @@ Event_job_data::execute(THD *thd, bool drop)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context event_sctx, *save_sctx= NULL;
 #endif
-  CHARSET_INFO *charset_connection;
   List<Item> empty_item_list;
   bool ret= TRUE;
 
@@ -1808,12 +1942,6 @@ Event_job_data::execute(THD *thd, bool drop)
     this is a top level statement and the worker thread is
     allocated exclusively to execute this event.
   */
-  charset_connection= get_charset_by_csname("utf8",
-                                            MY_CS_PRIMARY, MYF(MY_WME));
-  thd->variables.character_set_client= charset_connection;
-  thd->variables.character_set_results= charset_connection;
-  thd->variables.collation_connection= charset_connection;
-  thd->update_charset();
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.time_zone= time_zone;
@@ -1830,7 +1958,7 @@ Event_job_data::execute(THD *thd, bool drop)
     Lex_input_stream lip(thd, thd->query, thd->query_length);
     lex_start(thd);
 
-    if (parse_sql(thd, &lip))
+    if (parse_sql(thd, &lip, creation_ctx))
     {
       sql_print_error("Event Scheduler: "
                       "%serror during compilation of %s.%s",
@@ -1850,6 +1978,7 @@ Event_job_data::execute(THD *thd, bool drop)
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
 
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);
+    sphead->set_creation_ctx(creation_ctx);
     sphead->optimize();
 
     ret= sphead->execute_procedure(thd, &empty_item_list);

@@ -203,6 +203,10 @@ proc	CREATE TABLE `proc` (
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
   `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `body_utf8` longblob,
   PRIMARY KEY (`db`,`name`,`type`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures'
 show create table event;
@@ -226,6 +230,10 @@ event	CREATE TABLE `event` (
   `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `originator` int(10) NOT NULL,
   `time_zone` char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM',
+  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `body_utf8` longblob,
   PRIMARY KEY (`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 show create table general_log;

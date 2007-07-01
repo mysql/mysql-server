@@ -617,48 +617,48 @@ DROP VIEW IF EXISTS v1;
 DROP PROCEDURE IF EXISTS p1;
 CREATE VIEW v1 AS SELECT 1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE 1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE PROCEDURE p1()
 BEGIN
@@ -669,8 +669,8 @@ DROP PREPARE stmt;
 END |
 CALL p1();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
 DROP PROCEDURE p1;
 DROP VIEW v1;
 SHOW TABLES FROM no_such_database;
@@ -754,4 +754,76 @@ drop table `été`;
 set names latin1;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1(c1 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+CALL p1();
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+EXECUTE stmt1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DEALLOCATE PREPARE stmt1;
 End of 5.1 tests

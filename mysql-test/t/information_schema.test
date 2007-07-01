@@ -825,7 +825,7 @@ drop table t1;
 use mysql;
 INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
 'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
-'2006-03-02 18:40:03','','');
+'2006-03-02 18:40:03','','','utf8','utf8_general_ci','utf8_general_ci','n/a');
 select routine_name from information_schema.routines;
 delete from proc where name='';
 use test;

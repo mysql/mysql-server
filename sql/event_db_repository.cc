@@ -123,6 +123,26 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     { C_STRING_WITH_LEN("time_zone") },
     { C_STRING_WITH_LEN("char(64)") },
     { C_STRING_WITH_LEN("latin1") }
+  },
+  {
+    { C_STRING_WITH_LEN("character_set_client") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("collation_connection") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("db_collation") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body_utf8") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
   }
 };
 
@@ -135,6 +155,7 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
   @param   thd        THD
   @param   table      The row to fill out
   @param   et         Event's data
+  @param   sp         Event stored routine
   @param   is_update  CREATE EVENT or ALTER EVENT
 
   @retval  FALSE success
@@ -279,6 +300,33 @@ mysql_event_fill_row(THD *thd,
     if (fields[f_num= ET_FIELD_COMMENT]->
                           store(et->comment.str, et->comment.length, scs))
       goto err_truncate;
+  }
+
+  fields[ET_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
+  fields[ET_FIELD_CHARACTER_SET_CLIENT]->store(
+    thd->variables.character_set_client->csname,
+    strlen(thd->variables.character_set_client->csname),
+    system_charset_info);
+
+  fields[ET_FIELD_COLLATION_CONNECTION]->set_notnull();
+  fields[ET_FIELD_COLLATION_CONNECTION]->store(
+    thd->variables.collation_connection->name,
+    strlen(thd->variables.collation_connection->name),
+    system_charset_info);
+
+  {
+    CHARSET_INFO *db_cl= get_default_db_collation(thd, et->dbname.str);
+
+    fields[ET_FIELD_DB_COLLATION]->set_notnull();
+    fields[ET_FIELD_DB_COLLATION]->store(
+      db_cl->name, strlen(db_cl->name), system_charset_info);
+  }
+
+  if (et->body_changed)
+  {
+    fields[ET_FIELD_BODY_UTF8]->set_notnull();
+    fields[ET_FIELD_BODY_UTF8]->store(
+      sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
   }
 
   DBUG_RETURN(FALSE);

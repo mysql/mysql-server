@@ -600,9 +600,9 @@ select @a;
 @a
 10
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost
-t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop table t1;
 set sql_mode="traditional";
 create table t1 (a date);
@@ -622,8 +622,8 @@ t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row reset query cache;
