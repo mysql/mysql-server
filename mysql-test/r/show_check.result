@@ -7,60 +7,157 @@ delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mys
 flush privileges;
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
 check table t1 fast;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 fast;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 changed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 insert into t1 values (5,5,5);
 check table t1 changed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 medium;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 extended;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	5	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 show index from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			STATISTICS	TABLE_NAME	Table	253	64	2	N	1	0	8
+def			STATISTICS	NON_UNIQUE	Non_unique	8	1	1	N	32769	0	63
+def			STATISTICS	INDEX_NAME	Key_name	253	64	7	N	1	0	8
+def			STATISTICS	SEQ_IN_INDEX	Seq_in_index	8	2	1	N	32769	0	63
+def			STATISTICS	COLUMN_NAME	Column_name	253	64	1	N	1	0	8
+def			STATISTICS	COLLATION	Collation	253	1	1	Y	0	0	8
+def			STATISTICS	CARDINALITY	Cardinality	8	21	1	Y	32768	0	63
+def			STATISTICS	SUB_PART	Sub_part	8	3	0	Y	32768	0	63
+def			STATISTICS	PACKED	Packed	253	10	0	Y	0	0	8
+def			STATISTICS	NULLABLE	Null	253	3	0	N	1	0	8
+def			STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	8
+def			STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	8
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE	
 t1	1	b	1	b	A	1	NULL	NULL		BTREE	
 t1	1	b	2	c	A	5	NULL	NULL		BTREE	
 insert into t1 values (5,5,5);
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
 optimize table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	8	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 drop table t1;
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
 show variables like "wait_timeout%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			VARIABLES	Variable_name	Variable_name	253	80	12	N	1	0	8
+def			VARIABLES	Value	Value	253	512	5	N	1	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "WAIT_timeout%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			VARIABLES	Variable_name	Variable_name	253	80	12	N	1	0	8
+def			VARIABLES	Value	Value	253	512	5	N	1	0	8
 Variable_name	Value
 wait_timeout	28800
 show variables like "this_doesn't_exists%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			VARIABLES	Variable_name	Variable_name	253	80	0	N	1	0	8
+def			VARIABLES	Value	Value	253	512	0	N	1	0	8
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			TABLES	TABLE_NAME	Name	253	64	0	N	1	0	8
+def			TABLES	ENGINE	Engine	253	64	0	Y	0	0	8
+def			TABLES	VERSION	Version	8	21	0	Y	32768	0	63
+def			TABLES	ROW_FORMAT	Row_format	253	10	0	Y	0	0	8
+def			TABLES	TABLE_ROWS	Rows	8	21	0	Y	32768	0	63
+def			TABLES	AVG_ROW_LENGTH	Avg_row_length	8	21	0	Y	32768	0	63
+def			TABLES	DATA_LENGTH	Data_length	8	21	0	Y	32768	0	63
+def			TABLES	MAX_DATA_LENGTH	Max_data_length	8	21	0	Y	32768	0	63
+def			TABLES	INDEX_LENGTH	Index_length	8	21	0	Y	32768	0	63
+def			TABLES	DATA_FREE	Data_free	8	21	0	Y	32768	0	63
+def			TABLES	AUTO_INCREMENT	Auto_increment	8	21	0	Y	32768	0	63
+def			TABLES	CREATE_TIME	Create_time	12	19	0	Y	128	0	63
+def			TABLES	UPDATE_TIME	Update_time	12	19	0	Y	128	0	63
+def			TABLES	CHECK_TIME	Check_time	12	19	0	Y	128	0	63
+def			TABLES	TABLE_COLLATION	Collation	253	64	0	Y	0	0	8
+def			TABLES	CHECKSUM	Checksum	8	21	0	Y	32768	0	63
+def			TABLES	CREATE_OPTIONS	Create_options	253	255	0	Y	0	0	8
+def			TABLES	TABLE_COMMENT	Comment	253	80	0	N	1	0	8
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SCHEMATA	SCHEMA_NAME	Database	253	64	18	N	1	0	8
 Database
 information_schema
 mysql
 test
 show databases like "test%";
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def			SCHEMATA	SCHEMA_NAME	Database (test%)	253	64	4	N	1	0	8
 Database (test%)
 test
 create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
 insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
 analyze table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	7	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
@@ -69,7 +166,15 @@ t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE
 t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE	
 t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE	
 t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE	
+-- Here we enable metadata just to check that the collation of the
+-- resultset is non-binary for string type. This should be changed
+-- after Bug#29394 is implemented.
 repair table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	42	7	Y	0	31	8
+def					Op	253	3	6	Y	0	31	8
+def					Msg_type	253	3	6	Y	0	31	8
+def					Msg_text	253	85	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;

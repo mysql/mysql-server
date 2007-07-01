@@ -1453,7 +1453,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     strmake(buff, thd->net.last_error, sizeof(buff)-1);
     thd->query_error= 0;
-    thd->spcont= 0;
+    thd->spcont= NULL;
     thd->lex->current_select= 0;
     thd->net.last_error[0]= 0;
 

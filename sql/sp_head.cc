@@ -2734,7 +2734,7 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 
       sp_rcontext *spcont= thd->spcont;
     
-      thd->spcont= 0;           /* Avoid handlers */
+      thd->spcont= NULL;           /* Avoid handlers */
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
       spcont->clear_handler();
       thd->spcont= spcont;
@@ -3469,7 +3469,7 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 
       sp_rcontext *spcont= thd->spcont;
     
-      thd->spcont= 0;           /* Avoid handlers */
+      thd->spcont= NULL;           /* Avoid handlers */
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
       spcont->clear_handler();
       thd->spcont= spcont;
