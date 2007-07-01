@@ -683,8 +683,10 @@ DO BEGIN
        SET @evname = 'ev_sched_1823';
        SET @cnt = 0;
        SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
-       INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
-       COMMIT;
+       IF @cnt <= 6 THEN
+         INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+         COMMIT;
+       END IF;
        SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
        INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
        ROLLBACK;
