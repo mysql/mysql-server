@@ -18,6 +18,12 @@ flush privileges;
 
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
 check table t1 fast;
 check table t1 fast;
 check table t1 changed;
@@ -26,28 +32,58 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 show index from t1;
+--disable_metadata
 --error 1062
 insert into t1 values (5,5,5);
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
 optimize table t1;
+--disable_metadata
 optimize table t1;
 drop table t1;
 
 #show variables;
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
 show variables like "wait_timeout%";
 show variables like "WAIT_timeout%";
 show variables like "this_doesn't_exists%";
 show table status from test like "this_doesn't_exists%";
 show databases;
 show databases like "test%";
+--disable_metadata
 
 #
 # Check of show index
 #
 create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
 insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
 analyze table t1;
+--disable_metadata
 show index from t1;
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
+
 repair table t1;
+--disable_metadata
 show index from t1;
 drop table t1;
 
@@ -517,5 +553,217 @@ show status like 'slow_queries';
 # (mysqld is started with --log-queries-not-using-indexes)
 select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
+
+#
+# BUG#10491: Server returns data as charset binary SHOW CREATE TABLE or SELECT
+# FROM I_S.
+#
+
+# Ensure that all needed objects are dropped.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+# Create objects.
+
+CREATE DATABASE mysqltest1;
+
+CREATE TABLE t1(c INT NOT NULL PRIMARY KEY);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+
+CREATE VIEW v1 AS SELECT 1;
+
+CREATE PROCEDURE p1() SELECT 1;
+
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+
+
+# Test.
+
+set names utf8;
+
+--echo -- Here we enable metadata just to check that the collation of the
+--echo -- resultset is non-binary for string type. This should be changed
+--echo -- after Bug#29394 is implemented.
+
+--enable_metadata
+
+--echo ----------------------------------------------------------------
+
+SHOW CHARACTER SET LIKE 'utf8';
+
+--echo ----------------------------------------------------------------
+
+SHOW COLLATION LIKE 'latin1_bin';
+
+--echo ----------------------------------------------------------------
+
+SHOW CREATE DATABASE mysqltest1;
+
+--echo ----------------------------------------------------------------
+
+SHOW DATABASES LIKE 'mysqltest1';
+
+--echo ----------------------------------------------------------------
+
+SHOW CREATE TABLE t1;
+
+--echo ----------------------------------------------------------------
+
+SHOW INDEX FROM t1;
+
+--echo ----------------------------------------------------------------
+
+SELECT
+  TABLE_CATALOG,
+  TABLE_SCHEMA,
+  TABLE_NAME,
+  TABLE_TYPE,
+  ENGINE,
+  ROW_FORMAT,
+  TABLE_COLLATION,
+  CREATE_OPTIONS,
+  TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name = 't1';
+
+--echo ----------------------------------------------------------------
+
+SELECT
+  TABLE_CATALOG,
+  TABLE_SCHEMA,
+  TABLE_NAME,
+  COLUMN_NAME,
+  COLUMN_DEFAULT,
+  IS_NULLABLE,
+  DATA_TYPE,
+  CHARACTER_SET_NAME,
+  COLLATION_NAME,
+  COLUMN_TYPE,
+  COLUMN_KEY,
+  EXTRA,
+  PRIVILEGES,
+  COLUMN_COMMENT
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE table_name = 't1';
+
+--echo ----------------------------------------------------------------
+
+SHOW TABLES LIKE 't1';
+
+--echo ----------------------------------------------------------------
+
+SHOW COLUMNS FROM t1;
+
+--echo ----------------------------------------------------------------
+
+SHOW TRIGGERS LIKE 't1';
+
+--echo ----------------------------------------------------------------
+
+SELECT 
+  TRIGGER_CATALOG,
+  TRIGGER_SCHEMA,
+  TRIGGER_NAME,
+  EVENT_MANIPULATION,
+  EVENT_OBJECT_CATALOG,
+  EVENT_OBJECT_SCHEMA,
+  EVENT_OBJECT_TABLE,
+  ACTION_CONDITION,
+  ACTION_STATEMENT,
+  ACTION_ORIENTATION,
+  ACTION_TIMING,
+  ACTION_REFERENCE_OLD_TABLE,
+  ACTION_REFERENCE_NEW_TABLE,
+  ACTION_REFERENCE_OLD_ROW,
+  ACTION_REFERENCE_NEW_ROW,
+  SQL_MODE,
+  DEFINER
+FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_name = 't1_bi';
+
+--echo ----------------------------------------------------------------
+
+SHOW CREATE VIEW v1;
+
+--echo ----------------------------------------------------------------
+
+SELECT *
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_name = 'v1';
+
+--echo ----------------------------------------------------------------
+
+SHOW CREATE PROCEDURE p1;
+
+--echo ----------------------------------------------------------------
+
+SELECT
+  SPECIFIC_NAME,
+  ROUTINE_CATALOG,
+  ROUTINE_SCHEMA,
+  ROUTINE_NAME,
+  ROUTINE_TYPE,
+  DTD_IDENTIFIER,
+  ROUTINE_BODY,
+  ROUTINE_DEFINITION,
+  EXTERNAL_NAME,
+  EXTERNAL_LANGUAGE,
+  PARAMETER_STYLE,
+  IS_DETERMINISTIC,
+  SQL_DATA_ACCESS,
+  SQL_PATH,
+  SECURITY_TYPE,
+  SQL_MODE,
+  ROUTINE_COMMENT,
+  DEFINER
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_name = 'p1';
+
+--echo ----------------------------------------------------------------
+
+SHOW CREATE FUNCTION f1;
+
+--echo ----------------------------------------------------------------
+
+SELECT
+  SPECIFIC_NAME,
+  ROUTINE_CATALOG,
+  ROUTINE_SCHEMA,
+  ROUTINE_NAME,
+  ROUTINE_TYPE,
+  DTD_IDENTIFIER,
+  ROUTINE_BODY,
+  ROUTINE_DEFINITION,
+  EXTERNAL_NAME,
+  EXTERNAL_LANGUAGE,
+  PARAMETER_STYLE,
+  IS_DETERMINISTIC,
+  SQL_DATA_ACCESS,
+  SQL_PATH,
+  SECURITY_TYPE,
+  SQL_MODE,
+  ROUTINE_COMMENT,
+  DEFINER
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE routine_name = 'f1';
+
+--echo ----------------------------------------------------------------
+
+--disable_metadata
+
+# Cleanup.
+
+DROP DATABASE mysqltest1;
+DROP TABLE t1;
+DROP VIEW v1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
 
 --echo End of 5.0 tests
