@@ -668,7 +668,7 @@ CREATE USER evtest1@localhost;
 SET PASSWORD FOR evtest1@localhost = password('ev1');
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
 GRANT create, insert, select, event ON events_test.* TO evtest1@localhost;
-GRANT select,insert ON TEST.* TO evtest1@localhost;
+GRANT select,insert ON test.* TO evtest1@localhost;
 SHOW GRANTS FOR evtest1@localhost;
 
 --echo connection e1;
@@ -683,13 +683,15 @@ DO BEGIN
        SET @evname = 'ev_sched_1823';
        SET @cnt = 0;
        SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
-       IF @cnt <= 6 THEN
+       IF @cnt < 6 THEN
          INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
          COMMIT;
        END IF;
        SELECT COUNT(*) INTO @cnt FROM test.event_log WHERE ev_nm = @evname;
-       INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
-       ROLLBACK;
+       IF @cnt < 6 THEN
+         INSERT INTO test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp());
+         ROLLBACK;
+       END IF;
 END;|
 DELIMITER ;|
 
