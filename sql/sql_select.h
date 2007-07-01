@@ -509,8 +509,8 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ulonglong select_options, ha_rows rows_limit,
 			char* alias);
 void free_tmp_table(THD *thd, TABLE *entry);
-void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
-		       bool reset_with_sum_func);
+void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+                       List<Item> &fields, bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       Item **ref_pointer_array,
 		       List<Item> &new_list1, List<Item> &new_list2,
