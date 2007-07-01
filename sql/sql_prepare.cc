@@ -1726,6 +1726,13 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     res= mysql_test_create_table(stmt);
     break;
 
+  case SQLCOM_CREATE_VIEW:
+    if (lex->create_view_mode == VIEW_ALTER)
+    {
+      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      goto error;
+    }
+    break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
     break;
@@ -1762,6 +1769,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_SHOW_CREATE_PROC:
   case SQLCOM_SHOW_CREATE_FUNC:
   case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE_TRIGGER:
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
@@ -1779,7 +1787,6 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
   case SQLCOM_CALL:
-  case SQLCOM_CREATE_VIEW:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
@@ -2870,7 +2877,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
 
-  error= parse_sql(thd, &lip) ||
+  error= parse_sql(thd, &lip, NULL) ||
          thd->net.report_error ||
          init_param_array(this);
 
@@ -2915,18 +2922,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
-
-  if ((protocol->type() == Protocol::PROTOCOL_TEXT) && (param_count > 0))
-  {
-    /*
-      This is a mysql_sql_stmt_prepare(); query expansion will insert user
-      variable references, and user variables are uncacheable, thus we have to
-      mark this statement as uncacheable.
-      This has to be done before setup_set_params(), as it may make expansion
-      unneeded.
-    */
-    lex->safe_to_cache_query= FALSE;
-  }
 
   if (error == 0)
   {

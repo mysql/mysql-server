@@ -19,6 +19,7 @@
 #include "event_db_repository.h"
 #include "event_queue.h"
 #include "event_scheduler.h"
+#include "sp_head.h" // for Stored_program_creation_ctx
 
 /*
  TODO list :
@@ -698,6 +699,15 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   field_list.push_back(new Item_empty_string("Create Event",
                                              show_str.length()));
 
+  field_list.push_back(
+    new Item_empty_string("character_set_client", MY_CS_NAME_SIZE));
+
+  field_list.push_back(
+    new Item_empty_string("collation_connection", MY_CS_NAME_SIZE));
+
+  field_list.push_back(
+    new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
+
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
@@ -707,7 +717,16 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   protocol->store(et->name.str, et->name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(), system_charset_info);
+  protocol->store(show_str.c_ptr(), show_str.length(), &my_charset_bin);
+  protocol->store(et->creation_ctx->get_client_cs()->csname,
+                  strlen(et->creation_ctx->get_client_cs()->csname),
+                  system_charset_info);
+  protocol->store(et->creation_ctx->get_connection_cl()->name,
+                  strlen(et->creation_ctx->get_connection_cl()->name),
+                  system_charset_info);
+  protocol->store(et->creation_ctx->get_db_cl()->name,
+                  strlen(et->creation_ctx->get_db_cl()->name),
+                  system_charset_info);
 
   if (protocol->write())
     DBUG_RETURN(TRUE);

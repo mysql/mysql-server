@@ -180,6 +180,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_CREATE_FUNC:
   case SQLCOM_SHOW_CREATE_PROC:
   case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE_TRIGGER:
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_ERRORS:
   case SQLCOM_SHOW_FIELDS:
@@ -279,7 +280,6 @@ sp_get_flags_for_command(LEX *lex)
   }
   return flags;
 }
-
 
 /*
   Prepare an Item for evaluation (call of fix_fields).
@@ -426,8 +426,6 @@ check_routine_name(LEX_STRING *ident)
   return FALSE;
 }
 
-/* ------------------------------------------------------------------ */
-
 
 /*
  *
@@ -493,6 +491,10 @@ sp_head::sp_head()
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+
+  m_body_utf8.str= NULL;
+  m_body_utf8.length= 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -550,32 +552,53 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
 
 
 void
-sp_head::init_strings(THD *thd, LEX *lex)
+sp_head::set_body_start(THD *thd, const char *begin_ptr)
 {
-  DBUG_ENTER("sp_head::init_strings");
-  const char *endp;                            /* Used to trim the end */
-  /* During parsing, we must use thd->mem_root */
-  MEM_ROOT *root= thd->mem_root;
-  Lex_input_stream *lip=thd->m_lip;
+  m_body_begin= begin_ptr;
+  thd->m_lip->body_utf8_start(thd, begin_ptr);
+}
+
+
+void
+sp_head::set_stmt_end(THD *thd)
+{
+  Lex_input_stream *lip= thd->m_lip; /* shortcut */
+  const char *end_ptr= lip->get_cpp_ptr(); /* shortcut */
+
+  /* Make the string of parameters. */
 
   if (m_param_begin && m_param_end)
   {
     m_params.length= m_param_end - m_param_begin;
-    m_params.str= strmake_root(root, m_param_begin, m_params.length);
+    m_params.str= thd->strmake(m_param_begin, m_params.length);
   }
 
-  endp= lip->get_cpp_ptr();
-  lex->stmt_definition_end= endp;
+  /* Remember end pointer for further dumping of whole statement. */
 
-  m_body.length= endp - m_body_begin;
-  m_body.str= strmake_root(root, m_body_begin, m_body.length);
+  thd->lex->stmt_definition_end= end_ptr;
+
+  /* Make the string of body (in the original character set). */
+
+  m_body.length= end_ptr - m_body_begin;
+  m_body.str= thd->strmake(m_body_begin, m_body.length);
   trim_whitespace(thd->charset(), & m_body);
 
-  m_defstr.length= endp - lip->get_cpp_buf();
-  m_defstr.str= strmake_root(root, lip->get_cpp_buf(), m_defstr.length);
-  trim_whitespace(thd->charset(), & m_defstr);
+  /* Make the string of UTF-body. */
 
-  DBUG_VOID_RETURN;
+  lip->body_utf8_append(end_ptr);
+
+  m_body_utf8.length= lip->get_body_utf8_length();
+  m_body_utf8.str= thd->strmake(lip->get_body_utf8_str(), m_body_utf8.length);
+  trim_whitespace(thd->charset(), & m_body_utf8);
+
+  /*
+    Make the string of whole stored-program-definition query (in the
+    original character set).
+  */
+
+  m_defstr.length= end_ptr - lip->get_cpp_buf();
+  m_defstr.str= thd->strmake(lip->get_cpp_buf(), m_defstr.length);
+  trim_whitespace(thd->charset(), & m_defstr);
 }
 
 
@@ -968,6 +991,8 @@ sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
 
+  Object_creation_ctx *saved_creation_ctx;
+
   /* Use some extra margin for possible SP recursion and functions */
   if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
@@ -1057,6 +1082,10 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
+  /* Switch query context. */
+
+  saved_creation_ctx= m_creation_ctx->set_n_backup(thd);
+
   do
   {
     sp_instr *i;
@@ -1142,6 +1171,12 @@ sp_head::execute(THD *thd)
       }
     }
   } while (!err_status && !thd->killed);
+
+  /* Restore query context. */
+
+  m_creation_ctx->restore_env(thd, saved_creation_ctx);
+
+  /* Restore arena. */
 
   thd->restore_active_arena(&execute_arena, &backup_arena);
 
@@ -1971,18 +2006,15 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                                enum enum_field_types field_type,
                                Create_field *field_def)
 {
-  HA_CREATE_INFO sp_db_info;
   LEX_STRING cmt = { 0, 0 };
   uint unused1= 0;
   int unused2= 0;
 
-  load_db_opt_by_name(thd, m_db.str, &sp_db_info);
-
   if (field_def->init(thd, (char*) "", field_type, lex->length, lex->dec,
                       lex->type, (Item*) 0, (Item*) 0, &cmt, 0,
                       &lex->interval_list,
-                      (lex->charset ? lex->charset :
-                                      sp_db_info.default_table_charset),
+                      lex->charset ? lex->charset :
+                                     thd->variables.collation_database,
                       lex->uint_geom_type))
     return TRUE;
 
@@ -2050,13 +2082,6 @@ sp_head::set_info(longlong created, longlong modified,
 					  m_chistics->comment.str,
 					  m_chistics->comment.length);
   m_sql_mode= sql_mode;
-}
-
-
-void
-sp_head::set_body_begin_ptr(Lex_input_stream *lip, const char *begin_ptr)
-{
-  m_body_begin= begin_ptr;
 }
 
 
@@ -2212,6 +2237,15 @@ sp_head::show_create_routine(THD *thd, int type)
     fields.push_back(stmt_fld);
   }
 
+  fields.push_back(new Item_empty_string("character_set_client",
+                                         MY_CS_NAME_SIZE));
+
+  fields.push_back(new Item_empty_string("collation_connection",
+                                         MY_CS_NAME_SIZE));
+
+  fields.push_back(new Item_empty_string("Database Collation",
+                                         MY_CS_NAME_SIZE));
+
   if (protocol->send_fields(&fields,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
@@ -2229,6 +2263,11 @@ sp_head::show_create_routine(THD *thd, int type)
     protocol->store(m_defstr.str, m_defstr.length, &my_charset_bin);
   else
     protocol->store_null();
+
+
+  protocol->store(m_creation_ctx->get_client_cs()->csname, system_charset_info);
+  protocol->store(m_creation_ctx->get_connection_cl()->name, system_charset_info);
+  protocol->store(m_creation_ctx->get_db_cl()->name, system_charset_info);
 
   err_status= protocol->write();
 
@@ -2424,7 +2463,9 @@ sp_head::show_routine_code(THD *thd)
     if ((res= protocol->write()))
       break;
   }
-  send_eof(thd);
+
+  if (!res)
+    send_eof(thd);
 
   DBUG_RETURN(res);
 }
