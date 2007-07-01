@@ -268,7 +268,7 @@ enum legacy_db_type
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGES };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -311,6 +311,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
+#define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -741,6 +742,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
+enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
@@ -763,6 +765,8 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
+  /* 0 not used, 1 if not transactional, 2 if transactional */
+  enum ha_choice transactional;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
@@ -1661,6 +1665,7 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 }
 
 /* basic stuff */
+int ha_init_errors(void);
 int ha_init(void);
 int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);

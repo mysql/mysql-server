@@ -436,32 +436,38 @@ volatile int *_ma_killed_ptr(HA_CHECK *param)
 
 void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
 {
+  va_list args;
+  DBUG_ENTER("_ma_check_print_error");
   param->error_printed |= 1;
   param->out_flag |= O_DATA_LOST;
-  va_list args;
   va_start(args, fmt);
   _ma_check_print_msg(param, "error", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
 void _ma_check_print_info(HA_CHECK *param, const char *fmt, ...)
 {
   va_list args;
+  DBUG_ENTER("_ma_check_print_info");
   va_start(args, fmt);
   _ma_check_print_msg(param, "info", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
 void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 {
+  va_list args;
+  DBUG_ENTER("_ma_check_print_warning");
   param->warning_printed= 1;
   param->out_flag |= O_DATA_LOST;
-  va_list args;
   va_start(args, fmt);
   _ma_check_print_msg(param, "warning", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 }
@@ -1065,16 +1071,6 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   param.out_flag= 0;
   strmov(fixed_name, file->s->open_file_name);
 
-#ifndef TO_BE_FIXED
-  /* QQ: Until we have repair for block format, lie that it succeded */
-  if (file->s->data_file_type == BLOCK_RECORD)
-  {
-    if (do_optimize)
-      DBUG_RETURN(analyze(thd, (HA_CHECK_OPT*) 0));
-    DBUG_RETURN(HA_ADMIN_OK);
-  }
-#endif
-
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
       maria_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
@@ -1099,7 +1095,9 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       local_testflag |= T_STATISTICS;
       param.testflag |= T_STATISTICS;           // We get this for free
       statistics_done= 1;
-      if (thd->variables.maria_repair_threads > 1)
+      /* TODO: Remove BLOCK_RECORD test when parallel works with blocks */
+      if (thd->variables.maria_repair_threads > 1 &&
+          file->s->data_file_type != BLOCK_RECORD)
       {
         char buf[40];
         /* TODO: respect maria_repair_threads variable */
@@ -1954,7 +1952,7 @@ enum row_type ha_maria::get_row_type() const
   switch (file->s->data_file_type) {
   case STATIC_RECORD:     return ROW_TYPE_FIXED;
   case DYNAMIC_RECORD:    return ROW_TYPE_DYNAMIC;
-  case BLOCK_RECORD:      return ROW_TYPE_PAGES;
+  case BLOCK_RECORD:      return ROW_TYPE_PAGE;
   case COMPRESSED_RECORD: return ROW_TYPE_COMPRESSED;
   default:                return ROW_TYPE_NOT_USED;
   }
@@ -1963,6 +1961,8 @@ enum row_type ha_maria::get_row_type() const
 
 static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
 {
+  if (info->transactional == HA_CHOICE_YES)
+    return BLOCK_RECORD;
   switch (info->row_type) {
   case ROW_TYPE_FIXED:   return STATIC_RECORD;
   case ROW_TYPE_DYNAMIC: return DYNAMIC_RECORD;
@@ -2007,7 +2007,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
-  create_info.transactional= row_type == BLOCK_RECORD;
+  create_info.transactional= (row_type == BLOCK_RECORD &&
+                              ha_create_info->transactional != HA_CHOICE_NO);
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;

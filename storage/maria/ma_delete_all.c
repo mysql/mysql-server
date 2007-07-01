@@ -20,9 +20,7 @@
 
 int maria_delete_all_rows(MARIA_HA *info)
 {
-  uint i;
   MARIA_SHARE *share=info->s;
-  MARIA_STATE_INFO *state=&share->state;
   DBUG_ENTER("maria_delete_all_rows");
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
@@ -35,18 +33,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (_ma_mark_file_changed(info))
     goto err;
 
-  info->state->records=info->state->del=state->split=0;
-  state->changed= 0;                            /* File is optimized */
-  state->dellink = HA_OFFSET_ERROR;
-  state->sortkey=  (ushort) ~0;
-  info->state->key_file_length=share->base.keystart;
-  info->state->data_file_length=0;
-  info->state->empty=info->state->key_empty=0;
-  info->state->checksum=0;
-
-  state->key_del= HA_OFFSET_ERROR;
-  for (i=0 ; i < share->base.keys ; i++)
-    state->key_root[i]= HA_OFFSET_ERROR;
+  _ma_reset_status(info);
 
   /*
     If we are using delayed keys or if the user has done changes to the tables
@@ -67,7 +54,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
 
-  if (_ma_initialize_data_file(info->dfile.file, info->s))
+  if (_ma_initialize_data_file(info->s, info->dfile.file))
     goto err;
 
   /*
@@ -104,4 +91,39 @@ err:
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);
   }
-} /* maria_delete */
+} /* maria_delete_all_rows */
+
+
+/*
+  Reset status information
+
+  SYNOPSIS
+    _ma_reset_status()
+    maria	Maria handler
+
+  DESCRIPTION
+    Resets data and index file information as if the file would be empty
+    Files are not touched.
+*/
+
+void _ma_reset_status(MARIA_HA *info)
+{
+  MARIA_SHARE *share= info->s;
+  MARIA_STATE_INFO *state= &share->state;
+  uint i;
+
+  info->state->records= info->state->del= state->split= 0;
+  state->changed=  0;                            /* File is optimized */
+  state->dellink= HA_OFFSET_ERROR;
+  state->sortkey=  (ushort) ~0;
+  info->state->key_file_length= share->base.keystart;
+  info->state->data_file_length= 0;
+  info->state->empty= info->state->key_empty= 0;
+  info->state->checksum= 0;
+
+  /* Drop the delete key chain. */
+  state->key_del= HA_OFFSET_ERROR;
+  /* Clear all keys */
+  for (i=0 ; i < share->base.keys ; i++)
+    state->key_root[i]= HA_OFFSET_ERROR;
+}

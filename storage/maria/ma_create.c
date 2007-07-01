@@ -798,7 +798,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       goto err;
     errpos=3;
 
-    if (_ma_initialize_data_file(dfile, &share))
+    if (_ma_initialize_data_file(&share, dfile))
       goto err;
   }
   DBUG_PRINT("info", ("write state info and base info"));
@@ -1082,7 +1082,7 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
 
 /* Initialize data file */
 
-int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
+int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 {
   if (share->data_file_type == BLOCK_RECORD)
   {

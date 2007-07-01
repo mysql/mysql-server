@@ -1778,7 +1778,7 @@ static my_bool write_block_record(MARIA_HA *info,
       ulong length;
       ulong data_length= (tmp_data - info->rec_buff);
 
-#ifdef SANITY_CHECK
+#ifdef SANITY_CHECKS
       if (cur_block->sub_blocks == 1)
         goto crashed;                           /* no reserved full or tails */
 #endif
@@ -1814,8 +1814,8 @@ static my_bool write_block_record(MARIA_HA *info,
                                       FULL_PAGE_SIZE(block_size))) &&
              cur_block->page_count)
       {
-#ifdef SANITY_CHECK
-        if ((cur_block == end_block) || (cur_block->used & BLOCKUSED_BIT))
+#ifdef SANITY_CHECKS
+        if ((cur_block == end_block) || (cur_block->used & BLOCKUSED_USED))
           goto crashed;
 #endif
         data_length-= length;
@@ -1829,7 +1829,7 @@ static my_bool write_block_record(MARIA_HA *info,
           /* Skip empty filler block */
           cur_block++;
         }
-#ifdef SANITY_CHECK
+#ifdef SANITY_CHECKS
         if ((cur_block >= end_block))
           goto crashed;
 #endif
@@ -2548,11 +2548,6 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         PAGECACHE_PIN_LEFT_PINNED,
                         PAGECACHE_WRITE_DELAY, &page_link.link))
       DBUG_RETURN(1);
-
-    /* Change the lock used when we read the page */
-    page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
-    set_dynamic(&info->pinned_pages, (void*) &page_link,
-                info->pinned_pages.elements-1);
   }
   else
   {
@@ -2564,7 +2559,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
     page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
     pagerange_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
-                    PAGERANGE_STORE_SIZE, 1);
+                    PAGE_STORE_SIZE, 1);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (translog_write_record(!info->trn->rec_lsn ? &info->trn->rec_lsn : &lsn,
@@ -2573,8 +2568,24 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                               sizeof(log_data), TRANSLOG_INTERNAL_PARTS + 1,
                               log_array))
       DBUG_RETURN(1);
+
+    /* Write the empty page (needed only for REPAIR to work) */
+    buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
+    if (pagecache_write(share->pagecache,
+                        &info->dfile, page, 0,
+                        buff, share->page_type,
+                        PAGECACHE_LOCK_WRITE_TO_READ,
+                        PAGECACHE_PIN_LEFT_PINNED,
+                        PAGECACHE_WRITE_DELAY, &page_link.link))
+      DBUG_RETURN(1);
+
     DBUG_ASSERT(empty_space >= info->s->bitmap.sizes[0]);
   }
+  /* Change the lock used when we read the page */
+  page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
+  set_dynamic(&info->pinned_pages, (void*) &page_link,
+              info->pinned_pages.elements-1);
+
   DBUG_PRINT("info", ("empty_space: %u", empty_space));
   DBUG_RETURN(_ma_bitmap_set(info, page, head, empty_space));
 }
@@ -2794,7 +2805,8 @@ static byte *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
     extent->extent+=    ROW_EXTENT_SIZE;
     extent->page=       uint5korr(extent->extent);
     page_count=         uint2korr(extent->extent+ROW_EXTENT_PAGE_SIZE);
-    DBUG_ASSERT(page_count != 0);
+    if (!page_count)
+      goto crashed;
     extent->tail=       page_count & TAIL_BIT;
     extent->page_count= (page_count & ~TAIL_BIT);
     extent->first_extent= 0;
@@ -2817,7 +2829,8 @@ static byte *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   if (!extent->tail)
   {
     /* Full data page */
-    DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == BLOB_PAGE);
+    if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != BLOB_PAGE)
+      goto crashed;
     extent->page++;                             /* point to next page */
     extent->page_count--;
     *end_of_data= buff + share->block_size;
@@ -2826,7 +2839,8 @@ static byte *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   }
   /* Found tail. page_count is in this case the position in the tail page */
 
-  DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == TAIL_PAGE);
+  if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != TAIL_PAGE)
+    goto crashed;
   *(extent->tail_positions++)= ma_recordpos(extent->page,
                                             extent->page_count);
   info->cur_row.tail_count++;                   /* For maria_chk */
@@ -2948,7 +2962,6 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
   MARIA_COLUMNDEF *column, *end_column;
   DBUG_ENTER("_ma_read_block_record2");
 
-  LINT_INIT(field_lengths);
   LINT_INIT(field_length_data);
   LINT_INIT(blob_buffer);
 
@@ -2994,6 +3007,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
   }
   extent.first_extent= 1;
 
+  field_lengths= 0;
   if (share->base.max_field_lengths)
   {
     get_key_length(field_lengths, data);
@@ -3028,7 +3042,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
     Read row extents (note that first extent was already read into
     info->cur_row.extents above)
   */
-  if (row_extents)
+  if (row_extents > 1)
   {
     if (read_long_data(info, info->cur_row.extents + ROW_EXTENT_SIZE,
                        (row_extents - 1) * ROW_EXTENT_SIZE,
@@ -3053,7 +3067,7 @@ int _ma_read_block_record2(MARIA_HA *info, byte *record,
   }
 
   /* Read array of field lengths. This may be stored in several extents */
-  if (share->base.max_field_lengths)
+  if (field_lengths)
   {
     field_length_data= info->cur_row.field_lengths;
     if (read_long_data(info, field_length_data, field_lengths, &extent,
@@ -3459,6 +3473,8 @@ restart_bitmap_scan:
             DBUG_PRINT("error", ("Wrong page header"));
             DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
           }
+          DBUG_PRINT("info", ("Page %lu has %u rows",
+                              (ulong) page, info->scan.number_of_rows));
           info->scan.dir= (info->scan.page_buff + block_size -
                            PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE);
           info->scan.dir_end= (info->scan.dir -
@@ -3471,7 +3487,8 @@ restart_bitmap_scan:
       for (data+= 6; data < info->scan.bitmap_end; data+= 6)
       {
         bits= uint6korr(data);
-        if (bits && ((bits & LL(04444444444444444)) != LL(04444444444444444)))
+        /* Skip not allocated pages and blob / full tail pages */
+        if (bits && bits != LL(07777777777777777))
           break;
       }
       bit_pos= 0;
@@ -3483,8 +3500,11 @@ restart_bitmap_scan:
   filepos= (my_off_t) info->scan.bitmap_page * block_size;
   if (unlikely(filepos >= info->state->data_file_length))
   {
+    DBUG_PRINT("info", ("Found end of file"));
     DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
   }
+  DBUG_PRINT("info", ("Reading bitmap at %lu",
+                      (ulong) info->scan.bitmap_page));
   if (!(pagecache_read(share->pagecache, &info->dfile,
                        info->scan.bitmap_page,
                        0, info->scan.bitmap_buff, PAGECACHE_PLAIN_PAGE,

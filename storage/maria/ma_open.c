@@ -260,7 +260,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   my_realpath(name_buff, fn_format(org_name,name,"",MARIA_NAME_IEXT,
                                    MY_UNPACK_FILENAME),MYF(0));
   pthread_mutex_lock(&THR_LOCK_maria);
-  if (!(old_info=_ma_test_if_reopen(name_buff)))
+  old_info= 0;
+  if ((open_flags & HA_OPEN_COPY) ||
+      !(old_info=_ma_test_if_reopen(name_buff)))
   {
     share= &share_buff;
     bzero((gptr) &share_buff,sizeof(share_buff));
@@ -586,6 +588,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
+    if (open_flags & HA_OPEN_COPY)
+      share->base.transactional= 0;           /* Repair: no logging */
     if (share->base.transactional)
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
     share->base.default_rec_buff_size= max(share->base.pack_reclength,
@@ -858,6 +862,8 @@ void _ma_setup_functions(register MARIA_SHARE *share)
   }
   share->file_read= _ma_nommap_pread;
   share->file_write= _ma_nommap_pwrite;
+  share->calc_check_checksum= share->calc_checksum;
+  
   if (!(share->options & HA_OPTION_CHECKSUM) &&
       share->data_file_type != COMPRESSED_RECORD)
     share->calc_checksum= share->calc_write_checksum= 0;

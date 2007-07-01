@@ -106,6 +106,19 @@
   put on disk even if they are not in the page cache).
   - When explicitely requested (for example on backup or after recvoery,
   to simplify things)
+
+ The flow of writing a row is that:
+ - Lock the bitmap
+ - Decide which data pages we will write to
+ - Mark them full in the bitmap page so that other threads do not try to
+    use the same data pages as us
+ - We unlock the bitmap
+ - Write the data pages
+ - Lock the bitmap
+ - Correct the bitmap page with the true final occupation of the data
+   pages (that is, we marked pages full but when we are done we realize
+   we didn't fill them)
+ - Unlock the bitmap.
 */
 
 #include "maria_def.h"

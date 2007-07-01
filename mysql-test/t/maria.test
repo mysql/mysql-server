@@ -16,22 +16,6 @@ drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 
 #
-# UNIQUE key test
-#
-# as long as maria cannot rollback, binlog should contain both inserts
-#
-RESET MASTER;
-set binlog_format=statement;
-CREATE TABLE t1 (a int primary key);
-insert t1 values (1),(2),(3);
---error 1582
-insert t1 values (4),(2),(5);
-select * from t1;
-SHOW BINLOG EVENTS FROM 102;
-drop table t1;
-set binlog_format=default;
-
-#
 # Test problem with CHECK TABLE;
 #
 
@@ -597,10 +581,7 @@ insert t1 select * from t2;
 show keys from t1;
 alter table t1 enable keys;
 show keys from t1;
-#TODO after we have repair: delete the following --disable-warnings
---disable_warnings
 alter table t1 engine=heap;
---enable_warnings
 alter table t1 disable keys;
 show keys from t1;
 drop table t1,t2;
@@ -1072,10 +1053,10 @@ create table t1 (a int not null, key key_block_size=1024 (a));
 --error 1064
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
 
-
 #
 # Test of changing MI_KEY_BLOCK_LENGTH
 #
+
 CREATE TABLE t1 (
   c1 INT,
   c2 VARCHAR(300),
@@ -1115,6 +1096,27 @@ REPAIR TABLE t1;
 DELETE FROM t1 WHERE c1 >= 10;
 CHECK TABLE t1;
 DROP TABLE t1;
+
+#
+# Test that TRANSACTIONAL is preserved
+#
+
+create table t1 (a int) transactional=0;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=0;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=1;
+show create table t1;
+alter table t1 row_format=PAGE;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=PAGE;
+show create table t1;
+drop table t1;
 
 # End of 5.2 tests
 

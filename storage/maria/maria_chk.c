@@ -676,14 +676,7 @@ get_one_option(int optid,
       check_param.testflag|= T_UPDATE_STATE;
     break;
   case '#':
-    if (argument == disabled_my_option)
-    {
-      DBUG_POP();
-    }
-    else
-    {
-      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/maria_chk.trace");
-    }
+    DBUG_SET_INITIAL(argument ? argument : "d:t:o,/tmp/maria_chk.trace");
     break;
   case 'V':
     print_version();
@@ -862,16 +855,25 @@ static int maria_chk(HA_CHECK *param, my_string filename)
   share->r_locks=0;
   maria_block_size= share->base.block_size;
 
-  if (share->data_file_type == BLOCK_RECORD &&
-      (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_FAST | T_STATISTICS |
-                          T_CHECK | T_CHECK_ONLY_CHANGED)))
+  if (share->data_file_type == BLOCK_RECORD ||
+      ((param->testflag & T_UNPACK) &&
+       share->state.header.org_data_file_type == BLOCK_RECORD))
   {
-    _ma_check_print_error(param,
-                          "Record format used by '%s' is is not yet supported with repair/check",
-                          filename);
-    param->error_printed= 0;
-    error= 1;
-    goto end2;
+    if (param->testflag & T_SORT_RECORDS)
+    {
+      _ma_check_print_error(param,
+                            "Record format used by '%s' is is not yet supported with repair/check",
+                            filename);
+      param->error_printed= 0;
+      error= 1;
+      goto end2;
+    }
+    /* We can't do parallell repair with BLOCK_RECORD yet */
+    if (param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL))
+    {
+      param->testflag&= ~(T_REP_BY_SORT | T_REP_PARALLEL);
+      param->testflag|= T_REP;
+    }
   }
 
   /*
@@ -1757,11 +1759,14 @@ void _ma_check_print_info(HA_CHECK *param __attribute__((unused)),
 			 const char *fmt,...)
 {
   va_list args;
+  DBUG_ENTER("_ma_check_print_info");
+  DBUG_PRINT("enter", ("format: %s", fmt));
 
   va_start(args,fmt);
   VOID(vfprintf(stdout, fmt, args));
   VOID(fputc('\n',stdout));
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 /* VARARGS */
@@ -1770,6 +1775,7 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("_ma_check_print_warning");
+  DBUG_PRINT("enter", ("format: %s", fmt));
 
   fflush(stdout);
   if (!param->warning_printed && !param->error_printed)
@@ -1795,7 +1801,7 @@ void _ma_check_print_error(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("_ma_check_print_error");
-  DBUG_PRINT("enter",("format: %s",fmt));
+  DBUG_PRINT("enter", ("format: %s", fmt));
 
   fflush(stdout);
   if (!param->warning_printed && !param->error_printed)

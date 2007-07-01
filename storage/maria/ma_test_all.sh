@@ -8,6 +8,9 @@ silent="-s"
 suffix=""
 #set -x -v -e
 
+# Delete temporary files
+rm -f *.TMD
+
 run_tests()
 {
   row_type=$1
@@ -120,6 +123,11 @@ run_repair_tests()
   ./maria_chk$suffix -se test1
   ./maria_chk$suffix -rqos --correct-checksum test1
   ./maria_chk$suffix -se test1
+  ./ma_test2$suffix $silent -c -d1 $row_type
+  ./maria_chk$suffix -s --parallel-recover test2
+  ./maria_chk$suffix -se test2
+  ./maria_chk$suffix -s --parallel-recover --quick test2
+  ./maria_chk$suffix -se test2
 }
 
 run_pack_tests()
@@ -147,6 +155,15 @@ run_pack_tests()
   ./maria_chk$suffix -es test1
   ./maria_chk$suffix -rus test1
   ./maria_chk$suffix -es test1
+
+  ./ma_test2$suffix $silent -c -d1 $row_type
+  ./maria_chk$suffix -s --parallel-recover test2
+  ./maria_chk$suffix -se test2
+  ./maria_chk$suffix -s --parallel-recover --unpack test2
+  ./maria_chk$suffix -se test2
+  ./maria_pack$suffix --force -s test1
+  ./maria_chk$suffix -s --parallel-recover --unpack test2
+  ./maria_chk$suffix -se test2
 }
 
 echo "Running tests with dynamic row format"
@@ -161,9 +178,13 @@ run_pack_tests -S
 
 echo "Running tests with block row format"
 run_tests -M
+run_repair_tests -M
+run_pack_tests -M
 
 echo "Running tests with block row format and transactions"
 run_tests "-M -T"
+run_repair_tests "-M -T"
+run_pack_tests "-M -T"
 
 #
 # Tests that gives warnings

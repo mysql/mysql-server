@@ -34,7 +34,9 @@ enum pagecache_page_type
   /* the page does not contain LSN */
   PAGECACHE_PLAIN_PAGE,
   /* the page contain LSN (maria tablespace page) */
-  PAGECACHE_LSN_PAGE
+  PAGECACHE_LSN_PAGE,
+  /* Page type used when scanning file and we don't care about the type */
+  PAGECACHE_READ_UNKNOWN_PAGE
 };
 
 /*
