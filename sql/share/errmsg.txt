@@ -6076,3 +6076,24 @@ ER_SLAVE_MASTER_COM_FAILURE
         eng "Master command %s failed: %s"
 ER_BINLOG_LOGGING_IMPOSSIBLE
         eng "Binary logging not possible. Message: %s"
+
+ER_VIEW_NO_CREATION_CTX
+  eng "View `%-.64s`.`%-.64s` has no creation context"
+ER_VIEW_INVALID_CREATION_CTX
+  eng "Creation context of view `%-.64s`.`%-.64s' is invalid"
+
+ER_SR_INVALID_CREATION_CTX
+  eng "Creation context of stored routine `%-.64s`.`%-.64s` is invalid"
+
+ER_TRG_CORRUPTED_FILE
+  eng "Corrupted TRG file for table `%-.64s`.`%-.64s`"
+ER_TRG_NO_CREATION_CTX
+  eng "Triggers for table `%-.64s`.`%-.64s` have no creation context"
+ER_TRG_INVALID_CREATION_CTX
+  eng "Trigger creation context of table `%-.64s`.`%-.64s` is invalid"
+
+ER_EVENT_INVALID_CREATION_CTX
+  eng "Creation context of event `%-.64s`.`%-.64s` is invalid"
+
+ER_TRG_CANT_OPEN_TABLE
+  eng "Cannot open table for trigger `%-.64s`.`%-.64s`"

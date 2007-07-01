@@ -37,11 +37,11 @@ c
 6
 11
 show create table v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -60,8 +60,8 @@ Warnings:
 Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
-View	Create View
-v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
 select c from v2;
 c
 3
@@ -576,8 +576,8 @@ set sql_mode='ansi';
 create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
-View	Create View
-v1	CREATE VIEW "v1" AS select "t1"."a*b" AS "a*b" from "t1"
+View	Create View	character_set_client	collation_connection
+v1	CREATE VIEW "v1" AS select "t1"."a*b" AS "a*b" from "t1"	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1;
 set sql_mode=default;
@@ -682,8 +682,8 @@ drop view v1;
 drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`	latin1	latin1_swedish_ci
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -716,14 +716,14 @@ create table t2 (a int);
 create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
-View	Create View
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `t2`.`a` in (select `v1`.`a` AS `a` from `v1`)
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `t2`.`a` in (select `v1`.`a` AS `a` from `v1`)	latin1	latin1_swedish_ci
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
-View	Create View
-v 1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v 1` AS select 5 AS `5`
+View	Create View	character_set_client	collation_connection
+v 1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v 1` AS select 5 AS `5`	latin1	latin1_swedish_ci
 drop view `v 1`;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -790,15 +790,15 @@ select * from v3;
 a	b
 1	1
 show create view v3;
-View	Create View
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)	latin1	latin1_swedish_ci
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`	latin1	latin1_swedish_ci
 select * from v1;
 test.`f``1` ()
 5
@@ -814,11 +814,11 @@ drop function a;
 create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;
-View	Create View
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`	latin1	latin1_swedish_ci
 show create view v2;
-View	Create View
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`	latin1	latin1_swedish_ci
 drop view v2;
 drop table t2;
 create table t1 (a int);
@@ -844,9 +844,12 @@ drop view v1;
 drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`	latin1	latin1_swedish_ci
 drop view v1;
+SET @old_cs_client = @@character_set_client;
+SET @old_cs_results = @@character_set_results;
+SET @old_cs_connection = @@character_set_connection;
 set names utf8;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -856,7 +859,9 @@ cü
 ü
 drop view vü;
 drop table tü;
-set names latin1;
+SET character_set_client = @old_cs_client;
+SET character_set_results = @old_cs_results;
+SET character_set_connection = @old_cs_connection;
 create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 create view v1(c) as select a+1 from t1 where b >= 4;
@@ -867,8 +872,8 @@ drop view v1;
 drop table t1;
 create view v1 as select cast(1 as char(3));
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`	latin1	latin1_swedish_ci
 select * from v1;
 cast(1 as char(3))
 1
@@ -1199,20 +1204,20 @@ drop table t1;
 create table t1 (a int);
 create view v1 as select * from t1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 alter algorithm=undefined view v1 as select * from t1 with check option;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
 alter algorithm=merge view v1 as select * from t1 with cascaded check option;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
 alter algorithm=temptable view v1 as select * from t1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1;
 create table t1 (s1 int);
@@ -1885,25 +1890,25 @@ create table t1 (a timestamp default now());
 create table t2 (b timestamp default now());
 create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 ( a varchar(50) );
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())	latin1	latin1_swedish_ci
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = version())
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = version())	latin1	latin1_swedish_ci
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())	latin1	latin1_swedish_ci
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (col1 time);
@@ -2005,8 +2010,8 @@ drop table t1;
 create table t1 (s1 int);
 create view v1 as select var_samp(s1) from t1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1;
 set sql_mode='strict_all_tables';
@@ -2251,16 +2256,16 @@ CREATE TABLE t1 (date DATE NOT NULL);
 INSERT INTO  t1 VALUES ('2005-09-06');
 CREATE VIEW v1 AS SELECT DAYNAME(date) FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select dayname(`t1`.`date`) AS `DAYNAME(date)` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select dayname(`t1`.`date`) AS `DAYNAME(date)` from `t1`	latin1	latin1_swedish_ci
 CREATE VIEW v2 AS SELECT DAYOFWEEK(date) FROM t1;
 SHOW CREATE VIEW v2;
-View	Create View
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select dayofweek(`t1`.`date`) AS `DAYOFWEEK(date)` from `t1`
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select dayofweek(`t1`.`date`) AS `DAYOFWEEK(date)` from `t1`	latin1	latin1_swedish_ci
 CREATE VIEW v3 AS SELECT WEEKDAY(date) FROM t1;
 SHOW CREATE VIEW v3;
-View	Create View
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weekday(`t1`.`date`) AS `WEEKDAY(date)` from `t1`
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weekday(`t1`.`date`) AS `WEEKDAY(date)` from `t1`	latin1	latin1_swedish_ci
 SELECT DAYNAME('2005-09-06');
 DAYNAME('2005-09-06')
 Tuesday
@@ -2419,13 +2424,13 @@ test.v1	repair	error	Corrupt
 DROP VIEW v1;
 create definer = current_user() sql security invoker view v1 as select 1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`	latin1	latin1_swedish_ci
 drop view v1;
 create definer = current_user sql security invoker view v1 as select 1;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`	latin1	latin1_swedish_ci
 drop view v1;
 create table t1 (id INT, primary key(id));
 insert into t1 values (1),(2);
@@ -2454,8 +2459,8 @@ end;
 //
 call p1();
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	latin1	latin1_swedish_ci
 drop view v1;
 drop procedure p1;
 CREATE VIEW v1 AS SELECT 42 AS Meaning;
@@ -2560,8 +2565,8 @@ drop table t1;
 show create view v1; 
 drop view v1;
 //
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`	latin1	latin1_swedish_ci
 create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
@@ -2677,8 +2682,8 @@ CREATE VIEW v1 AS
 SELECT id, date(d) + INTERVAL TIME_TO_SEC(d) SECOND AS t, COUNT(*)
 FROM t1 GROUP BY id, t;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 id	t	COUNT(*)
 DROP VIEW v1;
@@ -2705,8 +2710,8 @@ CREATE VIEW v1 AS
 SELECT (year(now())-year(DOB)) AS Age
 FROM t1 HAVING Age < 75;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)	latin1	latin1_swedish_ci
 set timestamp=1136066400;
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 Age
@@ -2835,12 +2840,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (x INT, y INT);
 CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x` from `t1`	latin1	latin1_swedish_ci
 ALTER VIEW v1 AS SELECT x, y FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x`,`t1`.`y` AS `y` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x`,`t1`.`y` AS `y` from `t1`	latin1	latin1_swedish_ci
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (s1 char);
@@ -2900,8 +2905,8 @@ USE test;
 create table t1 (f1 datetime);
 create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
 show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` where (`t1`.`f1` between now() and (now() + interval 1 minute))
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` where (`t1`.`f1` between now() and (now() + interval 1 minute))	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1;
 DROP TABLE IF EXISTS t1;
@@ -2977,8 +2982,8 @@ t2.ver = (SELECT MAX(t.ver) FROM t2 t WHERE t.org = t2.org);
 SHOW WARNINGS;
 Level	Code	Message
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`pk` AS `pk` from (`t1` join `t2` on(((`t2`.`fk` = `t1`.`pk`) and (`t2`.`ver` = (select max(`t`.`ver`) AS `MAX(t.ver)` from `t2` `t` where (`t`.`org` = `t2`.`org`))))))
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`pk` AS `pk` from (`t1` join `t2` on(((`t2`.`fk` = `t1`.`pk`) and (`t2`.`ver` = (select max(`t`.`ver`) AS `MAX(t.ver)` from `t2` `t` where (`t`.`org` = `t2`.`org`))))))	latin1	latin1_swedish_ci
 DROP VIEW v1;
 DROP TABLE t1, t2;
 DROP FUNCTION IF EXISTS f1;
@@ -3041,8 +3046,8 @@ DROP VIEW v1, v2;
 DROP TABLE t1;
 CREATE VIEW v AS SELECT !0 * 5 AS x FROM DUAL;
 SHOW CREATE VIEW v;
-View	Create View
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select ((not(0)) * 5) AS `x`
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select ((not(0)) * 5) AS `x`	latin1	latin1_swedish_ci
 SELECT !0 * 5 AS x FROM DUAL;
 x
 5
@@ -3056,8 +3061,8 @@ SELECT * FROM v1;
 TheEnd
 TheEnd
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'The\ZEnd' AS `TheEnd`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'The\ZEnd' AS `TheEnd`	latin1	latin1_swedish_ci
 DROP VIEW v1;
 CREATE TABLE t1 (mydate DATETIME);
 INSERT INTO t1 VALUES
@@ -3278,8 +3283,8 @@ old_isfalse	int(1)	NO		0
 a IS NOT FALSE	int(1)	NO		0	
 old_isnotfalse	int(1)	NO		0	
 show create view view_24532_b;
-View	Create View
-view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select (`table_24532`.`a` is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,(`table_24532`.`a` is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,(`table_24532`.`a` is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,(`table_24532`.`a` is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`
+View	Create View	character_set_client	collation_connection
+view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select (`table_24532`.`a` is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,(`table_24532`.`a` is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,(`table_24532`.`a` is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,(`table_24532`.`a` is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`	latin1	latin1_swedish_ci
 insert into table_24532 values (0, 0, 0, 0);
 select * from view_24532_b;
 a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT FALSE	old_isnotfalse
@@ -3377,8 +3382,8 @@ col	decimal(7,5)	NO		0.00000
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT CAST(1.23456789 AS DECIMAL(8,0)) AS col;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1.23456789 as decimal(8,0)) AS `col`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1.23456789 as decimal(8,0)) AS `col`	latin1	latin1_swedish_ci
 DROP VIEW v1;
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (b INT, c INT DEFAULT 0);

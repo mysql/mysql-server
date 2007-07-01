@@ -35,7 +35,8 @@ static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
-                const char *definer, longlong created, longlong modified);
+                const char *definer, longlong created, longlong modified,
+                Stored_program_creation_ctx *creation_ctx);
 
 /*
  *
@@ -61,12 +62,191 @@ enum
   MYSQL_PROC_FIELD_MODIFIED,
   MYSQL_PROC_FIELD_SQL_MODE,
   MYSQL_PROC_FIELD_COMMENT,
+  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
+  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
+  MYSQL_PROC_FIELD_DB_COLLATION,
+  MYSQL_PROC_FIELD_BODY_UTF8,
   MYSQL_PROC_FIELD_COUNT
 };
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
+/*************************************************************************/
+
+/**
+  Stored_routine_creation_ctx -- creation context of stored routines
+  (stored procedures and functions).
+*/
+
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
+                                    public Sql_alloc
+{
+public:
+  static Stored_routine_creation_ctx *
+  load_from_db(THD *thd, const class sp_name *name, TABLE *proc_tbl);
+
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  {
+    return new (mem_root) Stored_routine_creation_ctx(m_client_cs,
+                                                      m_connection_cl,
+                                                      m_db_cl);
+  }
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  {
+    return new Stored_routine_creation_ctx(thd);
+  }
+
+private:
+  Stored_routine_creation_ctx(THD *thd)
+    : Stored_program_creation_ctx(thd)
+  { }
+
+  Stored_routine_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl,
+                              CHARSET_INFO *db_cl)
+    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
+  { }
+};
+
+/**************************************************************************
+  Stored_routine_creation_ctx implementation.
+**************************************************************************/
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  CHARSET_INFO *dflt_cs,
+                  CHARSET_INFO **cs)
+{
+  String cs_name;
+
+  if (get_field(mem_root, field, &cs_name))
+  {
+    *cs= dflt_cs;
+    return TRUE;
+  }
+
+  *cs= get_charset_by_csname(cs_name.c_ptr(), MY_CS_PRIMARY, MYF(0));
+
+  if (*cs == NULL)
+  {
+    *cs= dflt_cs;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+/*************************************************************************/
+
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    CHARSET_INFO *dflt_cl,
+                    CHARSET_INFO **cl)
+{
+  String cl_name;
+
+  if (get_field(mem_root, field, &cl_name))
+  {
+    *cl= dflt_cl;
+    return TRUE;
+  }
+
+  *cl= get_charset_by_name(cl_name.c_ptr(), MYF(0));
+
+  if (*cl == NULL)
+  {
+    *cl= dflt_cl;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+/*************************************************************************/
+
+Stored_routine_creation_ctx *
+Stored_routine_creation_ctx::load_from_db(THD *thd,
+                                         const sp_name *name,
+                                         TABLE *proc_tbl)
+{
+  /* Load character set/collation attributes. */
+
+  CHARSET_INFO *client_cs;
+  CHARSET_INFO *connection_cl;
+  CHARSET_INFO *db_cl;
+
+  const char *db_name= thd->strmake(name->m_db.str, name->m_db.length);
+  const char *sr_name= thd->strmake(name->m_name.str, name->m_name.length);
+
+  bool invalid_creation_ctx= FALSE;
+
+  if (load_charset(thd->mem_root,
+                   proc_tbl->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT],
+                   thd->variables.character_set_client,
+                   &client_cs))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.character_set_client.",
+                      (const char *) db_name,
+                      (const char *) sr_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(thd->mem_root,
+                     proc_tbl->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION],
+                     thd->variables.collation_connection,
+                     &connection_cl))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.collation_connection.",
+                      (const char *) db_name,
+                      (const char *) sr_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(thd->mem_root,
+                     proc_tbl->field[MYSQL_PROC_FIELD_DB_COLLATION],
+                     NULL,
+                     &db_cl))
+  {
+    sql_print_warning("Stored routine '%s'.'%s': invalid value "
+                      "in column mysql.proc.db_collation.",
+                      (const char *) db_name,
+                      (const char *) sr_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (invalid_creation_ctx)
+  {
+    push_warning_printf(thd,
+                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_SR_INVALID_CREATION_CTX,
+                        ER(ER_SR_INVALID_CREATION_CTX),
+                        (const char *) db_name,
+                        (const char *) sr_name);
+  }
+
+  /*
+    If we failed to retrieve the database collation, load the default one
+    from the disk.
+  */
+
+  if (!db_cl)
+    db_cl= get_default_db_collation(thd, name->m_db.str);
+
+  /* Create the context. */
+
+  return new Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
+}
+
+/*************************************************************************/
 
 /*
   Open the mysql.proc table for read.
@@ -213,6 +393,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   String str(buff, sizeof(buff), &my_charset_bin);
   ulong sql_mode;
   Open_tables_state open_tables_state_backup;
+  Stored_program_creation_ctx *creation_ctx;
+
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -313,13 +495,14 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
+  creation_ctx= Stored_routine_creation_ctx::load_from_db(thd, name, table);
+
   close_system_tables(thd, &open_tables_state_backup);
   table= 0;
 
   ret= db_load_routine(thd, type, name, sphp,
                        sql_mode, params, returns, body, chistics,
-                       definer, created, modified);
-                       
+                       definer, created, modified, creation_ctx);
  done:
   if (table)
     close_system_tables(thd, &open_tables_state_backup);
@@ -331,7 +514,8 @@ static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
-                const char *definer, longlong created, longlong modified)
+                const char *definer, longlong created, longlong modified,
+                Stored_program_creation_ctx *creation_ctx)
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
@@ -361,7 +545,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
              definer_user_name.str, &definer_user_name.length,
              definer_host_name.str, &definer_host_name.length);
 
-  defstr.set_charset(system_charset_info);
+  defstr.set_charset(creation_ctx->get_client_cs());
 
   /*
     We have to add DEFINER clause and provide proper routine characterstics in
@@ -381,6 +565,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
+  /*
+    Change current database if needed.
+
+    collation_database will be updated here. However, it can be wrong,
+    because it will contain the current value of the database collation.
+    We need collation_database to be fixed at the creation time -- so
+    we'll update it later in switch_query_ctx().
+  */
+
   if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
@@ -388,9 +581,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   {
     Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
+
     lex_start(thd);
 
-    if (parse_sql(thd, &lip) || newlex.sphead == NULL)
+    if (parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL)
     {
       sp_head *sp= newlex.sphead;
 
@@ -406,6 +600,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
       *sphp= newlex.sphead;
       (*sphp)->set_definer(&definer_user_name, &definer_host_name);
       (*sphp)->set_info(created, modified, &chistics, sql_mode);
+      (*sphp)->set_creation_ctx(creation_ctx);
       (*sphp)->optimize();
     }
   }
@@ -464,6 +659,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
+
+  CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
@@ -575,6 +772,26 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 	goto done;
       }
     }
+
+    table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
+    table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
+      thd->charset()->csname,
+      strlen(thd->charset()->csname),
+      system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->set_notnull();
+    table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
+      thd->variables.collation_connection->name,
+      strlen(thd->variables.collation_connection->name),
+      system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_DB_COLLATION]->set_notnull();
+    table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
+      db_cs->name, strlen(db_cs->name), system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_BODY_UTF8]->set_notnull();
+    table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
+      sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
 
     ret= SP_OK;
     if (table->file->ha_write_row(table->record[0]))
@@ -743,15 +960,18 @@ struct st_used_field
 
 static struct st_used_field init_fields[]=
 {
-  { "Db",       NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { "Name",     NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { "Type",                 9, MYSQL_TYPE_STRING,    0},
-  { "Definer",             77, MYSQL_TYPE_STRING,    0},
-  { "Modified",             0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Created",              0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Security_type",        1, MYSQL_TYPE_STRING,    0},
-  { "Comment",  NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { 0,                      0, MYSQL_TYPE_STRING,    0}
+  { "Db",                     NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Name",                   NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "Type",                               9, MYSQL_TYPE_STRING,    0},
+  { "Definer",          USER_HOST_BUFF_SIZE, MYSQL_TYPE_STRING,    0},
+  { "Modified",                           0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Created",                            0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Security_type",                      1, MYSQL_TYPE_STRING,    0},
+  { "Comment",                NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
+  { "character_set_client", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
+  { "collation_connection", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
+  { "Database Collation",   MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
+  { 0,                                    0, MYSQL_TYPE_STRING,    0}
 };
 
 
@@ -1127,7 +1347,8 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     if (db_load_routine(thd, type, name, &new_sp,
                         sp->m_sql_mode, sp->m_params.str, returns,
                         sp->m_body.str, *sp->m_chistics, definer,
-                        sp->m_created, sp->m_modified) == SP_OK)
+                        sp->m_created, sp->m_modified,
+                        sp->get_creation_ctx()) == SP_OK)
     {
       sp->m_last_cached_sp->m_next_cached_sp= new_sp;
       new_sp->m_recursion_level= level;
@@ -1856,4 +2077,3 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
   *dbchangedp= ret == 0;
   DBUG_RETURN(ret);
 }
-
