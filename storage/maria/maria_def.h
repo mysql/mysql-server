@@ -30,6 +30,7 @@
 
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
+#define SANITY_CHECKS
 
 struct st_transaction;
 
@@ -264,7 +265,9 @@ typedef struct st_maria_share
     Calculate checksum for a row during write. May be 0 if we calculate
     the checksum in write_record_init()
   */
-  ha_checksum(*calc_write_checksum) (struct st_maria_info *, const byte *);
+  ha_checksum(*calc_write_checksum)(struct st_maria_info *, const byte *);
+  /* calculate checksum for a row during check table */
+  ha_checksum(*calc_check_checksum)(struct st_maria_info *, const byte *);
   /* Compare a row in memory with a row on disk */
   my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
                             const byte *record, MARIA_RECORD_POS pos);
@@ -749,7 +752,7 @@ extern ulong _ma_rec_unpack(MARIA_HA *info, byte *to, byte *from,
                             ulong reclength);
 extern my_bool _ma_rec_check(MARIA_HA *info, const char *record,
                              byte *packpos, ulong packed_length,
-                             my_bool with_checkum);
+                             my_bool with_checkum, ha_checksum checksum);
 extern int _ma_write_part_record(MARIA_HA *info, my_off_t filepos,
                                  ulong length, my_off_t next_filepos,
                                  byte ** record, ulong *reclength,
@@ -874,6 +877,7 @@ void _ma_update_status(void *param);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
+void _ma_reset_status(MARIA_HA *maria);
 
 extern MARIA_HA *_ma_test_if_reopen(char *filename);
 my_bool _ma_check_table_is_closed(const char *name, const char *where);
@@ -908,10 +912,9 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
-int _ma_initialize_data_file(File dfile, MARIA_SHARE *share);
+int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
 int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 
 extern PAGECACHE *maria_log_pagecache;
-

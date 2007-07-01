@@ -4331,12 +4331,12 @@ my_bool translog_write_record(LSN *lsn,
   {
     uint i;
     uint len= 0;
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
     ha_checksum checksum= 0;
 #endif
     for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
     {
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
       /* Find unitialized bytes early */
       checksum+= my_checksum(checksum, parts_data[i].str,
                              parts_data[i].length);

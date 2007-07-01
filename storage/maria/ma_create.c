@@ -738,7 +738,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
               (MY_UNPACK_FILENAME |
                (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
                 MY_APPEND_EXT);
-    linkname_ptr= NULL;
+    linkname_ptr= NullS;
     /*
       Replace the current file.
       Don't sync dir now if the data file has the same path.
@@ -1007,7 +1007,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     {
       fn_format(filename,name,"", MARIA_NAME_DEXT,
                 MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      linkname_ptr= NULL;
+      linkname_ptr= NullS;
       create_flag=MY_DELETE_OLD;
     }
     if ((dfile=
@@ -1016,7 +1016,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       goto err;
     errpos=3;
 
-    if (_ma_initialize_data_file(dfile, &share))
+    if (_ma_initialize_data_file(&share, dfile))
       goto err;
   }
 
@@ -1155,7 +1155,7 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
 
 /* Initialize data file */
 
-int _ma_initialize_data_file(File dfile, MARIA_SHARE *share)
+int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 {
   if (share->data_file_type == BLOCK_RECORD)
   {

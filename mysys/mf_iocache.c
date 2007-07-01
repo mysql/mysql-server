@@ -1696,6 +1696,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
   my_bool append_cache;
   my_off_t pos_in_file;
   DBUG_ENTER("my_b_flush_io_cache");
+  DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
 
   if (!(append_cache = (info->type == SEQ_READ_APPEND)))
     need_append_buffer_lock=0;

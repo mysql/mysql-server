@@ -122,8 +122,6 @@ int maria_close(register MARIA_HA *info)
   my_free((gptr) info,MYF(0));
 
   if (error)
-  {
-    DBUG_RETURN(my_errno=error);
-  }
+    DBUG_RETURN(my_errno= error);
   DBUG_RETURN(0);
 } /* maria_close */

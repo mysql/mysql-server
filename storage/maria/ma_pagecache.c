@@ -320,7 +320,8 @@ struct st_pagecache_block_link
 #ifndef DBUG_OFF
 /* debug checks */
 static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
-                              enum pagecache_page_pin mode)
+                              enum pagecache_page_pin mode
+                              __attribute__((unused)))
 {
   struct st_my_thread_var *thread= my_thread_var;
   PAGECACHE_PIN_INFO *info= info_find(block->pin_list, thread);
@@ -378,6 +379,7 @@ static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
     1 - Error
 */
 
+#ifdef NOT_USED
 static my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
                                enum pagecache_page_lock lock,
                                enum pagecache_page_pin pin)
@@ -445,7 +447,8 @@ error:
               page_cache_page_pin_str[pin]));
   DBUG_RETURN(1);
 }
-#endif
+#endif /* NOT_USED */
+#endif /* !DBUG_OFF */ 
 
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
@@ -2858,8 +2861,10 @@ restart:
                            (pin == PAGECACHE_PIN)),
                       &page_st);
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
-                block->type == type);
-    block->type= type;
+                block->type == type || type == PAGECACHE_READ_UNKNOWN_PAGE);
+    if (type != PAGECACHE_READ_UNKNOWN_PAGE ||
+        block->type == PAGECACHE_EMPTY_PAGE)
+      block->type= type;
     if (((block->status & PCBLOCK_ERROR) == 0) && (page_st != PAGE_READ))
     {
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
@@ -3223,6 +3228,7 @@ restart:
     }
 
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
+                block->type == PAGECACHE_READ_UNKNOWN_PAGE ||
                 block->type == type);
     block->type= type;
 

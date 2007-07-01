@@ -5,14 +5,20 @@
 
 # If you want to run this in Valgrind, you should use --trace-children=yes,
 # so that it detects problems in ma_test* and not in the shell script
+
+# Remove # from following line if you need some more information
+#set -x -v -e
+
 valgrind="valgrind --alignment=8 --leak-check=yes"
 silent="-s"
 suffix=""
-#set -x -v -e
 if [ -z "$maria_path" ]
 then
     maria_path="."
 fi
+
+# Delete temporary files
+rm -f *.TMD
 
 run_tests()
 {
@@ -126,6 +132,11 @@ run_repair_tests()
   $maria_path/maria_chk$suffix -se test1
   $maria_path/maria_chk$suffix -rqos --correct-checksum test1
   $maria_path/maria_chk$suffix -se test1
+  $maria_path/ma_test2$suffix $silent -c -d1 $row_type
+  $maria_path/maria_chk$suffix -s --parallel-recover test2
+  $maria_path/maria_chk$suffix -se test2
+  $maria_path/maria_chk$suffix -s --parallel-recover --quick test2
+  $maria_path/maria_chk$suffix -se test2
 }
 
 run_pack_tests()
@@ -153,6 +164,15 @@ run_pack_tests()
   $maria_path/maria_chk$suffix -es test1
   $maria_path/maria_chk$suffix -rus test1
   $maria_path/maria_chk$suffix -es test1
+
+  $maria_path/ma_test2$suffix $silent -c -d1 $row_type
+  $maria_path/maria_chk$suffix -s --parallel-recover test2
+  $maria_path/maria_chk$suffix -se test2
+  $maria_path/maria_chk$suffix -s --parallel-recover --unpack test2
+  $maria_path/maria_chk$suffix -se test2
+  $maria_path/maria_pack$suffix --force -s test1
+  $maria_path/maria_chk$suffix -s --parallel-recover --unpack test2
+  $maria_path/maria_chk$suffix -se test2
 }
 
 echo "Running tests with dynamic row format"
@@ -167,9 +187,13 @@ run_pack_tests -S
 
 echo "Running tests with block row format"
 run_tests -M
+run_repair_tests -M
+run_pack_tests -M
 
 echo "Running tests with block row format and transactions"
 run_tests "-M -T"
+run_repair_tests "-M -T"
+run_pack_tests "-M -T"
 
 #
 # Tests that gives warnings
