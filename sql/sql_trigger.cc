@@ -982,7 +982,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         Lex_input_stream lip(thd, trg_create_str->str, trg_create_str->length);
         thd->m_lip= &lip;
         lex_start(thd);
-	thd->spcont= 0;
+	thd->spcont= NULL;
         int err= MYSQLparse((void *)thd);
 
         if (err || thd->is_fatal_error)
