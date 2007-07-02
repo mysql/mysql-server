@@ -569,6 +569,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug28023 T7 D2
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug29364 T1
+
 #
 # DICT TESTS
 max-time: 1500
