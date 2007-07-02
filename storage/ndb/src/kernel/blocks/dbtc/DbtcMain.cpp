@@ -897,12 +897,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         hostptr.p->hostStatus = HS_ALIVE;
 	c_alive_nodes.set(i);
       }//if
-
-      if (NodeBitmask::get(readNodes->startedNodes, i))
-      {
-        jam();
-        hostptr.p->m_nf_bits = HostRecord::NF_STARTED;
-      }
     }//if
   }//for
   ndbsttorry010Lab(signal);
