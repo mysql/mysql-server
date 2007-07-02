@@ -10,18 +10,6 @@ drop table if exists t1;
 --enable_warnings
 
 #
-# BUG 18198: Partition functions handling
-#
-create table t1 (a varchar(10) charset latin1 collate latin1_bin)
-partition by hash(length(a))
-partitions 10;
-insert into t1 values (''),(' '),('a'),('a '),('a  ');
-explain partitions select * from t1 where a='a ';
-explain partitions select * from t1 where a='a';
-explain partitions select * from t1 where a='a ' OR a='a';
-drop table t1;
-
-#
 # More partition pruning tests, especially on interval walking
 #
 create table t1 (a int unsigned)
