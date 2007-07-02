@@ -1,4 +1,45 @@
 ==================================================
+mysql-5.1.X-ndb-6.2.Y
+==================================================
+
+mysql-5.1.19-ndb-6.2.3 (released 2007-07-02)
+(additional bugs fixed compared to mysql-5.1.19)
+
+  Bug #29331 Incorrect node killed on GCP Stop (COPY_GCI)
+  Bug #29057 Incorrect handling of file 0 during redo execution(Error while reading REDO log)
+  Bug #29067 Incorrect order during redo invalidation(Error while reading REDO log)
+  Bug #29118 Incorrect handling of loglap in redo invalidation (Error while reading REDO log)
+  Bug #29229 memory corruption in dbtup
+  Bug #29185 Large IN list crashes mysqld with cluster and condition pushdown
+  Bug #29176 drop table can crash pgman
+  Bug #28989 hpux11 ps_row warnings
+  Bug #25305 rpl_ndb_UUID.test fails on pb-valgrind
+  Bug #29167 Insufficient nodes for SR
+  Bug #27640 backup id not displayed in the output of "ndb_mgm start backup wait completed"
+  Bug #28949 n_mix valgrind failing in pushbuild
+  Bug #29099 slow backup for disk data
+  Bug #26342 auto_increment_increment AND auto_increment_offset REALLY REALLY anger NDB cluster
+  Bug #29103 ndb_restore segfaults on NULL var[char|binary]
+  Bug #29074 preserve file timestamps in ndb_error_reporter
+  Bug #29073 Store history for ndb_mgm
+  Bug #29063 mgmapi: connect timeout set incorrectly
+  Bug #29044 blob code sets error code on transaction object
+  Bug #28724 for blobs, op flag to not set error on trans
+  Bug #28751 Lots of memory locked in memory causes high kswapd
+  Bug #28899 not possible to set separate watchdog timeout at startup
+  Bug# 28726 LCP files not removed after initial system restart
+  Bug #20612 failed ndbrequire in PGMAN
+  Bug #28443 transporter gets stuck when >1024 signals received at once
+  Bug #28770 file already opened error when corrupt schema file
+  Bug #28749 MaxNoOfOpenFiles offset by 1
+  Bug #26783 replication status unknown after cluster or mysqld failure
+  Bug #28717 Race between NODE_FAILREP and COPY_GCIREQ
+  Bug #28719 multi pk update ignore corrupts data
+  Bug #28653 Fast GCP + high load + high RedoBuffer causes ndbrequire
+  Bug #28525 Node failures in PGMAN at ndbrequire (line 430)
+
+
+==================================================
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
