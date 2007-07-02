@@ -1268,8 +1268,6 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
   bzero(&table, sizeof(table));
   init_alloc_root(&table.mem_root, 8192, 0);
 
-  safe_mutex_assert_owner(&LOCK_open);
-
   if (Table_triggers_list::check_n_load(thd, db, name, &table, 1))
   {
     result= 1;
@@ -1431,26 +1429,24 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
 }
 
 
-/*
-  Update .TRG and .TRN files after renaming triggers' subject table.
+/**
+  @brief Update .TRG and .TRN files after renaming triggers' subject table.
 
-  SYNOPSIS
-    change_table_name()
-      thd        Thread context
-      db         Old database of subject table
-      old_table  Old name of subject table
-      new_db     New database for subject table
-      new_table  New name of subject table
+  @param[in,out] thd Thread context
+  @param[in] db Old database of subject table
+  @param[in] old_table Old name of subject table
+  @param[in] new_db New database for subject table
+  @param[in] new_table New name of subject table
 
-  NOTE
+  @note
     This method tries to leave trigger related files in consistent state,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
     Also this method assumes that subject table is not renamed to itself.
+    This method needs to be called under an exclusive table name lock.
 
-  RETURN VALUE
-    FALSE  Success
-    TRUE   Error
+  @retval FALSE Success
+  @retval TRUE  Error
 */
 
 bool Table_triggers_list::change_table_name(THD *thd, const char *db,
@@ -1466,7 +1462,19 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   bzero(&table, sizeof(table));
   init_alloc_root(&table.mem_root, 8192, 0);
 
-  safe_mutex_assert_owner(&LOCK_open);
+  uchar key[MAX_DBKEY_LENGTH];
+  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
+                    old_table)-(char*)&key[0])+1;
+
+  /*
+    This method interfaces the mysql server code protected by
+    either LOCK_open mutex or with an exclusive table name lock.
+    In the future, only an exclusive table name lock will be enough.
+  */
+#ifndef DBUG_OFF
+  if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
+    safe_mutex_assert_owner(&LOCK_open);
+#endif
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
               my_strcasecmp(table_alias_charset, old_table, new_table));

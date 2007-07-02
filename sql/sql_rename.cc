@@ -144,10 +144,14 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  VOID(pthread_mutex_lock(&LOCK_open));
-  if (lock_table_names(thd, table_list))
+  pthread_mutex_lock(&LOCK_open);
+  if (lock_table_names_exclusively(thd, table_list))
+  {
+    pthread_mutex_unlock(&LOCK_open);
     goto err;
-  
+  }
+  pthread_mutex_unlock(&LOCK_open);
+
   error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
   {
@@ -183,10 +187,14 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     send_ok(thd);
   }
 
+  if (!error)
+    query_cache_invalidate3(thd, table_list, 0);
+
+  pthread_mutex_lock(&LOCK_open);
   unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
+  pthread_mutex_unlock(&LOCK_open);
 
 err:
-  pthread_mutex_unlock(&LOCK_open);
   /* enable logging back if needed */
   if (disable_logs)
   {
