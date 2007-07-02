@@ -39,6 +39,7 @@ extern const char * const _unknown_func_;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
 int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables, Item *cond);
+int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
 #define PROFILE_NONE         0
@@ -331,12 +332,6 @@ public:
 
   /* SHOW PROFILES */
   bool show_profiles();
-
-  /* SHOW PROFILE FOR QUERY query_id */
-  bool show(uint options, uint profiling_query_id);
-
-  /* SHOW PROFILE */
-  bool show_last(uint options);
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
   int fill_statistics_info(THD *thd, struct st_table_list *tables, Item *cond);
