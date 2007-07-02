@@ -594,4 +594,22 @@ select data_type, character_octet_length, character_maximum_length
   from information_schema.columns where table_name='t1';
 drop table t1;
 
+#
+# Bug#28925 GROUP_CONCAT inserts wrong separators for a ucs2 column
+#
+create table t1 (a char(1) character set ucs2);
+insert into t1 values ('a'),('b'),('c');
+select hex(group_concat(a)) from t1;
+select collation(group_concat(a)) from t1;
+drop table t1;
+
+set names latin1;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a'),('b'),('c');
+set character_set_connection=ucs2;
+select hex(group_concat(a separator ',')) from t1;
+select collation(group_concat(a separator ',')) from t1;
+drop table t1;
+set names latin1;
+
 --echo End of 5.0 tests
