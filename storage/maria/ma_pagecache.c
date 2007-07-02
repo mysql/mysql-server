@@ -177,7 +177,8 @@ static const char *page_cache_page_type_str[]=
   /* used only for control page type changing during debugging */
   "EMPTY",
   "PLAIN",
-  "LSN"
+  "LSN",
+  "READ_UNKNOWN"
 };
 
 static const char *page_cache_page_write_mode_str[]=
@@ -584,6 +585,7 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
                              myf flags)
 {
   DBUG_ENTER("pagecache_fwrite");
+  DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
   if (type == PAGECACHE_LSN_PAGE)
   {
     LSN lsn;
@@ -2457,7 +2459,12 @@ static void check_and_set_lsn(LSN lsn, PAGECACHE_BLOCK_LINK *block)
                       (ulong)LSN_FILE_NO(old), (ulong)LSN_OFFSET(old),
                       (ulong)LSN_FILE_NO(lsn), (ulong)LSN_OFFSET(lsn)));
   if (cmp_translog_addr(lsn, old) > 0)
+  {
+
+    DBUG_ASSERT(block->type != PAGECACHE_READ_UNKNOWN_PAGE);
     lsn_store(block->buffer + PAGE_LSN_OFFSET, lsn);
+    block->status|= PCBLOCK_CHANGED;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -3179,6 +3186,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                        page_cache_page_pin_str[pin],
                        page_cache_page_write_mode_str[write_mode],
                        offset, size));
+  DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
