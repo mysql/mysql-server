@@ -17,9 +17,10 @@
 #include <ndbapi/NdbApi.hpp>
 #include <mgmapi.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
- * export LD_LIBRARY_PATH=../../../libmysql_r/.libs:../../../ndb/src/.libs
+ * export LD_LIBRARY_PATH=../../../../libmysql_r/.libs:../../src/.libs
  */
 
 #define MGMERROR(h) \
@@ -37,6 +38,8 @@
           ndb_logevent_get_latest_error_msg(h)); \
   exit(-1); \
 }
+
+#define make_uint64(a,b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
 
 int main(int argc, char** argv)
 {
@@ -93,9 +96,34 @@ int main(int argc, char** argv)
 	printf("  Starting node ID: %d\n", event.BackupStarted.starting_node);
 	printf("  Backup ID: %d\n", event.BackupStarted.backup_id);
 	break;
+      case NDB_LE_BackupStatus:
+	printf("Node %d: BackupStatus\n", event.source_nodeid);
+	printf("  Starting node ID: %d\n", event.BackupStarted.starting_node);
+	printf("  Backup ID: %d\n", event.BackupStarted.backup_id);
+	printf("  Data written: %llu bytes (%llu records)\n",
+               make_uint64(event.BackupStatus.n_bytes_lo,
+                           event.BackupStatus.n_bytes_hi),
+               make_uint64(event.BackupStatus.n_records_lo,
+                           event.BackupStatus.n_records_hi));
+	printf("  Log written: %llu bytes (%llu records)\n",
+               make_uint64(event.BackupStatus.n_log_bytes_lo,
+                           event.BackupStatus.n_log_bytes_hi),
+               make_uint64(event.BackupStatus.n_log_records_lo,
+                           event.BackupStatus.n_log_records_hi));
+	break;
       case NDB_LE_BackupCompleted:
 	printf("Node %d: BackupCompleted\n", event.source_nodeid);
 	printf("  Backup ID: %d\n", event.BackupStarted.backup_id);
+	printf("  Data written: %llu bytes (%llu records)\n",
+               make_uint64(event.BackupCompleted.n_bytes,
+                           event.BackupCompleted.n_bytes_hi),
+               make_uint64(event.BackupCompleted.n_records,
+                           event.BackupCompleted.n_records_hi));
+	printf("  Log written: %llu bytes (%llu records)\n",
+               make_uint64(event.BackupCompleted.n_log_bytes,
+                           event.BackupCompleted.n_log_bytes_hi),
+               make_uint64(event.BackupCompleted.n_log_records,
+                           event.BackupCompleted.n_log_records_hi));
 	break;
       case NDB_LE_BackupAborted:
 	printf("Node %d: BackupAborted\n", event.source_nodeid);

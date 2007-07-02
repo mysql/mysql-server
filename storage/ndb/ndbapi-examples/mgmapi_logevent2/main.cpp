@@ -17,6 +17,7 @@
 #include <ndbapi/NdbApi.hpp>
 #include <mgmapi.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
  * export LD_LIBRARY_PATH=../../../libmysql_r/.libs:../../../ndb/src/.libs

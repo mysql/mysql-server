@@ -19,7 +19,7 @@
 #include <ndb_global.h>
 
 /**
- * Bitmask implementation.  Size is given explicitly
+ * Bitmask implementation.  Size (in 32-bit words) is given explicitly
  * (as first argument).  All methods are static.
  */
 class BitmaskImpl {
@@ -447,7 +447,6 @@ public:
     }
 #endif
   };
-private:
   
   Data rep;
 public:
@@ -911,6 +910,25 @@ template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
+
+  template<unsigned sz2> Bitmask& operator=(const Bitmask<sz2>& src){
+    if (size >= sz2)
+    {
+      for (unsigned i = 0; i < sz2; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    else
+    {
+      assert(src.find(32*size+1) == BitmaskImpl::NotFound);
+      for (unsigned i = 0; i < size; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    return * this;
+  }
 };
 
 inline void
@@ -952,6 +970,5 @@ BitmaskImpl::setField(unsigned size, Uint32 dst[],
   assert(len > used);
   setFieldImpl(dst+1, used & 31, len-used, src+(used >> 5));
 }
-
 
 #endif

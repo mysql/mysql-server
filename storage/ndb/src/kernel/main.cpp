@@ -180,7 +180,7 @@ int reportShutdown(class Configuration *config, int error_exit, int restart)
 
   { // Log event
     const EventReport * const eventReport = (EventReport *)&theData[0];
-    g_eventLogger.log(eventReport->getEventType(), theData,
+    g_eventLogger.log(eventReport->getEventType(), theData, length,
 		      eventReport->getNodeId(), 0);
   }
 

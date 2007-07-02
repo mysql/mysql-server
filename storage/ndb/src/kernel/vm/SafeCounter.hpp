@@ -72,7 +72,7 @@ private:
   struct ActiveCounter { /** sizeof = 7words = 28bytes */ 
   public:
     Uint32 m_senderData;
-    NodeBitmask m_nodes;
+    NdbNodeBitmask m_nodes;
     struct SignalDesc {
     public:
       Uint16 m_gsn; 
@@ -154,7 +154,7 @@ public:
   SafeCounter& operator=(const NodeReceiverGroup&);
 private:
   Uint32 m_count;
-  NodeBitmask m_nodes;
+  NdbNodeBitmask m_nodes;
   
   SafeCounterManager & m_mgr;
   SafeCounterManager::ActiveCounterPtr m_ptr;

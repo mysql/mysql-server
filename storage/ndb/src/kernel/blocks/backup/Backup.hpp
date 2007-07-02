@@ -288,6 +288,13 @@ public:
     Uint64 noOfBytes;
     Uint32 maxRecordSize;
     
+    /*
+      keeps track of total written into backup file to be able to show
+      backup status
+    */
+    Uint64 m_records_total;
+    Uint64 m_bytes_total;
+
   private:
     Uint32* scanStart;
     Uint32* scanStop;
@@ -428,8 +435,17 @@ public:
       , masterData(b), backup(b)
       , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
       {
+        /*
+          report of backup status uses these variables to keep track
+          if backup ia running and current state
+        */
+        m_gsn = 0;
+        masterData.gsn = 0;
       }
     
+    /* next time to report backup status */
+    Uint32 m_next_report;
+
     Uint32 m_gsn;
     CompoundState slaveState; 
     
@@ -561,6 +577,8 @@ public:
                (MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) /
 	       BACKUP_WORDS_PER_PAGE);
 
+  Uint32 m_backup_report_frequency;
+
   /**
    * Pools
    */
@@ -631,7 +649,7 @@ public:
   void checkNodeFail(Signal* signal,
 		     BackupRecordPtr ptr,
 		     NodeId newCoord,
-		     Uint32 theFailedNodes[NodeBitmask::Size]);
+		     Uint32 theFailedNodes[NdbNodeBitmask::Size]);
   void masterTakeOver(Signal* signal, BackupRecordPtr ptr);
 
 
@@ -647,6 +665,16 @@ public:
   void cleanup(Signal*, BackupRecordPtr ptr);
   void abort_scan(Signal*, BackupRecordPtr ptr);
   void removeBackup(Signal*, BackupRecordPtr ptr);
+
+  /*
+    For periodic backup status reporting and explicit backup status reporting
+  */
+  /* Init at start of backup, timers etc... */
+  void initReportStatus(Signal* signal, BackupRecordPtr ptr);
+  /* Sheck timers for reporting at certain points */
+  void checkReportStatus(Signal* signal, BackupRecordPtr ptr);
+  /* Send backup status, invoked either periodically, or explicitly */
+  void reportStatus(Signal* signal, BackupRecordPtr ptr);
 
   void sendSTTORRY(Signal*);
   void createSequence(Signal* signal);
@@ -743,6 +771,7 @@ Backup::OperationRecord::finished(){
   * dst_Length = htonl(len);
   
   noOfRecords++;
+  m_records_total++;
   
   return true;
 }

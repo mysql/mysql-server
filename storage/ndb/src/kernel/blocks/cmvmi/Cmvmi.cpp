@@ -124,6 +124,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   setNodeInfo(getOwnNodeId()).m_connected = true;
   setNodeInfo(getOwnNodeId()).m_version = ndbGetOwnVersion();
+  setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 }
 
 Cmvmi::~Cmvmi()
@@ -240,8 +241,9 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   // Print the event info
-  g_eventLogger.log(eventReport->getEventType(), signal->theData);
-
+  g_eventLogger.log(eventReport->getEventType(), 
+		    signal->theData, signal->getLength(), 0, 0);
+  
   return;
 }//execEVENT_REP()
 
@@ -351,16 +353,50 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   Uint64 shared_mem = 8*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
   shared_mem /= GLOBAL_PAGE_SIZE;
-  if (shared_mem)
+
+  Uint32 tupmem = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
+  if (tupmem)
+  {
+    Resource_limit rl;
+    rl.m_min = tupmem;
+    rl.m_max = tupmem;
+    rl.m_resource_id = 3;
+    m_ctx.m_mm.set_resource_limit(rl);
+  }
+
+  if (shared_mem+tupmem)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_mem;
+    rl.m_max = shared_mem + tupmem;
     rl.m_resource_id = 0;
     m_ctx.m_mm.set_resource_limit(rl);
   }
   
-  ndbrequire(m_ctx.m_mm.init());
+  if (!m_ctx.m_mm.init())
+  {
+    char buf[255];
+
+    struct ndb_mgm_param_info dm;
+    struct ndb_mgm_param_info sga;
+    size_t size = sizeof(ndb_mgm_param_info);
+    
+    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+    BaseString::snprintf(buf, sizeof(buf), 
+			 "Malloc (%lld bytes) for %s and %s failed", 
+			 Uint64(shared_mem + tupmem) * 32768,
+			 dm.m_name, sga.m_name);
+    
+    ErrorReporter::handleAssert(buf,
+				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
+    
+    ndbrequire(false);
+  }
+
   {
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
@@ -517,8 +553,9 @@ void Cmvmi::execENABLE_COMORD(Signal* signal)
   signal->theData[0] = NDB_LE_ConnectedApiVersion;
   signal->theData[1] = tStartingNode;
   signal->theData[2] = getNodeInfo(tStartingNode).m_version;
-
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
+  
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
   //-----------------------------------------------------
   
   jamEntry();
@@ -568,7 +605,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
   ndbrequire(type != NodeInfo::INVALID);
   globalData.m_nodeInfo[hostId].m_version = 0;
-  globalData.m_nodeInfo[hostId].m_signalVersion = 0;
+  globalData.m_nodeInfo[hostId].m_mysql_version = 0;
   
   if(type == NodeInfo::DB || globalData.theStartLevel >= NodeState::SL_STARTED){
     jam();
@@ -897,9 +934,24 @@ recurse(char * buf, int loops, int arg){
     return tmp[arg/loops] + recurse(tmp, loops - 1, arg);
 }
 
+#define check_block(block,val) \
+(((val) >= DumpStateOrd::_ ## block ## Min) && ((val) <= DumpStateOrd::_ ## block ## Max))
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
+  Uint32 val = signal->theData[0];
+  if (val >= DumpStateOrd::OneBlockOnly)
+  {
+    if (check_block(Backup, val))
+    {
+      sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+    }
+    else if (check_block(TC, val))
+    {
+    }
+    return;
+  }
 
   sendSignal(QMGR_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
   sendSignal(NDBCNTR_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);

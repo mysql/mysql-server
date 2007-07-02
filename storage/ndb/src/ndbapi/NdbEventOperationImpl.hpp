@@ -76,9 +76,6 @@ struct EventBufData
 
   EventBufData() {}
 
-  // Get blob part number from blob data
-  Uint32 get_blob_part_no() const;
-
   /*
    * Main item does not include summary of parts (space / performance
    * tradeoff).  The summary is needed when moving single data item.
@@ -359,7 +356,9 @@ public:
   NdbRecAttr *getValue(const NdbColumnImpl *, char *aValue, int n);
   NdbBlob *getBlobHandle(const char *colName, int n);
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
-  int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
+  Uint32 get_blob_part_no(bool hasDist);
+  int readBlobParts(char* buf, NdbBlob* blob,
+                    Uint32 part, Uint32 count, Uint16* lenLoc);
   int receive_event();
   const bool tableNameChanged() const;
   const bool tableFrmChanged() const;
@@ -393,6 +392,7 @@ public:
   NdbBlob* theBlobList;
   NdbEventOperationImpl* theBlobOpList; // in main op, list of blob ops
   NdbEventOperationImpl* theMainOp; // in blob op, the main op
+  int theBlobVersion; // in blob op, NDB_BLOB_V1 or NDB_BLOB_V2
 
   NdbEventOperation::State m_state; /* note connection to mi_type */
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING

@@ -37,11 +37,11 @@ class HotSpareRep {
   friend class Dbdict;
   
 public:
-  STATIC_CONST( SignalLength = 1 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 1 + NdbNodeBitmask::Size );
 private:
   
   Uint32 noHotSpareNodes;
-  Uint32 theHotSpareNodes[NodeBitmask::Size];
+  Uint32 theHotSpareNodes[NdbNodeBitmask::Size];
 };
 
 #endif

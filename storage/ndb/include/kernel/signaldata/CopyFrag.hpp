@@ -95,4 +95,42 @@ struct UpdateFragDistKeyOrd
   STATIC_CONST( SignalLength = 3 );
 };
 
+struct PrepareCopyFragReq
+{
+  STATIC_CONST( SignalLength = 6 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+};
+
+struct PrepareCopyFragRef
+{
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+  Uint32 errorCode;
+
+  STATIC_CONST( SignalLength = 7 );
+};
+
+struct PrepareCopyFragConf
+{
+  STATIC_CONST( SignalLength = 7 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 copyNodeId;
+  Uint32 startingNodeId;
+  Uint32 maxPageNo;
+};
+
 #endif

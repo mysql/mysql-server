@@ -406,6 +406,10 @@ static sys_var_const_str_ptr sys_secure_file_priv(&vars, "secure_file_priv",
 static sys_var_long_ptr	sys_server_id(&vars, "server_id", &server_id, fix_server_id);
 static sys_var_bool_ptr	sys_slave_compressed_protocol(&vars, "slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
+#ifdef HAVE_REPLICATION
+static sys_var_bool_ptr         sys_slave_allow_batching(&vars, "slave_allow_batching",
+                                                         &slave_allow_batching);
+#endif
 static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
 static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",

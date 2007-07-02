@@ -182,10 +182,11 @@ public:
     NodeId node;		// current arbitrator candidate
     ArbitTicket ticket;		// ticket
     NodeBitmask apiMask[1+2];	// arbitrators 0=all 1,2=per rank
-    NodeBitmask newMask;	// new nodes to process in RUN state
+    NdbNodeBitmask newMask;	// new nodes to process in RUN state
     Uint8 sendCount;		// control send/recv of signals
     Uint8 recvCount;
-    NodeBitmask recvMask;	// left to recv
+    Uint8 m_disabled;
+    NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
     Uint32 failureNr;            // cfailureNr at arbitration start
     Uint32 timeout;             // timeout for CHOOSE state
@@ -352,6 +353,7 @@ private:
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
   void computeArbitNdbMask(NodeBitmask& aMask);
+  void computeArbitNdbMask(NdbNodeBitmask& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
 
   // Initialisation

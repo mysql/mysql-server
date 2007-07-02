@@ -35,7 +35,7 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   /**
    * Change receiver type
    */
-  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this);
+  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, false, this);
 }
 
 NdbIndexOperation::~NdbIndexOperation()
@@ -52,9 +52,10 @@ NdbIndexOperation::~NdbIndexOperation()
 int
 NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
 			    const NdbTableImpl * aTable, 
-			    NdbTransaction* myConnection)
+			    NdbTransaction* myConnection,
+                            bool useRec)
 {
-  NdbOperation::init(aTable, myConnection);
+  NdbOperation::init(aTable, myConnection, useRec);
 
   switch (anIndex->m_type) {
   case(NdbDictionary::Index::UniqueHashIndex):
