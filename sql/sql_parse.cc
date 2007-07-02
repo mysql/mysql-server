@@ -2445,7 +2445,7 @@ end_with_restore_list:
           check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
         goto error;
     }
-    query_cache_invalidate3(thd, first_table, 0);
+
     if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
       goto error;
     break;
