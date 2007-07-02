@@ -1113,7 +1113,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1, 1)))
     goto err;
 
   /* Remove RAID directories */
