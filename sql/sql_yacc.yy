@@ -7044,7 +7044,13 @@ show_param:
         | PROFILES_SYM
           { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
-          { Lex->sql_command = SQLCOM_SHOW_PROFILE; }
+          { 
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_PROFILE;
+            if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
+              YYABORT;
+          }
         | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;

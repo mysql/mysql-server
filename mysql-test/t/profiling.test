@@ -1,3 +1,8 @@
+# Verify that the protocol isn't violated if we ask for profiling info
+# before profiling has recorded anything.
+show profiles;
+show profile all;
+
 # default is OFF
 show session variables like 'profil%';
 select @@profiling;

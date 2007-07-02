@@ -41,26 +41,76 @@ int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables,
 ST_FIELD_INFO query_profile_statistics_info[]=
 {
   /* name, length, type, value, maybe_null, old_name */
-  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, NULL},
-  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, NULL},
-  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, NULL},
-  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, NULL},
-  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, NULL},
-  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, NULL},
-  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, NULL},
+  {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, "Query_id"},
+  {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, "Seq"},
+  {"STATE", 30, MYSQL_TYPE_STRING, 0, false, "Status"},
+  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, "Duration"},
+  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_user"},
+  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_system"},
+  {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_voluntary"},
+  {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_involuntary"},
+  {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_in"},
+  {"BLOCK_OPS_OUT", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_out"},
+  {"MESSAGES_SENT", 20, MYSQL_TYPE_LONG, 0, true, "Messages_sent"},
+  {"MESSAGES_RECEIVED", 20, MYSQL_TYPE_LONG, 0, true, "Messages_received"},
+  {"PAGE_FAULTS_MAJOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_major"},
+  {"PAGE_FAULTS_MINOR", 20, MYSQL_TYPE_LONG, 0, true, "Page_faults_minor"},
+  {"SWAPS", 20, MYSQL_TYPE_LONG, 0, true, "Swaps"},
+  {"SOURCE_FUNCTION", 30, MYSQL_TYPE_STRING, 0, true, "Source_function"},
+  {"SOURCE_FILE", 20, MYSQL_TYPE_STRING, 0, true, "Source_file"},
+  {"SOURCE_LINE", 20, MYSQL_TYPE_LONG, 0, true, "Source_line"},
   {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL}
 };
+
+
+int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
+{
+  int profile_options = thd->lex->profile_options;
+  int fields_include_condition_truth_values[]= {
+    FALSE, /* Query_id */
+    FALSE, /* Seq */
+    TRUE, /* Status */
+    TRUE, /* Duration */
+    profile_options & PROFILE_CPU, /* CPU_user */
+    profile_options & PROFILE_CPU, /* CPU_system */
+    profile_options & PROFILE_CONTEXT, /* Context_voluntary */
+    profile_options & PROFILE_CONTEXT, /* Context_involuntary */
+    profile_options & PROFILE_BLOCK_IO, /* Block_ops_in */
+    profile_options & PROFILE_BLOCK_IO, /* Block_ops_out */
+    profile_options & PROFILE_IPC, /* Messages_sent */
+    profile_options & PROFILE_IPC, /* Messages_received */
+    profile_options & PROFILE_PAGE_FAULTS, /* Page_faults_major */
+    profile_options & PROFILE_PAGE_FAULTS, /* Page_faults_minor */
+    profile_options & PROFILE_SWAPS, /* Swaps */
+    profile_options & PROFILE_SOURCE, /* Source_function */
+    profile_options & PROFILE_SOURCE, /* Source_file */
+    profile_options & PROFILE_SOURCE, /* Source_line */
+  };
+
+  ST_FIELD_INFO *field_info;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
+  int i;
+
+  for (i= 0; schema_table->fields_info[i].field_name != NULL; i++)
+  {
+    if (! fields_include_condition_truth_values[i])
+      continue;
+
+    field_info= &schema_table->fields_info[i];
+    Item_field *field= new Item_field(context,
+                                      NullS, NullS, field_info->field_name);
+    if (field)
+    {
+      field->set_name(field_info->old_name,
+                      strlen(field_info->old_name),
+                      system_charset_info);
+      if (add_item_to_list(thd, field))
+        return 1;
+    }
+  }
+  return 0;
+}
+
 
 #ifdef ENABLED_PROFILING
 
@@ -240,212 +290,6 @@ void QUERY_PROFILE::reset()
       delete entries.pop();
   }
   DBUG_VOID_RETURN;
-}
-
-bool QUERY_PROFILE::show(uint options)
-{  
-  THD *thd= profiling->thd;
-  List<Item> field_list;
-  DBUG_ENTER("QUERY_PROFILE::show");
-
-  field_list.push_back(new Item_empty_string("Status", MYSQL_ERRMSG_SIZE));
-  field_list.push_back(new Item_return_int("Duration", TIME_FLOAT_DIGITS,
-                                           MYSQL_TYPE_DOUBLE));
-
-  if (options & PROFILE_CPU)
-  {
-    field_list.push_back(new Item_return_int("CPU_user", TIME_FLOAT_DIGITS,
-                                             MYSQL_TYPE_DOUBLE));
-    field_list.push_back(new Item_return_int("CPU_system", TIME_FLOAT_DIGITS, 
-                                             MYSQL_TYPE_DOUBLE));
-  }
-  
-  if (options & PROFILE_MEMORY)
-  {
-  }
-  
-  if (options & PROFILE_CONTEXT)
-  {
-    field_list.push_back(new Item_return_int("Context_voluntary", 10,
-                                             MYSQL_TYPE_LONG));
-    field_list.push_back(new Item_return_int("Context_involuntary", 10,
-                                             MYSQL_TYPE_LONG));
-  }
-
-  if (options & PROFILE_BLOCK_IO)
-  {
-    field_list.push_back(new Item_return_int("Block_ops_in", 10,
-                                             MYSQL_TYPE_LONG));
-    field_list.push_back(new Item_return_int("Block_ops_out", 10,
-                                             MYSQL_TYPE_LONG));
-  }
-  
-  if (options & PROFILE_IPC)
-  {
-    field_list.push_back(new Item_return_int("Messages_sent", 10,
-                                             MYSQL_TYPE_LONG));
-    field_list.push_back(new Item_return_int("Messages_received", 10,
-                                             MYSQL_TYPE_LONG));
-  }
-  
-  if (options & PROFILE_PAGE_FAULTS)
-  {
-    field_list.push_back(new Item_return_int("Page_faults_major", 10,
-                                             MYSQL_TYPE_LONG));
-    field_list.push_back(new Item_return_int("Page_faults_minor", 10,
-                                             MYSQL_TYPE_LONG));
-  }
-  
-  if (options & PROFILE_SWAPS)
-  {
-    field_list.push_back(new Item_return_int("Swaps", 10, MYSQL_TYPE_LONG));
-  }
-  
-  if (options & PROFILE_SOURCE)
-  {
-    field_list.push_back(new Item_empty_string("Source_function",
-                                               MYSQL_ERRMSG_SIZE));  
-    field_list.push_back(new Item_empty_string("Source_file",
-                                               MYSQL_ERRMSG_SIZE));
-    field_list.push_back(new Item_return_int("Source_line", 10,
-                                             MYSQL_TYPE_LONG));
-  }
-  
-  if (thd->protocol->send_fields(&field_list,
-                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  Protocol *protocol= thd->protocol;
-  SELECT_LEX *sel= &thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit= &thd->lex->unit;
-  ha_rows idx= 0;
-  unit->set_limit(sel);
-  PROFILE_ENTRY *previous= &profile_start;
-
-  PROFILE_ENTRY *entry;
-  void *iterator;
-  for (iterator= entries.new_iterator(); 
-       iterator != NULL; 
-       iterator= entries.iterator_next(iterator))
-  {
-    entry= entries.iterator_value(iterator);
-
-#ifdef HAVE_GETRUSAGE
-    struct rusage *rusage= &(entry->rusage);
-#endif
-    String elapsed;
-
-    if (++idx <= unit->offset_limit_cnt)
-      continue;
-    if (idx > unit->select_limit_cnt)
-      break;
-
-    protocol->prepare_for_resend();
-
-    /*
-      This entry, n, has a point in time, T(n), and a status phrase, S(n).  The
-      status phrase S(n) describes the period of time that begins at T(n).  The
-      previous status phrase S(n-1) describes the period of time that starts at
-      T(n-1) and ends at T(n).  Since we want to describe the time that a status
-      phrase took T(n)-T(n-1), this line must describe the previous status.
-    */
-    protocol->store(previous->status, strlen(previous->status), 
-                    system_charset_info);
-    protocol->store((double)(entry->time_usecs - 
-                    previous->time_usecs)/(1000.0*1000),
-                    (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
-
-    if (options & PROFILE_CPU)
-    {
-#ifdef HAVE_GETRUSAGE
-      String cpu_utime, cpu_stime;
-      protocol->store((double)(RUSAGE_DIFF_USEC(rusage->ru_utime,
-                      previous->rusage.ru_utime))/(1000.0*1000),
-                      (uint32) TIME_FLOAT_DIGITS-1, &cpu_utime);
-      protocol->store((double)(RUSAGE_DIFF_USEC(rusage->ru_stime,
-                      previous->rusage.ru_stime))/(1000.0*1000),
-                      (uint32) TIME_FLOAT_DIGITS-1, &cpu_stime);
-#else
-      protocol->store_null();
-      protocol->store_null();
-#endif
-    }
-    
-    if (options & PROFILE_CONTEXT)
-    {
-#ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_nvcsw - previous->rusage.ru_nvcsw));
-      protocol->store((uint32)(rusage->ru_nivcsw - previous->rusage.ru_nivcsw));
-#else
-      protocol->store_null();
-      protocol->store_null();
-#endif
-    }
-
-    if (options & PROFILE_BLOCK_IO)
-    {
-#ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_inblock - previous->rusage.ru_inblock));
-      protocol->store((uint32)(rusage->ru_oublock - previous->rusage.ru_oublock));
-#else
-      protocol->store_null();
-      protocol->store_null();
-#endif
-    }
-    
-    if (options & PROFILE_IPC)
-    {
-#ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_msgsnd - previous->rusage.ru_msgsnd));
-      protocol->store((uint32)(rusage->ru_msgrcv - previous->rusage.ru_msgrcv));
-#else
-      protocol->store_null();
-      protocol->store_null();
-#endif
-    }
-    
-    if (options & PROFILE_PAGE_FAULTS)
-    {
-#ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_majflt - previous->rusage.ru_majflt));
-      protocol->store((uint32)(rusage->ru_minflt - previous->rusage.ru_minflt));
-#else
-      protocol->store_null();
-      protocol->store_null();
-#endif
-    }
-
-    if (options & PROFILE_SWAPS)
-    {
-#ifdef HAVE_GETRUSAGE
-      protocol->store((uint32)(rusage->ru_nswap - previous->rusage.ru_nswap));
-#else
-      protocol->store_null();
-#endif
-    }
-    
-    if (options & PROFILE_SOURCE)
-    {
-      if ((entry->function != NULL) && (entry->file != NULL))
-      {
-        protocol->store(entry->function, strlen(entry->function),
-                        system_charset_info);        
-        protocol->store(entry->file, strlen(entry->file), system_charset_info);
-        protocol->store((uint32) entry->line);
-      } else {
-        protocol->store_null();
-        protocol->store_null();
-        protocol->store_null();
-      }
-    }
-
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-
-    previous= entry;
-  }
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
 }
 
 PROFILING::PROFILING()
@@ -630,38 +474,11 @@ void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
   DBUG_VOID_RETURN;
 }
 
-bool PROFILING::show(uint options, uint profiling_query_id)
-{
-  DBUG_ENTER("PROFILING::show");
-  QUERY_PROFILE *prof;
-
-  void *iterator;
-  for (iterator= history.new_iterator(); 
-       iterator != NULL; 
-       iterator= history.iterator_next(iterator))
-  {
-    prof= history.iterator_value(iterator);
-
-    if(prof->profiling_query_id == profiling_query_id)
-      DBUG_RETURN(prof->show(options));
-  }
-
-  my_error(ER_WRONG_ARGUMENTS, MYF(0), "SHOW PROFILE");
-  DBUG_RETURN(TRUE);
-}
-
-bool PROFILING::show_last(uint options)
-{
-  DBUG_ENTER("PROFILING::show_last");
-  if (!history.is_empty()) {
-    DBUG_RETURN(last->show(options));
-  }
-  DBUG_RETURN(TRUE);
-}
-
 
 /**
   Fill the information schema table, "query_profile", as defined in show.cc .
+  There are two ways to get to this function:  Selecting from the information
+  schema, and a SHOW command.  
 */
 int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item *cond)
 {
@@ -695,6 +512,31 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
          seq++, previous=entry, row_number++)
     {
       entry= query->entries.iterator_value(entry_iterator);
+
+      if (thd->lex->orig_sql_command == SQLCOM_SHOW_PROFILE)
+      {
+        /* 
+          We got here via a SHOW command.  That means that we stored
+          information about the query we wish to show and that isn't
+          in a WHERE clause at a higher level to filter out rows we
+          wish to exclude.
+
+          Because that functionality isn't available in the server yet,
+          we must filter here, at the wrong level.  Once one can con-
+          struct where and having conditions at the SQL layer, then this
+          condition should be ripped out.
+        */
+        if (thd->lex->profile_query_id == 0) /* 0 == show final query */
+        {
+          if (query != last)
+            continue;
+        }
+        else
+        {
+          if (thd->lex->profile_query_id != query->profiling_query_id)
+            continue;
+        }
+      }
 
       /* Set default values for this row. */
       restore_record(table, s->default_values);
