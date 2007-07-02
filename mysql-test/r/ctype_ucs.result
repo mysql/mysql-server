@@ -865,4 +865,25 @@ blob	65535	65535
 text	65535	65535
 text	65535	32767
 drop table t1;
+create table t1 (a char(1) character set ucs2);
+insert into t1 values ('a'),('b'),('c');
+select hex(group_concat(a)) from t1;
+hex(group_concat(a))
+0061002C0062002C0063
+select collation(group_concat(a)) from t1;
+collation(group_concat(a))
+ucs2_general_ci
+drop table t1;
+set names latin1;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a'),('b'),('c');
+set character_set_connection=ucs2;
+select hex(group_concat(a separator ',')) from t1;
+hex(group_concat(a separator ','))
+612C622C63
+select collation(group_concat(a separator ',')) from t1;
+collation(group_concat(a separator ','))
+latin1_swedish_ci
+drop table t1;
+set names latin1;
 End of 5.0 tests
