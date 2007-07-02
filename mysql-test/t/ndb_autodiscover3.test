@@ -1,5 +1,3 @@
--- source include/have_ndb.inc
--- source include/have_binlog_format_row.inc
 -- source include/have_multi_ndb.inc
 -- source include/ndb_default_cluster.inc
 -- source include/not_embedded.inc
@@ -10,6 +8,9 @@
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
+
+connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 
 # Workaround for Bug#27644
 # ndb: connecting api node/mysqld may "steal" node_id from running mysqld
@@ -28,8 +29,14 @@ insert into t1 values (1);
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 # Wait for mysqld to reconnect and exit from readonly mode
-# Should preferrably be a "while (!"select ndb_readonly")" loop
-sleep 2;
+--disable_query_log
+--connection con1
+--source include/ndb_not_readonly.inc
+--connection con2
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
+--connection server1
 --error 1297
 insert into t1 values (2);
 --error 1296
@@ -48,8 +55,13 @@ select * from t2 order by a limit 3;
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -r 30 -d cluster ndb_apply_status >> $NDB_TOOLS_OUTPUT
-sleep 2;
+--disable_query_log
+--connection con1
+--source include/ndb_not_readonly.inc
+--connection con2
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
 --connection server2
 --error ER_NO_SUCH_TABLE
 select * from t2;
@@ -67,8 +79,13 @@ reset master;
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -r 30 -d cluster ndb_apply_status >> $NDB_TOOLS_OUTPUT
-sleep 2;
+--disable_query_log
+--connection con1
+--source include/ndb_not_readonly.inc
+--connection con2
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
 --connection server1
 --error ER_NO_SUCH_TABLE
 select * from t2;

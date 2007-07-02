@@ -11,7 +11,6 @@
 use test;
 
 -- source include/have_ndb.inc
--- source include/have_binlog_format_row.inc
 let $type= 'NDB' ;
 -- source include/ps_create.inc
 -- source include/ps_renew.inc

@@ -41,7 +41,7 @@ end|
 delimiter ;|
 # test both in SELECT and in INSERT
 select fn1(0);
-create table t2 (a int);
+eval create table t2 (a int) engine=$engine_type;
 insert into t2 values(fn1(2));
 
 sync_slave_with_master;
