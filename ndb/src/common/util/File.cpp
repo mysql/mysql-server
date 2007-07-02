@@ -50,7 +50,7 @@ File_class::size(FILE* f)
   MY_STAT s;
 
   // Note that my_fstat behaves *differently* than my_stat. ARGGGHH!
-  if(my_fstat(::fileno(f), &s, MYF(0)))
+  if(my_fstat(fileno(f), &s, MYF(0)))
     return 0;
 
   return s.st_size;
