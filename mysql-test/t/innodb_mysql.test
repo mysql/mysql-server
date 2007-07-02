@@ -1,7 +1,7 @@
 -- source include/have_innodb.inc
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
 # BUG#16798: Uninitialized row buffer reads in ref-or-null optimizer
@@ -709,12 +709,14 @@ set @@sort_buffer_size=8192;
 
 SELECT COUNT(*) FROM t1;
 
+--replace_column 9 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 
+--replace_column 9 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
