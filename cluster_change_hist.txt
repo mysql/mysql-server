@@ -2,6 +2,14 @@
 mysql-5.1.15-ndb-6.1.X
 ==================================================
 
+mysql-5.1.15-ndb-6.1.16 (not released)
+
+  Bug #29331 Incorrect node killed on GCP Stop (COPY_GCI)
+  Bug #29057 Incorrect handling of file 0 during redo execution(Error while reading REDO log)
+  Bug #29067 Incorrect order during redo invalidation(Error while reading REDO log)
+  Bug #29118 Incorrect handling of loglap in redo invalidation (Error while reading REDO log)
+  Bug #29176 drop table can crash pgman
+
 mysql-5.1.15-ndb-6.1.15 (2007-06-20)
 
   Bug #29229 memory corruption in dbtup
