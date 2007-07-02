@@ -21,7 +21,6 @@ class SocketAuthenticator;
 
 class SocketClient
 {
-  NDB_SOCKET_TYPE m_sockfd;
   struct sockaddr_in m_servaddr;
   unsigned int m_connect_timeout_sec;
   unsigned short m_port;
@@ -43,6 +42,8 @@ public:
   int bind(const char* toaddress, unsigned short toport);
   NDB_SOCKET_TYPE connect(const char* toaddress = 0, unsigned short port = 0);
   bool close();
+
+  NDB_SOCKET_TYPE m_sockfd;
 };
 
 #endif // SOCKET_ClIENT_HPP

@@ -371,7 +371,7 @@ Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
   { NdbIndexScanOperation* tOp = theScanOpIdleList;
     while (tOp != NULL) {
       assert(tOp != aScanOperation);
-    tOp = (NdbIndexScanOperation*)tOp->theNext;
+      tOp = (NdbIndexScanOperation*)tOp->theNext;
     }
   }
 #endif
@@ -419,6 +419,15 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
   creleaseSignals++;
 #endif
   theImpl->theSignalIdleList.release(aSignal);
+}
+
+void
+Ndb::releaseSignals(Uint32 cnt, NdbApiSignal* head, NdbApiSignal* tail)
+{
+#ifdef POORMANSPURIFY
+  creleaseSignals += cnt;
+#endif
+  theImpl->theSignalIdleList.release(cnt, head, tail);
 }
 
 void

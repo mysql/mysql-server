@@ -266,8 +266,8 @@ SignalSender::execNodeStatus(void* signalSender,
     rep->failNo = 0;
     rep->masterNodeId = 0;
     rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theNodes);
-    NodeBitmask::set(rep->theNodes,nodeId);
+    NdbNodeBitmask::clear(rep->theNodes);
+    NdbNodeBitmask::set(rep->theNodes,nodeId);
   }
 
   ss->m_jobBuffer.push_back(s);

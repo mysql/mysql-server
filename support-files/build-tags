@@ -1,7 +1,7 @@
 #! /bin/sh
 
 rm -f TAGS
-filter='\.cc$\|\.c$\|\.h$\|\.yy$'
+filter='\.cc$\|\.c$\|\.h$\|\.yy\|\.[ch]pp$'
 files=`bk -r sfiles -gU | grep $filter `
 for f in $files ;
 do

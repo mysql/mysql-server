@@ -897,7 +897,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
     {
       Uint32 ptrI;
       Uint32 cnt = pages > 64 ? 64 : pages;
-      m_ctx.m_mm.alloc(&ptrI, &cnt, 1);
+      m_ctx.m_mm.alloc_pages(RG_DISK_OPERATIONS, &ptrI, &cnt, 1);
       if (cnt)
       {
 	Buffer_idx range;
@@ -1016,7 +1016,7 @@ Lgman::free_logbuffer_memory(Ptr<Logfile_group> ptr)
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
     
-    m_ctx.m_mm.release(range.m_ptr_i, range.m_idx);
+    m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, range.m_ptr_i, range.m_idx);
     map.next(it);
   }
   map.release();

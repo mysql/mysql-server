@@ -38,9 +38,9 @@
 */.libs/*
 */.pure
 */debug/*
+*/minsizerel/*
 */release/*
 */relwithdebinfo/*
-*/minsizerel/*
 *~
 .*.swp
 ./CMakeCache.txt
@@ -1021,8 +1021,8 @@ libmysqld/.deps/unireg.Po
 libmysqld/backup_dir
 libmysqld/client.c
 libmysqld/client_settings.h
-libmysqld/convert.cc
 libmysqld/cmake_dummy.c
+libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/discover.cc
 libmysqld/emb_qcache.cpp
@@ -2677,6 +2677,7 @@ storage/ndb/src/kernel/blocks/dbdict/ndb_print_schema_file
 storage/ndb/src/kernel/blocks/dbdih/libdbdih.dsp
 storage/ndb/src/kernel/blocks/dbdih/ndb_print_sys_file
 storage/ndb/src/kernel/blocks/dblqh/libdblqh.dsp
+storage/ndb/src/kernel/blocks/dblqh/ndbd_redo_log_reader
 storage/ndb/src/kernel/blocks/dbtc/libdbtc.dsp
 storage/ndb/src/kernel/blocks/dbtup/libdbtup.dsp
 storage/ndb/src/kernel/blocks/dbtup/test_varpage

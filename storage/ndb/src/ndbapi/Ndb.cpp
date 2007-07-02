@@ -37,6 +37,7 @@ Name:          Ndb.cpp
 #include "API.hpp"
 #include <NdbEnv.h>
 #include <BaseString.hpp>
+#include <NdbSqlUtil.hpp>
 
 /****************************************************************************
 void connect();
@@ -304,6 +305,226 @@ Return Value:   Returns a pointer to a connection object.
                 Return NULL otherwise.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
+int
+Ndb::computeHash(Uint32 *retval,
+                 const NdbDictionary::Table *table,
+                 const struct Key_part_ptr * keyData, 
+                 void* buf, Uint32 bufLen)
+{
+  Uint32 j = 0;
+  Uint32 sumlen = 0; // Needed len
+  const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
+  const NdbColumnImpl* const * cols = impl->m_columns.getBase();
+  Uint32 len;
+  NdbTransaction* trans;
+  char* pos;
+
+  Uint32 colcnt = impl->m_columns.size();
+  Uint32 parts = impl->m_noOfDistributionKeys;
+  if (parts == 0)
+  {
+    parts = impl->m_noOfKeys;
+  }
+
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    if (unlikely(keyData[i].ptr == 0))
+      goto enullptr;
+  }
+
+  if (unlikely(keyData[parts].ptr != 0))
+    goto emissingnullptr;
+
+  const NdbColumnImpl* partcols[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+  for (Uint32 i = 0; i<colcnt && j < parts; i++)
+  {
+    if (cols[i]->m_distributionKey)
+    {
+      // wl3717_todo
+      // char allowed now as dist key so this case should be tested
+      partcols[j++] = cols[i];
+    }
+  }
+
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    Uint32 lb, len;
+    if (unlikely(!NdbSqlUtil::get_var_length(partcols[i]->m_type, 
+					     keyData[i].ptr, 
+					     keyData[i].len,
+					     lb, len)))
+      goto emalformedkey;
+
+    if (unlikely(keyData[i].len < (lb + len)))
+      goto elentosmall;
+    
+    Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
+
+    if (unlikely(lb == 0 && keyData[i].len != maxlen))
+      goto emalformedkey;
+    
+    if (partcols[i]->m_cs)
+    {
+      Uint32 xmul = partcols[i]->m_cs->strxfrm_multiply;
+      xmul = xmul ? xmul : 1;
+      len = xmul * (maxlen - lb);
+    }
+
+    len = (lb + len + 3) & ~(Uint32)3;
+    sumlen += len;
+
+  }
+  
+  if (buf)
+  {
+    UintPtr org = UintPtr(buf);
+    UintPtr use = (org + 7) & ~(UintPtr)7;
+
+    buf = (void*)use;
+    bufLen -= (use - org);
+
+    if (unlikely(sumlen > bufLen))
+      goto ebuftosmall;
+  }
+  else
+  {
+    buf = malloc(sumlen);
+    if (unlikely(buf == 0))
+      goto enomem;
+    bufLen = 0;
+    assert((UintPtr(buf) & 7) == 0);
+  }
+  
+  pos = (char*)buf;
+  for (Uint32 i = 0; i<parts; i++)
+  {
+    Uint32 lb, len;
+    NdbSqlUtil::get_var_length(partcols[i]->m_type, 
+			       keyData[i].ptr, keyData[i].len, lb, len);
+    CHARSET_INFO* cs;
+    if ((cs = partcols[i]->m_cs))
+    {
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+	xmul = 1;
+      /*
+       * Varchar end-spaces are ignored in comparisons.  To get same hash
+       * we blank-pad to maximum length via strnxfrm.
+       */
+      Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
+      Uint32 dstLen = xmul * (maxlen - lb);
+      int n = NdbSqlUtil::strnxfrm_bug7284(cs, 
+					   (unsigned char*)pos, 
+					   dstLen, 
+					   ((unsigned char*)keyData[i].ptr)+lb,
+					   len);
+      
+      if (unlikely(n == -1))
+	goto emalformedstring;
+      
+      while ((n & 3) != 0) 
+      {
+	pos[n++] = 0;
+      }
+      pos += n;
+    }
+    else
+    {
+      len += lb;
+      memcpy(pos, keyData[i].ptr, len);
+      while (len & 3)
+      {
+	* (pos + len++) = 0;
+      }
+      pos += len;
+    }
+  }
+  len = UintPtr(pos) - UintPtr(buf);
+  assert((len & 3) == 0);
+
+  Uint32 values[4];
+  md5_hash(values, (const Uint64*)buf, len >> 2);
+  
+  if (retval)
+  {
+    * retval = values[1];
+  }
+  
+  if (bufLen == 0)
+    free(buf);
+  
+  return 0;
+  
+enullptr:
+  return 4316;
+  
+emissingnullptr:
+  return 4276;
+
+elentosmall:
+  return 4277;
+
+ebuftosmall:
+  return 4278;
+
+emalformedstring:
+  if (bufLen == 0)
+    free(buf);
+  
+  return 4279;
+  
+emalformedkey:
+  return 4280;
+
+enomem:
+  return 4000;
+}
+
+NdbTransaction* 
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const struct Key_part_ptr * keyData, 
+		      void* buf, Uint32 bufLen)
+{
+  int ret;
+  Uint32 hash;
+  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
+  {
+    return startTransaction(table, table->getPartitionId(hash));
+  }
+
+  theError.code = ret;
+  return 0;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("table: %s partitionId: %u", table->getName(), partitionId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    Uint32 nodeId;
+    const Uint16 *nodes;
+    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
+                                                          &nodes);
+    if(cnt)
+      nodeId= nodes[0];
+    else
+      nodeId= 0;
+    
+    NdbTransaction *trans= startTransactionLocal(0, nodeId);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
+}
+
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const char * keyData, Uint32 keyLen)
@@ -318,35 +539,46 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
      * We will make a qualified quess to which node is the primary for the
      * the fragment and contact that node
      */
-    Uint32 nodeId;
-    NdbTableImpl* impl;
-    if(table != 0 && keyData != 0 && (impl= &NdbTableImpl::getImpl(*table))) 
+    Uint32 nodeId = 0;
+    
+    /**
+     * Make this unlikely...assume new interface(s) are prefered
+     */
+    if(unlikely(table != 0 && keyData != 0))
     {
+      NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
       Uint32 hashValue;
       {
 	Uint32 buf[4];
+        Uint64 tmp[1000];
+
+        if (keyLen >= sizeof(tmp))
+        {
+          theError.code = 4207;
+          DBUG_RETURN(NULL);
+        }
 	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
 	{
 	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
 	}
 	else
 	{
-	  Uint64 tmp[1000];
-	  tmp[keyLen/8] = 0;
+          tmp[keyLen/8] = 0;    // Zero out any 64-bit padding
 	  memcpy(tmp, keyData, keyLen);
 	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
 	}
 	hashValue= buf[1];
       }
+      
+      Uint32 partId;
+      int ret;
       const Uint16 *nodes;
-      Uint32 cnt= impl->get_nodes(hashValue, &nodes);
+      Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       if(cnt)
-	nodeId= nodes[0];
-      else
-	nodeId= 0;
-    } else {
-      nodeId = 0;
-    }//if
+      {
+        nodeId= nodes[0];
+      }
+    }
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);

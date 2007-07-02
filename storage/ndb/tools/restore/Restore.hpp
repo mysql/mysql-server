@@ -141,6 +141,7 @@ class TableS {
 
   bool isSysTable;
   TableS *m_main_table;
+  Uint32 m_main_column_id;
   Uint32 m_local_id;
 
   Uint64 m_noOfRecords;
@@ -269,6 +270,10 @@ protected:
   void * m_buffer_ptr;
   Uint32 m_buffer_sz;
   Uint32 m_buffer_data_left;
+
+  Uint64 m_file_size;
+  Uint64 m_file_pos;
+
   void (* free_data_callback)();
 
   bool openFile();
@@ -294,6 +299,9 @@ public:
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
   bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
+
+  Uint64 get_file_size() const { return m_file_size; }
+  Uint64 get_file_pos() const { return m_file_pos; }
 };
 
 struct DictObject {
@@ -307,6 +315,7 @@ class RestoreMetaData : public BackupFile {
   bool readMetaFileHeader();
   bool readMetaTableDesc();
   bool markSysTables();
+  bool fixBlobs();
 		
   bool readGCPEntry();
   bool readFragmentInfo();

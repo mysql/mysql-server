@@ -90,7 +90,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TCSEIZEREF                  38
 #define GSN_TCSEIZEREQ                  39
 
-/* 40 unused */
+#define GSN_TCKEY_FAILREFCONF_R         40
+
 /* 41 unused */
 /* 42 unused */
 /* 43 unused */
@@ -195,9 +196,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 132 not unused */
 /* 133 not unused */
 #define GSN_CM_HEARTBEAT                134 /* distr. */
-/* 135 unused */
-/* 136 unused */
-/* 137 unused */
+
+#define GSN_PREPARE_COPY_FRAG_REQ       135
+#define GSN_PREPARE_COPY_FRAG_REF       136
+#define GSN_PREPARE_COPY_FRAG_CONF      137
+
 #define GSN_CM_NODEINFOCONF             138 /* distr. */
 #define GSN_CM_NODEINFOREF              139 /* distr. */
 #define GSN_CM_NODEINFOREQ              140 /* distr. */

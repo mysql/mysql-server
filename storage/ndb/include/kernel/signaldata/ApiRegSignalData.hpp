@@ -30,11 +30,12 @@ class ApiRegReq {
   friend class Qmgr;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
 private:
   Uint32 ref;
   Uint32 version; // Version of API node
+  Uint32 mysql_version;
 };
 
 /**
@@ -52,7 +53,7 @@ class ApiRegRef {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
   enum ErrorCode {
     WrongType = 1,
@@ -62,6 +63,7 @@ private:
   Uint32 ref; // Qmgr ref
   Uint32 version; // Version of NDB node
   Uint32 errorCode;
+  Uint32 mysql_version;
 };
 
 /**
@@ -79,12 +81,13 @@ class ApiRegConf {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 4 + NodeState::DataLength );
+  STATIC_CONST( SignalLength = 5 + NodeState::DataLength );
 private:
   
   Uint32 qmgrRef;
   Uint32 version; // Version of NDB node
   Uint32 apiHeartbeatFrequency;
+  Uint32 mysql_version;
   Uint32 minDbVersion;
   NodeState nodeState;
 };

@@ -153,6 +153,7 @@ public:
     AttributeKeyFlag       = 1006, //Default noKey
     AttributeStorageType   = 1007, //Default NDB_STORAGETYPE_MEMORY
     AttributeNullableFlag  = 1008, //Default NotNullable
+    AttributeDynamic       = 1009, //Default not dynamic
     AttributeDKey          = 1010, //Default NotDKey
     AttributeExtType       = 1013, //Default ExtUnsigned
     AttributeExtPrecision  = 1014, //Default 0
@@ -412,6 +413,7 @@ public:
     Uint32 AttributeExtLength;
     Uint32 AttributeAutoIncrement;
     Uint32 AttributeStorageType;
+    Uint32 AttributeDynamic;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
     Attribute() {}
@@ -512,8 +514,14 @@ public:
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
         AttributeSize = DictTabInfo::an8Bit;
-        // head + inline part (length in precision lower half)
-        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
+        if (unlikely(AttributeArrayType == NDB_ARRAYTYPE_FIXED)) {
+          // head + inline part (length in precision lower half)
+          AttributeArraySize = (NDB_BLOB_V1_HEAD_SIZE << 2) +
+                               (AttributeExtPrecision & 0xFFFF);
+        } else {
+          AttributeArraySize = (NDB_BLOB_V2_HEAD_SIZE << 2) +
+                               (AttributeExtPrecision & 0xFFFF);
+        }
         break;
       case DictTabInfo::ExtBit:
 	AttributeSize = DictTabInfo::aBit;

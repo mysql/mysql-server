@@ -5,6 +5,7 @@
 # 3. change master on slave
 
 # 1.
+
 --connection slave
 --replace_column 1 <the_epoch>
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;

@@ -257,8 +257,11 @@ extern "C" {
 			 sizeof("000.000.000.000")+1
 #endif
     ];
-  };
 
+    /** MySQL version number */
+    int mysql_version;
+  };
+  
   /**
    *   State of all nodes in the cluster; returned from 
    *   ndb_mgm_get_status()

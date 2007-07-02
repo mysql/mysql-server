@@ -162,6 +162,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
 			    &c_defaults.m_disk_synch_size);
 
+  m_backup_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_REPORT_FREQUENCY, 
+			    &m_backup_report_frequency);
   /*
     We adjust the disk speed parameters from bytes per second to rather be
     words per 100 milliseconds. We convert disk synch size from bytes per

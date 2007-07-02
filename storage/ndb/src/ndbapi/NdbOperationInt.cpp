@@ -69,7 +69,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
         (tNdbColumnImpl->m_pk != false) ||
         (tNdbColumnImpl->m_nullable))
       goto inc_check_error2;
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
       ; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - 5;
@@ -126,7 +126,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
         (tNdbColumnImpl->m_pk))
       goto write_attr_check_error2;
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
       ; // Simply continue with interpretation
     } else if (theStatus == SubroutineExec) {
       ; // Simply continue with interpretation
@@ -173,7 +173,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
       goto read_attr_check_error2;
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
       ; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - 5;
@@ -210,7 +210,7 @@ int
 NdbOperation::initial_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
        return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - 5;
@@ -234,7 +234,7 @@ int
 NdbOperation::labelCheck()
 {
   if ((theInterpretIndicator == 1)) {
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
        return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - 5;
@@ -260,7 +260,7 @@ int
 NdbOperation::intermediate_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
-    if (theStatus == ExecInterpretedValue) {
+    if (theStatus == ExecInterpretedValue || theStatus == UseNdbRecord) {
        return 0; // Simply continue with interpretation
     } else if (theStatus == SubroutineExec) {
        return 0; // Simply continue with interpretation
