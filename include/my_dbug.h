@@ -50,12 +50,12 @@ extern	void _db_unlock_file(void);
 		    &_db_framep_)
 #define DBUG_LEAVE \
 	(_db_return_ (__LINE__, &_db_func_, &_db_file_, &_db_level_))
-#define DBUG_RETURN(a1) {DBUG_LEAVE; return(a1);}
-#define DBUG_VOID_RETURN {DBUG_LEAVE; return;}
+#define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
+#define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
-	{if (_db_on_) {if (_db_keyword_ (keyword)) { a1 }}}
+	do {if (_db_on_) {if (_db_keyword_ (keyword)) { a1 }}} while(0)
 #define DBUG_PRINT(keyword,arglist) \
-	{if (_db_on_) {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;}}
+	do {if (_db_on_) {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;}} while(0)
 #define DBUG_PUSH(a1) _db_push_ (a1)
 #define DBUG_POP() _db_pop_ ()
 #define DBUG_PROCESS(a1) (_db_process_ = a1)
@@ -63,7 +63,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_SETJMP(a1) (_db_setjmp_ (), setjmp (a1))
 #define DBUG_LONGJMP(a1,a2) (_db_longjmp_ (), longjmp (a1, a2))
 #define DBUG_DUMP(keyword,a1,a2)\
-	{if (_db_on_) {_db_dump_(__LINE__,keyword,a1,a2);}}
+	do {if (_db_on_) {_db_dump_(__LINE__,keyword,a1,a2);}} while(0)
 #define DBUG_IN_USE (_db_fp_ && _db_fp_ != stderr)
 #define DEBUGGER_OFF _no_db_=1;_db_on_=0;
 #define DEBUGGER_ON  _no_db_=0
@@ -73,7 +73,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_OUTPUT(A) { _db_output_(A); }
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXECUTE_IF(keyword,a1) \
-        {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}}
+        do {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}} while(0)
 #define IF_DBUG(A) A
 #else						/* No debugger */
 

@@ -1209,7 +1209,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
   ha_rows count= share->rows_recorded;
   DBUG_ENTER("ha_archive::check");
 
-  thd->proc_info= "Checking table";
+  thd_proc_info(thd, "Checking table");
   /* Flush any waiting data */
   gzflush(share->archive_write, Z_SYNC_FLUSH);
 
@@ -1233,7 +1233,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   my_free((char*)buf, MYF(0));
 
-  thd->proc_info= old_proc_info;
+  thd_proc_info(thd, old_proc_info);
 
   if ((rc && rc != HA_ERR_END_OF_FILE) || count)  
   {

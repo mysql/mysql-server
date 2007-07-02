@@ -205,6 +205,9 @@ typedef uint rf_SetTimer;
 /* If LOAD DATA LOCAL INFILE should be enabled by default */
 #define ENABLED_LOCAL_INFILE 1
 
+/* If query profiling should be enabled by default */
+#define ENABLED_PROFILING 1
+
 /* Convert some simple functions to Posix */
 
 #define my_sigset(A,B) signal((A),(B))
