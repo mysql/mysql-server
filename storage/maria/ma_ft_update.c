@@ -20,7 +20,7 @@
 #include "ma_ftdefs.h"
 #include <math.h>
 
-void _ma_ft_segiterator_init(MARIA_HA *info, uint keynr, const byte *record,
+void _ma_ft_segiterator_init(MARIA_HA *info, uint keynr, const uchar *record,
 			     FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_ma_ft_segiterator_init");
@@ -31,7 +31,7 @@ void _ma_ft_segiterator_init(MARIA_HA *info, uint keynr, const byte *record,
   DBUG_VOID_RETURN;
 }
 
-void _ma_ft_segiterator_dummy_init(const byte *record, uint len,
+void _ma_ft_segiterator_dummy_init(const uchar *record, uint len,
 				   FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_ma_ft_segiterator_dummy_init");
@@ -94,7 +94,7 @@ uint _ma_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls maria_ft_parse for every keyseg */
 
-uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const byte *record,
+uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const uchar *record,
                   MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   FT_SEG_ITERATOR ftsi;
@@ -108,14 +108,14 @@ uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const byte *record,
   while (_ma_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (maria_ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, parser, param,
+      if (maria_ft_parse(parsed, (uchar *)ftsi.pos, ftsi.len, parser, param,
                          mem_root))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const byte *record,
+FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const uchar *record,
                              MEM_ROOT *mem_root)
 {
   TREE ptree;
@@ -131,7 +131,7 @@ FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const byte *record,
   DBUG_RETURN(maria_ft_linearize(&ptree, mem_root));
 }
 
-static int _ma_ft_store(MARIA_HA *info, uint keynr, byte *keybuf,
+static int _ma_ft_store(MARIA_HA *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length;
@@ -146,7 +146,7 @@ static int _ma_ft_store(MARIA_HA *info, uint keynr, byte *keybuf,
    DBUG_RETURN(0);
 }
 
-static int _ma_ft_erase(MARIA_HA *info, uint keynr, byte *keybuf,
+static int _ma_ft_erase(MARIA_HA *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length, err=0;
@@ -169,7 +169,7 @@ static int _ma_ft_erase(MARIA_HA *info, uint keynr, byte *keybuf,
 #define THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT 1
 #define GEE_THEY_ARE_ABSOLUTELY_IDENTICAL	 0
 
-int _ma_ft_cmp(MARIA_HA *info, uint keynr, const byte *rec1, const byte *rec2)
+int _ma_ft_cmp(MARIA_HA *info, uint keynr, const uchar *rec1, const uchar *rec2)
 {
   FT_SEG_ITERATOR ftsi1, ftsi2;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
@@ -192,8 +192,8 @@ int _ma_ft_cmp(MARIA_HA *info, uint keynr, const byte *rec1, const byte *rec2)
 
 /* update a document entry */
 
-int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
-                  const byte *oldrec, const byte *newrec, my_off_t pos)
+int _ma_ft_update(MARIA_HA *info, uint keynr, uchar *keybuf,
+                  const uchar *oldrec, const uchar *newrec, my_off_t pos)
 {
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
@@ -243,7 +243,7 @@ err:
 
 /* adds a document to the collection */
 
-int _ma_ft_add(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
+int _ma_ft_add(MARIA_HA *info, uint keynr, uchar *keybuf, const uchar *record,
 	       my_off_t pos)
 {
   int error= -1;
@@ -261,7 +261,7 @@ int _ma_ft_add(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
 
 /* removes a document from the collection */
 
-int _ma_ft_del(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
+int _ma_ft_del(MARIA_HA *info, uint keynr, uchar *keybuf, const uchar *record,
 	       my_off_t pos)
 {
   int error= -1;
@@ -277,10 +277,10 @@ int _ma_ft_del(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
 }
 
 
-uint _ma_ft_make_key(MARIA_HA *info, uint keynr, byte *keybuf, FT_WORD *wptr,
+uint _ma_ft_make_key(MARIA_HA *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
                      my_off_t filepos)
 {
-  byte buf[HA_FT_MAXBYTELEN+16];
+  uchar buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ma_ft_make_key");
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
@@ -302,12 +302,12 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, byte *keybuf, FT_WORD *wptr,
   convert key value to ft2
 */
 
-uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, byte *key)
+uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
 {
   my_off_t root;
   DYNAMIC_ARRAY *da=info->ft1_to_ft2;
   MARIA_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
-  byte *key_ptr= (byte*) dynamic_array_ptr(da, 0), *end;
+  uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
@@ -335,7 +335,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, byte *key)
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */
-  end= (byte*) dynamic_array_ptr(da, da->elements);
+  end= (uchar*) dynamic_array_ptr(da, da->elements);
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
     if(_ma_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
       DBUG_RETURN(-1);

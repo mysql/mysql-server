@@ -231,7 +231,7 @@ static inline
 TABLE_LOCK *find_by_loid(LOCKED_TABLE *table, uint16 loid)
 {
   return (TABLE_LOCK *)hash_search(& table->latest_locks,
-                                   (byte *)& loid, sizeof(loid));
+                                   (uchar *)& loid, sizeof(loid));
 }
 
 static inline
@@ -487,8 +487,8 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
 
   /* update the latest_locks hash */
   if (old)
-    hash_delete(& table->latest_locks, (byte *)old);
-  hash_insert(& table->latest_locks, (byte *)new);
+    hash_delete(& table->latest_locks, (uchar *)old);
+  hash_insert(& table->latest_locks, (uchar *)new);
 
   new->upgraded_from= old;
 
@@ -571,7 +571,7 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
 
     /* TODO ? group locks by table to reduce the number of mutex locks */
     pthread_mutex_lock(mutex);
-    hash_delete(& cur->table->latest_locks, (byte *)cur);
+    hash_delete(& cur->table->latest_locks, (uchar *)cur);
 
     if (cur->prev)
       cur->prev->next= cur->next;

@@ -35,7 +35,7 @@
 
 #include "maria_def.h"
 
-int _ma_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
+int _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
 		   int flag)
 {
   uint read_length,in_buff_length;
@@ -61,7 +61,7 @@ int _ma_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
       (my_off_t) (info->read_end - info->request_pos))
   {
     in_buff_pos=info->request_pos+(uint) offset;
-    in_buff_length= min(length,(uint) (info->read_end-in_buff_pos));
+    in_buff_length= min(length,(uint) ((char*)(info->read_end)-in_buff_pos));
     memcpy(buff,info->request_pos+(uint) offset,(size_t) in_buff_length);
     if (!(length-=in_buff_length))
       DBUG_RETURN(0);

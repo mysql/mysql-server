@@ -29,8 +29,8 @@
     1	Split
 */
 
-int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
-                        uint key_length, byte *page_buf, my_off_t *new_page)
+int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
+                        uint key_length, uchar *page_buf, my_off_t *new_page)
 {
   uint page_size = maria_data_on_page(page_buf);
   uint nod_flag = _ma_test_if_nod(page_buf);
@@ -65,11 +65,11 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
   Delete key from the page
 */
 
-int maria_rtree_delete_key(MARIA_HA *info, byte *page_buf, byte *key,
+int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
 		     uint key_length, uint nod_flag)
 {
   uint16 page_size = maria_data_on_page(page_buf);
-  byte *key_start;
+  uchar *key_start;
 
   key_start= key - nod_flag;
   if (!nod_flag)
@@ -88,7 +88,7 @@ int maria_rtree_delete_key(MARIA_HA *info, byte *page_buf, byte *key,
   Calculate and store key MBR
 */
 
-int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *key,
+int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 		      uint key_length, my_off_t child_page)
 {
   if (!_ma_fetch_keypage(info, keyinfo, child_page,

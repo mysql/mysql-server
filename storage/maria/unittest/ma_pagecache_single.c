@@ -448,7 +448,7 @@ static void *test_thread(void *arg)
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
-  free((gptr) arg);
+  free((uchar*) arg);
   my_thread_end();
   DBUG_RETURN(0);
 }

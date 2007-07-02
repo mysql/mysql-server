@@ -102,14 +102,14 @@ struct st_translog_buffer
   /* lock for the buffer. Current buffer also lock the handler */
   pthread_mutex_t mutex;
   /* IO cache for current log */
-  byte buffer[TRANSLOG_WRITE_BUFFER];
+  uchar buffer[TRANSLOG_WRITE_BUFFER];
 };
 
 
 struct st_buffer_cursor
 {
   /* pointer on the buffer */
-  byte *ptr;
+  uchar *ptr;
   /* current buffer */
   struct st_translog_buffer *buffer;
   /* current page fill */
@@ -172,7 +172,7 @@ struct st_translog_descriptor
 static struct st_translog_descriptor log_descriptor;
 
 /* Marker for end of log */
-static byte end_of_log= 0;
+static uchar end_of_log= 0;
 
 my_bool translog_inited= 0;
 
@@ -207,7 +207,7 @@ typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
 
 typedef uint16(*read_rec_hook) (enum translog_record_type type,
                                 uint16 read_length, uchar *read_buff,
-                                byte *decoded_buff);
+                                uchar *decoded_buff);
 
 /*
   Descriptor of log record type
@@ -603,7 +603,7 @@ uchar	NEAR maria_trans_file_magic[]=
 static my_bool translog_write_file_header()
 {
   ulonglong timestamp;
-  byte page_buff[TRANSLOG_PAGE_SIZE], *page= page_buff;
+  uchar page_buff[TRANSLOG_PAGE_SIZE], *page= page_buff;
   DBUG_ENTER("translog_write_file_header");
 
   /* file tag */
@@ -816,7 +816,7 @@ static my_bool translog_buffer_unlock(struct st_translog_buffer *buffer)
 static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
                                      struct st_buffer_cursor *cursor)
 {
-  byte *ptr;
+  uchar *ptr;
 
   DBUG_ENTER("translog_new_page_header");
   DBUG_ASSERT(cursor->ptr);
@@ -830,7 +830,7 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
   /* File number */
   int3store(ptr, LSN_FILE_NO(*horizon));
   ptr+= 3;
-  *(ptr++)= (byte) log_descriptor.flags;
+  *(ptr++)= (uchar) log_descriptor.flags;
   if (log_descriptor.flags & TRANSLOG_PAGE_CRC)
   {
 #ifndef DBUG_OFF
@@ -880,10 +880,10 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
     except the first sector that is protected by page header.
 */
 
-static void translog_put_sector_protection(byte *page,
+static void translog_put_sector_protection(uchar *page,
                                            struct st_buffer_cursor *cursor)
 {
-  byte *table= page + log_descriptor.page_overhead -
+  uchar *table= page + log_descriptor.page_overhead -
     (TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE) * 2;
   uint16 value= uint2korr(table) + cursor->write_counter;
   uint16 last_protected_sector= ((cursor->previous_offset - 1) /
@@ -942,7 +942,7 @@ static void translog_put_sector_protection(byte *page,
     CRC32
 */
 
-static uint32 translog_crc(byte *area, uint length)
+static uint32 translog_crc(uchar *area, uint length)
 {
   return crc32(0L, (unsigned char*) area, length);
 }
@@ -961,7 +961,7 @@ static void translog_finish_page(TRANSLOG_ADDRESS *horizon,
                                  struct st_buffer_cursor *cursor)
 {
   uint16 left= TRANSLOG_PAGE_SIZE - cursor->current_page_fill;
-  byte *page= cursor->ptr -cursor->current_page_fill;
+  uchar *page= cursor->ptr -cursor->current_page_fill;
   DBUG_ENTER("translog_finish_page");
   DBUG_PRINT("enter", ("Buffer: #%u 0x%lx  "
                        "Buffer addr: (%lu,0x%lx)  "
@@ -1285,7 +1285,7 @@ static void translog_get_sent_to_file(LSN *lsn)
     first chunk offset
 */
 
-static my_bool translog_get_first_chunk_offset(byte *page)
+static my_bool translog_get_first_chunk_offset(uchar *page)
 {
   uint16 page_header= 7;
   DBUG_ENTER("translog_get_first_chunk_offset");
@@ -1309,7 +1309,7 @@ static my_bool translog_get_first_chunk_offset(byte *page)
 */
 
 static void
-translog_write_variable_record_1group_code_len(byte *dst,
+translog_write_variable_record_1group_code_len(uchar *dst,
                                                translog_size_t length,
                                                uint16 header_len)
 {
@@ -1350,7 +1350,7 @@ translog_write_variable_record_1group_code_len(byte *dst,
     decoded length
 */
 
-static translog_size_t translog_variable_record_1group_decode_len(byte **src)
+static translog_size_t translog_variable_record_1group_decode_len(uchar **src)
 {
   uint8 first= (uint8) (**src);
   switch (first) {
@@ -1386,7 +1386,7 @@ static translog_size_t translog_variable_record_1group_decode_len(byte **src)
     total length of the chunk
 */
 
-static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
+static uint16 translog_get_total_chunk_length(uchar *page, uint16 offset)
 {
   DBUG_ENTER("translog_get_total_chunk_length");
   switch (page[offset] & TRANSLOG_CHUNK_TYPE) {
@@ -1394,8 +1394,8 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
   {
     /* 0 chunk referred as LSN (head or tail) */
     translog_size_t rec_len;
-    byte *start= page + offset;
-    byte *ptr= start + 1 + 2;
+    uchar *start= page + offset;
+    uchar *ptr= start + 1 + 2;
     uint16 chunk_len, header_len, page_rest;
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_LSN"));
     rec_len= translog_variable_record_1group_decode_len(&ptr);
@@ -1418,7 +1418,7 @@ static uint16 translog_get_total_chunk_length(byte *page, uint16 offset)
   }
   case TRANSLOG_CHUNK_FIXED:
   {
-    byte *ptr;
+    uchar *ptr;
     uint type= page[offset] & TRANSLOG_REC_TYPE;
     uint length;
     int i;
@@ -1564,7 +1564,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     1  Error
 */
 
-static my_bool translog_recover_page_up_to_sector(byte *page, uint16 offset)
+static my_bool translog_recover_page_up_to_sector(uchar *page, uint16 offset)
 {
   uint16 chunk_offset= translog_get_first_chunk_offset(page), valid_chunk_end;
   DBUG_ENTER("translog_recover_page_up_to_sector");
@@ -1630,11 +1630,11 @@ static my_bool translog_recover_page_up_to_sector(byte *page, uint16 offset)
     0  OK
     1  Error
 */
-static my_bool translog_page_validator(byte *page_addr, gptr data_ptr)
+static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr)
 {
   uint this_page_page_overhead;
   uint flags;
-  byte *page= (byte*) page_addr, *page_pos;
+  uchar *page= (uchar*) page_addr, *page_pos;
   TRANSLOG_VALIDATOR_DATA *data= (TRANSLOG_VALIDATOR_DATA *) data_ptr;
   TRANSLOG_ADDRESS addr= *(data->addr);
   DBUG_ENTER("translog_page_validator");
@@ -1683,7 +1683,7 @@ static my_bool translog_page_validator(byte *page_addr, gptr data_ptr)
   if (flags & TRANSLOG_SECTOR_PROTECTION)
   {
     uint i, offset;
-    byte *table= page_pos;
+    uchar *table= page_pos;
     uint16 current= uint2korr(table);
     for (i= 2, offset= DISK_DRIVE_SECTOR_SIZE;
          i < (TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE) * 2;
@@ -1739,7 +1739,7 @@ static my_bool translog_page_validator(byte *page_addr, gptr data_ptr)
     #      pointer to the page cache which should be used to read this page
 */
 
-static byte *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, byte *buffer)
+static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
 {
   TRANSLOG_ADDRESS addr= *(data->addr);
   uint cache_index;
@@ -1766,13 +1766,13 @@ static byte *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, byte *buffer)
     }
     file.file= log_descriptor.log_file_num[cache_index];
 
-    buffer= (byte*)
+    buffer= (uchar*)
       pagecache_valid_read(log_descriptor.pagecache, &file,
                            LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
                            3, (char*) buffer,
                            PAGECACHE_PLAIN_PAGE,
                            PAGECACHE_LOCK_LEFT_UNLOCKED, 0,
-                           &translog_page_validator, (gptr) data);
+                           &translog_page_validator, (uchar*) data);
   }
   else
   {
@@ -1790,7 +1790,7 @@ static byte *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, byte *buffer)
     if (my_pread(file, (char*) buffer, TRANSLOG_PAGE_SIZE,
                  LSN_OFFSET(addr), MYF(MY_FNABP | MY_WME)))
       buffer= NULL;
-    else if (translog_page_validator((byte*) buffer, (gptr) data))
+    else if (translog_page_validator((uchar*) buffer, (uchar*) data))
       buffer= NULL;
     my_close(file, MYF(MY_WME));
   }
@@ -1879,7 +1879,7 @@ static uint translog_variable_record_length_bytes(translog_size_t length)
     0  Error
 */
 
-static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
+static uint16 translog_get_chunk_header_length(uchar *page, uint16 offset)
 {
   DBUG_ENTER("translog_get_chunk_header_length");
   page+= offset;
@@ -1888,8 +1888,8 @@ static uint16 translog_get_chunk_header_length(byte *page, uint16 offset)
   {
     /* 0 chunk referred as LSN (head or tail) */
     translog_size_t rec_len;
-    byte *start= page;
-    byte *ptr= start + 1 + 2;
+    uchar *start= page;
+    uchar *ptr= start + 1 + 2;
     uint16 chunk_len, header_len;
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_LSN"));
     rec_len= translog_variable_record_1group_decode_len(&ptr);
@@ -2107,7 +2107,7 @@ my_bool translog_init(const char *directory,
       do
       {
         TRANSLOG_VALIDATOR_DATA data;
-        byte buffer[TRANSLOG_PAGE_SIZE], *page;
+        uchar buffer[TRANSLOG_PAGE_SIZE], *page;
         data.addr= &current_page;
         if ((page= translog_get_page(&data, buffer)) == NULL)
           DBUG_RETURN(1);
@@ -2155,7 +2155,7 @@ my_bool translog_init(const char *directory,
     if (logs_found && !old_log_was_recovered && old_flags == flags)
     {
       TRANSLOG_VALIDATOR_DATA data;
-      byte buffer[TRANSLOG_PAGE_SIZE], *page;
+      uchar buffer[TRANSLOG_PAGE_SIZE], *page;
       uint16 chunk_offset;
       data.addr= &last_valid_page;
       /* continue old log */
@@ -2169,7 +2169,7 @@ my_bool translog_init(const char *directory,
       log_descriptor.horizon= last_valid_page;
       translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
       /*
-         Free space if filled with 0 and first byte of
+         Free space if filled with 0 and first uchar of
          real chunk can't be 0
       */
       while (chunk_offset < TRANSLOG_PAGE_SIZE && page[chunk_offset] != '\0')
@@ -2329,7 +2329,7 @@ void translog_destroy()
     pthread_mutex_destroy(&log_descriptor.sent_to_file_lock);
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
     my_atomic_rwlock_destroy(&LOCK_id_to_share);
-    my_free((gptr)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
+    my_free((uchar*)(id_to_share + 1), MYF(MY_ALLOW_ZERO_PTR));
     translog_inited= 0;
   }
   DBUG_VOID_RETURN;
@@ -2481,7 +2481,7 @@ static my_bool translog_page_next(TRANSLOG_ADDRESS *horizon,
 static my_bool translog_write_data_on_page(TRANSLOG_ADDRESS *horizon,
                                            struct st_buffer_cursor *cursor,
                                            translog_size_t length,
-                                           byte *buffer)
+                                           uchar *buffer)
 {
   DBUG_ENTER("translog_write_data_on_page");
   DBUG_PRINT("enter", ("Chunk length: %lu  Page size %u",
@@ -2547,11 +2547,11 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
   {
     translog_size_t len;
     LEX_STRING *part;
-    byte *buff;
+    uchar *buff;
 
     DBUG_ASSERT(cur < parts->elements);
     part= parts->parts + cur;
-    buff= (byte*) part->str;
+    buff= (uchar*) part->str;
     DBUG_PRINT("info", ("Part: %u  Length: %lu  left: %lu  buff: 0x%lx",
                         (uint) (cur + 1), (ulong) part->length, (ulong) left,
                         (ulong) buff));
@@ -2623,7 +2623,7 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
                                              enum translog_record_type type,
                                              SHORT_TRANSACTION_ID short_trid,
                                              uint16 header_length,
-                                             byte *chunk0_header)
+                                             uchar *chunk0_header)
 {
   LEX_STRING *part;
   DBUG_ASSERT(parts->current != 0);     /* first part is left for header */
@@ -2631,7 +2631,7 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
   parts->total_record_length+= (part->length= header_length);
   part->str= (char*)chunk0_header;
   /* puts chunk type */
-  *chunk0_header= (byte) (type | TRANSLOG_CHUNK_LSN);
+  *chunk0_header= (uchar) (type | TRANSLOG_CHUNK_LSN);
   int2store(chunk0_header + 1, short_trid);
   /* puts record length */
   translog_write_variable_record_1group_code_len(chunk0_header + 3,
@@ -2706,7 +2706,7 @@ translog_write_variable_record_chunk2_page(struct st_translog_parts *parts,
 {
   struct st_translog_buffer *buffer_to_flush;
   int rc;
-  byte chunk2_header[1];
+  uchar chunk2_header[1];
   DBUG_ENTER("translog_write_variable_record_chunk2_page");
   chunk2_header[0]= TRANSLOG_CHUNK_NOHDR;
 
@@ -2756,7 +2756,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
   struct st_translog_buffer *buffer_to_flush;
   LEX_STRING *part;
   int rc;
-  byte chunk3_header[1 + 2];
+  uchar chunk3_header[1 + 2];
   DBUG_ENTER("translog_write_variable_record_chunk3_page");
 
   LINT_INIT(buffer_to_flush);
@@ -2783,7 +2783,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
   parts->total_record_length+= (part->length= 1 + 2);
   part->str= (char*)chunk3_header;
   /* Puts chunk type */
-  *chunk3_header= (byte) (TRANSLOG_CHUNK_LNGTH);
+  *chunk3_header= (uchar) (TRANSLOG_CHUNK_LNGTH);
   /* Puts chunk length */
   int2store(chunk3_header + 1, length);
 
@@ -3027,7 +3027,7 @@ translog_write_variable_record_1group(LSN *lsn,
   uint i;
   translog_size_t record_rest, full_pages, first_page;
   uint additional_chunk3_page= 0;
-  byte chunk0_header[1 + 2 + 5 + 2];
+  uchar chunk0_header[1 + 2 + 5 + 2];
   DBUG_ENTER("translog_write_variable_record_1group");
 
   *lsn= horizon= log_descriptor.horizon;
@@ -3176,7 +3176,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
                                       TRN *trn)
 {
   int rc;
-  byte chunk0_header[1 + 2 + 5 + 2];
+  uchar chunk0_header[1 + 2 + 5 + 2];
   DBUG_ENTER("translog_write_variable_record_1chunk");
 
   translog_write_variable_record_1group_header(parts, type, short_trid,
@@ -3239,7 +3239,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
     NULL  Error
 */
 
-static byte *translog_put_LSN_diff(LSN base_lsn, LSN lsn, byte *dst)
+static uchar *translog_put_LSN_diff(LSN base_lsn, LSN lsn, uchar *dst)
 {
   DBUG_ENTER("translog_put_LSN_diff");
   DBUG_PRINT("enter", ("Base: (0x%lu,0x%lx)  val: (0x%lu,0x%lx)  dst: 0x%lx",
@@ -3257,7 +3257,7 @@ static byte *translog_put_LSN_diff(LSN base_lsn, LSN lsn, byte *dst)
     {
       dst-= 2;
       /*
-        Note we store this high byte first to ensure that first byte has
+        Note we store this high uchar first to ensure that first uchar has
         0 in the 3 upper bits.
       */
       dst[0]= diff >> 8;
@@ -3347,7 +3347,7 @@ static byte *translog_put_LSN_diff(LSN base_lsn, LSN lsn, byte *dst)
     pointer to buffer after decoded LSN
 */
 
-static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
+static uchar *translog_get_LSN_from_diff(LSN base_lsn, uchar *src, uchar *dst)
 {
   LSN lsn;
   uint32 diff;
@@ -3432,7 +3432,7 @@ static byte *translog_get_LSN_from_diff(LSN base_lsn, byte *src, byte *dst)
 
 static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
                                             LSN base_lsn,
-                                            uint lsns, byte *compressed_LSNs)
+                                            uint lsns, uchar *compressed_LSNs)
 {
   LEX_STRING *part;
   uint lsns_len= lsns * LSN_STORE_SIZE;
@@ -3450,14 +3450,14 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
     uint copied= part->length;
     LEX_STRING *next_part;
     DBUG_PRINT("info", ("Using buffer: 0x%lx", (ulong) compressed_LSNs));
-    memcpy(buffer, (byte*)part->str, part->length);
+    memcpy(buffer, (uchar*)part->str, part->length);
     next_part= parts->parts + parts->current + 1;
     do
     {
       DBUG_ASSERT(next_part < parts->parts + parts->elements);
       if ((next_part->length + copied) < lsns_len)
       {
-        memcpy(buffer + copied, (byte*)next_part->str,
+        memcpy(buffer + copied, (uchar*)next_part->str,
                next_part->length);
         copied+= next_part->length;
         next_part->length= 0; next_part->str= 0;
@@ -3469,7 +3469,7 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
       else
       {
         uint len= lsns_len - copied;
-        memcpy(buffer + copied, (byte*)next_part->str, len);
+        memcpy(buffer + copied, (uchar*)next_part->str, len);
         copied= lsns_len;
         next_part->str+= len;
         next_part->length-= len;
@@ -3489,8 +3489,8 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
     /* Compress */
     LSN ref;
     int economy;
-    byte *src_ptr;
-    byte *dst_ptr= compressed_LSNs + (MAX_NUMBER_OF_LSNS_PER_RECORD *
+    uchar *src_ptr;
+    uchar *dst_ptr= compressed_LSNs + (MAX_NUMBER_OF_LSNS_PER_RECORD *
                                       COMPRESSED_LSN_MAX_STORE_SIZE);
     for (src_ptr= buffer + lsns_len - LSN_STORE_SIZE;
          src_ptr >=  buffer;
@@ -3558,8 +3558,8 @@ translog_write_variable_record_mgroup(LSN *lsn,
   uint16 page_capacity= log_descriptor.page_capacity_chunk_2 + 1;
   uint16 last_page_capacity;
   my_bool new_page_before_chunk0= 1, first_chunk0= 1;
-  byte chunk0_header[1 + 2 + 5 + 2 + 2], group_desc[7 + 1];
-  byte chunk2_header[1];
+  uchar chunk0_header[1 + 2 + 5 + 2 + 2], group_desc[7 + 1];
+  uchar chunk2_header[1];
   uint header_fixed_part= header_length + 2;
   uint groups_per_page= (page_capacity - header_fixed_part) / (7 + 1);
   DBUG_ENTER("translog_write_variable_record_mgroup");
@@ -3602,7 +3602,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
        But here we assign number of chunks - 1
     */
     group.num= full_pages;
-    if (insert_dynamic(&groups, (gptr) &group))
+    if (insert_dynamic(&groups, (uchar*) &group))
     {
       UNRECOVERABLE_ERROR(("insert into array failed"));
       goto err_unlock;
@@ -3701,7 +3701,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
   cursor= log_descriptor.bc;
   cursor.chaser= 1;
   group.num= 0;                       /* 0 because it does not matter */
-  if (insert_dynamic(&groups, (gptr) &group))
+  if (insert_dynamic(&groups, (uchar*) &group))
   {
     UNRECOVERABLE_ERROR(("insert into array failed"));
     goto err_unlock;
@@ -3797,7 +3797,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
   {
     DBUG_PRINT("info", ("chunk 3"));
     DBUG_ASSERT(full_pages == 0);
-    byte chunk3_header[3];
+    uchar chunk3_header[3];
     chunk3_pages= 0;
     chunk3_header[0]= TRANSLOG_CHUNK_LNGTH;
     int2store(chunk3_header + 1, chunk3_size);
@@ -3846,7 +3846,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
                       (ulong) LSN_OFFSET(horizon)));
 
 
-  *chunk0_header= (byte) (type |TRANSLOG_CHUNK_LSN);
+  *chunk0_header= (uchar) (type |TRANSLOG_CHUNK_LSN);
   int2store(chunk0_header + 1, short_trid);
   translog_write_variable_record_1group_code_len(chunk0_header + 3,
                                                  parts->record_length,
@@ -3975,7 +3975,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
   ulong buffer_rest;
   uint page_rest;
   /* Max number of such LSNs per record is 2 */
-  byte compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
+  uchar compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
     COMPRESSED_LSN_MAX_STORE_SIZE];
   DBUG_ENTER("translog_write_variable_record");
 
@@ -4001,7 +4001,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
                 log_record_type_descriptor[type].read_header_len));
     translog_page_next(&log_descriptor.horizon, &log_descriptor.bc,
                        &buffer_to_flush);
-    /* Chunk 2 header is 1 byte, so full page capacity will be one byte more */
+    /* Chunk 2 header is 1 byte, so full page capacity will be one uchar more */
     page_rest= log_descriptor.page_capacity_chunk_2 + 1;
     DBUG_PRINT("info", ("page_rest: %u", page_rest));
   }
@@ -4087,9 +4087,9 @@ static my_bool translog_write_fixed_record(LSN *lsn,
                                            TRN *trn)
 {
   struct st_translog_buffer *buffer_to_flush= NULL;
-  byte chunk1_header[1 + 2];
+  uchar chunk1_header[1 + 2];
   /* Max number of such LSNs per record is 2 */
-  byte compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
+  uchar compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
     COMPRESSED_LSN_MAX_STORE_SIZE];
   LEX_STRING *part;
   int rc;
@@ -4162,7 +4162,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   part= parts->parts + (--parts->current);
   parts->total_record_length+= (part->length= 1 + 2);
   part->str= (char*)chunk1_header;
-  *chunk1_header= (byte) (type | TRANSLOG_CHUNK_FIXED);
+  *chunk1_header= (uchar) (type | TRANSLOG_CHUNK_FIXED);
   int2store(chunk1_header + 1, short_trid);
 
   rc= translog_write_parts_on_page(&log_descriptor.horizon,
@@ -4364,8 +4364,8 @@ my_bool translog_write_record(LSN *lsn,
      position in sources after decoded LSN(s)
 */
 
-static byte *translog_relative_LSN_decode(LSN base_lsn,
-                                          byte *src, byte *dst, uint lsns)
+static uchar *translog_relative_LSN_decode(LSN base_lsn,
+                                          uchar *src, uchar *dst, uint lsns)
 {
   uint i;
   for (i= 0; i < lsns; i++, dst+= LSN_STORE_SIZE)
@@ -4391,15 +4391,15 @@ static byte *translog_relative_LSN_decode(LSN base_lsn,
        part of the header
 */
 
-translog_size_t translog_fixed_length_header(byte *page,
+translog_size_t translog_fixed_length_header(uchar *page,
                                              translog_size_t page_offset,
                                              TRANSLOG_HEADER_BUFFER *buff)
 {
   struct st_log_record_type_descriptor *desc=
     log_record_type_descriptor + buff->type;
-  byte *src= page + page_offset + 3;
-  byte *dst= buff->header;
-  byte *start= src;
+  uchar *src= page + page_offset + 3;
+  uchar *dst= buff->header;
+  uchar *start= src;
   uint lsns= desc->compressed_LSN;
   uint length= desc->fixed_length;
 
@@ -4439,7 +4439,7 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
   DBUG_ENTER("translog_free_record_header");
   if (buff->groups_no != 0)
   {
-    my_free((gptr) buff->groups, MYF(0));
+    my_free((uchar*) buff->groups, MYF(0));
     buff->groups_no= 0;
   }
   DBUG_VOID_RETURN;
@@ -4719,7 +4719,7 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
        part of the header
 */
 
-translog_size_t translog_variable_length_header(byte *page,
+translog_size_t translog_variable_length_header(uchar *page,
                                                 translog_size_t page_offset,
                                                 TRANSLOG_HEADER_BUFFER *buff,
                                                 TRANSLOG_SCANNER_DATA
@@ -4727,8 +4727,8 @@ translog_size_t translog_variable_length_header(byte *page,
 {
   struct st_log_record_type_descriptor *desc= (log_record_type_descriptor +
                                                buff->type);
-  byte *src= page + page_offset + 1 + 2;
-  byte *dst= buff->header;
+  uchar *src= page + page_offset + 1 + 2;
+  uchar *dst= buff->header;
   LSN base_lsn;
   uint lsns= desc->compressed_LSN;
   uint16 chunk_len;
@@ -4848,7 +4848,7 @@ translog_size_t translog_variable_length_header(byte *page,
   }
   if (lsns)
   {
-    byte *start= src;
+    uchar *start= src;
     src= translog_relative_LSN_decode(base_lsn, src, dst, lsns);
     lsns*= LSN_STORE_SIZE;
     dst+= lsns;
@@ -4890,7 +4890,7 @@ translog_size_t translog_variable_length_header(byte *page,
 */
 
 translog_size_t
-translog_read_record_header_from_buffer(byte *page,
+translog_read_record_header_from_buffer(uchar *page,
                                         uint16 page_offset,
                                         TRANSLOG_HEADER_BUFFER *buff,
                                         TRANSLOG_SCANNER_DATA *scanner)
@@ -4946,7 +4946,7 @@ translog_read_record_header_from_buffer(byte *page,
 translog_size_t translog_read_record_header(LSN lsn,
                                             TRANSLOG_HEADER_BUFFER *buff)
 {
-  byte buffer[TRANSLOG_PAGE_SIZE], *page;
+  uchar buffer[TRANSLOG_PAGE_SIZE], *page;
   translog_size_t page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
   TRANSLOG_ADDRESS addr;
   TRANSLOG_VALIDATOR_DATA data;
@@ -5232,7 +5232,7 @@ static my_bool translog_init_reader_data(LSN lsn,
 translog_size_t translog_read_record(LSN lsn,
                                      translog_size_t offset,
                                      translog_size_t length,
-                                     byte *buffer,
+                                     uchar *buffer,
                                      struct st_translog_reader_data *data)
 {
   translog_size_t requested_length= length;
@@ -5331,7 +5331,7 @@ static void translog_force_current_buffer_to_finish()
   struct st_translog_buffer *new_buffer= (log_descriptor.buffers +
                                           new_buffer_no);
   struct st_translog_buffer *old_buffer= log_descriptor.bc.buffer;
-  byte *data= log_descriptor.bc.ptr -log_descriptor.bc.current_page_fill;
+  uchar *data= log_descriptor.bc.ptr -log_descriptor.bc.current_page_fill;
   uint16 left= TRANSLOG_PAGE_SIZE - log_descriptor.bc.current_page_fill;
   uint16 current_page_fill, write_counter, previous_offset;
   DBUG_ENTER("translog_force_current_buffer_to_finish");

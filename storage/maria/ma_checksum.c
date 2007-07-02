@@ -17,7 +17,7 @@
 
 #include "maria_def.h"
 
-ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
+ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
 {
   ha_checksum crc=0;
   MARIA_COLUMNDEF *column= info->s->columndef;
@@ -28,7 +28,7 @@ ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
 
   for ( ; column != column_end ; column++)
   {
-    const byte *pos= record + column->offset;
+    const uchar *pos= record + column->offset;
     ulong length;
 
     switch (column->type) {
@@ -63,7 +63,7 @@ ha_checksum _ma_checksum(MARIA_HA *info, const byte *record)
 }
 
 
-ha_checksum _ma_static_checksum(MARIA_HA *info, const byte *pos)
+ha_checksum _ma_static_checksum(MARIA_HA *info, const uchar *pos)
 {
   return my_checksum(0, pos, info->s->base.reclength);
 }

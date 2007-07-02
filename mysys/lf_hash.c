@@ -34,7 +34,7 @@ LF_REQUIRE_PINS(3);
 typedef struct {
   intptr volatile link; /* a pointer to the next element in a listand a flag  */
   uint32 hashnr;        /* reversed hash number, for sorting                  */
-  const byte *key;
+  const uchar *key;
   uint keylen;
   /*
     data is stored here, directly after the keylen.
@@ -72,10 +72,10 @@ typedef struct {
     pins[0..2] are used, they are NOT removed on return
 */
 static int lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
-                 const byte *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
+                 const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
-  const byte  *cur_key;
+  const uchar  *cur_key;
   uint         cur_keylen;
   intptr       link;
 
@@ -201,7 +201,7 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
     it uses pins[0..2], on return all pins are removed.
 */
 static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
-                   const byte *key, uint keylen, LF_PINS *pins)
+                   const uchar *key, uint keylen, LF_PINS *pins)
 {
   CURSOR cursor;
   int res;
@@ -259,7 +259,7 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
     all other pins are removed.
 */
 static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
-                         uint32 hashnr, const byte *key, uint keylen,
+                         uint32 hashnr, const uchar *key, uint keylen,
                          LF_PINS *pins)
 {
   CURSOR cursor;
@@ -271,8 +271,8 @@ static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
   return res ? cursor.curr : 0;
 }
 
-static inline const byte* hash_key(const LF_HASH *hash,
-                              const byte *record, uint *length)
+static inline const uchar* hash_key(const LF_HASH *hash,
+                              const uchar *record, uint *length)
 {
   if (hash->get_key)
     return (*hash->get_key)(record, length, 0);
@@ -285,7 +285,7 @@ static inline const byte* hash_key(const LF_HASH *hash,
   note, that the hash value is limited to 2^31, because we need one
   bit to distinguish between normal and dummy nodes.
 */
-static inline uint calc_hash(LF_HASH *hash, const byte *key, uint keylen)
+static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
 {
   ulong nr1= 1, nr2= 4;
   hash->charset->coll->hash_sort(hash->charset, (uchar*) key, keylen,
@@ -362,7 +362,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   if (unlikely(!node))
     return -1;
   memcpy(node+1, data, hash->element_size);
-  node->key= hash_key(hash, (byte *)(node+1), &node->keylen);
+  node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
   hashnr= calc_hash(hash, node->key, node->keylen);
   bucket= hashnr % hash->size;
   el= _lf_dynarray_lvalue(&hash->array, bucket);
@@ -399,7 +399,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
   LF_SLIST * volatile *el;
-  uint bucket, hashnr= calc_hash(hash, (byte *)key, keylen);
+  uint bucket, hashnr= calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
   lf_rwlock_by_pins(pins);
@@ -415,7 +415,7 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return -1;
   if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1,
-              (byte *)key, keylen, pins))
+              (uchar *)key, keylen, pins))
   {
     lf_rwunlock_by_pins(pins);
     return 1;
@@ -438,7 +438,7 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
   LF_SLIST * volatile *el, *found;
-  uint bucket, hashnr= calc_hash(hash, (byte *)key, keylen);
+  uint bucket, hashnr= calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
   lf_rwlock_by_pins(pins);
@@ -448,12 +448,12 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return MY_ERRPTR;
   found= lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
-                 (byte *)key, keylen, pins);
+                 (uchar *)key, keylen, pins);
   lf_rwunlock_by_pins(pins);
   return found ? found+1 : 0;
 }
 
-static const byte *dummy_key= "";
+static const uchar *dummy_key= "";
 
 /*
   RETURN

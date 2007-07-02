@@ -38,7 +38,7 @@ static SAFE_HASH pagecache_hash;
 
 my_bool multi_pagecache_init(void)
 {
-  return safe_hash_init(&pagecache_hash, 16, (byte*) maria_pagecache);
+  return safe_hash_init(&pagecache_hash, 16, (uchar*) maria_pagecache);
 }
 
 
@@ -65,7 +65,7 @@ void multi_pagecache_free(void)
     key cache to use
 */
 
-PAGECACHE *multi_pagecache_search(byte *key, uint length,
+PAGECACHE *multi_pagecache_search(uchar *key, uint length,
                                   PAGECACHE *def)
 {
   if (!pagecache_hash.hash.records)
@@ -91,15 +91,15 @@ PAGECACHE *multi_pagecache_search(byte *key, uint length,
 */
 
 
-my_bool multi_pagecache_set(const byte *key, uint length,
+my_bool multi_pagecache_set(const uchar *key, uint length,
 			    PAGECACHE *pagecache)
 {
-  return safe_hash_set(&pagecache_hash, key, length, (byte*) pagecache);
+  return safe_hash_set(&pagecache_hash, key, length, (uchar*) pagecache);
 }
 
 
 void multi_pagecache_change(PAGECACHE *old_data,
 			    PAGECACHE *new_data)
 {
-  safe_hash_change(&pagecache_hash, (byte*) old_data, (byte*) new_data);
+  safe_hash_change(&pagecache_hash, (uchar*) old_data, (uchar*) new_data);
 }

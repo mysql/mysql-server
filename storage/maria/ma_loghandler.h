@@ -127,7 +127,7 @@ typedef struct st_translog_header_buffer
      Buffer for write decoded header of the record (depend on the record
      type)
   */
-  byte header[TRANSLOG_RECORD_HEADER_MAX_SIZE];
+  uchar header[TRANSLOG_RECORD_HEADER_MAX_SIZE];
   /* number of groups listed in  */
   uint groups_no;
   /* in multi-group number of chunk0 pages (valid only if groups_no > 0) */
@@ -151,12 +151,12 @@ typedef struct st_translog_header_buffer
 
 typedef struct st_translog_scanner_data
 {
-  byte buffer[TRANSLOG_PAGE_SIZE];             /* buffer for page content */
+  uchar buffer[TRANSLOG_PAGE_SIZE];             /* buffer for page content */
   TRANSLOG_ADDRESS page_addr;                  /* current page address */
   /* end of the log which we saw last time */
   TRANSLOG_ADDRESS horizon;
   TRANSLOG_ADDRESS last_file_page;             /* Last page on in this file */
-  byte *page;                                  /* page content pointer */
+  uchar *page;                                  /* page content pointer */
   /* offset of the chunk in the page */
   translog_size_t page_offset;
   /* set horizon only once at init */
@@ -214,7 +214,7 @@ extern void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
 extern translog_size_t translog_read_record(LSN lsn,
 					    translog_size_t offset,
 					    translog_size_t length,
-					    byte *buffer,
+					    uchar *buffer,
 					    struct st_translog_reader_data
 					    *data);
 

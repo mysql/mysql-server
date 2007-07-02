@@ -76,7 +76,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile.file, (byte*) buff, length, pos,
+    if (my_pread(share->kfile.file, (uchar*) buff, length, pos,
                  MYF(MY_FAE|MY_FNABP)))
       goto err;
 
@@ -91,7 +91,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
           if (pagecache_write(share->pagecache,
                               &share->kfile, pos / block_length,
                               DFLT_INIT_HITS,
-                              (byte*) buff,
+                              (uchar*) buff,
                               PAGECACHE_PLAIN_PAGE,
                               PAGECACHE_LOCK_LEFT_UNLOCKED,
                               PAGECACHE_PIN_LEFT_UNPINNED,
@@ -108,7 +108,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
       if (pagecache_write(share->pagecache,
                           &share->kfile, pos / block_length,
                           DFLT_INIT_HITS,
-                          (byte*) buff,
+                          (uchar*) buff,
                           PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,

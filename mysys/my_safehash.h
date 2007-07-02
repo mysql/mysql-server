@@ -30,9 +30,9 @@
 
 typedef struct st_safe_hash_entry
 {
-  byte *key;
+  uchar *key;
   uint length;
-  byte *data;
+  uchar *data;
   struct st_safe_hash_entry *next, **prev;
 } SAFE_HASH_ENTRY;
 
@@ -43,16 +43,16 @@ typedef struct st_safe_hash_with_default
   rw_lock_t mutex;
 #endif
   HASH hash;
-  byte *default_value;
+  uchar *default_value;
   SAFE_HASH_ENTRY *root;
 } SAFE_HASH;
 
 
 my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
-                       byte *default_value);
+                       uchar *default_value);
 void safe_hash_free(SAFE_HASH *hash);
-byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length,
-                       byte *def);
-my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
-                      byte *data);
-void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data);
+uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length,
+                       uchar *def);
+my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
+                      uchar *data);
+void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data);

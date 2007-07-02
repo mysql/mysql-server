@@ -22,7 +22,7 @@
 	   based on the position of the last used key!
 	*/
 
-int maria_rprev(MARIA_HA *info, byte *buf, int inx)
+int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
 {
   int error,changed;
   register uint flag;

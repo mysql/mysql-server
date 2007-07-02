@@ -18,9 +18,9 @@
 #include "maria_def.h"
 
 
-my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
+my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
 {
-  byte temp[8];                                 /* max pointer length */
+  uchar temp[8];                                 /* max pointer length */
   if (info->s->state.dellink != HA_OFFSET_ERROR &&
       !info->append_insert_at_end)
   {
@@ -48,14 +48,14 @@ my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
     }
     if (info->opt_flag & WRITE_CACHE_USED)
     {				/* Cash in use */
-      if (my_b_write(&info->rec_cache, (byte*) record,
+      if (my_b_write(&info->rec_cache, (uchar*) record,
 		     info->s->base.reclength))
 	goto err;
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
 	bzero((char*) temp,length);
-	if (my_b_write(&info->rec_cache, (byte*) temp,length))
+	if (my_b_write(&info->rec_cache, (uchar*) temp,length))
 	  goto err;
       }
     }
@@ -70,7 +70,7 @@ my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
 	bzero((char*) temp,length);
-	if (info->s->file_write(info, (byte*) temp,length,
+	if (info->s->file_write(info, (uchar*) temp,length,
 		      info->state->data_file_length+
 		      info->s->base.reclength,
 		      info->s->write_flag))
@@ -86,8 +86,8 @@ my_bool _ma_write_static_record(MARIA_HA *info, const byte *record)
 }
 
 my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
-                                 const byte *oldrec __attribute__ ((unused)),
-                                 const byte *record)
+                                 const uchar *oldrec __attribute__ ((unused)),
+                                 const uchar *record)
 {
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
   return (info->s->file_write(info,
@@ -98,9 +98,9 @@ my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
 
 
 my_bool _ma_delete_static_record(MARIA_HA *info,
-                                 const byte *record __attribute__ ((unused)))
+                                 const uchar *record __attribute__ ((unused)))
 {
-  byte temp[9];                                 /* 1+sizeof(uint32) */
+  uchar temp[9];                                 /* 1+sizeof(uint32) */
   info->state->del++;
   info->state->empty+=info->s->base.pack_reclength;
   temp[0]= '\0';			/* Mark that record is deleted */
@@ -113,7 +113,7 @@ my_bool _ma_delete_static_record(MARIA_HA *info,
 
 
 my_bool _ma_cmp_static_record(register MARIA_HA *info,
-                              register const byte *old)
+                              register const uchar *old)
 {
   DBUG_ENTER("_ma_cmp_static_record");
 
@@ -137,7 +137,7 @@ my_bool _ma_cmp_static_record(register MARIA_HA *info,
                            info->cur_row.lastpos,
                            MYF(MY_NABP)))
       DBUG_RETURN(1);
-    if (memcmp((byte*) info->rec_buff, (byte*) old,
+    if (memcmp((uchar*) info->rec_buff, (uchar*) old,
 	       (uint) info->s->base.reclength))
     {
       DBUG_DUMP("read",old,info->s->base.reclength);
@@ -151,7 +151,7 @@ my_bool _ma_cmp_static_record(register MARIA_HA *info,
 
 
 my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-                              const byte *record, MARIA_RECORD_POS pos)
+                              const uchar *record, MARIA_RECORD_POS pos)
 {
   DBUG_ENTER("_ma_cmp_static_unique");
 
@@ -159,7 +159,7 @@ my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
   if (info->s->file_read(info, (char*) info->rec_buff, info->s->base.reclength,
 	       pos, MYF(MY_NABP)))
     DBUG_RETURN(1);
-  DBUG_RETURN(_ma_unique_comp(def, record, (byte*) info->rec_buff,
+  DBUG_RETURN(_ma_unique_comp(def, record, (uchar*) info->rec_buff,
                               def->null_are_equal));
 }
 
@@ -173,7 +173,7 @@ my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
     -1 on read-error or locking-error
 */
 
-int _ma_read_static_record(register MARIA_HA *info, register byte *record,
+int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
                            MARIA_RECORD_POS pos)
 {
   int error;
@@ -207,7 +207,7 @@ int _ma_read_static_record(register MARIA_HA *info, register byte *record,
 
 
 
-int _ma_read_rnd_static_record(MARIA_HA *info, byte *buf,
+int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
                                MARIA_RECORD_POS filepos,
                                my_bool skip_deleted_blocks)
 {
@@ -275,11 +275,11 @@ int _ma_read_rnd_static_record(MARIA_HA *info, byte *buf,
   }
 
 	/* Read record with cacheing */
-  error=my_b_read(&info->rec_cache,(byte*) buf,share->base.reclength);
+  error=my_b_read(&info->rec_cache,(uchar*) buf,share->base.reclength);
   if (info->s->base.pack_reclength != info->s->base.reclength && !error)
   {
     char tmp[8];				/* Skill fill bytes */
-    error=my_b_read(&info->rec_cache,(byte*) tmp,
+    error=my_b_read(&info->rec_cache,(uchar*) tmp,
 		    info->s->base.pack_reclength - info->s->base.reclength);
   }
   if (locked)

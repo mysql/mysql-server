@@ -93,7 +93,7 @@ typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
 #include <wqueue.h>
 
-typedef my_bool (*pagecache_disk_read_validator)(byte *page, gptr data);
+typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar** data);
 
 #define PAGECACHE_CHANGED_BLOCKS_HASH 128  /* must be power of 2 */
 
@@ -108,7 +108,7 @@ typedef struct st_pagecache
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   uint shift;                    /* block size = 2 ^ shift                   */
-  my_size_t mem_size;            /* specified size of the cache memory       */
+  size_t mem_size;            /* specified size of the cache memory       */
   uint32 block_size;             /* size of the page buffer of a cache block */
   ulong min_warm_blocks;         /* min number of warm blocks;               */
   ulong age_threshold;           /* age threshold for hot blocks             */
@@ -128,7 +128,7 @@ typedef struct st_pagecache
   PAGECACHE_HASH_LINK *free_hash_list;/* list of free hash links             */
   PAGECACHE_BLOCK_LINK *free_block_list;/* list of free blocks               */
   PAGECACHE_BLOCK_LINK *block_root;/* memory for block links                 */
-  byte HUGE_PTR *block_mem;      /* memory for block buffers                 */
+  uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
   PAGECACHE_BLOCK_LINK *used_last;/* ptr to the last block of the LRU chain  */
   PAGECACHE_BLOCK_LINK *used_ins;/* ptr to the insertion block in LRU chain  */
   pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
@@ -164,11 +164,11 @@ typedef struct st_pagecache
 /* The default key cache */
 extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
 
-extern int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
+extern int init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                           uint division_limit, uint age_threshold,
                           uint block_size);
 extern int resize_pagecache(PAGECACHE *pagecache,
-                            my_size_t use_mem, uint division_limit,
+                            size_t use_mem, uint division_limit,
                             uint age_threshold);
 extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
                                    uint age_threshold);
@@ -176,16 +176,16 @@ extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
 #define pagecache_read(P,F,N,L,B,T,K,I) \
   pagecache_valid_read(P,F,N,L,B,T,K,I,0,0)
 
-extern byte *pagecache_valid_read(PAGECACHE *pagecache,
+extern uchar *pagecache_valid_read(PAGECACHE *pagecache,
                                   PAGECACHE_FILE *file,
                                   pgcache_page_no_t pageno,
                                   uint level,
-                                  byte *buff,
+                                  uchar *buff,
                                   enum pagecache_page_type type,
                                   enum pagecache_page_lock lock,
                                   PAGECACHE_PAGE_LINK *link,
                                   pagecache_disk_read_validator validator,
-                                  gptr validator_data);
+                                  uchar* validator_data);
 
 #define  pagecache_write(P,F,N,L,B,T,O,I,M,K) \
    pagecache_write_part(P,F,N,L,B,T,O,I,M,K,0,(P)->block_size)
@@ -194,7 +194,7 @@ extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     PAGECACHE_FILE *file,
                                     pgcache_page_no_t pageno,
                                     uint level,
-                                    byte *buff,
+                                    uchar *buff,
                                     enum pagecache_page_type type,
                                     enum pagecache_page_lock lock,
                                     enum pagecache_page_pin pin,
@@ -247,9 +247,9 @@ extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
 /* Functions to handle multiple key caches */
 extern my_bool multi_pagecache_init(void);
 extern void multi_pagecache_free(void);
-extern PAGECACHE *multi_pagecache_search(byte *key, uint length,
+extern PAGECACHE *multi_pagecache_search(uchar *key, uint length,
                                          PAGECACHE *def);
-extern my_bool multi_pagecache_set(const byte *key, uint length,
+extern my_bool multi_pagecache_set(const uchar *key, uint length,
 				   PAGECACHE *pagecache);
 extern void multi_pagecache_change(PAGECACHE *old_data,
 				   PAGECACHE *new_data);

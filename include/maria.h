@@ -179,18 +179,18 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
   HA_KEYSEG *seg, *end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
   int (*bin_search)(struct st_maria_info *info,
-		    struct st_maria_keydef *keyinfo, byte *page, byte *key,
-		    uint key_len, uint comp_flag, byte **ret_pos,
-		    byte *buff, my_bool *was_last_key);
+		    struct st_maria_keydef *keyinfo, uchar *page, uchar *key,
+		    uint key_len, uint comp_flag, uchar **ret_pos,
+		    uchar *buff, my_bool *was_last_key);
     uint(*get_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
-                   byte **page, byte *key);
+                   uchar **page, uchar *key);
   int (*pack_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
-		  byte *next_key, byte *org_key, byte *prev_key,
-		  const byte *key, struct st_maria_s_param *s_temp);
-  void (*store_key)(struct st_maria_keydef *keyinfo, byte *key_pos,
+		  uchar *next_key, uchar *org_key, uchar *prev_key,
+		  const uchar *key, struct st_maria_s_param *s_temp);
+  void (*store_key)(struct st_maria_keydef *keyinfo, uchar *key_pos,
 		    struct st_maria_s_param *s_temp);
-  int (*ck_insert)(struct st_maria_info *inf, uint k_nr, byte *k, uint klen);
-  int (*ck_delete)(struct st_maria_info *inf, uint k_nr, byte *k, uint klen);
+  int (*ck_insert)(struct st_maria_info *inf, uint k_nr, uchar *k, uint klen);
+  int (*ck_delete)(struct st_maria_info *inf, uint k_nr, uchar *k, uint klen);
 } MARIA_KEYDEF;
 
 
@@ -208,7 +208,7 @@ typedef struct st_maria_decode_tree     /* Decode huff-table */
 {
   uint16 *table;
   uint quick_table_bits;
-  byte *intervalls;
+  uchar *intervalls;
 } MARIA_DECODE_TREE;
 
 
@@ -236,7 +236,7 @@ typedef struct st_maria_columndef		/* column information */
 #ifndef NOT_PACKED_DATABASES
   void(*unpack)(struct st_maria_columndef *rec,
                 struct st_maria_bit_buff *buff,
-                byte *start, byte *end);
+                uchar *start, uchar *end);
   enum en_fieldtype base_type;
   uint space_length_bits, pack_type;
   MARIA_DECODE_TREE *huff_tree;
@@ -258,30 +258,30 @@ extern PAGECACHE maria_pagecache_var, *maria_pagecache;
 extern int maria_init(void);
 extern void maria_end(void);
 extern int maria_close(struct st_maria_info *file);
-extern int maria_delete(struct st_maria_info *file, const byte *buff);
+extern int maria_delete(struct st_maria_info *file, const uchar *buff);
 extern struct st_maria_info *maria_open(const char *name, int mode,
 					uint wait_if_locked);
 extern struct st_maria_info *maria_clone(struct st_maria_share *share, int mode);
 extern int maria_panic(enum ha_panic_function function);
-extern int maria_rfirst(struct st_maria_info *file, byte *buf, int inx);
-extern int maria_rkey(struct st_maria_info *file, byte *buf, int inx,
-		      const byte *key,
+extern int maria_rfirst(struct st_maria_info *file, uchar *buf, int inx);
+extern int maria_rkey(struct st_maria_info *file, uchar *buf, int inx,
+		      const uchar *key,
 		      uint key_len, enum ha_rkey_function search_flag);
-extern int maria_rlast(struct st_maria_info *file, byte *buf, int inx);
-extern int maria_rnext(struct st_maria_info *file, byte *buf, int inx);
-extern int maria_rnext_same(struct st_maria_info *info, byte *buf);
-extern int maria_rprev(struct st_maria_info *file, byte *buf, int inx);
-extern int maria_rrnd(struct st_maria_info *file, byte *buf,
+extern int maria_rlast(struct st_maria_info *file, uchar *buf, int inx);
+extern int maria_rnext(struct st_maria_info *file, uchar *buf, int inx);
+extern int maria_rnext_same(struct st_maria_info *info, uchar *buf);
+extern int maria_rprev(struct st_maria_info *file, uchar *buf, int inx);
+extern int maria_rrnd(struct st_maria_info *file, uchar *buf,
                       MARIA_RECORD_POS pos);
 extern int maria_scan_init(struct st_maria_info *file);
-extern int maria_scan(struct st_maria_info *file, byte *buf);
+extern int maria_scan(struct st_maria_info *file, uchar *buf);
 extern void maria_scan_end(struct st_maria_info *file);
-extern int maria_rsame(struct st_maria_info *file, byte *record, int inx);
-extern int maria_rsame_with_pos(struct st_maria_info *file, byte *record,
+extern int maria_rsame(struct st_maria_info *file, uchar *record, int inx);
+extern int maria_rsame_with_pos(struct st_maria_info *file, uchar *record,
 				int inx, MARIA_RECORD_POS pos);
-extern int maria_update(struct st_maria_info *file, const byte *old,
-			byte *new_record);
-extern int maria_write(struct st_maria_info *file, byte *buff);
+extern int maria_update(struct st_maria_info *file, const uchar *old,
+			uchar *new_record);
+extern int maria_write(struct st_maria_info *file, uchar *buff);
 extern MARIA_RECORD_POS maria_position(struct st_maria_info *file);
 extern int maria_status(struct st_maria_info *info, MARIA_INFO *x, uint flag);
 extern int maria_lock_database(struct st_maria_info *file, int lock_type);
@@ -348,8 +348,8 @@ typedef struct st_maria_sort_param
   MARIA_KEYDEF *keyinfo;
   MARIA_SORT_INFO *sort_info;
   HA_KEYSEG *seg;
-  byte **sort_keys;
-  byte *rec_buff;
+  uchar **sort_keys;
+  uchar *rec_buff;
   void *wordlist, *wordptr;
   MEM_ROOT wordroot;
   char *record;
@@ -367,13 +367,13 @@ typedef struct st_maria_sort_param
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
   my_bool calc_checksum;                /* calculate table checksum */
-  my_size_t rec_buff_size;
+  size_t rec_buff_size;
 
   int (*key_cmp)(struct st_maria_sort_param *, const void *, const void *);
-  int (*key_read)(struct st_maria_sort_param *, byte *);
-  int (*key_write)(struct st_maria_sort_param *, const byte *);
+  int (*key_read)(struct st_maria_sort_param *, uchar *);
+  int (*key_write)(struct st_maria_sort_param *, const uchar *);
   void (*lock_in_memory)(HA_CHECK *);
-  NEAR int (*write_keys)(struct st_maria_sort_param *, register byte **,
+  NEAR int (*write_keys)(struct st_maria_sort_param *, register uchar **,
                          uint , struct st_buffpek *, IO_CACHE *);
   NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
   NEAR int (*write_key)(struct st_maria_sort_param *, IO_CACHE *,char *,
@@ -389,9 +389,9 @@ int maria_chk_size(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_key(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, int extend);
 int maria_repair(HA_CHECK *param, register MARIA_HA *info,
-		 my_string name, int rep_quick);
+		 char * name, int rep_quick);
 int maria_sort_index(HA_CHECK *param, register MARIA_HA *info,
-		     my_string name);
+		     char * name);
 int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 			 const char *name, int rep_quick);
 int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
@@ -405,7 +405,7 @@ void maria_update_key_parts(MARIA_KEYDEF *keyinfo, ulong *rec_per_key_part,
                             ulonglong records);
 int maria_filecopy(HA_CHECK *param, File to, File from, my_off_t start,
                    my_off_t length, const char *type);
-int maria_movepoint(MARIA_HA *info, byte *record, my_off_t oldpos,
+int maria_movepoint(MARIA_HA *info, uchar *record, my_off_t oldpos,
                     my_off_t newpos, uint prot_key);
 int maria_write_data_suffix(MARIA_SORT_INFO *sort_info, my_bool fix_datafile);
 int maria_test_if_almost_full(MARIA_HA *info);
@@ -427,8 +427,8 @@ void maria_change_pagecache(PAGECACHE *old_key_cache,
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves);
 
 /* fulltext functions */
-FT_INFO *maria_ft_init_search(uint,void *, uint, byte *, uint,
-                              CHARSET_INFO *, byte *);
+FT_INFO *maria_ft_init_search(uint,void *, uint, uchar *, uint,
+                              CHARSET_INFO *, uchar *);
 
 /* 'Almost-internal' Maria functions */
 

@@ -182,7 +182,7 @@ my_bool execute_checkpoint_indirect()
   LSN candidate_max_rec_lsn_at_last_checkpoint;
   DBUG_ENTER("execute_checkpoint_indirect");
 
-  DBUG_ASSERT(sizeof(byte *) <= 8);
+  DBUG_ASSERT(sizeof(uchar *) <= 8);
   DBUG_ASSERT(sizeof(LSN) <= 8);
 
   safemutex_assert_owner(log_mutex);

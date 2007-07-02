@@ -19,12 +19,12 @@
 
 	/* Fetch a key-page in memory */
 
-byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                         my_off_t page, int level,
-                        byte *buff,
+                        uchar *buff,
                         int return_buffer __attribute__ ((unused)))
 {
-  byte *tmp;
+  uchar *tmp;
   uint page_size;
   DBUG_ENTER("_ma_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld", (long) page));
@@ -66,7 +66,7 @@ byte *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 	/* Write a key-page on disk */
 
 int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		      my_off_t page, int level, byte *buff)
+		      my_off_t page, int level, uchar *buff)
 {
   DBUG_ENTER("_ma_write_keypage");
 
@@ -84,14 +84,14 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff",(byte*) buff,maria_data_on_page(buff));
+  DBUG_DUMP("buff",(uchar*) buff,maria_data_on_page(buff));
 #endif
 
 #ifdef HAVE_purify
   {
     /* Clear unitialized part of page to avoid valgrind/purify warnings */
     uint length= maria_data_on_page(buff);
-    bzero((byte*) buff+length,keyinfo->block_length-length);
+    bzero((uchar*) buff+length,keyinfo->block_length-length);
     length=keyinfo->block_length;
   }
 #endif
@@ -150,7 +150,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
 my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
-  byte *buff;
+  uchar *buff;
   DBUG_ENTER("_ma_new");
 
   if ((pos= info->s->state.key_del) == HA_OFFSET_ERROR)

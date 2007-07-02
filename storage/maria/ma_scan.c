@@ -45,7 +45,7 @@ int maria_scan_init(register MARIA_HA *info)
     #			Error code
 */
 
-int maria_scan(MARIA_HA *info, byte *record)
+int maria_scan(MARIA_HA *info, uchar *record)
 {
   DBUG_ENTER("maria_scan");
   /* Init all but update-flag */

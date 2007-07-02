@@ -96,44 +96,44 @@
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_maria_ft_word {
-  byte * pos;
+  uchar * pos;
   uint	 len;
   double weight;
 } FT_WORD;
 
 int is_stopword(char *word, uint len);
 
-uint _ma_ft_make_key(MARIA_HA *, uint , byte *, FT_WORD *, my_off_t);
+uint _ma_ft_make_key(MARIA_HA *, uint , uchar *, FT_WORD *, my_off_t);
 
-byte maria_ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *,
+uchar maria_ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
                  MYSQL_FTPARSER_BOOLEAN_INFO *);
-byte maria_ft_simple_get_word(CHARSET_INFO *, byte **, const byte *,
+uchar maria_ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
                         FT_WORD *, my_bool);
 
 typedef struct _st_maria_ft_seg_iterator {
   uint        num, len;
   HA_KEYSEG  *seg;
-  const byte *rec, *pos;
+  const uchar *rec, *pos;
 } FT_SEG_ITERATOR;
 
-void _ma_ft_segiterator_init(MARIA_HA *, uint, const byte *, FT_SEG_ITERATOR *);
-void _ma_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
+void _ma_ft_segiterator_init(MARIA_HA *, uint, const uchar *, FT_SEG_ITERATOR *);
+void _ma_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _ma_ft_segiterator(FT_SEG_ITERATOR *);
 
 void maria_ft_parse_init(TREE *, CHARSET_INFO *);
-int maria_ft_parse(TREE *, byte *, int, struct st_mysql_ftparser *parser,
+int maria_ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * maria_ft_linearize(TREE *, MEM_ROOT *);
-FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const byte *, MEM_ROOT *);
-uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const byte *,
+FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const uchar *, MEM_ROOT *);
+uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, byte *, uint, uint, byte *);
-FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, byte *, uint, CHARSET_INFO *);
+FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, uchar *, uint, uint, uchar *);
+FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, uchar *, uint, CHARSET_INFO *);
 
 extern const struct _ft_vft _ma_ft_vft_nlq;
 int maria_ft_nlq_read_next(FT_INFO *, char *);
-float maria_ft_nlq_find_relevance(FT_INFO *, byte *, uint);
+float maria_ft_nlq_find_relevance(FT_INFO *, uchar *, uint);
 void maria_ft_nlq_close_search(FT_INFO *);
 float maria_ft_nlq_get_relevance(FT_INFO *);
 my_off_t maria_ft_nlq_get_docid(FT_INFO *);
@@ -141,7 +141,7 @@ void maria_ft_nlq_reinit_search(FT_INFO *);
 
 extern const struct _ft_vft _ma_ft_vft_boolean;
 int maria_ft_boolean_read_next(FT_INFO *, char *);
-float maria_ft_boolean_find_relevance(FT_INFO *, byte *, uint);
+float maria_ft_boolean_find_relevance(FT_INFO *, uchar *, uint);
 void maria_ft_boolean_close_search(FT_INFO *);
 float maria_ft_boolean_get_relevance(FT_INFO *);
 my_off_t maria_ft_boolean_get_docid(FT_INFO *);

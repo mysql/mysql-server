@@ -26,21 +26,23 @@
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
 
-int maria_rtree_insert(MARIA_HA *info, uint keynr, byte *key, uint key_length);
-int maria_rtree_delete(MARIA_HA *info, uint keynr, byte *key, uint key_length);
+int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key,
+                       uint key_length);
+int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key,
+                       uint key_length);
 
-int maria_rtree_find_first(MARIA_HA *info, uint keynr, byte *key,
+int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key,
                            uint key_length, uint search_flag);
 int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag);
 
 int maria_rtree_get_first(MARIA_HA *info, uint keynr, uint key_length);
 int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length);
 
-ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, byte *key,
+ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
                              uint key_length, uint flag);
 
-int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
-                           byte *key, uint key_length,
+int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
+                           uchar *key, uint key_length,
                            my_off_t *new_page_offs);
 
 #endif /*HAVE_RTREE_KEYS*/

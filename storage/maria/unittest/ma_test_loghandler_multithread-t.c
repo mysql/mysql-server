@@ -30,7 +30,7 @@ static uint thread_count;
 static ulong lens[WRITERS][ITERATIONS];
 static LSN lsns1[WRITERS][ITERATIONS];
 static LSN lsns2[WRITERS][ITERATIONS];
-static byte *long_buffer;
+static uchar *long_buffer;
 
 /*
   Get pseudo-random length of the field in
@@ -68,7 +68,7 @@ static uint32 get_len()
     1 - Error
 */
 
-static my_bool check_content(byte *ptr, ulong length)
+static my_bool check_content(uchar *ptr, ulong length)
 {
   ulong i;
   for (i= 0; i < length; i++)
@@ -100,7 +100,7 @@ static my_bool check_content(byte *ptr, ulong length)
 
 
 static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
-                                      byte *buffer, uint skip)
+                                      uchar *buffer, uint skip)
 {
   int res= 0;
   translog_size_t len;
@@ -120,7 +120,7 @@ void writer(int num)
 {
   LSN lsn;
   TRN trn;
-  byte long_tr_id[6];
+  uchar long_tr_id[6];
   uint i;
 
   trn.short_id= num;
@@ -186,7 +186,7 @@ static void *test_thread_writer(void *arg)
   VOID(pthread_cond_signal(&COND_thread_count));        /* Tell main we are
                                                            ready */
   pthread_mutex_unlock(&LOCK_thread_count);
-  free((gptr) arg);
+  free((uchar*) arg);
   my_thread_end();
   return(0);
 }
@@ -292,7 +292,7 @@ int main(int argc __attribute__((unused)),
   srandom(122334817L);
   {
     LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
-    byte long_tr_id[6]=
+    uchar long_tr_id[6]=
     {
       0x11, 0x22, 0x33, 0x44, 0x55, 0x66
     };

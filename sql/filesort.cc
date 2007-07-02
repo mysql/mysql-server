@@ -1076,7 +1076,7 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 {
-  byte *reuse_end= reuse->base + reuse->max_keys * key_length;
+  uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
   for (uint i= 0; i < queue->elements; ++i)
   {
     BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
@@ -1158,7 +1158,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
-    buffpek->base= (byte*) strpos;
+    buffpek->base= (uchar*) strpos;
     buffpek->max_keys= maxcount;
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
                                                  rec_length));
@@ -1250,7 +1250,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
   }
   buffpek= (BUFFPEK*) queue_top(&queue);
-  buffpek->base= (byte*) sort_buffer;
+  buffpek->base= (uchar*) sort_buffer;
   buffpek->max_keys= param->keys;
 
   /*

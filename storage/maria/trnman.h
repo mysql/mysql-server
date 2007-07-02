@@ -24,7 +24,7 @@ C_MODE_START
 #include "ma_loghandler_lsn.h"
 
 /*
-  trid - 6 byte transaction identifier. Assigned when a transaction
+  trid - 6 uchar transaction identifier. Assigned when a transaction
   is created. Transaction can always be identified by its trid,
   even after transaction has ended.
 

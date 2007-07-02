@@ -18,12 +18,12 @@
 #include "ma_fulltext.h"
 #include "ma_rt_index.h"
 
-int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
+int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 {
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
   uint i;
-  byte old_key[HA_MAX_KEY_BUFF],*new_key;
+  uchar old_key[HA_MAX_KEY_BUFF],*new_key;
   bool auto_key_changed=0;
   ulonglong changed;
   MARIA_SHARE *share=info->s;

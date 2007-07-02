@@ -20,8 +20,8 @@
 #include "maria_def.h"
 #include "ft_global.h"
 
-int  _ma_ft_cmp(MARIA_HA *, uint, const byte *, const byte *);
-int  _ma_ft_add(MARIA_HA *, uint, byte *, const byte *, my_off_t);
-int  _ma_ft_del(MARIA_HA *, uint, byte *, const byte *, my_off_t);
+int  _ma_ft_cmp(MARIA_HA *, uint, const uchar *, const uchar *);
+int  _ma_ft_add(MARIA_HA *, uint, uchar *, const uchar *, my_off_t);
+int  _ma_ft_del(MARIA_HA *, uint, uchar *, const uchar *, my_off_t);
 
-uint _ma_ft_convert_to_ft2(MARIA_HA *, uint, byte *);
+uint _ma_ft_convert_to_ft2(MARIA_HA *, uint, uchar *);

@@ -27,7 +27,7 @@
 	** HA_ERR_END_OF_FILE   = End of file
 	*/
 
-int maria_rsame_with_pos(MARIA_HA *info, byte *record, int inx,
+int maria_rsame_with_pos(MARIA_HA *info, uchar *record, int inx,
                          MARIA_RECORD_POS filepos)
 {
   DBUG_ENTER("maria_rsame_with_pos");

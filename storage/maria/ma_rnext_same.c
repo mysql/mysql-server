@@ -25,7 +25,7 @@
   based on the position of the last used key!
 */
 
-int maria_rnext_same(MARIA_HA *info, byte *buf)
+int maria_rnext_same(MARIA_HA *info, uchar *buf)
 {
   int error;
   uint inx,not_used[2];

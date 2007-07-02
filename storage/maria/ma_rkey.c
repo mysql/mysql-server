@@ -21,10 +21,10 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int maria_rkey(MARIA_HA *info, byte *buf, int inx, const byte *key,
+int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
                uint key_len, enum ha_rkey_function search_flag)
 {
-  byte *key_buff;
+  uchar *key_buff;
   MARIA_SHARE *share=info->s;
   MARIA_KEYDEF *keyinfo;
   HA_KEYSEG *last_used_keyseg;

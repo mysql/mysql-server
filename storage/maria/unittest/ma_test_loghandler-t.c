@@ -56,10 +56,10 @@ static TRN *trn= &dummy_transaction_object;
     1 - Error
 */
 
-static my_bool check_content(byte *ptr, ulong length)
+static my_bool check_content(uchar *ptr, ulong length)
 {
   ulong i;
-  byte buff[2];
+  uchar buff[2];
   for (i= 0; i < length; i++)
   {
     if (i % 2 == 0)
@@ -107,7 +107,7 @@ void read_ok(TRANSLOG_HEADER_BUFFER *rec)
 */
 
 static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
-                                      byte *buffer, uint skip)
+                                      uchar *buffer, uint skip)
 {
   DBUG_ASSERT(rec->record_length < LONG_BUFFER_SIZE * 2 + 7 * 2 + 2);
   if (translog_read_record(rec->lsn, 0, rec->record_length, buffer, NULL) !=
@@ -122,14 +122,14 @@ int main(int argc __attribute__((unused)), char *argv[])
   uint32 i;
   uint32 rec_len;
   uint pagen;
-  byte long_tr_id[6];
-  byte lsn_buff[23]=
+  uchar long_tr_id[6];
+  uchar lsn_buff[23]=
   {
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55
   };
-  byte long_buffer[LONG_BUFFER_SIZE * 2 + LSN_STORE_SIZE * 2 + 2];
+  uchar long_buffer[LONG_BUFFER_SIZE * 2 + LSN_STORE_SIZE * 2 + 2];
   PAGECACHE pagecache;
   LSN lsn, lsn_base, first_lsn;
   TRANSLOG_HEADER_BUFFER rec;

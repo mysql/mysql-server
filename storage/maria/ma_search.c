@@ -19,8 +19,8 @@
 #include "m_ctype.h"
 
 static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                byte *page,
-                                byte *key, byte *keypos,
+                                uchar *page,
+                                uchar *key, uchar *keypos,
                                 uint *return_key_length);
 
         /* Check index */
@@ -55,13 +55,13 @@ int _ma_check_index(MARIA_HA *info, int inx)
         */
 
 int _ma_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-               byte *key, uint key_len, uint nextflag, register my_off_t pos)
+               uchar *key, uint key_len, uint nextflag, register my_off_t pos)
 {
   my_bool last_key;
   int error,flag;
   uint nod_flag;
-  byte *keypos,*maxpos;
-  byte lastkey[HA_MAX_KEY_BUFF],*buff;
+  uchar *keypos,*maxpos;
+  uchar lastkey[HA_MAX_KEY_BUFF],*buff;
   DBUG_ENTER("_ma_search");
   DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
                       (ulong) pos, nextflag, (ulong) info->cur_row.lastpos));
@@ -119,7 +119,7 @@ int _ma_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
   if (pos != info->last_keypage)
   {
-    byte *old_buff=buff;
+    uchar *old_buff=buff;
     if (!(buff= _ma_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,
                                   info->keyread_buff,
                                   test(!(nextflag & SEARCH_SAVE_BUFF)))))
@@ -175,9 +175,9 @@ err:
         /* ret_pos point to where find or bigger key starts */
         /* ARGSUSED */
 
-int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
-                   byte *key, uint key_len, uint comp_flag, byte **ret_pos,
-                   byte *buff __attribute__((unused)), my_bool *last_key)
+int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, uchar *page,
+                   uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
+                   uchar *buff __attribute__((unused)), my_bool *last_key)
 {
   reg4 int start,mid,end,save_end;
   int flag;
@@ -239,13 +239,13 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
     < 0         Not found.
 */
 
-int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
-                   byte *key, uint key_len, uint comp_flag, byte **ret_pos,
-                   byte *buff, my_bool *last_key)
+int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, uchar *page,
+                   uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
+                   uchar *buff, my_bool *last_key)
 {
   int flag;
   uint nod_flag,length,not_used[2];
-  byte t_buff[HA_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_ma_seq_search");
 
   LINT_INIT(flag); LINT_INIT(length);
@@ -285,8 +285,8 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo, byte *page,
 
 
 int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                      byte *page, byte *key, uint key_len, uint nextflag,
-                      byte **ret_pos, byte *buff, my_bool *last_key)
+                      uchar *page, uchar *key, uint key_len, uint nextflag,
+                      uchar **ret_pos, uchar *buff, my_bool *last_key)
 {
   /*
     my_flag is raw comparison result to be changed according to
@@ -297,11 +297,11 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint prefix_len,suffix_len;
   int key_len_skip, seg_len_pack, key_len_left;
-  byte *end;
+  uchar *end;
   uchar *kseg, *vseg, *saved_vseg, *saved_from;
   uchar *sort_order= keyinfo->seg->charset->sort_order;
-  byte tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  byte  *saved_to;
+  uchar tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
+  uchar  *saved_to;
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_ma_prefix_search");
@@ -331,7 +331,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     Keys are compressed the following way:
 
     If the max length of first key segment <= 127 bytes the prefix is
-    1 byte else it's 2 byte
+    1 uchar else it's 2 byte
 
     (prefix) length  The high bit is set if this is a prefix for the prev key.
     [suffix length]  Packed length of suffix if the previous was a prefix.
@@ -412,7 +412,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
         from+=l;
       }
       from+= keyseg->length;
-      page= (byte*) from+nod_flag;
+      page= (uchar*) from+nod_flag;
       length= (uint) (from-vseg);
     }
 
@@ -496,7 +496,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
 	  /* We have to compare k and vseg as if they were space extended */
 	  for (vseg_end= vseg + (len-cmplen) ;
-	       vseg < vseg_end && *vseg == (byte) ' ';
+	       vseg < vseg_end && *vseg == (uchar) ' ';
 	       vseg++, matched++) ;
 	  DBUG_ASSERT(vseg < vseg_end);
 
@@ -552,7 +552,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     saved_length=length;
   }
   if (saved_length)
-    memcpy(saved_to, (byte*) saved_from, saved_length);
+    memcpy(saved_to, (uchar*) saved_from, saved_length);
 
   *last_key= page == end;
 
@@ -563,7 +563,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
         /* Get pos to a key_block */
 
-my_off_t _ma_kpos(uint nod_flag, byte *after_key)
+my_off_t _ma_kpos(uint nod_flag, uchar *after_key)
 {
   after_key-=nod_flag;
   switch (nod_flag) {
@@ -599,7 +599,7 @@ my_off_t _ma_kpos(uint nod_flag, byte *after_key)
 
         /* Save pos to a key_block */
 
-void _ma_kpointer(register MARIA_HA *info, register byte *buff, my_off_t pos)
+void _ma_kpointer(register MARIA_HA *info, register uchar *buff, my_off_t pos)
 {
   pos/=MARIA_MIN_KEY_BLOCK_LENGTH;
   switch (info->s->base.key_reflength) {
@@ -618,7 +618,7 @@ void _ma_kpointer(register MARIA_HA *info, register byte *buff, my_off_t pos)
   case 4: mi_int4store(buff,pos); break;
   case 3: mi_int3store(buff,pos); break;
   case 2: mi_int2store(buff,(uint) pos); break;
-  case 1: buff[0]= (byte) pos; break;
+  case 1: buff[0]= (uchar) pos; break;
   default: abort();                             /* impossible */
   }
 } /* _ma_kpointer */
@@ -627,7 +627,7 @@ void _ma_kpointer(register MARIA_HA *info, register byte *buff, my_off_t pos)
         /* Calc pos to a data-record from a key */
 
 
-my_off_t _ma_dpos(MARIA_HA *info, uint nod_flag, const byte *after_key)
+my_off_t _ma_dpos(MARIA_HA *info, uint nod_flag, const uchar *after_key)
 {
   my_off_t pos;
   after_key-=(nod_flag + info->s->rec_reflength);
@@ -656,7 +656,7 @@ my_off_t _ma_dpos(MARIA_HA *info, uint nod_flag, const byte *after_key)
 
 /* Calc position from a record pointer ( in delete link chain ) */
 
-my_off_t _ma_rec_pos(MARIA_SHARE *s, byte *ptr)
+my_off_t _ma_rec_pos(MARIA_SHARE *s, uchar *ptr)
 {
   my_off_t pos;
   switch (s->rec_reflength) {
@@ -713,7 +713,7 @@ my_off_t _ma_rec_pos(MARIA_SHARE *s, byte *ptr)
 
         /* save position to record */
 
-void _ma_dpointer(MARIA_HA *info, byte *buff, my_off_t pos)
+void _ma_dpointer(MARIA_HA *info, uchar *buff, my_off_t pos)
 {
   if (info->s->data_file_type == STATIC_RECORD &&
       pos != HA_OFFSET_ERROR)
@@ -752,9 +752,9 @@ void _ma_dpointer(MARIA_HA *info, byte *buff, my_off_t pos)
         /* same as _ma_get_key but used with fixed length keys */
 
 uint _ma_get_static_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
-                       register byte **page, register byte *key)
+                       register uchar **page, register uchar *key)
 {
-  memcpy((byte*) key,(byte*) *page,
+  memcpy((uchar*) key,(uchar*) *page,
          (size_t) (keyinfo->keylength+nod_flag));
   *page+=keyinfo->keylength+nod_flag;
   return(keyinfo->keylength);
@@ -776,10 +776,10 @@ uint _ma_get_static_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 */
 
 uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
-                      register byte **page_pos, register byte *key)
+                      register uchar **page_pos, register uchar *key)
 {
   reg1 HA_KEYSEG *keyseg;
-  byte *start_key,*page=*page_pos;
+  uchar *start_key,*page=*page_pos;
   uint length;
 
   start_key=key;
@@ -788,7 +788,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
     if (keyseg->flag & HA_PACK_KEY)
     {
       /* key with length, packed to previous key */
-      byte *start= key;
+      uchar *start= key;
       uint packed= *page & 128,tot_length,rest_length;
       if (keyseg->length >= 127)
       {
@@ -891,19 +891,19 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
       if (keyseg->flag &
           (HA_VAR_LENGTH_PART | HA_BLOB_PART | HA_SPACE_PACK))
       {
-        byte *tmp=page;
+        uchar *tmp=page;
         get_key_length(length,tmp);
         length+=(uint) (tmp-page);
       }
       else
         length=keyseg->length;
     }
-    memcpy((byte*) key,(byte*) page,(size_t) length);
+    memcpy((uchar*) key,(uchar*) page,(size_t) length);
     key+=length;
     page+=length;
   }
   length=keyseg->length+nod_flag;
-  bmove((byte*) key,(byte*) page,length);
+  bmove((uchar*) key,(uchar*) page,length);
   *page_pos= page+length;
   return ((uint) (key-start_key)+keyseg->length);
 } /* _ma_get_pack_key */
@@ -913,10 +913,10 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 /* key that is packed relatively to previous */
 
 uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
-                             register byte **page_pos, register byte *key)
+                             register uchar **page_pos, register uchar *key)
 {
   reg1 HA_KEYSEG *keyseg;
-  byte *start_key,*page,*page_end,*from,*from_end;
+  uchar *start_key,*page,*page_end,*from,*from_end;
   uint length,tmp;
   DBUG_ENTER("_ma_get_binary_pack_key");
 
@@ -990,7 +990,7 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
     DBUG_ASSERT((int) length >= 0);
     DBUG_PRINT("info",("key: 0x%lx  from: 0x%lx  length: %u",
 		       (long) key, (long) from, length));
-    memmove((byte*) key, (byte*) from, (size_t) length);
+    memmove((uchar*) key, (uchar*) from, (size_t) length);
     key+=length;
     from+=length;
   }
@@ -1009,7 +1009,7 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Error */
     }
-    memcpy((byte*) key,(byte*) from,(size_t) length);
+    memcpy((uchar*) key,(uchar*) from,(size_t) length);
     *page_pos= from+length;
   }
   DBUG_RETURN((uint) (key-start_key)+keyseg->length);
@@ -1019,8 +1019,8 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
         /* Get key at position without knowledge of previous key */
         /* Returns pointer to next key */
 
-byte *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
-                   byte *key, byte *keypos, uint *return_key_length)
+uchar *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
+                   uchar *key, uchar *keypos, uint *return_key_length)
 {
   uint nod_flag;
   DBUG_ENTER("_ma_get_key");
@@ -1028,7 +1028,7 @@ byte *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
   nod_flag=_ma_test_if_nod(page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
-    bmove((byte*) key,(byte*) keypos,keyinfo->keylength+nod_flag);
+    bmove((uchar*) key,(uchar*) keypos,keyinfo->keylength+nod_flag);
     DBUG_RETURN(keypos+keyinfo->keylength+nod_flag);
   }
   else
@@ -1056,7 +1056,7 @@ byte *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
         /* Returns 0 if ok */
 
 static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                byte *page, byte *key, byte *keypos,
+                                uchar *page, uchar *key, uchar *keypos,
                                 uint *return_key_length)
 {
   uint nod_flag;
@@ -1066,7 +1066,7 @@ static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *return_key_length=keyinfo->keylength;
-    bmove((byte*) key,(byte*) keypos- *return_key_length-nod_flag,
+    bmove((uchar*) key,(uchar*) keypos- *return_key_length-nod_flag,
           *return_key_length);
     DBUG_RETURN(0);
   }
@@ -1093,11 +1093,11 @@ static my_bool _ma_get_prev_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
         /* Get last key from key-page */
         /* Return pointer to where key starts */
 
-byte *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
-                        byte *lastkey, byte *endpos, uint *return_key_length)
+uchar *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
+                        uchar *lastkey, uchar *endpos, uint *return_key_length)
 {
   uint nod_flag;
-  byte *lastpos;
+  uchar *lastpos;
   DBUG_ENTER("_ma_get_last_key");
   DBUG_PRINT("enter",("page: 0x%lx  endpos: 0x%lx", (long) page,
                       (long) endpos));
@@ -1108,7 +1108,7 @@ byte *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
     lastpos=endpos-keyinfo->keylength-nod_flag;
     *return_key_length=keyinfo->keylength;
     if (lastpos > page)
-      bmove((byte*) lastkey,(byte*) lastpos,keyinfo->keylength+nod_flag);
+      bmove((uchar*) lastkey,(uchar*) lastpos,keyinfo->keylength+nod_flag);
   }
   else
   {
@@ -1136,10 +1136,10 @@ byte *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
 
         /* Calculate length of key */
 
-uint _ma_keylength(MARIA_KEYDEF *keyinfo, register const byte *key)
+uint _ma_keylength(MARIA_KEYDEF *keyinfo, register const uchar *key)
 {
   reg1 HA_KEYSEG *keyseg;
-  const byte *start;
+  const uchar *start;
 
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
     return (keyinfo->keylength);
@@ -1171,11 +1171,11 @@ uint _ma_keylength(MARIA_KEYDEF *keyinfo, register const byte *key)
   after '0xDF' but find 'ss'
 */
 
-uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register const byte *key,
+uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register const uchar *key,
 			HA_KEYSEG *end)
 {
   reg1 HA_KEYSEG *keyseg;
-  const byte *start= key;
+  const uchar *start= key;
 
   for (keyseg=keyinfo->seg ; keyseg != end ; keyseg++)
   {
@@ -1197,7 +1197,7 @@ uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register const byte *key,
 
 /* Move a key */
 
-byte *_ma_move_key(MARIA_KEYDEF *keyinfo, byte *to, const byte *from)
+uchar *_ma_move_key(MARIA_KEYDEF *keyinfo, uchar *to, const uchar *from)
 {
   reg1 uint length;
   memcpy(to, from, (size_t) (length= _ma_keylength(keyinfo, from)));
@@ -1213,11 +1213,11 @@ byte *_ma_move_key(MARIA_KEYDEF *keyinfo, byte *to, const byte *from)
 */
 
 int _ma_search_next(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                    byte *key, uint key_length, uint nextflag, my_off_t pos)
+                    uchar *key, uint key_length, uint nextflag, my_off_t pos)
 {
   int error;
   uint nod_flag;
-  byte lastkey[HA_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_ma_search_next");
   DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu  page_changed %d  keyread_buff_used: %d",
                       nextflag, (ulong) info->cur_row.lastpos,
@@ -1299,7 +1299,7 @@ int _ma_search_first(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                      register my_off_t pos)
 {
   uint nod_flag;
-  byte *page;
+  uchar *page;
   DBUG_ENTER("_ma_search_first");
 
   if (pos == HA_OFFSET_ERROR)
@@ -1343,7 +1343,7 @@ int _ma_search_last(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                     register my_off_t pos)
 {
   uint nod_flag;
-  byte *buff,*page;
+  uchar *buff,*page;
   DBUG_ENTER("_ma_search_last");
 
   if (pos == HA_OFFSET_ERROR)
@@ -1398,10 +1398,10 @@ int _ma_search_last(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
 int
 _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
-                           byte *next_pos  __attribute__((unused)),
-                           byte *org_key  __attribute__((unused)),
-                           byte *prev_key __attribute__((unused)),
-                           const byte *key, MARIA_KEY_PARAM *s_temp)
+                           uchar *next_pos  __attribute__((unused)),
+                           uchar *org_key  __attribute__((unused)),
+                           uchar *prev_key __attribute__((unused)),
+                           const uchar *key, MARIA_KEY_PARAM *s_temp)
 {
   s_temp->key= key;
   return (int) (s_temp->totlength=keyinfo->keylength+nod_flag);
@@ -1411,10 +1411,10 @@ _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
 
 int
 _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
-                        byte *next_pos  __attribute__((unused)),
-                        byte *org_key  __attribute__((unused)),
-                        byte *prev_key __attribute__((unused)),
-                        const byte *key, MARIA_KEY_PARAM *s_temp)
+                        uchar *next_pos  __attribute__((unused)),
+                        uchar *org_key  __attribute__((unused)),
+                        uchar *prev_key __attribute__((unused)),
+                        const uchar *key, MARIA_KEY_PARAM *s_temp)
 {
   s_temp->key= key;
   return (int) (s_temp->totlength= _ma_keylength(keyinfo,key)+nod_flag);
@@ -1427,7 +1427,7 @@ _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
   Keys are compressed the following way:
 
   If the max length of first key segment <= 127 bytes the prefix is
-  1 byte else it's 2 byte
+  1 uchar else it's 2 byte
 
   prefix byte(s) The high bit is set if this is a prefix for the prev key
   length         Packed length if the previous was a prefix byte
@@ -1441,15 +1441,15 @@ _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo,uint nod_flag,
 
 int
 _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                             byte *next_key,
-                             byte *org_key, byte *prev_key, const byte *key,
+                             uchar *next_key,
+                             uchar *org_key, uchar *prev_key, const uchar *key,
                              MARIA_KEY_PARAM *s_temp)
 {
   reg1 HA_KEYSEG *keyseg;
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
-  const byte *start,*end,*key_end;
+  const uchar *start,*end,*key_end;
   uchar *sort_order;
   bool same_length;
 
@@ -1726,9 +1726,9 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
 /* Length of key which is prefix compressed */
 
 int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                                 byte *next_key,
-                                 byte *org_key, byte *prev_key,
-                                 const byte *key,
+                                 uchar *next_key,
+                                 uchar *org_key, uchar *prev_key,
+                                 const uchar *key,
                                  MARIA_KEY_PARAM *s_temp)
 {
   uint length,key_length,ref_length;
@@ -1746,7 +1746,7 @@ int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
       As keys may be identical when running a sort in maria_chk, we
       have to guard against the case where keys may be identical
     */
-    const byte *end;
+    const uchar *end;
     end=key+key_length;
     for ( ; *key == *prev_key && key < end; key++,prev_key++) ;
     s_temp->ref_length= ref_length=(uint) (key-s_temp->key);
@@ -1767,7 +1767,7 @@ int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
     /* If first key and next key is packed (only on delete) */
     if (!prev_key && org_key && next_length)
     {
-      const byte *end;
+      const uchar *end;
       for (key= s_temp->key, end=key+next_length ;
            *key == *org_key && key < end;
            key++,org_key++) ;
@@ -1809,10 +1809,10 @@ int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
 /* store key without compression */
 
 void _ma_store_static_key(MARIA_KEYDEF *keyinfo __attribute__((unused)),
-                          register byte *key_pos,
+                          register uchar *key_pos,
                           register MARIA_KEY_PARAM *s_temp)
 {
-  memcpy((byte*) key_pos,(byte*) s_temp->key,(size_t) s_temp->totlength);
+  memcpy((uchar*) key_pos,(uchar*) s_temp->key,(size_t) s_temp->totlength);
 }
 
 
@@ -1824,11 +1824,11 @@ void _ma_store_static_key(MARIA_KEYDEF *keyinfo __attribute__((unused)),
 
 
 void _ma_store_var_pack_key(MARIA_KEYDEF *keyinfo  __attribute__((unused)),
-                            register byte *key_pos,
+                            register uchar *key_pos,
                             register MARIA_KEY_PARAM *s_temp)
 {
   uint length;
-  byte *start;
+  uchar *start;
 
   start=key_pos;
 
@@ -1845,7 +1845,7 @@ void _ma_store_var_pack_key(MARIA_KEYDEF *keyinfo  __attribute__((unused)),
     /* Not packed against previous key */
     store_pack_length(s_temp->pack_marker == 128,key_pos,s_temp->key_length);
   }
-  bmove((byte*) key_pos,(byte*) s_temp->key,
+  bmove((uchar*) key_pos,(uchar*) s_temp->key,
         (length=s_temp->totlength-(uint) (key_pos-start)));
 
   if (!s_temp->next_key_pos)                    /* No following key */
@@ -1887,7 +1887,7 @@ void _ma_store_var_pack_key(MARIA_KEYDEF *keyinfo  __attribute__((unused)),
 /* variable length key with prefix compression */
 
 void _ma_store_bin_pack_key(MARIA_KEYDEF *keyinfo  __attribute__((unused)),
-                            register byte *key_pos,
+                            register uchar *key_pos,
                             register MARIA_KEY_PARAM *s_temp)
 {
   store_key_length_inc(key_pos,s_temp->ref_length);

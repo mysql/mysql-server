@@ -76,13 +76,13 @@ static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
 static int maria_chk(HA_CHECK *param, char *filename);
-static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name);
+static void descript(HA_CHECK *param, register MARIA_HA *info, char *name);
 static int maria_sort_records(HA_CHECK *param, register MARIA_HA *info,
-                              my_string name, uint sort_key,
+                              char *name, uint sort_key,
                               my_bool write_info, my_bool update_index);
 static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_HA *info,
                              MARIA_KEYDEF *keyinfo,
-			     my_off_t page, byte *buff,uint sortkey,
+			     my_off_t page, uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
 
 HA_CHECK check_param;
@@ -178,7 +178,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (gptr*) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -198,8 +198,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"data-file-length", 'D',
    "Max length of data file (when recreating data-file when it's full).",
-   (gptr*) &check_param.max_data_file_length,
-   (gptr*) &check_param.max_data_file_length,
+   (uchar**) &check_param.max_data_file_length,
+   (uchar**) &check_param.max_data_file_length,
    0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extend-check", 'e',
    "If used when checking a table, ensure that the table is 100 percent consistent, which will take a long time. If used when repairing a table, try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option with repair if you are not totally desperate.",
@@ -221,13 +221,13 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell MARIA to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
-   (gptr*) &check_param.keys_in_use,
-   (gptr*) &check_param.keys_in_use,
+   (uchar**) &check_param.keys_in_use,
+   (uchar**) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
    "Skip rows bigger than this if maria_chk can't allocate memory to hold it",
-   (gptr*) &check_param.max_record_length,
-   (gptr*) &check_param.max_record_length,
+   (uchar**) &check_param.max_record_length,
+   (uchar**) &check_param.max_record_length,
    0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
@@ -256,12 +256,12 @@ static struct my_option my_long_options[] =
 #endif
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
-   (gptr*) &check_param.auto_increment_value,
-   (gptr*) &check_param.auto_increment_value,
+   (uchar**) &check_param.auto_increment_value,
+   (uchar**) &check_param.auto_increment_value,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"set-collation", OPT_SET_COLLATION,
    "Change the collation used by the index",
-   (gptr*) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -273,12 +273,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sort-records", 'R',
    "Sort records according to an index. This makes your data much more localized and may speed up things. (It may be VERY slow to do a sort the first time!)",
-   (gptr*) &check_param.opt_sort_key,
-   (gptr*) &check_param.opt_sort_key,
+   (uchar**) &check_param.opt_sort_key,
+   (uchar**) &check_param.opt_sort_key,
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (gptr*) &opt_tmpdir,
+   (uchar**) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
@@ -296,45 +296,45 @@ static struct my_option my_long_options[] =
    "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
-    (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0,
+    (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
-    (gptr*) &check_param.read_buffer_length,
-    (gptr*) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    (uchar**) &check_param.read_buffer_length,
+    (uchar**) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
-    (gptr*) &check_param.write_buffer_length,
-    (gptr*) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    (uchar**) &check_param.write_buffer_length,
+    (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
-    (gptr*) &check_param.sort_buffer_length,
-    (gptr*) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    (uchar**) &check_param.sort_buffer_length,
+    (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
-    (gptr*) &check_param.sort_key_blocks,
-    (gptr*) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
+    (uchar**) &check_param.sort_key_blocks,
+    (uchar**) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
     BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
-  { "decode_bits", OPT_DECODE_BITS, "", (gptr*) &decode_bits,
-    (gptr*) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
-  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (gptr*) &ft_min_word_len,
-    (gptr*) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
+  { "decode_bits", OPT_DECODE_BITS, "", (uchar**) &decode_bits,
+    (uchar**) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
+  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (uchar**) &ft_min_word_len,
+    (uchar**) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
     0, 1, 0},
-  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
-    (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
+  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (uchar**) &ft_max_word_len,
+    (uchar**) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
     HA_FT_MAXCHARLEN, 0, 1, 0},
   { "maria_ft_stopword_file", OPT_FT_STOPWORD_FILE,
     "Use stopwords from this file instead of built-in list.",
-    (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
+    (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
    "Specifies how index statistics collection code should threat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
    "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
-   (gptr*) &maria_stats_method_str, (gptr*) &maria_stats_method_str, 0,
+   (uchar**) &maria_stats_method_str, (uchar**) &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -794,7 +794,7 @@ static void get_options(register int *argc,register char ***argv)
 
 	/* Check table */
 
-static int maria_chk(HA_CHECK *param, my_string filename)
+static int maria_chk(HA_CHECK *param, char *filename)
 {
   int error,lock_type,recreate;
   int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
@@ -1215,7 +1215,7 @@ end2:
 
 /* Write info about table */
 
-static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
+static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 {
   uint key,keyseg_nr,field;
   reg3 MARIA_KEYDEF *keyinfo;
@@ -1468,7 +1468,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, my_string name)
 	/* Sort records according to one key */
 
 static int maria_sort_records(HA_CHECK *param,
-			   register MARIA_HA *info, my_string name,
+			   register MARIA_HA *info, char *name,
 			   uint sort_key,
 			   my_bool write_info,
 			   my_bool update_index)
@@ -1477,7 +1477,7 @@ static int maria_sort_records(HA_CHECK *param,
   uint key;
   MARIA_KEYDEF *keyinfo;
   File new_file;
-  byte *temp_buff;
+  uchar *temp_buff;
   ha_rows old_record_count;
   MARIA_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
@@ -1532,12 +1532,12 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   info->opt_flag|=WRITE_CACHE_USED;
 
-  if (!(temp_buff=(byte*) my_alloca((uint) keyinfo->block_length)))
+  if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     goto err;
   }
-  if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
+  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
     _ma_check_print_error(param,"Not enough memory for record");
@@ -1630,7 +1630,7 @@ err:
   }
   if (temp_buff)
   {
-    my_afree((gptr) temp_buff);
+    my_afree((uchar*) temp_buff);
   }
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -1647,13 +1647,13 @@ err:
 
 static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
                              MARIA_KEYDEF *keyinfo,
-			     my_off_t page, byte *buff, uint sort_key,
+			     my_off_t page, uchar *buff, uint sort_key,
 			     File new_file,my_bool update_index)
 {
   uint	nod_flag,used_length,key_length;
-  byte *temp_buff,*keypos,*endpos;
+  uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
-  byte lastkey[HA_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   char llbuff[22];
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
@@ -1664,7 +1664,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 
   if (nod_flag)
   {
-    if (!(temp_buff= (byte*) my_alloca((uint) keyinfo->block_length)))
+    if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length)))
     {
       _ma_check_print_error(param,"Not Enough memory");
       DBUG_RETURN(-1);
@@ -1679,7 +1679,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(info->s->kfile.file, (byte*)temp_buff,
+      if (my_pread(info->s->kfile.file, (uchar*)temp_buff,
 		  (uint) keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
       {
@@ -1719,19 +1719,19 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       goto err;
   }
   /* Clear end of block to get better compression if the table is backuped */
-  bzero((byte*) buff+used_length,keyinfo->block_length-used_length);
-  if (my_pwrite(info->s->kfile.file, (byte*)buff, (uint)keyinfo->block_length,
+  bzero((uchar*) buff+used_length,keyinfo->block_length-used_length);
+  if (my_pwrite(info->s->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
 		page,param->myf_rw))
   {
     _ma_check_print_error(param,"%d when updating keyblock",my_errno);
     goto err;
   }
   if (temp_buff)
-    my_afree((gptr) temp_buff);
+    my_afree((uchar*) temp_buff);
   DBUG_RETURN(0);
 err:
   if (temp_buff)
-    my_afree((gptr) temp_buff);
+    my_afree((uchar*) temp_buff);
   DBUG_RETURN(1);
 } /* sort_record_index */
 

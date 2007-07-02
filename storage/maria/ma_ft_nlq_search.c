@@ -69,7 +69,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   TREE_ELEMENT *selem;
   double       gweight=1;
   MARIA_HA     *info= aio->info;
-  byte         *keybuff= (byte*) aio->keybuff;
+  uchar         *keybuff= (uchar*) aio->keybuff;
   MARIA_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
   uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
@@ -190,7 +190,7 @@ static int walk_and_push(FT_SUPERDOC *from,
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit-1);
-  queue_insert(best, (byte *)& from->doc);
+  queue_insert(best, (uchar *)& from->doc);
   DBUG_RETURN(0);
 }
 
@@ -202,8 +202,8 @@ static int FT_DOC_cmp(void *unused __attribute__((unused)),
 }
 
 
-FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
-			    uint query_len, uint flags, byte *record)
+FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, uchar *query,
+			    uint query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;
@@ -324,7 +324,7 @@ int maria_ft_nlq_read_next(FT_INFO *handler, char *record)
 
 
 float maria_ft_nlq_find_relevance(FT_INFO *handler,
-			    byte *record __attribute__((unused)),
+			    uchar *record __attribute__((unused)),
 			    uint length __attribute__((unused)))
 {
   int a,b,c;
@@ -353,7 +353,7 @@ float maria_ft_nlq_find_relevance(FT_INFO *handler,
 
 void maria_ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((gptr)handler,MYF(0));
+  my_free((uchar*)handler,MYF(0));
 }
 
 

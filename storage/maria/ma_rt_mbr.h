@@ -19,20 +19,20 @@
 
 #ifdef HAVE_RTREE_KEYS
 
-int maria_rtree_key_cmp(HA_KEYSEG *keyseg, byte *a, byte *b, uint key_length,
+int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
                         uint nextflag);
-int maria_rtree_combine_rect(HA_KEYSEG *keyseg,byte *, byte *, byte*,
+int maria_rtree_combine_rect(HA_KEYSEG *keyseg,uchar *, uchar *, uchar*,
                              uint key_length);
-double maria_rtree_rect_volume(HA_KEYSEG *keyseg, byte*, uint key_length);
-int maria_rtree_d_mbr(HA_KEYSEG *keyseg, byte *a, uint key_length,
+double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar*, uint key_length);
+int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length,
                       double *res);
-double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, byte *a, byte *b,
+double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar *a, uchar *b,
                                     uint key_length);
-double maria_rtree_area_increase(HA_KEYSEG *keyseg, byte *a, byte *b,
+double maria_rtree_area_increase(HA_KEYSEG *keyseg, uchar *a, uchar *b,
                                  uint key_length, double *ab_area);
-double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, byte* a, byte* b,
+double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
                                       uint key_length, double *ab_perim);
-int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, byte *page_buf,
-                         byte* c, uint key_length);
+int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, uchar *page_buf,
+                         uchar* c, uint key_length);
 #endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_mbr_h */

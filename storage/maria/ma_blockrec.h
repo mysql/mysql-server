@@ -60,7 +60,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 
 #define PAGE_CAN_BE_COMPACTED   128             /* Bit in PAGE_TYPE */
 
-/* Bits used for flag byte (one byte, first in record) */
+/* Bits used for flag uchar (one byte, first in record) */
 #define ROW_FLAG_TRANSID                1
 #define ROW_FLAG_VER_PTR                2
 #define ROW_FLAG_DELETE_TRANSID         4
@@ -82,7 +82,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
                                      TRANSID_SIZE + VERPTR_SIZE + \
                                      TRANSID_SIZE)
 
-/* We use 1 byte in record header to store number of directory entries */
+/* We use 1 uchar in record header to store number of directory entries */
 #define MAX_ROWS_PER_PAGE	255
 
 /* Bits for MARIA_BITMAP_BLOCKS->used */
@@ -133,25 +133,25 @@ my_bool _ma_init_block_record(MARIA_HA *info);
 void _ma_end_block_record(MARIA_HA *info);
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS pos,
-                                const byte *oldrec, const byte *newrec);
-my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record);
-int     _ma_read_block_record(MARIA_HA *info, byte *record,
+                                const uchar *oldrec, const uchar *newrec);
+my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record);
+int     _ma_read_block_record(MARIA_HA *info, uchar *record,
                               MARIA_RECORD_POS record_pos);
-int _ma_read_block_record2(MARIA_HA *info, byte *record,
-                           byte *data, byte *end_of_data);
-int     _ma_scan_block_record(MARIA_HA *info, byte *record,
+int _ma_read_block_record2(MARIA_HA *info, uchar *record,
+                           uchar *data, uchar *end_of_data);
+int     _ma_scan_block_record(MARIA_HA *info, uchar *record,
                               MARIA_RECORD_POS, my_bool);
 my_bool _ma_cmp_block_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
-                             const byte *record, MARIA_RECORD_POS pos);
+                             const uchar *record, MARIA_RECORD_POS pos);
 my_bool _ma_scan_init_block_record(MARIA_HA *info);
 void _ma_scan_end_block_record(MARIA_HA *info);
 
 MARIA_RECORD_POS _ma_write_init_block_record(MARIA_HA *info,
-                                             const byte *record);
-my_bool _ma_write_block_record(MARIA_HA *info, const byte *record);
+                                             const uchar *record);
+my_bool _ma_write_block_record(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_block_record(MARIA_HA *info);
 my_bool _ma_compare_block_record(register MARIA_HA *info,
-                                 register const byte *record);
+                                 register const uchar *record);
 
 /* ma_bitmap.c */
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
@@ -160,7 +160,7 @@ my_bool _ma_flush_bitmap(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
                               MARIA_BITMAP_BLOCKS *result_blocks);
 my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks);
-my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const byte *extents,
+my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count);
 my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong pos, my_bool head,
                        uint empty_space);

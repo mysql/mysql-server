@@ -21,12 +21,12 @@
 #include "maria_def.h"
 #include "ma_rt_index.h"
 
-static ha_rows _ma_record_pos(MARIA_HA *info,const byte *key,uint key_len,
+static ha_rows _ma_record_pos(MARIA_HA *info,const uchar *key,uint key_len,
 			      enum ha_rkey_function search_flag);
-static double _ma_search_pos(MARIA_HA *info,MARIA_KEYDEF *keyinfo, byte *key,
+static double _ma_search_pos(MARIA_HA *info,MARIA_KEYDEF *keyinfo, uchar *key,
 			     uint key_len,uint nextflag, my_off_t pos);
-static uint _ma_keynr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, byte *page,
-		      byte *keypos, uint *ret_max_key);
+static uint _ma_keynr(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
+		      uchar *keypos, uint *ret_max_key);
 
 
 /**
@@ -64,7 +64,7 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
 #ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
   {
-    byte *key_buff;
+    uchar *key_buff;
     uint start_key_len;
 
     /*
@@ -126,12 +126,12 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
 
 	/* Find relative position (in records) for key in index-tree */
 
-static ha_rows _ma_record_pos(MARIA_HA *info, const byte *key, uint key_len,
+static ha_rows _ma_record_pos(MARIA_HA *info, const uchar *key, uint key_len,
 			      enum ha_rkey_function search_flag)
 {
   uint inx=(uint) info->lastinx, nextflag;
   MARIA_KEYDEF *keyinfo=info->s->keyinfo+inx;
-  byte *key_buff;
+  uchar *key_buff;
   double pos;
   DBUG_ENTER("_ma_record_pos");
   DBUG_PRINT("enter",("search_flag: %d",search_flag));
@@ -164,13 +164,13 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const byte *key, uint key_len,
 
 static double _ma_search_pos(register MARIA_HA *info,
 			     register MARIA_KEYDEF *keyinfo,
-			     byte *key, uint key_len, uint nextflag,
+			     uchar *key, uint key_len, uint nextflag,
 			     register my_off_t pos)
 {
   int flag;
   uint nod_flag,keynr,max_keynr;
   my_bool after_key;
-  byte *keypos, *buff;
+  uchar *keypos, *buff;
   double offset;
   DBUG_ENTER("_ma_search_pos");
   LINT_INIT(max_keynr);
@@ -232,10 +232,10 @@ err:
 	/* Get keynummer of current key and max number of keys in nod */
 
 static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                      byte *page, byte *keypos, uint *ret_max_key)
+                      uchar *page, uchar *keypos, uint *ret_max_key)
 {
   uint nod_flag,keynr,max_key;
-  byte t_buff[HA_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
 
   end= page+maria_data_on_page(page);
   nod_flag=_ma_test_if_nod(page);

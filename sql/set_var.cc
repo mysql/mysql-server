@@ -345,10 +345,10 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
-sys_var_thd_ulonglong	sys_maria_max_sort_file_size("maria_max_sort_file_size", &SV::maria_max_sort_file_size, fix_maria_max_sort_file_size, 1);
-sys_var_thd_ulong       sys_maria_repair_threads("maria_repair_threads", &SV::maria_repair_threads);
-sys_var_thd_ulong	sys_maria_sort_buffer_size("maria_sort_buffer_size", &SV::maria_sort_buff_size);
-sys_var_thd_enum        sys_maria_stats_method("maria_stats_method",
+static sys_var_thd_ulonglong	sys_maria_max_sort_file_size(&vars, "maria_max_sort_file_size", &SV::maria_max_sort_file_size, fix_maria_max_sort_file_size, 1);
+static sys_var_thd_ulong       sys_maria_repair_threads(&vars, "maria_repair_threads", &SV::maria_repair_threads);
+static sys_var_thd_ulong	sys_maria_sort_buffer_size(&vars, "maria_sort_buffer_size", &SV::maria_sort_buff_size);
+static sys_var_thd_enum        sys_maria_stats_method(&vars, "maria_stats_method",
                                                 &SV::maria_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
@@ -1963,13 +1963,13 @@ uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 
 
 #ifdef WITH_MARIA_STORAGE_ENGINE
-byte *sys_var_pagecache_param::value_ptr(THD *thd, enum_var_type type,
+uchar *sys_var_pagecache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
 {
   PAGECACHE *pagecache= get_pagecache(base);
   if (!pagecache)
     pagecache= &zero_pagecache;
-  return (byte*) pagecache + offset ;
+  return (uchar*) pagecache + offset ;
 }
 #endif /* WITH_MARIA_STORAGE_ENGINE */
 
@@ -3664,7 +3664,7 @@ static PAGECACHE *create_pagecache(const char *name, uint length)
   if ((pagecache= (PAGECACHE*) my_malloc(sizeof(PAGECACHE),
                                          MYF(MY_ZEROFILL | MY_WME))))
   {
-    if (!new NAMED_LIST(&pagecaches, name, length, (gptr) pagecache))
+    if (!new NAMED_LIST(&pagecaches, name, length, (uchar*) pagecache))
     {
       my_free((char*) pagecache, MYF(0));
       pagecache= 0;

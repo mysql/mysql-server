@@ -742,7 +742,7 @@ public:
   sys_var_pagecache_param(const char *name_arg, size_t offset_arg)
     :sys_var(name_arg), offset(offset_arg)
   {}
-  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool check_default(enum_var_type type) { return 1; }
   bool is_struct() { return 1; }
 };

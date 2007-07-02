@@ -20,15 +20,15 @@
 	/* Print a key in user understandable format */
 
 void _ma_print_key(FILE *stream, register HA_KEYSEG *keyseg,
-		   const byte *key, uint length)
+		   const uchar *key, uint length)
 {
   int flag;
   short int s_1;
   long	int l_1;
   float f_1;
   double d_1;
-  const byte *end;
-  const byte *key_end= key + length;
+  const uchar *end;
+  const uchar *key_end= key + length;
 
   VOID(fputs("Key: \"",stream));
   flag=0;

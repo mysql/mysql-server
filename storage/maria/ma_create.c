@@ -90,7 +90,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
   errpos=0;
   options=0;
-  bzero((byte*) &share,sizeof(share));
+  bzero((uchar*) &share,sizeof(share));
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
@@ -232,7 +232,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if ((packed & 7) == 1)
   {
     /*
-      Not optimal packing, try to remove a 1 byte length zero-field as
+      Not optimal packing, try to remove a 1 uchar length zero-field as
       this will get same record length, but smaller pack overhead
     */
     while (column != columndef)
@@ -401,7 +401,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       }
       keydef->keysegs+=sp_segs;
       key_length+=SPLEN*sp_segs;
-      length++;                              /* At least one length byte */
+      length++;                              /* At least one length uchar */
       min_key_length_skip+=SPLEN*2*SPDIMS;
 #else
       my_errno= HA_ERR_UNSUPPORTED;
@@ -437,7 +437,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
       fulltext_keys++;
       key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
-      length++;                              /* At least one length byte */
+      length++;                              /* At least one length uchar */
       min_key_length_skip+=HA_FT_MAXBYTELEN;
       real_length_diff=HA_FT_MAXBYTELEN-FT_MAX_WORD_LEN_FOR_SORT;
     }
@@ -510,7 +510,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
           DBUG_ASSERT(!(keyseg->flag & HA_VAR_LENGTH_PART));
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	  length++;				/* At least one length byte */
+	  length++;				/* At least one length uchar */
 	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
 	  {					/* prefix may be 3 bytes */
@@ -523,7 +523,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
           DBUG_ASSERT(!test_all_bits(keyseg->flag,
                                     (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
-	  length++;				/* At least one length byte */
+	  length++;				/* At least one length uchar */
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
@@ -612,7 +612,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err_no_lock;
   }
 
-  bmove(share.state.header.file_version,(byte*) maria_file_magic,4);
+  bmove(share.state.header.file_version,(uchar*) maria_file_magic,4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
 			HA_OPTION_COMPRESS_RECORD |
 			HA_OPTION_TEMP_COMPRESS_RECORD: 0);
@@ -920,11 +920,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     {
       if (_ma_columndef_write(file, col_order[i]))
       {
-        my_free((gptr) col_order, MYF(0));
+        my_free((uchar*) col_order, MYF(0));
         goto err;
       }
     }
-    my_free((gptr) col_order, MYF(0));
+    my_free((uchar*) col_order, MYF(0));
   }
   else
   {

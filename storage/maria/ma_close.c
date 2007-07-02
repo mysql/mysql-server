@@ -107,18 +107,18 @@ int maria_close(register MARIA_HA *info)
       }
     }
 #endif
-    my_free((gptr) info->s,MYF(0));
+    my_free((uchar*) info->s,MYF(0));
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   if (info->ftparser_param)
   {
-    my_free((gptr)info->ftparser_param, MYF(0));
+    my_free((uchar*)info->ftparser_param, MYF(0));
     info->ftparser_param= 0;
   }
   if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
     error = my_errno;
 
-  my_free((gptr) info,MYF(0));
+  my_free((uchar*) info,MYF(0));
 
   if (error)
   {

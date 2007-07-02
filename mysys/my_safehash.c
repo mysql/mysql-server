@@ -53,7 +53,7 @@
 static void safe_hash_entry_free(SAFE_HASH_ENTRY *entry)
 {
   DBUG_ENTER("safe_hash_entry_free");
-  my_free((gptr) entry, MYF(0));
+  my_free((uchar*) entry, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -70,11 +70,11 @@ static void safe_hash_entry_free(SAFE_HASH_ENTRY *entry)
     #  reference on the key
 */
 
-static byte *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, uint *length,
-                                 my_bool not_used __attribute__((unused)))
+static uchar *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, uint *length,
+                                  my_bool not_used __attribute__((unused)))
 {
   *length= entry->length;
-  return (byte*) entry->key;
+  return (uchar*) entry->key;
 }
 
 
@@ -97,7 +97,7 @@ static byte *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, uint *length,
 */
 
 my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
-                       byte *default_value)
+                       uchar *default_value)
 {
   DBUG_ENTER("safe_hash_init");
   if (hash_init(&hash->hash, &my_charset_bin, elements,
@@ -154,10 +154,10 @@ void safe_hash_free(SAFE_HASH *hash)
     #  data associated with the key of default value if data was not found
 */
 
-byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length,
-                       byte *def)
+uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length,
+                        uchar *def)
 {
-  byte *result;
+  uchar *result;
   DBUG_ENTER("safe_hash_search");
   rw_rdlock(&hash->mutex);
   result= hash_search(&hash->hash, key, length);
@@ -191,8 +191,8 @@ byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length,
     1  error (Can only be EOM). In this case my_message() is called.
 */
 
-my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
-                      byte *data)
+my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
+                      uchar *data)
 {
   SAFE_HASH_ENTRY *entry;
   my_bool error= 0;
@@ -214,7 +214,7 @@ my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
     /* unlink entry from list */
     if ((*entry->prev= entry->next))
       entry->next->prev= entry->prev;
-    hash_delete(&hash->hash, (byte*) entry);
+    hash_delete(&hash->hash, (uchar*) entry);
     goto end;
   }
   if (entry)
@@ -230,7 +230,7 @@ my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
       error= 1;
       goto end;
     }
-    entry->key= (byte*) (entry +1);
+    entry->key= (uchar*) (entry +1);
     memcpy((char*) entry->key, (char*) key, length);
     entry->length= length;
     entry->data= data;
@@ -239,7 +239,7 @@ my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
       entry->next->prev= &entry->next;
     entry->prev= &hash->root;
     hash->root= entry;
-    if (my_hash_insert(&hash->hash, (byte*) entry))
+    if (my_hash_insert(&hash->hash, (uchar*) entry))
     {
       /* This can only happen if hash got out of memory */
       my_free((char*) entry, MYF(0));
@@ -269,7 +269,7 @@ end:
     default value.
 */
 
-void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data)
+void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
 {
   SAFE_HASH_ENTRY *entry, *next;
   DBUG_ENTER("safe_hash_change");
@@ -285,7 +285,7 @@ void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data)
       {
         if ((*entry->prev= entry->next))
           entry->next->prev= entry->prev;
-        hash_delete(&hash->hash, (byte*) entry);
+        hash_delete(&hash->hash, (uchar*) entry);
       }
       else
         entry->data= new_data;

@@ -66,8 +66,9 @@ int my_rename(const char *from, const char *to, myf MyFlags)
 #ifdef NEED_EXPLICIT_SYNC_DIR
     /* do only the needed amount of syncs: */
     char dir_from[FN_REFLEN], dir_to[FN_REFLEN];
-    dirname_part(dir_from, from);
-    dirname_part(dir_to, to);
+    size_t dir_from_length, dir_to_length;
+    dirname_part(dir_from, from, &dir_from_length);
+    dirname_part(dir_to, to, &dir_to_length);
     if (my_sync_dir(dir_from, MyFlags) ||
         (strcmp(dir_from, dir_to) &&
          my_sync_dir(dir_to, MyFlags)))

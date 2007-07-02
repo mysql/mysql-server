@@ -717,12 +717,12 @@ extern void handle_recived_signals(void);
 extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
-				  size_s size_of_element,uchar *buffer[]);
+				  size_t size_of_element,uchar *buffer[]);
 extern qsort_t qsort2(void *base_ptr, size_t total_elems, size_t size,
 		      qsort2_cmp cmp, void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
-my_off_t my_get_ptr(cuhar *ptr, size_t pack_length);
+my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,
 			 enum cache_type type,my_off_t seek_offset,
 			 pbool use_async_io, myf cache_myflags);
@@ -840,11 +840,11 @@ extern void free_defaults(char **argv);
 extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(uchar *, size_t *, size_t *);
-extern my_bool my_uncompress(uchar *, size_t *, size_t *);
+extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
 extern int packfrm(const uchar *, size_t, uchar **, size_t *);
-extern int unpackfrm(const uchar **, size_t *, const uchar *);
+extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);

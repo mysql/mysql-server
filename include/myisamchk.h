@@ -76,8 +76,8 @@
 
 typedef struct st_sort_key_blocks		/* Used when sorting */
 {
-  byte *buff, *end_pos;
-  byte lastkey[HA_MAX_POSSIBLE_KEY_BUFF];
+  uchar *buff, *end_pos;
+  uchar lastkey[HA_MAX_POSSIBLE_KEY_BUFF];
   uint last_length;
   int inited;
 } SORT_KEY_BLOCKS;
@@ -147,15 +147,15 @@ typedef struct st_handler_check_param
 
 typedef struct st_sort_ftbuf
 {
-  byte *buf, *end;
+  uchar *buf, *end;
   int count;
-  byte lastkey[HA_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
 } SORT_FT_BUF;
 
 
 typedef struct st_buffpek {
   my_off_t file_pos;                    /* Where we are in the sort file */
-  byte *base, *key;                     /* Key pointers */
+  uchar *base, *key;                    /* Key pointers */
   ha_rows count;                        /* Number of rows in table */
   ulong mem_count;                      /* numbers of keys in memory */
   ulong max_keys;                       /* Max keys in buffert */

@@ -550,8 +550,9 @@ extern int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
 extern my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level);
 extern uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
                          const uchar *record, my_off_t filepos);
-extern uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
-                         uint key_length, HA_KEYSEG ** last_used_keyseg);
+extern uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key,
+                         uchar *old, key_part_map keypart_map,
+                         HA_KEYSEG ** last_used_keyseg);
 extern int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf);
 extern int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
                           uint length, int re_read_if_possibly);
@@ -566,7 +567,7 @@ extern uchar *mi_alloc_rec_buff(MI_INFO *, ulong, uchar **);
 
 extern ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
                             ulong reclength);
-extern my_bool _mi_rec_check(MI_INFO *info, const char *record, uchar *packpos,
+extern my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *packpos,
                              ulong packed_length, my_bool with_checkum);
 extern int _mi_write_part_record(MI_INFO *info, my_off_t filepos, ulong length,
                                  my_off_t next_filepos, uchar ** record,

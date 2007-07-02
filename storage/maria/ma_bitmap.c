@@ -132,7 +132,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   return (pagecache_write(share->pagecache,
                           &bitmap->file, bitmap->page, 0,
-                          (byte*) bitmap->map, PAGECACHE_PLAIN_PAGE,
+                          (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
                           PAGECACHE_LOCK_LEFT_UNLOCKED,
                           PAGECACHE_PIN_LEFT_UNPINNED,
                           PAGECACHE_WRITE_DELAY, 0));
@@ -224,7 +224,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
   my_bool res= _ma_flush_bitmap(share);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
-  my_free((byte*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*) share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
   share->bitmap.map= 0;
   return res;
 }
@@ -514,7 +514,7 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   res= pagecache_read(share->pagecache,
                       (PAGECACHE_FILE*)&bitmap->file, page, 0,
-                      (byte*) bitmap->map,
+                      (uchar*) bitmap->map,
                       PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0;
 #ifndef DBUG_OFF
@@ -607,7 +607,7 @@ static my_bool move_to_next_bitmap(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap)
     fill_block()
     bitmap		Bitmap handle
     block		Store data about what we found
-    best_data		Pointer to best 6 byte aligned area in bitmap->map
+    best_data		Pointer to best 6 uchar aligned area in bitmap->map
     best_pos		Which bit in *best_data the area starts
                         0 = first bit pattern, 1 second bit pattern etc
     best_bits		The original value of the bits at best_pos
@@ -997,7 +997,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   best_data+= size;
   if ((best_area_size-= size * 8))
   {
-    /* fill last byte */
+    /* fill last uchar */
     *best_data|= (uchar) ((1 << best_area_size) -1);
     best_data++;
   }
@@ -1857,7 +1857,7 @@ err:
     1  error (Couldn't write or read bitmap page)
 */
 
-my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const byte *extents,
+my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count)
 {
   DBUG_ENTER("_ma_bitmap_free_full_pages");

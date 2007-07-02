@@ -57,7 +57,7 @@ PAGECACHE *maria_log_pagecache= &maria_log_pagecache_var;
 TRN dummy_transaction_object;
 
 /* Enough for comparing if number is zero */
-byte maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+uchar maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /*
   read_vec[] is used for converting between P_READ_KEY.. and SEARCH_

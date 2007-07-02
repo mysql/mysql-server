@@ -24,7 +24,7 @@
 	   based on the position of the last used key!
 	*/
 
-int maria_rnext(MARIA_HA *info, byte *buf, int inx)
+int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 {
   int error,changed;
   uint flag;

@@ -142,7 +142,7 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
 {
   uint i, j, recpos, minpos, fieldpos, temp_length, length;
   enum ha_base_keytype type= HA_KEYTYPE_BINARY;
-  byte *record;
+  uchar *record;
   KEY *pos;
   MARIA_KEYDEF *keydef;
   MARIA_COLUMNDEF *recinfo, *recinfo_pos;
@@ -559,7 +559,7 @@ int ha_maria::net_read_dump(NET * net)
       error= -1;
       goto err;
     }
-    if (my_write(data_fd, (byte *) net->read_pos, (uint) packet_len,
+    if (my_write(data_fd, (uchar *) net->read_pos, (uint) packet_len,
                  MYF(MY_WME | MY_FNABP)))
     {
       error= errno;
@@ -578,7 +578,7 @@ int ha_maria::dump(THD * thd, int fd)
   uint block_size= share->block_size;
   my_off_t bytes_to_read= share->state.state.data_file_length;
   int data_fd= file->dfile.file;
-  byte *buf= (byte *) my_malloc(block_size, MYF(MY_WME));
+  uchar *buf= (uchar *) my_malloc(block_size, MYF(MY_WME));
   if (!buf)
     return ENOMEM;
 
@@ -603,7 +603,7 @@ int ha_maria::dump(THD * thd, int fd)
     }
     else
     {
-      if (my_net_write(net, (char*) buf, bytes))
+      if (my_net_write(net, buf, bytes))
       {
         error= errno ? errno : EPIPE;
         goto err;
@@ -614,13 +614,13 @@ int ha_maria::dump(THD * thd, int fd)
 
   if (fd < 0)
   {
-    if (my_net_write(net, "", 0))
+    if (my_net_write(net, (uchar*) "", 0))
       error= errno ? errno : EPIPE;
     net_flush(net);
   }
 
 err:
-  my_free((gptr) buf, MYF(0));
+  my_free((uchar*) buf, MYF(0));
   return error;
 }
 #endif                                          /* HAVE_REPLICATION */
@@ -699,10 +699,10 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
 
   for (i= 0; i < table->s->keys; i++)
   {
-    struct st_plugin_int *parser= table->key_info[i].parser;
+    plugin_ref parser= table->key_info[i].parser;
     if (table->key_info[i].flags & HA_USES_PARSER)
       file->s->keyinfo[i].parser=
-        (struct st_mysql_ftparser *) parser->plugin->info;
+        (struct st_mysql_ftparser *)plugin_decl(parser)->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   return (0);
@@ -717,7 +717,7 @@ int ha_maria::close(void)
 }
 
 
-int ha_maria::write_row(byte * buf)
+int ha_maria::write_row(uchar * buf)
 {
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
 
@@ -1210,19 +1210,14 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_maria::assign_to_keycache");
 
-  /* Check validity of the index references */
-  if (table_list->use_index)
-  {
-    /* We only come here when the user did specify an index map */
-    key_map kmap;
-    if (get_key_map_from_key_list(&kmap, table, table_list->use_index))
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    map= kmap.to_ulonglong();
-  }
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  map= ~(ulonglong) 0;
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   if ((error= maria_assign_to_pagecache(file, map, new_pagecache)))
   {
@@ -1233,7 +1228,6 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
     error= HA_ADMIN_CORRUPT;
   }
 
-err:
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
@@ -1264,20 +1258,16 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 
   DBUG_ENTER("ha_maria::preload_keys");
 
+  table->keys_in_use_for_query.clear_all();
+
+  if (table_list->process_index_hints(table))
+    DBUG_RETURN(HA_ADMIN_FAILED);
+
+  map= ~(ulonglong) 0;
   /* Check validity of the index references */
-  if (table_list->use_index)
-  {
-    key_map kmap;
-    get_key_map_from_key_list(&kmap, table, table_list->use_index);
-    if (kmap.is_set_all())
-    {
-      errmsg= thd->net.last_error;
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-    if (!kmap.is_clear_all())
-      map= kmap.to_ulonglong();
-  }
+  if (!table->keys_in_use_for_query.is_clear_all())
+    /* use all keys if there's no list specified by the user through hints */
+    map= table->keys_in_use_for_query.to_ulonglong();
 
   maria_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
               (void*) &thd->variables.preload_buff_size);
@@ -1599,7 +1589,7 @@ bool ha_maria::is_crashed() const
 }
 
 
-int ha_maria::update_row(const byte * old_data, byte * new_data)
+int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
   statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -1608,14 +1598,14 @@ int ha_maria::update_row(const byte * old_data, byte * new_data)
 }
 
 
-int ha_maria::delete_row(const byte * buf)
+int ha_maria::delete_row(const uchar * buf)
 {
   statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
   return maria_delete(file, buf);
 }
 
 
-int ha_maria::index_read(byte * buf, const byte * key,
+int ha_maria::index_read(uchar * buf, const uchar * key,
                          uint key_len, enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited == INDEX);
@@ -1627,7 +1617,7 @@ int ha_maria::index_read(byte * buf, const byte * key,
 }
 
 
-int ha_maria::index_read_idx(byte * buf, uint index, const byte * key,
+int ha_maria::index_read_idx(uchar * buf, uint index, const uchar * key,
                              uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(table->in_use->status_var.ha_read_key_count,
@@ -1638,7 +1628,7 @@ int ha_maria::index_read_idx(byte * buf, uint index, const byte * key,
 }
 
 
-int ha_maria::index_read_last(byte * buf, const byte * key, uint key_len)
+int ha_maria::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_maria::index_read_last");
   DBUG_ASSERT(inited == INDEX);
@@ -1651,7 +1641,7 @@ int ha_maria::index_read_last(byte * buf, const byte * key, uint key_len)
 }
 
 
-int ha_maria::index_next(byte * buf)
+int ha_maria::index_next(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
   statistic_increment(table->in_use->status_var.ha_read_next_count,
@@ -1662,7 +1652,7 @@ int ha_maria::index_next(byte * buf)
 }
 
 
-int ha_maria::index_prev(byte * buf)
+int ha_maria::index_prev(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
   statistic_increment(table->in_use->status_var.ha_read_prev_count,
@@ -1673,7 +1663,7 @@ int ha_maria::index_prev(byte * buf)
 }
 
 
-int ha_maria::index_first(byte * buf)
+int ha_maria::index_first(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
   statistic_increment(table->in_use->status_var.ha_read_first_count,
@@ -1684,7 +1674,7 @@ int ha_maria::index_first(byte * buf)
 }
 
 
-int ha_maria::index_last(byte * buf)
+int ha_maria::index_last(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
   statistic_increment(table->in_use->status_var.ha_read_last_count,
@@ -1695,8 +1685,8 @@ int ha_maria::index_last(byte * buf)
 }
 
 
-int ha_maria::index_next_same(byte * buf,
-                              const byte *key __attribute__ ((unused)),
+int ha_maria::index_next_same(uchar * buf,
+                              const uchar *key __attribute__ ((unused)),
                               uint length __attribute__ ((unused)))
 {
   DBUG_ASSERT(inited == INDEX);
@@ -1724,7 +1714,7 @@ int ha_maria::rnd_end()
 }
 
 
-int ha_maria::rnd_next(byte *buf)
+int ha_maria::rnd_next(uchar *buf)
 {
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
                       &LOCK_status);
@@ -1734,13 +1724,13 @@ int ha_maria::rnd_next(byte *buf)
 }
 
 
-int ha_maria::restart_rnd_next(byte *buf, byte *pos)
+int ha_maria::restart_rnd_next(uchar *buf, uchar *pos)
 {
   return rnd_pos(buf, pos);
 }
 
 
-int ha_maria::rnd_pos(byte * buf, byte *pos)
+int ha_maria::rnd_pos(uchar * buf, uchar *pos)
 {
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,
                       &LOCK_status);
@@ -1750,7 +1740,7 @@ int ha_maria::rnd_pos(byte * buf, byte *pos)
 }
 
 
-void ha_maria::position(const byte * record)
+void ha_maria::position(const uchar * record)
 {
   my_off_t row_position= maria_position(file);
   my_store_ptr(ref, ref_length, row_position);
@@ -2052,7 +2042,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                  0, (MARIA_UNIQUEDEF *) 0,
                  &create_info, create_flags);
 
-  my_free((gptr) recinfo, MYF(0));
+  my_free((uchar*) recinfo, MYF(0));
   DBUG_RETURN(error);
 }
 
@@ -2070,7 +2060,7 @@ void ha_maria::get_auto_increment(ulonglong offset, ulonglong increment,
 {
   ulonglong nr;
   int error;
-  byte key[HA_MAX_KEY_LENGTH];
+  uchar key[HA_MAX_KEY_LENGTH];
 
   if (!table->s->next_number_key_offset)
   {                                             // Autoincrement at key-start
@@ -2142,7 +2132,7 @@ ha_rows ha_maria::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_maria::ft_read(byte * buf)
+int ha_maria::ft_read(uchar * buf)
 {
   int error;
 

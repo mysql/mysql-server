@@ -17,7 +17,7 @@
 
 	/* Read last row with the same key as the previous read. */
 
-int maria_rlast(MARIA_HA *info, byte *buf, int inx)
+int maria_rlast(MARIA_HA *info, uchar *buf, int inx)
 {
   DBUG_ENTER("maria_rlast");
   info->cur_row.lastpos= HA_OFFSET_ERROR;

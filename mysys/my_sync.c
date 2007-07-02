@@ -145,7 +145,8 @@ int my_sync_dir_by_file(const char *file_name, myf my_flags)
 {
 #ifdef NEED_EXPLICIT_SYNC_DIR
   char dir_name[FN_REFLEN];
-  dirname_part(dir_name, file_name);
+  size_t dir_name_length;
+  dirname_part(dir_name, file_name, &dir_name_length);
   return my_sync_dir(dir_name, my_flags);
 #else
   return 0;

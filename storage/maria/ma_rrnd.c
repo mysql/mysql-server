@@ -28,7 +28,7 @@
     HA_ERR_END_OF_FILE	   EOF.
 */
 
-int maria_rrnd(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
+int maria_rrnd(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
 {
   DBUG_ENTER("maria_rrnd");
 

@@ -94,11 +94,11 @@ static TRN *short_trid_to_TRN(uint16 short_trid)
 }
 #endif
 
-static byte *trn_get_hash_key(const byte *trn, uint* len,
+static uchar *trn_get_hash_key(const uchar *trn, uint* len,
                               my_bool unused __attribute__ ((unused)))
 {
   *len= sizeof(TrID);
-  return (byte *) & ((*((TRN **)trn))->trid);
+  return (uchar *) & ((*((TRN **)trn))->trid);
 }
 
 int trnman_init()

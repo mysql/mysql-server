@@ -19,23 +19,23 @@
 #include "ma_rt_index.h"
 
 static int d_search(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uint comp_flag,
-                    byte *key,uint key_length,my_off_t page,byte *anc_buff);
-static int del(MARIA_HA *info,MARIA_KEYDEF *keyinfo,byte *key,byte *anc_buff,
-	       my_off_t leaf_page,byte *leaf_buff,byte *keypos,
-	       my_off_t next_block,byte *ret_key);
-static int underflow(MARIA_HA *info,MARIA_KEYDEF *keyinfo,byte *anc_buff,
-		     my_off_t leaf_page,byte *leaf_buff,byte *keypos);
-static uint remove_key(MARIA_KEYDEF *keyinfo,uint nod_flag,byte *keypos,
-		       byte *lastkey,byte *page_end,
+                    uchar *key,uint key_length,my_off_t page,uchar *anc_buff);
+static int del(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *key,uchar *anc_buff,
+	       my_off_t leaf_page,uchar *leaf_buff,uchar *keypos,
+	       my_off_t next_block,uchar *ret_key);
+static int underflow(MARIA_HA *info,MARIA_KEYDEF *keyinfo,uchar *anc_buff,
+		     my_off_t leaf_page,uchar *leaf_buff,uchar *keypos);
+static uint remove_key(MARIA_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
+		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block);
 static int _ma_ck_real_delete(register MARIA_HA *info,MARIA_KEYDEF *keyinfo,
-			      byte *key, uint key_length, my_off_t *root);
+			      uchar *key, uint key_length, my_off_t *root);
 
 
-int maria_delete(MARIA_HA *info,const byte *record)
+int maria_delete(MARIA_HA *info,const uchar *record)
 {
   uint i;
-  byte *old_key;
+  uchar *old_key;
   int save_errno;
   char lastpos[8];
   MARIA_SHARE *share=info->s;
@@ -141,7 +141,7 @@ err:
 
 	/* Remove a key from the btree index */
 
-int _ma_ck_delete(register MARIA_HA *info, uint keynr, byte *key,
+int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
 		  uint key_length)
 {
   return _ma_ck_real_delete(info, info->s->keyinfo+keynr, key, key_length,
@@ -150,12 +150,12 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, byte *key,
 
 
 static int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-			      byte *key, uint key_length, my_off_t *root)
+			      uchar *key, uint key_length, my_off_t *root)
 {
   int error;
   uint nod_flag;
   my_off_t old_root;
-  byte *root_buff;
+  uchar *root_buff;
   DBUG_ENTER("_ma_ck_real_delete");
 
   if ((old_root=*root) == HA_OFFSET_ERROR)
@@ -163,7 +163,7 @@ static int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     maria_print_error(info->s, HA_ERR_CRASHED);
     DBUG_RETURN(my_errno=HA_ERR_CRASHED);
   }
-  if (!(root_buff= (byte*)  my_alloca((uint) keyinfo->block_length+
+  if (!(root_buff= (uchar*)  my_alloca((uint) keyinfo->block_length+
 				      HA_MAX_KEY_BUFF*2)))
   {
     DBUG_PRINT("error",("Couldn't allocate memory"));
@@ -203,7 +203,7 @@ static int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     }
   }
 err:
-  my_afree((gptr) root_buff);
+  my_afree((uchar*) root_buff);
   DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 } /* _ma_ck_real_delete */
@@ -218,15 +218,15 @@ err:
 	*/
 
 static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                    uint comp_flag, byte *key, uint key_length,
-                    my_off_t page, byte *anc_buff)
+                    uint comp_flag, uchar *key, uint key_length,
+                    my_off_t page, uchar *anc_buff)
 {
   int flag,ret_value,save_flag;
   uint length,nod_flag,search_key_length;
   my_bool last_key;
-  byte *leaf_buff,*keypos;
+  uchar *leaf_buff,*keypos;
   my_off_t leaf_page,next_block;
-  byte lastkey[HA_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",anc_buff,maria_data_on_page(anc_buff));
 
@@ -270,7 +270,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       /* popular word. two-level tree. going down */
       uint tmp_key_length;
       my_off_t root;
-      byte *kpos=keypos;
+      uchar *kpos=keypos;
 
       if (!(tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&kpos,lastkey)))
       {
@@ -310,7 +310,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if (nod_flag)
   {
     leaf_page= _ma_kpos(nod_flag,keypos);
-    if (!(leaf_buff= (byte*) my_alloca((uint) keyinfo->block_length+
+    if (!(leaf_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
                                        HA_MAX_KEY_BUFF*2)))
     {
       DBUG_PRINT("error",("Couldn't allocate memory"));
@@ -372,7 +372,7 @@ static int d_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       if (!_ma_get_last_key(info,keyinfo,anc_buff,lastkey,keypos,&length))
 	goto err;
       ret_value= _ma_insert(info,keyinfo,key,anc_buff,keypos,lastkey,
-			   (byte*) 0,(byte*) 0,(my_off_t) 0,(my_bool) 0);
+			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(my_bool) 0);
     }
   }
   if (ret_value == 0 && maria_data_on_page(anc_buff) > keyinfo->block_length)
@@ -400,16 +400,16 @@ err:
 	/* Remove a key that has a page-reference */
 
 static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-               byte *key, byte *anc_buff, my_off_t leaf_page,
-               byte *leaf_buff,
-	       byte *keypos,		/* Pos to where deleted key was */
+               uchar *key, uchar *anc_buff, my_off_t leaf_page,
+               uchar *leaf_buff,
+	       uchar *keypos,		/* Pos to where deleted key was */
 	       my_off_t next_block,
-	       byte *ret_key)		/* key before keypos in anc_buff */
+	       uchar *ret_key)		/* key before keypos in anc_buff */
 {
   int ret_value,length;
   uint a_length,nod_flag,tmp;
   my_off_t next_page;
-  byte keybuff[HA_MAX_KEY_BUFF],*endpos,*next_buff,*key_start, *prev_key;
+  uchar keybuff[HA_MAX_KEY_BUFF],*endpos,*next_buff,*key_start, *prev_key;
   MARIA_SHARE *share=info->s;
   MARIA_KEY_PARAM s_temp;
   DBUG_ENTER("del");
@@ -425,7 +425,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if ((nod_flag=_ma_test_if_nod(leaf_buff)))
   {
     next_page= _ma_kpos(nod_flag,endpos);
-    if (!(next_buff= (byte*) my_alloca((uint) keyinfo->block_length+
+    if (!(next_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 					HA_MAX_KEY_BUFF*2)))
       DBUG_RETURN(-1);
     if (!_ma_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,next_buff,0))
@@ -453,7 +453,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 				&tmp))
 	    goto err;
 	  ret_value= _ma_insert(info,keyinfo,key,leaf_buff,endpos,keybuff,
-			       (byte*) 0,(byte*) 0,(my_off_t) 0,0);
+			       (uchar*) 0,(uchar*) 0,(my_off_t) 0,0);
 	}
       }
       if (_ma_write_keypage(info,keyinfo,leaf_page,DFLT_INIT_HITS,leaf_buff))
@@ -479,7 +479,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   prev_key=(keypos == anc_buff+2+share->base.key_reflength ?
 	    0 : ret_key);
   length=(*keyinfo->pack_key)(keyinfo,share->base.key_reflength,
-			      keypos == endpos ? (byte*) 0 : keypos,
+			      keypos == endpos ? (uchar*) 0 : keypos,
 			      prev_key, prev_key,
 			      keybuff,&s_temp);
   if (length > 0)
@@ -504,18 +504,18 @@ err:
 	/* Balances adjacent pages if underflow occours */
 
 static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-		     byte *anc_buff,
+		     uchar *anc_buff,
 		     my_off_t leaf_page,/* Ancestor page and underflow page */
-		     byte *leaf_buff,
-		     byte *keypos)	/* Position to pos after key */
+		     uchar *leaf_buff,
+		     uchar *keypos)	/* Position to pos after key */
 {
   int t_length;
   uint length,anc_length,buff_length,leaf_length,p_length,s_length,nod_flag,
        key_reflength,key_length;
   my_off_t next_page;
-  byte anc_key[HA_MAX_KEY_BUFF],leaf_key[HA_MAX_KEY_BUFF];
-  byte *buff,*endpos,*next_keypos,*anc_pos,*half_pos,*temp_pos,*prev_key;
-  byte *after_key;
+  uchar anc_key[HA_MAX_KEY_BUFF],leaf_key[HA_MAX_KEY_BUFF];
+  uchar *buff,*endpos,*next_keypos,*anc_pos,*half_pos,*temp_pos,*prev_key;
+  uchar *after_key;
   MARIA_KEY_PARAM s_temp;
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("underflow");
@@ -568,7 +568,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       goto err;
 
     /* merge pages and put parting key from anc_buff between */
-    prev_key=(leaf_length == p_length ? (byte*) 0 : leaf_key);
+    prev_key=(leaf_length == p_length ? (uchar*) 0 : leaf_key);
     t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,buff+p_length,
 				  prev_key, prev_key,
 				  anc_key, &s_temp);
@@ -615,9 +615,9 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       half_pos=after_key;
       _ma_kpointer(info,leaf_key+key_length,next_page);
       /* Save key in anc_buff */
-      prev_key=(keypos == anc_buff+2+key_reflength ? (byte*) 0 : anc_key),
+      prev_key=(keypos == anc_buff+2+key_reflength ? (uchar*) 0 : anc_key),
       t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
-				    (keypos == endpos ? (byte*) 0 :
+				    (keypos == endpos ? (uchar*) 0 :
 				     keypos),
 				    prev_key, prev_key,
 				    leaf_key, &s_temp);
@@ -633,8 +633,8 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 	bmove(buff+2,half_pos-nod_flag,(size_t) nod_flag);
       if (!(*keyinfo->get_key)(keyinfo,nod_flag,&half_pos,leaf_key))
 	goto err;
-      t_length=(int) (*keyinfo->pack_key)(keyinfo, nod_flag, (byte*) 0,
-					  (byte*) 0, (byte*) 0,
+      t_length=(int) (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar*) 0,
+					  (uchar*) 0, (uchar*) 0,
 					  leaf_key, &s_temp);
       /* t_length will always be > 0 for a new page !*/
       length=(uint) ((buff+maria_data_on_page(buff))-half_pos);
@@ -673,10 +673,10 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     goto err;
 
   /* merge pages and put parting key from anc_buff between */
-  prev_key=(leaf_length == p_length ? (byte*) 0 : leaf_key);
+  prev_key=(leaf_length == p_length ? (uchar*) 0 : leaf_key);
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,
 				(leaf_length == p_length ?
-                                 (byte*) 0 : leaf_buff+p_length),
+                                 (uchar*) 0 : leaf_buff+p_length),
 				prev_key, prev_key,
 				anc_key, &s_temp);
   if (t_length >= 0)
@@ -721,7 +721,7 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
     temp_pos=anc_buff+anc_length;
     t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
-				  keypos == temp_pos ? (byte*) 0
+				  keypos == temp_pos ? (uchar*) 0
 				  : keypos,
 				  anc_pos, anc_pos,
 				  leaf_key,&s_temp);
@@ -738,8 +738,8 @@ static int underflow(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     if (!(length=(*keyinfo->get_key)(keyinfo,nod_flag,&half_pos,leaf_key)))
       goto err;
     DBUG_DUMP("key_to_leaf",leaf_key,length);
-    t_length=(*keyinfo->pack_key)(keyinfo,nod_flag, (byte*) 0,
-				  (byte*) 0, (byte*) 0, leaf_key, &s_temp);
+    t_length=(*keyinfo->pack_key)(keyinfo,nod_flag, (uchar*) 0,
+				  (uchar*) 0, (uchar*) 0, leaf_key, &s_temp);
     length=(uint) ((buff+buff_length)-half_pos);
     DBUG_PRINT("info",("t_length: %d  length: %d",t_length,(int) length));
     bmove(leaf_buff+p_length+t_length,half_pos,
@@ -767,13 +767,13 @@ err:
 	*/
 
 static uint remove_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-		       byte *keypos,	/* Where key starts */
-		       byte *lastkey,	/* key to be removed */
-		       byte *page_end, /* End of page */
+		       uchar *keypos,	/* Where key starts */
+		       uchar *lastkey,	/* key to be removed */
+		       uchar *page_end, /* End of page */
 		       my_off_t *next_block)	/* ptr to next block */
 {
   int s_length;
-  byte *start;
+  uchar *start;
   DBUG_ENTER("remove_key");
   DBUG_PRINT("enter",("keypos: 0x%lx  page_end: 0x%lx",(long) keypos, (long) page_end));
 
@@ -799,7 +799,7 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
     {
       if (keyinfo->flag & HA_BINARY_PACK_KEY)
       {
-	byte *old_key=start;
+	uchar *old_key=start;
 	uint next_length,prev_length,prev_pack_length;
 	get_key_length(next_length,keypos);
 	get_key_pack_length(prev_length,prev_pack_length,old_key);

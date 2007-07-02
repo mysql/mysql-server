@@ -38,7 +38,7 @@
 
 static void get_options(int argc, char *argv[]);
 static uint rnd(uint max_value);
-static void fix_length(byte *record,uint length);
+static void fix_length(uchar *record,uint length);
 static void put_blob_in_record(char *blob_pos,char **blob_buffer,
                                ulong *length);
 static void copy_key(struct st_maria_info *info,uint inx,
@@ -496,8 +496,8 @@ int main(int argc, char *argv[])
       bcmp(read_record2,read_record3,reclength))
   {
     printf("Can't find last record\n");
-    DBUG_DUMP("record2",(byte*) read_record2,reclength);
-    DBUG_DUMP("record3",(byte*) read_record3,reclength);
+    DBUG_DUMP("record2",(uchar*) read_record2,reclength);
+    DBUG_DUMP("record3",(uchar*) read_record3,reclength);
     goto end;
   }
   ant=1;
@@ -1050,7 +1050,7 @@ static uint rnd(uint max_value)
 
 	/* Create a variable length record */
 
-static void fix_length(byte *rec, uint length)
+static void fix_length(uchar *rec, uint length)
 {
   bmove(rec+STANDARD_LENGTH,
 	"0123456789012345678901234567890123456789012345678901234567890",

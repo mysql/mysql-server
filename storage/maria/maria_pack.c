@@ -69,8 +69,8 @@ typedef struct st_huff_counts {
   my_off_t pre_space[8];
   my_off_t tot_end_space,tot_pre_space,zero_fields,empty_fields,bytes_packed;
   TREE int_tree;        /* Tree for detecting distinct column values. */
-  byte *tree_buff;      /* Column values, 'field_length' each. */
-  byte *tree_pos;       /* Points to end of column values in 'tree_buff'. */
+  uchar *tree_buff;      /* Column values, 'field_length' each. */
+  uchar *tree_pos;       /* Points to end of column values in 'tree_buff'. */
 } HUFF_COUNTS;
 
 typedef struct st_huff_element HUFF_ELEMENT;
@@ -141,8 +141,8 @@ static int test_space_compress(HUFF_COUNTS *huff_counts,my_off_t records,
 			       enum en_fieldtype field_type);
 static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts,uint trees);
 static int make_huff_tree(HUFF_TREE *tree,HUFF_COUNTS *huff_counts);
-static int compare_huff_elements(void *not_used, byte *a,byte *b);
-static int save_counts_in_queue(byte *key,element_count count,
+static int compare_huff_elements(void *not_used, uchar *a,uchar *b);
+static int save_counts_in_queue(uchar *key,element_count count,
 				    HUFF_TREE *tree);
 static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,uint flag);
 static uint join_same_trees(HUFF_COUNTS *huff_counts,uint trees);
@@ -171,7 +171,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length
 static int save_state_mrg(File file,PACK_MRG_INFO *isam_file,my_off_t new_length,
 			  ha_checksum crc);
 static int mrg_close(PACK_MRG_INFO *mrg);
-static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf);
+static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
 #if !defined(DBUG_OFF)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
@@ -259,10 +259,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"backup", 'b', "Make a backup of the table as table_name.OLD.",
-   (gptr*) &backup, (gptr*) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &backup, (uchar**) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
-   "Directory where character sets are.", (gptr*) &charsets_dir,
-   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", (uchar**) &charsets_dir,
+   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
@@ -270,7 +270,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"join", 'j',
    "Join all given tables into 'new_table_name'. All tables MUST have identical layouts.",
-   (gptr*) &join_table, (gptr*) &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &join_table, (uchar**) &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -284,8 +284,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"wait", 'w', "Wait and retry if table is in use.", (gptr*) &opt_wait,
-   (gptr*) &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if table is in use.", (uchar**) &opt_wait,
+   (uchar**) &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -481,7 +481,7 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
  error:
   while (i--)
     maria_close(mrg->file[i]);
-  my_free((gptr) mrg->file,MYF(0));
+  my_free((uchar*) mrg->file,MYF(0));
   return 1;
 }
 
@@ -606,14 +606,14 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   /*
     If the packed lengths of combined columns is less then the sum of
     the non-combined columns, then create common Huffman trees for them.
-    We do this only for byte compressed columns, not for distinct values
+    We do this only for uchar compressed columns, not for distinct values
     compressed columns.
   */
   if ((int) (used_trees=join_same_trees(huff_counts,trees)) < 0)
     goto err;
 
   /*
-    Assign codes to all byte or column values.
+    Assign codes to all uchar or column values.
   */
   if (make_huff_decode_table(huff_trees,fields))
     goto err;
@@ -827,11 +827,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     for (i=0 ; i < trees ; i++)
     {
       if (huff_trees[i].element_buffer)
-	my_free((gptr) huff_trees[i].element_buffer,MYF(0));
+	my_free((uchar*) huff_trees[i].element_buffer,MYF(0));
       if (huff_trees[i].code)
-	my_free((gptr) huff_trees[i].code,MYF(0));
+	my_free((uchar*) huff_trees[i].code,MYF(0));
     }
-    my_free((gptr) huff_trees,MYF(0));
+    my_free((uchar*) huff_trees,MYF(0));
   }
   if (huff_counts)
   {
@@ -839,11 +839,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     {
       if (huff_counts[i].tree_buff)
       {
-	my_free((gptr) huff_counts[i].tree_buff,MYF(0));
+	my_free((uchar*) huff_counts[i].tree_buff,MYF(0));
 	delete_tree(&huff_counts[i].int_tree);
       }
     }
-    my_free((gptr) huff_counts,MYF(0));
+    my_free((uchar*) huff_counts,MYF(0));
   }
   delete_queue(&queue);		/* This is safe to free */
   return;
@@ -856,16 +856,16 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   int error;
   uint length, null_bytes;
   ulong reclength,max_blob_length;
-  byte *record,*pos,*next_pos,*end_pos,*start_pos;
+  uchar *record,*pos,*next_pos,*end_pos,*start_pos;
   ha_rows record_count;
   HUFF_COUNTS *count,*end_count;
   TREE_ELEMENT *element;
-  ha_checksum(*calc_checksum) (struct st_maria_info *, const byte *);
+  ha_checksum(*calc_checksum) (struct st_maria_info *, const uchar *);
   DBUG_ENTER("get_statistic");
 
   reclength=  mrg->file[0]->s->base.reclength;
   null_bytes= mrg->file[0]->s->base.null_bytes;
-  record=(byte*) my_alloca(reclength);
+  record=(uchar*) my_alloca(reclength);
   end_count=huff_counts+mrg->file[0]->s->base.fields;
   record_count=0; glob_crc=0;
   max_blob_length=0;
@@ -1040,7 +1040,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  uint i;
           /* Zero fields are just counted. Go to the next record. */
-	  if (!memcmp((byte*) start_pos,zero_string,count->field_length))
+	  if (!memcmp((uchar*) start_pos,zero_string,count->field_length))
 	  {
 	    count->zero_fields++;
 	    continue;
@@ -1063,7 +1063,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	  continue;
 
         /*
-          Count the incidence of every byte value in the
+          Count the incidence of every uchar value in the
           significant field value.
         */
 	for ( ; pos < end_pos ; pos++)
@@ -1102,10 +1102,10 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   DBUG_EXECUTE_IF("fakebigcodes", fakebigcodes(huff_counts, end_count););
 
   DBUG_PRINT("info", ("Found the following number of incidents "
-                      "of the byte codes:"));
+                      "of the uchar codes:"));
   if (verbose >= 2)
     VOID(printf("Found the following number of incidents "
-                "of the byte codes:\n"));
+                "of the uchar codes:\n"));
   for (count= huff_counts ; count < end_count; count++)
   {
     uint      idx;
@@ -1149,12 +1149,12 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
   mrg->records=record_count;
   mrg->max_blob_length=max_blob_length;
-  my_afree((gptr) record);
+  my_afree((uchar*) record);
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
 static int compare_huff_elements(void *not_used __attribute__((unused)),
-				 byte *a, byte *b)
+				 uchar *a, uchar *b)
 {
   return *((my_off_t*) a) < *((my_off_t*) b) ? -1 :
     (*((my_off_t*) a) == *((my_off_t*) b)  ? 0 : 1);
@@ -1170,7 +1170,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
   my_off_t old_length,new_length,length;
   DBUG_ENTER("check_counts");
 
-  bzero((gptr) field_count,sizeof(field_count));
+  bzero((uchar*) field_count,sizeof(field_count));
   space_fields=fill_zero_fields=0;
 
   for (; trees-- ; huff_counts++)
@@ -1336,12 +1336,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       }
       else
       {
-	my_free((gptr) huff_counts->tree_buff,MYF(0));
+	my_free((uchar*) huff_counts->tree_buff,MYF(0));
 	delete_tree(&huff_counts->int_tree);
 	huff_counts->tree_buff=0;
       }
       if (tree.element_buffer)
-	my_free((gptr) tree.element_buffer,MYF(0));
+	my_free((uchar*) tree.element_buffer,MYF(0));
     }
     if (huff_counts->pack_type & PACK_TYPE_SPACE_FIELDS)
       space_fields++;
@@ -1459,8 +1459,8 @@ static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts, uint trees)
     if (make_huff_tree(huff_tree+tree,huff_counts+tree))
     {
       while (tree--)
-	my_free((gptr) huff_tree[tree].element_buffer,MYF(0));
-      my_free((gptr) huff_tree,MYF(0));
+	my_free((uchar*) huff_tree[tree].element_buffer,MYF(0));
+      my_free((uchar*) huff_tree,MYF(0));
       DBUG_RETURN(0);
     }
   }
@@ -1502,7 +1502,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   }
   else
   {
-    /* Count the number of byte codes found in the column. */
+    /* Count the number of uchar codes found in the column. */
     for (i=found=0 ; i < 256 ; i++)
     {
       if (huff_counts->counts[i])
@@ -1535,7 +1535,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   {
     HUFF_ELEMENT *temp;
     if (!(temp=
-	  (HUFF_ELEMENT*) my_realloc((gptr) huff_tree->element_buffer,
+	  (HUFF_ELEMENT*) my_realloc((uchar*) huff_tree->element_buffer,
 				     found*2*sizeof(HUFF_ELEMENT),
 				     MYF(MY_WME))))
       return 1;
@@ -1570,7 +1570,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
     */
     tree_walk(&huff_counts->int_tree,
 	      (int (*)(void*, element_count,void*)) save_counts_in_queue,
-	      (gptr) huff_tree, left_root_right);
+	      (uchar*) huff_tree, left_root_right);
   }
   else
   {
@@ -1580,7 +1580,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
 				 (huff_tree->offset_bits+1)*
 				 (found-2)+7)/8;
     /*
-      Put a HUFF_ELEMENT into the queue for every byte code found in the column.
+      Put a HUFF_ELEMENT into the queue for every uchar code found in the column.
 
       The elements are taken from the target trees element buffer.
       Instead of using queue_insert(), we just place references to the
@@ -1596,11 +1596,11 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
 	new_huff_el->count=huff_counts->counts[i];
 	new_huff_el->a.leaf.null=0;
 	new_huff_el->a.leaf.element_nr=i;
-	queue.root[found]=(byte*) new_huff_el;
+	queue.root[found]=(uchar*) new_huff_el;
       }
     }
     /*
-      If there is only a single byte value in this field in all records,
+      If there is only a single uchar value in this field in all records,
       add a second element with zero incidence. This is required to enter
       the loop, which builds the Huffman tree.
     */
@@ -1613,7 +1613,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
 	new_huff_el->a.leaf.element_nr=huff_tree->min_chr=last-1;
       else
 	new_huff_el->a.leaf.element_nr=huff_tree->max_chr=last+1;
-      queue.root[found]=(byte*) new_huff_el;
+      queue.root[found]=(uchar*) new_huff_el;
     }
   }
 
@@ -1650,7 +1650,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
       The Huffman algorithm assigns another bit to the code for a byte
       every time that bytes incidence is combined (directly or indirectly)
       to a new element as one of the two least incidence elements.
-      This means that one more bit per incidence of that byte is required
+      This means that one more bit per incidence of that uchar is required
       in the resulting file. So we add the new combined incidence as the
       number of bits by which the result grows.
     */
@@ -1663,7 +1663,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
       Replace the copied top element by the new element and re-order the
       queue.
     */
-    queue.root[1]=(byte*) new_huff_el;
+    queue.root[1]=(uchar*) new_huff_el;
     queue_replaced(&queue);
   }
   huff_tree->root=(HUFF_ELEMENT*) queue.root[1];
@@ -1702,7 +1702,7 @@ static int compare_tree(void* cmp_arg __attribute__((unused)),
     0
  */
 
-static int save_counts_in_queue(byte *key, element_count count,
+static int save_counts_in_queue(uchar *key, element_count count,
 				HUFF_TREE *tree)
 {
   HUFF_ELEMENT *new_huff_el;
@@ -1712,7 +1712,7 @@ static int save_counts_in_queue(byte *key, element_count count,
   new_huff_el->a.leaf.null=0;
   new_huff_el->a.leaf.element_nr= (uint) (key- tree->counts->tree_buff) /
     tree->counts->field_length;
-  queue.root[tree->elements]=(byte*) new_huff_el;
+  queue.root[tree->elements]=(uchar*) new_huff_el;
   return 0;
 }
 
@@ -1727,7 +1727,7 @@ static int save_counts_in_queue(byte *key, element_count count,
 
   DESCRIPTION
     We need to follow the Huffman algorithm until we know, how many bits
-    are required for each byte code. But we do not need the resulting
+    are required for each uchar code. But we do not need the resulting
     Huffman tree. Hence, we can leave out some steps which are essential
     in make_huff_tree().
 
@@ -1746,7 +1746,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
   /*
     WARNING: We use a small hack for efficiency: Instead of placing
     references to HUFF_ELEMENTs into the queue, we just insert
-    references to the counts of the byte codes which appeared in this
+    references to the counts of the uchar codes which appeared in this
     table column. During the Huffman algorithm they are successively
     replaced by references to HUFF_ELEMENTs. This works, because
     HUFF_ELEMENTs have the incidence count at their beginning.
@@ -1756,7 +1756,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
     same type.
 
     Instead of using queue_insert(), we just copy the references into
-    the buffer of the priority queue. We insert in byte value order, but
+    the buffer of the priority queue. We insert in uchar value order, but
     the order is in fact irrelevant here. We will establish the correct
     order later.
   */
@@ -1769,18 +1769,18 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
 	first=i;
       last=i;
       /* We start with root[1], which is the queues top element. */
-      queue.root[found]=(byte*) &huff_counts->counts[i];
+      queue.root[found]=(uchar*) &huff_counts->counts[i];
     }
   }
   if (!found)
     DBUG_RETURN(0);			/* Empty tree */
   /*
-    If there is only a single byte value in this field in all records,
+    If there is only a single uchar value in this field in all records,
     add a second element with zero incidence. This is required to enter
     the loop, which follows the Huffman algorithm.
   */
   if (found < 2)
-    queue.root[++found]=(byte*) &huff_counts->counts[last ? 0 : 1];
+    queue.root[++found]=(uchar*) &huff_counts->counts[last ? 0 : 1];
 
   /* Make a queue from the queue buffer. */
   queue.elements=found;
@@ -1824,7 +1824,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
       The Huffman algorithm assigns another bit to the code for a byte
       every time that bytes incidence is combined (directly or indirectly)
       to a new element as one of the two least incidence elements.
-      This means that one more bit per incidence of that byte is required
+      This means that one more bit per incidence of that uchar is required
       in the resulting file. So we add the new combined incidence as the
       number of bits by which the result grows.
     */
@@ -1835,7 +1835,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
       queue. This successively replaces the references to counts by
       references to HUFF_ELEMENTs.
     */
-    queue.root[1]=(byte*) new_huff_el;
+    queue.root[1]=(uchar*) new_huff_el;
     queue_replaced(&queue);
   }
   DBUG_RETURN(bytes_packed+(bits_packed+7)/8);
@@ -1868,12 +1868,12 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	      i->tree->tree_pack_length+j->tree->tree_pack_length+
 	      ALLOWED_JOIN_DIFF)
 	  {
-	    memcpy_fixed((byte*) i->counts,(byte*) count.counts,
+	    memcpy_fixed((uchar*) i->counts,(uchar*) count.counts,
 			 sizeof(count.counts[0])*256);
-	    my_free((gptr) j->tree->element_buffer,MYF(0));
+	    my_free((uchar*) j->tree->element_buffer,MYF(0));
 	    j->tree->element_buffer=0;
 	    j->tree=i->tree;
-	    bmove((byte*) i->counts,(byte*) count.counts,
+	    bmove((uchar*) i->counts,(uchar*) count.counts,
 		  sizeof(count.counts[0])*256);
 	    if (make_huff_tree(i->tree,i))
 	      return (uint) -1;
@@ -2016,7 +2016,7 @@ static char *hexdigits(ulonglong value)
 static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 			my_off_t tot_elements,my_off_t filelength)
 {
-  byte *buff= (byte*) file_buffer.pos;
+  uchar *buff= (uchar*) file_buffer.pos;
 
   bzero(buff,HEAD_LENGTH);
   memcpy_fixed(buff,maria_pack_file_magic,4);
@@ -2032,7 +2032,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   if (test_only)
     return 0;
   VOID(my_seek(file_buffer.file,0L,MY_SEEK_SET,MYF(0)));
-  return my_write(file_buffer.file,(const byte *) file_buffer.pos,HEAD_LENGTH,
+  return my_write(file_buffer.file,(const uchar *) file_buffer.pos,HEAD_LENGTH,
 		  MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;
 }
 
@@ -2168,7 +2168,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     {				/* This should be impossible */
       VOID(fprintf(stderr, "Tree offset got too big: %d, aborted\n",
                    huff_tree->max_offset));
-      my_afree((gptr) packed_tree);
+      my_afree((uchar*) packed_tree);
       return 0;
     }
 
@@ -2179,7 +2179,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
                         huff_tree->char_bits));
     if (!huff_tree->counts->tree_buff)
     {
-      /* We do a byte compression on this column. Mark with bit 0. */
+      /* We do a uchar compression on this column. Mark with bit 0. */
       write_bits(0,1);
       write_bits(huff_tree->min_chr,8);
       write_bits(huff_tree->elements,9);
@@ -2340,7 +2340,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
     VOID(printf("\n"));
-  my_afree((gptr) packed_tree);
+  my_afree((uchar*) packed_tree);
   if (errors)
   {
     VOID(fprintf(stderr, "Error: Generated decode trees are corrupt. Stop.\n"));
@@ -2366,7 +2366,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
   */
   if (!element->a.nod.left->a.leaf.null)
   {
-    /* Store the byte code or the index of the column value. */
+    /* Store the uchar code or the index of the column value. */
     prev_offset[0] =(uint) element->a.nod.left->a.leaf.element_nr;
     offset+=2;
   }
@@ -2374,7 +2374,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
   {
     /*
       Recursively traverse the tree to the left. Mark it as an offset to
-      another tree node (in contrast to a byte code or column value index).
+      another tree node (in contrast to a uchar code or column value index).
     */
     prev_offset[0]= IS_OFFSET+2;
     offset=make_offset_code_tree(huff_tree,element->a.nod.left,offset+2);
@@ -2383,7 +2383,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
   /* Now, check the right child. */
   if (!element->a.nod.right->a.leaf.null)
   {
-    /* Store the byte code or the index of the column value. */
+    /* Store the uchar code or the index of the column value. */
     prev_offset[1]=element->a.nod.right->a.leaf.element_nr;
     return offset;
   }
@@ -2391,7 +2391,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
   {
     /*
       Recursively traverse the tree to the right. Mark it as an offset to
-      another tree node (in contrast to a byte code or column value index).
+      another tree node (in contrast to a uchar code or column value index).
     */
     uint temp=(uint) (offset-prev_offset-1);
     prev_offset[1]= IS_OFFSET+ temp;
@@ -2421,7 +2421,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   my_off_t record_count;
   char llbuf[32];
   ulong length,pack_length;
-  byte *record,*pos,*end_pos,*record_pos,*start_pos;
+  uchar *record,*pos,*end_pos,*record_pos,*start_pos;
   HUFF_COUNTS *count,*end_count;
   HUFF_TREE *tree;
   MARIA_HA *isam_file=mrg->file[0];
@@ -2429,7 +2429,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   DBUG_ENTER("compress_isam_file");
 
   /* Allocate a buffer for the records (excluding blobs). */
-  if (!(record=(byte*) my_alloca(isam_file->s->base.reclength)))
+  if (!(record=(uchar*) my_alloca(isam_file->s->base.reclength)))
     return -1;
 
   end_count=huff_counts+isam_file->s->base.fields;
@@ -2482,7 +2482,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     {
       if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length))
 	break;
-      record_pos= (byte*) file_buffer.pos;
+      record_pos= (uchar*) file_buffer.pos;
       file_buffer.pos+= max_pack_length;
       if (null_bytes)
       {
@@ -2527,7 +2527,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 
 	switch (count->field_type) {
 	case FIELD_SKIP_ZERO:
-	  if (!memcmp((byte*) start_pos,zero_string,field_length))
+	  if (!memcmp((uchar*) start_pos,zero_string,field_length))
 	  {
             DBUG_PRINT("fields", ("FIELD_SKIP_ZERO zeroes only, bits:  1"));
 	    write_bits(1,1);
@@ -2656,7 +2656,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  break;
 	case FIELD_INTERVALL:
 	  global_count=count;
-	  pos=(byte*) tree_search(&count->int_tree, start_pos,
+	  pos=(uchar*) tree_search(&count->int_tree, start_pos,
 				  count->int_tree.custom_arg);
 	  intervall=(uint) (pos - count->tree_buff)/field_length;
           DBUG_PRINT("fields", ("FIELD_INTERVALL"));
@@ -2679,7 +2679,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  }
 	  else
 	  {
-	    byte *blob,*blob_end;
+	    uchar *blob,*blob_end;
             DBUG_PRINT("fields", ("FIELD_BLOB not empty, bits:  1"));
 	    write_bits(0,1);
             /* Write the blob length. */
@@ -2720,7 +2720,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  }
 	  else
 	  {
-	    byte *end= start_pos + var_pack_length + col_length;
+	    uchar *end= start_pos + var_pack_length + col_length;
             DBUG_PRINT("fields", ("FIELD_VARCHAR not empty, bits:  1"));
 	    write_bits(0,1);
             /* Write the varchar length. */
@@ -2752,7 +2752,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
         DBUG_PRINT("fields", ("---"));
       }
       flush_bits();
-      length=(ulong) ((byte*) file_buffer.pos - record_pos) - max_pack_length;
+      length=(ulong) ((uchar*) file_buffer.pos - record_pos) - max_pack_length;
       pack_length= _ma_save_pack_length(pack_version, record_pos, length);
       if (pack_blob_length)
 	pack_length+= _ma_save_pack_length(pack_version,
@@ -2793,7 +2793,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   if (verbose >= 2)
     VOID(printf("wrote %s records.\n", llstr((longlong) record_count, llbuf)));
 
-  my_afree((gptr) record);
+  my_afree((uchar*) record);
   mrg->ref_length=max_pack_length;
   mrg->min_pack_length=max_record_length ? min_record_length : 0;
   mrg->max_pack_length=max_record_length;
@@ -2843,7 +2843,7 @@ static int flush_buffer(ulong neaded_length)
   /*
     file_buffer.end is 8 bytes lower than the real end of the buffer.
     This is done so that the end-of-buffer condition does not need to be
-    checked for every byte (see write_bits()). Consequently,
+    checked for every uchar (see write_bits()). Consequently,
     file_buffer.pos can become greater than file_buffer.end. The
     algorithms in the other functions ensure that there will never be
     more than 8 bytes written to the buffer without an end-of-buffer
@@ -2860,7 +2860,7 @@ static int flush_buffer(ulong neaded_length)
   if (test_only)
     return 0;
   if (error_on_write|| my_write(file_buffer.file,
-				(const byte*) file_buffer.buffer,
+				(const uchar*) file_buffer.buffer,
 				length,
 				MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
   {
@@ -2887,7 +2887,7 @@ static int flush_buffer(ulong neaded_length)
 
 static void end_file_buffer(void)
 {
-  my_free((gptr) file_buffer.buffer,MYF(0));
+  my_free((uchar*) file_buffer.buffer,MYF(0));
 }
 
 	/* output `bits` low bits of `value' */
@@ -3048,7 +3048,7 @@ static void mrg_reset(PACK_MRG_INFO *mrg)
   }
 }
 
-static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
+static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf)
 {
   int error;
   MARIA_HA *isam_info;
@@ -3095,7 +3095,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
   for (i=0 ; i < mrg->count ; i++)
     error|=maria_close(mrg->file[i]);
   if (mrg->free_file)
-    my_free((gptr) mrg->file,MYF(0));
+    my_free((uchar*) mrg->file,MYF(0));
   DBUG_RETURN(error);
 }
 
@@ -3127,8 +3127,8 @@ static int mrg_close(PACK_MRG_INFO *mrg)
     To get 64(32)-bit codes, I sort the counts by decreasing incidence.
     I assign counts of 1 to the two most frequent values, a count of 2
     for the next one, then 4, 8, and so on until 2**64-1(2**30-1). All
-    the remaining values get 1. That way every possible byte has an
-    assigned code, though not all codes are used if not all byte values
+    the remaining values get 1. That way every possible uchar has an
+    assigned code, though not all codes are used if not all uchar values
     are present in the column.
 
     This strategy would work with distinct column values too, but
@@ -3158,7 +3158,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     */
     if (huff_counts->tree_buff)
     {
-      my_free((gptr) huff_counts->tree_buff, MYF(0));
+      my_free((uchar*) huff_counts->tree_buff, MYF(0));
       delete_tree(&huff_counts->int_tree);
       huff_counts->tree_buff= NULL;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));

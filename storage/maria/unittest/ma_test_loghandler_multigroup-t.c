@@ -44,10 +44,10 @@ static TRN *trn= &dummy_transaction_object;
     1 - Error
 */
 
-static my_bool check_content(byte *ptr, ulong length)
+static my_bool check_content(uchar *ptr, ulong length)
 {
   ulong i;
-  byte buff[4];
+  uchar buff[4];
   DBUG_ENTER("check_content");
   for (i= 0; i < length; i++)
   {
@@ -81,7 +81,7 @@ static my_bool check_content(byte *ptr, ulong length)
 */
 
 static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
-                                      byte *buffer, uint skip)
+                                      uchar *buffer, uint skip)
 {
   int res= 0;
   translog_size_t len;
@@ -115,14 +115,14 @@ int main(int argc __attribute__((unused)), char *argv[])
   uint32 i;
   uint32 rec_len;
   uint pagen;
-  byte long_tr_id[6];
-  byte lsn_buff[23]=
+  uchar long_tr_id[6];
+  uchar lsn_buff[23]=
   {
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55
   };
-  byte *long_buffer= malloc(LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2);
+  uchar *long_buffer= malloc(LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2);
   PAGECACHE pagecache;
   LSN lsn, lsn_base, first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
@@ -138,7 +138,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
 
   {
-    byte buff[4];
+    uchar buff[4];
     for (i= 0; i < (LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2); i++)
     {
       if (i % 4 == 0)

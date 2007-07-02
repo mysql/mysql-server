@@ -831,7 +831,7 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
   register uint count;
   uint16 length_of_key = 0;
   uint idx;
-  byte *buffp;
+  uchar *buffp;
 
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
   {
@@ -918,7 +918,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
     count+= buffpek->count;
-    buffpek->base= (byte*) strpos;
+    buffpek->base= (uchar*) strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) info->read_to_buffer(from_file,buffpek,
                                                       sort_length));
@@ -956,7 +956,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       {
         if (!(error=(int) info->read_to_buffer(from_file,buffpek,sort_length)))
         {
-          byte *base= buffpek->base;
+          uchar *base= buffpek->base;
           uint max_keys=buffpek->max_keys;
 
           VOID(queue_remove(&queue,0));
@@ -988,7 +988,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     }
   }
   buffpek=(BUFFPEK*) queue_top(&queue);
-  buffpek->base= (byte*) sort_keys;
+  buffpek->base= (uchar*) sort_keys;
   buffpek->max_keys=keys;
   do
   {

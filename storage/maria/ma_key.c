@@ -31,7 +31,7 @@
               set_if_smaller(char_length,length);                           \
             } while(0)
 
-static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,byte *record);
+static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
 
 /*
   Make a intern key from a record
@@ -48,11 +48,11 @@ static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,byte *record);
     Length of key
 */
 
-uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
-		  const byte *record, MARIA_RECORD_POS filepos)
+uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
+		  const uchar *record, MARIA_RECORD_POS filepos)
 {
-  const byte *pos;
-  byte *start;
+  const uchar *pos;
+  uchar *start;
   reg1 HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_ma_make_key");
@@ -112,7 +112,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
       }
       else
       {
-        const byte *end= pos + length;
+        const uchar *end= pos + length;
 	while (pos < end && pos[0] == ' ')
 	  pos++;
 	length= (uint) (end-pos);
@@ -215,10 +215,10 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, byte *key,
      last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
-uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
-                  const byte *old, uint k_length, HA_KEYSEG **last_used_keyseg)
+uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key,
+                  const uchar *old, uint k_length, HA_KEYSEG **last_used_keyseg)
 {
-  byte *start_key=key;
+  uchar *start_key=key;
   HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_ma_pack_key");
@@ -230,7 +230,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=min((uint) keyseg->length,(uint) k_length);
     uint char_length;
-    const byte *pos;
+    const uchar *pos;
     CHARSET_INFO *cs=keyseg->charset;
 
     if (keyseg->null_bit)
@@ -252,7 +252,7 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
     pos= old;
     if (keyseg->flag & HA_SPACE_PACK)
     {
-      const byte *end= pos + length;
+      const uchar *end= pos + length;
       if (type != HA_KEYTYPE_NUM)
       {
 	while (end > pos && end[-1] == ' ')
@@ -350,12 +350,12 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, byte *key,
 */
 
 static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
-				 byte *record)
+				 uchar *record)
 {
-  reg2 byte *key;
-  byte *pos,*key_end;
+  reg2 uchar *key;
+  uchar *pos,*key_end;
   reg1 HA_KEYSEG *keyseg;
-  byte *blob_ptr;
+  uchar *blob_ptr;
   DBUG_ENTER("_ma_put_key_in_record");
 
   blob_ptr= info->lastkey2;             /* Place to put blob parts */
@@ -378,7 +378,7 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
 
       if (keyseg->bit_length)
       {
-        byte bits= *key++;
+        uchar bits= *key++;
         set_rec_bits(bits, record + keyseg->bit_pos, keyseg->bit_start,
                      keyseg->bit_length);
         length--;
@@ -456,8 +456,8 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {
-      byte *to=  record+keyseg->start+keyseg->length;
-      byte *end= key+keyseg->length;
+      uchar *to=  record+keyseg->start+keyseg->length;
+      uchar *end= key+keyseg->length;
 #ifdef CHECK_KEYS
       if (end > key_end)
 	goto err;
@@ -487,7 +487,7 @@ err:
 
 	/* Here when key reads are used */
 
-int _ma_read_key_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
+int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
 {
   fast_ma_writeinfo(info);
   if (filepos != HA_OFFSET_ERROR)
@@ -522,12 +522,12 @@ int _ma_read_key_record(MARIA_HA *info, byte *buf, MARIA_RECORD_POS filepos)
     less than zero.
 */
 
-ulonglong ma_retrieve_auto_increment(MARIA_HA *info,const byte *record)
+ulonglong ma_retrieve_auto_increment(MARIA_HA *info,const uchar *record)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */
   HA_KEYSEG *keyseg= info->s->keyinfo[info->s->base.auto_key-1].seg;
-  const byte *key= record + keyseg->start;
+  const uchar *key= record + keyseg->start;
 
   switch (keyseg->type) {
   case HA_KEYTYPE_INT8:

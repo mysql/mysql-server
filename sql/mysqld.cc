@@ -548,7 +548,7 @@ MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
-SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_crypt, have_compress, have_maria_db;
 
 /* Thread specific variables */
 
@@ -1210,7 +1210,7 @@ void clean_up(bool print_message)
   xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
 #ifdef WITH_MARIA_STORAGE_ENGINE
-  delete_elements(&pagecaches, (void (*)(const char*, gptr)) free_pagecache);
+  delete_elements(&pagecaches, (void (*)(const char*, uchar*)) free_pagecache);
 #endif /* WITH_MARIA_STORAGE_ENGINE */
   multi_keycache_free();
 #ifdef WITH_MARIA_STORAGE_ENGINE
@@ -6227,16 +6227,13 @@ The minimum value for this variable is 4096.",
   {"pagecache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (uchar**) &maria_pagecache_var.param_age_threshold,
-   (uchar**) 0,
-   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   (uchar**) 0, 0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
   {"pagecache_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (uchar**) &maria_pagecache_var.param_buff_size,
-   (uchar**) 0,
-   0, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
-   IO_SIZE, KEY_CACHE_SIZE},
+   (uchar**) 0, 0, (GET_ULL | GET_ASK_ADDR), REQUIRED_ARG,
+   KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"pagecache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (uchar**) &maria_pagecache_var.param_division_limit,
@@ -6252,11 +6249,12 @@ The minimum value for this variable is 4096.",
    "Optional colon separated list of plugins to load, where each plugin is "
    "identified by name and path to library seperated by an equals.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
-    "The size of the buffer that is allocated when preloading indexes",
-    (uchar**) &global_system_variables.preload_buff_size,
-    (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
-    REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
+   "The size of the buffer that is allocated when preloading indexes",
+   (uchar**) &global_system_variables.preload_buff_size,
+   (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
+   REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
   {"query_alloc_block_size", OPT_QUERY_ALLOC_BLOCK_SIZE,
    "Allocation block size for query parsing and execution",
    (uchar**) &global_system_variables.query_alloc_block_size,

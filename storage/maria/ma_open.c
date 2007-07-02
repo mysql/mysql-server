@@ -38,7 +38,7 @@ static my_bool maria_scan_init_dummy(MARIA_HA *info);
 static void maria_scan_end_dummy(MARIA_HA *info);
 static my_bool maria_once_init_dummy(MARIA_SHARE *, File);
 static my_bool maria_once_end_dummy(MARIA_SHARE *);
-static byte *_ma_base_info_read(byte *ptr, MARIA_BASE_INFO *base);
+static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base);
 
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
 					pos+=size;}
@@ -97,7 +97,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   DBUG_ENTER("maria_clone_internal");
 
   errpos= 0;
-  bzero((byte*) &info,sizeof(info));
+  bzero((uchar*) &info,sizeof(info));
 
   if (mode == O_RDWR && share->mode == O_RDONLY)
   {
@@ -200,7 +200,7 @@ err:
   switch (errpos) {
   case 6:
     (*share->end)(&info);
-    my_free((gptr) m_info,MYF(0));
+    my_free((uchar*) m_info,MYF(0));
     /* fall through */
   case 5:
     if (data_file < 0)
@@ -255,7 +255,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   kfile= -1;
   errpos= 0;
   head_length=sizeof(share_buff.state.header);
-  bzero((byte*) &info,sizeof(info));
+  bzero((uchar*) &info,sizeof(info));
 
   my_realpath(name_buff, fn_format(org_name,name,"",MARIA_NAME_IEXT,
                                    MY_UNPACK_FILENAME),MYF(0));
@@ -263,7 +263,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   if (!(old_info=_ma_test_if_reopen(name_buff)))
   {
     share= &share_buff;
-    bzero((gptr) &share_buff,sizeof(share_buff));
+    bzero((uchar*) &share_buff,sizeof(share_buff));
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.pagecache= multi_pagecache_search(name_buff, strlen(name_buff),
@@ -290,8 +290,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
     }
-    if (memcmp((byte*) share->state.header.file_version,
-	       (byte*) maria_file_magic, 4))
+    if (memcmp((uchar*) share->state.header.file_version,
+	       (uchar*) maria_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
@@ -638,7 +638,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
     share->block_size= share->base.block_size;
-    my_afree((gptr) disk_cache);
+    my_afree((uchar*) disk_cache);
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
@@ -724,12 +724,12 @@ err:
     (*share->once_end)(share);    
     /* fall through */
   case 4:
-    my_free((gptr) share,MYF(0));
+    my_free((uchar*) share,MYF(0));
     /* fall through */
   case 3:
     /* fall through */
   case 2:
-    my_afree((gptr) disk_cache);
+    my_afree((uchar*) disk_cache);
     /* fall through */
   case 1:
     VOID(my_close(kfile,MYF(0)));
@@ -748,13 +748,13 @@ err:
   Reallocate a buffer, if the current buffer is not large enough
 */
 
-my_bool _ma_alloc_buffer(byte **old_addr, my_size_t *old_size,
-                         my_size_t new_size)
+my_bool _ma_alloc_buffer(uchar **old_addr, size_t *old_size,
+                         size_t new_size)
 {
   if (*old_size < new_size)
   {
-    byte *addr;
-    if (!(addr= (byte*) my_realloc((gptr) *old_addr, new_size,
+    uchar *addr;
+    if (!(addr= (uchar*) my_realloc((uchar*) *old_addr, new_size,
                                    MYF(MY_ALLOW_ZERO_PTR))))
       return 1;
     *old_addr= addr;
@@ -1002,7 +1002,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
 }
 
 
-byte *_ma_state_info_read(byte *ptr, MARIA_STATE_INFO *state)
+uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 {
   uint i,keys,key_parts;
   memcpy_fixed(&state->header,ptr, sizeof(state->header));
@@ -1120,7 +1120,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
 }
 
 
-static byte *_ma_base_info_read(byte *ptr, MARIA_BASE_INFO *base)
+static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
 {
   base->keystart= mi_sizekorr(ptr);			ptr+= 8;
   base->max_data_file_length= mi_sizekorr(ptr); 	ptr+= 8;
@@ -1268,7 +1268,7 @@ char *_ma_uniquedef_read(char *ptr, MARIA_UNIQUEDEF *def)
    def->keysegs = mi_uint2korr(ptr);
    def->key	= ptr[2];
    def->null_are_equal=ptr[3];
-   return ptr+4;				/* 1 extra byte */
+   return ptr+4;				/* 1 extra uchar */
 }
 
 /***************************************************************************

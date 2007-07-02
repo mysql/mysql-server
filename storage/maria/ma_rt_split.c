@@ -26,7 +26,7 @@ typedef struct
 {
   double square;
   int n_node;
-  byte *key;
+  uchar *key;
   double *coords;
 } SplitStruct;
 
@@ -247,7 +247,7 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
 }
 
 int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                           byte *page, byte *key,
+                           uchar *page, uchar *key,
                            uint key_length, my_off_t *new_page_offs)
 {
   int n1, n2; /* Number of items in groups */
@@ -259,8 +259,8 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   double *next_coord;
   double *old_coord;
   int n_dim;
-  byte *source_cur, *cur1, *cur2;
-  byte *new_page;
+  uchar *source_cur, *cur1, *cur2;
+  uchar *new_page;
   int err_code= 0;
   uint nod_flag= _ma_test_if_nod(page);
   uint full_length= key_length + (nod_flag ? nod_flag :
@@ -304,7 +304,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     goto split_err;
   }
 
-  if (!(new_page = (byte*) my_alloca((uint)keyinfo->block_length)))
+  if (!(new_page = (uchar*) my_alloca((uint)keyinfo->block_length)))
   {
     err_code= -1;
     goto split_err;
@@ -317,7 +317,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   n1= n2 = 0;
   for (cur = task; cur < stop; ++cur)
   {
-    byte *to;
+    uchar *to;
     if (cur->n_node == 1)
     {
       to = cur1;
@@ -344,10 +344,10 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     err_code= _ma_write_keypage(info, keyinfo, *new_page_offs,
                                 DFLT_INIT_HITS, new_page);
 
-  my_afree((byte*)new_page);
+  my_afree((uchar*)new_page);
 
 split_err:
-  my_afree((byte*) coord_buf);
+  my_afree((uchar*) coord_buf);
   return err_code;
 }
 

@@ -302,7 +302,7 @@ struct st_pagecache_block_link
   WQUEUE
     wqueue[COND_SIZE];    /* queues on waiting requests for new/old pages    */
   uint requests;          /* number of requests for the block                */
-  byte *buffer;           /* buffer for the block page                       */
+  uchar *buffer;           /* buffer for the block page                       */
   uint status;            /* state of the block                              */
   uint pins;              /* pin counter                                     */
 #ifndef DBUG_OFF
@@ -575,7 +575,7 @@ extern my_bool translog_flush(LSN lsn);
 
 static uint pagecache_fwrite(PAGECACHE *pagecache,
                              PAGECACHE_FILE *filedesc,
-                             byte *buffer,
+                             uchar *buffer,
                              pgcache_page_no_t pageno,
                              enum pagecache_page_type type,
                              myf flags)
@@ -651,7 +651,7 @@ static inline uint next_power(uint value)
 
 */
 
-int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
+int init_pagecache(PAGECACHE *pagecache, size_t use_mem,
                    uint division_limit, uint age_threshold,
                    uint block_size)
 {
@@ -745,11 +745,11 @@ int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
       (PAGECACHE_HASH_LINK*) ((char*) pagecache->hash_root +
                               ALIGN_SIZE((sizeof(PAGECACHE_HASH_LINK*) *
                                           pagecache->hash_entries)));
-    bzero((byte*) pagecache->block_root,
+    bzero((uchar*) pagecache->block_root,
 	  pagecache->disk_blocks * sizeof(PAGECACHE_BLOCK_LINK));
-    bzero((byte*) pagecache->hash_root,
+    bzero((uchar*) pagecache->hash_root,
           pagecache->hash_entries * sizeof(PAGECACHE_HASH_LINK*));
-    bzero((byte*) pagecache->hash_link_root,
+    bzero((uchar*) pagecache->hash_link_root,
 	  pagecache->hash_links * sizeof(PAGECACHE_HASH_LINK));
     pagecache->hash_links_used= 0;
     pagecache->free_hash_list= NULL;
@@ -783,10 +783,10 @@ int init_pagecache(PAGECACHE *pagecache, my_size_t use_mem,
 		pagecache->disk_blocks, (long) pagecache->block_root,
 		pagecache->hash_entries, (long) pagecache->hash_root,
 		pagecache->hash_links, (long) pagecache->hash_link_root));
-    bzero((gptr) pagecache->changed_blocks,
+    bzero((uchar*) pagecache->changed_blocks,
 	  sizeof(pagecache->changed_blocks[0]) *
           PAGECACHE_CHANGED_BLOCKS_HASH);
-    bzero((gptr) pagecache->file_blocks,
+    bzero((uchar*) pagecache->file_blocks,
 	  sizeof(pagecache->file_blocks[0]) *
           PAGECACHE_CHANGED_BLOCKS_HASH);
   }
@@ -800,12 +800,12 @@ err:
   pagecache->blocks=  0;
   if (pagecache->block_mem)
   {
-    my_large_free((gptr) pagecache->block_mem, MYF(0));
+    my_large_free((uchar*) pagecache->block_mem, MYF(0));
     pagecache->block_mem= NULL;
   }
   if (pagecache->block_root)
   {
-    my_free((gptr) pagecache->block_root, MYF(0));
+    my_free((uchar*) pagecache->block_root, MYF(0));
     pagecache->block_root= NULL;
   }
   my_errno= error;
@@ -884,7 +884,7 @@ static int flush_all_key_blocks(PAGECACHE *pagecache)
 */
 #if NOT_USED /* keep disabled until code is fixed see above !! */
 int resize_pagecache(PAGECACHE *pagecache,
-		     my_size_t use_mem, uint division_limit,
+		     size_t use_mem, uint division_limit,
 		     uint age_threshold)
 {
   int blocks;
@@ -1049,9 +1049,9 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
   {
     if (pagecache->block_mem)
     {
-      my_large_free((gptr) pagecache->block_mem, MYF(0));
+      my_large_free((uchar*) pagecache->block_mem, MYF(0));
       pagecache->block_mem= NULL;
-      my_free((gptr) pagecache->block_root, MYF(0));
+      my_free((uchar*) pagecache->block_root, MYF(0));
       pagecache->block_root= NULL;
     }
     pagecache->disk_blocks= -1;
@@ -1876,7 +1876,7 @@ restart:
           block->buffer= ADD_TO_PTR(pagecache->block_mem,
                                     ((ulong) pagecache->blocks_used*
                                      pagecache->block_size),
-                                    byte*);
+                                    uchar*);
           pagecache->blocks_used++;
         }
         pagecache->blocks_unused--;
@@ -2097,7 +2097,7 @@ static void remove_pin(PAGECACHE_BLOCK_LINK *block)
     PAGECACHE_PIN_INFO *info= info_find(block->pin_list, my_thread_var);
     DBUG_ASSERT(info != 0);
     info_unlink(info);
-    my_free((gptr) info, MYF(0));
+    my_free((uchar*) info, MYF(0));
   }
 #endif
   DBUG_VOID_RETURN;
@@ -2119,7 +2119,7 @@ static void info_remove_lock(PAGECACHE_BLOCK_LINK *block)
                                      my_thread_var);
   DBUG_ASSERT(info != 0);
   info_unlink((PAGECACHE_PIN_INFO *)info);
-  my_free((gptr)info, MYF(0));
+  my_free((uchar*)info, MYF(0));
 }
 static void info_change_lock(PAGECACHE_BLOCK_LINK *block, my_bool wl)
 {
@@ -2362,7 +2362,7 @@ static void read_block(PAGECACHE *pagecache,
                        PAGECACHE_BLOCK_LINK *block,
                        my_bool primary,
                        pagecache_disk_read_validator validator,
-                       gptr validator_data)
+                       uchar* validator_data)
 {
   uint got_length;
 
@@ -2814,16 +2814,16 @@ static enum pagecache_page_pin lock_to_pin[]=
   PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_TO_READ*/
 };
 
-byte *pagecache_valid_read(PAGECACHE *pagecache,
+uchar *pagecache_valid_read(PAGECACHE *pagecache,
                            PAGECACHE_FILE *file,
                            pgcache_page_no_t pageno,
                            uint level,
-                           byte *buff,
+                           uchar *buff,
                            enum pagecache_page_type type,
                            enum pagecache_page_lock lock,
                            PAGECACHE_PAGE_LINK *link,
                            pagecache_disk_read_validator validator,
-                           gptr validator_data)
+                           uchar* validator_data)
 {
   int error= 0;
   enum pagecache_page_pin pin= lock_to_pin[lock];
@@ -2918,7 +2918,7 @@ restart:
     pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
 
     if (status & PCBLOCK_ERROR)
-      DBUG_RETURN((byte *) 0);
+      DBUG_RETURN((uchar *) 0);
 
     DBUG_RETURN(buff);
   }
@@ -2928,9 +2928,9 @@ no_key_cache:					/* Key cache is not used */
   /* We can't use mutex here as the key cache may not be initialized */
   pagecache->global_cache_r_requests++;
   pagecache->global_cache_read++;
-  if (pagecache_fread(pagecache, file, (byte*) buff, pageno, MYF(MY_NABP)))
+  if (pagecache_fread(pagecache, file, (uchar*) buff, pageno, MYF(MY_NABP)))
     error= 1;
-  DBUG_RETURN(error ? (byte*) 0 : buff);
+  DBUG_RETURN(error ? (uchar*) 0 : buff);
 }
 
 
@@ -3160,7 +3160,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              PAGECACHE_FILE *file,
                              pgcache_page_no_t pageno,
                              uint level,
-                             byte *buff,
+                             uchar *buff,
                              enum pagecache_page_type type,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
@@ -3320,7 +3320,7 @@ no_key_cache:
   {
     pagecache->global_cache_w_requests++;
     pagecache->global_cache_write++;
-    if (pagecache_fwrite(pagecache, file, (byte*) buff, pageno, type,
+    if (pagecache_fwrite(pagecache, file, (uchar*) buff, pageno, type,
                          MYF(MY_NABP | MY_WAIT_IF_FULL)))
       error=1;
   }
@@ -3426,7 +3426,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
      As all blocks referred in 'cache' are marked by PCBLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
-  qsort((byte*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
+  qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
 
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   for (; cache != end; cache++)
@@ -3730,7 +3730,7 @@ restart:
                test_key_cache(pagecache, "end of flush_pagecache_blocks", 0););
 #endif
   if (cache != cache_buff)
-    my_free((gptr) cache, MYF(0));
+    my_free((uchar*) cache, MYF(0));
   if (last_errno)
     errno=last_errno;                /* Return first error */
   DBUG_RETURN(last_errno != 0);

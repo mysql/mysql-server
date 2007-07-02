@@ -18,12 +18,12 @@
 #include "maria_def.h"
 #include <m_ctype.h>
 
-my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
+my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
 			ha_checksum unique_hash, my_off_t disk_pos)
 {
   my_off_t lastpos=info->cur_row.lastpos;
   MARIA_KEYDEF *key= &info->s->keyinfo[def->key];
-  byte *key_buff= info->lastkey2;
+  uchar *key_buff= info->lastkey2;
   DBUG_ENTER("_ma_check_unique");
   DBUG_PRINT("enter",("unique_hash: %lu", (ulong) unique_hash));
 
@@ -76,9 +76,9 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, byte *record,
     Add support for bit fields
 */
 
-ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const byte *record)
+ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const uchar *record)
 {
-  const byte *pos, *end;
+  const uchar *pos, *end;
   ha_checksum crc= 0;
   ulong seed1=0, seed2= 4;
   HA_KEYSEG *keyseg;
@@ -114,7 +114,7 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const byte *record)
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length= _ma_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
+      memcpy_fixed((uchar*) &pos,pos+keyseg->bit_start,sizeof(char*));
       if (!length || length > tmp_length)
 	length=tmp_length;			/* The whole blob */
     }
@@ -148,10 +148,10 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const byte *record)
     1   Rows are different
 */
 
-my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
+my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const uchar *a, const uchar *b,
                         my_bool null_are_equal)
 {
-  const byte *pos_a, *pos_b, *end;
+  const uchar *pos_a, *pos_b, *end;
   HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
@@ -209,8 +209,8 @@ my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const byte *a, const byte *b,
         set_if_smaller(a_length, keyseg->length);
         set_if_smaller(b_length, keyseg->length);
       }
-      memcpy_fixed((byte*) &pos_a,pos_a+keyseg->bit_start,sizeof(char*));
-      memcpy_fixed((byte*) &pos_b,pos_b+keyseg->bit_start,sizeof(char*));
+      memcpy_fixed((uchar*) &pos_a,pos_a+keyseg->bit_start,sizeof(char*));
+      memcpy_fixed((uchar*) &pos_b,pos_b+keyseg->bit_start,sizeof(char*));
     }
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2)

@@ -1244,7 +1244,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
-    MI_CHECK param;
+    HA_CHECK param;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "assign_to_keycache";
@@ -1415,7 +1415,7 @@ int ha_myisam::enable_indexes(uint mode)
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
     THD *thd=current_thd;
-    MI_CHECK param;
+    HA_CHECK param;
     const char *save_proc_info=thd->proc_info;
     thd->proc_info="Creating index";
     myisamchk_init(&param);
@@ -1424,7 +1424,8 @@ int ha_myisam::enable_indexes(uint mode)
                      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-    param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+    param.stats_method=
+      (enum_handler_stats_method)thd->variables.myisam_stats_method;
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
@@ -1922,7 +1923,7 @@ void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
 {
   ulonglong nr;
   int error;
-  uchar key[MI_MAX_KEY_LENGTH];
+  uchar key[HA_MAX_KEY_LENGTH];
 
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start

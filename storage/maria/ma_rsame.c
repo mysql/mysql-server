@@ -28,7 +28,7 @@
 */
 
 
-int maria_rsame(MARIA_HA *info, byte *record, int inx)
+int maria_rsame(MARIA_HA *info, uchar *record, int inx)
 {
   DBUG_ENTER("maria_rsame");
 

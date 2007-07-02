@@ -54,7 +54,7 @@ typedef TRANSLOG_ADDRESS LSN;
 #define LSN_REPLACE_OFFSET(L, S) (LSN_FINE_NO_PART(L) | (S))
 
 /*
-  an 8-byte type whose most significant byte is used for "flags"; 7
+  an 8-byte type whose most significant uchar is used for "flags"; 7
   other bytes are a LSN.
 */
 typedef LSN LSN_WITH_FLAGS;

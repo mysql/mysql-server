@@ -338,7 +338,7 @@ typedef struct st_mi_sort_param
   MI_SORT_INFO *sort_info;
   HA_KEYSEG *seg;
   uchar **sort_keys;
-  byte *rec_buff;
+  uchar *rec_buff;
   void *wordlist, *wordptr;
   MEM_ROOT wordroot;
   char *record;
