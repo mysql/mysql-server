@@ -8,7 +8,7 @@ ENGINE=NDB;
 ERROR HY000: Can't create table 'test.t1' (errno: 138)
 SHOW WARNINGS;
 Level	Code	Message
-Error	1466	Table storage engine 'ndbcluster' does not support the create option 'Row format FIXED incompatible with variable sized attribute'
+Error	1475	Table storage engine 'ndbcluster' does not support the create option 'Row format FIXED incompatible with variable sized attribute'
 Error	1005	Can't create table 'test.t1' (errno: 138)
 CREATE TABLE t1
 ( a INT KEY,
