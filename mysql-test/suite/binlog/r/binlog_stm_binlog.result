@@ -268,7 +268,7 @@ reset master;
 create table t1 (a int) engine=innodb;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server ver: 5.1.21-beta-debug-log, Binlog ver: 4
+master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	206	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	206	Query	1	274	use `test`; BEGIN
 master-bin.000001	274	Query	1	365	use `test`; insert into t1 values( 400 )
@@ -671,7 +671,7 @@ master-bin.000001	36210	Query	1	36299	use `test`; insert into t1 values( 4 )
 master-bin.000001	36299	Query	1	36388	use `test`; insert into t1 values( 3 )
 master-bin.000001	36388	Query	1	36477	use `test`; insert into t1 values( 2 )
 master-bin.000001	36477	Query	1	36566	use `test`; insert into t1 values( 1 )
-master-bin.000001	36566	Xid	1	36593	COMMIT /* xid=196 */
+master-bin.000001	36566	Xid	1	36593	COMMIT /* XID */
 master-bin.000001	36593	Rotate	1	36637	master-bin.000002;pos=4
 drop table t1;
 set global binlog_cache_size=@bcs;
