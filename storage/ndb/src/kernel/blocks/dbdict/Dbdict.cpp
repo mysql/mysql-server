@@ -804,6 +804,15 @@ void Dbdict::execFSREADCONF(Signal* signal)
     readSchemaConf(signal ,fsPtr);
     break;
   case FsConnectRecord::READ_TAB_FILE1:
+    if(ERROR_INSERTED(6007)){
+      jam();
+      FsRef * const fsRef = (FsRef *)&signal->theData[0];
+      fsRef->userPointer = fsConf->userPointer;
+      fsRef->setErrorCode(fsRef->errorCode, NDBD_EXIT_AFS_UNKNOWN);
+      fsRef->osErrorCode = ~0; // Indicate local error
+      execFSREADREF(signal);
+      return;
+    }//Testing how DICT behave if read of file 1 fails (Bug#28770)
   case FsConnectRecord::READ_TAB_FILE2:
     jam();
     readTableConf(signal ,fsPtr);
