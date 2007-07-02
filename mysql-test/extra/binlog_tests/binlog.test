@@ -161,6 +161,7 @@ while ($1)
 commit;
 enable_query_log;
 
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
 show binlog events from 0;
 
 drop table t1;
