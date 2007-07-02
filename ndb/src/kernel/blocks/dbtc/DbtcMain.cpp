@@ -882,6 +882,12 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         hostptr.p->hostStatus = HS_ALIVE;
 	c_alive_nodes.set(i);
       }//if
+
+      if (NodeBitmask::get(readNodes->startedNodes, i))
+      {
+        jam();
+        hostptr.p->m_nf_bits = HostRecord::NF_STARTED;
+      }
     }//if
   }//for
   ndbsttorry010Lab(signal);
@@ -10108,6 +10114,7 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->noOfWordsTCINDXCONF = 0;
     hostptr.p->noOfPackedWordsLqh = 0;
     hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
+    hostptr.p->m_nf_bits = 0;
   }//for
   c_alive_nodes.clear();
 }//Dbtc::inithost()
