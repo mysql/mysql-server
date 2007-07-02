@@ -13,52 +13,63 @@ drop table if exists t1,t2;
 # first, we need a table to record something from an event
 
 eval CREATE TABLE `t1` (
-  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` INT(10) UNSIGNED NOT NULL,
   `c` VARCHAR(50) NOT NULL,
   `ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=$engine_type DEFAULT CHARSET=utf8;
 
-INSERT INTO t1 (c) VALUES ('manually');
+INSERT INTO t1 (id, c) VALUES (1, 'manually');
 
-# then, we create the event
-CREATE EVENT test.justonce ON SCHEDULE AT NOW() + INTERVAL 2 SECOND DO INSERT INTO t1
-(c) VALUES ('from justonce');
+# We create the event so that it inserts exactly 1 row in the table
+# A recuring event is used so that we can be sure the event will
+# fire regardless of timing delays on the server. Otherwise, it is
+# possible for the event to timeout before it has inserted a row.
+--echo "Creating event test.justonce on the master"
+CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO 
+  INSERT IGNORE INTO t1 (id, c) VALUES (2, 'from justonce');
 
+# Show the event is alive and present on master
+--echo "Checking event is active on master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 
-# wait 3 seconds, so the event can trigger
---real_sleep 3
-let $wait_condition= 
-  SELECT count(*) = 1 FROM t1 WHERE c = 'from justonce';
---source include/wait_condition.inc  
+# Wait until event has fired. We know this because t1 will contain 
+# the row from the event.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM t1 WHERE c = 'from justonce';
+--source include/wait_condition.inc
 
 # check that table t1 contains something
---echo "in the master"
+--echo "Checking event data on the master"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+SELECT * FROM t1 ORDER BY id;
 --disable_info
 
 sync_slave_with_master;
 
---echo "in the slave"
+--echo "Checking event data on the slave"
 --enable_info
 --replace_column 3 TIMESTAMP
-SELECT * FROM t1 WHERE c = 'from justonce' OR c = 'manually' ORDER BY id;
+SELECT * FROM t1 ORDER BY id;
 --disable_info
 
+--echo "Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 
 # Create an event on the slave and check to see what the originator is.
+--echo "Dropping event test.slave_once on the slave"
 --disable_warnings
 DROP EVENT IF EXISTS test.slave_once;
 --enable_warnings
 
 CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE DO 
-INSERT INTO t1(c) VALUES ('from slave_once');
+  INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
+
+--echo "Checking event status on the slave for originator value = slave's server_id"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
 
+--echo "Dropping event test.slave_once on the slave"
 --disable_warnings
 DROP EVENT IF EXISTS test.slave_once;
 --enable_warnings
@@ -66,57 +77,74 @@ DROP EVENT IF EXISTS test.slave_once;
 connection master;
 
 # BUG#20384 - disable events on slave
+--echo "Dropping event test.justonce on the master"
 --disable_warnings
 DROP EVENT IF EXISTS test.justonce;
 --enable_warnings
 
+--echo "Creating event test.er on the master"
 CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND DO 
-INSERT INTO t1(c) VALUES ('from er');
+  INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
+
+--echo "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 sync_slave_with_master;
 
---echo "in the slave"
+--echo "Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 connection master;
---echo "in the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO INSERT into t1(c) VALUES ('from alter er');
+--echo "Altering event test.er on the master"
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND DO 
+  INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
+
+--echo "Checking event status on the master"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 sync_slave_with_master;
 
---echo "in the slave"
+--echo "Checking event status on the slave"
 SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
 
 connection master;
---echo "in the master"
+--echo "Dropping event test.er on the master"
 DROP EVENT test.er;
+
+--echo "Checking event status on the master"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 
 --disable_info
 
 sync_slave_with_master;
 
---echo "in the slave"
+--echo "Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
 
 # test the DISABLE ON SLAVE for setting event SLAVESIDE_DISABLED as status
 # on CREATE EVENT
 
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+--echo "Creating event test.slave_terminate on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DO 
+  INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
+
+--echo "Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 
+--echo "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
 
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND 
-DISABLE ON SLAVE DO INSERT INTO t1(c) VALUES ('from slave_terminate');
+--echo "Creating event test.slave_terminate with DISABLE ON SLAVE on the slave"
+CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO 
+  INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
+
+--echo "Checking event status on the slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
 
+--echo "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
 
---echo "in the master"
+--echo "Cleanup"
 connection master;
 DROP TABLE t1;
 
