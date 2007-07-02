@@ -9895,6 +9895,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->main_security_ctx.priv_user = 0;
   thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
 
+  CHARSET_INFO *charset_connection;
+  charset_connection= get_charset_by_csname("utf8",
+                                            MY_CS_PRIMARY, MYF(MY_WME));
+  thd->variables.character_set_client= charset_connection;
+  thd->variables.character_set_results= charset_connection;
+  thd->variables.collation_connection= charset_connection;
+  thd->update_charset();
+
   /* Signal successful initialization */
   ndb_util_thread_running= 1;
   pthread_cond_signal(&COND_ndb_util_ready);
