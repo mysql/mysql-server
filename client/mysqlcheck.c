@@ -453,13 +453,16 @@ static int process_all_tables_in_db(char *database)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
+  uint num_columns;
 
   LINT_INIT(res);
   if (use_db(database))
     return 1;
-  if (mysql_query(sock, "SHOW TABLE STATUS") ||
+  if (mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") ||
 	!((res= mysql_store_result(sock))))
     return 1;
+
+  num_columns= mysql_num_fields(res);
 
   if (opt_all_in_1)
   {
@@ -483,12 +486,11 @@ static int process_all_tables_in_db(char *database)
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
-      /* Skip tables with an engine of NULL (probably a view). */
-      if (row[1])
-      {
-        end= fix_table_name(end, row[0]);
-        *end++= ',';
-      }
+      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+        continue;
+
+      end= fix_table_name(end, row[0]);
+      *end++= ',';
     }
     *--end = 0;
     if (tot_length)
@@ -498,11 +500,12 @@ static int process_all_tables_in_db(char *database)
   else
   {
     while ((row = mysql_fetch_row(res)))
-      /* Skip tables with an engine of NULL (probably a view). */
-      if (row[1])
-      {
-        handle_request_for_tables(row[0], strlen(row[0]));
-      }
+    {
+      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+        continue;
+
+      handle_request_for_tables(row[0], strlen(row[0]));
+    }
   }
   mysql_free_result(res);
   return 0;
