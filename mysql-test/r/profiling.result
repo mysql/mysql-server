@@ -1,3 +1,7 @@
+show profiles;
+Query_ID	Duration	Query
+show profile all;
+Status	Duration	CPU_user	CPU_system	Context_voluntary	Context_involuntary	Block_ops_in	Block_ops_out	Messages_sent	Messages_received	Page_faults_major	Page_faults_minor	Swaps	Source_function	Source_file	Source_line
 show session variables like 'profil%';
 Variable_name	Value
 profiling	OFF
