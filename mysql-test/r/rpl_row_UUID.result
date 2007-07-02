@@ -24,7 +24,7 @@ end|
 select fn1(0);
 fn1(0)
 0
-create table t2 (a int);
+create table t2 (a int) engine=myisam;
 insert into t2 values(fn1(2));
 SHOW CREATE TABLE test.t1;
 Table	Create Table
