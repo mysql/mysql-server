@@ -3209,6 +3209,27 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
 
+  uint32 offset;
+  if (separator->needs_conversion(separator->length(), separator->charset(),
+                                  collation.collation, &offset))
+  {
+    uint32 buflen= collation.collation->mbmaxlen * separator->length();
+    uint errors, conv_length;
+    char *buf;
+    String *new_separator;
+
+    if (!(buf= thd->stmt_arena->alloc(buflen)) ||
+        !(new_separator= new(thd->stmt_arena->mem_root)
+                           String(buf, buflen, collation.collation)))
+      return TRUE;
+    
+    conv_length= copy_and_convert(buf, buflen, collation.collation,
+                                  separator->ptr(), separator->length(),
+                                  separator->charset(), &errors);
+    new_separator->length(conv_length);
+    separator= new_separator;
+  }
+
   if (check_sum_func(thd, ref))
     return TRUE;
 
