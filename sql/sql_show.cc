@@ -3657,11 +3657,18 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                            fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
       break;
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_STRING:
     default:
       /* Don't let unimplemented types pass through. Could be a grave error. */
-      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+      DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING ||
+                  fields_info->field_type == MYSQL_TYPE_DECIMAL);
 
-      /* this should be changed when Item_empty_string is fixed(in 4.1) */
+      /** 
+        @todo  Change when Item_empty_string is fixed (in 4.1).  [Presumably, 
+        this means removing the first of two steps:  setting a useless, bogus
+        value; and then setting the attributes.]
+      */
       if (!(item= new Item_empty_string("", 0, cs)))
       {
         DBUG_RETURN(0);
