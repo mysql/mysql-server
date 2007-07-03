@@ -494,6 +494,13 @@ enum enum_parsing_place
 struct st_table;
 class THD;
 
+enum enum_check_fields
+{
+  CHECK_FIELD_IGNORE,
+  CHECK_FIELD_WARN,
+  CHECK_FIELD_ERROR_FOR_NULL
+};
+                                  
 /* Struct to handle simple linked lists */
 
 typedef struct st_sql_list {
