@@ -44,9 +44,9 @@ ST_FIELD_INFO query_profile_statistics_info[]=
   {"QUERY_ID", 20, MYSQL_TYPE_LONG, 0, false, "Query_id"},
   {"SEQ", 20, MYSQL_TYPE_LONG, 0, false, "Seq"},
   {"STATE", 30, MYSQL_TYPE_STRING, 0, false, "Status"},
-  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, false, "Duration"},
-  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_user"},
-  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DOUBLE, 0, true, "CPU_system"},
+  {"DURATION", TIME_FLOAT_DIGITS, MYSQL_TYPE_DECIMAL, 0, false, "Duration"},
+  {"CPU_USER", TIME_FLOAT_DIGITS, MYSQL_TYPE_DECIMAL, 0, true, "CPU_user"},
+  {"CPU_SYSTEM", TIME_FLOAT_DIGITS, MYSQL_TYPE_DECIMAL, 0, true, "CPU_system"},
   {"CONTEXT_VOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_voluntary"},
   {"CONTEXT_INVOLUNTARY", 20, MYSQL_TYPE_LONG, 0, true, "Context_involuntary"},
   {"BLOCK_OPS_IN", 20, MYSQL_TYPE_LONG, 0, true, "Block_ops_in"},
@@ -557,16 +557,31 @@ int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item
       */
       table->field[2]->store(previous->status, strlen(previous->status), 
                              system_charset_info);
-      table->field[3]->store((double)(entry->time_usecs - 
-                             previous->time_usecs)/(1000*1000));
+
+      my_decimal duration;
+      double2my_decimal(E_DEC_FATAL_ERROR, 
+                        (entry->time_usecs-previous->time_usecs)/(1000.0*1000),
+                        &duration);
+      table->field[3]->store_decimal(&duration);
 
 #ifdef HAVE_GETRUSAGE
-      table->field[4]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_utime,
-                             previous->rusage.ru_utime)/(1000.0*1000));
-      table->field[4]->set_notnull();
-      table->field[5]->store((double)RUSAGE_DIFF_USEC(entry->rusage.ru_stime,
-                             previous->rusage.ru_stime)/(1000.0*1000));
 
+      my_decimal cpu_utime, cpu_stime;
+      double2my_decimal(E_DEC_FATAL_ERROR, 
+                        RUSAGE_DIFF_USEC(entry->rusage.ru_utime, 
+                                         previous->rusage.ru_utime) /
+                                                        (1000.0*1000),
+                        &cpu_utime);
+
+      double2my_decimal(E_DEC_FATAL_ERROR, 
+                        RUSAGE_DIFF_USEC(entry->rusage.ru_stime,
+                                         previous->rusage.ru_stime) / 
+                                                        (1000.0*1000),
+                        &cpu_stime);
+
+      table->field[4]->store_decimal(&cpu_utime);
+      table->field[5]->store_decimal(&cpu_stime);
+      table->field[4]->set_notnull();
       table->field[5]->set_notnull();
 #else
       /* TODO: Add CPU-usage info for non-BSD systems */
