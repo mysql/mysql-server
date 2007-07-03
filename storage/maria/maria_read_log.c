@@ -14,20 +14,22 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "maria_def.h"
+#include <ma_blockrec.h>
 #include <my_getopt.h>
 
 #define PCACHE_SIZE (1024*1024*10)
 #define LOG_FLAGS 0
 #define LOG_FILE_SIZE (1024L*1024L)
 
-
-static PAGECACHE pagecache;
-
 static const char *load_default_groups[]= { "maria_read_log",0 };
 static void get_options(int *argc,char * * *argv);
 #ifndef DBUG_OFF
-static const char *default_dbug_option;
+#if defined(__WIN__)
+const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
+#else
+const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif
+#endif /* DBUG_OFF */
 static my_bool opt_only_display, opt_display_and_apply;
 
 struct TRN_FOR_RECOVERY
@@ -55,7 +57,25 @@ prototype_exec_hook(CHECKPOINT);
 prototype_exec_hook(REDO_CREATE_TABLE);
 prototype_exec_hook(FILE_ID);
 prototype_exec_hook(REDO_INSERT_ROW_HEAD);
+prototype_exec_hook(REDO_INSERT_ROW_TAIL);
+prototype_exec_hook(REDO_PURGE_ROW_HEAD);
+prototype_exec_hook(REDO_PURGE_ROW_TAIL);
+prototype_exec_hook(UNDO_ROW_INSERT);
+prototype_exec_hook(UNDO_ROW_DELETE);
 prototype_exec_hook(COMMIT);
+
+
+/*
+  TODO: Avoid mallocs in exec.
+
+  Proposed fix:
+    Add either a context/buffer argument to all exec_hook functions
+    or add 'record_buffer' and 'record_buffer_length' to
+    TRANSLOG_HEADER_BUFFER.
+    With this we could use my_realloc() instead of my_malloc() to
+    allocate data and save some mallocs.
+*/
+
 /*
   To implement REDO_DROP_TABLE and REDO_RENAME_TABLE, we would need to go
   through the all_tables[] array, find all open instances of the
@@ -78,19 +98,6 @@ int main(int argc, char **argv)
 
   maria_data_root= ".";
 
-#ifndef DBUG_OFF
-#if defined(__WIN__)
-  default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
-#else
-  default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
-#endif
-  if (argc > 1)
-  {
-    DBUG_SET(default_dbug_option);
-    DBUG_SET_INITIAL(default_dbug_option);
-  }
-#endif
-
   if (maria_init())
   {
     fprintf(stderr, "Can't init Maria engine (%d)\n", errno);
@@ -107,7 +114,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "Can't find any log\n");
     goto err;
   }
-  if (init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
+  if (init_pagecache(maria_pagecache, PCACHE_SIZE, 0, 0,
                      TRANSLOG_PAGE_SIZE) == 0)
   {
     fprintf(stderr, "Got error in init_pagecache() (errno: %d)\n", errno);
@@ -119,7 +126,7 @@ int main(int argc, char **argv)
     But if it finds a log and this log was crashed, it will create a new log,
     which is useless. TODO: start log handler in read-only mode.
   */
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, maria_pagecache,
                     TRANSLOG_DEFAULT_FLAGS))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
@@ -137,6 +144,11 @@ int main(int argc, char **argv)
   install_exec_hook(REDO_CREATE_TABLE);
   install_exec_hook(FILE_ID);
   install_exec_hook(REDO_INSERT_ROW_HEAD);
+  install_exec_hook(REDO_INSERT_ROW_TAIL);
+  install_exec_hook(REDO_PURGE_ROW_HEAD);
+  install_exec_hook(REDO_PURGE_ROW_TAIL);
+  install_exec_hook(UNDO_ROW_INSERT);
+  install_exec_hook(UNDO_ROW_DELETE);
   install_exec_hook(COMMIT);
 
   if (opt_only_display)
@@ -261,7 +273,7 @@ err:
   /* don't touch anything more, in case we hit a bug */
   exit(1);
 end:
-  maria_end();
+  maria_panic(HA_PANIC_CLOSE);
   free_defaults(default_argv);
   my_end(0);
   exit(0);
@@ -318,7 +330,13 @@ get_one_option(int optid __attribute__((unused)),
                const struct my_option *opt __attribute__((unused)),
                char *argument __attribute__((unused)))
 {
-  /* for now there is nothing special with our options */
+  switch (optid) {
+#ifndef DBUG_OFF
+  case '#':
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
+    break;
+  }
+#endif
   return 0;
 }
 
@@ -623,6 +641,8 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
   ulonglong page;
   MARIA_HA *info;
   char llbuf[22];
+  byte *buff= 0;
+
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
   llstr(page, llbuf);
@@ -657,11 +677,219 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
     runtime, putting the same LSN as runtime had done will decrease
     differences. So we use the UNDO's LSN which is current_group_end_lsn.
   */
-  DBUG_ASSERT("Monty" == "this is the place");
+
+  if ((!(buff= (byte*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
+      (translog_read_record(rec->lsn, 0, rec->record_length, buff, NULL) !=
+       rec->record_length))
+  {
+    fprintf(stderr, "Failed to read record\n");
+    goto end;
+  }
+  if (_ma_apply_redo_insert_row_head_or_tail(info, rec->lsn, HEAD_PAGE,
+                                             rec->header + FILEID_STORE_SIZE,
+                                             buff + (rec->record_length - 
+                                                     rec->non_header_data_len),
+                                             rec->non_header_data_len))
+    goto end;
+  my_free(buff, MYF(0));
+  return 0;
+
+end:
+  /* as we don't have apply working: */
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  return 1;
+}
+
+
+prototype_exec_hook(REDO_INSERT_ROW_TAIL)
+{
+  uint16 sid;
+  ulonglong page;
+  MARIA_HA *info;
+  char llbuf[22];
+  byte *buff= 0;
+
+  sid= fileid_korr(rec->header);
+  page= page_korr(rec->header + FILEID_STORE_SIZE);
+  llstr(page, llbuf);
+  printf("For page %s of table of short id %u", llbuf, sid);
+  info= all_tables[sid];
+  if (info == NULL)
+  {
+    printf(", table skipped, so skipping record\n");
+    goto end;
+  }
+  printf(", '%s'", info->s->open_file_name);
+  if (cmp_translog_addr(info->s->state.create_rename_lsn, rec->lsn) >= 0)
+  {
+    printf(", has create_rename_lsn (%lu,0x%lx) is more recent than log"
+           " record\n",
+           (ulong) LSN_FILE_NO(rec->lsn), (ulong) LSN_OFFSET(rec->lsn));
+    goto end;
+  }
+  /*
+    Soon we will also skip the page depending on the rec_lsn for this page in
+    the checkpoint record, but this is not absolutely needed for now (just
+    assume we have made no checkpoint).
+  */
+  printf(", applying record\n");
+  /*
+    If REDO's LSN is > page's LSN (read from disk), we are going to modify the
+    page and change its LSN. The normal runtime code stores the UNDO's LSN
+    into the page. Here storing the REDO's LSN (rec->lsn) would work
+    (we are not writing to the log here, so don't have to "flush up to UNDO's
+    LSN"). But in a test scenario where we do updates at runtime, then remove
+    tables, apply the log and check that this results in the same table as at
+    runtime, putting the same LSN as runtime had done will decrease
+    differences. So we use the UNDO's LSN which is current_group_end_lsn.
+  */
+
+  if ((!(buff= (byte*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
+      (translog_read_record(rec->lsn, 0, rec->record_length, buff, NULL) !=
+       rec->record_length))
+  {
+    fprintf(stderr, "Failed to read record\n");
+    goto end;
+  }
+  if (_ma_apply_redo_insert_row_head_or_tail(info, rec->lsn, TAIL_PAGE,
+                                             rec->header + FILEID_STORE_SIZE,
+                                             buff + (rec->record_length - 
+                                                     rec->non_header_data_len),
+                                             rec->non_header_data_len))
+    goto end;
+
+  my_free(buff, MYF(0));
+  return 0;
+
+end:
+  /* as we don't have apply working: */
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  return 1;
+}
+
+
+prototype_exec_hook(REDO_PURGE_ROW_HEAD)
+{
+  uint16 sid;
+  ulonglong page;
+  MARIA_HA *info;
+  char llbuf[22];
+
+  sid= fileid_korr(rec->header);
+  page= page_korr(rec->header + FILEID_STORE_SIZE);
+  llstr(page, llbuf);
+  printf("For page %s of table of short id %u", llbuf, sid);
+  info= all_tables[sid];
+  if (info == NULL)
+  {
+    printf(", table skipped, so skipping record\n");
+    goto end;
+  }
+  printf(", '%s'", info->s->open_file_name);
+  if (cmp_translog_addr(info->s->state.create_rename_lsn, rec->lsn) >= 0)
+  {
+    printf(", has create_rename_lsn (%lu,0x%lx) is more recent than log"
+           " record\n",
+           (ulong) LSN_FILE_NO(rec->lsn), (ulong) LSN_OFFSET(rec->lsn));
+    goto end;
+  }
+  /*
+    Soon we will also skip the page depending on the rec_lsn for this page in
+    the checkpoint record, but this is not absolutely needed for now (just
+    assume we have made no checkpoint).
+  */
+  printf(", applying record\n");
+  /*
+    If REDO's LSN is > page's LSN (read from disk), we are going to modify the
+    page and change its LSN. The normal runtime code stores the UNDO's LSN
+    into the page. Here storing the REDO's LSN (rec->lsn) would work
+    (we are not writing to the log here, so don't have to "flush up to UNDO's
+    LSN"). But in a test scenario where we do updates at runtime, then remove
+    tables, apply the log and check that this results in the same table as at
+    runtime, putting the same LSN as runtime had done will decrease
+    differences. So we use the UNDO's LSN which is current_group_end_lsn.
+  */
+
+  if (_ma_apply_redo_purge_row_head_or_tail(info, rec->lsn, HEAD_PAGE,
+                                            rec->header + FILEID_STORE_SIZE))
+    goto end;
+
+  return 0;
+
 end:
   /* as we don't have apply working: */
   return 1;
 }
+
+
+prototype_exec_hook(REDO_PURGE_ROW_TAIL)
+{
+  uint16 sid;
+  ulonglong page;
+  MARIA_HA *info;
+  char llbuf[22];
+
+  sid= fileid_korr(rec->header);
+  page= page_korr(rec->header + FILEID_STORE_SIZE);
+  llstr(page, llbuf);
+  printf("For page %s of table of short id %u", llbuf, sid);
+  info= all_tables[sid];
+  if (info == NULL)
+  {
+    printf(", table skipped, so skipping record\n");
+    goto end;
+  }
+  printf(", '%s'", info->s->open_file_name);
+  if (cmp_translog_addr(info->s->state.create_rename_lsn, rec->lsn) >= 0)
+  {
+    printf(", has create_rename_lsn (%lu,0x%lx) is more recent than log"
+           " record\n",
+           (ulong) LSN_FILE_NO(rec->lsn), (ulong) LSN_OFFSET(rec->lsn));
+    goto end;
+  }
+  /*
+    Soon we will also skip the page depending on the rec_lsn for this page in
+    the checkpoint record, but this is not absolutely needed for now (just
+    assume we have made no checkpoint).
+  */
+  printf(", applying record\n");
+  /*
+    If REDO's LSN is > page's LSN (read from disk), we are going to modify the
+    page and change its LSN. The normal runtime code stores the UNDO's LSN
+    into the page. Here storing the REDO's LSN (rec->lsn) would work
+    (we are not writing to the log here, so don't have to "flush up to UNDO's
+    LSN"). But in a test scenario where we do updates at runtime, then remove
+    tables, apply the log and check that this results in the same table as at
+    runtime, putting the same LSN as runtime had done will decrease
+    differences. So we use the UNDO's LSN which is current_group_end_lsn.
+  */
+
+  if (_ma_apply_redo_purge_row_head_or_tail(info, rec->lsn, TAIL_PAGE,
+                                            rec->header + FILEID_STORE_SIZE))
+    goto end;
+
+  return 0;
+
+end:
+  /* as we don't have apply working: */
+  return 1;
+}
+
+
+static int exec_LOGREC_UNDO_ROW_INSERT(const TRANSLOG_HEADER_BUFFER *rec 
+                                       __attribute__((unused)))
+{
+  /* Ignore this during the redo phase */
+  return 0;
+}
+
+static int exec_LOGREC_UNDO_ROW_DELETE(const TRANSLOG_HEADER_BUFFER *rec 
+                                       __attribute__((unused)))
+{
+  /* Ignore this during the redo phase */
+  return 0;
+}
+
 
 
 prototype_exec_hook(COMMIT)
