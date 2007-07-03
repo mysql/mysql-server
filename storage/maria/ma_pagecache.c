@@ -177,7 +177,8 @@ static const char *page_cache_page_type_str[]=
   /* used only for control page type changing during debugging */
   "EMPTY",
   "PLAIN",
-  "LSN"
+  "LSN",
+  "UNKNOWN"
 };
 
 static const char *page_cache_page_write_mode_str[]=
@@ -3649,6 +3650,14 @@ restart:
             ("changed_blocks") though it's still dirty (the flush by another
             thread has not yet happened). Checkpoint will miss the page and so
             must be blocked until that flush has happened.
+            Note that if there are two concurrent
+            flush_pagecache_blocks_int() on this file, then the first one may
+            move the block into its first_in_switch, and the second one would
+            just not see the block and wrongly consider its job done.
+            @todo RECOVERY Maria does protect such flushes with intern_lock,
+            but Checkpoint does not (Checkpoint makes sure that
+            changed_blocks_is_incomplete is 0 when it starts, but as
+            flush_cached_blocks() releases mutex, this may change...
           */
           /**
              @todo RECOVERY: check all places where we remove a page from the

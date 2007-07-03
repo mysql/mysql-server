@@ -1033,7 +1033,7 @@ static int maria_chk(HA_CHECK *param, my_string filename)
         know what the log's end LSN is now, so we just let the server know
         that it will have to find and store it.
       */
-      if (share->base.transactional)
+      if (share->base.born_transactional)
         share->state.create_rename_lsn= (LSN)ULONGLONG_MAX;
       if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
           (maria_is_any_key_active(share->state.key_map) ||

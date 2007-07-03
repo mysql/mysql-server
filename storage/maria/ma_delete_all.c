@@ -46,7 +46,7 @@ int maria_delete_all_rows(MARIA_HA *info)
   */
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
-  log_record= share->base.transactional && !share->temporary;
+  log_record= share->now_transactional && !share->temporary;
   if (_ma_mark_file_changed(info))
     goto err;
 
@@ -142,7 +142,6 @@ void _ma_reset_status(MARIA_HA *info)
   info->state->data_file_length= 0;
   info->state->empty= info->state->key_empty= 0;
   info->state->checksum= 0;
-  share->state.create_rename_lsn= LSN_IMPOSSIBLE;
 
   /* Drop the delete key chain. */
   state->key_del= HA_OFFSET_ERROR;

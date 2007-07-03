@@ -108,7 +108,8 @@ int maria_close(register MARIA_HA *info)
       }
     }
 #endif
-    my_free((gptr) info->s,MYF(0));
+    DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
+    my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   if (info->ftparser_param)

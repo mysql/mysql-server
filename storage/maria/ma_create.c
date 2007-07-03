@@ -259,7 +259,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
   share.base.null_bytes= ci->null_bytes;
   share.base.original_null_bytes= ci->null_bytes;
-  share.base.transactional= ci->transactional;
+  share.base.born_transactional= ci->transactional;
   share.base.max_field_lengths= max_field_lengths;
   share.base.field_offsets= 0;                  /* for future */
   

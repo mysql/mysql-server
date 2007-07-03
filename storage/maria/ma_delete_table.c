@@ -64,7 +64,7 @@ int maria_delete_table(const char *name)
     raid_type=      info->s->base.raid_type;
     raid_chunks=    info->s->base.raid_chunks;
 #endif
-    sync_dir= (info->s->base.transactional && !info->s->temporary) ?
+    sync_dir= (info->s->now_transactional && !info->s->temporary) ?
       MY_SYNC_DIR : 0;
     maria_close(info);
   }

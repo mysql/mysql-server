@@ -589,9 +589,17 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
     if (open_flags & HA_OPEN_COPY)
-      share->base.transactional= 0;           /* Repair: no logging */
-    if (share->base.transactional)
     {
+      /*
+        this instance will be a temporary one used just to create a data
+        file for REPAIR. Don't do logging. This base information will not go
+        to disk.
+      */
+      share->base.born_transactional= FALSE;
+    }
+    if (share->base.born_transactional)
+    {
+      share->page_type= PAGECACHE_LSN_PAGE;
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
       if (unlikely((share->state.create_rename_lsn == (LSN)ULONGLONG_MAX) &&
                    (open_flags & HA_OPEN_FROM_SQL_LAYER)))
@@ -604,11 +612,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         _ma_update_create_rename_lsn_on_disk(share, TRUE);
       }
     }
+    else
+      share->page_type= PAGECACHE_PLAIN_PAGE;
+    share->now_transactional= share->base.born_transactional;
+
     share->base.default_rec_buff_size= max(share->base.pack_reclength,
                                            share->base.max_key_length);
-    share->page_type= (share->base.transactional ? PAGECACHE_LSN_PAGE :
-                       PAGECACHE_PLAIN_PAGE);
-
     if (share->data_file_type == DYNAMIC_RECORD)
     {
       share->base.extra_rec_buff_size=
@@ -1124,7 +1133,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   *ptr++= base->key_reflength;
   *ptr++= base->keys;
   *ptr++= base->auto_key;
-  *ptr++= base->transactional;
+  *ptr++= base->born_transactional;
   *ptr++= 0;                                    /* Reserved */
   mi_int2store(ptr,base->pack_bytes);			ptr+= 2;
   mi_int2store(ptr,base->blobs);			ptr+= 2;
@@ -1167,7 +1176,7 @@ static byte *_ma_base_info_read(byte *ptr, MARIA_BASE_INFO *base)
   base->key_reflength= *ptr++;
   base->keys=	       *ptr++;
   base->auto_key=      *ptr++;
-  base->transactional= *ptr++;
+  base->born_transactional= *ptr++;
   ptr++;
   base->pack_bytes= mi_uint2korr(ptr);			ptr+= 2;
   base->blobs= mi_uint2korr(ptr);			ptr+= 2;
