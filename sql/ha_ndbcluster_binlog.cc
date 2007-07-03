@@ -3186,7 +3186,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
 */
 
 static void ndb_unpack_record(TABLE *table, NdbValue *value,
-                              MY_BITMAP *defined, byte *buf)
+                              MY_BITMAP *defined, uchar *buf)
 {
   Field **p_field= table->field, *field= *p_field;
   my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
@@ -3273,13 +3273,13 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
           field_bit->Field_bit::move_field_offset(-row_offset);
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+          DBUG_DUMP("info", (const uchar*) field->ptr, field->pack_length());
         }
         else
         {
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const char*) field->ptr, field->pack_length());
+          DBUG_DUMP("info", (const uchar*) field->ptr, field->pack_length());
         }
       }
       else
@@ -3303,7 +3303,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
 #ifndef DBUG_OFF
           // pointer vas set in get_ndb_blobs_value
           Field_blob *field_blob= (Field_blob*)field;
-          char* ptr;
+          uchar* ptr;
           field_blob->get_ptr(&ptr, row_offset);
           uint32 len= field_blob->get_length(row_offset);
           DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",

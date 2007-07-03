@@ -195,7 +195,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "progress-frequency", OPT_PROGRESS_FREQUENCY,
     "Print status uf restore periodically in given seconds", 
-    (gptr*) &opt_progress_frequency, (gptr*) &opt_progress_frequency, 0,
+    (uchar**) &opt_progress_frequency, (uchar**) &opt_progress_frequency, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 65535, 0, 0, 0 },
   { "verbose", OPT_VERBOSE,
     "verbosity", 
