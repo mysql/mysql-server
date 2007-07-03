@@ -405,7 +405,7 @@ struct NdbFileImpl : public NdbDictObjectImpl {
   NdbFileImpl(NdbDictionary::Object::Type t);
 
   Uint64 m_size;
-  Uint32 m_free;
+  Uint64 m_free;
   BaseString m_path;
   BaseString m_filegroup_name;
   Uint32 m_filegroup_id;
