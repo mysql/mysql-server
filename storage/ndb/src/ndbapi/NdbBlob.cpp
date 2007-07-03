@@ -723,7 +723,7 @@ NdbBlob::packBlobHead(const Head& head, char* buf, int blobVersion)
       *p++ = (head.length >> n) & 0xff;
     assert(p - (uchar*)buf == 16);
     assert(head.reserved == 0);
-    DBUG_DUMP("info", buf, 16);
+    DBUG_DUMP("info", (uchar*)buf, 16);
   }
   DBUG_PRINT("info", ("pack: varsize=%u length=%u pkid=%u",
                       (uint)head.varsize, (uint)head.length, (uint)head.pkid));
@@ -758,7 +758,7 @@ NdbBlob::unpackBlobHead(Head& head, const char* buf, int blobVersion)
     assert(p - (uchar*)buf == 16);
     assert(head.reserved == 0);
     head.headsize = (NDB_BLOB_V2_HEAD_SIZE << 2);
-    DBUG_DUMP("info", buf, 16);
+    DBUG_DUMP("info", (uchar*)buf, 16);
   }
   DBUG_PRINT("info", ("unpack: varsize=%u length=%u pkid=%u",
                       (uint)head.varsize, (uint)head.length, (uint)head.pkid));

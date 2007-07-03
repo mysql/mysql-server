@@ -529,7 +529,7 @@ NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
   if (theNoOfTupKeyLeft > 0 || m_accessTable->m_noOfDistributionKeys > 1)
     DBUG_RETURN(0);
   
-  DBUG_DUMP("value", (const char*)value, len << 2);
+  DBUG_DUMP("value", (const uchar*)value, len << 2);
 
   if(m_accessTable->m_noOfDistributionKeys == 1)
   {

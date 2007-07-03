@@ -460,8 +460,9 @@ private:
 			uchar *buf);
   int full_table_scan(uchar * buf);
   int flush_bulk_insert();
-  int ndb_write_row(byte *record, bool primary_key_update, bool batched_update);
-  int ndb_delete_row(const byte *record, bool primary_key_update);
+  int ndb_write_row(uchar *record, bool primary_key_update,
+                    bool batched_update);
+  int ndb_delete_row(const uchar *record, bool primary_key_update);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -517,7 +518,7 @@ private:
   int set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  void eventSetAnyValue(const THD *thd, NdbOperation *op);
+  void eventSetAnyValue(THD *thd, NdbOperation *op);
 
   NdbOperation *pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
                                          NdbOperation::LockMode lm);
@@ -595,7 +596,11 @@ private:
   /*
     Pointer to row returned from scan nextResult().
   */
-  const char *m_next_row;
+  union
+  {
+    const char *_m_next_row;
+    const uchar *m_next_row;
+  };
   /* For read_multi_range scans, the get_range_no() of current row. */
   int m_current_range_no;
   /*
@@ -634,7 +639,7 @@ private:
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
   uint m_blob_expected_count;
-  byte *m_blob_destination_record;
+  uchar *m_blob_destination_record;
   Uint64 m_blob_total_size;
   
   // memory for blobs in one tuple
@@ -649,7 +654,7 @@ private:
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
-  uchar *m_multi_range_result_ptr;
+  const uchar *m_multi_range_result_ptr;
   KEY_MULTI_RANGE *m_multi_ranges;
   /*
     Points 1 past the end of last multi range operation currently being
