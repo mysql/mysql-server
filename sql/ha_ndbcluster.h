@@ -547,7 +547,6 @@ private:
 
   void release_completed_operations(NdbTransaction*, bool);
 
-  void reset_state_at_execute();
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
