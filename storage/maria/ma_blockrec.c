@@ -2612,7 +2612,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
 
-    if (info->s->base.transactional)
+    if (info->s->now_transactional)
     {
       /* Log REDO data */
       page_store(log_data+ FILEID_STORE_SIZE, page);
@@ -2642,7 +2642,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                    PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
 
-    if (info->s->base.transactional)
+    if (info->s->now_transactional)
     {
       pagerange_store(log_data + FILEID_STORE_SIZE, 1);
       page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
