@@ -10141,6 +10141,10 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       {
         if (ndberr.classification == NdbError::SchemaError)
           continue;
+
+        if (ndberr.classification == NdbError::UnknownResultError)
+          continue;
+
         ERR_RETURN(ndberr);
       }
       NdbDictionary::Tablespace ts= dict->getTablespace(df.getTablespace());
@@ -10219,6 +10223,8 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       if (ndberr.classification != NdbError::NoError)
       {
         if (ndberr.classification == NdbError::SchemaError)
+          continue;
+        if (ndberr.classification == NdbError::UnknownResultError)
           continue;
         ERR_RETURN(ndberr);
       }
