@@ -11157,6 +11157,13 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     jam();
     sendEMPTY_LCP_CONF(signal, true);
   }
+
+  if (getNodeState().getNodeRestartInProgress())
+  {
+    jam();
+    ndbrequire(cstartRecReq == 2);
+    cstartRecReq = 3;
+  }
   return;
 }//Dblqh::sendCOMP_LCP_ROUND()
 
@@ -11721,15 +11728,27 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
   
-  ccurrentGcprec = 0;
-  gcpPtr.i = ccurrentGcprec;
-  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
-  
   cnewestCompletedGci = gci;
   if (gci > cnewestGci) {
     jam();
     cnewestGci = gci;
   }//if
+
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 3)
+  {
+    GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
+    saveRef->dihPtr = dihPtr;
+    saveRef->nodeId = getOwnNodeId();
+    saveRef->gci    = gci;
+    saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
+    sendSignal(dihBlockRef, GSN_GCP_SAVEREF, signal, 
+	       GCPSaveRef::SignalLength, JBB);
+    return;
+  }
+
+  ccurrentGcprec = 0;
+  gcpPtr.i = ccurrentGcprec;
+  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
   
   gcpPtr.p->gcpBlockref = dihBlockRef;
   gcpPtr.p->gcpUserptr = dihPtr;
