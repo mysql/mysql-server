@@ -1919,9 +1919,18 @@ public:
 };
 
 
+#define ESCAPE_CHARS "ntrb0ZN" // keep synchronous with READ_INFO::unescape
+
+
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  /*
+    The is_ambiguous_field_sep field is true if a value of the field_sep_char
+    field is one of the 'n', 't', 'r' etc characters
+    (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
+  */
+  bool is_ambiguous_field_sep;
   bool fixed_row_size;
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
