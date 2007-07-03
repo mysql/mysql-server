@@ -5502,6 +5502,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
   case SCH_COLUMN_PRIVILEGES:
   case SCH_TABLE_CONSTRAINTS:
   case SCH_KEY_COLUMN_USAGE:
+  case SCH_PROFILES:
     break;
   }
 
