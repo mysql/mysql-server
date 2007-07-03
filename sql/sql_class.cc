@@ -1020,7 +1020,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
 		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
-  is_ambiguous_field_sep= strchr(ESCAPE_CHARS, field_sep_char);
+  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
 		  (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
