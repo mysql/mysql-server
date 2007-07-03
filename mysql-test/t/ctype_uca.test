@@ -485,3 +485,57 @@ CREATE TABLE t1 (
 insert into t1 values (''),('a');
 SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
 DROP TABLE IF EXISTS t1;
+
+#
+# Bug#27345 Incorrect data returned when range-read from utf8_danish_ci indexes
+#
+set names utf8;
+create table t1 (
+  a varchar(255),
+  key a(a)
+) character set utf8 collate utf8_danish_ci;
+insert into t1 values ('åaaaa'),('ååaaa'),('aaaaa');
+select a as like_a from t1 where a like 'a%';
+select a as like_aa from t1 where a like 'aa%';
+select a as like_aaa from t1 where a like 'aaa%';
+select a as like_aaaa from t1 where a like 'aaaa%';
+select a as like_aaaaa from t1 where a like 'aaaaa%';
+alter table t1 convert to character set ucs2 collate ucs2_danish_ci;
+select a as like_a from t1 where a like 'a%';
+select a as like_aa from t1 where a like 'aa%';
+select a as like_aaa from t1 where a like 'aaa%';
+select a as like_aaaa from t1 where a like 'aaaa%';
+select a as like_aaaaa from t1 where a like 'aaaaa%';
+drop table t1;
+
+create table t1 (
+  a varchar(255),
+  key(a)
+) character set utf8 collate utf8_spanish2_ci;
+insert into t1 values ('aaaaa'),('lllll'),('zzzzz');
+select a as like_l from t1 where a like 'l%';
+select a as like_ll from t1 where a like 'll%';
+select a as like_lll from t1 where a like 'lll%';
+select a as like_llll from t1 where a like 'llll%';
+select a as like_lllll from t1 where a like 'lllll%';
+alter table t1 convert to character set ucs2 collate ucs2_spanish2_ci;
+select a as like_l from t1 where a like 'l%';
+select a as like_ll from t1 where a like 'll%';
+select a as like_lll from t1 where a like 'lll%';
+select a as like_llll from t1 where a like 'llll%';
+select a as like_lllll from t1 where a like 'lllll%';
+drop table t1;
+
+create table t1 (
+  a varchar(255),
+  key a(a)
+) character set utf8 collate utf8_czech_ci;
+-- In Czech 'ch' is a single letter between 'h' and 'i'
+insert into t1 values
+('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
+select * from t1 where a like 'c%';
+alter table t1 convert to character set ucs2 collate ucs2_czech_ci;
+select * from t1 where a like 'c%';
+drop table t1;
+
+-- echo End for 5.0 tests
