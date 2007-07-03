@@ -45,7 +45,7 @@ typedef TRANSLOG_ADDRESS LSN;
 #define LSN_OFFSET(L) ((L) & 0xFFFFFFFFL)
 
 /* Makes lsn/log address from file number and record offset */
-#define MAKE_LSN(F,S) ((((uint64)(F)) << 32) | (S))
+#define MAKE_LSN(F,S) ((LSN) ((((uint64)(F)) << 32) | (S)))
 
 /* checks LSN */
 #define LSN_VALID(L)                                    \

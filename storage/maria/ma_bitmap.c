@@ -296,7 +296,7 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
   {
     bzero(bitmap->map, share->block_size);
     memcpy(bitmap->map + share->block_size - 2, maria_bitmap_marker, 2);
-    bitmap->changed= 0;
+    bitmap->changed= 1;
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
   }
