@@ -622,6 +622,7 @@ class Thd_ndb
   List<NDB_SHARE> changed_tables;
   uint query_state;
   HASH open_tables;
+  uint m_unsent_bytes;
 };
 
 class ha_ndbcluster: public handler
@@ -956,10 +957,9 @@ private:
   bool m_ignore_no_key;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
-  ha_rows m_bulk_insert_rows;
   ha_rows m_rows_changed;
-  bool m_bulk_insert_not_flushed;
   ha_rows m_ops_pending;
+  uint m_bytes_per_write;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
   my_ptrdiff_t m_blobs_offset;

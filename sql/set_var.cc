@@ -418,6 +418,8 @@ sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 #ifdef HAVE_REPLICATION
+sys_var_bool_ptr        sys_slave_allow_batching("slave_allow_batching",
+                                                 &slave_allow_batching);
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
 sys_var_long_ptr	sys_slave_trans_retries("slave_transaction_retries",
@@ -971,6 +973,7 @@ SHOW_VAR init_vars[]= {
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
+  {sys_slave_allow_batching.name,(char*) &sys_slave_allow_batching, SHOW_SYS},
   {sys_slave_compressed_protocol.name,
     (char*) &sys_slave_compressed_protocol,           SHOW_SYS},
   {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},

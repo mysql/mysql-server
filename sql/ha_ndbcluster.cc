@@ -114,6 +114,7 @@ static uint ndbcluster_alter_table_flags(uint flags)
 }
 
 #define NDB_AUTO_INCREMENT_RETRIES 10
+#define BATCH_FLUSH_SIZE (32768)
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -360,6 +361,7 @@ Thd_ndb::Thd_ndb()
   error= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
+  m_unsent_bytes= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
 }
@@ -1076,6 +1078,10 @@ int ha_ndbcluster::get_metadata(const char *path)
 
   DBUG_PRINT("info", ("fetched table %s", tab->getName()));
   m_table= tab;
+  /*
+    Approx. write size in bytes over transporter
+  */
+  m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
   if ((error= open_indexes(ndb, table, FALSE)) == 0)
   {
     ndbtab_g.release();
@@ -2619,6 +2625,8 @@ int ha_ndbcluster::write_row(byte *record)
   NdbOperation *op;
   int res;
   THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  uint unsent= thd_ndb->m_unsent_bytes;
   longlong func_value= 0;
   DBUG_ENTER("ha_ndbcluster::write_row");
 
@@ -2754,20 +2762,22 @@ int ha_ndbcluster::write_row(byte *record)
     to NoCommit the transaction between each row.
     Find out how this is detected!
   */
+  unsent+= m_bytes_per_write;
+  thd_ndb->m_unsent_bytes= unsent;
+  
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
-  m_bulk_insert_not_flushed= TRUE;
-  if ((m_rows_to_insert == (ha_rows) 1) || 
-      ((m_rows_inserted % m_bulk_insert_rows) == 0) ||
+  if ((thd->options & OPTION_ALLOW_BATCH) == 0 ||
+      (unsent > BATCH_FLUSH_SIZE) ||
       m_primary_key_update ||
       set_blob_value)
   {
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
-                        "rows_inserted: %d  bulk_insert_rows: %d", 
-                        (int)m_rows_inserted, (int)m_bulk_insert_rows));
-
-    m_bulk_insert_not_flushed= FALSE;
+                        "rows_inserted:%d, unsent bytes: %d", 
+                        (int)m_rows_inserted, (int)unsent));
+    
+    thd_ndb->m_unsent_bytes= 0;
     if (m_transaction_on)
     {
       if (execute_no_commit(this,trans,false) != 0)
@@ -3040,10 +3050,12 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 int ha_ndbcluster::delete_row(const byte *record)
 {
   THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbTransaction *trans= m_active_trans;
   NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint32 part_id;
+  uint unsent= thd_ndb->m_unsent_bytes;
   int error;
   DBUG_ENTER("delete_row");
   m_write_op= TRUE;
@@ -3109,11 +3121,22 @@ int ha_ndbcluster::delete_row(const byte *record)
     }
   }
 
-  // Execute delete operation
-  if (execute_no_commit(this,trans,false) != 0) {
-    no_uncommitted_rows_execute_failure();
-    DBUG_RETURN(ndb_err(trans));
+  /*
+    Poor approx. let delete ~ tabsize / 4
+  */
+  unsent+= 12 + m_bytes_per_write >> 2;
+  if ((thd->options & OPTION_ALLOW_BATCH) == 0 ||
+      (unsent > BATCH_FLUSH_SIZE))
+  { 
+    thd_ndb->m_unsent_bytes = 0;
+    // Execute delete operation
+    if (execute_no_commit(this,trans,false) != 0) {
+      no_uncommitted_rows_execute_failure();
+      DBUG_RETURN(ndb_err(trans));
+    }
+    DBUG_RETURN(0);
   }
+  thd_ndb->m_unsent_bytes= unsent;
   DBUG_RETURN(0);
 }
   
@@ -3978,7 +4001,8 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
     DBUG_PRINT("info", ("Batching turned off as duplicate key is "
                         "ignored by using peek_row"));
     m_rows_to_insert= 1;
-    m_bulk_insert_rows= 1;
+    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    thd_ndb->m_unsent_bytes= BATCH_FLUSH_SIZE; // ensure no batching
     DBUG_VOID_RETURN;
   }
   if (rows == (ha_rows) 0)
@@ -3988,20 +4012,6 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   }
   else
     m_rows_to_insert= rows; 
-
-  /* 
-    Calculate how many rows that should be inserted
-    per roundtrip to NDB. This is done in order to minimize the 
-    number of roundtrips as much as possible. However performance will 
-    degrade if too many bytes are inserted, thus it's limited by this 
-    calculation.   
-  */
-  const int bytesperbatch= 8192;
-  bytes= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
-  batch= bytesperbatch/bytes;
-  batch= batch == 0 ? 1 : batch;
-  DBUG_PRINT("info", ("batch: %d, bytes: %d", batch, bytes));
-  m_bulk_insert_rows= batch;
 
   DBUG_VOID_RETURN;
 }
@@ -4015,14 +4025,18 @@ int ha_ndbcluster::end_bulk_insert()
 
   DBUG_ENTER("end_bulk_insert");
   // Check if last inserts need to be flushed
-  if (m_bulk_insert_not_flushed)
+
+  THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  
+  if ((thd->options & OPTION_ALLOW_BATCH) == 0 && thd_ndb->m_unsent_bytes)
   {
     NdbTransaction *trans= m_active_trans;
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
-                        "rows_inserted: %d  bulk_insert_rows: %d", 
-                        (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
-    m_bulk_insert_not_flushed= FALSE;
+                        "rows_inserted:%d, unsent bytes: %d", 
+                        (int) m_rows_inserted, (int)thd_ndb->m_unsent_bytes));
+    thd_ndb->m_unsent_bytes= 0;
     if (m_transaction_on)
     {
       if (execute_no_commit(this, trans,false) != 0)
@@ -4408,7 +4422,27 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
-  if (execute_commit(thd,trans) != 0)
+  if (thd->options & OPTION_ALLOW_BATCH)
+  {
+    if ((res= trans->execute(Commit, AO_IgnoreError, 1)) != 0)
+    {
+      const NdbError err= trans->getNdbError();
+      if (err.classification == NdbError::ConstraintViolation ||
+	  err.classification == NdbError::NoDataFound)
+      {
+	/*
+	  This is ok...
+	*/
+	res= 0;
+      }
+    }
+  }
+  else
+  {
+    res= execute_commit(thd,trans);
+  }
+
+  if (res != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
@@ -5866,9 +5900,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_ignore_no_key(FALSE),
   m_rows_to_insert((ha_rows) 1),
   m_rows_inserted((ha_rows) 0),
-  m_bulk_insert_rows((ha_rows) 1024),
   m_rows_changed((ha_rows) 0),
-  m_bulk_insert_not_flushed(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),

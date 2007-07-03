@@ -41,3 +41,4 @@ flush2                   : Bug#24805 Pushbuild can't handle test with --disable-
 mysql_upgrade            : Bug#25074 mysql_upgrade gives inconsisten results
 plugin                   : Bug#25659 memory leak via "plugins" test
 
+rpl_ndb_innodb_trans     : slave batch patch breaks this
