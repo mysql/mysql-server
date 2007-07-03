@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 create table t1 (a date, b date, c date not null, d date);
@@ -66,5 +66,41 @@ create table t1 (a varchar(20), b varchar(20));
 load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
 select * from t1;
 drop table t1;
+
+#
+# Bug #29294 SELECT INTO OUTFILE/LOAD DATA INFILE with special
+# characters in the FIELDS ENCLOSED BY clause
+#
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 VARCHAR(255)
+);
+
+CREATE TABLE t2 (
+  id INT,
+  c2 VARCHAR(255)
+);
+
+INSERT INTO t1 (c1) VALUES
+  ('r'),   ('rr'),   ('rrr'),   ('rrrr'),
+  ('.r'),  ('.rr'),  ('.rrr'),  ('.rrrr'),
+  ('r.'),  ('rr.'),  ('rrr.'),  ('rrrr.'),
+  ('.r.'), ('.rr.'), ('.rrr.'), ('.rrrr.'),
+  ('\r'),  ('\\rr'), ('\\\rr'), ('\\\\rr');
+SELECT * FROM t1;
+
+--exec rm -f $MYSQL_TEST_DIR/var/tmp/t1
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval SELECT * INTO OUTFILE '$MYSQL_TEST_DIR/var/tmp/t1' FIELDS ENCLOSED BY 'r' FROM t1;
+--exec cat $MYSQL_TEST_DIR/var/tmp/t1
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval LOAD DATA INFILE '$MYSQL_TEST_DIR/var/tmp/t1' INTO TABLE t2 FIELDS ENCLOSED BY 'r';
+SELECT t1.id, c1, c2 FROM t1 LEFT  JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+SELECT t1.id, c1, c2 FROM t1 RIGHT JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1
+DROP TABLE t1,t2;
 
 # End of 4.1 tests
