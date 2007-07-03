@@ -11867,6 +11867,13 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     jam();
     sendEMPTY_LCP_CONF(signal, true);
   }
+
+  if (getNodeState().getNodeRestartInProgress())
+  {
+    jam();
+    ndbrequire(cstartRecReq == 2);
+    cstartRecReq = 3;
+  }
   return;
   
 }//Dblqh::sendCOMP_LCP_ROUND()
@@ -12137,15 +12144,27 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   }//if
   
   ndbrequire(ccurrentGcprec == RNIL);
-  ccurrentGcprec = 0;
-  gcpPtr.i = ccurrentGcprec;
-  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
-  
   cnewestCompletedGci = gci;
   if (gci > cnewestGci) {
     jam();
     cnewestGci = gci;
   }//if
+
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 3)
+  {
+    GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
+    saveRef->dihPtr = dihPtr;
+    saveRef->nodeId = getOwnNodeId();
+    saveRef->gci    = gci;
+    saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
+    sendSignal(dihBlockRef, GSN_GCP_SAVEREF, signal, 
+	       GCPSaveRef::SignalLength, JBB);
+    return;
+  }
+
+  ccurrentGcprec = 0;
+  gcpPtr.i = ccurrentGcprec;
+  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
   
   gcpPtr.p->gcpBlockref = dihBlockRef;
   gcpPtr.p->gcpUserptr = dihPtr;
@@ -14269,15 +14288,6 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
    *   WE ALSO NEED TO SET CNEWEST_GCI TO ENSURE THAT LOG RECORDS ARE EXECUTED
    *   WITH A PROPER GCI.
    *------------------------------------------------------------------------ */
-  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
-    jam();
-    cstartRecReq = 2;
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
-    return;
-  }//if
 
   if (c_lcp_restoring_fragments.isEmpty())
   {
@@ -14330,6 +14340,19 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
+
+  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    jam();
+    cstartRecReq = 2;
+
+    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+	       StartRecConf::SignalLength, JBB);
+    return;
+  }
+
   c_lcp_complete_fragments.first(fragptr);
   build_acc(signal, fragptr.i);
   return;

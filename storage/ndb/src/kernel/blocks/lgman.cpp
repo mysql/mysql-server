@@ -346,6 +346,12 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
     
     m_logfile_group_hash.add(ptr);
     m_logfile_group_list.add(ptr);
+
+    if (getNodeState().getNodeRestartInProgress() ||
+        getNodeState().getSystemRestartInProgress())
+    {
+      ptr.p->m_state = Logfile_group::LG_STARTING;
+    }
     
     CreateFilegroupImplConf* conf= 
       (CreateFilegroupImplConf*)signal->getDataPtr();
@@ -368,8 +374,6 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
 void
 Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
 {
-  jamEntry();
-
   jamEntry();
 
   Uint32 errorCode = 0;
@@ -717,7 +721,8 @@ Lgman::create_file_commit(Signal* signal,
   Uint32 senderData = ptr.p->m_create.m_senderData;
 
   bool first= false;
-  if(ptr.p->m_state == Undofile::FS_CREATING)
+  if(ptr.p->m_state == Undofile::FS_CREATING &&
+     (lg_ptr.p->m_state & Logfile_group::LG_ONLINE))
   {
     jam();
     Local_undofile_list free(m_file_pool, lg_ptr.p->m_files);
@@ -2082,13 +2087,17 @@ Lgman::execSTART_RECREQ(Signal* signal)
 void
 Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
 {
+  ndbrequire(ptr.p->m_state & 
+             (Logfile_group::LG_STARTING | Logfile_group::LG_SORTING));
+
   if(ptr.p->m_meta_files.isEmpty() && ptr.p->m_files.isEmpty())
   {
     jam();
     /**
      * Logfile_group wo/ any files 
      */
-    
+    ptr.p->m_state &= ~(Uint32)Logfile_group::LG_STARTING;
+    ptr.p->m_state |= Logfile_group::LG_ONLINE;
     m_logfile_group_list.next(ptr);
     signal->theData[0] = LgmanContinueB::FIND_LOG_HEAD;
     signal->theData[1] = ptr.i;
