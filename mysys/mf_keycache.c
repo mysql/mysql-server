@@ -2456,7 +2456,14 @@ restart:
         }
         else
         {
-	  /* Link the block into a list of blocks 'in switch' */
+	  /*
+            Link the block into a list of blocks 'in switch'.
+            Note that if there could be two concurrent flush_key_blocks_int()
+            on this file (normally this does not happen, as MyISAM uses
+            intern_lock for flushing), then the first one may move the block
+            into its first_in_switch, and the second one would just not see
+            the block and wrongly consider its job done.
+          */
           unlink_changed(block);
           link_changed(block, &first_in_switch);
         }

@@ -442,8 +442,11 @@ prototype_exec_hook(REDO_CREATE_TABLE)
   info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
   {
-    DBUG_ASSERT(info->s->reopen == 1); /* check that we're not using it */
-    if (!info->s->base.transactional)
+    MARIA_SHARE *share= info->s;
+    /* check that we're not already using it */
+    DBUG_ASSERT(share->reopen == 1);
+    DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
+    if (!share->base.born_transactional)
     {
       /*
         could be that transactional table was later dropped, and a non-trans
@@ -454,7 +457,7 @@ prototype_exec_hook(REDO_CREATE_TABLE)
       DBUG_ASSERT(0); /* I want to know this */
       goto end;
     }
-    if (cmp_translog_addr(info->s->state.create_rename_lsn, rec->lsn) >= 0)
+    if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
     {
       printf(", has create_rename_lsn (%lu,0x%lx) is more recent than record",
              (ulong) LSN_FILE_NO(rec->lsn),
@@ -551,6 +554,7 @@ prototype_exec_hook(FILE_ID)
   int error;
   char *name, *buff;
   MARIA_HA *info= NULL;
+  MARIA_SHARE *share;
   if (((buff= my_malloc(rec->record_length, MYF(MY_WME))) == NULL) ||
       (translog_read_record(rec->lsn, 0, rec->record_length, buff, NULL) !=
        rec->record_length))
@@ -566,7 +570,7 @@ prototype_exec_hook(FILE_ID)
   {
     printf(", closing table '%s'", info->s->open_file_name);
     all_tables[sid]= NULL;
-    info->s->base.transactional= TRUE; /* put back the truth */
+    _ma_reenable_logging_for_table(info->s); /* put back the truth */
     if (maria_close(info))
     {
       fprintf(stderr, "Failed to close table\n");
@@ -586,19 +590,19 @@ prototype_exec_hook(FILE_ID)
     fprintf(stderr, "Table is crashed, can't apply log records to it\n");
     goto err;
   }
-  DBUG_ASSERT(info->s->reopen == 1); /* should always be only one instance */
-  if (!info->s->base.transactional)
+  share= info->s;
+  /* check that we're not already using it */
+  DBUG_ASSERT(share->reopen == 1);
+  DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
+  if (!share->base.born_transactional)
   {
     printf(", is not transactional\n");
     DBUG_ASSERT(0); /* I want to know this */
     goto end;
   }
   all_tables[sid]= info;
-  /*
-    don't log any records for this work. TODO make sure this variable does not
-    go to disk before we restore it to its true value.
-  */
-  info->s->base.transactional= FALSE;
+  /* don't log any records for this work */
+  _ma_tmp_disable_logging_for_table(share);
   printf(", opened\n");
   error= 0;
   goto end;
@@ -742,7 +746,10 @@ static void end_of_redo_phase()
     {
       MARIA_HA *info= all_tables[sid];
       if (info != NULL)
+      {
+        _ma_reenable_logging_for_table(info->s); /* put back the truth */
         maria_close(info);
+      }
     }
   }
 }

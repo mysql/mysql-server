@@ -91,6 +91,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
                                       MARIA_HA *info, byte *record);
 static void copy_data_file_state(MARIA_STATE_INFO *to,
                                  MARIA_STATE_INFO *from);
+static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
 
 
 void maria_chk_init(HA_CHECK *param)
@@ -1952,6 +1953,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   MARIA_SORT_PARAM sort_param;
   my_bool block_record, scan_inited= 0;
   enum data_file_type org_data_file_type= info->s->data_file_type;
+  myf sync_dir= ((share->now_transactional && !share->temporary) ?
+                 MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_repair");
 
   bzero((char *)&sort_info, sizeof(sort_info));
@@ -1999,7 +2002,15 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
          share->state.header.org_data_file_type == BLOCK_RECORD))
     {
       MARIA_HA *new_info;
-      if (!(sort_info.new_info= maria_open(info->s->unique_file_name, O_RDWR,
+      /**
+         @todo RECOVERY it's a bit worrying to have two MARIA_SHARE on the
+         same index file:
+         - Checkpoint will see them as two tables
+         - are we sure that new_info never flushes an in-progress state
+         to the index file? And how to prevent Checkpoint from doing that?
+         - in the close future maria_close() will write the state...
+      */
+      if (!(sort_info.new_info= maria_open(info->s->open_file_name, O_RDWR,
                                            HA_OPEN_COPY | HA_OPEN_FOR_REPAIR)))
         goto err;
       new_info= sort_info.new_info;
@@ -2174,8 +2185,6 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   if (!rep_quick)
   {
-    myf sync_dir= ((share->base.transactional && !share->temporary) ?
-                   MY_SYNC_DIR : 0);
     if (sort_info.new_info != sort_info.info)
     {
       MARIA_STATE_INFO save_state= sort_info.new_info->s->state;
@@ -2223,7 +2232,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 			     llstr(sort_info.dupp,llbuff));
   }
 
-  got_error=0;
+  got_error= sync_dir ? write_log_record_for_repair(param, info) : 0;
   /* If invoked by external program that uses thr_lock */
   if (&share->state.state != info->state)
     memcpy( &share->state.state, info->state, sizeof(*info->state));
@@ -2424,7 +2433,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, my_string name)
   int old_lock;
   MARIA_SHARE *share=info->s;
   MARIA_STATE_INFO old_state;
-  myf sync_dir= (share->base.transactional && !share->temporary) ?
+  myf sync_dir= (share->now_transactional && !share->temporary) ?
     MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_sort_index");
 
@@ -2702,7 +2711,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22];
   MARIA_SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
-  myf sync_dir= ((share->base.transactional && !share->temporary) ?
+  myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_repair_by_sort");
 
@@ -3127,7 +3136,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   MARIA_SORT_INFO sort_info;
   ulonglong key_map=share->state.key_map;
   pthread_attr_t thr_attr;
-  myf sync_dir= (share->base.transactional && !share->temporary) ?
+  myf sync_dir= (share->now_transactional && !share->temporary) ?
     MY_SYNC_DIR : 0;
   DBUG_ENTER("maria_repair_parallel");
 
@@ -5487,11 +5496,10 @@ read_next_page:
      @retval 1      error (disk problem)
 */
 
-int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info)
+static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
-  /* Only called from ha_maria.cc, not maria_check, so translog is inited */
-  if (share->base.transactional && !share->temporary)
+  if (translog_inited) /* test it in case this is maria_chk */
   {
     /*
       For now this record is only informative. It could serve when applying

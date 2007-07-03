@@ -56,7 +56,13 @@ int maria_rename(const char *old_name, const char *new_name)
   raid_chunks =    share->base.raid_chunks;
 #endif
 
-  sync_dir= (share->base.transactional && !share->temporary) ?
+  /*
+    the renaming of an internal table to the final table (like in ALTER TABLE)
+    is the moment when this table receives its correct create_rename_lsn and
+    this is important; make sure transactionality has been re-enabled.
+  */
+  DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
+  sync_dir= (share->now_transactional && !share->temporary) ?
     MY_SYNC_DIR : 0;
   if (sync_dir)
   {

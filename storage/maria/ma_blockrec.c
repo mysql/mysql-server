@@ -581,18 +581,10 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
   DBUG_PRINT("info", ("undo_lsn: %lu", (ulong) undo_lsn));
 
   /* True if not disk error */
-  DBUG_ASSERT((undo_lsn != LSN_IMPOSSIBLE) || !info->s->base.transactional);
+  DBUG_ASSERT((undo_lsn != LSN_IMPOSSIBLE) || !info->s->now_transactional);
 
-  if (!info->s->base.transactional)
-  {
-    /*
-      If this is a transactional table but with transactionality temporarily
-      disabled (like in ALTER TABLE) we need to give a sensible LSN to pages
-      and not LSN_IMPOSSIBLE. If this is not a transactional table it will
-      reduce to LSN_IMPOSSIBLE.
-    */
-    undo_lsn= info->s->state.create_rename_lsn;
-  }
+  if (!info->s->now_transactional)
+    undo_lsn= LSN_IMPOSSIBLE; /* don't try to set a LSN on pages */
 
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
@@ -1446,7 +1438,7 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
                              page, count, PAGECACHE_LOCK_WRITE, 0))
     res= 1;
 
-  if (info->s->base.transactional)
+  if (info->s->now_transactional)
   {
     LSN lsn;
     DBUG_ASSERT(info->trn->rec_lsn);
@@ -1953,7 +1945,7 @@ static my_bool write_block_record(MARIA_HA *info,
                         head_block+1, bitmap_blocks->count - 1);
   }
 
-  if (share->base.transactional)
+  if (share->now_transactional)
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
@@ -1998,7 +1990,7 @@ static my_bool write_block_record(MARIA_HA *info,
   else
     push_dynamic(&info->pinned_pages, (void*) &page_link);
 
-  if (share->base.transactional && (tmp_data_used || blob_full_pages_exists))
+  if (share->now_transactional && (tmp_data_used || blob_full_pages_exists))
   {
     /*
       Log REDO writes for all full pages (head part and all blobs)
@@ -2095,7 +2087,7 @@ static my_bool write_block_record(MARIA_HA *info,
   }
 
   /* Write UNDO record */
-  if (share->base.transactional)
+  if (share->now_transactional)
   {
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
@@ -2312,7 +2304,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
     }
   }
 
-  if (info->s->base.transactional)
+  if (info->s->now_transactional)
   {
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
@@ -2671,7 +2663,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const byte *record)
   if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
     goto err;
 
-  if (info->s->base.transactional)
+  if (info->s->now_transactional)
   {
     LSN lsn;
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +

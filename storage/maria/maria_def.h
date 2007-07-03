@@ -171,8 +171,11 @@ typedef struct st_ma_base_info
 
   /* The following are from the header */
   uint key_parts, all_key_parts;
-  /* If false, we disable logging, versioning, transaction etc */
-  my_bool transactional;
+  /**
+     @brief If false, we disable logging, versioning, transaction etc. Observe
+     difference with MARIA_SHARE::now_transactional
+  */
+  my_bool born_transactional;
 } MARIA_BASE_INFO;
 
 
@@ -306,6 +309,13 @@ typedef struct st_maria_share
     not_flushed, concurrent_insert;
   my_bool delay_key_write;
   my_bool have_rtree;
+  /**
+     @brief if the table is transactional right now. It may have been created
+     transactional (base.born_transactional==TRUE) but with transactionality
+     (logging) temporarily disabled (now_transactional==FALSE). The opposite
+     (FALSE, TRUE) is impossible.
+  */
+  my_bool now_transactional;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
@@ -891,7 +901,6 @@ MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const byte *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
 
 C_MODE_START
-int _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info);
 /* Functions needed by _ma_check (are overrided in MySQL) */
 volatile int *_ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
@@ -916,5 +925,10 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
 int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
+#define _ma_tmp_disable_logging_for_table(S) \
+  { (S)->now_transactional= FALSE; (S)->page_type= PAGECACHE_PLAIN_PAGE; }
+#define _ma_reenable_logging_for_table(S)                        \
+  { if (((S)->now_transactional= (S)->base.born_transactional))  \
+      (S)->page_type= PAGECACHE_LSN_PAGE; }
 
 extern PAGECACHE *maria_log_pagecache;
