@@ -86,8 +86,7 @@ INSERT INTO t1 (c1) VALUES
   ('r'),   ('rr'),   ('rrr'),   ('rrrr'),
   ('.r'),  ('.rr'),  ('.rrr'),  ('.rrrr'),
   ('r.'),  ('rr.'),  ('rrr.'),  ('rrrr.'),
-  ('.r.'), ('.rr.'), ('.rrr.'), ('.rrrr.'),
-  ('\r'),  ('\\rr'), ('\\\rr'), ('\\\\rr');
+  ('.r.'), ('.rr.'), ('.rrr.'), ('.rrrr.');
 SELECT * FROM t1;
 
 --exec rm -f $MYSQL_TEST_DIR/var/tmp/t1
