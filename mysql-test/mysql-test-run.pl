@@ -2579,10 +2579,19 @@ sub ndbcluster_wait_started($$){
 sub mysqld_wait_started($){
   my $mysqld= shift;
 
-  my $res= sleep_until_file_created($mysqld->{'path_pid'},
-				    $mysqld->{'start_timeout'},
-				    $mysqld->{'pid'});
-  return $res == 0;
+  if (sleep_until_file_created($mysqld->{'path_pid'},
+			       $mysqld->{'start_timeout'},
+			       $mysqld->{'pid'}) == 0)
+  {
+    # Failed to wait for pid file
+    return 1;
+  }
+
+  # Get the "real pid" of the process, it will be used for killing
+  # the process in ActiveState's perl on windows
+  $mysqld->{'real_pid'}= mtr_get_pid_from_file($mysqld->{'path_pid'});
+
+  return 0;
 }
 
 
@@ -3720,7 +3729,6 @@ sub mysqld_arguments ($$$$) {
 
   mtr_add_arg($args, "%s--no-defaults", $prefix);
 
-  mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
 
@@ -4093,6 +4101,7 @@ sub stop_all_servers () {
 
       push(@kill_pids,{
 		       pid      => $mysqld->{'pid'},
+		       real_pid => $mysqld->{'real_pid'},
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
@@ -4300,6 +4309,7 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
@@ -4351,6 +4361,7 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
@@ -4775,12 +4786,10 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
-  mtr_add_arg($args, "--test-file");
-  mtr_add_arg($args, $tinfo->{'path'});
+  mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
   if ( defined $tinfo->{'result_file'} ) {
-    mtr_add_arg($args, "--result-file");
-    mtr_add_arg($args, $tinfo->{'result_file'});
+    mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
 
   if ( $opt_record )
