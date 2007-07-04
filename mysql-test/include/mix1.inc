@@ -28,7 +28,7 @@
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t1m,t1i,t2m,t2i,t4;
+drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
 
