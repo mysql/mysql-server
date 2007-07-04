@@ -1445,7 +1445,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open() && trx_data->empty());
+  DBUG_ASSERT(trx_data->empty());
   thd->ha_data[binlog_hton->slot]= 0;
   trx_data->~binlog_trx_data();
   my_free((uchar*)trx_data, MYF(0));
@@ -1570,7 +1570,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty())
   {
@@ -1598,7 +1597,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   int error=0;
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty()) {
     trx_data->reset();
@@ -1659,7 +1657,6 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   /*
     Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
