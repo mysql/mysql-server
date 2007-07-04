@@ -361,16 +361,11 @@ Unique::reset()
 }
 
 /*
-  The comparison function, passed to queue_init() in merge_walk() must
+  The comparison function, passed to queue_init() in merge_walk() and in
+  merge_buffers() when the latter is called from Uniques::get() must
   use comparison function of Uniques::tree, but compare members of struct
   BUFFPEK.
 */
-
-struct BUFFPEK_COMPARE_CONTEXT
-{
-  qsort_cmp2 key_compare;
-  void *key_compare_arg;
-};
 
 C_MODE_START
 
@@ -629,6 +624,10 @@ bool Unique::get(TABLE *table)
     return 1;
   sort_param.unique_buff= sort_buffer+(sort_param.keys*
 				       sort_param.sort_length);
+
+  sort_param.compare= (qsort2_cmp) buffpek_compare;
+  sort_param.cmp_context.key_compare= tree.compare;
+  sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
   if (merge_many_buff(&sort_param,sort_buffer,file_ptr,&maxbuffer,&file))
