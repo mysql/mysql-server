@@ -311,6 +311,15 @@ static void do_field_string(Copy_field *copy)
 }
 
 
+static void do_field_enum(Copy_field *copy)
+{
+  if (copy->from_field->val_int() == 0)
+    ((Field_enum *) copy->to_field)->store_type((ulonglong) 0);
+  else
+    do_field_string(copy);
+}
+
+
 static void do_field_int(Copy_field *copy)
 {
   longlong value=copy->from_field->val_int();
@@ -538,7 +547,13 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	  to->real_type() == FIELD_TYPE_SET)
       {
 	if (!to->eq_def(from))
-	  return do_field_string;
+        {
+          if (from->real_type() == MYSQL_TYPE_ENUM &&
+              to->real_type() == MYSQL_TYPE_ENUM)
+            return do_field_enum;
+          else
+            return do_field_string;
+        }
       }
       else if (to->charset() != from->charset())
 	return do_field_string;
