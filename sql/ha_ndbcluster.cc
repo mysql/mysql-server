@@ -277,20 +277,6 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   return error;
 }
 
-/*
-  When execute() is called, this resets the internal state on things that
-  were awaiting execute(), such as pending scan take-over operations and
-  rows for batched operations.
-  Also used to initialize the state at start of a statement.
-*/
-void ha_ndbcluster::reset_state_at_execute()
-{
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-  m_ops_pending= 0;
-  m_blobs_pending= FALSE;
-  thd_ndb->m_unsent_bytes= 0;
-}
-
 static int
 check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
 {
@@ -318,14 +304,15 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
   DBUG_ENTER("execute_no_commit");
   h->release_completed_operations(trans, force_release);
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   if (trans->execute(NdbTransaction::NoCommit,
                       NdbOperation::AO_IgnoreError,
                       h->m_force_send))
   {
-    h->reset_state_at_execute();
+    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
-  h->reset_state_at_execute();
+  thd_ndb->m_unsent_bytes= 0;
   if (!h->m_ignore_no_key || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
 
@@ -337,12 +324,15 @@ int execute_commit(NdbTransaction *trans, int force_send, int ignore_error)
 {
   DBUG_ENTER("execute_commit");
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   if (trans->execute(NdbTransaction::Commit,
                      NdbOperation::AO_IgnoreError,
                      force_send))
   {
+    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
+  thd_ndb->m_unsent_bytes= 0;
   if (!ignore_error || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
   DBUG_RETURN(check_completed_operations(trans, first));
@@ -352,18 +342,12 @@ inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
   int res= execute_commit(trans, h->m_force_send, h->m_ignore_no_key);
-  h->reset_state_at_execute();
   return res;
 }
 
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-  /*
-    We do not have to reset_state_at_execute() here, as this is at transaction
-    end time, and we will not take further action after this (nor can we
-    easily, as we execute outside the context of the ha_ndbcluster object).
-  */
   return execute_commit(trans, thd->variables.ndb_force_send, FALSE);
 }
 
@@ -376,7 +360,8 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           h->m_force_send);
-  h->reset_state_at_execute();
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_RETURN(res);
 }
 
@@ -594,6 +579,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   thd_ndb->count++;
   thd_ndb->m_error= FALSE;
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -5186,7 +5172,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
     m_rows_changed= 0;
-    reset_state_at_execute();
+    m_ops_pending= 0;
+    m_blobs_pending= FALSE;
     m_slow_path= thd_ndb->m_slow_path;
 #ifdef HAVE_NDB_BINLOG
     if (unlikely(m_slow_path))
@@ -5302,7 +5289,6 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
     trans= ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
-    reset_state_at_execute();
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
     thd_ndb->query_state&= NDB_QUERY_NORMAL;
@@ -5310,7 +5296,8 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
   }
   m_active_trans= trans;
   // Start of statement
-  reset_state_at_execute();
+  m_ops_pending= 0;
+  m_blobs_pending= FALSE;
   thd->set_current_stmt_binlog_row_based_if_mixed();
 
   DBUG_RETURN(error);
