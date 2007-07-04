@@ -391,3 +391,7 @@ ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 SELECT convert(@str collate latin1_swedish_ci using utf8);
 convert(@str collate latin1_swedish_ci using utf8)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+select hex(cast(_ascii 0x7f as char(1) character set latin1));
+hex(cast(_ascii 0x7f as char(1) character set latin1))
+7F
+End of 5.0 tests
