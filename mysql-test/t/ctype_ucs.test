@@ -612,4 +612,14 @@ select collation(group_concat(a separator ',')) from t1;
 drop table t1;
 set names latin1;
 
+#
+# Bug#29499 Converting 'del' from ascii to Unicode results in 'question mark'
+#
+create table t1 (s1 char(1) character set ascii, s2 char(1) character set ucs2);
+insert into t1 (s1) values (0x7f);
+update t1 set s2 = s1;
+select hex(s2) from t1;
+select hex(convert(s1 using latin1)) from t1;
+drop table t1;
+
 --echo End of 5.0 tests
