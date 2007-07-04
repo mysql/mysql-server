@@ -48,7 +48,7 @@ where ABS(t1.col_a - t1_slave.col_a) < 0.0001 ;
 SELECT @aux;
 @aux
 12
+DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
-DROP TABLE t1, t1_slave;

@@ -5,7 +5,6 @@
 -- source include/have_log_bin.inc
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
--- source include/have_log_bin.inc
 -- source include/have_debug.inc
 
 --disable_warnings
@@ -137,6 +136,37 @@ drop table t1;
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
 show binlog events from 0;
 
+set session autocommit = @ac;
+
+# now show that nothing breaks if we need to read from the cache more
+# than once, resulting in split event-headers
+
+set @bcs = @@binlog_cache_size;
+set @ac = @@autocommit;
+
+set global binlog_cache_size=4096;
+set autocommit= 0;
+reset master;
+
+create table t1 (a int) engine=innodb;
+
+let $1=400;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t1 values( $1 );
+ dec $1;
+}
+commit;
+enable_query_log;
+
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
+drop table t1;
+
+set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
 
 --echo End of 5.0 tests
