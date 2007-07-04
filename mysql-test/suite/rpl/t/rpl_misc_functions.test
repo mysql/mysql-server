@@ -104,10 +104,10 @@ if (`SELECT @aux <> 12 OR @aux IS NULL`)
 
 # Cleanup
 connection master;
+DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
-DROP TABLE t1, t1_slave;
 --sync_slave_with_master
 
 
