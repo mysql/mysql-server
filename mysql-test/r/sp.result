@@ -6176,4 +6176,11 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
+drop database if exists mysqltest_db1;
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+Level	Code	Message
+drop database mysqltest_db1;
 End of 5.0 tests
