@@ -1,6 +1,6 @@
 drop table if exists t1, t2;
 reset master;
-create table t1 (a int) engine=bdb;
+create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
 begin;
 insert t1 values (5);
@@ -10,11 +10,11 @@ insert t2 values (5);
 commit;
 show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=bdb
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t1 values (5)
-master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Xid	1	#	COMMIT /* XID */
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t2 values (5)
 master-bin.000001	#	Xid	1	#	COMMIT /* XID */
@@ -133,3 +133,535 @@ master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
+set @ac = @@autocommit;
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=innodb;
+begin;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	197	Query	1	265	use `test`; BEGIN
+master-bin.000001	265	Query	1	353	use `test`; insert into t1 values (1)
+master-bin.000001	353	Query	1	441	use `test`; insert into t1 values (2)
+master-bin.000001	441	Query	1	529	use `test`; insert into t1 values (3)
+master-bin.000001	529	Xid	1	556	COMMIT /* XID */
+master-bin.000001	556	Query	1	632	use `test`; drop table t1
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	197	Query	1	285	use `test`; insert into t1 values (1)
+master-bin.000001	285	Xid	1	312	COMMIT /* XID */
+master-bin.000001	312	Query	1	400	use `test`; insert into t1 values (2)
+master-bin.000001	400	Xid	1	427	COMMIT /* XID */
+master-bin.000001	427	Query	1	515	use `test`; insert into t1 values (3)
+master-bin.000001	515	Xid	1	542	COMMIT /* XID */
+master-bin.000001	542	Query	1	618	use `test`; drop table t1
+reset master;
+create table t1(n int) engine=myisam;
+begin;
+insert into t1 values (4);
+insert into t1 values (5);
+insert into t1 values (6);
+commit;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=myisam
+master-bin.000001	197	Query	1	285	use `test`; insert into t1 values (4)
+master-bin.000001	285	Query	1	373	use `test`; insert into t1 values (5)
+master-bin.000001	373	Query	1	461	use `test`; insert into t1 values (6)
+master-bin.000001	461	Query	1	537	use `test`; drop table t1
+set autocommit= 1;
+reset master;
+create table t1(n int) engine=innodb;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	197		
+insert into t1 values (1);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	312		
+insert into t1 values (2);
+insert into t1 values (3);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	542		
+commit;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	542		
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=innodb
+master-bin.000001	197	Query	1	285	use `test`; insert into t1 values (1)
+master-bin.000001	285	Xid	1	312	COMMIT /* XID */
+master-bin.000001	312	Query	1	400	use `test`; insert into t1 values (2)
+master-bin.000001	400	Xid	1	427	COMMIT /* XID */
+master-bin.000001	427	Query	1	515	use `test`; insert into t1 values (3)
+master-bin.000001	515	Xid	1	542	COMMIT /* XID */
+master-bin.000001	542	Query	1	618	use `test`; drop table t1
+set autocommit= 0;
+reset master;
+create table t1(n int) engine=myisam;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	197		
+insert into t1 values (4);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	285		
+insert into t1 values (5);
+insert into t1 values (6);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	461		
+commit;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	461		
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	197	use `test`; create table t1(n int) engine=myisam
+master-bin.000001	197	Query	1	285	use `test`; insert into t1 values (4)
+master-bin.000001	285	Query	1	373	use `test`; insert into t1 values (5)
+master-bin.000001	373	Query	1	461	use `test`; insert into t1 values (6)
+master-bin.000001	461	Query	1	537	use `test`; drop table t1
+set session autocommit = @ac;
+set @bcs = @@binlog_cache_size;
+set @ac = @@autocommit;
+set global binlog_cache_size=4096;
+set autocommit= 0;
+reset master;
+create table t1 (a int) engine=innodb;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	198	use `test`; create table t1 (a int) engine=innodb
+master-bin.000001	198	Query	1	266	use `test`; BEGIN
+master-bin.000001	266	Query	1	357	use `test`; insert into t1 values( 400 )
+master-bin.000001	357	Query	1	448	use `test`; insert into t1 values( 399 )
+master-bin.000001	448	Query	1	539	use `test`; insert into t1 values( 398 )
+master-bin.000001	539	Query	1	630	use `test`; insert into t1 values( 397 )
+master-bin.000001	630	Query	1	721	use `test`; insert into t1 values( 396 )
+master-bin.000001	721	Query	1	812	use `test`; insert into t1 values( 395 )
+master-bin.000001	812	Query	1	903	use `test`; insert into t1 values( 394 )
+master-bin.000001	903	Query	1	994	use `test`; insert into t1 values( 393 )
+master-bin.000001	994	Query	1	1085	use `test`; insert into t1 values( 392 )
+master-bin.000001	1085	Query	1	1176	use `test`; insert into t1 values( 391 )
+master-bin.000001	1176	Query	1	1267	use `test`; insert into t1 values( 390 )
+master-bin.000001	1267	Query	1	1358	use `test`; insert into t1 values( 389 )
+master-bin.000001	1358	Query	1	1449	use `test`; insert into t1 values( 388 )
+master-bin.000001	1449	Query	1	1540	use `test`; insert into t1 values( 387 )
+master-bin.000001	1540	Query	1	1631	use `test`; insert into t1 values( 386 )
+master-bin.000001	1631	Query	1	1722	use `test`; insert into t1 values( 385 )
+master-bin.000001	1722	Query	1	1813	use `test`; insert into t1 values( 384 )
+master-bin.000001	1813	Query	1	1904	use `test`; insert into t1 values( 383 )
+master-bin.000001	1904	Query	1	1995	use `test`; insert into t1 values( 382 )
+master-bin.000001	1995	Query	1	2086	use `test`; insert into t1 values( 381 )
+master-bin.000001	2086	Query	1	2177	use `test`; insert into t1 values( 380 )
+master-bin.000001	2177	Query	1	2268	use `test`; insert into t1 values( 379 )
+master-bin.000001	2268	Query	1	2359	use `test`; insert into t1 values( 378 )
+master-bin.000001	2359	Query	1	2450	use `test`; insert into t1 values( 377 )
+master-bin.000001	2450	Query	1	2541	use `test`; insert into t1 values( 376 )
+master-bin.000001	2541	Query	1	2632	use `test`; insert into t1 values( 375 )
+master-bin.000001	2632	Query	1	2723	use `test`; insert into t1 values( 374 )
+master-bin.000001	2723	Query	1	2814	use `test`; insert into t1 values( 373 )
+master-bin.000001	2814	Query	1	2905	use `test`; insert into t1 values( 372 )
+master-bin.000001	2905	Query	1	2996	use `test`; insert into t1 values( 371 )
+master-bin.000001	2996	Query	1	3087	use `test`; insert into t1 values( 370 )
+master-bin.000001	3087	Query	1	3178	use `test`; insert into t1 values( 369 )
+master-bin.000001	3178	Query	1	3269	use `test`; insert into t1 values( 368 )
+master-bin.000001	3269	Query	1	3360	use `test`; insert into t1 values( 367 )
+master-bin.000001	3360	Query	1	3451	use `test`; insert into t1 values( 366 )
+master-bin.000001	3451	Query	1	3542	use `test`; insert into t1 values( 365 )
+master-bin.000001	3542	Query	1	3633	use `test`; insert into t1 values( 364 )
+master-bin.000001	3633	Query	1	3724	use `test`; insert into t1 values( 363 )
+master-bin.000001	3724	Query	1	3815	use `test`; insert into t1 values( 362 )
+master-bin.000001	3815	Query	1	3906	use `test`; insert into t1 values( 361 )
+master-bin.000001	3906	Query	1	3997	use `test`; insert into t1 values( 360 )
+master-bin.000001	3997	Query	1	4088	use `test`; insert into t1 values( 359 )
+master-bin.000001	4088	Query	1	4179	use `test`; insert into t1 values( 358 )
+master-bin.000001	4179	Query	1	4270	use `test`; insert into t1 values( 357 )
+master-bin.000001	4270	Query	1	4361	use `test`; insert into t1 values( 356 )
+master-bin.000001	4361	Query	1	4452	use `test`; insert into t1 values( 355 )
+master-bin.000001	4452	Query	1	4543	use `test`; insert into t1 values( 354 )
+master-bin.000001	4543	Query	1	4634	use `test`; insert into t1 values( 353 )
+master-bin.000001	4634	Query	1	4725	use `test`; insert into t1 values( 352 )
+master-bin.000001	4725	Query	1	4816	use `test`; insert into t1 values( 351 )
+master-bin.000001	4816	Query	1	4907	use `test`; insert into t1 values( 350 )
+master-bin.000001	4907	Query	1	4998	use `test`; insert into t1 values( 349 )
+master-bin.000001	4998	Query	1	5089	use `test`; insert into t1 values( 348 )
+master-bin.000001	5089	Query	1	5180	use `test`; insert into t1 values( 347 )
+master-bin.000001	5180	Query	1	5271	use `test`; insert into t1 values( 346 )
+master-bin.000001	5271	Query	1	5362	use `test`; insert into t1 values( 345 )
+master-bin.000001	5362	Query	1	5453	use `test`; insert into t1 values( 344 )
+master-bin.000001	5453	Query	1	5544	use `test`; insert into t1 values( 343 )
+master-bin.000001	5544	Query	1	5635	use `test`; insert into t1 values( 342 )
+master-bin.000001	5635	Query	1	5726	use `test`; insert into t1 values( 341 )
+master-bin.000001	5726	Query	1	5817	use `test`; insert into t1 values( 340 )
+master-bin.000001	5817	Query	1	5908	use `test`; insert into t1 values( 339 )
+master-bin.000001	5908	Query	1	5999	use `test`; insert into t1 values( 338 )
+master-bin.000001	5999	Query	1	6090	use `test`; insert into t1 values( 337 )
+master-bin.000001	6090	Query	1	6181	use `test`; insert into t1 values( 336 )
+master-bin.000001	6181	Query	1	6272	use `test`; insert into t1 values( 335 )
+master-bin.000001	6272	Query	1	6363	use `test`; insert into t1 values( 334 )
+master-bin.000001	6363	Query	1	6454	use `test`; insert into t1 values( 333 )
+master-bin.000001	6454	Query	1	6545	use `test`; insert into t1 values( 332 )
+master-bin.000001	6545	Query	1	6636	use `test`; insert into t1 values( 331 )
+master-bin.000001	6636	Query	1	6727	use `test`; insert into t1 values( 330 )
+master-bin.000001	6727	Query	1	6818	use `test`; insert into t1 values( 329 )
+master-bin.000001	6818	Query	1	6909	use `test`; insert into t1 values( 328 )
+master-bin.000001	6909	Query	1	7000	use `test`; insert into t1 values( 327 )
+master-bin.000001	7000	Query	1	7091	use `test`; insert into t1 values( 326 )
+master-bin.000001	7091	Query	1	7182	use `test`; insert into t1 values( 325 )
+master-bin.000001	7182	Query	1	7273	use `test`; insert into t1 values( 324 )
+master-bin.000001	7273	Query	1	7364	use `test`; insert into t1 values( 323 )
+master-bin.000001	7364	Query	1	7455	use `test`; insert into t1 values( 322 )
+master-bin.000001	7455	Query	1	7546	use `test`; insert into t1 values( 321 )
+master-bin.000001	7546	Query	1	7637	use `test`; insert into t1 values( 320 )
+master-bin.000001	7637	Query	1	7728	use `test`; insert into t1 values( 319 )
+master-bin.000001	7728	Query	1	7819	use `test`; insert into t1 values( 318 )
+master-bin.000001	7819	Query	1	7910	use `test`; insert into t1 values( 317 )
+master-bin.000001	7910	Query	1	8001	use `test`; insert into t1 values( 316 )
+master-bin.000001	8001	Query	1	8092	use `test`; insert into t1 values( 315 )
+master-bin.000001	8092	Query	1	8183	use `test`; insert into t1 values( 314 )
+master-bin.000001	8183	Query	1	8274	use `test`; insert into t1 values( 313 )
+master-bin.000001	8274	Query	1	8365	use `test`; insert into t1 values( 312 )
+master-bin.000001	8365	Query	1	8456	use `test`; insert into t1 values( 311 )
+master-bin.000001	8456	Query	1	8547	use `test`; insert into t1 values( 310 )
+master-bin.000001	8547	Query	1	8638	use `test`; insert into t1 values( 309 )
+master-bin.000001	8638	Query	1	8729	use `test`; insert into t1 values( 308 )
+master-bin.000001	8729	Query	1	8820	use `test`; insert into t1 values( 307 )
+master-bin.000001	8820	Query	1	8911	use `test`; insert into t1 values( 306 )
+master-bin.000001	8911	Query	1	9002	use `test`; insert into t1 values( 305 )
+master-bin.000001	9002	Query	1	9093	use `test`; insert into t1 values( 304 )
+master-bin.000001	9093	Query	1	9184	use `test`; insert into t1 values( 303 )
+master-bin.000001	9184	Query	1	9275	use `test`; insert into t1 values( 302 )
+master-bin.000001	9275	Query	1	9366	use `test`; insert into t1 values( 301 )
+master-bin.000001	9366	Query	1	9457	use `test`; insert into t1 values( 300 )
+master-bin.000001	9457	Query	1	9548	use `test`; insert into t1 values( 299 )
+master-bin.000001	9548	Query	1	9639	use `test`; insert into t1 values( 298 )
+master-bin.000001	9639	Query	1	9730	use `test`; insert into t1 values( 297 )
+master-bin.000001	9730	Query	1	9821	use `test`; insert into t1 values( 296 )
+master-bin.000001	9821	Query	1	9912	use `test`; insert into t1 values( 295 )
+master-bin.000001	9912	Query	1	10003	use `test`; insert into t1 values( 294 )
+master-bin.000001	10003	Query	1	10094	use `test`; insert into t1 values( 293 )
+master-bin.000001	10094	Query	1	10185	use `test`; insert into t1 values( 292 )
+master-bin.000001	10185	Query	1	10276	use `test`; insert into t1 values( 291 )
+master-bin.000001	10276	Query	1	10367	use `test`; insert into t1 values( 290 )
+master-bin.000001	10367	Query	1	10458	use `test`; insert into t1 values( 289 )
+master-bin.000001	10458	Query	1	10549	use `test`; insert into t1 values( 288 )
+master-bin.000001	10549	Query	1	10640	use `test`; insert into t1 values( 287 )
+master-bin.000001	10640	Query	1	10731	use `test`; insert into t1 values( 286 )
+master-bin.000001	10731	Query	1	10822	use `test`; insert into t1 values( 285 )
+master-bin.000001	10822	Query	1	10913	use `test`; insert into t1 values( 284 )
+master-bin.000001	10913	Query	1	11004	use `test`; insert into t1 values( 283 )
+master-bin.000001	11004	Query	1	11095	use `test`; insert into t1 values( 282 )
+master-bin.000001	11095	Query	1	11186	use `test`; insert into t1 values( 281 )
+master-bin.000001	11186	Query	1	11277	use `test`; insert into t1 values( 280 )
+master-bin.000001	11277	Query	1	11368	use `test`; insert into t1 values( 279 )
+master-bin.000001	11368	Query	1	11459	use `test`; insert into t1 values( 278 )
+master-bin.000001	11459	Query	1	11550	use `test`; insert into t1 values( 277 )
+master-bin.000001	11550	Query	1	11641	use `test`; insert into t1 values( 276 )
+master-bin.000001	11641	Query	1	11732	use `test`; insert into t1 values( 275 )
+master-bin.000001	11732	Query	1	11823	use `test`; insert into t1 values( 274 )
+master-bin.000001	11823	Query	1	11914	use `test`; insert into t1 values( 273 )
+master-bin.000001	11914	Query	1	12005	use `test`; insert into t1 values( 272 )
+master-bin.000001	12005	Query	1	12096	use `test`; insert into t1 values( 271 )
+master-bin.000001	12096	Query	1	12187	use `test`; insert into t1 values( 270 )
+master-bin.000001	12187	Query	1	12278	use `test`; insert into t1 values( 269 )
+master-bin.000001	12278	Query	1	12369	use `test`; insert into t1 values( 268 )
+master-bin.000001	12369	Query	1	12460	use `test`; insert into t1 values( 267 )
+master-bin.000001	12460	Query	1	12551	use `test`; insert into t1 values( 266 )
+master-bin.000001	12551	Query	1	12642	use `test`; insert into t1 values( 265 )
+master-bin.000001	12642	Query	1	12733	use `test`; insert into t1 values( 264 )
+master-bin.000001	12733	Query	1	12824	use `test`; insert into t1 values( 263 )
+master-bin.000001	12824	Query	1	12915	use `test`; insert into t1 values( 262 )
+master-bin.000001	12915	Query	1	13006	use `test`; insert into t1 values( 261 )
+master-bin.000001	13006	Query	1	13097	use `test`; insert into t1 values( 260 )
+master-bin.000001	13097	Query	1	13188	use `test`; insert into t1 values( 259 )
+master-bin.000001	13188	Query	1	13279	use `test`; insert into t1 values( 258 )
+master-bin.000001	13279	Query	1	13370	use `test`; insert into t1 values( 257 )
+master-bin.000001	13370	Query	1	13461	use `test`; insert into t1 values( 256 )
+master-bin.000001	13461	Query	1	13552	use `test`; insert into t1 values( 255 )
+master-bin.000001	13552	Query	1	13643	use `test`; insert into t1 values( 254 )
+master-bin.000001	13643	Query	1	13734	use `test`; insert into t1 values( 253 )
+master-bin.000001	13734	Query	1	13825	use `test`; insert into t1 values( 252 )
+master-bin.000001	13825	Query	1	13916	use `test`; insert into t1 values( 251 )
+master-bin.000001	13916	Query	1	14007	use `test`; insert into t1 values( 250 )
+master-bin.000001	14007	Query	1	14098	use `test`; insert into t1 values( 249 )
+master-bin.000001	14098	Query	1	14189	use `test`; insert into t1 values( 248 )
+master-bin.000001	14189	Query	1	14280	use `test`; insert into t1 values( 247 )
+master-bin.000001	14280	Query	1	14371	use `test`; insert into t1 values( 246 )
+master-bin.000001	14371	Query	1	14462	use `test`; insert into t1 values( 245 )
+master-bin.000001	14462	Query	1	14553	use `test`; insert into t1 values( 244 )
+master-bin.000001	14553	Query	1	14644	use `test`; insert into t1 values( 243 )
+master-bin.000001	14644	Query	1	14735	use `test`; insert into t1 values( 242 )
+master-bin.000001	14735	Query	1	14826	use `test`; insert into t1 values( 241 )
+master-bin.000001	14826	Query	1	14917	use `test`; insert into t1 values( 240 )
+master-bin.000001	14917	Query	1	15008	use `test`; insert into t1 values( 239 )
+master-bin.000001	15008	Query	1	15099	use `test`; insert into t1 values( 238 )
+master-bin.000001	15099	Query	1	15190	use `test`; insert into t1 values( 237 )
+master-bin.000001	15190	Query	1	15281	use `test`; insert into t1 values( 236 )
+master-bin.000001	15281	Query	1	15372	use `test`; insert into t1 values( 235 )
+master-bin.000001	15372	Query	1	15463	use `test`; insert into t1 values( 234 )
+master-bin.000001	15463	Query	1	15554	use `test`; insert into t1 values( 233 )
+master-bin.000001	15554	Query	1	15645	use `test`; insert into t1 values( 232 )
+master-bin.000001	15645	Query	1	15736	use `test`; insert into t1 values( 231 )
+master-bin.000001	15736	Query	1	15827	use `test`; insert into t1 values( 230 )
+master-bin.000001	15827	Query	1	15918	use `test`; insert into t1 values( 229 )
+master-bin.000001	15918	Query	1	16009	use `test`; insert into t1 values( 228 )
+master-bin.000001	16009	Query	1	16100	use `test`; insert into t1 values( 227 )
+master-bin.000001	16100	Query	1	16191	use `test`; insert into t1 values( 226 )
+master-bin.000001	16191	Query	1	16282	use `test`; insert into t1 values( 225 )
+master-bin.000001	16282	Query	1	16373	use `test`; insert into t1 values( 224 )
+master-bin.000001	16373	Query	1	16464	use `test`; insert into t1 values( 223 )
+master-bin.000001	16464	Query	1	16555	use `test`; insert into t1 values( 222 )
+master-bin.000001	16555	Query	1	16646	use `test`; insert into t1 values( 221 )
+master-bin.000001	16646	Query	1	16737	use `test`; insert into t1 values( 220 )
+master-bin.000001	16737	Query	1	16828	use `test`; insert into t1 values( 219 )
+master-bin.000001	16828	Query	1	16919	use `test`; insert into t1 values( 218 )
+master-bin.000001	16919	Query	1	17010	use `test`; insert into t1 values( 217 )
+master-bin.000001	17010	Query	1	17101	use `test`; insert into t1 values( 216 )
+master-bin.000001	17101	Query	1	17192	use `test`; insert into t1 values( 215 )
+master-bin.000001	17192	Query	1	17283	use `test`; insert into t1 values( 214 )
+master-bin.000001	17283	Query	1	17374	use `test`; insert into t1 values( 213 )
+master-bin.000001	17374	Query	1	17465	use `test`; insert into t1 values( 212 )
+master-bin.000001	17465	Query	1	17556	use `test`; insert into t1 values( 211 )
+master-bin.000001	17556	Query	1	17647	use `test`; insert into t1 values( 210 )
+master-bin.000001	17647	Query	1	17738	use `test`; insert into t1 values( 209 )
+master-bin.000001	17738	Query	1	17829	use `test`; insert into t1 values( 208 )
+master-bin.000001	17829	Query	1	17920	use `test`; insert into t1 values( 207 )
+master-bin.000001	17920	Query	1	18011	use `test`; insert into t1 values( 206 )
+master-bin.000001	18011	Query	1	18102	use `test`; insert into t1 values( 205 )
+master-bin.000001	18102	Query	1	18193	use `test`; insert into t1 values( 204 )
+master-bin.000001	18193	Query	1	18284	use `test`; insert into t1 values( 203 )
+master-bin.000001	18284	Query	1	18375	use `test`; insert into t1 values( 202 )
+master-bin.000001	18375	Query	1	18466	use `test`; insert into t1 values( 201 )
+master-bin.000001	18466	Query	1	18557	use `test`; insert into t1 values( 200 )
+master-bin.000001	18557	Query	1	18648	use `test`; insert into t1 values( 199 )
+master-bin.000001	18648	Query	1	18739	use `test`; insert into t1 values( 198 )
+master-bin.000001	18739	Query	1	18830	use `test`; insert into t1 values( 197 )
+master-bin.000001	18830	Query	1	18921	use `test`; insert into t1 values( 196 )
+master-bin.000001	18921	Query	1	19012	use `test`; insert into t1 values( 195 )
+master-bin.000001	19012	Query	1	19103	use `test`; insert into t1 values( 194 )
+master-bin.000001	19103	Query	1	19194	use `test`; insert into t1 values( 193 )
+master-bin.000001	19194	Query	1	19285	use `test`; insert into t1 values( 192 )
+master-bin.000001	19285	Query	1	19376	use `test`; insert into t1 values( 191 )
+master-bin.000001	19376	Query	1	19467	use `test`; insert into t1 values( 190 )
+master-bin.000001	19467	Query	1	19558	use `test`; insert into t1 values( 189 )
+master-bin.000001	19558	Query	1	19649	use `test`; insert into t1 values( 188 )
+master-bin.000001	19649	Query	1	19740	use `test`; insert into t1 values( 187 )
+master-bin.000001	19740	Query	1	19831	use `test`; insert into t1 values( 186 )
+master-bin.000001	19831	Query	1	19922	use `test`; insert into t1 values( 185 )
+master-bin.000001	19922	Query	1	20013	use `test`; insert into t1 values( 184 )
+master-bin.000001	20013	Query	1	20104	use `test`; insert into t1 values( 183 )
+master-bin.000001	20104	Query	1	20195	use `test`; insert into t1 values( 182 )
+master-bin.000001	20195	Query	1	20286	use `test`; insert into t1 values( 181 )
+master-bin.000001	20286	Query	1	20377	use `test`; insert into t1 values( 180 )
+master-bin.000001	20377	Query	1	20468	use `test`; insert into t1 values( 179 )
+master-bin.000001	20468	Query	1	20559	use `test`; insert into t1 values( 178 )
+master-bin.000001	20559	Query	1	20650	use `test`; insert into t1 values( 177 )
+master-bin.000001	20650	Query	1	20741	use `test`; insert into t1 values( 176 )
+master-bin.000001	20741	Query	1	20832	use `test`; insert into t1 values( 175 )
+master-bin.000001	20832	Query	1	20923	use `test`; insert into t1 values( 174 )
+master-bin.000001	20923	Query	1	21014	use `test`; insert into t1 values( 173 )
+master-bin.000001	21014	Query	1	21105	use `test`; insert into t1 values( 172 )
+master-bin.000001	21105	Query	1	21196	use `test`; insert into t1 values( 171 )
+master-bin.000001	21196	Query	1	21287	use `test`; insert into t1 values( 170 )
+master-bin.000001	21287	Query	1	21378	use `test`; insert into t1 values( 169 )
+master-bin.000001	21378	Query	1	21469	use `test`; insert into t1 values( 168 )
+master-bin.000001	21469	Query	1	21560	use `test`; insert into t1 values( 167 )
+master-bin.000001	21560	Query	1	21651	use `test`; insert into t1 values( 166 )
+master-bin.000001	21651	Query	1	21742	use `test`; insert into t1 values( 165 )
+master-bin.000001	21742	Query	1	21833	use `test`; insert into t1 values( 164 )
+master-bin.000001	21833	Query	1	21924	use `test`; insert into t1 values( 163 )
+master-bin.000001	21924	Query	1	22015	use `test`; insert into t1 values( 162 )
+master-bin.000001	22015	Query	1	22106	use `test`; insert into t1 values( 161 )
+master-bin.000001	22106	Query	1	22197	use `test`; insert into t1 values( 160 )
+master-bin.000001	22197	Query	1	22288	use `test`; insert into t1 values( 159 )
+master-bin.000001	22288	Query	1	22379	use `test`; insert into t1 values( 158 )
+master-bin.000001	22379	Query	1	22470	use `test`; insert into t1 values( 157 )
+master-bin.000001	22470	Query	1	22561	use `test`; insert into t1 values( 156 )
+master-bin.000001	22561	Query	1	22652	use `test`; insert into t1 values( 155 )
+master-bin.000001	22652	Query	1	22743	use `test`; insert into t1 values( 154 )
+master-bin.000001	22743	Query	1	22834	use `test`; insert into t1 values( 153 )
+master-bin.000001	22834	Query	1	22925	use `test`; insert into t1 values( 152 )
+master-bin.000001	22925	Query	1	23016	use `test`; insert into t1 values( 151 )
+master-bin.000001	23016	Query	1	23107	use `test`; insert into t1 values( 150 )
+master-bin.000001	23107	Query	1	23198	use `test`; insert into t1 values( 149 )
+master-bin.000001	23198	Query	1	23289	use `test`; insert into t1 values( 148 )
+master-bin.000001	23289	Query	1	23380	use `test`; insert into t1 values( 147 )
+master-bin.000001	23380	Query	1	23471	use `test`; insert into t1 values( 146 )
+master-bin.000001	23471	Query	1	23562	use `test`; insert into t1 values( 145 )
+master-bin.000001	23562	Query	1	23653	use `test`; insert into t1 values( 144 )
+master-bin.000001	23653	Query	1	23744	use `test`; insert into t1 values( 143 )
+master-bin.000001	23744	Query	1	23835	use `test`; insert into t1 values( 142 )
+master-bin.000001	23835	Query	1	23926	use `test`; insert into t1 values( 141 )
+master-bin.000001	23926	Query	1	24017	use `test`; insert into t1 values( 140 )
+master-bin.000001	24017	Query	1	24108	use `test`; insert into t1 values( 139 )
+master-bin.000001	24108	Query	1	24199	use `test`; insert into t1 values( 138 )
+master-bin.000001	24199	Query	1	24290	use `test`; insert into t1 values( 137 )
+master-bin.000001	24290	Query	1	24381	use `test`; insert into t1 values( 136 )
+master-bin.000001	24381	Query	1	24472	use `test`; insert into t1 values( 135 )
+master-bin.000001	24472	Query	1	24563	use `test`; insert into t1 values( 134 )
+master-bin.000001	24563	Query	1	24654	use `test`; insert into t1 values( 133 )
+master-bin.000001	24654	Query	1	24745	use `test`; insert into t1 values( 132 )
+master-bin.000001	24745	Query	1	24836	use `test`; insert into t1 values( 131 )
+master-bin.000001	24836	Query	1	24927	use `test`; insert into t1 values( 130 )
+master-bin.000001	24927	Query	1	25018	use `test`; insert into t1 values( 129 )
+master-bin.000001	25018	Query	1	25109	use `test`; insert into t1 values( 128 )
+master-bin.000001	25109	Query	1	25200	use `test`; insert into t1 values( 127 )
+master-bin.000001	25200	Query	1	25291	use `test`; insert into t1 values( 126 )
+master-bin.000001	25291	Query	1	25382	use `test`; insert into t1 values( 125 )
+master-bin.000001	25382	Query	1	25473	use `test`; insert into t1 values( 124 )
+master-bin.000001	25473	Query	1	25564	use `test`; insert into t1 values( 123 )
+master-bin.000001	25564	Query	1	25655	use `test`; insert into t1 values( 122 )
+master-bin.000001	25655	Query	1	25746	use `test`; insert into t1 values( 121 )
+master-bin.000001	25746	Query	1	25837	use `test`; insert into t1 values( 120 )
+master-bin.000001	25837	Query	1	25928	use `test`; insert into t1 values( 119 )
+master-bin.000001	25928	Query	1	26019	use `test`; insert into t1 values( 118 )
+master-bin.000001	26019	Query	1	26110	use `test`; insert into t1 values( 117 )
+master-bin.000001	26110	Query	1	26201	use `test`; insert into t1 values( 116 )
+master-bin.000001	26201	Query	1	26292	use `test`; insert into t1 values( 115 )
+master-bin.000001	26292	Query	1	26383	use `test`; insert into t1 values( 114 )
+master-bin.000001	26383	Query	1	26474	use `test`; insert into t1 values( 113 )
+master-bin.000001	26474	Query	1	26565	use `test`; insert into t1 values( 112 )
+master-bin.000001	26565	Query	1	26656	use `test`; insert into t1 values( 111 )
+master-bin.000001	26656	Query	1	26747	use `test`; insert into t1 values( 110 )
+master-bin.000001	26747	Query	1	26838	use `test`; insert into t1 values( 109 )
+master-bin.000001	26838	Query	1	26929	use `test`; insert into t1 values( 108 )
+master-bin.000001	26929	Query	1	27020	use `test`; insert into t1 values( 107 )
+master-bin.000001	27020	Query	1	27111	use `test`; insert into t1 values( 106 )
+master-bin.000001	27111	Query	1	27202	use `test`; insert into t1 values( 105 )
+master-bin.000001	27202	Query	1	27293	use `test`; insert into t1 values( 104 )
+master-bin.000001	27293	Query	1	27384	use `test`; insert into t1 values( 103 )
+master-bin.000001	27384	Query	1	27475	use `test`; insert into t1 values( 102 )
+master-bin.000001	27475	Query	1	27566	use `test`; insert into t1 values( 101 )
+master-bin.000001	27566	Query	1	27657	use `test`; insert into t1 values( 100 )
+master-bin.000001	27657	Query	1	27747	use `test`; insert into t1 values( 99 )
+master-bin.000001	27747	Query	1	27837	use `test`; insert into t1 values( 98 )
+master-bin.000001	27837	Query	1	27927	use `test`; insert into t1 values( 97 )
+master-bin.000001	27927	Query	1	28017	use `test`; insert into t1 values( 96 )
+master-bin.000001	28017	Query	1	28107	use `test`; insert into t1 values( 95 )
+master-bin.000001	28107	Query	1	28197	use `test`; insert into t1 values( 94 )
+master-bin.000001	28197	Query	1	28287	use `test`; insert into t1 values( 93 )
+master-bin.000001	28287	Query	1	28377	use `test`; insert into t1 values( 92 )
+master-bin.000001	28377	Query	1	28467	use `test`; insert into t1 values( 91 )
+master-bin.000001	28467	Query	1	28557	use `test`; insert into t1 values( 90 )
+master-bin.000001	28557	Query	1	28647	use `test`; insert into t1 values( 89 )
+master-bin.000001	28647	Query	1	28737	use `test`; insert into t1 values( 88 )
+master-bin.000001	28737	Query	1	28827	use `test`; insert into t1 values( 87 )
+master-bin.000001	28827	Query	1	28917	use `test`; insert into t1 values( 86 )
+master-bin.000001	28917	Query	1	29007	use `test`; insert into t1 values( 85 )
+master-bin.000001	29007	Query	1	29097	use `test`; insert into t1 values( 84 )
+master-bin.000001	29097	Query	1	29187	use `test`; insert into t1 values( 83 )
+master-bin.000001	29187	Query	1	29277	use `test`; insert into t1 values( 82 )
+master-bin.000001	29277	Query	1	29367	use `test`; insert into t1 values( 81 )
+master-bin.000001	29367	Query	1	29457	use `test`; insert into t1 values( 80 )
+master-bin.000001	29457	Query	1	29547	use `test`; insert into t1 values( 79 )
+master-bin.000001	29547	Query	1	29637	use `test`; insert into t1 values( 78 )
+master-bin.000001	29637	Query	1	29727	use `test`; insert into t1 values( 77 )
+master-bin.000001	29727	Query	1	29817	use `test`; insert into t1 values( 76 )
+master-bin.000001	29817	Query	1	29907	use `test`; insert into t1 values( 75 )
+master-bin.000001	29907	Query	1	29997	use `test`; insert into t1 values( 74 )
+master-bin.000001	29997	Query	1	30087	use `test`; insert into t1 values( 73 )
+master-bin.000001	30087	Query	1	30177	use `test`; insert into t1 values( 72 )
+master-bin.000001	30177	Query	1	30267	use `test`; insert into t1 values( 71 )
+master-bin.000001	30267	Query	1	30357	use `test`; insert into t1 values( 70 )
+master-bin.000001	30357	Query	1	30447	use `test`; insert into t1 values( 69 )
+master-bin.000001	30447	Query	1	30537	use `test`; insert into t1 values( 68 )
+master-bin.000001	30537	Query	1	30627	use `test`; insert into t1 values( 67 )
+master-bin.000001	30627	Query	1	30717	use `test`; insert into t1 values( 66 )
+master-bin.000001	30717	Query	1	30807	use `test`; insert into t1 values( 65 )
+master-bin.000001	30807	Query	1	30897	use `test`; insert into t1 values( 64 )
+master-bin.000001	30897	Query	1	30987	use `test`; insert into t1 values( 63 )
+master-bin.000001	30987	Query	1	31077	use `test`; insert into t1 values( 62 )
+master-bin.000001	31077	Query	1	31167	use `test`; insert into t1 values( 61 )
+master-bin.000001	31167	Query	1	31257	use `test`; insert into t1 values( 60 )
+master-bin.000001	31257	Query	1	31347	use `test`; insert into t1 values( 59 )
+master-bin.000001	31347	Query	1	31437	use `test`; insert into t1 values( 58 )
+master-bin.000001	31437	Query	1	31527	use `test`; insert into t1 values( 57 )
+master-bin.000001	31527	Query	1	31617	use `test`; insert into t1 values( 56 )
+master-bin.000001	31617	Query	1	31707	use `test`; insert into t1 values( 55 )
+master-bin.000001	31707	Query	1	31797	use `test`; insert into t1 values( 54 )
+master-bin.000001	31797	Query	1	31887	use `test`; insert into t1 values( 53 )
+master-bin.000001	31887	Query	1	31977	use `test`; insert into t1 values( 52 )
+master-bin.000001	31977	Query	1	32067	use `test`; insert into t1 values( 51 )
+master-bin.000001	32067	Query	1	32157	use `test`; insert into t1 values( 50 )
+master-bin.000001	32157	Query	1	32247	use `test`; insert into t1 values( 49 )
+master-bin.000001	32247	Query	1	32337	use `test`; insert into t1 values( 48 )
+master-bin.000001	32337	Query	1	32427	use `test`; insert into t1 values( 47 )
+master-bin.000001	32427	Query	1	32517	use `test`; insert into t1 values( 46 )
+master-bin.000001	32517	Query	1	32607	use `test`; insert into t1 values( 45 )
+master-bin.000001	32607	Query	1	32697	use `test`; insert into t1 values( 44 )
+master-bin.000001	32697	Query	1	32787	use `test`; insert into t1 values( 43 )
+master-bin.000001	32787	Query	1	32877	use `test`; insert into t1 values( 42 )
+master-bin.000001	32877	Query	1	32967	use `test`; insert into t1 values( 41 )
+master-bin.000001	32967	Query	1	33057	use `test`; insert into t1 values( 40 )
+master-bin.000001	33057	Query	1	33147	use `test`; insert into t1 values( 39 )
+master-bin.000001	33147	Query	1	33237	use `test`; insert into t1 values( 38 )
+master-bin.000001	33237	Query	1	33327	use `test`; insert into t1 values( 37 )
+master-bin.000001	33327	Query	1	33417	use `test`; insert into t1 values( 36 )
+master-bin.000001	33417	Query	1	33507	use `test`; insert into t1 values( 35 )
+master-bin.000001	33507	Query	1	33597	use `test`; insert into t1 values( 34 )
+master-bin.000001	33597	Query	1	33687	use `test`; insert into t1 values( 33 )
+master-bin.000001	33687	Query	1	33777	use `test`; insert into t1 values( 32 )
+master-bin.000001	33777	Query	1	33867	use `test`; insert into t1 values( 31 )
+master-bin.000001	33867	Query	1	33957	use `test`; insert into t1 values( 30 )
+master-bin.000001	33957	Query	1	34047	use `test`; insert into t1 values( 29 )
+master-bin.000001	34047	Query	1	34137	use `test`; insert into t1 values( 28 )
+master-bin.000001	34137	Query	1	34227	use `test`; insert into t1 values( 27 )
+master-bin.000001	34227	Query	1	34317	use `test`; insert into t1 values( 26 )
+master-bin.000001	34317	Query	1	34407	use `test`; insert into t1 values( 25 )
+master-bin.000001	34407	Query	1	34497	use `test`; insert into t1 values( 24 )
+master-bin.000001	34497	Query	1	34587	use `test`; insert into t1 values( 23 )
+master-bin.000001	34587	Query	1	34677	use `test`; insert into t1 values( 22 )
+master-bin.000001	34677	Query	1	34767	use `test`; insert into t1 values( 21 )
+master-bin.000001	34767	Query	1	34857	use `test`; insert into t1 values( 20 )
+master-bin.000001	34857	Query	1	34947	use `test`; insert into t1 values( 19 )
+master-bin.000001	34947	Query	1	35037	use `test`; insert into t1 values( 18 )
+master-bin.000001	35037	Query	1	35127	use `test`; insert into t1 values( 17 )
+master-bin.000001	35127	Query	1	35217	use `test`; insert into t1 values( 16 )
+master-bin.000001	35217	Query	1	35307	use `test`; insert into t1 values( 15 )
+master-bin.000001	35307	Query	1	35397	use `test`; insert into t1 values( 14 )
+master-bin.000001	35397	Query	1	35487	use `test`; insert into t1 values( 13 )
+master-bin.000001	35487	Query	1	35577	use `test`; insert into t1 values( 12 )
+master-bin.000001	35577	Query	1	35667	use `test`; insert into t1 values( 11 )
+master-bin.000001	35667	Query	1	35757	use `test`; insert into t1 values( 10 )
+master-bin.000001	35757	Query	1	35846	use `test`; insert into t1 values( 9 )
+master-bin.000001	35846	Query	1	35935	use `test`; insert into t1 values( 8 )
+master-bin.000001	35935	Query	1	36024	use `test`; insert into t1 values( 7 )
+master-bin.000001	36024	Query	1	36113	use `test`; insert into t1 values( 6 )
+master-bin.000001	36113	Query	1	36202	use `test`; insert into t1 values( 5 )
+master-bin.000001	36202	Query	1	36291	use `test`; insert into t1 values( 4 )
+master-bin.000001	36291	Query	1	36380	use `test`; insert into t1 values( 3 )
+master-bin.000001	36380	Query	1	36469	use `test`; insert into t1 values( 2 )
+master-bin.000001	36469	Query	1	36558	use `test`; insert into t1 values( 1 )
+master-bin.000001	36558	Xid	1	36585	COMMIT /* XID */
+master-bin.000001	36585	Rotate	1	36629	master-bin.000002;pos=4
+drop table t1;
+set global binlog_cache_size=@bcs;
+set session autocommit = @ac;
+End of 5.0 tests
