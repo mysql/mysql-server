@@ -3844,7 +3844,7 @@ int ha_ndbcluster::ndb_delete_row(const byte *record, bool primary_key_update)
     if (!(op=trans->deleteTuple(key_rec, key_row)))
       ERR_RETURN(trans->getNdbError());
     
-    if (m_user_defined__partitioning)
+    if (m_user_defined_partitioning)
       op->setPartitionId(part_id);
 
     no_uncommitted_rows_update(-1);
@@ -9613,7 +9613,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     if (sorted)
       flags|= NdbScanOperation::SF_OrderBy;
 
-    if (m_user_defined_partition || table_share->primary_key == MAX_KEY)
+    if (m_user_defined_partitioning || table_share->primary_key == MAX_KEY)
     {
       mask= copy_column_set(table->read_set);
       if (table_share->primary_key == MAX_KEY)
@@ -9749,7 +9749,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
           if (table_share->primary_key == MAX_KEY)
           {
             m_ref= get_hidden_key(m_next_row);
-            if (m_user_defined_partitionng)
+            if (m_user_defined_partitioning)
               m_part_id= get_partition_fragment(m_next_row);
           }
           unpack_record(table->record[0], m_next_row);
