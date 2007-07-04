@@ -5276,7 +5276,7 @@ drop table t1;
 create table t1(a int, b int) engine=csv;
 repair table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Warning	Data truncated for column 'a' at row 1
+test.t1	repair	Warning	Data truncated for column 'a' at row 5
 test.t1	repair	status	OK
 check table t1;
 Table	Op	Msg_type	Msg_text
