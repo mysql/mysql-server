@@ -38,7 +38,6 @@ rpl_ndb_mix_innodb       : BUG#28123 rpl_ndb_mix_innodb.test casue slave to core
 rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
 
 rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
-ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
