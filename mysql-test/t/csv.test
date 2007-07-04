@@ -1674,3 +1674,28 @@ CREATE TABLE `bug21328` (
 insert into bug21328 values (1,NULL,NULL);
 alter table bug21328 engine=myisam;
 drop table bug21328;
+
+#
+# Bug #29353: negative values
+#
+create table t1(a int) engine=csv;
+insert into t1 values(-1), (-123.34), (2), (-23);
+select * from t1;
+check table t1;
+drop table t1;
+
+create table t1(a int, b int) engine=csv;
+--write_file $MYSQLTEST_VARDIR/master-data/test/t1.CSV
+1, 1E-2
+-2E2, .9
+-10E-1, -.9
+-1, -100.1
+1a, -2b
+EOF
+repair table t1;
+check table t1;
+select * from t1;
+check table t1;
+drop table t1;
+
+--echo End of 5.1 tests

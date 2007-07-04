@@ -100,6 +100,8 @@ public:
   virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
   virtual int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
+  int store(const char *to, uint length, CHARSET_INFO *cs,
+            enum_check_fields check_level);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
   virtual my_decimal *val_decimal(my_decimal *);
