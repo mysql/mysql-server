@@ -2,6 +2,16 @@
 mysql-5.1.X-ndb-6.2.Y
 ==================================================
 
+mysql-5.1.19-ndb-6.2.4 (released 2007-07-04)
+
+  Bug #29525 batching incorrect
+  Bug #28720 Disk data meta information is not visible in mysqld but exists in ndbd
+  Bug #28642 Tablespace returning incorrect usage status
+  Bug #29501 DN crashes in LGMAN during NR while DD schema operations are being handled
+  Bug #29354 Incorrect handling of replica REDO during SR (5.0)
+  Bug #29364 SQL queries hang while data node in start phase 5
+  Bug #27404 util thd mysql_parse sig11 when mysqld default multibyte charset
+
 mysql-5.1.19-ndb-6.2.3 (released 2007-07-02)
 (additional bugs fixed compared to mysql-5.1.19)
 
