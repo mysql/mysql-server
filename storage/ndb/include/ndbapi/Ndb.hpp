@@ -1584,6 +1584,16 @@ public:
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             TupleIdRange & range, Uint64 tupleId,
                             bool increase);
+#ifdef NDBAPI_50_COMPAT
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1)
+    {
+      Uint64 val;
+      if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
+        return ~(Uint64)0;
+      return val;
+    }
+#endif
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
                         TupleIdRange & range, Uint64 & tupleId,
