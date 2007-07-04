@@ -1025,8 +1025,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       HA_CREATE_INFO create_info;
 
       status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->LEX_STRING_make(&db, packet, packet_length -1) ||
-          thd->LEX_STRING_make(&alias, db.str, db.length) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+          thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1046,7 +1046,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
-      if (thd->LEX_STRING_make(&db, packet, packet_length - 1) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
