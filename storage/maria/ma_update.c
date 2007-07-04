@@ -147,6 +147,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   if (share->calc_checksum)
   {
     info->cur_row.checksum= (*share->calc_checksum)(info,newrec);
+    info->state->checksum+= (info->cur_row.checksum - old_checksum);
     /* Store new checksum in index file header */
     key_changed|= HA_STATE_CHANGED;
   }
@@ -173,8 +174,6 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   if (auto_key_changed)
     set_if_bigger(info->s->state.auto_increment,
                   ma_retrieve_auto_increment(info, newrec));
-  if (share->calc_checksum)
-    info->state->checksum+= (info->cur_row.checksum - old_checksum);
 
   /*
     We can't yet have HA_STATE_AKTIV here, as block_record dosn't support

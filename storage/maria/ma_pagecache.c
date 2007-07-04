@@ -177,7 +177,8 @@ static const char *page_cache_page_type_str[]=
   /* used only for control page type changing during debugging */
   "EMPTY",
   "PLAIN",
-  "LSN"
+  "LSN",
+  "READ_UNKNOWN"
 };
 
 static const char *page_cache_page_write_mode_str[]=
@@ -320,7 +321,8 @@ struct st_pagecache_block_link
 #ifndef DBUG_OFF
 /* debug checks */
 static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
-                              enum pagecache_page_pin mode)
+                              enum pagecache_page_pin mode
+                              __attribute__((unused)))
 {
   struct st_my_thread_var *thread= my_thread_var;
   PAGECACHE_PIN_INFO *info= info_find(block->pin_list, thread);
@@ -378,6 +380,7 @@ static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
     1 - Error
 */
 
+#ifdef NOT_USED
 static my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
                                enum pagecache_page_lock lock,
                                enum pagecache_page_pin pin)
@@ -445,7 +448,8 @@ error:
               page_cache_page_pin_str[pin]));
   DBUG_RETURN(1);
 }
-#endif
+#endif /* NOT_USED */
+#endif /* !DBUG_OFF */ 
 
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
@@ -581,17 +585,14 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
                              myf flags)
 {
   DBUG_ENTER("pagecache_fwrite");
+  DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
   if (type == PAGECACHE_LSN_PAGE)
   {
     LSN lsn;
     DBUG_PRINT("info", ("Log handler call"));
     /* TODO: integrate with page format */
     lsn= lsn_korr(buffer + PAGE_LSN_OFFSET);
-    /*
-      check CONTROL_FILE_IMPOSSIBLE_FILENO &
-      CONTROL_FILE_IMPOSSIBLE_LOG_OFFSET
-    */
-    DBUG_ASSERT(lsn != 0);
+    DBUG_ASSERT(LSN_VALID(lsn));
     translog_flush(lsn);
   }
   DBUG_RETURN(my_pwrite(filedesc->file, buffer, pagecache->block_size,
@@ -2439,16 +2440,16 @@ static void read_block(PAGECACHE *pagecache,
 }
 
 
-/*
-  Set LSN on the page to the given one if the given LSN is bigger
+/**
+   @brief Set LSN on the page to the given one if the given LSN is bigger
 
-  SYNOPSIS
-    check_and_set_lsn()
-    lsn                  LSN to set
-    block                block to check and set
+   @param  pagecache        pointer to a page cache data structure
+   @param  lsn              LSN to set
+   @param  block            block to check and set
 */
 
-static void check_and_set_lsn(LSN lsn, PAGECACHE_BLOCK_LINK *block)
+static void check_and_set_lsn(PAGECACHE *pagecache,
+                              LSN lsn, PAGECACHE_BLOCK_LINK *block)
 {
   LSN old;
   DBUG_ENTER("check_and_set_lsn");
@@ -2458,7 +2459,14 @@ static void check_and_set_lsn(LSN lsn, PAGECACHE_BLOCK_LINK *block)
                       (ulong)LSN_FILE_NO(old), (ulong)LSN_OFFSET(old),
                       (ulong)LSN_FILE_NO(lsn), (ulong)LSN_OFFSET(lsn)));
   if (cmp_translog_addr(lsn, old) > 0)
+  {
+
+    DBUG_ASSERT(block->type != PAGECACHE_READ_UNKNOWN_PAGE);
     lsn_store(block->buffer + PAGE_LSN_OFFSET, lsn);
+    /* we stored LSN in page so we dirtied it */
+    if (!(block->status & PCBLOCK_CHANGED))
+      link_to_changed_list(pagecache, block);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2474,7 +2482,7 @@ static void check_and_set_lsn(LSN lsn, PAGECACHE_BLOCK_LINK *block)
     lock                lock change
     pin                 pin page
     first_REDO_LSN_for_page do not set it if it is zero
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 
@@ -2531,10 +2539,8 @@ void pagecache_unlock(PAGECACHE *pagecache,
     if (block->rec_lsn == 0)
       block->rec_lsn= first_REDO_LSN_for_page;
   }
-  if (lsn != 0)
-  {
-    check_and_set_lsn(lsn, block);
-  }
+  if (lsn != LSN_IMPOSSIBLE)
+    check_and_set_lsn(pagecache, lsn, block);
 
   if (make_lock_and_pin(pagecache, block, lock, pin))
   {
@@ -2566,7 +2572,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
     pagecache           pointer to a page cache data structure
     file                handler for the file for the block of data to be read
     pageno              number of the block of data in the file
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 */
@@ -2594,10 +2600,8 @@ void pagecache_unpin(PAGECACHE *pagecache,
   DBUG_ASSERT(block != 0);
   DBUG_ASSERT(page_st == PAGE_READ);
 
-  if (lsn != 0)
-  {
-    check_and_set_lsn(lsn, block);
-  }
+  if (lsn != LSN_IMPOSSIBLE)
+    check_and_set_lsn(pagecache, lsn, block);
 
   /*
     we can just unpin only with keeping read lock because:
@@ -2635,10 +2639,9 @@ void pagecache_unpin(PAGECACHE *pagecache,
     link                direct link to page (returned by read or write)
     lock                lock change
     pin                 pin page
-    first_REDO_LSN_for_page do not set it if it is zero
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
-                        is bigger then LSN on the page it will be written on
-                        the page
+    first_REDO_LSN_for_page do not set it if it is LSN_IMPOSSIBLE (0)
+    lsn                 if it is not LSN_IMPOSSIBLE and it is bigger then
+                        LSN on the page it will be written on the page
 */
 
 void pagecache_unlock_by_link(PAGECACHE *pagecache,
@@ -2681,7 +2684,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   DBUG_ASSERT(pagecache->can_be_used);
 
   inc_counter_for_resize_op(pagecache);
-  if (first_REDO_LSN_for_page)
+  if (first_REDO_LSN_for_page != LSN_IMPOSSIBLE)
   {
     /*
       LOCK_READ_UNLOCK is ok here as the page may have first locked
@@ -2694,10 +2697,8 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     if (block->rec_lsn == 0)
       block->rec_lsn= first_REDO_LSN_for_page;
   }
-  if (lsn != 0)
-  {
-    check_and_set_lsn(lsn, block);
-  }
+  if (lsn != LSN_IMPOSSIBLE)
+    check_and_set_lsn(pagecache, lsn, block);
 
   if (make_lock_and_pin(pagecache, block, lock, pin))
     DBUG_ASSERT(0);                           /* should not happend */
@@ -2726,7 +2727,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     pagecache_unpin_by_link()
     pagecache           pointer to a page cache data structure
     link                direct link to page (returned by read or write)
-    lsn                 if it is not CONTROL_FILE_IMPOSSIBLE_LSN (0) and it
+    lsn                 if it is not LSN_IMPOSSIBLE (0) and it
                         is bigger then LSN on the page it will be written on
                         the page
 */
@@ -2751,10 +2752,8 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
 
   inc_counter_for_resize_op(pagecache);
 
-  if (lsn != 0)
-  {
-    check_and_set_lsn(lsn, block);
-  }
+  if (lsn != LSN_IMPOSSIBLE)
+    check_and_set_lsn(pagecache, lsn, block);
 
   /*
     We can just unpin only with keeping read lock because:
@@ -2865,8 +2864,10 @@ restart:
                            (pin == PAGECACHE_PIN)),
                       &page_st);
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
-                block->type == type);
-    block->type= type;
+                block->type == type || type == PAGECACHE_READ_UNKNOWN_PAGE);
+    if (type != PAGECACHE_READ_UNKNOWN_PAGE ||
+        block->type == PAGECACHE_EMPTY_PAGE)
+      block->type= type;
     if (((block->status & PCBLOCK_ERROR) == 0) && (page_st != PAGE_READ))
     {
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
@@ -3181,6 +3182,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                        page_cache_page_pin_str[pin],
                        page_cache_page_write_mode_str[write_mode],
                        offset, size));
+  DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
@@ -3230,6 +3232,7 @@ restart:
     }
 
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
+                block->type == PAGECACHE_READ_UNKNOWN_PAGE ||
                 block->type == type);
     block->type= type;
 
@@ -3650,6 +3653,14 @@ restart:
             ("changed_blocks") though it's still dirty (the flush by another
             thread has not yet happened). Checkpoint will miss the page and so
             must be blocked until that flush has happened.
+            Note that if there are two concurrent
+            flush_pagecache_blocks_int() on this file, then the first one may
+            move the block into its first_in_switch, and the second one would
+            just not see the block and wrongly consider its job done.
+            @todo RECOVERY Maria does protect such flushes with intern_lock,
+            but Checkpoint does not (Checkpoint makes sure that
+            changed_blocks_is_incomplete is 0 when it starts, but as
+            flush_cached_blocks() releases mutex, this may change...
           */
           /**
              @todo RECOVERY: check all places where we remove a page from the
@@ -3905,7 +3916,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       ptr+= 4;
       lsn_store(ptr, block->rec_lsn);
       ptr+= LSN_STORE_SIZE;
-      if (block->rec_lsn != 0)
+      if (block->rec_lsn != LSN_IMPOSSIBLE)
       {
         if (cmp_translog_addr(block->rec_lsn, minimum_rec_lsn) < 0)
           minimum_rec_lsn= block->rec_lsn;

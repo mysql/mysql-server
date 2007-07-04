@@ -1,3 +1,18 @@
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #ifndef _ma_loghandler_lsn_h
 #define _ma_loghandler_lsn_h
 
@@ -24,16 +39,18 @@ typedef TRANSLOG_ADDRESS LSN;
 #define LSN_FILE_NO(L) ((L) >> 32)
 
 /* Gets raw file number part of a LSN/log address */
-#define LSN_FINE_NO_PART(L) ((L) & ((int64)0xFFFFFF00000000LL))
+#define LSN_FILE_NO_PART(L) ((L) & ((int64)0xFFFFFF00000000LL))
 
 /* Gets record offset of a LSN/log address */
 #define LSN_OFFSET(L) ((L) & 0xFFFFFFFFL)
 
 /* Makes lsn/log address from file number and record offset */
-#define MAKE_LSN(F,S) ((((uint64)(F)) << 32) | (S))
+#define MAKE_LSN(F,S) ((LSN) ((((uint64)(F)) << 32) | (S)))
 
 /* checks LSN */
-#define LSN_VALID(L) DBUG_ASSERT((L) >= 0 && (L) < (uint64)0xFFFFFFFFFFFFFFLL)
+#define LSN_VALID(L)                                    \
+  ((LSN_FILE_NO_PART(L) != FILENO_IMPOSSIBLE) &&        \
+   (LSN_OFFSET(L) != LOG_OFFSET_IMPOSSIBLE))
 
 /* size of stored LSN on a disk, don't change it! */
 #define LSN_STORE_SIZE 7
@@ -51,7 +68,7 @@ typedef TRANSLOG_ADDRESS LSN;
 /* what we need to add to LSN to increase it on one file */
 #define LSN_ONE_FILE ((int64)0x100000000LL)
 
-#define LSN_REPLACE_OFFSET(L, S) (LSN_FINE_NO_PART(L) | (S))
+#define LSN_REPLACE_OFFSET(L, S) (LSN_FILE_NO_PART(L) | (S))
 
 /*
   an 8-byte type whose most significant uchar is used for "flags"; 7
@@ -61,4 +78,7 @@ typedef LSN LSN_WITH_FLAGS;
 #define LSN_WITH_FLAGS_TO_LSN(x)   (x & ULL(0x00FFFFFFFFFFFFFF))
 #define LSN_WITH_FLAGS_TO_FLAGS(x) (x & ULL(0xFF00000000000000))
 
+#define FILENO_IMPOSSIBLE     0 /**< log file's numbering starts at 1 */
+#define LOG_OFFSET_IMPOSSIBLE 0 /**< log always has a header */
+#define LSN_IMPOSSIBLE        0
 #endif

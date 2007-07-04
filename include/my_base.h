@@ -47,6 +47,7 @@
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
+#define HA_OPEN_COPY			256     /* Open copy (for repair) */
 
 /* The following is parameter to ha_rkey() how to use key */
 

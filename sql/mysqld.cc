@@ -3417,6 +3417,10 @@ server.");
     using_update_log=1;
   }
 
+  /* Allow storage engine to give real error messages */
+  if (ha_init_errors())
+    DBUG_RETURN(1);
+
   if (plugin_init(&defaults_argc, defaults_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))

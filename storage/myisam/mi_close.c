@@ -75,6 +75,7 @@ int mi_close(register MI_INFO *info)
         not change the crashed state.
         We can NOT write the state in other cases as other threads
         may be using the file at this point
+        IF using --external-locking.
       */
       if (share->mode != O_RDONLY && mi_is_crashed(info))
 	mi_state_info_write(share->kfile, &share->state, 1);

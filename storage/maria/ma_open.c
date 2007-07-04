@@ -260,7 +260,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   my_realpath(name_buff, fn_format(org_name,name,"",MARIA_NAME_IEXT,
                                    MY_UNPACK_FILENAME),MYF(0));
   pthread_mutex_lock(&THR_LOCK_maria);
-  if (!(old_info=_ma_test_if_reopen(name_buff)))
+  old_info= 0;
+  if ((open_flags & HA_OPEN_COPY) ||
+      !(old_info=_ma_test_if_reopen(name_buff)))
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
@@ -586,13 +588,36 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
-    if (share->base.transactional)
+    if (open_flags & HA_OPEN_COPY)
+    {
+      /*
+        this instance will be a temporary one used just to create a data
+        file for REPAIR. Don't do logging. This base information will not go
+        to disk.
+      */
+      share->base.born_transactional= FALSE;
+    }
+    if (share->base.born_transactional)
+    {
+      share->page_type= PAGECACHE_LSN_PAGE;
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
+      if (unlikely((share->state.create_rename_lsn == (LSN)ULONGLONG_MAX) &&
+                   (open_flags & HA_OPEN_FROM_SQL_LAYER)))
+      {
+        /*
+          This table was repaired with maria_chk. Past log records should be
+          ignored, future log records should not: we define the present.
+        */
+        share->state.create_rename_lsn= translog_get_horizon();
+        _ma_update_create_rename_lsn_on_disk(share, TRUE);
+      }
+    }
+    else
+      share->page_type= PAGECACHE_PLAIN_PAGE;
+    share->now_transactional= share->base.born_transactional;
+
     share->base.default_rec_buff_size= max(share->base.pack_reclength,
                                            share->base.max_key_length);
-    share->page_type= (share->base.transactional ? PAGECACHE_LSN_PAGE :
-                       PAGECACHE_PLAIN_PAGE);
-
     if (share->data_file_type == DYNAMIC_RECORD)
     {
       share->base.extra_rec_buff_size=
@@ -858,6 +883,8 @@ void _ma_setup_functions(register MARIA_SHARE *share)
   }
   share->file_read= _ma_nommap_pread;
   share->file_write= _ma_nommap_pwrite;
+  share->calc_check_checksum= share->calc_checksum;
+  
   if (!(share->options & HA_OPTION_CHECKSUM) &&
       share->data_file_type != COMPRESSED_RECORD)
     share->calc_checksum= share->calc_write_checksum= 0;
@@ -1106,7 +1133,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   *ptr++= base->key_reflength;
   *ptr++= base->keys;
   *ptr++= base->auto_key;
-  *ptr++= base->transactional;
+  *ptr++= base->born_transactional;
   *ptr++= 0;                                    /* Reserved */
   mi_int2store(ptr,base->pack_bytes);			ptr+= 2;
   mi_int2store(ptr,base->blobs);			ptr+= 2;
@@ -1149,7 +1176,7 @@ static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
   base->key_reflength= *ptr++;
   base->keys=	       *ptr++;
   base->auto_key=      *ptr++;
-  base->transactional= *ptr++;
+  base->born_transactional= *ptr++;
   ptr++;
   base->pack_bytes= mi_uint2korr(ptr);			ptr+= 2;
   base->blobs= mi_uint2korr(ptr);			ptr+= 2;

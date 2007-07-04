@@ -30,6 +30,7 @@
 
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
+#define SANITY_CHECKS
 
 struct st_transaction;
 
@@ -170,8 +171,11 @@ typedef struct st_ma_base_info
 
   /* The following are from the header */
   uint key_parts, all_key_parts;
-  /* If false, we disable logging, versioning, transaction etc */
-  my_bool transactional;
+  /**
+     @brief If false, we disable logging, versioning, transaction etc. Observe
+     difference with MARIA_SHARE::now_transactional
+  */
+  my_bool born_transactional;
 } MARIA_BASE_INFO;
 
 
@@ -264,7 +268,9 @@ typedef struct st_maria_share
     Calculate checksum for a row during write. May be 0 if we calculate
     the checksum in write_record_init()
   */
-  ha_checksum(*calc_write_checksum) (struct st_maria_info *, const uchar *);
+  ha_checksum(*calc_write_checksum)(struct st_maria_info *, const uchar *);
+  /* calculate checksum for a row during check table */
+  ha_checksum(*calc_check_checksum)(struct st_maria_info *, const uchar *);
   /* Compare a row in memory with a row on disk */
   my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
                             const uchar *record, MARIA_RECORD_POS pos);
@@ -303,6 +309,13 @@ typedef struct st_maria_share
     not_flushed, concurrent_insert;
   my_bool delay_key_write;
   my_bool have_rtree;
+  /**
+     @brief if the table is transactional right now. It may have been created
+     transactional (base.born_transactional==TRUE) but with transactionality
+     (logging) temporarily disabled (now_transactional==FALSE). The opposite
+     (FALSE, TRUE) is impossible.
+  */
+  my_bool now_transactional;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
@@ -749,7 +762,7 @@ extern ulong _ma_rec_unpack(MARIA_HA *info, uchar *to, uchar *from,
                             ulong reclength);
 extern my_bool _ma_rec_check(MARIA_HA *info, const char *record,
                              uchar *packpos, ulong packed_length,
-                             my_bool with_checkum);
+                             my_bool with_checkum, ha_checksum checksum);
 extern int _ma_write_part_record(MARIA_HA *info, my_off_t filepos,
                                  ulong length, my_off_t next_filepos,
                                  uchar ** record, ulong *reclength,
@@ -874,6 +887,7 @@ void _ma_update_status(void *param);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
+void _ma_reset_status(MARIA_HA *maria);
 
 extern MARIA_HA *_ma_test_if_reopen(char *filename);
 my_bool _ma_check_table_is_closed(const char *name, const char *where);
@@ -886,13 +900,12 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size);
 MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
 
-/* Functions needed by _ma_check (are overrided in MySQL) */
 C_MODE_START
+/* Functions needed by _ma_check (are overrided in MySQL) */
 volatile int *_ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
-int  _ma_repair_write_log_record(const HA_CHECK *param, MARIA_HA *info);
 C_MODE_END
 
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);
@@ -908,9 +921,14 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
-int _ma_initialize_data_file(File dfile, MARIA_SHARE *share);
+int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
+#define _ma_tmp_disable_logging_for_table(S) \
+  { (S)->now_transactional= FALSE; (S)->page_type= PAGECACHE_PLAIN_PAGE; }
+#define _ma_reenable_logging_for_table(S)                        \
+  { if (((S)->now_transactional= (S)->base.born_transactional))  \
+      (S)->page_type= PAGECACHE_LSN_PAGE; }
 
 extern PAGECACHE *maria_log_pagecache;
-

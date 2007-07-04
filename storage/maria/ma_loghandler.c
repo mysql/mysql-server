@@ -61,21 +61,6 @@
 #define COMPRESSED_LSN_MAX_STORE_SIZE (2 + LSN_STORE_SIZE)
 #define MAX_NUMBER_OF_LSNS_PER_RECORD 2
 
-/* record parts descriptor */
-struct st_translog_parts
-{
-  /* full record length */
-  translog_size_t record_length;
-  /* full record length with chunk headers */
-  translog_size_t total_record_length;
-  /* current part index */
-  uint current;
-  /* total number of elements in parts */
-  uint elements;
-  /* array of parts (LEX_STRING) */
-  LEX_STRING *parts;
-};
-
 /* log write buffer descriptor */
 struct st_translog_buffer
 {
@@ -176,15 +161,6 @@ static uchar end_of_log= 0;
 
 my_bool translog_inited= 0;
 
-/* record classes */
-enum record_class
-{
-  LOGRECTYPE_NOT_ALLOWED,
-  LOGRECTYPE_VARIABLE_LENGTH,
-  LOGRECTYPE_PSEUDOFIXEDLENGTH,
-  LOGRECTYPE_FIXEDLENGTH
-};
-
 /* chunk types */
 #define TRANSLOG_CHUNK_LSN   0x00      /* 0 chunk refer as LSN (head or tail */
 #define TRANSLOG_CHUNK_FIXED (1 << 6)  /* 1 (pseudo)fixed record (also LSN) */
@@ -196,52 +172,11 @@ enum record_class
 /* compressed (relative) LSN constants */
 #define TRANSLOG_CLSN_LEN_BITS 0xC0    /* Mask to get compressed LSN length */
 
-typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
-                                     TRN *trn, struct st_maria_share *share,
-                                     struct st_translog_parts *parts);
-
-typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
-                                    TRN *trn,
-                                    LSN *lsn,
-                                    struct st_translog_parts *parts);
-
-typedef uint16(*read_rec_hook) (enum translog_record_type type,
-                                uint16 read_length, uchar *read_buff,
-                                uchar *decoded_buff);
-
-/*
-  Descriptor of log record type
-  Note: Don't reorder because of constructs later...
-*/
-struct st_log_record_type_descriptor
-{
-  /* internal class of the record */
-  enum record_class class;
-  /*
-    length for fixed-size record, pseudo-fixed record
-    length with uncompressed LSNs
-  */
-  uint16 fixed_length;
-  /* how much record body (belonged to headers too) read with headers */
-  uint16 read_header_len;
-  /* HOOK for writing the record called before lock */
-  prewrite_rec_hook prewrite_hook;
-  /* HOOK for writing the record called when LSN is known, inside lock */
-  inwrite_rec_hook inwrite_hook;
-  /* HOOK for reading headers */
-  read_rec_hook read_hook;
-  /*
-     For pseudo fixed records number of compressed LSNs followed by
-     system header
-  */
-  int16 compressed_LSN;
-};
 
 
 #include <my_atomic.h>
 /* an array that maps id of a MARIA_SHARE to this MARIA_SHARE */
 static MARIA_SHARE **id_to_share= NULL;
-#define SHARE_ID_MAX 65535 /* array's size */
 /* lock for id_to_share */
 static my_atomic_rwlock_t LOCK_id_to_share;
 
@@ -257,27 +192,32 @@ static my_bool write_hook_for_undo(enum translog_record_type type,
 
   NOTE that after first public Maria release, these can NOT be changed
 */
-typedef struct st_log_record_type_descriptor LOG_DESC;
 
-static LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
+LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE=
-{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0,
+ "fixed0example", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0,
+"variable0example", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_1LSN_EXAMPLE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 7, 7, NULL, NULL, NULL, 1};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 7, 7, NULL, NULL, NULL, 1,
+"fixed1example", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 12, NULL, NULL, NULL, 1};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 12, NULL, NULL, NULL, 1,
+"variable1example", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_2LSN_EXAMPLE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 23, 23, NULL, NULL, NULL, 2};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 23, 23, NULL, NULL, NULL, 2,
+"fixed2example", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 19, NULL, NULL, NULL, 2};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 19, NULL, NULL, NULL, 2,
+"variable2example", FALSE, NULL, NULL};
 
 
 void example_loghandler_init()
@@ -298,126 +238,158 @@ void example_loghandler_init()
 
 
 static LOG_DESC INIT_LOGREC_RESERVED_FOR_CHUNKS23=
-{LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0 };
+{LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0,
+ "reserved", FALSE, NULL, NULL };
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
- write_hook_for_redo, NULL, 0};
+ write_hook_for_redo, NULL, 0,
+ "redo_insert_row_head", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
- write_hook_for_redo, NULL, 0};
+ write_hook_for_redo, NULL, 0,
+ "redo_insert_row_tail", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
+ "redo_insert_row_blob", FALSE, NULL, NULL};
 
 /*QQQ:TODO:header???*/
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, FILEID_STORE_SIZE, NULL,
+ write_hook_for_redo, NULL, 0,
+ "redo_insert_row_blobs", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_HEAD=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_redo, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_purge_row_head", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_redo, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_purge_row_tail", FALSE, NULL, NULL};
 
 /* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
 {LOGRECTYPE_VARIABLE_LENGTH,
  0,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + PAGE_STORE_SIZE +
- PAGERANGE_STORE_SIZE,
- NULL, write_hook_for_redo, NULL, 0};
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_purge_blocks", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
-{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
+ "redo_delete_row", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_UPDATE_ROW_HEAD=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
+ "redo_update_row_head", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INDEX=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
+ "redo_index", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
-{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
+ "redo_undelete_row", FALSE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CLR_END=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_redo, NULL, 1};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_redo, NULL, 1,
+ "clr_end", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PURGE_END=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1,
+ "purge_end", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
 {LOGRECTYPE_FIXEDLENGTH,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 0};
+ NULL, write_hook_for_undo, NULL, 0,
+ "undo_row_insert", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 0};
+ NULL, write_hook_for_undo, NULL, 0,
+ "undo_row_delete", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 1};
+ NULL, write_hook_for_undo, NULL, 1,
+ "undo_row_update", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE, LSN_STORE_SIZE,
- NULL, NULL, NULL, 1};
+ NULL, NULL, NULL, 1,
+ "undo_row_purge", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1,
+ "undo_key_insert", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 0,
+ "undo_key_delete", TRUE, NULL, NULL}; // QQ: why not compressed?
 
 static LOG_DESC INIT_LOGREC_PREPARE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "prepare", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PREPARE_WITH_UNDO_PURGE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1,
+ "prepare_with_undo_purge", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT=
-{LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "commit", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT_WITH_UNDO_PURGE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1,
+ "commit_with_undo_purge", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CHECKPOINT=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "checkpoint", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_CREATE_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 1 + 2, NULL, NULL, NULL, 0,
+"redo_create_table", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_RENAME_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "redo_rename_table", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "redo_drop_table", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ALL=
 {LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE, FILEID_STORE_SIZE,
- NULL, NULL, NULL, 0};
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_delete_all", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_REPAIR_TABLE=
 {LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE + 4, FILEID_STORE_SIZE + 4,
- NULL, NULL, NULL, 0};
+ NULL, NULL, NULL, 0,
+ "redo_repair_table", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FILE_ID=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 4, NULL, NULL, NULL, 0};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 2, NULL, NULL, NULL, 0,
+ "file_id", TRUE, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
-{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0};
+{LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0,
+ "long_transaction_id", TRUE, NULL, NULL};
 
 const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
@@ -636,6 +608,56 @@ static my_bool translog_write_file_header()
 
 
 /*
+  Information from transaction log file header
+*/
+
+typedef struct st_loghandler_file_info
+{
+  ulonglong timestamp;   /* Time stamp */
+  ulong maria_version;   /* Version of maria loghandler */
+  ulong mysql_versiob;   /* Version of mysql server */
+  ulong server_id;       /* Server ID */
+  uint page_size;        /* Loghandler page size */
+  uint file_number;      /* Number of the file (from the file header) */
+} LOGHANDLER_FILE_INFO;
+
+/*
+  @brief Read hander file information from last opened loghandler file
+
+  @param desc header information descriptor to be filled with information
+
+  @retval 0 OK
+  @retval 1 Error
+*/
+
+my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc)
+{
+  byte page_buff[TRANSLOG_PAGE_SIZE], *ptr;
+  DBUG_ENTER("translog_read_file_header");
+
+  if (my_pread(log_descriptor.log_file_num[0], page_buff,
+               sizeof(page_buff), 0, MYF(MY_FNABP | MY_WME)))
+  {
+    DBUG_PRINT("info", ("log read fail error: %d", my_errno));
+    DBUG_RETURN(1);
+  }
+  ptr= page_buff + sizeof(maria_trans_file_magic);
+  desc->timestamp= uint8korr(ptr);
+  ptr+= 8;
+  desc->maria_version= uint4korr(ptr);
+  ptr+= 4;
+  desc->mysql_versiob= uint4korr(ptr);
+  ptr+= 4;
+  desc->server_id= uint4korr(ptr);
+  ptr+= 2;
+  desc->page_size= uint2korr(ptr);
+  ptr+= 2;
+  desc->file_number= uint3korr(ptr);
+  DBUG_RETURN(0);
+}
+
+
+/*
   Initialize transaction log file buffer
 
   SYNOPSIS
@@ -651,7 +673,7 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer)
 {
   DBUG_ENTER("translog_buffer_init");
   /* This buffer offset */
-  buffer->last_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
+  buffer->last_lsn= LSN_IMPOSSIBLE;
   /* This Buffer File */
   buffer->file= -1;
   buffer->overlay= 0;
@@ -729,7 +751,7 @@ static my_bool translog_create_new_file()
       translog_write_file_header())
     DBUG_RETURN(1);
 
-  if (ma_control_file_write_and_force(CONTROL_FILE_IMPOSSIBLE_LSN, file_no,
+  if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, file_no,
                                       CONTROL_FILE_UPDATE_ONLY_LOGNO))
     DBUG_RETURN(1);
 
@@ -1156,7 +1178,7 @@ static void translog_start_buffer(struct st_translog_buffer *buffer,
               (ulong) LSN_OFFSET(log_descriptor.horizon),
               (ulong) LSN_OFFSET(log_descriptor.horizon)));
   DBUG_ASSERT(buffer_no == buffer->buffer_no);
-  buffer->last_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
+  buffer->last_lsn= LSN_IMPOSSIBLE;
   buffer->offset= log_descriptor.horizon;
   buffer->file= log_descriptor.log_file_num[0];
   buffer->overlay= 0;
@@ -1958,6 +1980,7 @@ my_bool translog_init(const char *directory,
   int old_log_was_recovered= 0, logs_found= 0;
   uint old_flags= flags;
   TRANSLOG_ADDRESS sure_page, last_page, last_valid_page;
+  my_bool version_changed= 0;
   DBUG_ENTER("translog_init");
 
   loghandler_init();                            /* Safe to do many times */
@@ -2037,7 +2060,7 @@ my_bool translog_init(const char *directory,
                         i, (ulong) log_descriptor.buffers + i));
   }
 
-  logs_found= (last_logno != CONTROL_FILE_IMPOSSIBLE_FILENO);
+  logs_found= (last_logno != FILENO_IMPOSSIBLE);
 
   if (logs_found)
   {
@@ -2049,7 +2072,7 @@ my_bool translog_init(const char *directory,
 
       find the log end
     */
-    if (LSN_FILE_NO(last_checkpoint_lsn) == CONTROL_FILE_IMPOSSIBLE_FILENO)
+    if (LSN_FILE_NO(last_checkpoint_lsn) == FILENO_IMPOSSIBLE)
     {
       DBUG_ASSERT(LSN_OFFSET(last_checkpoint_lsn) == 0);
       /* there was no checkpoints we will read from the beginning */
@@ -2087,7 +2110,7 @@ my_bool translog_init(const char *directory,
 
     /* TODO: check page size */
 
-    last_valid_page= CONTROL_FILE_IMPOSSIBLE_LSN;
+    last_valid_page= LSN_IMPOSSIBLE;
     /* scan and validate pages */
     do
     {
@@ -2135,7 +2158,7 @@ my_bool translog_init(const char *directory,
       current_page= LSN_REPLACE_OFFSET(current_page, TRANSLOG_PAGE_SIZE);
     } while (LSN_FILE_NO(current_page) <= LSN_FILE_NO(last_page) &&
              !old_log_was_recovered);
-    if (last_valid_page == CONTROL_FILE_IMPOSSIBLE_LSN)
+    if (last_valid_page == LSN_IMPOSSIBLE)
     {
       /* Panic!!! Even page which should be valid is invalid */
       /* TODO: issue error */
@@ -2201,6 +2224,13 @@ my_bool translog_init(const char *directory,
                                    buffer->buffer)));
       DBUG_EXECUTE("info", translog_check_cursor(&log_descriptor.bc););
     }
+    if (!old_log_was_recovered && old_flags == flags)
+    {
+      LOGHANDLER_FILE_INFO info;
+      if (translog_read_file_header(&info))
+        DBUG_RETURN(1);
+      version_changed= (info.maria_version != TRANSLOG_VERSION_ID);
+    }
   }
   DBUG_PRINT("info", ("Logs found: %d  was recovered: %d",
                       logs_found, old_log_was_recovered));
@@ -2214,14 +2244,14 @@ my_bool translog_init(const char *directory,
          open_logfile_by_number_no_cache(1)) == -1 ||
         translog_write_file_header())
       DBUG_RETURN(1);
-    if (ma_control_file_write_and_force(CONTROL_FILE_IMPOSSIBLE_LSN, 1,
+    if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, 1,
                                         CONTROL_FILE_UPDATE_ONLY_LOGNO))
       DBUG_RETURN(1);
     /* assign buffer 0 */
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
     translog_new_page_header(&log_descriptor.horizon, &log_descriptor.bc);
   }
-  else if (old_log_was_recovered || old_flags != flags)
+  else if (old_log_was_recovered || old_flags != flags || version_changed)
   {
     /* leave the damaged file untouched */
     log_descriptor.horizon+= LSN_ONE_FILE;
@@ -2251,8 +2281,8 @@ my_bool translog_init(const char *directory,
     structures for generating 2-byte ids:
   */
   my_atomic_rwlock_init(&LOCK_id_to_share);
-  id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX*sizeof(MARIA_SHARE*),
-                                          MYF(MY_WME|MY_ZEROFILL));
+  id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX * sizeof(MARIA_SHARE*),
+                                          MYF(MY_WME | MY_ZEROFILL));
   if (unlikely(!id_to_share))
     DBUG_RETURN(1);
   id_to_share--; /* min id is 1 */
@@ -2347,7 +2377,7 @@ void translog_destroy()
     1  Error
 */
 
-static my_bool translog_lock()
+my_bool translog_lock()
 {
   struct st_translog_buffer *current_buffer;
   DBUG_ENTER("translog_lock");
@@ -2380,7 +2410,7 @@ static my_bool translog_lock()
     1  Error
 */
 
-static inline my_bool translog_unlock()
+my_bool translog_unlock()
 {
   DBUG_ENTER("translog_unlock");
   translog_buffer_unlock(log_descriptor.bc.buffer);
@@ -4233,7 +4263,7 @@ my_bool translog_write_record(LSN *lsn,
 
   if (share)
   {
-    if (!share->base.transactional)
+    if (!share->now_transactional)
     {
       DBUG_PRINT("info", ("It is not transactional table"));
       DBUG_RETURN(0);
@@ -4254,14 +4284,14 @@ my_bool translog_write_record(LSN *lsn,
   }
   if (unlikely(!(trn->first_undo_lsn & TRANSACTION_LOGGED_LONG_ID)))
   {
-    LSN lsn;
+    LSN dummy_lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[6];
     int6store(log_data, trn->trid);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID; /* no recursion */
-    if (unlikely(translog_write_record(&lsn, LOGREC_LONG_TRANSACTION_ID,
+    if (unlikely(translog_write_record(&dummy_lsn, LOGREC_LONG_TRANSACTION_ID,
                                        trn, NULL, sizeof(log_data),
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, NULL)))
@@ -4301,12 +4331,12 @@ my_bool translog_write_record(LSN *lsn,
   {
     uint i;
     uint len= 0;
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
     ha_checksum checksum= 0;
 #endif
     for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
     {
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
       /* Find unitialized bytes early */
       checksum+= my_checksum(checksum, parts_data[i].str,
                              parts_data[i].length);
@@ -4346,6 +4376,8 @@ my_bool translog_write_record(LSN *lsn,
     }
   }
 
+  DBUG_PRINT("info", ("LSN: (%lu,0x%lx)", (ulong) LSN_FILE_NO(*lsn),
+                      (ulong) LSN_OFFSET(*lsn)));
   DBUG_RETURN(rc);
 }
 
@@ -5035,7 +5067,7 @@ translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
     - it is like translog_read_record_header, but read next record, so see
       its NOTES.
     - in case of end of the log buff->lsn will be set to
-      (CONTROL_FILE_IMPOSSIBLE_LSN)
+      (LSN_IMPOSSIBLE)
 
   RETURN
     0                                    error
@@ -5080,7 +5112,7 @@ translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
   if (scanner->page[scanner->page_offset] == 0)
   {
     /* Last record was read */
-    buff->lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
+    buff->lsn= LSN_IMPOSSIBLE;
     /* Return 'end of log' marker */
     DBUG_RETURN(TRANSLOG_RECORD_HEADER_MAX_SIZE + 1);
   }
@@ -5242,7 +5274,7 @@ translog_size_t translog_read_record(LSN lsn,
 
   if (data == NULL)
   {
-    DBUG_ASSERT(lsn != CONTROL_FILE_IMPOSSIBLE_LSN);
+    DBUG_ASSERT(lsn != LSN_IMPOSSIBLE);
     data= &internal_data;
   }
   if (lsn ||
@@ -5583,6 +5615,16 @@ static my_bool write_hook_for_redo(enum translog_record_type type
                                    __attribute__ ((unused)))
 {
   /*
+    Users of dummy_transaction_object must keep this TRN clean as it
+    is used by many threads (like those manipulating non-transactional
+    tables). It might be dangerous if one user sets rec_lsn or some other
+    member and it is picked up by another user (like putting this rec_lsn into
+    a page of a non-transactional table); it's safer if all members stay 0. So
+    non-transactional log records (REPAIR, CREATE, RENAME, DROP) should not
+    call this hook; we trust them but verify ;)
+  */
+  DBUG_ASSERT(trn->trid != 0);
+  /*
     If the hook stays so simple, it would be faster to pass
     !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
     to translog_write_record(), like Monty did in his original code, and not
@@ -5608,6 +5650,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
+  DBUG_ASSERT(trn->trid != 0); /* see write_hook_for_redo() */
   trn->undo_lsn= *lsn;
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=
@@ -5649,21 +5692,23 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
   if (likely(share->id == 0))
   {
     /* Inspired by set_short_trid() of trnman.c */
-    int i= share->kfile.file % SHARE_ID_MAX + 1;
-    my_atomic_rwlock_wrlock(&LOCK_id_to_share);
-    /**
-       @todo RECOVERY BUG: if all slots are used, and we're using rwlocks
-       above, we will never exit the loop. To be discussed with Serg.
-    */
-    for ( ; ; i= i % SHARE_ID_MAX + 1) /* the range is [1..SHARE_ID_MAX] */
+    uint i= share->kfile.file % SHARE_ID_MAX + 1;
+    do
     {
-      void *tmp= NULL;
-      if (id_to_share[i] == NULL &&
-          my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
-        break;
-    }
-    my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
-    share->id= (uint16)i;
+      my_atomic_rwlock_wrlock(&LOCK_id_to_share);
+      for ( ; i <= SHARE_ID_MAX ; i++) /* the range is [1..SHARE_ID_MAX] */
+      {
+        void *tmp= NULL;
+        if (id_to_share[i] == NULL &&
+            my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
+        {
+          share->id= (uint16)i;
+          break;
+        }
+      }
+      my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
+      i= 1; /* scan the whole array */
+    } while (share->id == 0);
     DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, i));
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
@@ -5681,7 +5726,7 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
        strlen()
     */
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
-      strlen(share->open_file_name);
+      strlen(share->open_file_name) + 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, share,
                                        sizeof(log_data) +
                                        log_array[TRANSLOG_INTERNAL_PARTS +
@@ -5714,4 +5759,16 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
+}
+
+
+/**
+   @brief returns the LSN of the first record starting in this log
+
+   @note so far works only for the very first log created on this system
+*/
+
+LSN first_lsn_in_log()
+{
+  return MAKE_LSN(1, TRANSLOG_PAGE_SIZE + log_descriptor.page_overhead);
 }

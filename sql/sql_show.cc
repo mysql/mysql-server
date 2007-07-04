@@ -1323,6 +1323,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) share->row_type]);
     }
+    if (share->transactional != HA_CHOICE_UNDEF)
+    {
+      packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
+      packet->append(share->transactional == HA_CHOICE_YES ? "1" : "0", 1);
+    }
     if (table->s->key_block_size)
     {
       char *end;
@@ -2896,8 +2901,8 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     case ROW_TYPE_COMPACT:
       tmp_buff= "Compact";
       break;
-    case ROW_TYPE_PAGES:
-      tmp_buff= "Paged";
+    case ROW_TYPE_PAGE:
+      tmp_buff= "Page";
       break;
     }
     table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
