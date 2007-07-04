@@ -23,7 +23,8 @@ use IO::File();
 use strict;
 
 sub collect_test_cases ($);
-sub collect_one_test_case ($$$$$$$);
+sub collect_one_suite ($$);
+sub collect_one_test_case ($$$$$$$$$);
 
 sub mtr_options_from_test_file($$);
 
@@ -34,147 +35,39 @@ sub mtr_options_from_test_file($$);
 ##############################################################################
 
 sub collect_test_cases ($) {
-  my $suite= shift;             # Test suite name
+  my $suites= shift; # Semicolon separated list of test suites
+  my $cases = [];    # Array of hash
 
-  my $testdir;
-  my $resdir;
-
-  if ( $suite eq "main" )
+  foreach my $suite (split(",", $suites))
   {
-    $testdir= "$::glob_mysql_test_dir/t";
-    $resdir=  "$::glob_mysql_test_dir/r";
-  }
-  else
-  {
-    $testdir= "$::glob_mysql_test_dir/suite/$suite/t";
-    $resdir=  "$::glob_mysql_test_dir/suite/$suite/r";
+    collect_one_suite($suite, $cases);
   }
 
-  my $cases = [];           # Array of hash, will be array of C struct
-
-  opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
-
-  # ----------------------------------------------------------------------
-  # Disable some tests listed in disabled.def
-  # ----------------------------------------------------------------------
-  my %disabled;
-  if ( open(DISABLED, "$testdir/disabled.def" ) )
-  {
-    while ( <DISABLED> )
-      {
-        chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-          {
-            $disabled{$1}= $2;
-          }
-      }
-    close DISABLED;
-  }
 
   if ( @::opt_cases )
   {
+    # Check that the tests specified was found
+    # in at least one suite
     foreach my $tname ( @::opt_cases )
     {
-      # Run in specified order, no sort
-      my $elem= undef;
-      my $component_id= undef;
-
-      # Get rid of directory part (path). Leave the extension since it is used
-      # to understand type of the test.
-
-      $tname = basename($tname);
-
-      # Check if the extenstion has been specified.
-
-      if ( mtr_match_extension($tname, "test") )
+      my $found= 0;
+      foreach my $test ( @$cases )
       {
-        $elem= $tname;
-        $tname=~ s/\.test$//;
-        $component_id= 'mysqld';
+	if ( mtr_match_extension($test->{'name'}, $tname) )
+	{
+	  $found= 1;
+	}
       }
-      elsif ( mtr_match_extension($tname, "imtest") )
+      if ( not $found )
       {
-        $elem= $tname;
-        $tname =~ s/\.imtest$//;
-        $component_id= 'im';
+	mtr_error("Could not find $tname in any suite");
       }
-
-      # If target component is known, check that the specified test case
-      # exists.
-      #
-      # Otherwise, try to guess the target component.
-
-      if ( $component_id )
-      {
-        if ( ! -f "$testdir/$elem")
-        {
-          mtr_error("Test case $tname ($testdir/$elem) is not found");
-        }
-      }
-      else
-      {
-        my $mysqld_test_exists = -f "$testdir/$tname.test";
-        my $im_test_exists = -f "$testdir/$tname.imtest";
-
-        if ( $mysqld_test_exists and $im_test_exists )
-        {
-          mtr_error("Ambiguous test case name ($tname)");
-        }
-        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
-        {
-          mtr_error("Test case $tname is not found");
-        }
-        elsif ( $mysqld_test_exists )
-        {
-          $elem= "$tname.test";
-          $component_id= 'mysqld';
-        }
-        elsif ( $im_test_exists )
-        {
-          $elem= "$tname.imtest";
-          $component_id= 'im';
-        }
-      }
-
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
-        $component_id);
     }
-    closedir TESTDIR;
-  }
-  else
-  {
-    foreach my $elem ( sort readdir(TESTDIR) )
-    {
-      my $component_id= undef;
-      my $tname= undef;
-
-      if ($tname= mtr_match_extension($elem, 'test'))
-      {
-        $component_id = 'mysqld';
-      }
-      elsif ($tname= mtr_match_extension($elem, 'imtest'))
-      {
-        $component_id = 'im';
-      }
-      else
-      {
-        next;
-      }
-
-      # Skip tests that does not match the --do-test= filter
-      next if $::opt_do_test and
-	! defined mtr_match_prefix($elem,$::opt_do_test);
-
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
-        $component_id);
-    }
-    closedir TESTDIR;
   }
 
-  # Reorder the test cases in an order that will make them faster to run
   if ( $::opt_reorder )
   {
-
+    # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
 
     # Make a mapping of test name to a string that represents how that test
@@ -247,6 +140,160 @@ sub collect_test_cases ($) {
   }
 
   return $cases;
+
+}
+
+sub collect_one_suite($$)
+{
+  my $suite= shift;  # Test suite name
+  my $cases= shift;  # List of test cases
+
+  mtr_verbose("Collecting: $suite");
+
+  my $testdir;
+  my $resdir;
+
+  if ( $suite eq "main" )
+  {
+    $testdir= "$::glob_mysql_test_dir/t";
+    $resdir=  "$::glob_mysql_test_dir/r";
+  }
+  else
+  {
+    $testdir= "$::glob_mysql_test_dir/suite/$suite/t";
+    $resdir=  "$::glob_mysql_test_dir/suite/$suite/r";
+  }
+
+  # ----------------------------------------------------------------------
+  # Build a hash of disabled testcases for this suite
+  # ----------------------------------------------------------------------
+  my %disabled;
+  if ( open(DISABLED, "$testdir/disabled.def" ) )
+  {
+    while ( <DISABLED> )
+      {
+        chomp;
+        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+          {
+            $disabled{$1}= $2;
+          }
+      }
+    close DISABLED;
+  }
+
+  # Read suite.opt file
+  my $suite_opt_file=  "$testdir/suite.opt";
+  my $suite_opts= [];
+  if ( -f $suite_opt_file )
+  {
+    $suite_opts= mtr_get_opts_from_file($suite_opt_file);
+  }
+
+  if ( @::opt_cases )
+  {
+    # Collect in specified order, no sort
+    foreach my $tname ( @::opt_cases )
+    {
+      my $elem= undef;
+      my $component_id= undef;
+
+      # Get rid of directory part (path). Leave the extension since it is used
+      # to understand type of the test.
+
+      $tname = basename($tname);
+
+      # Check if the extenstion has been specified.
+
+      if ( mtr_match_extension($tname, "test") )
+      {
+        $elem= $tname;
+        $tname=~ s/\.test$//;
+        $component_id= 'mysqld';
+      }
+      elsif ( mtr_match_extension($tname, "imtest") )
+      {
+        $elem= $tname;
+        $tname =~ s/\.imtest$//;
+        $component_id= 'im';
+      }
+
+      # If target component is known, check that the specified test case
+      # exists.
+      #
+      # Otherwise, try to guess the target component.
+
+      if ( $component_id )
+      {
+        if ( ! -f "$testdir/$elem")
+        {
+          mtr_error("Test case $tname ($testdir/$elem) is not found");
+        }
+      }
+      else
+      {
+        my $mysqld_test_exists = -f "$testdir/$tname.test";
+        my $im_test_exists = -f "$testdir/$tname.imtest";
+
+        if ( $mysqld_test_exists and $im_test_exists )
+        {
+          mtr_error("Ambiguous test case name ($tname)");
+        }
+        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
+        {
+	  # Silently skip, could exist in another suite
+	  next;
+        }
+        elsif ( $mysqld_test_exists )
+        {
+          $elem= "$tname.test";
+          $component_id= 'mysqld';
+        }
+        elsif ( $im_test_exists )
+        {
+          $elem= "$tname.imtest";
+          $component_id= 'im';
+        }
+      }
+
+      collect_one_test_case($testdir,$resdir,$suite,$tname,
+                            $elem,$cases,\%disabled,$component_id,
+			    $suite_opts);
+    }
+  }
+  else
+  {
+    opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
+
+    foreach my $elem ( sort readdir(TESTDIR) )
+    {
+      my $component_id= undef;
+      my $tname= undef;
+
+      if ($tname= mtr_match_extension($elem, 'test'))
+      {
+        $component_id = 'mysqld';
+      }
+      elsif ($tname= mtr_match_extension($elem, 'imtest'))
+      {
+        $component_id = 'im';
+      }
+      else
+      {
+        next;
+      }
+
+      # Skip tests that does not match the --do-test= filter
+      next if $::opt_do_test and
+	! defined mtr_match_prefix($elem,$::opt_do_test);
+
+      collect_one_test_case($testdir,$resdir,$suite,$tname,
+                            $elem,$cases,\%disabled,$component_id,
+			    $suite_opts);
+    }
+    closedir TESTDIR;
+  }
+
+  return $cases;
 }
 
 
@@ -257,14 +304,16 @@ sub collect_test_cases ($) {
 ##############################################################################
 
 
-sub collect_one_test_case($$$$$$$) {
+sub collect_one_test_case($$$$$$$$$) {
   my $testdir= shift;
   my $resdir=  shift;
+  my $suite=   shift;
   my $tname=   shift;
   my $elem=    shift;
   my $cases=   shift;
   my $disabled=shift;
   my $component_id= shift;
+  my $suite_opts= shift;
 
   my $path= "$testdir/$elem";
 
@@ -279,7 +328,7 @@ sub collect_one_test_case($$$$$$$) {
 
 
   my $tinfo= {};
-  $tinfo->{'name'}= $tname;
+  $tinfo->{'name'}= "$suite.$tname";
   $tinfo->{'result_file'}= "$resdir/$tname.result";
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
@@ -334,6 +383,15 @@ sub collect_one_test_case($$$$$$$) {
   $tinfo->{'slave_opt'}=  [];
   $tinfo->{'slave_mi'}=   [];
 
+  # Add suite opts
+  foreach my $opt ( @$suite_opts )
+  {
+    mtr_verbose($opt);
+    push(@{$tinfo->{'master_opt'}}, $opt);
+    push(@{$tinfo->{'slave_opt'}}, $opt);
+  }
+
+  # Add master opts
   if ( -f $master_opt_file )
   {
 
@@ -394,6 +452,7 @@ sub collect_one_test_case($$$$$$$) {
     }
   }
 
+  # Add slave opts
   if ( -f $slave_opt_file )
   {
     my $slave_opt= mtr_get_opts_from_file($slave_opt_file);
