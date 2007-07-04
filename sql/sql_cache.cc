@@ -765,6 +765,18 @@ void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 }
 
 
+/*
+  The following function forms part of the C plugin API
+*/
+extern "C"
+void mysql_query_cache_invalidate4(THD *thd,
+                                   const char *key, unsigned key_length,
+                                   int using_trx)
+{
+  query_cache.invalidate(thd, key, (uint32) key_length, (my_bool) using_trx);
+}
+
+
 /*****************************************************************************
    Query_cache methods
 *****************************************************************************/

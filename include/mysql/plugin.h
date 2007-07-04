@@ -24,6 +24,32 @@ class Item;
 #define MYSQL_THD void*
 #endif
 
+#ifndef _m_string_h
+/* This definition must match the one given in m_string.h */
+struct st_mysql_lex_string
+{
+  char *str;
+  unsigned int length;
+};
+#endif /* _m_string_h */
+typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+
+#define MYSQL_XIDDATASIZE 128
+/**
+  struct st_mysql_xid is binary compatible with the XID structure as
+  in the X/Open CAE Specification, Distributed Transaction Processing:
+  The XA Specification, X/Open Company Ltd., 1991.
+  http://www.opengroup.org/bookstore/catalog/c193.htm
+
+  @see XID in sql/handler.h
+*/
+struct st_mysql_xid {
+  long formatID;
+  long gtrid_length;
+  long bqual_length;
+  char data[MYSQL_XIDDATASIZE];  /* Not \0-terminated */
+};
+typedef struct st_mysql_xid MYSQL_XID;
 
 /*************************************************************************
   Plugin API. Common for all plugin types.
@@ -657,6 +683,103 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
+
+/**
+  Create a temporary file.
+
+  @details
+  The temporary file is created in a location specified by the mysql
+  server configuration (--tmpdir option).  The caller does not need to
+  delete the file, it will be deleted automatically.
+
+  @param prefix  prefix for temporary file name
+  @retval -1    error
+  @retval >= 0  a file handle that can be passed to dup or my_close
+*/
+int mysql_tmpfile(const char *prefix);
+
+/**
+  Check the killed state of a connection
+
+  @details
+  In MySQL support for the KILL statement is cooperative. The KILL
+  statement only sets a "killed" flag. This function returns the value
+  of that flag.  A thread should check it often, especially inside
+  time-consuming loops, and gracefully abort the operation if it is
+  non-zero.
+
+  @param thd  user thread connection handle
+  @retval 0  the connection is active
+  @retval 1  the connection has been killed
+*/
+int thd_killed(const MYSQL_THD thd);
+
+/**
+  Allocate memory in the connection's local memory pool
+
+  @details
+  When properly used in place of @c my_malloc(), this can significantly
+  improve concurrency. Don't use this or related functions to allocate
+  large chunks of memory. Use for temporary storage only. The memory
+  will be freed automatically at the end of the statement; no explicit
+  code is required to prevent memory leaks.
+
+  @see alloc_root()
+*/
+void *thd_alloc(MYSQL_THD thd, unsigned int size);
+/**
+  @see thd_alloc()
+*/
+void *thd_calloc(MYSQL_THD thd, unsigned int size);
+/**
+  @see thd_alloc()
+*/
+char *thd_strdup(MYSQL_THD thd, const char *str);
+/**
+  @see thd_alloc()
+*/
+char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size);
+/**
+  @see thd_alloc()
+*/
+void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
+
+/**
+  Create a LEX_STRING in this connection's local memory pool
+
+  @param thd      user thread connection handle
+  @param lex_str  pointer to LEX_STRING object to be initialized
+  @param str      initializer to be copied into lex_str
+  @param length   length of str, in bytes
+  @param allocate_lex_string  flag: if TRUE, allocate new LEX_STRING object,
+                              instead of using lex_str value
+  @return  NULL on failure, or pointer to the LEX_STRING object
+
+  @see thd_alloc()
+*/
+MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
+                                      const char *str, unsigned int size,
+                                      int allocate_lex_string);
+
+/**
+  Get the XID for this connection's transaction
+
+  @param thd  user thread connection handle
+  @param xid  location where identifier is stored
+*/
+void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
+
+/**
+  Invalidate the query cache for a given table.
+
+  @param thd         user thread connection handle
+  @param key         databasename\0tablename\0
+  @param key_length  length of key in bytes, including the NUL bytes
+  @param using_trx   flag: TRUE if using transactions, FALSE otherwise
+*/
+void mysql_query_cache_invalidate4(MYSQL_THD thd,
+                                   const char *key, unsigned int key_length,
+                                   int using_trx);
 
 #ifdef __cplusplus
 }
