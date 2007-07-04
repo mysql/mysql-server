@@ -11868,7 +11868,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     sendEMPTY_LCP_CONF(signal, true);
   }
 
-  if (getNodeState().getNodeRestartInProgress())
+  if (getNodeState().getNodeRestartInProgress() && cstartRecReq != 3)
   {
     jam();
     ndbrequire(cstartRecReq == 2);
