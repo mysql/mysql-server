@@ -3761,9 +3761,9 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       }
     }
     if (db_host_count > 1 && node_group_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:\n%s",node_group_warning.c_str());
+      ctx.reportWarning("Cluster configuration warning:\n%s",node_group_warning.c_str());
     if (db_host_count > 1 && arbitration_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
+      ctx.reportWarning("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
 	       "\n  Running arbitrator on the same host as a database node may"
 	       "\n  cause complete cluster shutdown in case of host failure.");
   }
