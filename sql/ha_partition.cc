@@ -2961,8 +2961,34 @@ int ha_partition::rnd_init(bool scan)
   uint32 part_id;
   DBUG_ENTER("ha_partition::rnd_init");
 
-  include_partition_fields_in_used_fields();
-  
+  /*
+    For operations that may need to change data, we may need to extend
+    read_set.
+  */
+  if (m_lock_type == F_WRLCK)
+  {
+    /*
+      If write_set contains any of the fields used in partition and
+      subpartition expression, we need to set all bits in read_set because
+      the row may need to be inserted in a different [sub]partition. In
+      other words update_row() can be converted into write_row(), which
+      requires a complete record.
+    */
+    if (bitmap_is_overlapping(&m_part_info->full_part_field_set,
+                              table->write_set))
+      bitmap_set_all(table->read_set);
+    else
+    {
+      /*
+        Some handlers only read fields as specified by the bitmap for the
+        read set. For partitioned handlers we always require that the
+        fields of the partition functions are read such that we can
+        calculate the partition id to place updated and deleted records.
+      */
+      bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+    }
+  }
+
   /* Now we see what the index of our first important partition is */
   DBUG_PRINT("info", ("m_part_info->used_partitions: 0x%lx",
                       (long) m_part_info->used_partitions.bitmap));
@@ -3276,7 +3302,15 @@ int ha_partition::index_init(uint inx, bool sorted)
   m_start_key.length= 0;
   m_ordered= sorted;
   m_curr_key_info= table->key_info+inx;
-  include_partition_fields_in_used_fields();
+  /*
+    Some handlers only read fields as specified by the bitmap for the
+    read set. For partitioned handlers we always require that the
+    fields of the partition functions are read such that we can
+    calculate the partition id to place updated and deleted records.
+    But this is required for operations that may need to change data only.
+  */
+  if (m_lock_type == F_WRLCK)
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
   file= m_file;
   do
   {
@@ -4142,35 +4176,6 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
   DBUG_RETURN(0);
-}
-
-
-/*
-  Set fields in partition functions in read set for underlying handlers
-
-  SYNOPSIS
-    include_partition_fields_in_used_fields()
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    Some handlers only read fields as specified by the bitmap for the
-    read set. For partitioned handlers we always require that the
-    fields of the partition functions are read such that we can
-    calculate the partition id to place updated and deleted records.
-*/
-
-void ha_partition::include_partition_fields_in_used_fields()
-{
-  Field **ptr= m_part_field_array;
-  DBUG_ENTER("ha_partition::include_partition_fields_in_used_fields");
-
-  do
-  {
-    bitmap_set_bit(table->read_set, (*ptr)->field_index);
-  } while (*(++ptr));
-  DBUG_VOID_RETURN;
 }
 
 
