@@ -7130,5 +7130,17 @@ DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
 
+#
+# Bug#28551 "The warning 'No database selected' is reported when calling
+# stored procedures"
+#
+--disable_warnings
+drop database if exists mysqltest_db1;
+--enable_warnings
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+drop database mysqltest_db1;
 
 --echo End of 5.0 tests

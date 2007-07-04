@@ -1873,15 +1873,11 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
   DBUG_PRINT("enter", ("newdb: %s", new_db.str));
 
   /*
-    Set new_db to an empty string if it's NULL, because mysql_change_db
-    requires a non-NULL argument.
-    new_db.str can be NULL only if we're restoring the old database after
-    execution of a stored procedure and there were no current database
-    selected. The stored procedure itself must always have its database
-    initialized.
+    A stored routine always belongs to some database. The
+    old database (old_db) might be NULL, but to restore the
+    old database we will use mysql_change_db.
   */
-  if (new_db.str == NULL)
-    new_db.str= empty_c_string;
+  DBUG_ASSERT(new_db.str && new_db.length);
 
   if (thd->db)
   {
