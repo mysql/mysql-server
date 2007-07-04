@@ -5245,6 +5245,29 @@ err1:
   return 1;
 }
 
+
+#ifdef INNODB_COMPATIBILITY_HOOKS
+/**
+  Get the file name of the MySQL binlog.
+  @return the name of the binlog file
+*/
+extern "C"
+const char* mysql_bin_log_file_name(void)
+{
+  return mysql_bin_log.get_log_fname();
+}
+/**
+  Get the current position of the MySQL binlog.
+  @return byte offset from the beginning of the binlog
+*/
+extern "C"
+ulonglong mysql_bin_log_file_pos(void)
+{
+  return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
+}
+#endif /* INNODB_COMPATIBILITY_HOOKS */
+
+
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 

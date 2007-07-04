@@ -23,6 +23,17 @@
 #define HAVE_EXTERNAL_CLIENT
 #endif
 
+/*
+  InnoDB depends on some MySQL internals which other plugins should not
+  need.  This is because of InnoDB's foreign key support, "safe" binlog
+  truncation, and other similar legacy features.
+
+  We define accessors for these internals unconditionally, but do not
+  expose them in mysql/plugin.h.  They are declared in ha_innodb.h for
+  InnoDB's use.
+*/
+#define INNODB_COMPATIBILITY_HOOKS
+
 #ifdef __CYGWIN__
 /* We use a Unix API, so pretend it's not Windows */
 #undef WIN

@@ -490,13 +490,6 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
-  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str,
-                              size_t size)
-  {
-    return ((lex_str->str= 
-             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
-  }
-
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
   inline void *memdup_w_gap(const void *str, size_t size, uint gap)
@@ -1593,6 +1586,10 @@ public:
   {
     return alloc_root(&transaction.mem_root,size);
   }
+
+  LEX_STRING *make_lex_string(LEX_STRING *lex_str,
+                              const char* str, uint length,
+                              bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
