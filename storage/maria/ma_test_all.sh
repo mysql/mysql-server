@@ -9,6 +9,8 @@
 # Remove # from following line if you need some more information
 #set -x -v -e
 
+set -e # abort at first failure
+
 valgrind="valgrind --alignment=8 --leak-check=yes"
 silent="-s"
 suffix=""
@@ -196,15 +198,19 @@ run_repair_tests "-M -T"
 run_pack_tests "-M -T"
 
 #
-# Tests that gives warnings
+# Tests that gives warnings or errors
 #
 
 $maria_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500
 $maria_path/maria_chk$suffix -sm test2
 echo "ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135"
-$maria_path/ma_test2$suffix $silent -L -K -R1 -m2000
+$maria_path/ma_test2$suffix $silent -L -K -R1 -m2000 >ma_test2_message.txt 2>&1 && false # success is failure
+cat ma_test2_message.txt
+grep "Error: 135" ma_test2_message.txt > /dev/null
 echo "$maria_path/maria_chk$suffix -sm test2 will warn that 'Datafile is almost full'"
-$maria_path/maria_chk$suffix -sm test2
+$maria_path/maria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1
+cat ma_test2_message.txt
+grep "warning: Datafile is almost full" ma_test2_message.txt >/dev/null
 $maria_path/maria_chk$suffix -ssm test2
 
 #

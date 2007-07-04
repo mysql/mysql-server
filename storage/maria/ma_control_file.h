@@ -18,7 +18,7 @@
   First version written by Guilhem Bichot on 2006-04-27.
 */
 
-#define CONTROL_FILE_BASE_NAME "maria_control"
+#define CONTROL_FILE_BASE_NAME "maria_log_control"
 
 /* Here is the interface of this module */
 

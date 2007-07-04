@@ -1925,7 +1925,11 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
   Recover old table by reading each record and writing all keys
 
   NOTES
-    Save new datafile-name in temp_filename
+    Save new datafile-name in temp_filename.
+    We overwrite the index file as we go (writekeys() for example), so if we
+    crash during this the table is unusable and user (or Recovery in the
+    future) must repeat the REPAIR/OPTIMIZE operation. We could use a
+    temporary index file in the future (drawback: more disk space).
 
   IMPLEMENTATION (for hard repair with block format)
    - Create new, unrelated MARIA_HA of the table
