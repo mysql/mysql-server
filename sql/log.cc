@@ -85,7 +85,7 @@ bool binlog_init()
 static int binlog_close_connection(THD *thd)
 {
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
-  DBUG_ASSERT(mysql_bin_log.is_open() && !my_b_tell(trans_log));
+  DBUG_ASSERT(!my_b_tell(trans_log));
   close_cached_file(trans_log);
   my_free((gptr)trans_log, MYF(0));
   return 0;
@@ -126,7 +126,7 @@ static int binlog_commit(THD *thd, bool all)
 {
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   DBUG_ENTER("binlog_commit");
-  DBUG_ASSERT(mysql_bin_log.is_open() &&
+  DBUG_ASSERT(
      (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))));
 
   if (my_b_tell(trans_log) == 0)
@@ -155,7 +155,7 @@ static int binlog_rollback(THD *thd, bool all)
     unnecessary, doing extra work. The cause should be found and eliminated
   */
   DBUG_ASSERT(all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
-  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
+  DBUG_ASSERT(my_b_tell(trans_log));
   /*
     Update the binary log with a BEGIN/ROLLBACK block if we have
     cached some queries and we updated some non-transactional
@@ -198,7 +198,7 @@ static int binlog_savepoint_set(THD *thd, void *sv)
 {
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   DBUG_ENTER("binlog_savepoint_set");
-  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
+  DBUG_ASSERT(my_b_tell(trans_log));
 
   *(my_off_t *)sv= my_b_tell(trans_log);
   /* Write it to the binary log */
@@ -210,7 +210,7 @@ static int binlog_savepoint_rollback(THD *thd, void *sv)
 {
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
   DBUG_ENTER("binlog_savepoint_rollback");
-  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
+  DBUG_ASSERT(my_b_tell(trans_log));
 
   /*
     Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
