@@ -28,7 +28,7 @@
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
-drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
+drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
 
@@ -707,7 +707,66 @@ DISCONNECT c2;
 DROP TABLE t1,t2;
 
 
+#
+# Bug #25798: a query with forced index merge returns wrong result 
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL auto_increment PRIMARY KEY,
+  b int NOT NULL,
+  c datetime NOT NULL,
+  INDEX idx_b(b),
+  INDEX idx_c(c)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  b int NOT NULL auto_increment PRIMARY KEY,
+  c datetime NOT NULL
+) ENGINE= MyISAM;
+
+INSERT INTO t2(c) VALUES ('2007-01-01');
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-02';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-03';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+set @@sort_buffer_size=8192;
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+set @@sort_buffer_size=default;
+
+DROP TABLE t1,t2;
+
+
 --echo End of 5.0 tests
+
 
 #
 # Test of behaviour with CREATE ... SELECT
