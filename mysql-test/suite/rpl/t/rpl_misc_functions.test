@@ -43,15 +43,16 @@ drop table t1;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-CREATE TABLE t1 (col_a double default NULL);
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  col_a DOUBLE DEFAULT NULL);
 
 DELIMITER |;
 
 # Use a SP that calls rand() multiple times
 CREATE PROCEDURE test_replication_sp1()
 BEGIN
- INSERT INTO t1 VALUES (rand()), (rand());
- INSERT INTO t1 VALUES (rand());
+ INSERT INTO t1 (col_a) VALUES (rand()), (rand());
+ INSERT INTO t1 (col_a) VALUES (rand());
 END|
 
 # Use a SP that calls another SP to call rand() multiple times
@@ -73,9 +74,9 @@ DELIMITER ;|
 # the master to those on the slave.
 CALL test_replication_sp1();
 CALL test_replication_sp2();
-INSERT INTO t1 VALUES (test_replication_sf());
-INSERT INTO t1 VALUES (test_replication_sf());
-INSERT INTO t1 VALUES (test_replication_sf());
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 
 --sync_slave_with_master
 
@@ -90,14 +91,14 @@ load data infile '../tmp/t1_slave.txt' into table t1_slave;
 
 # Compare master and slave temp table, use subtraction
 # for floating point comparison of "double"
-select count(*) into @aux from t1, t1_slave
-where ABS(t1.col_a - t1_slave.col_a) < 0.0001 ;
+select count(*) into @aux from t1 join t1_slave using (id)
+where ABS(t1.col_a - t1_slave.col_a) < 0.0000001 ;
 SELECT @aux;
 if (`SELECT @aux <> 12 OR @aux IS NULL`)
 {
    --echo # ERROR: We expected to get count(*) = 12.
-   SELECT col_a FROM t1;
-   SELECT col_a FROM t1_slave;
+   SELECT id, col_a FROM t1;
+   SELECT id, col_a FROM t1_slave;
    --echo # abort
    exit;
 }
