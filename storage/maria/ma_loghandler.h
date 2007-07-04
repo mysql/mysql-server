@@ -295,7 +295,7 @@ typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
 
 typedef uint16(*read_rec_hook) (enum translog_record_type type,
                                 uint16 read_length, uchar *read_buff,
-                                byte *decoded_buff);
+                                uchar *decoded_buff);
 
 
 /* record classes */

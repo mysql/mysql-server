@@ -180,9 +180,9 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
-                                            const byte *header,
-                                            const byte *data,
+                                            const uchar *header,
+                                            const uchar *data,
                                             size_t data_length);
 uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            uint page_type,
-                                           const byte *header);
+                                           const uchar *header);

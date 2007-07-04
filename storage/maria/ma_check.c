@@ -2060,7 +2060,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       goto err;
   }
 
-  if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
+  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))) ||
       _ma_alloc_buffer(&sort_param.rec_buff, &sort_param.rec_buff_size,
                        info->s->base.default_rec_buff_size))
@@ -5373,7 +5373,7 @@ static void copy_data_file_state(MARIA_STATE_INFO *to,
 
 
 static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
-                                      MARIA_HA *info, byte *record)
+                                      MARIA_HA *info, uchar *record)
 {
   uint record_pos= info->cur_row.nextpos;
   ulonglong page= sort_info->page;
@@ -5385,7 +5385,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
     if (likely(record_pos < info->scan.number_of_rows))
     {
       uint length, offset;
-      byte *data, *end_of_data;
+      uchar *data, *end_of_data;
       char llbuff[22];
 
       while (!(offset= uint2korr(info->scan.dir)))

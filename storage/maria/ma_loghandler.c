@@ -632,7 +632,7 @@ typedef struct st_loghandler_file_info
 
 my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc)
 {
-  byte page_buff[TRANSLOG_PAGE_SIZE], *ptr;
+  uchar page_buff[TRANSLOG_PAGE_SIZE], *ptr;
   DBUG_ENTER("translog_read_file_header");
 
   if (my_pread(log_descriptor.log_file_num[0], page_buff,

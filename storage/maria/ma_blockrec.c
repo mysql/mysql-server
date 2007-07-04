@@ -999,7 +999,7 @@ static void compact_page(uchar *buff, uint block_size, uint rownr,
     EMPTY_SPACE is not updated
 */
 
-static void make_empty_page(byte *buff, uint block_size, uint page_type)
+static void make_empty_page(uchar *buff, uint block_size, uint page_type)
 {
 
   bzero(buff, PAGE_HEADER_SIZE);
@@ -1010,7 +1010,7 @@ static void make_empty_page(byte *buff, uint block_size, uint page_type)
     PAGE_OVERHEAD_SIZE
   */
   bzero(buff+ PAGE_HEADER_SIZE, block_size - PAGE_HEADER_SIZE);
-  buff[PAGE_TYPE_OFFSET]= (byte) page_type;
+  buff[PAGE_TYPE_OFFSET]= (uchar) page_type;
   buff[DIR_COUNT_OFFSET]= 1;
   /* Store position to the first row */
   int2store(buff + block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE,
@@ -2509,12 +2509,12 @@ err:
     1     Page is now empty
 */
   
-static int delete_dir_entry(byte *buff, uint block_size, uint record_number,
+static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
                             uint *empty_space_res)
 {
   uint number_of_records= (uint) ((uchar *) buff)[DIR_COUNT_OFFSET];
   uint length, empty_space;
-  byte *dir;
+  uchar *dir;
   DBUG_ENTER("delete_dir_entry");
 
 #ifdef SANITY_CHECKS
@@ -2538,21 +2538,21 @@ static int delete_dir_entry(byte *buff, uint block_size, uint record_number,
   if (record_number == number_of_records - 1)
   {
     /* Delete this entry and all following empty directory entries */
-    byte *end= buff + block_size - PAGE_SUFFIX_SIZE;
+    uchar *end= buff + block_size - PAGE_SUFFIX_SIZE;
     do
     {
       number_of_records--;
       dir+= DIR_ENTRY_SIZE;
       empty_space+= DIR_ENTRY_SIZE;
     } while (dir < end && dir[0] == 0 && dir[1] == 0);
-    buff[DIR_COUNT_OFFSET]= (byte) (uchar) number_of_records;
+    buff[DIR_COUNT_OFFSET]= (uchar) number_of_records;
   }
   empty_space+= length;
   if (number_of_records != 0)
   {
     /* Update directory */
     int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
-    buff[PAGE_TYPE_OFFSET]|= (byte) PAGE_CAN_BE_COMPACTED;
+    buff[PAGE_TYPE_OFFSET]|= (uchar) PAGE_CAN_BE_COMPACTED;
 
     *empty_space_res= empty_space;
     DBUG_RETURN(0);
@@ -4111,8 +4111,8 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
 
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
-                                            const byte *header,
-                                            const byte *data,
+                                            const uchar *header,
+                                            const uchar *data,
                                             size_t data_length)
 {
   MARIA_SHARE *share= info->s;
@@ -4120,7 +4120,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   uint      rownr, empty_space;
   uint      block_size= share->block_size;
   uint      rec_offset;
-  byte      *buff= info->keyread_buff, *dir;
+  uchar      *buff= info->keyread_buff, *dir;
   DBUG_ENTER("_ma_apply_redo_insert_row_head");
   
   info->keyread_buff_used= 1;
@@ -4201,14 +4201,14 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
           if ((uint) (dir - buff) < rec_offset + data_length)
             goto err;
         }
-        buff[DIR_COUNT_OFFSET]= (byte) (uchar) max_entry+1;
+        buff[DIR_COUNT_OFFSET]= (uchar) max_entry+1;
         int2store(dir, rec_offset);
         empty_space-= DIR_ENTRY_SIZE;
       }
       else
       {
         /* reuse old empty entry */
-        byte *pos, *end, *end_data;
+        uchar *pos, *end, *end_data;
         DBUG_ASSERT(uint2korr(dir) == 0);
         if (uint2korr(dir))
           goto err;                      /* Should have been empty */
@@ -4305,13 +4305,13 @@ err:
 
 uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            uint page_type,
-                                           const byte *header)
+                                           const uchar *header)
 {
   MARIA_SHARE *share= info->s;
   ulonglong page;
   uint      record_number, empty_space;
   uint      block_size= share->block_size;
-  byte      *buff= info->keyread_buff;
+  uchar      *buff= info->keyread_buff;
   DBUG_ENTER("_ma_apply_redo_purge_row_head_or_tail");
   
   info->keyread_buff_used= 1;
@@ -4324,7 +4324,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                              buff, PAGECACHE_PLAIN_PAGE,
                              PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
     DBUG_RETURN(my_errno);
-  DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == (byte) page_type);
+  DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == (uchar) page_type);
 
   if (lsn_korr(buff) >= lsn)
   {

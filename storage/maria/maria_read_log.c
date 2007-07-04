@@ -284,11 +284,11 @@ end:
 static struct my_option my_long_options[] =
 {
   {"only-display", 'o', "display brief info about records's header",
-   (gptr*) &opt_only_display, (gptr*) &opt_only_display, 0, GET_BOOL, NO_ARG,
+   (uchar**) &opt_only_display, (uchar**) &opt_only_display, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"display-and-apply", 'a',
    "like --only-display but displays more info and modifies tables",
-   (gptr*) &opt_display_and_apply, (gptr*) &opt_display_and_apply, 0,
+   (uchar**) &opt_display_and_apply, (uchar**) &opt_display_and_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
@@ -641,7 +641,7 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
   ulonglong page;
   MARIA_HA *info;
   char llbuf[22];
-  byte *buff= 0;
+  uchar *buff= 0;
 
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
@@ -678,7 +678,7 @@ prototype_exec_hook(REDO_INSERT_ROW_HEAD)
     differences. So we use the UNDO's LSN which is current_group_end_lsn.
   */
 
-  if ((!(buff= (byte*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
+  if ((!(buff= (uchar*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
       (translog_read_record(rec->lsn, 0, rec->record_length, buff, NULL) !=
        rec->record_length))
   {
@@ -707,7 +707,7 @@ prototype_exec_hook(REDO_INSERT_ROW_TAIL)
   ulonglong page;
   MARIA_HA *info;
   char llbuf[22];
-  byte *buff= 0;
+  uchar *buff= 0;
 
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
@@ -744,7 +744,7 @@ prototype_exec_hook(REDO_INSERT_ROW_TAIL)
     differences. So we use the UNDO's LSN which is current_group_end_lsn.
   */
 
-  if ((!(buff= (byte*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
+  if ((!(buff= (uchar*) my_malloc(rec->record_length, MYF(MY_WME)))) ||
       (translog_read_record(rec->lsn, 0, rec->record_length, buff, NULL) !=
        rec->record_length))
   {
