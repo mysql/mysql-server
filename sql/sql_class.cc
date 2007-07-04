@@ -253,6 +253,11 @@ int thd_tx_isolation(const THD *thd)
   return (int) thd->variables.tx_isolation;
 }
 
+extern "C"
+void thd_inc_row_count(THD *thd)
+{
+  thd->row_count++;
+}
 
 /*
   Dumps a text description of a thread, its security context

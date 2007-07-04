@@ -1360,6 +1360,18 @@ bool Field::send_binary(Protocol *protocol)
 }
 
 
+int Field::store(const char *to, uint length, CHARSET_INFO *cs,
+                 enum_check_fields check_level)
+{
+  int res;
+  enum_check_fields old_check_level= table->in_use->count_cuted_fields;
+  table->in_use->count_cuted_fields= check_level;
+  res= store(to, length, cs);
+  table->in_use->count_cuted_fields= old_check_level;
+  return res;
+}
+
+
 my_decimal *Field::val_decimal(my_decimal *decimal)
 {
   /* This never have to be called */
