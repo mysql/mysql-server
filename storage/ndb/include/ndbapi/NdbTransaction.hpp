@@ -376,6 +376,7 @@ public:
    *                        to decide on the use of this pointer.
    * @param abortOption     see @ref execute
    */
+#ifndef NDBAPI_50_COMPAT
   void executeAsynchPrepare(ExecType          execType,
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
@@ -387,6 +388,25 @@ public:
 			    ::AbortOption ao = ::DefaultAbortOption) {
     executeAsynchPrepare((ExecType)execType, callback, anyObject,
 			 (NdbOperation::AbortOption)ao); }
+#endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+  void executeAsynchPrepare(ExecType          execType,
+			    NdbAsynchCallback callback,
+			    void*             anyObject,
+			    NdbOperation::AbortOption);
+
+  void executeAsynchPrepare(NdbTransaction::ExecType execType,
+			    NdbAsynchCallback callback,
+			    void *anyObject,
+			    NdbTransaction::AbortOption abortOption = NdbTransaction::AbortOnError)
+    {
+      executeAsynchPrepare((ExecType)execType, callback, anyObject,
+                           (NdbOperation::AbortOption)abortOption);
+    }
 #endif
 
   /**
@@ -402,6 +422,7 @@ public:
    * See @ref secAsync for more information on
    * how to use this method.
    */
+#ifndef NDBAPI_50_COMPAT
   void executeAsynch(ExecType            aTypeOfExec,
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
@@ -416,7 +437,27 @@ public:
   { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
 		  (NdbOperation::AbortOption)abortOption, forceSend); }
 #endif
+#else
+  /**
+   * 50 compability layer
+   *   Check 50-docs for sematics
+   */
+  void executeAsynch(ExecType            aTypeOfExec,
+		     NdbAsynchCallback   aCallback,
+		     void*               anyObject,
+		     NdbOperation::AbortOption = NdbOperation::DefaultAbortOption,
+                     int forceSend= 0);
+  void executeAsynch(NdbTransaction::ExecType aTypeOfExec,
+		     NdbAsynchCallback aCallback,
+		     void* anyObject,
+		     NdbTransaction::AbortOption abortOption = AbortOnError)
+    {
+      executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
+                    (NdbOperation::AbortOption)abortOption, 0);
+    }
 #endif
+#endif
+
   /**
    * Refresh
    * Update timeout counter of this transaction 
