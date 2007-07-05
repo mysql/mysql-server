@@ -4945,8 +4945,6 @@ SELECT * FROM bug13894;
 val
 6
 6
-5
-11
 DROP TABLE bug13894;
 DROP TABLE IF EXISTS bug14672;
 CREATE TABLE bug14672 (c1 integer) engine = CSV;
@@ -5290,5 +5288,21 @@ a	b
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+create table t1(a int) engine=csv;
+insert into t1 values (0), (1), (2);
+delete from t1 limit 2;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a
+2
+delete from t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a
 drop table t1;
 End of 5.1 tests
