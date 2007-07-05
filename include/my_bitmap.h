@@ -103,6 +103,17 @@ extern void bitmap_lock_invert(MY_BITMAP *map);
                                   &= ~ (1 << ((BIT) & 7)))
 #define _bitmap_is_set(MAP, BIT) (uint) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
                                          & (1 << ((BIT) & 7)))
+/*
+  WARNING!
+
+  The below symbols are inline functions in DEBUG builds and macros in
+  non-DEBUG builds. The latter evaluate their 'bit' argument twice.
+
+  NEVER use an increment/decrement operator with the 'bit' argument.
+  It would work with DEBUG builds, but fails later in production builds!
+
+  FORBIDDEN: bitmap_set_bit($my_bitmap, (field++)->field_index);
+*/
 #ifndef DBUG_OFF
 static inline void
 bitmap_set_bit(MY_BITMAP *map,uint bit)
