@@ -269,6 +269,17 @@ t1	CREATE TABLE `t1` (
 a Int NULL AT=FIXED ST=MEMORY DYNAMIC
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 drop table t1;
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `column_format` int(11) /*!50119 STORAGE DISK */ /*!50119 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `storage` int(11) /*!50119 STORAGE DISK */ /*!50119 COLUMN_FORMAT FIXED */ DEFAULT NULL
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+column_format Int NULL AT=FIXED ST=DISK
+storage Int NULL AT=FIXED ST=DISK
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+drop table t1;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat'
 ENGINE NDB;

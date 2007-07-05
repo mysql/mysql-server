@@ -69,6 +69,12 @@ show create table t1;
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 drop table t1;
 
+# Checking keywords
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+show create table t1;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+drop table t1;
+
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat'
 ENGINE NDB;
