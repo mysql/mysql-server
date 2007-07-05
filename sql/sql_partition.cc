@@ -606,8 +606,8 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
     partitioning.
   */
   if ((ptr= part_info->full_part_field_array))
-    while (*ptr)
-      bitmap_set_bit(&part_info->full_part_field_set, (*ptr++)->field_index);
+    for (; *ptr; ptr++)
+      bitmap_set_bit(&part_info->full_part_field_set, (*ptr)->field_index);
 
 end:
   DBUG_RETURN(result);
