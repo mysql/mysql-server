@@ -437,32 +437,38 @@ volatile int *_ma_killed_ptr(HA_CHECK *param)
 
 void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
 {
+  va_list args;
+  DBUG_ENTER("_ma_check_print_error");
   param->error_printed |= 1;
   param->out_flag |= O_DATA_LOST;
-  va_list args;
   va_start(args, fmt);
   _ma_check_print_msg(param, "error", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
 void _ma_check_print_info(HA_CHECK *param, const char *fmt, ...)
 {
   va_list args;
+  DBUG_ENTER("_ma_check_print_info");
   va_start(args, fmt);
   _ma_check_print_msg(param, "info", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 
 void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 {
+  va_list args;
+  DBUG_ENTER("_ma_check_print_warning");
   param->warning_printed= 1;
   param->out_flag |= O_DATA_LOST;
-  va_list args;
   va_start(args, fmt);
   _ma_check_print_msg(param, "warning", fmt, args);
   va_end(args);
+  DBUG_VOID_RETURN;
 }
 
 }
@@ -473,7 +479,7 @@ handler(hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | MARIA_CANNOT_ROLLBACK |
-                HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1)
 {}
@@ -691,9 +697,19 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     VOID(maria_extra(file, HA_EXTRA_WAIT_LOCK, 0));
-  save_transactional= file->s->base.transactional;
   if ((data_file_type= file->s->data_file_type) != STATIC_RECORD)
     int_table_flags |= HA_REC_NOT_IN_SEQ;
+  if (!file->s->base.born_transactional)
+  {
+    /*
+      INSERT DELAYED cannot work with transactional tables (because it cannot
+      stand up to "when client gets ok the data is safe on disk": the record
+      may not even be inserted). In the future, we could enable it back (as a
+      client doing INSERT DELAYED knows the specificities; but we then should
+      make sure to regularly commit in the delayed_insert thread). 
+    */
+    int_table_flags|= HA_CAN_INSERT_DELAYED;
+  }
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags |= HA_HAS_CHECKSUM;
 
@@ -1067,16 +1083,6 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   param.out_flag= 0;
   strmov(fixed_name, file->s->open_file_name);
 
-#ifndef TO_BE_FIXED
-  /* QQ: Until we have repair for block format, lie that it succeded */
-  if (file->s->data_file_type == BLOCK_RECORD)
-  {
-    if (do_optimize)
-      DBUG_RETURN(analyze(thd, (HA_CHECK_OPT*) 0));
-    DBUG_RETURN(HA_ADMIN_OK);
-  }
-#endif
-
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
       maria_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
@@ -1101,7 +1107,9 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       local_testflag |= T_STATISTICS;
       param.testflag |= T_STATISTICS;           // We get this for free
       statistics_done= 1;
-      if (thd->variables.maria_repair_threads > 1)
+      /* TODO: Remove BLOCK_RECORD test when parallel works with blocks */
+      if (thd->variables.maria_repair_threads > 1 &&
+          file->s->data_file_type != BLOCK_RECORD)
       {
         char buf[40];
         /* TODO: respect maria_repair_threads variable */
@@ -1180,8 +1188,6 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
     }
-    if (!error)
-      error= _ma_repair_write_log_record(&param, file);
   }
   else
   {
@@ -1863,30 +1869,19 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 {
   TRN *trn= THD_TRN;
   DBUG_ENTER("ha_maria::external_lock");
-  if (!save_transactional)
+  /*
+    We don't test now_transactional because it may vary between lock/unlock
+    and thus confuse our reference counting.
+    It is critical to skip non-transactional tables: user-visible temporary
+    tables get an external_lock() when read/written for the first time, but no
+    corresponding unlock (they just stay locked and are later dropped while
+    locked); if a tmp table was transactional, "SELECT FROM non_tmp, tmp"
+    would never commit as its "locked_tables" count would stay 1.
+  */
+  if (!file->s->base.born_transactional)
     goto skip_transaction;
-  if (!trn && lock_type != F_UNLCK) /* no transaction yet - open it now */
-  {
-    trn= trnman_new_trn(& thd->mysys_var->mutex,
-                        & thd->mysys_var->suspend,
-                        thd->thread_stack + STACK_DIRECTION *
-                        (my_thread_stack_size - STACK_MIN_SIZE));
-    if (!trn)
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-
-    DBUG_PRINT("info", ("THD_TRN set to 0x%lx", (ulong)trn));
-    THD_TRN= trn;
-    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-      trans_register_ha(thd, TRUE, maria_hton);
-  }
   if (lock_type != F_UNLCK)
   {
-    this->file->trn= trn;
-    if (!trnman_increment_locked_tables(trn))
-    {
-      trans_register_ha(thd, FALSE, maria_hton);
-      trnman_new_statement(trn);
-    }
     if (!thd->transaction.on)
     {
       /*
@@ -1898,11 +1893,32 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         tons of archived logs to roll-forward, we could then not disable
         REDOs/UNDOs in this case.
       */
-      file->s->base.transactional= FALSE;
+      _ma_tmp_disable_logging_for_table(file->s);
+    }
+    if (!trn)  /* no transaction yet - open it now */
+    {
+      trn= trnman_new_trn(& thd->mysys_var->mutex,
+                          & thd->mysys_var->suspend,
+                          thd->thread_stack + STACK_DIRECTION *
+                          (my_thread_stack_size - STACK_MIN_SIZE));
+      if (unlikely(!trn))
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+      DBUG_PRINT("info", ("THD_TRN set to 0x%lx", (ulong)trn));
+      THD_TRN= trn;
+      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+        trans_register_ha(thd, TRUE, maria_hton);
+    }
+    this->file->trn= trn;
+    if (!trnman_increment_locked_tables(trn))
+    {
+      trans_register_ha(thd, FALSE, maria_hton);
+      trnman_new_statement(trn);
     }
   }
   else
   {
+    _ma_reenable_logging_for_table(file->s);
     this->file->trn= 0; /* TODO: remove it also in commit and rollback */
     if (trn && trnman_has_locked_tables(trn))
     {
@@ -1923,7 +1939,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
 #endif
       }
     }
-    file->s->base.transactional= save_transactional;
   }
 skip_transaction:
   DBUG_RETURN(maria_lock_database(file, !table->s->tmp_table ?
@@ -1934,7 +1949,7 @@ skip_transaction:
 int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   TRN *trn= THD_TRN;
-  if (save_transactional)
+  if (file->s->base.born_transactional)
   {
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
@@ -1979,7 +1994,7 @@ enum row_type ha_maria::get_row_type() const
   switch (file->s->data_file_type) {
   case STATIC_RECORD:     return ROW_TYPE_FIXED;
   case DYNAMIC_RECORD:    return ROW_TYPE_DYNAMIC;
-  case BLOCK_RECORD:      return ROW_TYPE_PAGES;
+  case BLOCK_RECORD:      return ROW_TYPE_PAGE;
   case COMPRESSED_RECORD: return ROW_TYPE_COMPRESSED;
   default:                return ROW_TYPE_NOT_USED;
   }
@@ -1988,6 +2003,8 @@ enum row_type ha_maria::get_row_type() const
 
 static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
 {
+  if (info->transactional == HA_CHOICE_YES)
+    return BLOCK_RECORD;
   switch (info->row_type) {
   case ROW_TYPE_FIXED:   return STATIC_RECORD;
   case ROW_TYPE_DYNAMIC: return DYNAMIC_RECORD;
@@ -2032,7 +2049,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
-  create_info.transactional= row_type == BLOCK_RECORD;
+  create_info.transactional= (row_type == BLOCK_RECORD &&
+                              ha_create_info->transactional != HA_CHOICE_NO);
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;

@@ -135,6 +135,7 @@ void _ma_report_error(int errcode, const char *file_name)
       file_name+= length - 64;
     }
   }
+
   my_error(errcode, MYF(ME_NOREFRESH), file_name);
   DBUG_VOID_RETURN;
 }

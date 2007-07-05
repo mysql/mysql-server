@@ -1018,7 +1018,8 @@ uint _ma_rec_pack(MARIA_HA *info, register byte *to, register const byte *from)
 */
 
 my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
-                      ulong packed_length, my_bool with_checksum)
+                      ulong packed_length, my_bool with_checksum,
+                      ha_checksum checksum)
 {
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
@@ -1124,7 +1125,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, byte *rec_buff,
   if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
-  if (with_checksum && ((uchar) info->cur_row.checksum != (uchar) *to))
+  if (with_checksum && ((uchar) checksum != (uchar) *to))
   {
     DBUG_PRINT("error",("wrong checksum for row"));
     goto err;

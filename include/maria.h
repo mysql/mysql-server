@@ -325,17 +325,18 @@ typedef struct st_maria_sort_info
   pthread_mutex_t mutex;
   pthread_cond_t cond;
 #endif
-  MARIA_HA *info;
+  MARIA_HA *info, *new_info;
   HA_CHECK *param;
   char *buff;
   SORT_KEY_BLOCKS *key_block, *key_block_end;
   SORT_FT_BUF *ft_buf;
   my_off_t filelength, dupp, buff_length;
+  ulonglong page;
   ha_rows max_records;
   uint current_key, total_keys;
   uint got_error, threads_running;
   myf myf_rw;
-  enum data_file_type new_data_file_type;
+  enum data_file_type new_data_file_type, org_data_file_type;
 } MARIA_SORT_INFO;
 
 typedef struct st_maria_sort_param

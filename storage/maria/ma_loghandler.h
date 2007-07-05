@@ -62,7 +62,7 @@ struct st_maria_share;
 #define pagerange_store(T,A) int2store(T,A)
 #define fileid_korr(P) uint2korr(P)
 #define page_korr(P)   uint5korr(P)
-#define dirpos_korr(P) (P[0])
+#define dirpos_korr(P) ((P)[0])
 #define pagerange_korr(P) uint2korr(P)
 
 /*

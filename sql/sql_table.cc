@@ -5653,6 +5653,8 @@ view_err:
     create_info->default_table_charset= table->s->table_charset;
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
+  if (!(used_fields & HA_CREATE_USED_TRANSACTIONAL))
+    create_info->transactional= table->s->transactional;
 
   if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
@@ -6916,7 +6918,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->col_list.empty();
   lex->alter_info.reset();
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */

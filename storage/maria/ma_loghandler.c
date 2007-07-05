@@ -4263,7 +4263,7 @@ my_bool translog_write_record(LSN *lsn,
 
   if (share)
   {
-    if (!share->base.transactional)
+    if (!share->now_transactional)
     {
       DBUG_PRINT("info", ("It is not transactional table"));
       DBUG_RETURN(0);
@@ -4331,12 +4331,12 @@ my_bool translog_write_record(LSN *lsn,
   {
     uint i;
     uint len= 0;
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
     ha_checksum checksum= 0;
 #endif
     for (i= TRANSLOG_INTERNAL_PARTS; i < part_no; i++)
     {
-#ifdef HAVE_PURIFY
+#ifdef HAVE_purify
       /* Find unitialized bytes early */
       checksum+= my_checksum(checksum, parts_data[i].str,
                              parts_data[i].length);
@@ -5615,6 +5615,16 @@ static my_bool write_hook_for_redo(enum translog_record_type type
                                    __attribute__ ((unused)))
 {
   /*
+    Users of dummy_transaction_object must keep this TRN clean as it
+    is used by many threads (like those manipulating non-transactional
+    tables). It might be dangerous if one user sets rec_lsn or some other
+    member and it is picked up by another user (like putting this rec_lsn into
+    a page of a non-transactional table); it's safer if all members stay 0. So
+    non-transactional log records (REPAIR, CREATE, RENAME, DROP) should not
+    call this hook; we trust them but verify ;)
+  */
+  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
+  /*
     If the hook stays so simple, it would be faster to pass
     !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
     to translog_write_record(), like Monty did in his original code, and not
@@ -5640,6 +5650,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
+  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
   trn->undo_lsn= *lsn;
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=

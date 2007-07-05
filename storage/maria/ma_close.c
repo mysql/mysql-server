@@ -108,7 +108,8 @@ int maria_close(register MARIA_HA *info)
       }
     }
 #endif
-    my_free((gptr) info->s,MYF(0));
+    DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
+    my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   if (info->ftparser_param)
@@ -122,8 +123,6 @@ int maria_close(register MARIA_HA *info)
   my_free((gptr) info,MYF(0));
 
   if (error)
-  {
-    DBUG_RETURN(my_errno=error);
-  }
+    DBUG_RETURN(my_errno= error);
   DBUG_RETURN(0);
 } /* maria_close */

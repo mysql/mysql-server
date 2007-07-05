@@ -135,6 +135,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       info->lock_type= F_UNLCK;
+      DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
       break;
     case F_RDLCK:
       if (info->lock_type == F_WRLCK)

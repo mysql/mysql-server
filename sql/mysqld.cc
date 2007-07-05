@@ -3350,6 +3350,10 @@ server.");
     using_update_log=1;
   }
 
+  /* Allow storage engine to give real error messages */
+  if (ha_init_errors())
+    DBUG_RETURN(1);
+
   if (plugin_init(opt_bootstrap))
   {
     sql_print_error("Failed to init plugins.");
