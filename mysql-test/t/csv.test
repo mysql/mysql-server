@@ -1698,4 +1698,17 @@ select * from t1;
 check table t1;
 drop table t1;
 
+#
+# Bug #29411: deleting from a csv table leads to the table corruption
+#
+create table t1(a int) engine=csv;
+insert into t1 values (0), (1), (2);
+delete from t1 limit 2;
+check table t1;
+select * from t1;
+delete from t1;
+check table t1;
+select * from t1;
+drop table t1;
+
 --echo End of 5.1 tests

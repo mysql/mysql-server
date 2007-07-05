@@ -960,6 +960,11 @@ int ha_tina::delete_row(const uchar * buf)
     DBUG_RETURN(-1);
 
   stats.records--;
+  /* Update shared info */
+  DBUG_ASSERT(share->rows_recorded);
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded--;
+  pthread_mutex_unlock(&share->mutex);
 
   /* DELETE should never happen on the log table */
   DBUG_ASSERT(!share->is_log_table);
@@ -1146,6 +1151,7 @@ int ha_tina::rnd_end()
 
   if ((chain_ptr - chain)  > 0)
   {
+    off_t temp_file_length= 0;
     tina_set *ptr= chain;
 
     /*
@@ -1171,15 +1177,18 @@ int ha_tina::rnd_end()
     while ((file_buffer_start != -1))     // while not end of file
     {
       bool in_hole= get_write_pos(&write_end, ptr);
+      off_t write_length= write_end - write_begin;
 
       /* if there is something to write, write it */
-      if ((write_end - write_begin) &&
-          (my_write(update_temp_file,
-                    (uchar*)(file_buff->ptr() +
-                            (write_begin - file_buff->start())),
-                    write_end - write_begin, MYF_RW)))
-        goto error;
-
+      if (write_length)
+      {
+        if (my_write(update_temp_file, 
+                     (uchar*) (file_buff->ptr() +
+                               (write_begin - file_buff->start())),
+                     write_length, MYF_RW))
+          goto error;
+        temp_file_length+= write_length;
+      }
       if (in_hole)
       {
         /* skip hole */
@@ -1232,6 +1241,8 @@ int ha_tina::rnd_end()
       Here we record this fact to the meta-file.
     */
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
+    
+    local_saved_data_file_length= temp_file_length;
   }
 
   DBUG_RETURN(0);
@@ -1390,6 +1401,11 @@ int ha_tina::delete_all_rows()
   rc= my_chsize(share->tina_write_filedes, 0, 0, MYF(MY_WME));
 
   stats.records=0;
+  /* Update shared info */
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded= 0;
+  pthread_mutex_unlock(&share->mutex);
+  local_saved_data_file_length= 0;
   DBUG_RETURN(rc);
 }
 
