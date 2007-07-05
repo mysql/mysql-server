@@ -5,7 +5,8 @@
   To re-generate, run the following in the strings/ directory:
     ./conf_to_src ../sql/share/charsets/ > FILE
 */
-/* Copyright (C) 2000-2003 MySQL AB
+
+/* Copyright (C) 2000-2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
