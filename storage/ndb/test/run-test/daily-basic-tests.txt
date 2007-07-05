@@ -575,6 +575,14 @@ args: -n Bug29364 T1
 
 #
 # DICT TESTS
+max-time: 500
+cmd: testDict
+args: -n Bug29501 T1
+
+max-time: 500
+cmd: testDict
+args: -n testDropDDObjects T1
+
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDrop 
