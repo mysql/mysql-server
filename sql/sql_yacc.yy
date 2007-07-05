@@ -1565,14 +1565,14 @@ sp_name:
 	  }
 	| ident
 	  {
-            THD *thd= YYTHD;
+            LEX *lex= Lex;
             LEX_STRING db;
 	    if (check_routine_name($1))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
-            if (thd->copy_db_to(&db.str, &db.length))
+            if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
 	    $$= new sp_name(db, $1, false);
             if ($$)
@@ -3624,10 +3624,9 @@ alter:
           opt_create_database_options
 	  {
 	    LEX *lex=Lex;
-            THD *thd= Lex->thd;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
-            if (lex->name == NULL && thd->copy_db_to(&lex->name, NULL))
+            if (lex->name == NULL && lex->copy_db_to(&lex->name, NULL))
               MYSQL_YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
@@ -3795,10 +3794,9 @@ alter_list_item:
 	| RENAME opt_to table_ident
 	  {
 	    LEX *lex=Lex;
-            THD *thd= lex->thd;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, NULL))
+                lex->copy_db_to(&lex->select_lex.db, NULL))
             {
               MYSQL_YYABORT;
             }
@@ -5148,7 +5146,7 @@ simple_expr:
             {
               THD *thd= lex->thd;
               LEX_STRING db;
-              if (thd->copy_db_to(&db.str, &db.length))
+              if (lex->copy_db_to(&db.str, &db.length))
                 MYSQL_YYABORT;
               sp_name *name= new sp_name(db, $1, false);
               if (name)
@@ -9025,8 +9023,7 @@ grant_ident:
 	'*'
 	  {
 	    LEX *lex= Lex;
-            THD *thd= lex->thd;
-            if (thd->copy_db_to(&lex->current_select->db, NULL))
+            if (lex->copy_db_to(&lex->current_select->db, NULL))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
