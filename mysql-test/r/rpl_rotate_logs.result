@@ -95,3 +95,11 @@ count(*)
 100
 unlock tables;
 drop table if exists t1,t2,t3,t4;
+End of 4.1 tests
+show binlog events in 'non existing_binlog_file';
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
+purge master logs before now();
+show binlog events in '';
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
+purge master logs before now();
+End of 5.0 tests
