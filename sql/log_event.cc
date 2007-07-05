@@ -6703,7 +6703,7 @@ replace_record(THD *thd, TABLE *table,
     if ((keynum= table->file->get_dup_key(error)) < 0)
     {
       /* We failed to retrieve the duplicate key */
-      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+      DBUG_RETURN(error);
     }
 
     /*
