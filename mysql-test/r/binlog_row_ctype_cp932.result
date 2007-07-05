@@ -11348,8 +11348,7 @@ delete from t1 where a='';
 alter table t1 add key(a);
 check table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	Key in wrong position at page 176128
-test.t1	check	error	Corrupt
+test.t1	check	status	OK
 drop table t1;
 drop table t2;
 create table t1 (col1 varchar(1)) character set cp932;
