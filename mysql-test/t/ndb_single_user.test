@@ -25,7 +25,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 create table t1 (a int key, b int unique, c int) engine ndb;
 # Bug #27712 Single user mode. Creating logfile group and tablespace is allowed
 # - before bug fix these would succeed
---error 1516
+--error ER_CREATE_FILEGROUP_FAILED
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
