@@ -1974,6 +1974,43 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
 }
 
 
+/**
+  This method should be called only during parsing.
+  It is aware of compound statements (stored routine bodies)
+  and will initialize the destination with the default
+  database of the stored routine, rather than the default
+  database of the connection it is parsed in.
+  E.g. if one has no current database selected, or current database 
+  set to 'bar' and then issues:
+
+  CREATE PROCEDURE foo.p1() BEGIN SELECT * FROM t1 END//
+
+  t1 is meant to refer to foo.t1, not to bar.t1.
+
+  This method is needed to support this rule.
+
+  @return TRUE in case of error (parsing should be aborted, FALSE in
+  case of success
+*/
+
+bool
+st_lex::copy_db_to(char **p_db, uint *p_db_length) const
+{
+  if (sphead)
+  {
+    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    /*
+      It is safe to assign the string by-pointer, both sphead and
+      its statements reside in the same memory root.
+    */
+    *p_db= sphead->m_db.str;
+    if (p_db_length)
+      *p_db_length= sphead->m_db.length;
+    return FALSE;
+  }
+  return thd->copy_db_to(p_db, p_db_length);
+}
+
 /*
   initialize limit counters
 
