@@ -796,8 +796,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       */
       if ((char*)next_chunk >= buff_end)
       {
-        DBUG_PRINT("info", ("Found no field extra info"));
-        abort();
+        DBUG_PRINT("error", ("Found no field extra info"));
+        goto err;
       }
       else
       {
@@ -824,6 +824,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
     }
     DBUG_ASSERT (next_chunk <= buff_end);
+    if (next_chunk > buff_end)
+    {
+      DBUG_PRINT("error", ("Buffer overflow in field extra info"));
+      goto err;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
