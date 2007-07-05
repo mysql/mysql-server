@@ -1283,6 +1283,16 @@ public:
    */
 
   /**
+   * Structure for passing in pointers to startTransaction
+   *
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
    * Start a transaction
    *
    * @note When the transaction is completed it must be closed using
