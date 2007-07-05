@@ -53,7 +53,8 @@ DbCreate DbAsyncGenerator \
 testSRBank \
 test_event_merge \
 testIndexStat \
-ndbapi_50compat0
+ndbapi_50compat0 \
+ndbapi_50compat1
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -110,6 +111,10 @@ testIndexStat_SOURCES = testIndexStat.cpp
 ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
 ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp
 ndbapi_50compat0_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
+
+ndbapi_50compat1_CPPFLAGS = -DNDBAPI_50_COMPAT
+ndbapi_50compat1_SOURCES = ndbapi_50compat1.cpp
+ndbapi_50compat1_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 
