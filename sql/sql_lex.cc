@@ -1965,7 +1965,7 @@ bool st_lex::need_correct_ident()
     VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
 */
 
-uint8 st_lex::get_effective_with_check(st_table_list *view)
+uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 {
   if (view->select_lex->master_unit() == &unit &&
       which_check_option_applicable())

@@ -848,7 +848,7 @@ void close_temporary_tables(THD *thd)
 */
 
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               st_table_list *TABLE_LIST::*link,
+                               TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name)
 {
