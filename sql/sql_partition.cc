@@ -523,6 +523,7 @@ static bool set_up_field_array(TABLE *table,
 
   SYNOPSIS
     create_full_part_field_array()
+    thd                  Thread handle
     table                TABLE object for which partition fields are set-up
     part_info            Reference to partitioning data structure
 
@@ -537,11 +538,12 @@ static bool set_up_field_array(TABLE *table,
     This function is called from fix_partition_func
 */
 
-static bool create_full_part_field_array(TABLE *table,
+static bool create_full_part_field_array(THD *thd, TABLE *table,
                                          partition_info *part_info)
 {
   bool result= FALSE;
   Field **ptr;
+  my_bitmap_map *bitmap_buf;
   DBUG_ENTER("create_full_part_field_array");
 
   if (!part_info->is_sub_partitioned())
@@ -578,6 +580,35 @@ static bool create_full_part_field_array(TABLE *table,
     part_info->full_part_field_array= field_array;
     part_info->no_full_part_fields= no_part_fields;
   }
+
+  /*
+    Initialize the set of all fields used in partition and subpartition
+    expression. Required for testing of partition fields in write_set
+    when updating. We need to set all bits in read_set because the row
+    may need to be inserted in a different [sub]partition.
+  */
+  if (!(bitmap_buf= (my_bitmap_map*)
+        thd->alloc(bitmap_buffer_size(table->s->fields))))
+  {
+    mem_alloc_error(bitmap_buffer_size(table->s->fields));
+    result= TRUE;
+    goto end;
+  }
+  if (bitmap_init(&part_info->full_part_field_set, bitmap_buf,
+                  table->s->fields, FALSE))
+  {
+    mem_alloc_error(table->s->fields);
+    result= TRUE;
+    goto end;
+  }
+  /*
+    full_part_field_array may be NULL if storage engine supports native
+    partitioning.
+  */
+  if ((ptr= part_info->full_part_field_array))
+    for (; *ptr; ptr++)
+      bitmap_set_bit(&part_info->full_part_field_set, (*ptr)->field_index);
+
 end:
   DBUG_RETURN(result);
 }
@@ -1636,7 +1667,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
   }
-  if (unlikely(create_full_part_field_array(table, part_info)))
+  if (unlikely(create_full_part_field_array(thd, table, part_info)))
     goto end;
   if (unlikely(check_primary_key(table)))
     goto end;
