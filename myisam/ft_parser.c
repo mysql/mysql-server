@@ -111,7 +111,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 
   while (doc<end)
   {
-    for (;doc<end;doc++)
+    for (; doc < end; doc+= mbl)
     {
       if (true_word_char(cs,*doc)) break;
       if (*doc == FTB_RQUOT && param->quot)
@@ -120,6 +120,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
         *start=doc+1;
         return 3; /* FTB_RBR */
       }
+      mbl= my_mbcharlen(cs, *(uchar *)doc);
       if (!param->quot)
       {
         if (*doc == FTB_LBR || *doc == FTB_RBR || *doc == FTB_LQUOT)
@@ -187,10 +188,11 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
 
   do
   {
-    for (;; doc++)
+    for (;; doc+= mbl)
     {
       if (doc >= end) DBUG_RETURN(0);
       if (true_word_char(cs, *doc)) break;
+      mbl= my_mbcharlen(cs, *(uchar *)doc);
     }
 
     mwc= length= 0;
