@@ -298,6 +298,7 @@ class ha_ndbcluster: public handler
   int external_lock(THD *thd, int lock_type);
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
+  void update_create_info(HA_CREATE_INFO *create_info);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;
@@ -441,7 +442,6 @@ private:
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
                              void *tab);
-  char* get_tablespace_name(THD *thd, char *name, uint name_len);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
   int complemented_read(const byte *old_data, byte *new_data,
