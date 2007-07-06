@@ -19,7 +19,7 @@
 #endif
 
 class Protocol;
-struct st_table_list;
+struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
 
