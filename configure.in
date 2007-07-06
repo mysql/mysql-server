@@ -71,14 +71,22 @@ AC_SUBST(AVAILABLE_LANGUAGES)
 
 
 # Canonicalize the configuration name.
-SYSTEM_TYPE="$host_vendor-$host_os"
-MACHINE_TYPE="$host_cpu"
+
+# Check whether --with-system-type or --without-system-type was given.
+AC_ARG_WITH(system-type,
+    [  --with-system-type      Set the system type, like "sun-solaris10"],
+    [SYSTEM_TYPE="$withval"],
+    [SYSTEM_TYPE="$host_vendor-$host_os"])
+AC_ARG_WITH(machine-type,
+    [  --with-machine-type     Set the machine type, like "powerpc"],
+    [MACHINE_TYPE="$withval"],
+    [MACHINE_TYPE="$host_cpu"])
 AC_SUBST(SYSTEM_TYPE)
 AC_DEFINE_UNQUOTED([SYSTEM_TYPE], ["$SYSTEM_TYPE"],
-                   [Name of system, eg solaris])
+                   [Name of system, eg sun-solaris])
 AC_SUBST(MACHINE_TYPE)
 AC_DEFINE_UNQUOTED([MACHINE_TYPE], ["$MACHINE_TYPE"],
-                   [Machine type name, eg sun10])
+                   [Machine type name, eg sparc])
 
 # Detect intel x86 like processor
 BASE_MACHINE_TYPE=$MACHINE_TYPE
