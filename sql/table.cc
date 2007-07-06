@@ -1780,11 +1780,11 @@ void st_table::reset_item_list(List<Item> *item_list) const
   calculate md5 of query
 
   SYNOPSIS
-    st_table_list::calc_md5()
+    TABLE_LIST::calc_md5()
     buffer	buffer for md5 writing
 */
 
-void  st_table_list::calc_md5(char *buffer)
+void  TABLE_LIST::calc_md5(char *buffer)
 {
   my_MD5_CTX context;
   uchar digest[16];
@@ -1809,10 +1809,10 @@ void  st_table_list::calc_md5(char *buffer)
     it (it is a kind of optimisation)
 
   SYNOPSIS
-    st_table_list::set_underlying_merge()
+    TABLE_LIST::set_underlying_merge()
 */
 
-void st_table_list::set_underlying_merge()
+void TABLE_LIST::set_underlying_merge()
 {
   TABLE_LIST *tbl;
 
@@ -1847,7 +1847,7 @@ void st_table_list::set_underlying_merge()
   setup fields of placeholder of merged VIEW
 
   SYNOPSIS
-    st_table_list::setup_underlying()
+    TABLE_LIST::setup_underlying()
     thd		    - thread handler
 
   DESCRIPTION
@@ -1860,9 +1860,9 @@ void st_table_list::set_underlying_merge()
     TRUE  - error
 */
 
-bool st_table_list::setup_underlying(THD *thd)
+bool TABLE_LIST::setup_underlying(THD *thd)
 {
-  DBUG_ENTER("st_table_list::setup_underlying");
+  DBUG_ENTER("TABLE_LIST::setup_underlying");
 
   if (!field_translation && merge_underlying_list)
   {
@@ -1925,7 +1925,7 @@ bool st_table_list::setup_underlying(THD *thd)
   Prepare where expression of view
 
   SYNOPSIS
-    st_table_list::prep_where()
+    TABLE_LIST::prep_where()
     thd             - thread handler
     conds           - condition of this JOIN
     no_where_clause - do not build WHERE or ON outer qwery do not need it
@@ -1939,10 +1939,10 @@ bool st_table_list::setup_underlying(THD *thd)
     TRUE  - error
 */
 
-bool st_table_list::prep_where(THD *thd, Item **conds,
+bool TABLE_LIST::prep_where(THD *thd, Item **conds,
                                bool no_where_clause)
 {
-  DBUG_ENTER("st_table_list::prep_where");
+  DBUG_ENTER("TABLE_LIST::prep_where");
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -2042,7 +2042,7 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
   Prepare check option expression of table
 
   SYNOPSIS
-    st_table_list::prep_check_option()
+    TABLE_LIST::prep_check_option()
     thd             - thread handler
     check_opt_type  - WITH CHECK OPTION type (VIEW_CHECK_NONE,
                       VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
@@ -2057,16 +2057,16 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
     This method builds check option condition to use it later on
     every call (usual execution or every SP/PS call).
     This method have to be called after WHERE preparation
-    (st_table_list::prep_where)
+    (TABLE_LIST::prep_where)
 
   RETURN
     FALSE - OK
     TRUE  - error
 */
 
-bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
+bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 {
-  DBUG_ENTER("st_table_list::prep_check_option");
+  DBUG_ENTER("TABLE_LIST::prep_check_option");
   bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
@@ -2125,12 +2125,12 @@ bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
   Hide errors which show view underlying table information
 
   SYNOPSIS
-    st_table_list::hide_view_error()
+    TABLE_LIST::hide_view_error()
     thd     thread handler
 
 */
 
-void st_table_list::hide_view_error(THD *thd)
+void TABLE_LIST::hide_view_error(THD *thd)
 {
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
@@ -2161,7 +2161,7 @@ void st_table_list::hide_view_error(THD *thd)
   table_to_find (TABLE)
 
   SYNOPSIS
-    st_table_list::find_underlying_table()
+    TABLE_LIST::find_underlying_table()
     table_to_find table to find
 
   RETURN
@@ -2169,7 +2169,7 @@ void st_table_list::hide_view_error(THD *thd)
     found table reference
 */
 
-st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
+TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
 {
   /* is this real table and table which we are looking for? */
   if (table == table_to_find && merge_underlying_list == 0)
@@ -2188,10 +2188,10 @@ st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
   cleunup items belonged to view fields translation table
 
   SYNOPSIS
-    st_table_list::cleanup_items()
+    TABLE_LIST::cleanup_items()
 */
 
-void st_table_list::cleanup_items()
+void TABLE_LIST::cleanup_items()
 {
   if (!field_translation)
     return;
@@ -2207,7 +2207,7 @@ void st_table_list::cleanup_items()
   check CHECK OPTION condition
 
   SYNOPSIS
-    st_table_list::view_check_option()
+    TABLE_LIST::view_check_option()
     ignore_failure ignore check option fail
 
   RETURN
@@ -2216,7 +2216,7 @@ void st_table_list::cleanup_items()
     VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int st_table_list::view_check_option(THD *thd, bool ignore_failure)
+int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
@@ -2241,7 +2241,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
   table belong to given mask
 
   SYNOPSIS
-    st_table_list::check_single_table()
+    TABLE_LIST::check_single_table()
     table_arg	reference on variable where to store found table
 		(should be 0 on call, to find table, or point to table for
 		unique test)
@@ -2253,9 +2253,9 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
     TRUE  found several tables
 */
 
-bool st_table_list::check_single_table(st_table_list **table_arg,
+bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
                                        table_map map,
-                                       st_table_list *view_arg)
+                                       TABLE_LIST *view_arg)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -2288,7 +2288,7 @@ bool st_table_list::check_single_table(st_table_list **table_arg,
     TRUE  - out of memory
 */
 
-bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
+bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 {
   if (table)
   {
@@ -2312,7 +2312,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   Test if this is a leaf with respect to name resolution.
 
   SYNOPSIS
-    st_table_list::is_leaf_for_name_resolution()
+    TABLE_LIST::is_leaf_for_name_resolution()
 
   DESCRIPTION
     A table reference is a leaf with respect to name resolution if
@@ -2324,7 +2324,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   RETURN
     TRUE if a leaf, FALSE otherwise.
 */
-bool st_table_list::is_leaf_for_name_resolution()
+bool TABLE_LIST::is_leaf_for_name_resolution()
 {
   return (view || is_natural_join || is_join_columns_complete ||
           !nested_join);
@@ -2336,7 +2336,7 @@ bool st_table_list::is_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::first_leaf_for_name_resolution()
+    TABLE_LIST::first_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -2354,7 +2354,7 @@ bool st_table_list::is_leaf_for_name_resolution()
     else return 'this'
 */
 
-TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref;
   NESTED_JOIN *cur_nested_join;
@@ -2394,7 +2394,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::last_leaf_for_name_resolution()
+    TABLE_LIST::last_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -2412,7 +2412,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     - else - 'this'
 */
 
-TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref= this;
   NESTED_JOIN *cur_nested_join;
@@ -2454,7 +2454,7 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
     want_access          Acess which we require
 */
 
-void st_table_list::register_want_access(ulong want_access)
+void TABLE_LIST::register_want_access(ulong want_access)
 {
   /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
   want_access&= ~SHOW_VIEW_ACL;
@@ -2473,7 +2473,7 @@ void st_table_list::register_want_access(ulong want_access)
   Load security context information for this view
 
   SYNOPSIS
-    st_table_list::prepare_view_securety_context()
+    TABLE_LIST::prepare_view_securety_context()
     thd                  [in] thread handler
 
   RETURN
@@ -2482,9 +2482,9 @@ void st_table_list::register_want_access(ulong want_access)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool st_table_list::prepare_view_securety_context(THD *thd)
+bool TABLE_LIST::prepare_view_securety_context(THD *thd)
 {
-  DBUG_ENTER("st_table_list::prepare_view_securety_context");
+  DBUG_ENTER("TABLE_LIST::prepare_view_securety_context");
   DBUG_PRINT("enter", ("table: %s", alias));
 
   DBUG_ASSERT(!prelocking_placeholder && view);
@@ -2533,17 +2533,17 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
   Find security context of current view
 
   SYNOPSIS
-    st_table_list::find_view_security_context()
+    TABLE_LIST::find_view_security_context()
     thd                  [in] thread handler
 
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-Security_context *st_table_list::find_view_security_context(THD *thd)
+Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 {
   Security_context *sctx;
   TABLE_LIST *upper_view= this;
-  DBUG_ENTER("st_table_list::find_view_security_context");
+  DBUG_ENTER("TABLE_LIST::find_view_security_context");
 
   DBUG_ASSERT(view);
   while (upper_view && !upper_view->view_suid)
@@ -2572,7 +2572,7 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
   Prepare security context and load underlying tables priveleges for view
 
   SYNOPSIS
-    st_table_list::prepare_security()
+    TABLE_LIST::prepare_security()
     thd                  [in] thread handler
 
   RETURN
@@ -2580,11 +2580,11 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
     TRUE   Error
 */
 
-bool st_table_list::prepare_security(THD *thd)
+bool TABLE_LIST::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
-  DBUG_ENTER("st_table_list::prepare_security");
+  DBUG_ENTER("TABLE_LIST::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 
@@ -3079,10 +3079,10 @@ Field_iterator_table_ref::get_natural_column_ref()
   Cleanup this table for re-execution.
 
   SYNOPSIS
-    st_table_list::reinit_before_use()
+    TABLE_LIST::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD *thd)
+void TABLE_LIST::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
@@ -3109,7 +3109,7 @@ void st_table_list::reinit_before_use(THD *thd)
   Return subselect that contains the FROM list this table is taken from
 
   SYNOPSIS
-    st_table_list::containing_subselect()
+    TABLE_LIST::containing_subselect()
  
   RETURN
     Subselect item for the subquery that contains the FROM list
@@ -3118,7 +3118,7 @@ void st_table_list::reinit_before_use(THD *thd)
 
 */
 
-Item_subselect *st_table_list::containing_subselect()
+Item_subselect *TABLE_LIST::containing_subselect()
 {    
   return (select_lex ? select_lex->master_unit()->item : 0);
 }
