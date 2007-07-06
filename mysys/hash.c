@@ -572,6 +572,25 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
     previous->next=pos->next;		/* unlink pos */
 
   /* Move data to correct position */
+  if (new_index == empty)
+  {
+    /*
+      At this point record is unlinked from the old chain, thus it holds
+      random position. By the chance this position is equal to position
+      for the first element in the new chain. That means updated record
+      is the only record in the new chain.
+    */
+    if (empty != idx)
+    {
+      /*
+        Record was moved while unlinking it from the old chain.
+        Copy data to a new position.
+      */
+      data[empty]= org_link;
+    }
+    data[empty].next= NO_RECORD;
+    DBUG_RETURN(0);
+  }
   pos=data+new_index;
   new_pos_index=hash_rec_mask(hash,pos,blength,records);
   if (new_index != new_pos_index)
