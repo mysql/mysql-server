@@ -789,7 +789,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (share->mysql_version >= MYSQL_VERSION_TABLESPACE_IN_FRM)
     {
       /*
-       New frm format in mysql_version 5.1.19
+       New frm format in mysql_version 5.1.20
        New column properties added:
        COLUMN_FORMAT DYNAMIC|FIXED and STORAGE DISK|MEMORY
        TABLESPACE name is now stored in frm
