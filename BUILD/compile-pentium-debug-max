@@ -4,7 +4,7 @@ path=`dirname $0`
 set -- "$@" --with-debug=full
 . "$path/SETUP.sh"
 
-extra_flags="$pentium_cflags $debug_cflags"
+extra_flags="$pentium_cflags $debug_cflags -DSTACK_DIRECTION=-1"
 extra_configs="$pentium_configs $debug_configs $max_configs $error_inject --with-experimental-collations"
 
 . "$path/FINISH.sh"

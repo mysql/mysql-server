@@ -231,6 +231,8 @@
 #endif
 #undef inline_test_2
 #undef inline_test_1
+/* helper macro for "instantiating" inline functions */
+#define STATIC_INLINE static inline
 
 /*
   The following macros are used to control inlining a bit more than
@@ -1001,6 +1003,8 @@ typedef long long intptr;
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
 
+#define MY_ERRPTR ((void*)(intptr)1)
+
 #ifdef USE_RAID
 /*
   The following is done with a if to not get problems with pre-processors
@@ -1462,6 +1466,7 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
+
 #ifndef __NETWARE__
 /*
  *  Include standard definitions of operator new and delete.
@@ -1487,5 +1492,13 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21
+  
+/*
+  Only Linux is known to need an explicit sync of the directory to make sure a
+  file creation/deletion/renaming in(from,to) this directory durable.
+*/
+#ifdef TARGET_OS_LINUX
+#define NEED_EXPLICIT_SYNC_DIR 1
+#endif
 
 #endif /* my_global_h */

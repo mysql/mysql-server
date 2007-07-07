@@ -13,15 +13,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
-AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
+INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
+			-I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap 
+
+noinst_PROGRAMS  =    bitmap-t base64-t my_atomic-t
 
 LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/mysys/libmysys.a \
 		  $(top_builddir)/dbug/libdbug.a \
 		  $(top_builddir)/strings/libmystrings.a
-
-noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

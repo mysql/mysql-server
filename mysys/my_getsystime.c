@@ -34,10 +34,6 @@ ulonglong my_getsystime()
   LARGE_INTEGER t_cnt;
   if (!offset)
   {
-    /* strictly speaking there should be a mutex to protect
-       initialization section. But my_getsystime() is called from
-       UUID() code, and UUID() calls are serialized with a mutex anyway
-    */
     LARGE_INTEGER li;
     FILETIME ft;
     GetSystemTimeAsFileTime(&ft);

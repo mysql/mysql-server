@@ -16,8 +16,9 @@
 #include "mysys_priv.h"
 #include <my_dir.h>
 #include "mysys_err.h"
-
+#include "m_string.h"
 #undef my_rename
+
 	/* On unix rename deletes to file if it exists */
 
 int my_rename(const char *from, const char *to, myf MyFlags)
@@ -59,6 +60,20 @@ int my_rename(const char *from, const char *to, myf MyFlags)
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
       my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
+  }
+  else if (MyFlags & MY_SYNC_DIR)
+  {
+#ifdef NEED_EXPLICIT_SYNC_DIR
+    /* do only the needed amount of syncs: */
+    char dir_from[FN_REFLEN], dir_to[FN_REFLEN];
+    size_t dir_from_length, dir_to_length;
+    dirname_part(dir_from, from, &dir_from_length);
+    dirname_part(dir_to, to, &dir_to_length);
+    if (my_sync_dir(dir_from, MyFlags) ||
+        (strcmp(dir_from, dir_to) &&
+         my_sync_dir(dir_to, MyFlags)))
+      error= -1;
+#endif
   }
   DBUG_RETURN(error);
 } /* my_rename */

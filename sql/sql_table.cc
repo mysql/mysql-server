@@ -5334,6 +5334,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
+  if (!(used_fields & HA_CREATE_USED_TRANSACTIONAL))
+    create_info->transactional= table->s->transactional;
 
   if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
@@ -6989,7 +6991,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("mysql_recreate_table");
 
   bzero((char*) &create_info, sizeof(create_info));
-  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
