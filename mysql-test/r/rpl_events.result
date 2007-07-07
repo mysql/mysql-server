@@ -122,13 +122,15 @@ SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
-affected rows: 2
+4	from er	TIMESTAMP
+affected rows: 3
 "Checking event data on the slave"
 SELECT * FROM t1 ORDER BY id;
 id	c	ts
 1	manually	TIMESTAMP
 2	from justonce	TIMESTAMP
-affected rows: 2
+4	from er	TIMESTAMP
+affected rows: 3
 "Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
