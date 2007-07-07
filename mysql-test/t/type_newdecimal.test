@@ -1162,4 +1162,17 @@ drop table t1;
 #
 
 SELECT 1.000000000000 * 99.999999999998 / 100 a,1.000000000000 * (99.999999999998 / 100) b;
+
+#
+# Bug #29417: assertion abort for a grouping query with decimal user variable
+#
+
+CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
+INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+
+SET @a= CAST(1 AS decimal);
+SELECT 1 FROM t1 GROUP BY @b := @a, @b;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
