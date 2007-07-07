@@ -166,4 +166,16 @@ connection master;
 drop table if exists t1,t2,t3,t4;
 sync_slave_with_master;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug #29420: crash with show and purge binlogs
+#
+--error 1220
+show binlog events in 'non existing_binlog_file';
+purge master logs before now();
+--error 1220
+show binlog events in '';
+purge master logs before now();
+
+--echo End of 5.0 tests
