@@ -334,7 +334,10 @@ fi
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*
   copyfileto $BASE/bin scripts/*
-  copyfileto $BASE/scripts scripts/mysql_install_db
+  $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ \
+      ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ \
+      @HOSTNAME@ \@pkgdatadir\@ ./support-files \
+      < scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \
       \@sbindir\@ ./bin \@libexecdir\@ ./bin \
       \@MYSQLD_USER\@ @MYSQLD_USER@ \@localstatedir\@ /usr/local/mysql/data \
