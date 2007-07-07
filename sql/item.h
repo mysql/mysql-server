@@ -2115,6 +2115,12 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  Item *get_tmp_table_item(THD *thd)
+  {
+    Item *item= Item_ref::get_tmp_table_item(thd);
+    item->name= name;
+    return item;
+  }
   virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
