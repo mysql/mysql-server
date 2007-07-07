@@ -504,7 +504,7 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_TABLE_NOT_FOUND) {
 
-    		return(HA_ERR_KEY_NOT_FOUND);
+    		return(HA_ERR_NO_SUCH_TABLE);
 
   	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
