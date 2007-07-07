@@ -571,6 +571,26 @@ create table t2 as select f2 as a from t1 union select f3 from t1;
 desc t2;
 select AsText(a) from t2; 
 drop table t1, t2;
+
+#
+# Bug #29166: MYsql crash when query is run
+#
+
+# The test query itself is not logged : too large output.
+# The real test is the second query : see if the first hasn't crashed the
+# server
+--disable_query_log
+--disable_result_log
+SELECT AsText(GeometryFromText(CONCAT(
+  'MULTIPOLYGON(((',
+  REPEAT ('-0.00000000001234567890123456789012 -0.123456789012345678,', 1000),
+  '-0.00000000001234567890123456789012 -0.123456789012345678',
+  ')))'
+))) AS a;
+--enable_result_log
+--enable_query_log
+SELECT 1;
+
 --echo End of 5.0 tests
 
 
