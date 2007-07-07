@@ -38,9 +38,9 @@
 */.libs/*
 */.pure
 */debug/*
+*/minsizerel/*
 */release/*
 */relwithdebinfo/*
-*/minsizerel/*
 *~
 .*.swp
 ./CMakeCache.txt
@@ -584,6 +584,7 @@ heap/hp_test2
 help
 help.c
 help.h
+include/abi_check
 include/check_abi
 include/link_sources
 include/my_config.h
@@ -1021,8 +1022,8 @@ libmysqld/.deps/unireg.Po
 libmysqld/backup_dir
 libmysqld/client.c
 libmysqld/client_settings.h
-libmysqld/convert.cc
 libmysqld/cmake_dummy.c
+libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/discover.cc
 libmysqld/emb_qcache.cpp
