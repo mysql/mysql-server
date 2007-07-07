@@ -4299,7 +4299,6 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   }
   
   info->out_rows *= selectivity_mult;
-  DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
   
   if (is_cpk_scan)
   {

@@ -48,9 +48,11 @@ static const char *ha_myisammrg_exts[] = {
 };
 extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         MI_COLUMNDEF **recinfo_out, uint *records_out);
-extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+extern int check_definition(MI_KEYDEF *t1_keyinfo,
+                            MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
-                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            MI_KEYDEF *t2_keyinfo,
+                            MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict);
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name);

@@ -20,8 +20,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
+#include "../storage/maria/ma_pagecache.h"
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -272,13 +274,14 @@ enum legacy_db_type
   DB_TYPE_TABLE_FUNCTION,
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
+  DB_TYPE_MARIA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGES };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -321,6 +324,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
+#define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -751,6 +755,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
+enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
@@ -773,6 +778,8 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
+  /* 0 not used, 1 if not transactional, 2 if transactional */
+  enum ha_choice transactional;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
@@ -851,7 +858,8 @@ typedef struct st_ha_check_opt
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
+  KEY_CACHE *key_cache; /* new key cache when changing key cache */
+  PAGECACHE *pagecache;	/* new pagecache when changing pagecache */
   void init();
 } HA_CHECK_OPT;
 
@@ -1775,6 +1783,7 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 }
 
 /* basic stuff */
+int ha_init_errors(void);
 int ha_init(void);
 int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);
@@ -1809,6 +1818,15 @@ int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
+/* pagecache */
+int ha_init_pagecache(const char *name, PAGECACHE *pagecache);
+/*
+TODO: uncomment when resizing will be implemented
+int ha_resize_pagecache(PAGECACHE *pagecache);
+*/
+int ha_change_pagecache_param(PAGECACHE *pagecache);
+int ha_change_pagecache(PAGECACHE *old_pagecache, PAGECACHE *new_pagecache);
+int ha_end_pagecache(PAGECACHE *pagecache);
 
 /* report to InnoDB that control passes to the client */
 int ha_release_temporary_latches(THD *thd);

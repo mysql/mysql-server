@@ -289,10 +289,10 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
 {
   DBUG_ENTER("mysql_unlock_tables");
-  if (sql_lock->lock_count)
-    thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
     VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
+  if (sql_lock->lock_count)
+    thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   my_free((uchar*) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }

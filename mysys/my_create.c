@@ -52,6 +52,13 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   fd = open(FileName, access_flags);
 #endif
 
+  if ((MyFlags & MY_SYNC_DIR) && (fd >=0) &&
+      my_sync_dir_by_file(FileName, MyFlags))
+  {
+    my_close(fd, MyFlags);
+    fd= -1;
+  }
+
   DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_CREATE,
 				   EE_CANTCREATEFILE, MyFlags));
 } /* my_create */
