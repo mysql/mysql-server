@@ -84,6 +84,6 @@ ma_pagecache_consist_64kWR_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPA
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # so we don't build lockman-t and lockman1-t 
-CLEANFILES =		maria_control page_cache_test_file_1 \
+CLEANFILES =		maria_log_control page_cache_test_file_1 \
 			maria_log.????????
 

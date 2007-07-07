@@ -5623,7 +5623,7 @@ static my_bool write_hook_for_redo(enum translog_record_type type
     non-transactional log records (REPAIR, CREATE, RENAME, DROP) should not
     call this hook; we trust them but verify ;)
   */
-  DBUG_ASSERT(trn->trid != 0);
+  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
   /*
     If the hook stays so simple, it would be faster to pass
     !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
@@ -5650,7 +5650,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
-  DBUG_ASSERT(trn->trid != 0); /* see write_hook_for_redo() */
+  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
   trn->undo_lsn= *lsn;
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=

@@ -1811,9 +1811,11 @@ static my_bool write_block_record(MARIA_HA *info,
       ulong length;
       ulong data_length= (tmp_data - info->rec_buff);
 
+#ifdef MONTY_WILL_KNOW
 #ifdef SANITY_CHECKS
       if (cur_block->sub_blocks == 1)
         goto crashed;                           /* no reserved full or tails */
+#endif
 #endif
 
       /*

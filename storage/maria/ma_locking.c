@@ -55,9 +55,15 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
     case F_UNLCK:
       maria_ftparser_call_deinitializer(info);
       if (info->lock_type == F_RDLCK)
+      {
 	count= --share->r_locks;
+        _ma_restore_status(info);
+      }
       else
+      {
 	count= --share->w_locks;
+        _ma_update_status(info);
+      }
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks)
       {
