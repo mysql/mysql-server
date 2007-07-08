@@ -231,6 +231,17 @@ int mysql_update(THD *thd,
     if (cond_value == Item::COND_FALSE)
       limit= 0;                                   // Impossible WHERE
   }
+
+  /*
+    If a timestamp field settable on UPDATE is present then to avoid wrong
+    update force the table handler to retrieve write-only fields to be able
+    to compare records and detect data change.
+  */
+  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+      table->timestamp_field &&
+      (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+       table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+    bitmap_union(table->read_set, table->write_set);
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
