@@ -948,5 +948,29 @@ unlock tables;
 select * from t1;
 drop tables t1;
 
+#
+# Bug#29310: An InnoDB table was updated when the data wasn't actually changed.
+#
+create table t1(f1 varchar(5) unique, f2 timestamp NOT NULL DEFAULT
+  CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+--replace_column 1 #
+select @a:=f2 from t1;
+--sleep 5
+update t1 set f1=1;
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) values (1) on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+drop table t1;
 
 --echo End of 5.1 tests

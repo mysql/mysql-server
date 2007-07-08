@@ -1419,7 +1419,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
+        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+             !bitmap_is_subset(table->write_set, table->read_set)) ||
             compare_record(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
