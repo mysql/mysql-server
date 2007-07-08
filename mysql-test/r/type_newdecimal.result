@@ -1491,4 +1491,12 @@ aa	SUM(b)
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 ERROR 42000: Too big scale 31 specified for column '1'. Maximum is 30.
 DROP TABLE t1;
+CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
+INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+SET @a= CAST(1 AS decimal);
+SELECT 1 FROM t1 GROUP BY @b := @a, @b;
+1
+1
+1
+DROP TABLE t1;
 End of 5.0 tests
