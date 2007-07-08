@@ -10,31 +10,9 @@ select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	ROW
 @@session.binlog_format	ROW
 DROP TABLE IF EXISTS t1, t2, t3;
-Warnings:
-Level	Note
-Code	1051
-Message	Unknown table 't1'
-Level	Note
-Code	1051
-Message	Unknown table 't2'
-Level	Note
-Code	1051
-Message	Unknown table 't3'
 DROP PROCEDURE IF EXISTS p1;
-Warnings:
-Level	Note
-Code	1305
-Message	PROCEDURE p1 does not exist
 DROP PROCEDURE IF EXISTS p2;
-Warnings:
-Level	Note
-Code	1305
-Message	PROCEDURE p2 does not exist
 DROP PROCEDURE IF EXISTS p3;
-Warnings:
-Level	Note
-Code	1305
-Message	PROCEDURE p3 does not exist
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
