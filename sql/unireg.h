@@ -120,7 +120,7 @@
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 #define SPECIAL_SAFE_MODE	2048
-#define SPECIAL_LOG_QUERIES_NOT_USING_INDEXES 4096 /* Log q not using indexes */
+#define SPECIAL_LOG_QUERIES_NOT_USING_INDEXES 4096 /* Obsolete */
 
 	/* Extern defines */
 #define store_record(A,B) bmove_align((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
