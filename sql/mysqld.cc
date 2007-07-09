@@ -7820,8 +7820,6 @@ static void get_options(int *argc,char **argv)
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
-  if (opt_log_queries_not_using_indexes)
-    opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
 
   if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
 				  &global_system_variables.date_format) ||

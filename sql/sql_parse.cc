@@ -1323,7 +1323,7 @@ void log_slow_statement(THD *thd)
 	thd->variables.long_query_time ||
 	((thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
+	 opt_log_queries_not_using_indexes))
     {
       thd->status_var.long_query_count++;
       slow_log_print(thd, thd->query, thd->query_length, start_of_query);
