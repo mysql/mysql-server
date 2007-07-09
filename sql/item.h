@@ -843,8 +843,7 @@ public:
     german character for double s is equal to 2 s.
 
     The default is that an item is not allowed
-    in a partition function. However all mathematical functions, string
-    manipulation functions, date functions are allowed. Allowed functions
+    in a partition function. Allowed functions
     can never depend on server version, they cannot depend on anything
     related to the environment. They can also only depend on a set of
     fields in the table itself. They cannot depend on other tables and
@@ -1633,6 +1632,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1650,6 +1650,7 @@ public:
   void print(String *str);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1692,6 +1693,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1752,7 +1754,6 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1861,7 +1862,6 @@ public:
                                   CHARSET_INFO *cs= NULL):
     Item_string(name, length, cs)
   {}
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1915,7 +1915,6 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -2116,6 +2115,12 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  Item *get_tmp_table_item(THD *thd)
+  {
+    Item *item= Item_ref::get_tmp_table_item(thd);
+    item->name= name;
+    return item;
+  }
   virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
@@ -2237,7 +2242,6 @@ public:
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER

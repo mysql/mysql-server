@@ -2328,6 +2328,7 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg,
              unireg_check_arg, field_name_arg, dec_arg, zero_arg, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -2344,6 +2345,7 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
              NONE, name, dec_arg, 0, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -6469,6 +6471,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
   is 2.
 ****************************************************************************/
 
+const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
