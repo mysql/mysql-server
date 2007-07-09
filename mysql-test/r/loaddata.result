@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (a date, b date, c date not null, d date);
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
 Warnings:
@@ -85,3 +85,57 @@ field1	field2
 a"b	cd"ef
 a"b	c"d"e
 drop table t1;
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 VARCHAR(255)
+);
+CREATE TABLE t2 (
+id INT,
+c2 VARCHAR(255)
+);
+INSERT INTO t1 (c1) VALUES
+('r'),   ('rr'),   ('rrr'),   ('rrrr'),
+('.r'),  ('.rr'),  ('.rrr'),  ('.rrrr'),
+('r.'),  ('rr.'),  ('rrr.'),  ('rrrr.'),
+('.r.'), ('.rr.'), ('.rrr.'), ('.rrrr.');
+SELECT * FROM t1;
+id	c1
+1	r
+2	rr
+3	rrr
+4	rrrr
+5	.r
+6	.rr
+7	.rrr
+8	.rrrr
+9	r.
+10	rr.
+11	rrr.
+12	rrrr.
+13	.r.
+14	.rr.
+15	.rrr.
+16	.rrrr.
+SELECT * INTO OUTFILE 'MYSQL_TEST_DIR/var/tmp/t1' FIELDS ENCLOSED BY 'r' FROM t1;
+r1r	rrrr
+r2r	rrrrrr
+r3r	rrrrrrrr
+r4r	rrrrrrrrrr
+r5r	r.rrr
+r6r	r.rrrrr
+r7r	r.rrrrrrr
+r8r	r.rrrrrrrrr
+r9r	rrr.r
+r10r	rrrrr.r
+r11r	rrrrrrr.r
+r12r	rrrrrrrrr.r
+r13r	r.rr.r
+r14r	r.rrrr.r
+r15r	r.rrrrrr.r
+r16r	r.rrrrrrrr.r
+LOAD DATA INFILE 'MYSQL_TEST_DIR/var/tmp/t1' INTO TABLE t2 FIELDS ENCLOSED BY 'r';
+SELECT t1.id, c1, c2 FROM t1 LEFT  JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+id	c1	c2
+SELECT t1.id, c1, c2 FROM t1 RIGHT JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+id	c1	c2
+DROP TABLE t1,t2;
