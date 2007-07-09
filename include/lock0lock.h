@@ -597,7 +597,7 @@ lock_validate(void);
 			/* out: TRUE if ok */
 /*************************************************************************
 Return approximate number or record locks (bits set in the bitmap) for
-this transaction. Since delete-marked records ma ybe removed, the
+this transaction. Since delete-marked records maybe removed, the
 record count will not be precise. */
 
 ulint
