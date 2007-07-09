@@ -1676,6 +1676,17 @@ alter table bug21328 engine=myisam;
 drop table bug21328;
 
 #
+# BUG#28971 - ALTER TABLE followed by UPDATE for a CSV table make server
+# crash
+#
+create table t1(a blob, b int) engine=csv;
+insert into t1 values('a', 1);
+flush tables;
+update t1 set b=2;
+select * from t1;
+drop table t1;
+
+#
 # Bug #29353: negative values
 #
 create table t1(a int) engine=csv;
