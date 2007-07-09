@@ -78,72 +78,11 @@ drop table t1;
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
 show binlog events from 0;
 
-set autocommit= 1;
-reset master;
-create table t1(n int) engine=innodb;
-insert into t1 values (1);
-insert into t1 values (2);
-insert into t1 values (3);
-commit;
-drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
-
-reset master;
-create table t1(n int) engine=myisam;
-begin;
-insert into t1 values (4);
-insert into t1 values (5);
-insert into t1 values (6);
-commit;
-drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
-
-# now show this also works for SHOW MASTER STATUS
-# as this is what "mysqldump --master-data=1" uses.
-
-set autocommit= 1;
-reset master;
-create table t1(n int) engine=innodb;
-show master status;
-insert into t1 values (1);
-show master status;
-insert into t1 values (2);
-insert into t1 values (3);
-show master status;
-commit;
-show master status;
-drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
-
-set autocommit= 0;
-reset master;
-create table t1(n int) engine=myisam;
-show master status;
-insert into t1 values (4);
-show master status;
-insert into t1 values (5);
-insert into t1 values (6);
-
-show master status;
-commit;
-show master status;
-drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
-
-set session autocommit = @ac;
-
 # now show that nothing breaks if we need to read from the cache more
 # than once, resulting in split event-headers
 
 set @bcs = @@binlog_cache_size;
-set @ac = @@autocommit;
-
 set global binlog_cache_size=4096;
-set autocommit= 0;
 reset master;
 
 create table t1 (a int) engine=innodb;

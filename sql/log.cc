@@ -1965,14 +1965,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         }
 
         /*
-          Adjust hdr_offs. Note that this doesn't mean it will necessarily
-          be valid in the next iteration; if the current event is very long,
-          it may take a couple of read-iterations (and subsequent fixings
-          of hdr_offs) for it to become valid again.
-          if we had a split header, hdr_offs was already fixed above.
+          Adjust hdr_offs. Note that it may still point beyond the segment
+          read in the next iteration; if the current event is very long,
+          it may take a couple of read-iterations (and subsequent adjustments
+          of hdr_offs) for it to point into the then-current segment.
+          If we have a split header (!carry), hdr_offs will be set at the
+          beginning of the next iteration, overwriting the value we set here:
         */
-        if (carry == 0)
-          hdr_offs -= length;
+        hdr_offs -= length;
       }
 
       /* Write data to the binary log file */
@@ -1981,6 +1981,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
       cache->read_pos=cache->read_end;		// Mark buffer used up
       DBUG_EXECUTE_IF("half_binlogged_transaction", goto DBUG_skip_commit;);
     } while ((length=my_b_fill(cache)));
+
+    DBUG_ASSERT(carry == 0);
 
     if (commit_event->write(&log_file))
       goto err;
