@@ -289,6 +289,25 @@ then
   syslog=0
 fi
 
+USER_OPTION=""
+if test -w / -o "$USER" = "root"
+then
+  if test "$user" != "root" -o $SET_USER = 1
+  then
+    USER_OPTION="--user=$user"
+  fi
+  # Change the err log to the right user, if it is in use
+  if [ $syslog -eq 0 ]; then
+    touch $err_log
+    chown $user $err_log
+  fi
+  if test -n "$open_files"
+  then
+    ulimit -n $open_files
+    append_arg_to_args "--open-files-limit=$open_files"
+  fi
+fi
+
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 # Make sure that directory for $safe_mysql_unix_port exists
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
@@ -385,22 +404,6 @@ else
         # nohup doesn't work on this system
         NOHUP_NICENESS=""
     fi
-fi
-
-USER_OPTION=""
-if test -w / -o "$USER" = "root"
-then
-  if test "$user" != "root" -o $SET_USER = 1
-  then
-    USER_OPTION="--user=$user"
-  fi
-  # If we are root, change the err log to the right user.
-  touch $err_log; chown $user $err_log
-  if test -n "$open_files"
-  then
-    ulimit -n $open_files
-    append_arg_to_args "--open-files-limit=$open_files"
-  fi
 fi
 
 # Try to set the core file size (even if we aren't root) because many systems
