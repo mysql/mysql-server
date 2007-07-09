@@ -1209,6 +1209,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
 		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
+  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
+  is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
 		  (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
@@ -1283,7 +1285,8 @@ bool select_export::send_data(List<Item> &items)
 	used_length=min(res->length(),item->max_length);
       else
 	used_length=res->length();
-      if (result_type == STRING_RESULT && escape_char != -1)
+      if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
+           escape_char != -1)
       {
         char *pos, *start, *end;
         CHARSET_INFO *res_charset= res->charset();
@@ -1349,7 +1352,9 @@ bool select_export::send_data(List<Item> &items)
                NEED_ESCAPING(pos[1])))
           {
 	    char tmp_buff[2];
-	    tmp_buff[0]= escape_char;
+            tmp_buff[0]= ((int) *pos == field_sep_char &&
+                          is_ambiguous_field_sep) ?
+                          field_sep_char : escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';
 	    if (my_b_write(&cache,(byte*) start,(uint) (pos-start)) ||
 		my_b_write(&cache,(byte*) tmp_buff,2))
