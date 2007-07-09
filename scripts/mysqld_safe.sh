@@ -14,7 +14,7 @@
 KILL_MYSQLD=1;
 MYSQLD=
 niceness=0
-# Default on, unless --log-err is specified (and before options are parsed)
+# Default on, unless --log-error is specified (and before options are parsed)
 syslog=2
 user=@MYSQLD_USER@
 pid_file=
@@ -256,7 +256,7 @@ if [ -n "$err_log" -o $syslog -eq 0 ]
 then
   if [ -n "$err_log" ]
   then
-    # mysqld adds ".err" if there is no extension on the --log-err
+    # mysqld adds ".err" if there is no extension on the --log-error
     # argument; must match that here, or mysqld_safe will write to a
     # different log file than mysqld
 
