@@ -886,6 +886,9 @@ AsText(a)
 POINT(1 1)
 LINESTRING(0 0,1 1,2 2)
 drop table t1, t2;
+SELECT 1;
+1
+1
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;
