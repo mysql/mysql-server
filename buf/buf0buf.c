@@ -903,8 +903,7 @@ buf_block_make_young(
 	/* Note that we read freed_page_clock's without holding any mutex:
 	this is allowed since the result is used only in heuristics */
 
-	if (buf_pool->freed_page_clock >= block->freed_page_clock
-				+ 1 + (buf_pool->curr_size / 4)) {
+	if (buf_block_peek_if_too_old(block)) {
 
 		mutex_enter(&buf_pool->mutex);
 		/* There has been freeing activity in the LRU list:
