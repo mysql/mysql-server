@@ -4438,13 +4438,10 @@ lock_table_queue_validate(
 	dict_table_t*	table)	/* in: table */
 {
 	lock_t*	lock;
-	ibool	is_waiting;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-
-	is_waiting = FALSE;
 
 	lock = UT_LIST_GET_FIRST(table->locks);
 
@@ -4455,12 +4452,9 @@ lock_table_queue_validate(
 	
 		if (!lock_get_wait(lock)) {
 
-			ut_a(!is_waiting);
-		
 			ut_a(!lock_table_other_has_incompatible(lock->trx, 0,
 						table, lock_get_mode(lock)));
 		} else {
-			is_waiting = TRUE;
 
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}

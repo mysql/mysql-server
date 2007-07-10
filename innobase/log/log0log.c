@@ -3061,9 +3061,22 @@ loop:
 
 	mutex_enter(&kernel_mutex);
 
-       /* Check that there are no longer transactions. We need this wait even
-        for the 'very fast' shutdown, because the InnoDB layer may have
-        committed or prepared transactions and we don't want to lose them. */
+	/* We need the monitor threads to stop before we proceed with a
+	normal shutdown. In case of very fast shutdown, however, we can
+	proceed without waiting for monitor threads. */
+
+	if (srv_fast_shutdown < 2
+	   && (srv_error_monitor_active
+	      || srv_lock_timeout_and_monitor_active)) {
+		
+		mutex_exit(&kernel_mutex);
+		
+		goto loop;
+	}
+
+	/* Check that there are no longer transactions. We need this wait even
+	for the 'very fast' shutdown, because the InnoDB layer may have
+	committed or prepared transactions and we don't want to lose them. */
 
 	if (trx_n_mysql_transactions > 0
 			|| UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
@@ -3184,21 +3197,7 @@ loop:
 		goto loop;
 	}
 
-	/* The lock timeout thread should now have exited */
-
-	if (srv_lock_timeout_and_monitor_active) {
-
-		goto loop;
-	}
-
-	/* We now let also the InnoDB error monitor thread to exit */
-	
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
-
-	if (srv_error_monitor_active) {
-
-		goto loop;
-	}
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
