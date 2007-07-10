@@ -205,10 +205,9 @@ the extent are free and which contain old tuple version to clean. */
 					space */
 #define	XDES_FSEG		4	/* extent belongs to a segment */
 
-/* File extent data structure size in bytes. The "+ 7 ) / 8" part in the
-definition rounds the number of bytes upward. */
+/* File extent data structure size in bytes. */
 #define	XDES_SIZE							\
-	(XDES_BITMAP + (FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE + 7) / 8)
+	(XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE))
 
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
@@ -3649,7 +3648,11 @@ fsp_validate(
 	n_full_frag_pages = FSP_EXTENT_SIZE
 		* flst_get_len(header + FSP_FULL_FRAG, &mtr);
 
-	ut_a(free_limit <= size || (space != 0 && size < FSP_EXTENT_SIZE));
+	if (UNIV_UNLIKELY(free_limit > size)) {
+
+		ut_a(space != 0);
+		ut_a(size < FSP_EXTENT_SIZE);
+	}
 
 	flst_validate(header + FSP_FREE, &mtr);
 	flst_validate(header + FSP_FREE_FRAG, &mtr);

@@ -3174,7 +3174,8 @@ lock_deadlock_occurs(
 	ulint		ret;
 	ulint		cost	= 0;
 
-	ut_ad(trx && lock);
+	ut_ad(trx);
+	ut_ad(lock);
 	ut_ad(mutex_own(&kernel_mutex));
 retry:
 	/* We check that adding this trx to the waits-for graph
@@ -3246,7 +3247,9 @@ lock_deadlock_recursive(
 	trx_t*	lock_trx;
 	ulint	ret;
 
-	ut_a(trx && start && wait_lock);
+	ut_a(trx);
+	ut_a(start);
+	ut_a(wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
 
 	if (trx->deadlock_mark == 1) {
@@ -3357,8 +3360,8 @@ lock_deadlock_recursive(
 					return(LOCK_VICTIM_IS_START);
 				}
 
-				if (ut_dulint_cmp(wait_lock->trx->undo_no,
-						  start->undo_no) >= 0) {
+				if (trx_weight_cmp(wait_lock->trx,
+						   start) >= 0) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
@@ -4423,11 +4426,8 @@ lock_table_queue_validate(
 	dict_table_t*	table)	/* in: table */
 {
 	lock_t*	lock;
-	ibool	is_waiting;
 
 	ut_ad(mutex_own(&kernel_mutex));
-
-	is_waiting = FALSE;
 
 	lock = UT_LIST_GET_FIRST(table->locks);
 
@@ -4438,13 +4438,10 @@ lock_table_queue_validate(
 
 		if (!lock_get_wait(lock)) {
 
-			ut_a(!is_waiting);
-
 			ut_a(!lock_table_other_has_incompatible(
 				     lock->trx, 0, table,
 				     lock_get_mode(lock)));
 		} else {
-			is_waiting = TRUE;
 
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}
