@@ -121,6 +121,11 @@ ut_2_power_up(
 			/* out: first power of 2 which is >= n */
 	ulint	n)	/* in: number != 0 */
 	__attribute__((const));
+
+/* Determine how many bytes (groups of 8 bits) are needed to
+store the given number of bits. */
+#define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
+
 /****************************************************************
 Sort function for ulint arrays. */
 
