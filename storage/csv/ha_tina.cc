@@ -904,6 +904,7 @@ int ha_tina::open_update_temp_file_if_needed()
                      0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
       return 1;
     share->update_file_opened= TRUE;
+    temp_file_length= 0;
   }
   return 0;
 }
@@ -928,6 +929,13 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
 
   size= encode_quote(new_data);
 
+  /*
+    During update we mark each updating record as deleted 
+    (see the chain_append()) then write new one to the temporary data file. 
+    At the end of the sequence in the rnd_end() we append all non-marked
+    records from the data file to the temporary data file then rename it.
+    The temp_file_length is used to calculate new data file length.
+  */
   if (chain_append())
     DBUG_RETURN(-1);
 
@@ -937,6 +945,7 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   if (my_write(update_temp_file, (uchar*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
+  temp_file_length+= size;
 
   /* UPDATE should never happen on the log tables */
   DBUG_ASSERT(!share->is_log_table);
@@ -1154,7 +1163,6 @@ int ha_tina::rnd_end()
 
   if ((chain_ptr - chain)  > 0)
   {
-    off_t temp_file_length= 0;
     tina_set *ptr= chain;
 
     /*
@@ -1244,7 +1252,10 @@ int ha_tina::rnd_end()
       Here we record this fact to the meta-file.
     */
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
-    
+    /* 
+      Update local_saved_data_file_length with the real length of the 
+      data file.
+    */
     local_saved_data_file_length= temp_file_length;
   }
 
