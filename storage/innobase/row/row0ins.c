@@ -51,21 +51,6 @@ innobase_invalidate_query_cache(
 	ulint	full_name_len);	/* in: full name length where also the null
 				chars count */
 
-/**********************************************************************
-This function returns true if
-
-1) SQL-query in the current thread
-is either REPLACE or LOAD DATA INFILE REPLACE.
-
-2) SQL-query in the current thread
-is INSERT ON DUPLICATE KEY UPDATE.
-
-NOTE that /mysql/innobase/row/row0ins.c must contain the
-prototype for this function ! */
-
-ibool
-innobase_query_is_update(void);
-
 /*************************************************************************
 Creates an insert node struct. */
 
@@ -448,7 +433,11 @@ row_ins_cascade_calc_update_vec(
 	ulint		i;
 	ulint		j;
 
-	ut_a(node && foreign && cascade && table && index);
+	ut_a(node);
+	ut_a(foreign);
+	ut_a(cascade);
+	ut_a(table);
+	ut_a(index);
 
 	/* Calculate the appropriate update vector which will set the fields
 	in the child index record to the same value (possibly padded with
@@ -791,7 +780,10 @@ row_ins_foreign_check_on_constraint(
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
 
-	ut_a(thr && foreign && pcur && mtr);
+	ut_a(thr);
+	ut_a(foreign);
+	ut_a(pcur);
+	ut_a(mtr);
 
 	trx = thr_get_trx(thr);
 
@@ -1308,7 +1300,8 @@ run_again:
 		goto exit_func;
 	}
 
-	ut_a(check_table && check_index);
+	ut_a(check_table);
+	ut_a(check_index);
 
 	if (check_table != table) {
 		/* We already have a LOCK_IX on table, but not necessarily
@@ -1336,11 +1329,9 @@ run_again:
 	/* Scan index records and check if there is a matching record */
 
 	for (;;) {
-		page_t*	page;
 		rec = btr_pcur_get_rec(&pcur);
-		page = buf_frame_align(rec);
 
-		if (rec == page_get_infimum_rec(page)) {
+		if (page_rec_is_infimum(rec)) {
 
 			goto next_rec;
 		}
@@ -1348,7 +1339,7 @@ run_again:
 		offsets = rec_get_offsets(rec, check_index,
 					  offsets, ULINT_UNDEFINED, &heap);
 
-		if (rec == page_get_supremum_rec(page)) {
+		if (page_rec_is_supremum(rec)) {
 
 			err = row_ins_set_shared_rec_lock(
 				LOCK_ORDINARY, rec, check_index, offsets, thr);
@@ -1654,6 +1645,7 @@ row_ins_scan_sec_index_for_duplicate(
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
+	unsigned	allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1684,12 +1676,14 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
+	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
+
 	/* Scan index records and check if there is a duplicate */
 
 	for (;;) {
 		rec = btr_pcur_get_rec(&pcur);
 
-		if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
+		if (page_rec_is_infimum(rec)) {
 
 			goto next_rec;
 		}
@@ -1697,7 +1691,7 @@ row_ins_scan_sec_index_for_duplicate(
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
-		if (innobase_query_is_update()) {
+		if (allow_duplicates) {
 
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
@@ -1826,7 +1820,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (innobase_query_is_update()) {
+			if (trx->duplicates & TRX_DUP_IGNORE) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1864,7 +1858,7 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (innobase_query_is_update()) {
+			if (trx->duplicates & TRX_DUP_IGNORE) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
