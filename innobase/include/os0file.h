@@ -94,7 +94,8 @@ log. */
 #define	OS_FILE_PATH_ERROR		74
 #define	OS_FILE_AIO_RESOURCES_RESERVED	75	/* wait for OS aio resources
 						to become available again */
-#define	OS_FILE_ERROR_NOT_SPECIFIED	76
+#define	OS_FILE_SHARING_VIOLATION	76
+#define	OS_FILE_ERROR_NOT_SPECIFIED	77
 
 /* Types for aio operations */
 #define OS_FILE_READ	10

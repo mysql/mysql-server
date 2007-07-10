@@ -243,7 +243,13 @@ os_file_get_last_error(
 			fprintf(stderr,
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
-  "InnoDB: of the same name as a data file.\n"); 
+  "InnoDB: of the same name as a data file.\n");
+		} else if (err == ERROR_SHARING_VIOLATION
+			   || err == ERROR_LOCK_VIOLATION) {
+			fprintf(stderr,
+  "InnoDB: The error means that another program is using InnoDB's files.\n"
+  "InnoDB: This might be a backup or antivirus software or another instance\n"
+  "InnoDB: of MySQL. Please close it to get rid of this error.\n");
 		} else {
 			fprintf(stderr,
   "InnoDB: Some operating system error numbers are described at\n"
@@ -260,6 +266,9 @@ os_file_get_last_error(
 		return(OS_FILE_DISK_FULL);
 	} else if (err == ERROR_FILE_EXISTS) {
 		return(OS_FILE_ALREADY_EXISTS);
+	} else if (err == ERROR_SHARING_VIOLATION
+		   || err == ERROR_LOCK_VIOLATION) {
+		return(OS_FILE_SHARING_VIOLATION);
 	} else {
 		return(100 + err);
 	}
@@ -369,6 +378,12 @@ os_file_handle_error_cond_exit(
 			|| err == OS_FILE_PATH_ERROR) {
 
 		return(FALSE);
+
+	} else if (err == OS_FILE_SHARING_VIOLATION) {
+
+		os_thread_sleep(10000000);  /* 10 sec */
+		return(TRUE);
+
 	} else {
 	        if (name) {
 	                fprintf(stderr, "InnoDB: File name %s\n", name);

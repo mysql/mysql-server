@@ -1220,7 +1220,8 @@ loop:
 		ut_ad(buf_validate());
 	}
 #endif
-	ut_ad(block->buf_fix_count > 0);
+	/* This debug code has been upgraded to narrow down Bug# 26081 */
+	ut_a(block->buf_fix_count > 0);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (mode == BUF_GET_NOWAIT) {
@@ -1237,6 +1238,13 @@ loop:
 
 		if (!success) {
 			mutex_enter(&block->mutex);
+
+			/* This debug code has been added to narrow
+			down Bug# 26081 */
+			if (UNIV_UNLIKELY(block->buf_fix_count == 0)) {
+				buf_print_diagnostic(mtr, block);
+				ut_error;
+			}
 
 			block->buf_fix_count--;
 
@@ -1362,7 +1370,14 @@ buf_page_optimistic_get_func(
 
 	if (UNIV_UNLIKELY(!success)) {
 		mutex_enter(&block->mutex);
-		
+
+		/* This debug code has been added to narrow
+		down Bug# 26081 */
+		if (UNIV_UNLIKELY(block->buf_fix_count == 0)) {
+			buf_print_diagnostic(mtr, block);
+			ut_error;
+		}
+
 		block->buf_fix_count--;
 
 		mutex_exit(&block->mutex);
@@ -1384,7 +1399,14 @@ buf_page_optimistic_get_func(
 		}
 
 		mutex_enter(&block->mutex);
-		
+
+		/* This debug code has been added to narrow
+		down Bug# 26081 */
+		if (UNIV_UNLIKELY(block->buf_fix_count == 0)) {
+			buf_print_diagnostic(mtr, block);
+			ut_error;
+		}
+
 		block->buf_fix_count--;
 
 		mutex_exit(&block->mutex);
@@ -1404,7 +1426,10 @@ buf_page_optimistic_get_func(
 		ut_ad(buf_validate());
 	}
 #endif
-	ut_ad(block->buf_fix_count > 0);
+	/* This debug code has been upgraded from ut_ad() to narrow
+	down Bug# 26081 */
+	ut_a(block->buf_fix_count > 0);
+
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
@@ -1493,7 +1518,14 @@ buf_page_get_known_nowait(
 	
 	if (!success) {
 		mutex_enter(&block->mutex);
-		
+
+		/* This debug code has been added to narrow
+		down Bug# 26081 */
+		if (UNIV_UNLIKELY(block->buf_fix_count == 0)) {
+			buf_print_diagnostic(mtr, block);
+			ut_error;
+		}
+
 		block->buf_fix_count--;
 
 		mutex_exit(&block->mutex);
@@ -1514,7 +1546,8 @@ buf_page_get_known_nowait(
 		ut_ad(buf_validate());
 	}
 #endif
-	ut_ad(block->buf_fix_count > 0);
+	/* This debug code has been upgraded to narrow down Bug# 26081 */
+	ut_a(block->buf_fix_count > 0);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
@@ -2027,7 +2060,6 @@ buf_pool_invalidate(void)
 	mutex_exit(&(buf_pool->mutex));
 }
 
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer buf_pool data structure. */
 
@@ -2227,7 +2259,6 @@ buf_print(void)
 
 	ut_a(buf_validate());
 }	
-#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
@@ -2483,3 +2514,64 @@ buf_get_free_list_len(void)
 
 	return(len);
 }
+
+/*************************************************************************
+Print the block fields. */
+
+void
+buf_block_print(
+/*============*/
+	const buf_block_t*	block)		/* in: block to print */
+{
+	fprintf(stderr,
+		"BLOCK fields\nmagic_n: 0x%lx\n"
+		"state: %lu frame: 0x%lx space:offset: 0x%lx:0x%lx\n"
+		"hash value: 0x%lx  check_index_page_at_flush: %ld\n"
+		"newest_modification %lu:%lu oldest_modification %lu:%lu\n"
+		"flush_type: %lu in_free_list: %ld in_LRU_list: %ld\n"
+		"LRU_position: %ld freed_page_clock: %lu old: %ld\n"
+		"accessed: %ld buf_fix_count: %lu io_fix: %ld "
+		"modify_clock: %lu:%lu\n"
+		"n_hash_helps: %lu n_fields: %ld n_bytes: %lu side: %lu\n"
+		"is_hashed: %lu n_pointers: %lu curr_n_fields: %lu\n"
+		"curr_n_bytes: %lu curr_side: %lu index name: %s\n"
+		"file_page_was_freed: %lu\n",
+		block->magic_n, block->state, (ulint) block->frame,
+		block->space, block->offset, block->lock_hash_val,
+		block->check_index_page_at_flush,
+		ut_dulint_get_high(block->newest_modification),
+		ut_dulint_get_low(block->newest_modification),
+		ut_dulint_get_high(block->oldest_modification),
+		ut_dulint_get_low(block->oldest_modification),
+		block->flush_type, block->in_free_list, block->in_LRU_list,
+		block->LRU_position, block->freed_page_clock,
+		block->old, block->accessed, block->buf_fix_count,
+		block->io_fix,
+		ut_dulint_get_high(block->modify_clock),
+		ut_dulint_get_low(block->modify_clock),
+		block->n_hash_helps, block->n_fields, block->n_bytes,
+		block->side, block->is_hashed, block->n_pointers,
+		block->curr_n_fields, block->curr_n_bytes,
+		block->curr_side, block->index->name,
+		block->file_page_was_freed);
+}
+
+/************************************************************************
+Print some diagnostics related to the buffer pool.*/
+
+void
+buf_print_diagnostic(
+/*=================*/
+	mtr_t*			mtr,	/* in: mtr to print */
+	const buf_block_t*	block)	/* in: block to print */
+{
+	fprintf(stderr, "=== MTR ===\n");
+	mtr_print(mtr);
+	buf_LRU_print();
+	buf_print();
+	buf_LRU_validate();
+	buf_print_io(stderr);
+	fprintf(stderr, "=== BLOCK ===\n");
+	buf_block_print(block);
+}
+
