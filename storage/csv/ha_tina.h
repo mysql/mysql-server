@@ -63,6 +63,7 @@ class ha_tina: public handler
   off_t current_position;  /* Current position in the file during a file scan */
   off_t next_position;     /* Next position in the file scan */
   off_t local_saved_data_file_length; /* save position for reads */
+  off_t temp_file_length;
   uchar byte_buffer[IO_SIZE];
   Transparent_file *file_buff;
   File data_file;                   /* File handler for readers */
