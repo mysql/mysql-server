@@ -326,7 +326,16 @@ mtr_print(
 	mtr_t*	mtr)	/* in: mtr */
 {
 	fprintf(stderr,
-	"Mini-transaction handle: memo size %lu bytes log size %lu bytes\n",
+		"Mini-transaction handle: memo size %lu bytes log "
+		"size %lu bytes\n"
+		"state: %lu modifications: %lu n_lock_recs %lu\n"
+		"log_mode: %lu start_lsn: %lu:%lu end_lsn: %lu:%lu\n",
 		(ulong) dyn_array_get_data_size(&(mtr->memo)),
-		(ulong) dyn_array_get_data_size(&(mtr->log)));
+		(ulong) dyn_array_get_data_size(&(mtr->log)),
+		mtr->state, (ulint) mtr->modifications,
+		mtr->n_log_recs, mtr->log_mode,
+		ut_dulint_get_high(mtr->start_lsn),
+		ut_dulint_get_low(mtr->start_lsn),
+		ut_dulint_get_high(mtr->end_lsn),
+		ut_dulint_get_low(mtr->end_lsn));
 }
