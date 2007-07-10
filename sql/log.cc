@@ -3942,7 +3942,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     return ER_ERROR_ON_WRITE;
-  uint bytes= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
+  uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
   long val;
   uchar header[LOG_EVENT_HEADER_LEN];
 
@@ -3999,7 +3999,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
     /* if there is anything to write, process it. */
 
-    if (likely(bytes > 0))
+    if (likely(length > 0))
     {
       /*
         process all event-headers in this (partial) cache.
@@ -4008,18 +4008,18 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
         very next iteration, just "eventually").
       */
 
-      while (hdr_offs < bytes)
+      while (hdr_offs < length)
       {
         /*
           partial header only? save what we can get, process once
           we get the rest.
         */
 
-        if (hdr_offs + LOG_EVENT_HEADER_LEN > bytes)
+        if (hdr_offs + LOG_EVENT_HEADER_LEN > length)
         {
-          carry= bytes - hdr_offs;
+          carry= length - hdr_offs;
           memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
-          bytes= hdr_offs;
+          length= hdr_offs;
         }
         else
         {
@@ -4039,21 +4039,23 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
       }
 
       /*
-        Adjust hdr_offs. Note that this doesn't mean it will necessarily
-        be valid in the next iteration; if the current event is very long,
-        it may take a couple of read-iterations (and subsequent fixings
-        of hdr_offs) for it to become valid again.
-        if we had a split header, hdr_offs was already fixed above.
+        Adjust hdr_offs. Note that it may still point beyond the segment
+        read in the next iteration; if the current event is very long,
+        it may take a couple of read-iterations (and subsequent adjustments
+        of hdr_offs) for it to point into the then-current segment.
+        If we have a split header (!carry), hdr_offs will be set at the
+        beginning of the next iteration, overwriting the value we set here:
       */
-      if (carry == 0)
-        hdr_offs -= bytes;
+      hdr_offs -= length;
     }
 
     /* Write data to the binary log file */
-    if (my_b_write(&log_file, cache->read_pos, bytes))
+    if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
     cache->read_pos=cache->read_end;		// Mark buffer used up
-  } while ((bytes=my_b_fill(cache)));
+  } while ((length= my_b_fill(cache)));
+
+  DBUG_ASSERT(carry == 0);
 
   if (sync_log)
     flush_and_sync();
