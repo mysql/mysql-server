@@ -27,6 +27,7 @@
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
+#include <mysys_err.h>
 
 #ifdef HAVE_REPLICATION
 
@@ -2101,19 +2102,22 @@ after reconnect");
       if (event_len == packet_error)
       {
         uint mysql_error_number= mysql_errno(mysql);
-        if (mysql_error_number == CR_NET_PACKET_TOO_LARGE)
-        {
+        switch (mysql_error_number) {
+        case CR_NET_PACKET_TOO_LARGE:
           sql_print_error("\
 Log entry on master is longer than max_allowed_packet (%ld) on \
 slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
           goto err;
-        }
-        if (mysql_error_number == ER_MASTER_FATAL_ERROR_READING_BINLOG)
-        {
+        case ER_MASTER_FATAL_ERROR_READING_BINLOG:
           sql_print_error(ER(mysql_error_number), mysql_error_number,
                           mysql_error(mysql));
+          goto err;
+        case EE_OUTOFMEMORY:
+        case ER_OUTOFMEMORY:
+          sql_print_error("\
+Stopping slave I/O thread due to out-of-memory error from master");
           goto err;
         }
         mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
