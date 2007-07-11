@@ -1809,6 +1809,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;
+  if (ha_create_info->options & HA_CREATE_KEEP_FILES)
+    create_flags|= HA_CREATE_KEEP_FILES;
   if (options & HA_OPTION_PACK_RECORD)
     create_flags|= HA_PACK_RECORD;
   if (options & HA_OPTION_CHECKSUM)
