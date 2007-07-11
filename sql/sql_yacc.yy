@@ -3621,7 +3621,7 @@ alter:
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
           }
-          opt_create_database_options
+          create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
