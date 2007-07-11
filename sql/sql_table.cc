@@ -2841,6 +2841,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
     and temporary tables).
   */
   *fn_ext(dst_path)= 0;
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
   err= ha_create_table(dst_path, create_info, 1);
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
