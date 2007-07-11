@@ -1120,7 +1120,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
                   int flag)
 {
   int error;
-  uint rec_length,sort_length,res_length,offset;
+  uint rec_length,res_length,offset;
+  size_t sort_length;
   ulong maxcount;
   ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
