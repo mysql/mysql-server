@@ -285,6 +285,8 @@ int rea_create_table(THD *thd, my_string file_name,
   if (mysql_create_frm(thd, file_name, db, table, create_info,
                        create_fields, keys, key_info, NULL))
     DBUG_RETURN(1);
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
   if (!create_info->frm_only && ha_create_table(file_name,create_info,0))
   {
     my_delete(file_name,MYF(0));

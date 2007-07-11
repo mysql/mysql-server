@@ -279,6 +279,7 @@ enum ha_base_keytype {
 #define HA_PACK_RECORD		2	/* Request packed record format */
 #define HA_CREATE_TMP_TABLE	4
 #define HA_CREATE_CHECKSUM	8
+#define HA_CREATE_KEEP_FILES	16      /* don't overwrite .MYD and MYI */
 #define HA_CREATE_DELAY_KEY_WRITE 64
 
 /*
