@@ -1089,7 +1089,12 @@ static int read_and_execute(bool interactive)
            something else is still in console input buffer
         */
       } while (tmpbuf.alloced_length() <= clen);
-      line= buffer.c_ptr();
+      /* 
+        An empty line is returned from my_cgets when there's error reading :
+        Ctrl-c for example
+      */
+      if (line)
+        line= buffer.c_ptr();
 #endif /* __NETWARE__ */
 #else
       if (opt_outfile)
