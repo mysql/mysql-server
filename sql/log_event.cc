@@ -6110,8 +6110,9 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
-                    "Error in %s event: row application failed",
-                    get_type_str());
+                    "Error in %s event: row application failed. %s",
+                    get_type_str(),
+                    thd->net.last_error ? thd->net.last_error : "");
 	thd->query_error= 1;
 	break;
       }
@@ -6135,9 +6136,10 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   {                     /* error has occured during the transaction */
     rli->report(ERROR_LEVEL, thd->net.last_errno,
                 "Error in %s event: error during transaction execution "
-                "on table %s.%s",
+                "on table %s.%s. %s",
                 get_type_str(), table->s->db.str,
-                table->s->table_name.str);
+                table->s->table_name.str,
+                thd->net.last_error ? thd->net.last_error : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -7101,7 +7103,12 @@ replace_record(THD *thd, TABLE *table,
     }
     if ((keynum= table->file->get_dup_key(error)) < 0)
     {
-      /* We failed to retrieve the duplicate key */
+      table->file->print_error(error, MYF(0));
+      /*
+        We failed to retrieve the duplicate key
+        - either because the error was not "duplicate key" error
+        - or because the information which key is not available
+      */
       DBUG_RETURN(error);
     }
 
