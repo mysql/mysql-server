@@ -24,7 +24,7 @@
   subtree, but it could be updated by plus-word only.
 
   The idea is: there is no need to search for docid smaller than
-  biggest docid inside current plus subtree.
+  biggest docid inside current plus subtree or any upper plus subtree.
 
   Examples:
   +word1 word2
@@ -36,6 +36,13 @@
   +(word1 -word2) +(+word3 word4)
     share same max_docid
     max_docid updated by word3
+   +word1 word2 (+word3 word4 (+word5 word6))
+    three subexpressions (including the top-level one),
+    every one has its own max_docid, updated by its plus word.
+    but for the search word6 uses
+    max(word1.max_docid, word3.max_docid, word5.max_docid),
+    while word4 uses, accordingly,
+    max(word1.max_docid, word3.max_docid).
 */
 
 #define FT_CORE
@@ -104,7 +111,7 @@ typedef struct st_ftb_word
 /* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   my_off_t   docid[2];             /* for index search and for scan */
   my_off_t   key_root;
-  my_off_t  *max_docid;
+  FTB_EXPR  *max_docid_expr;
   MI_KEYDEF *keyinfo;
   struct st_ftb_word *prev;
   float      weight;
@@ -208,7 +215,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       for (tmp_expr= ftb_param->ftbe; tmp_expr->up; tmp_expr= tmp_expr->up)
         if (! (tmp_expr->flags & FTB_FLAG_YES))
           break;
-      ftbw->max_docid= &tmp_expr->max_docid;
+      ftbw->max_docid_expr= tmp_expr;
       /* fall through */
     case FT_TOKEN_STOPWORD:
       if (! ftb_param->up_quot) break;
@@ -347,11 +354,17 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   else
   {
     uint sflag= SEARCH_BIGGER;
-    if (ftbw->docid[0] < *ftbw->max_docid)
+    my_off_t max_docid=0;
+    FTB_EXPR *tmp;
+
+    for (tmp= ftbw->max_docid_expr; tmp; tmp= tmp->up)
+      set_if_bigger(max_docid, tmp->max_docid);
+
+    if (ftbw->docid[0] < max_docid)
     {
       sflag|= SEARCH_SAME;
       _mi_dpointer(info, (uchar *)(ftbw->word + ftbw->len + HA_FT_WLEN),
-                   *ftbw->max_docid);
+                   max_docid);
     }
     r=_mi_search(info, ftbw->keyinfo, (uchar*) lastkey_buf,
                    USE_WHOLE_KEY, sflag, ftbw->key_root);
@@ -431,7 +444,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   }
   ftbw->docid[0]=info->lastpos;
   if (ftbw->flags & FTB_FLAG_YES)
-    *ftbw->max_docid= info->lastpos;
+    ftbw->max_docid_expr->max_docid= info->lastpos;
   return 0;
 }
 
