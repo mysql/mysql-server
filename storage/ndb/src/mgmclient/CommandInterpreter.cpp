@@ -1598,10 +1598,10 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  ndbout << "\t@" << hostname;
 
 	char tmp[100];
-	ndbout << "  (" << getVersionString(node_state->version,
-					    node_state->mysql_version,
-					    0,
-					    tmp, sizeof(tmp));
+	ndbout << "  (" << ndbGetVersionString(node_state->version,
+                                               node_state->mysql_version,
+                                               0,
+                                               tmp, sizeof(tmp));
 	if (type == NDB_MGM_NODE_TYPE_NDB) {
 	  if (node_state->node_status != NDB_MGM_NODE_STATUS_STARTED) {
 	    ndbout << ", " << status_string(node_state->node_status);
@@ -2345,7 +2345,7 @@ CommandInterpreter::executeStatus(int processId,
   
   char tmp[100];
   if(status != NDB_MGM_NODE_STATUS_NO_CONTACT)
-    ndbout_c(" (%s)", getVersionString(version, mysql_version, 0, tmp, sizeof(tmp))); 
+    ndbout_c(" (%s)", ndbGetVersionString(version, mysql_version, 0, tmp, sizeof(tmp))); 
   else
     ndbout << endl;
   
