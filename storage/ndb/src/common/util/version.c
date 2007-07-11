@@ -48,6 +48,7 @@ const char * ndbGetOwnVersionString()
 const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
                                  char *buf, unsigned sz)
 {
+  char tmp[NDB_VERSION_STRING_BUF_SZ];
   if (status && status[0] != 0)
     basestring_snprintf(tmp, sizeof(tmp), "%s", status);
   else
