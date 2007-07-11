@@ -795,6 +795,7 @@ int field_conv(Field *to,Field *from)
       from->val_int() == 0)
   {
     ((Field_enum *)(to))->store_type(0);
+    return 0;
   }
   else if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||
