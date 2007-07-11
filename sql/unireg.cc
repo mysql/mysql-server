@@ -278,14 +278,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       /* 2 bytes left for future use */
     }
     /* write header */
-    if (my_write(file, buff, format_section_header_size, MYF_RW))
+    if (my_write(file, (const byte*)buff, format_section_header_size, MYF_RW))
       goto err;
     /* write tablespace name */
     if (tablespace_len > 0)
-      if (my_write(file, create_info->tablespace, tablespace_len, MYF_RW))
+      if (my_write(file, (const byte*)create_info->tablespace, tablespace_len, MYF_RW))
         goto err;
     buff[0]= 0;
-    if (my_write(file, buff, 1, MYF_RW))
+    if (my_write(file, (const byte*)buff, 1, MYF_RW))
       goto err;
     /* write column info, 1 byte per column */
     {
