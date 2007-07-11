@@ -5556,6 +5556,7 @@ static int create_ndb_column(THD *thd,
 
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
+  default:
     if (create_info->default_storage_media == HA_SM_DISK)
       type= NDBCOL::StorageTypeDisk;
     else
