@@ -706,6 +706,18 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
     func= &Arg_comparator::compare_datetime;
     return 0;
   }
+  else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
+           (*b)->field_type() == MYSQL_TYPE_TIME)
+  {
+    /* Compare TIME values as integers. */
+    thd= current_thd;
+    owner= owner_arg;
+    func= ((test(owner && owner->functype() == Item_func::EQUAL_FUNC)) ?
+           &Arg_comparator::compare_e_int :
+           &Arg_comparator::compare_int_unsigned);
+    return 0;
+  }
+
   return set_compare_func(owner_arg, type);
 }
 
