@@ -78,7 +78,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
 
     if (keyseg->flag & HA_SWAP_KEY)
     {
-      char buf[sizeof(double)];
+      uchar buf[sizeof(double)];
 
       float8store(buf, val);
       pos= &buf[length];
@@ -87,7 +87,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     else
     {
-      float8store((byte *)key, val);
+      float8store((uchar *)key, val);
       key += length;
     }
     len+= length;
@@ -128,7 +128,7 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    float8get(ord, (const byte*) *wkb);
+    float8get(ord, (const uchar*) *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
       *mbr= ord;
