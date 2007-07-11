@@ -85,3 +85,21 @@ sec_to_time(time_to_sec(t))
 13:00:00
 09:00:00
 drop table t1;
+select cast('100:55:50' as time) < cast('24:00:00' as time);
+cast('100:55:50' as time) < cast('24:00:00' as time)
+0
+select cast('100:55:50' as time) < cast('024:00:00' as time);
+cast('100:55:50' as time) < cast('024:00:00' as time)
+0
+select cast('300:55:50' as time) < cast('240:00:00' as time);
+cast('300:55:50' as time) < cast('240:00:00' as time)
+0
+select cast('100:55:50' as time) > cast('24:00:00' as time);
+cast('100:55:50' as time) > cast('24:00:00' as time)
+1
+select cast('100:55:50' as time) > cast('024:00:00' as time);
+cast('100:55:50' as time) > cast('024:00:00' as time)
+1
+select cast('300:55:50' as time) > cast('240:00:00' as time);
+cast('300:55:50' as time) > cast('240:00:00' as time)
+1

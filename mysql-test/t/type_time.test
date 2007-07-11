@@ -40,3 +40,13 @@ drop table t1;
 # ##########################################################
 
 # End of 4.1 tests
+
+#
+# Bug#29555: Comparing time values as strings may lead to a wrong result.
+#
+select cast('100:55:50' as time) < cast('24:00:00' as time);
+select cast('100:55:50' as time) < cast('024:00:00' as time);
+select cast('300:55:50' as time) < cast('240:00:00' as time);
+select cast('100:55:50' as time) > cast('24:00:00' as time);
+select cast('100:55:50' as time) > cast('024:00:00' as time);
+select cast('300:55:50' as time) > cast('240:00:00' as time);
