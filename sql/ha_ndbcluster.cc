@@ -5149,7 +5149,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   }
 #endif /* HAVE_NDB_BINLOG */
 
-  if (thd->options & OPTION_ALLOW_BATCH)
+  if (thd->slave_thread)
   {
     if ((res= trans->execute(Commit, AO_IgnoreError, 1)) != 0)
     {
