@@ -1516,6 +1516,23 @@ t1	CREATE TABLE `t1` (
   `c17` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db2;
+INSERT INTO db2.t1 VALUES (1);
+SELECT * FROM db2.t1;
+b
+1
+RESET QUERY CACHE;
+USE db1;
+SET SESSION keep_files_on_create = TRUE;
+CREATE TABLE t1 (a INT) ENGINE MYISAM;
+ERROR HY000: Can't create/write to file './db1/t1.MYD' (Errcode: 17)
+SET SESSION keep_files_on_create = DEFAULT;
+DROP TABLE db2.t1;
+DROP DATABASE db1;
+DROP DATABASE db2;
+USE test;
 End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
