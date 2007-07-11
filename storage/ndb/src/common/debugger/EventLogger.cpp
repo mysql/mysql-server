@@ -52,8 +52,8 @@ void getTextConnectedApiVersion(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u: API %s",
 		       theData[1],
-		       getVersionString(theData[2], mysql_version, 0,
-					tmp, sizeof(tmp)));
+		       ndbGetVersionString(theData[2], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
 
 void getTextDisconnected(QQQQ) {
@@ -88,8 +88,8 @@ void getTextNDBStartStarted(QQQQ) {
     mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Start initiated (%s)", 
-		       getVersionString(theData[1], mysql_version, 0,
-					tmp, sizeof(tmp)));
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
 void getTextNDBStopStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
@@ -163,8 +163,8 @@ void getTextNDBStartCompleted(QQQQ) {
     mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
 		       "Started (%s)", 
-		       getVersionString(theData[1], mysql_version, 0,
-					tmp, sizeof(tmp)));
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
 
 void getTextSTTORRYRecieved(QQQQ) {

@@ -16,7 +16,7 @@
 #include <ndb_global.h>
 #include <my_pthread.h>
 #include <ndb_limits.h>
-#include <ndb_version.h>
+#include <util/version.h>
 
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
