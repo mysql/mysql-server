@@ -2856,7 +2856,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 	      "incompatible with %s",
 	      type == NodeInfo::API ? "api or mysqld" : "management server",
 	      apiNodePtr.i,
-	      getVersionString(version, mysql_version, 0,
+	      ndbGetVersionString(version, mysql_version, 0,
 			       buf, 
 			       sizeof(buf)),
 	      NDB_VERSION_STRING);

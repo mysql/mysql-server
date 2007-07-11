@@ -5332,7 +5332,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   }
 #endif /* HAVE_NDB_BINLOG */
 
-  if (thd->options & OPTION_ALLOW_BATCH)
+  if (thd->slave_thread)
   {
     res= execute_commit(trans, 1, TRUE);
   }
