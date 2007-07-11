@@ -6128,6 +6128,9 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     }
   }
 
+  /* reset OPTION_ALLOW_BATCH as not affect later events */
+  thd->options&= ~OPTION_ALLOW_BATCH;
+
   if (error)
   {                     /* error has occured during the transaction */
     rli->report(ERROR_LEVEL, thd->net.last_errno,
