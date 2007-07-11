@@ -5388,7 +5388,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
-  char index_file[FN_REFLEN], data_file[FN_REFLEN], tablespace[FN_LEN];
+  char index_file[FN_REFLEN], data_file[FN_REFLEN];
   char path[FN_REFLEN];
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
