@@ -4342,7 +4342,12 @@ create_table_option:
           }
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
+	| ROW_FORMAT_SYM opt_equal row_types
+          {
+            Lex->create_info.row_type= $3;
+            Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
+            Lex->alter_info.flags|= ALTER_ROW_FORMAT;
+          }
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -4364,9 +4369,21 @@ create_table_option:
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
         | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
-        | STORAGE_SYM DEFAULT {Lex->create_info.default_storage_media= HA_SM_DEFAULT;}
-        | STORAGE_SYM DISK_SYM {Lex->create_info.default_storage_media= HA_SM_DISK;}
-        | STORAGE_SYM MEMORY_SYM {Lex->create_info.default_storage_media= HA_SM_MEMORY;}
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->create_info.default_storage_media= HA_SM_DEFAULT;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->create_info.default_storage_media= HA_SM_DISK;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->create_info.default_storage_media= HA_SM_MEMORY;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
 	| KEY_BLOCK_SIZE opt_equal ulong_num
 	  {
@@ -4775,10 +4792,26 @@ opt_attribute_list:
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
-        | STORAGE_SYM DEFAULT {Lex->storage_type= HA_SM_DEFAULT;}
-        | STORAGE_SYM DISK_SYM {Lex->storage_type= HA_SM_DISK;}
-        | STORAGE_SYM MEMORY_SYM {Lex->storage_type= HA_SM_MEMORY;}
-        | COLUMN_FORMAT_SYM column_format_types { Lex->column_format= $2; }
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->storage_type= HA_SM_DEFAULT;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->storage_type= HA_SM_DISK;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->storage_type= HA_SM_MEMORY;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | COLUMN_FORMAT_SYM column_format_types
+          {
+            Lex->column_format= $2;
+            Lex->alter_info.flags|= ALTER_COLUMN_FORMAT;
+          }
 	| not NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
 	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
 	| ON UPDATE_SYM NOW_SYM optional_braces 
@@ -5671,8 +5704,16 @@ opt_restrict:
 
 opt_place:
 	/* empty */	{}
-	| AFTER_SYM ident { store_position_for_column($2.str); }
-	| FIRST_SYM	  { store_position_for_column(first_keyword); };
+	| AFTER_SYM ident
+          {
+            store_position_for_column($2.str);
+	    Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          }
+	| FIRST_SYM
+          {
+            store_position_for_column(first_keyword);
+	    Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          };
 
 opt_to:
 	/* empty */	{}

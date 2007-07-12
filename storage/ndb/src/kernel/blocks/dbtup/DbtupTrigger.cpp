@@ -278,18 +278,20 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   tptr.p->monitorReplicas = req->getMonitorReplicas();
   tptr.p->m_receiverBlock = refToBlock(req->getReceiverRef());
 
-  tptr.p->attributeMask.clear();
-  if (tptr.p->monitorAllAttributes) {
+  if (tptr.p->monitorAllAttributes)
+  {
     jam();
+    // Set all non-pk attributes
+    tptr.p->attributeMask.set();
     for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
-      if (!primaryKey(table, i)) {
-        jam();
-        tptr.p->attributeMask.set(i);
-      }
+      if (primaryKey(table, i))
+        tptr.p->attributeMask.clear(i);
     }
-  } else {
-    // Set attribute mask
+  }
+  else
+  {
     jam();
+    // Set attribute mask
     tptr.p->attributeMask = req->getAttributeMask();
   }
   return true;

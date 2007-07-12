@@ -1263,40 +1263,40 @@ NdbEventBuffer::nextEvent()
     op->m_data_done_count++;
 #endif
 
-    int r= op->receive_event();
-    if (r > 0)
+    if (op->m_state == NdbEventOperation::EO_EXECUTING)
     {
-      if (op->m_state == NdbEventOperation::EO_EXECUTING)
+      int r= op->receive_event();
+      if (r > 0)
       {
 #ifdef VM_TRACE
-	m_latest_command= m_latest_command_save;
+	 m_latest_command= m_latest_command_save;
 #endif
-        NdbBlob* tBlob = op->theBlobList;
-        while (tBlob != NULL)
-        {
-          (void)tBlob->atNextEvent();
-          tBlob = tBlob->theNext;
-        }
-        EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-        while (gci_ops && op->getGCI() > gci_ops->m_gci)
-        {
-          // moved to next gci, check if any references have been
-          // released when completing the last gci
-          deleteUsedEventOperations();
-          gci_ops = m_available_data.next_gci_ops();
-        }
-        assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
-        // to return TE_NUL it should be made into data event
-        if (SubTableData::getOperation(data->sdata->requestInfo) == 
-	    NdbDictionary::Event::_TE_NUL)
-        {
-          DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
-          continue;
-        }
-	DBUG_RETURN_EVENT(op->m_facade);
-      }
-      // the next event belonged to an event op that is no
-      // longer valid, skip to next
+         NdbBlob* tBlob = op->theBlobList;
+         while (tBlob != NULL)
+         {
+           (void)tBlob->atNextEvent();
+           tBlob = tBlob->theNext;
+         }
+         EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+         while (gci_ops && op->getGCI() > gci_ops->m_gci)
+         {
+           // moved to next gci, check if any references have been
+           // released when completing the last gci
+           deleteUsedEventOperations();
+           gci_ops = m_available_data.next_gci_ops();
+         }
+         assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
+         // to return TE_NUL it should be made into data event
+         if (SubTableData::getOperation(data->sdata->requestInfo) ==
+	   NdbDictionary::Event::_TE_NUL)
+         {
+           DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
+           continue;
+         }
+	 DBUG_RETURN_EVENT(op->m_facade);
+       }
+       // the next event belonged to an event op that is no
+       // longer valid, skip to next
       continue;
     }
 #ifdef VM_TRACE
