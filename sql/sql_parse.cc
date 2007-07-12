@@ -6080,8 +6080,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
               (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
-	  mysql_execute_command(thd);
-	  query_cache_end_of_result(thd);
+          lex->set_trg_event_type_for_tables();
+          mysql_execute_command(thd);
+          query_cache_end_of_result(thd);
 	}
       }
     }
