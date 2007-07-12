@@ -2260,7 +2260,8 @@ sp_head::show_create_routine(THD *thd, int type)
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
 
   if (full_access)
-    protocol->store(m_defstr.str, m_defstr.length, &my_charset_bin);
+    protocol->store(m_defstr.str, m_defstr.length,
+                    m_creation_ctx->get_client_cs());
   else
     protocol->store_null();
 
