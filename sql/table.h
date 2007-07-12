@@ -59,6 +59,17 @@ enum tmp_table_type {NO_TMP_TABLE=0,
                      NON_TRANSACTIONAL_TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
                      SYSTEM_TMP_TABLE=3};
 
+
+/** Event on which trigger is invoked. */
+enum trg_event_type
+{
+  TRG_EVENT_INSERT= 0,
+  TRG_EVENT_UPDATE= 1,
+  TRG_EVENT_DELETE= 2,
+  TRG_EVENT_MAX
+};
+
+
 enum frm_type_enum
 {
   FRMTYPE_ERROR= 0,
@@ -702,6 +713,13 @@ struct TABLE_LIST
   */
   bool          create;
 
+  /**
+    Indicates what triggers we need to pre-load for this TABLE_LIST
+    when opening an associated TABLE. This is filled after
+    the parsed tree is created.
+  */
+  uint8 trg_event_map;
+
   enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
   void set_underlying_merge();
@@ -752,6 +770,7 @@ struct TABLE_LIST
   void reinit_before_use(THD *thd);
   Item_subselect *containing_subselect();
 
+  void set_trg_event_type(const st_lex *lex);
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
