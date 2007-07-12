@@ -1409,3 +1409,42 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size= default;
+Bug#28249 Query Cache returns wrong result with concurrent insert/ certain lock
+set GLOBAL query_cache_type=1;
+set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_min_res_unit=0;
+set GLOBAL query_cache_size= 100000;
+flush tables;
+drop table if exists t1, t2;
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3);
+Locking table T2 with a write lock.
+lock table t2 write;
+Select blocked by write lock.
+select *, (select count(*) from t2) from t1;;
+Sleeing is ok, because selecting should be done very fast.
+Inserting into table T1.
+insert into t1 values (4);
+Unlocking the tables.
+unlock tables;
+Collecting result from previously blocked select.
+Next select should contain 4 rows, as the insert is long finished.
+select *, (select count(*) from t2) from t1;
+a	(select count(*) from t2)
+1	0
+2	0
+3	0
+4	0
+reset query cache;
+select *, (select count(*) from t2) from t1;
+a	(select count(*) from t2)
+1	0
+2	0
+3	0
+4	0
+drop table t1,t2;
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size=default;
