@@ -50,3 +50,11 @@ select cast('300:55:50' as time) < cast('240:00:00' as time);
 select cast('100:55:50' as time) > cast('24:00:00' as time);
 select cast('100:55:50' as time) > cast('024:00:00' as time);
 select cast('300:55:50' as time) > cast('240:00:00' as time);
+
+#
+# Bug#29739: Incorrect time comparison in BETWEEN.
+#
+create table t1(f1 time, f2 time);
+insert into t1 values('20:00:00','150:00:00');
+select 1 from t1 where cast('100:00:00' as time) between f1 and f2;
+drop table t1;
