@@ -91,6 +91,22 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
+typedef struct ndb_alter_data {
+  ndb_alter_data(NdbDictionary::Dictionary *dict,
+		 const NdbDictionary::Table *table) :
+    dictionary(dict),
+    old_table(table),
+    new_table(new NdbDictionary::Table(*table))
+  {}
+  ~ndb_alter_data()
+  { delete new_table; }
+  NdbDictionary::Dictionary *dictionary;
+  const  NdbDictionary::Table *old_table;
+  NdbDictionary::Table *new_table;
+} NDB_ALTER_DATA;
+
+
+
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
 int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
@@ -121,12 +137,12 @@ typedef struct st_ndbcluster_share {
   uint32 connect_count;
   uint32 flags;
   NdbEventOperation *op;
-  NdbEventOperation *op_old; // for rename table
+  Uint64 op_gci;
+  List<NdbEventOperation> old_ops; // for on-line alter table
   char *old_names; // for rename table
   TABLE_SHARE *table_share;
   TABLE *table;
   byte *record[2]; // pointer to allocated records for receiving data
-  NdbValue *ndb_value[2];
   MY_BITMAP *subscriber_bitmap;
 #endif
 } NDB_SHARE;
@@ -318,8 +334,6 @@ class ha_ndbcluster: public handler
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
-  int create_handler_files(const char *file, const char *old_name,
-                           int action_flag, HA_CREATE_INFO *info);
   int get_default_no_partitions(HA_CREATE_INFO *info);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
@@ -401,8 +415,22 @@ static void set_tabname(const char *pathname, char *tabname);
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 
-  bool check_if_incompatible_data(HA_CREATE_INFO *info,
-				  uint table_changes);
+  int check_if_supported_alter(TABLE *altered_table,
+                               HA_CREATE_INFO *create_info,
+                               HA_ALTER_FLAGS *alter_flags,
+                               uint table_changes);
+
+  int alter_table_phase1(THD *thd,
+                         TABLE *altered_table,
+                         HA_CREATE_INFO *create_info,
+                         HA_ALTER_INFO *alter_info,
+                         HA_ALTER_FLAGS *alter_flags);
+
+  int alter_table_phase2(THD *thd,
+                         TABLE *altered_table,
+                         HA_CREATE_INFO *create_info,
+                         HA_ALTER_INFO *alter_info,
+                         HA_ALTER_FLAGS *alter_flags);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
@@ -461,6 +489,8 @@ private:
   int flush_bulk_insert();
   int ndb_write_row(byte *record, bool primary_key_update, bool batched_update);
   int ndb_delete_row(const byte *record, bool primary_key_update);
+
+  int alter_frm(const char *file, NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,

@@ -36,6 +36,25 @@ extern ulong ndb_extra_logging;
 
 extern handlerton *ndbcluster_hton;
 
+class Ndb_event_data {
+public:
+  Ndb_event_data(NDB_SHARE *the_share, int no_columns) : share(the_share)
+  {
+    ndb_value[0]= (NdbValue*) my_malloc(sizeof(NdbValue) * no_columns,
+                                        MYF(MY_WME));
+    ndb_value[1]= (NdbValue*) my_malloc(sizeof(NdbValue) * no_columns,
+                                        MYF(MY_WME));
+  }
+  ~Ndb_event_data()
+  {
+    share= 0;
+    my_free((gptr) ndb_value[0], MYF(MY_WME));
+    my_free((gptr) ndb_value[1], MYF(MY_WME));
+  }
+  NDB_SHARE *share;
+  NdbValue *ndb_value[2];
+};
+
 /*
   The numbers below must not change as they
   are passed between mysql servers, and if changed
@@ -128,6 +147,8 @@ void ndbcluster_binlog_init_handlerton();
 */
 void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
 
+void ndb_remove_old_event_ops(NDB_SHARE *share);
+
 bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
@@ -139,7 +160,8 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 int ndbcluster_create_event(Ndb *ndb, const NDBTAB *table,
                             const char *event_name, NDB_SHARE *share,
                             int push_warning= 0);
-int ndbcluster_create_event_ops(NDB_SHARE *share,
+int ndbcluster_create_event_ops(THD *thd,
+                                NDB_SHARE *share,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
 int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
