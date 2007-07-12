@@ -23,6 +23,12 @@
   inside plus subtree. max_docid could be used by any word in plus
   subtree, but it could be updated by plus-word only.
 
+  Fulltext "smarter index merge" optimization assumes that rows
+  it gets are ordered by doc_id. That is not the case when we
+  search for a word with truncation operator. It may return
+  rows in random order. Thus we may not use "smarter index merge"
+  optimization with "trunc-words".
+
   The idea is: there is no need to search for docid smaller than
   biggest docid inside current plus subtree or any upper plus subtree.
 
@@ -443,7 +449,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     memcpy(lastkey_buf+off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0]=info->lastpos;
-  if (ftbw->flags & FTB_FLAG_YES)
+  if (ftbw->flags & FTB_FLAG_YES && !(ftbw->flags & FTB_FLAG_TRUNC))
     ftbw->max_docid_expr->max_docid= info->lastpos;
   return 0;
 }
@@ -488,7 +494,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       {
         if (ftbe->flags & FTB_FLAG_NO ||                     /* 2 */
             ftbe->up->ythresh - ftbe->up->yweaks >
-            test(ftbe->flags & FTB_FLAG_YES))                /* 1 */
+            (uint) test(ftbe->flags & FTB_FLAG_YES))         /* 1 */
         {
           FTB_EXPR *top_ftbe=ftbe->up;
           ftbw->docid[0]=HA_OFFSET_ERROR;
