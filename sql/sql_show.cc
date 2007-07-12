@@ -354,6 +354,8 @@ struct show_column_type_st
   const char *case_sensitivity;
   const char *default_value;
   const char *comment;
+  const char *storage_type;
+  const char *column_format;
 };
 
 /* TODO: Add remaning types */
@@ -363,11 +365,11 @@ static struct show_column_type_st sys_column_types[]=
   {"tinyint",
     1,  "-128",  "127",  0,  0,  "YES",  "YES",
     "NO",   "YES", "YES",  "NO",  "NULL,0",
-    "A very small integer"},
+    "A very small integer", "Default", "Default"},
   {"tinyint unsigned",
     1,  "0"   ,  "255",  0,  0,  "YES",  "YES",
     "YES",  "YES",  "YES",  "NO",  "NULL,0",
-    "A very small integer"},
+    "A very small integer", "Default", "Default"},
 };
 
 bool mysqld_show_column_types(THD *thd)
@@ -391,6 +393,8 @@ bool mysqld_show_column_types(THD *thd)
   field_list.push_back(new Item_empty_string("Case_Sensitive",4));
   field_list.push_back(new Item_empty_string("Default",NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Comment",NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("Storage",8));
+  field_list.push_back(new Item_empty_string("Format",8));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -414,6 +418,8 @@ bool mysqld_show_column_types(THD *thd)
     protocol->store(sys_column_types[i].case_sensitivity, system_charset_info);
     protocol->store(sys_column_types[i].default_value, system_charset_info);
     protocol->store(sys_column_types[i].comment, system_charset_info);
+    protocol->store(sys_column_types[i].storage_type, system_charset_info);
+    protocol->store(sys_column_types[i].column_format, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
@@ -1095,7 +1101,36 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       */
       packet->append(STRING_WITH_LEN(" NULL"));
     }
-
+    {
+      /*
+        Add field flags about FIELD FORMAT (FIXED or DYNAMIC)
+        and about STORAGE (DISK or MEMORY).
+      */
+      enum ha_storage_media storage_type= (enum ha_storage_media)
+        ((flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
+      enum column_format_type column_format= (enum column_format_type)
+        ((flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
+      if (storage_type)
+      {
+        packet->append(STRING_WITH_LEN(" /*!"));
+        packet->append(STRING_WITH_LEN(MYSQL_VERSION_TABLESPACE_IN_FRM_STR));
+        packet->append(STRING_WITH_LEN(" STORAGE"));
+        if (storage_type == HA_SM_DISK)
+          packet->append(STRING_WITH_LEN(" DISK */"));
+        else
+          packet->append(STRING_WITH_LEN(" MEMORY */"));
+      }
+      if (column_format)
+      {
+        packet->append(STRING_WITH_LEN(" /*!"));
+        packet->append(STRING_WITH_LEN(MYSQL_VERSION_TABLESPACE_IN_FRM_STR));
+        packet->append(STRING_WITH_LEN(" COLUMN_FORMAT"));
+        if (column_format == COLUMN_FORMAT_TYPE_FIXED)
+          packet->append(STRING_WITH_LEN(" FIXED */"));
+        else
+          packet->append(STRING_WITH_LEN(" DYNAMIC */"));
+      }
+    }
     /* 
       Again we are using CURRENT_TIMESTAMP instead of NOW because it is
       more standard 
@@ -1238,13 +1273,34 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       to the CREATE TABLE statement
     */
 
-    if ((for_str= file->get_tablespace_name(thd,0,0)))
-    {
-      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
-      packet->append(for_str, strlen(for_str));
+    switch (table->s->default_storage_media) {
+    case(HA_SM_DEFAULT):
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+        packet->append(STRING_WITH_LEN(" */"));
+      }
+      break;
+    case(HA_SM_DISK):
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+      }
       packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str, MYF(0));
-    }
+      break;
+    case(HA_SM_MEMORY):
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if ((for_str= (char *)file->get_tablespace_name()))
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(for_str, strlen(for_str));
+      }
+      packet->append(STRING_WITH_LEN(" STORAGE MEMORY */"));
+      break;
+    };
 
     /*
       IF   check_create_info
@@ -3241,6 +3297,21 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     table->field[16]->store(tmp, (uint) (end-tmp), cs);
 
     table->field[18]->store(field->comment.str, field->comment.length, cs);
+    {
+      enum ha_storage_media storage_type= (enum ha_storage_media)
+        ((field->flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
+      enum column_format_type column_format= (enum column_format_type)
+        ((field->flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
+      pos=(byte*) (storage_type == HA_SM_DEFAULT ? "Default" :
+                   storage_type == HA_SM_DISK ? "Disk" : "Memory");
+      table->field[19]->store((const char*) pos,
+                              strlen((const char*) pos), cs);
+      pos=(byte*) (column_format == COLUMN_FORMAT_TYPE_DEFAULT ? "Default" :
+                   column_format == COLUMN_FORMAT_TYPE_FIXED ? "Fixed" :
+                                                             "Dynamic");
+      table->field[20]->store((const char*) pos,
+                              strlen((const char*) pos), cs);
+    }
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -4095,11 +4166,10 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      char *ts= showing_table->file->get_tablespace_name(thd,0,0);
+      const char *ts= showing_table->file->get_tablespace_name();
       if(ts)
       {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts, MYF(0));
       }
       else
         table->field[24]->set_null();
@@ -5392,6 +5462,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges"},
   {"COLUMN_COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"STORAGE", 8, MYSQL_TYPE_STRING, 0, 0, "Storage"},
+  {"FORMAT", 8, MYSQL_TYPE_STRING, 0, 0, "Format"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
