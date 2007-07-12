@@ -5653,12 +5653,15 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != NULL))
+    {
       memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
+      create_last_word_mask(&m_cols);
+    }
   }
   else
   {
@@ -5711,11 +5714,12 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
     memcpy(m_cols.bitmap, ptr_after_width, (m_width + 7) / 8);
+    create_last_word_mask(&m_cols);
     ptr_after_width+= (m_width + 7) / 8;
     DBUG_DUMP("m_cols", (uchar*) m_cols.bitmap, no_bytes_in_map(&m_cols));
   }
@@ -5735,11 +5739,12 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
     /* if bitmap_init fails, catched in is_valid() */
     if (likely(!bitmap_init(&m_cols_ai,
                             m_width <= sizeof(m_bitbuf_ai)*8 ? m_bitbuf_ai : NULL,
-                            (m_width + 7) & ~7UL,
+                            m_width,
                             false)))
     {
       DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
       memcpy(m_cols_ai.bitmap, ptr_after_width, (m_width + 7) / 8);
+      create_last_word_mask(&m_cols_ai);
       ptr_after_width+= (m_width + 7) / 8;
       DBUG_DUMP("m_cols_ai", (uchar*) m_cols_ai.bitmap,
                 no_bytes_in_map(&m_cols_ai));
@@ -7685,12 +7690,15 @@ void Update_rows_log_event::init(MY_BITMAP const *cols)
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols_ai,
                           m_width <= sizeof(m_bitbuf_ai)*8 ? m_bitbuf_ai : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != NULL))
+    {
       memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));
+      create_last_word_mask(&m_cols_ai);
+    }
   }
 }
 #endif /* !defined(MYSQL_CLIENT) */
