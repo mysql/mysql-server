@@ -4208,8 +4208,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         alter_info->no_parts= curr_part_no - new_part_no;
       }
     }
-    if (table->s->db_type()->alter_table_flags &&
-        (!(flags= table->s->db_type()->alter_table_flags(alter_info->flags))))
+    if (table->s->db_type()->alter_partition_flags &&
+        (!(flags= table->s->db_type()->alter_partition_flags())))
     {
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);
