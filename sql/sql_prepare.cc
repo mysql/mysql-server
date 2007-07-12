@@ -2826,6 +2826,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd);
   lex->safe_to_cache_query= FALSE;
   int err= MYSQLparse((void *)thd);
+  lex->set_trg_event_type_for_tables();
 
   error= err || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
