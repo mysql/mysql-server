@@ -130,6 +130,12 @@ public:
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name
+  /**
+    Key representing routine in the set of stored routines used by statement.
+    [routine_type]db.name\0
+    @sa sp_name::m_sroutines_key
+  */
+  LEX_STRING m_sroutines_key;
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;

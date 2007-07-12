@@ -9644,13 +9644,13 @@ trigger_tail:
 	    MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(thd);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_TRIGGER;
           sp->init_sp_name(thd, $3);
 	
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $10 - $7;
 
-	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
 	  lex->spname= $3;
 	  /*
@@ -9728,9 +9728,9 @@ sp_tail:
 	  sp= new sp_head();
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_PROCEDURE;
           sp->init_sp_name(YYTHD, $3);
 
-	  sp->m_type= TYPE_ENUM_PROCEDURE;
 	  lex->sphead= sp;
 	  /*
 	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a

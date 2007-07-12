@@ -2034,6 +2034,27 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 }
 
 
+/**
+  Update the parsed tree with information about triggers that
+  may be fired when executing this statement.
+*/
+
+void st_lex::set_trg_event_type_for_tables()
+{
+  /*
+    Do not iterate over sub-selects, only the tables in the outermost
+    SELECT_LEX can be modified, if any.
+  */
+  TABLE_LIST *tables= select_lex.get_table_list();
+
+  while (tables)
+  {
+    tables->set_trg_event_type(this);
+    tables= tables->next_local;
+  }
+}
+
+
 /*
   Unlink the first table from the global table list and the first table from
   outer select (lex->select_lex) local list
