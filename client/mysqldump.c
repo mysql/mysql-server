@@ -1201,6 +1201,20 @@ static void restore_time_zone(FILE *sql_file,
           (const char *) delimiter);
 }
 
+
+static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
+{
+  char query_buffer[QUERY_LENGTH];
+  size_t query_length;
+
+  query_length= my_snprintf(query_buffer,
+                            sizeof (query_buffer),
+                            "SET SESSION character_set_results = '%s'",
+                            (const char *) cs_name);
+
+  return mysql_real_query(mysql, query_buffer, query_length);
+}
+
 /*
   Open a new .sql file to dump the table or view into
 
@@ -1706,6 +1720,9 @@ static uint dump_events_for_db(char *db)
     if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
       DBUG_RETURN(1);
 
+    if (switch_character_set_results(mysql, "binary"))
+      DBUG_RETURN(1);
+
     while ((event_list_row= mysql_fetch_row(event_list_res)) != NULL)
     {
       event_name= quote_name(event_list_row[1], name_buff, 0);
@@ -1774,6 +1791,9 @@ static uint dump_events_for_db(char *db)
     } /* end of list of events */
     fprintf(sql_file, "DELIMITER ;\n");
     fprintf(sql_file, "/*!50106 SET TIME_ZONE= @save_time_zone */ ;\n");
+
+    if (switch_character_set_results(mysql, default_charset))
+      DBUG_RETURN(1);
   }
   mysql_free_result(event_list_res);
 
@@ -1851,6 +1871,9 @@ static uint dump_routines_for_db(char *db)
   /* Get database collation. */
 
   if (fetch_db_collation(db_name_buff, db_cl_name, sizeof (db_cl_name)))
+    DBUG_RETURN(1);
+
+  if (switch_character_set_results(mysql, "binary"))
     DBUG_RETURN(1);
 
   /* 0, retrieve and dump functions, 1, procedures */
@@ -1989,6 +2012,9 @@ static uint dump_routines_for_db(char *db)
     }
     mysql_free_result(routine_list_res);
   } /* end of for i (0 .. 1)  */
+
+  if (switch_character_set_results(mysql, default_charset))
+    DBUG_RETURN(1);
 
   if (lock_tables)
     VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
@@ -2542,6 +2568,9 @@ static void dump_triggers_for_table(char *table, char *db_name)
   if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
     DBUG_VOID_RETURN;
 
+  if (switch_character_set_results(mysql, "binary"))
+    DBUG_VOID_RETURN;
+
   /* Dump triggers. */
 
   while ((row= mysql_fetch_row(result)))
@@ -2636,6 +2665,9 @@ static void dump_triggers_for_table(char *table, char *db_name)
   }
 
   mysql_free_result(result);
+
+  if (switch_character_set_results(mysql, default_charset))
+    DBUG_VOID_RETURN;
 
   /*
     make sure to set back opt_compatible mode to
@@ -4390,14 +4422,22 @@ static my_bool get_view_structure(char *table, char* db)
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
+  if (switch_character_set_results(mysql, "binary"))
+    DBUG_RETURN(1);
+
   my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
+
   if (mysql_query_with_error_report(mysql, &table_res, query))
+  {
+    switch_character_set_results(mysql, default_charset);
     DBUG_RETURN(0);
+  }
 
   /* Check if this is a view */
   field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
+    switch_character_set_results(mysql, default_charset);
     verbose_msg("-- It's base table, skipped\n");
     DBUG_RETURN(0);
   }
@@ -4539,6 +4579,9 @@ static my_bool get_view_structure(char *table, char* db)
     mysql_free_result(table_res);
     dynstr_free(&ds_view);
   }
+
+  if (switch_character_set_results(mysql, default_charset))
+    DBUG_RETURN(1);
 
   /* If a separate .sql file was opened, close it now */
   if (sql_file != md_result_file)

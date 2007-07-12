@@ -1282,4 +1282,43 @@ t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR E
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DEALLOCATE PREPARE stmt1;
+set names koi8r;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+DROP EVENT IF EXISTS ev1;
+CREATE VIEW v1 AS SELECT '‘≈”‘' AS test;
+CREATE PROCEDURE p1() SELECT '‘≈”‘' AS test;
+CREATE FUNCTION f1() RETURNS CHAR(10) RETURN '‘≈”‘';
+CREATE TABLE t1(c1 CHAR(10));
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.c1 = '‘≈”‘';
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
+set names utf8;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _koi8r'—Ç–µ—Å—Ç' AS `test`	koi8r	koi8r_general_ci
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SELECT '—Ç–µ—Å—Ç' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS char(10) CHARSET latin1
+RETURN '—Ç–µ—Å—Ç'	koi8r	koi8r_general_ci	latin1_swedish_ci
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.c1 = '—Ç–µ—Å—Ç'	koi8r	koi8r_general_ci	latin1_swedish_ci
+SHOW CREATE EVENT ev1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+ev1		SYSTEM	CREATE EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT '—Ç–µ—Å—Ç' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
+DROP VIEW v1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP EVENT ev1;
 End of 5.1 tests
