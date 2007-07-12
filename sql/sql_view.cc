@@ -1153,7 +1153,20 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
         tbl->lock_type= table->lock_type;
+      /*
+        If the view is mergeable, we might want to
+        INSERT/UPDATE/DELETE into tables of this view. Preserve the
+        original sql command and 'duplicates' of the outer lex.
+        This is used later in set_trg_event_type_for_command.
+      */
+      lex->sql_command= old_lex->sql_command;
+      lex->duplicates= old_lex->duplicates;
     }
+    /*
+      This method has a dependency on the proper lock type being set,
+      so in case of views should be called here.
+    */
+    lex->set_trg_event_type_for_tables();
 
     /*
       If we are opening this view as part of implicit LOCK TABLES, then

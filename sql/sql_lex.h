@@ -1188,6 +1188,8 @@ typedef struct st_lex : public Query_tables_list
       un->uncacheable|= cause;
     }
   }
+  void set_trg_event_type_for_tables();
+
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
