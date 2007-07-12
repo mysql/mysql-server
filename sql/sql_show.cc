@@ -3302,11 +3302,11 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         ((field->flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
       enum column_format_type column_format= (enum column_format_type)
         ((field->flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
-      pos=(byte*) (storage_type == HA_SM_DEFAULT ? "Default" :
+      pos=(uchar*)(storage_type == HA_SM_DEFAULT ? "Default" :
                    storage_type == HA_SM_DISK ? "Disk" : "Memory");
       table->field[19]->store((const char*) pos,
                               strlen((const char*) pos), cs);
-      pos=(byte*) (column_format == COLUMN_FORMAT_TYPE_DEFAULT ? "Default" :
+      pos=(uchar*)(column_format == COLUMN_FORMAT_TYPE_DEFAULT ? "Default" :
                    column_format == COLUMN_FORMAT_TYPE_FIXED ? "Fixed" :
                                                              "Dynamic");
       table->field[20]->store((const char*) pos,
