@@ -2903,7 +2903,7 @@ retry:
                                                HA_TRY_READ_ONLY),
                                        (READ_KEYINFO | COMPUTE_TYPES |
                                         EXTRA_RECORD),
-                                       thd->open_options, entry, FALSE)))
+                                       thd->open_options, entry, OTM_OPEN)))
   {
     if (error == 7)                             // Table def changed
     {
@@ -2966,7 +2966,7 @@ retry:
                                        HA_TRY_READ_ONLY),
                                READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                                ha_open_options | HA_OPEN_FOR_REPAIR,
-                               entry, FALSE) || ! entry->file ||
+                               entry, OTM_OPEN) || ! entry->file ||
  	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
      {
        /* Give right error message */
@@ -3767,7 +3767,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
 */
 
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list)
+			    const char *table_name, bool link_in_list,
+                            open_table_mode open_mode)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -3801,11 +3802,12 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   if (open_table_def(thd, share, 0) ||
       open_table_from_share(thd, share, table_name,
+                            (open_mode == OTM_ALTER) ? 0 :
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
-                            tmp_table, FALSE))
+                            tmp_table, open_mode))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);

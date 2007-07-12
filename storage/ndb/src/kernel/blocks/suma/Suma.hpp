@@ -306,18 +306,14 @@ public:
     Uint32 m_triggerIds[3]; // Insert/Update/Delete
 
     Uint32 m_error;
-    /**
-     * Default order in which to ask for attributes during scan
-     *   1) Fixed, not nullable
-     *   2) Rest
-     */
-    DataBuffer<15>::Head m_attributes; // Attribute id's
     
     /**
      * Fragments
      */
     Uint32 m_fragCount;
     DataBuffer<15>::Head m_fragments;  // Fragment descriptors
+
+    Uint32 m_noOfAttributes;
     
     /**
      * Hash table stuff
