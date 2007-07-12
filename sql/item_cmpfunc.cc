@@ -1728,6 +1728,7 @@ void Item_func_between::fix_length_and_dec()
   THD *thd= current_thd;
   int i;
   bool datetime_found= FALSE;
+  int time_items_found= 0;
   compare_as_dates= TRUE;
 
   /*
@@ -1747,17 +1748,19 @@ void Item_func_between::fix_length_and_dec()
     At least one of items should be a DATE/DATETIME item and other items
     should return the STRING result.
   */
-  for (i= 0; i < 3; i++)
+  if (cmp_type == STRING_RESULT)
   {
-    if (args[i]->is_datetime())
+    for (i= 0; i < 3; i++)
     {
-      datetime_found= TRUE;
-      continue;
+      if (args[i]->is_datetime())
+      {
+        datetime_found= TRUE;
+        continue;
+      }
+      if (args[i]->field_type() == MYSQL_TYPE_TIME &&
+          args[i]->result_as_longlong())
+        time_items_found++;
     }
-    if (args[i]->result_type() == STRING_RESULT)
-      continue;
-    compare_as_dates= FALSE;
-    break;
   }
   if (!datetime_found)
     compare_as_dates= FALSE;
@@ -1766,6 +1769,11 @@ void Item_func_between::fix_length_and_dec()
   {
     ge_cmp.set_datetime_cmp_func(args, args + 1);
     le_cmp.set_datetime_cmp_func(args, args + 2);
+  }
+  else if (time_items_found == 3)
+  {
+    /* Compare TIME items as integers. */
+    cmp_type= INT_RESULT;
   }
   else if (args[0]->real_item()->type() == FIELD_ITEM &&
            thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
