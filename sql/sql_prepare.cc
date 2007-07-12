@@ -1900,13 +1900,6 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
   }
-  else
-  {
-    const char *format= "[%lu] %.*b";
-    mysql_log.write(thd, COM_STMT_PREPARE, format, stmt->id,
-                    stmt->query_length, stmt->query);
-
-  }
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2289,13 +2282,6 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
                        test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
-  if (error == 0)
-  {
-    const char *format= "[%lu] %.*b";
-    mysql_log.write(thd, COM_STMT_EXECUTE, format, stmt->id,
-                    thd->query_length, thd->query);
-  }
-
   DBUG_VOID_RETURN;
 
 set_params_data_err:
@@ -2878,6 +2864,29 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     init_stmt_after_parse(lex);
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
+
+    /* 
+      Log COM_EXECUTE to the general log. Note, that in case of SQL
+      prepared statements this causes two records to be output:
+
+      Query       PREPARE stmt from @user_variable
+      Prepare     <statement SQL text>
+
+      This is considered user-friendly, since in the
+      second log entry we output the actual statement text.
+
+      Do not print anything if this is an SQL prepared statement and
+      we're inside a stored procedure (also called Dynamic SQL) --
+      sub-statements inside stored procedures are not logged into
+      the general log.
+    */
+    if (thd->spcont == NULL)
+    {
+      const char *format= "[%lu] %.*b";
+      mysql_log.write(thd, COM_STMT_PREPARE, format, id,
+                      query_length, query);
+
+    }
   }
   DBUG_RETURN(error);
 }
@@ -3014,6 +3023,28 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   if (state == Query_arena::PREPARED)
     state= Query_arena::EXECUTED;
+
+  /*
+    Log COM_EXECUTE to the general log. Note, that in case of SQL
+    prepared statements this causes two records to be output:
+
+    Query       EXECUTE <statement name>
+    Execute     <statement SQL text>
+
+    This is considered user-friendly, since in the
+    second log entry we output values of parameter markers.
+
+    Do not print anything if this is an SQL prepared statement and
+    we're inside a stored procedure (also called Dynamic SQL) --
+    sub-statements inside stored procedures are not logged into
+    the general log.
+  */
+  if (error == 0 && thd->spcont == NULL)
+  {
+    const char *format= "[%lu] %.*b";
+    mysql_log.write(thd, COM_STMT_EXECUTE, format, id,
+                    thd->query_length, thd->query);
+  }
 
 error:
   flags&= ~ (uint) IS_IN_USE;
