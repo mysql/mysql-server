@@ -639,7 +639,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (table_list->view)
   {
-    protocol->store(buffer.ptr(), buffer.length(), &my_charset_bin);
+    protocol->store(buffer.ptr(), buffer.length(),
+                    table_list->view_creation_ctx->get_client_cs());
 
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
@@ -5983,6 +5984,8 @@ static bool show_create_trigger_impl(THD *thd,
   LEX_STRING trg_connection_cl_name;
   LEX_STRING trg_db_cl_name;
 
+  CHARSET_INFO *trg_client_cs;
+
   /*
     TODO: Check privileges here. This functionality will be added by
     implementation of the following WL items:
@@ -6007,6 +6010,11 @@ static bool show_create_trigger_impl(THD *thd,
   sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                      trg_sql_mode,
                                                      &trg_sql_mode_str);
+
+  /* Resolve trigger client character set. */
+
+  if (resolve_charset(trg_client_cs_name.str, NULL, &trg_client_cs))
+    return TRUE;
 
   /* Send header. */
 
@@ -6054,7 +6062,7 @@ static bool show_create_trigger_impl(THD *thd,
 
   p->store(trg_sql_original_stmt.str,
            trg_sql_original_stmt.length,
-           &my_charset_bin);
+           trg_client_cs);
 
   p->store(trg_client_cs_name.str,
            trg_client_cs_name.length,
