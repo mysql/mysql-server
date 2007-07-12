@@ -41,6 +41,7 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
+extern void create_last_word_mask(MY_BITMAP *map);
 extern my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
                            my_bool thread_safe);
 extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
