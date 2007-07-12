@@ -32,7 +32,6 @@ master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 show binlog events from 106 limit 1;
@@ -47,11 +46,153 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 flush logs;
 create table t3 (a int)ENGINE=NDB;
+select * from t1 order by 1 asc;
+word
+Aarhus
+Aaron
+Aaron
+Ababa
+Ababa
+aback
+aback
+abaft
+abaft
+abandon
+abandon
+abandoned
+abandoned
+abandoning
+abandoning
+abandonment
+abandonment
+abandons
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
 start slave;
 
 let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%' ;
 
 --source include/wait_slave_status.inc
+select * from t1 order by 1 asc;
+word
+Aarhus
+Aaron
+Aaron
+Ababa
+Ababa
+aback
+aback
+abaft
+abaft
+abandon
+abandon
+abandoned
+abandoned
+abandoning
+abandoning
+abandonment
+abandonment
+abandons
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
 flush logs;
 stop slave;
 create table t2 (n int)ENGINE=NDB;
@@ -71,7 +212,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
@@ -88,12 +228,12 @@ master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Query	1	#	COMMIT
 show binary logs;
 Log_name	File_size
-master-bin.000001	1775
+master-bin.000001	1746
 master-bin.000002	617
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1870
+slave-bin.000001	1841
 slave-bin.000002	202
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -111,7 +251,6 @@ slave-bin.000001	#	Query	2	#	BEGIN
 slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
 slave-bin.000001	#	Write_rows	2	#	table_id: #
-slave-bin.000001	#	Write_rows	1	#	table_id: #
 slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	2	#	COMMIT
 slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=NDB

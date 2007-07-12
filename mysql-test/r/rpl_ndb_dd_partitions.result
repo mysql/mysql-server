@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Show table on slave --
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -66,7 +66,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -122,7 +122,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -137,7 +137,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster, PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster, PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster, PARTITION p3 VALUES LESS THAN (1986) ENGINE = ndbcluster, PARTITION p4 VALUES LESS THAN (2005) ENGINE = ndbcluster, PARTITION p5 VALUES LESS THAN MAXVALUE ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -207,7 +207,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -221,7 +221,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -277,7 +277,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -292,7 +292,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (id) (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster, PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster, PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -359,7 +359,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -372,7 +372,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -397,11 +397,11 @@ UPDATE t1 SET b1 = 0, t="2006-02-22" WHERE id = 412;
 --- Check the update on master --- 
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 id	hex(b1)	vc	bc	d	f	total	y	t
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
+412	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
 --- Check Update on slave ---
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 id	hex(b1)	vc	bc	d	f	total	y	t
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
+412	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
 --- Remove a record from t1 on master ---
 DELETE FROM t1 WHERE id = 42;
 --- Show current count on master for t1 ---
@@ -428,7 +428,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -443,7 +443,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH ( YEAR(t)) PARTITIONS 4  */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -468,11 +468,11 @@ UPDATE t1 SET b1 = 0, t="2006-02-22" WHERE id = 412;
 --- Check the update on master --- 
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 id	hex(b1)	vc	bc	d	f	total	y	t
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
+412	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
 --- Check Update on slave ---
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 id	hex(b1)	vc	bc	d	f	total	y	t
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
+412	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
 --- Remove a record from t1 on master ---
 DELETE FROM t1 WHERE id = 42;
 --- Show current count on master for t1 ---
@@ -511,7 +511,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Show that tables on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -526,7 +526,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -583,7 +583,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Make sure that our tables on slave are still right type ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -599,7 +599,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -656,7 +656,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -672,7 +672,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () PARTITIONS 4 
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY () PARTITIONS 4  */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
