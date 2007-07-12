@@ -278,26 +278,26 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       /* 2 bytes left for future use */
     }
     /* write header */
-    if (my_write(file, (const byte*)buff, format_section_header_size, MYF_RW))
+    if (my_write(file, (const uchar*)buff, format_section_header_size, MYF_RW))
       goto err;
     /* write tablespace name */
     if (tablespace_len > 0)
-      if (my_write(file, (const byte*)create_info->tablespace, tablespace_len, MYF_RW))
+      if (my_write(file, (const uchar*)create_info->tablespace, tablespace_len, MYF_RW))
         goto err;
     buff[0]= 0;
-    if (my_write(file, (const byte*)buff, 1, MYF_RW))
+    if (my_write(file, (const uchar*)buff, 1, MYF_RW))
       goto err;
     /* write column info, 1 byte per column */
     {
-      List_iterator<create_field> it(create_fields);
-      create_field *field;
+      List_iterator<Create_field> it(create_fields);
+      Create_field *field;
       uchar storage_type, column_format, write_byte;
       while ((field=it++))
       {
         storage_type= (uchar)field->field_storage_type();
         column_format= (uchar)field->column_format();
         write_byte= storage_type + (column_format << COLUMN_FORMAT_SHIFT);
-        if (my_write(file, (const byte*)&write_byte, 1, MYF_RW))
+        if (my_write(file, &write_byte, 1, MYF_RW))
           goto err;
       }
     }

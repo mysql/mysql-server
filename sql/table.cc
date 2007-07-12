@@ -936,7 +936,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
        COLUMN_FORMAT DYNAMIC|FIXED and STORAGE DISK|MEMORY
        TABLESPACE name is now stored in frm
       */
-      if ((char*)next_chunk >= buff_end)
+      if (next_chunk >= buff_end)
       {
         DBUG_PRINT("error", ("Found no field extra info"));
         goto err;
@@ -950,7 +950,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
         share->default_storage_media= (enum ha_storage_media) (flags & 0x7);
 
-        const char *tablespace= next_chunk + format_section_header_size;
+        const char *tablespace= (const char*)next_chunk + format_section_header_size;
         uint tablespace_len= strlen(tablespace);
         if (tablespace_len != 0) 
         {
