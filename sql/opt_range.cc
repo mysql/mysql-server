@@ -6007,27 +6007,24 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     ROR (Rowid Ordered Retrieval) key scan is a key scan that produces
     ordered sequence of rowids (ha_xxx::cmp_ref is the comparison function)
 
-    An index scan is a ROR scan if it is done using a condition in form
+    This function is needed to handle a practically-important special case:
+    an index scan is a ROR scan if it is done using a condition in form
 
-        "key1_1=c_1 AND ... AND key1_n=c_n"  (1)
+        "key1_1=c_1 AND ... AND key1_n=c_n"
 
     where the index is defined on (key1_1, ..., key1_N [,a_1, ..., a_n])
 
-    and the table has a clustered Primary Key
+    and the table has a clustered Primary Key defined as 
 
-    PRIMARY KEY(a_1, ..., a_n, b1, ..., b_k) with first key parts being
-    identical to uncovered parts ot the key being scanned (2)
-
-    Scans on HASH indexes are not ROR scans,
-    any range scan on clustered primary key is ROR scan  (3)
-
-    Check (1) is made in check_quick_keys()
-    Check (3) is made check_quick_select()
-    Check (2) is made by this function.
+      PRIMARY KEY(a_1, ..., a_n, b1, ..., b_k) 
+    
+    i.e. the first key parts of it are identical to uncovered parts ot the 
+    key being scanned. This function assumes that the index flags do not
+    include HA_KEY_SCAN_NOT_ROR flag (that is checked elsewhere).
 
   RETURN
-    TRUE  If the scan is ROR-scan
-    FALSE otherwise
+    TRUE   The scan is ROR-scan
+    FALSE  Otherwise
 */
 
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
