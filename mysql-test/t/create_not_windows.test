@@ -17,4 +17,5 @@ primary key (_id)
 show create table `about:text`; 
 drop table `about:text`;
 
+
 # End of 5.0 tests

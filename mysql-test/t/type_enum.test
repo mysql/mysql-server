@@ -182,3 +182,21 @@ create table t1(f1 set('a','b'), index(f1));
 insert into t1 values(''),(''),('a'),('b');
 select * from t1 where f1='';
 drop table t1;
+
+#
+# Bug#29360: Confluence of the special 0 enum value with the normal empty string
+# value during field to field copy.
+#
+
+CREATE TABLE t1 (c1 ENUM('a', '', 'b'));
+INSERT INTO t1 (c1) VALUES ('b');
+INSERT INTO t1 (c1) VALUES ('');
+INSERT INTO t1 (c1) VALUES (0);
+INSERT INTO t1 (c1) VALUES ('');
+
+SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
+
+CREATE TABLE t2 SELECT * FROM t1;
+SELECT c1 + 0 FROM t2;
+
+DROP TABLE t1,t2;
