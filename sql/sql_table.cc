@@ -1430,11 +1430,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
-  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0, 1);
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond= 0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1477,7 +1473,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool drop_temporary, bool drop_view,
-			 bool dont_log_query, bool need_lock_open)
+			 bool dont_log_query)
 {
   TABLE_LIST *table;
   char path[FN_REFLEN], *alias;
@@ -1488,9 +1484,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   String built_query;
   DBUG_ENTER("mysql_rm_table_part2");
-
-  if (need_lock_open)
-    pthread_mutex_lock(&LOCK_open);
 
   LINT_INIT(alias);
   LINT_INIT(path_length);
@@ -1503,6 +1496,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
       built_query.append("DROP TABLE ");
   }
+
+  pthread_mutex_lock(&LOCK_open);
+
   /*
     If we have the table in the definition cache, we don't have to check the
     .frm file to find if the table is a normal table (not view) and what
@@ -1522,19 +1518,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                            table->table_name_length, table->table_name, 1))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(1);
     }
   }
 
   if (!drop_temporary && lock_table_names_exclusively(thd, tables))
   {
-    if (need_lock_open)
-      pthread_mutex_unlock(&LOCK_open);
+    pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(1);
   }
-
-  if (need_lock_open)
-    pthread_mutex_unlock(&LOCK_open);
 
   /* Don't give warnings for not found errors, as we already generate notes */
   thd->no_warnings_for_error= 1;
@@ -1545,7 +1538,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     handlerton *table_type;
     enum legacy_db_type frm_db_type;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, !need_lock_open);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
     if (!close_temporary_table(thd, table))
     {
       tmp_table_deleted=1;
@@ -1582,8 +1575,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       TABLE *locked_table;
       abort_locked_tables(thd, db, table->table_name);
-      if (need_lock_open)
-        pthread_mutex_lock(&LOCK_open);
       remove_table_from_cache(thd, db, table->table_name,
 	                      RTFC_WAIT_OTHER_THREAD_FLAG |
 			      RTFC_CHECK_KILLED_FLAG);
@@ -1594,13 +1585,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       if ((locked_table= drop_locked_tables(thd, db, table->table_name)))
         table->table= locked_table;
 
-      if (need_lock_open)
-        pthread_mutex_unlock(&LOCK_open);
-
       if (thd->killed)
       {
-        thd->no_warnings_for_error= 0;
-	DBUG_RETURN(-1);
+        error= -1;
+        goto err_with_placeholders;
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
@@ -1663,6 +1651,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
   }
+  /*
+    It's safe to unlock LOCK_open: we have an exclusive lock
+    on the table name.
+  */
+  pthread_mutex_unlock(&LOCK_open);
   thd->tmp_table_used= tmp_table_deleted;
   error= 0;
   if (wrong_tables.length())
@@ -1722,11 +1715,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
     }
   }
-  if (need_lock_open)
-    pthread_mutex_lock(&LOCK_open);
+  pthread_mutex_lock(&LOCK_open);
+err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
-  if (need_lock_open)
-    pthread_mutex_unlock(&LOCK_open);
+  pthread_mutex_unlock(&LOCK_open);
   thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
