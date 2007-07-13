@@ -984,7 +984,7 @@ lock_rec_has_to_wait(
 
 /*************************************************************************
 Checks if a lock request lock1 has to wait for request lock2. */
-static
+
 ibool
 lock_has_to_wait(
 /*=============*/
