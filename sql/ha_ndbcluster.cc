@@ -10869,7 +10869,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
   if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   old_tab= alter_data->old_table;
   new_tab= alter_data->new_table;
   alter_info->data= alter_data;
@@ -10963,8 +10963,10 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
        if ((my_errno= create_ndb_column(thd, col, field, create_info,
                                         COLUMN_FORMAT_TYPE_DYNAMIC)))
-	  DBUG_RETURN(my_errno);
-
+       {
+         error= my_errno;
+         goto err;
+       }
        /*
 	 If the user has not specified the field format
 	 make it dynamic to enable on-line add attribute
@@ -10983,7 +10985,9 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
      }
   }
 
+  DBUG_RETURN(0);
  err:
+  delete alter_data;
   DBUG_RETURN(error);
 }
 
@@ -11073,8 +11077,8 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
   DBUG_ASSERT(alter_data);
   error= alter_frm(altered_table->s->path.str, alter_data);
-  delete alter_data;
  err:
+  delete alter_data;
   DBUG_RETURN(error);
 }
 
