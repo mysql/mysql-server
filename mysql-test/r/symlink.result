@@ -136,8 +136,6 @@ End of 4.1 tests
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 USE db2;
-CREATE TABLE t1 (b INT) ENGINE MYISAM
-DATA DIRECTORY = '/home/kgeorge/mysql/work/B29325-winfix-5.0-opt/mysql-test/var/master-data/db1/';
 INSERT INTO db2.t1 VALUES (1);
 SELECT * FROM db2.t1;
 b
