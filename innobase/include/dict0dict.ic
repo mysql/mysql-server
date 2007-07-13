@@ -23,6 +23,30 @@ dict_col_get_type(
 	return(&col->type);
 }
 
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Assert that a column and a data type match. */
+UNIV_INLINE
+ibool
+dict_col_type_assert_equal(
+/*=======================*/
+					/* out: TRUE */
+	const dict_col_t*	col,	/* in: column */
+	const dtype_t*		type)	/* in: data type */
+{
+	ut_ad(col);
+	ut_ad(type);
+
+	ut_ad(col->type.mtype == type->mtype);
+	ut_ad(col->type.prtype == type->prtype);
+	ut_ad(col->type.len == type->len);
+	ut_ad(col->type.mbminlen == type->mbminlen);
+	ut_ad(col->type.mbmaxlen == type->mbmaxlen);
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /*************************************************************************
 Gets the column number. */
 UNIV_INLINE

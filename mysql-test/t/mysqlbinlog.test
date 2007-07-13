@@ -1,7 +1,6 @@
 # We are using .opt file since we need small binlog size
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
@@ -203,5 +202,18 @@ drop table t1;
 flush logs;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000009
+
+#
+# Bug#28293 missed '#' sign in the hex dump when the dump length
+# is divisible by 16.
+#
+
+CREATE TABLE t1 (c1 CHAR(10));
+# we need this for getting fixed timestamps inside of this test
+flush logs;
+INSERT INTO t1 VALUES ('0123456789');
+flush logs;
+DROP TABLE t1;
+--exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000011 | grep 'Query' | sed 's/[0-9]\{1,\}/REMOVED/g'
 
 --echo End of 5.0 tests

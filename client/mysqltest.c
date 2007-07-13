@@ -280,6 +280,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
+  Q_SEND_QUIT,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -367,6 +368,7 @@ const char *command_names[]=
   "append_file",
   "cat_file",
   "diff_files",
+  "send_quit",
   0
 };
 
@@ -496,6 +498,10 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 
 #ifdef EMBEDDED_LIBRARY
+
+/* attributes of the query thread */
+pthread_attr_t cn_thd_attrib;
+
 /*
   send_one_query executes query in separate thread what is
   necessary in embedded library to run 'send' in proper way.
@@ -534,7 +540,7 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   cn->query_done= 0;
-  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+  if (pthread_create(&tid, &cn_thd_attrib, send_one_query, (void*)cn))
     die("Cannot start new thread for query");
 
   return 0;
@@ -1143,6 +1149,50 @@ void check_require(DYNAMIC_STRING* ds, const char *fname)
 }
 
 
+/*
+   Remove surrounding chars from string
+
+   Return 1 if first character is found but not last
+*/
+static int strip_surrounding(char* str, char c1, char c2)
+{
+  char* ptr= str;
+
+  /* Check if the first non space character is c1 */
+  while(*ptr && my_isspace(charset_info, *ptr))
+    ptr++;
+  if (*ptr == c1)
+  {
+    /* Replace it with a space */
+    *ptr= ' ';
+
+    /* Last non space charecter should be c2 */
+    ptr= strend(str)-1;
+    while(*ptr && my_isspace(charset_info, *ptr))
+      ptr--;
+    if (*ptr == c2)
+    {
+      /* Replace it with \0 */
+      *ptr= 0;
+    }
+    else
+    {
+      /* Mismatch detected */
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+static void strip_parentheses(struct st_command *command)
+{
+  if (strip_surrounding(command->first_argument, '(', ')'))
+      die("%.*s - argument list started with '%c' must be ended with '%c'",
+          command->first_word_len, command->query, '(', ')');
+}
+
+
 static byte *get_var_key(const byte* var, uint* len,
                   my_bool __attribute__((unused)) t)
 {
@@ -1398,12 +1448,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
   do_eval(&ds_query, query, end, FALSE);
 
-  if (mysql_real_query(mysql, ds_query.str, ds_query.length) ||
-      !(res = mysql_store_result(mysql)))
-  {
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
     die("Error running query '%s': %d %s", ds_query.str,
 	mysql_errno(mysql), mysql_error(mysql));
-  }
+  if (!(res= mysql_store_result(mysql)))
+    die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1457,6 +1506,130 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 }
 
 
+/*
+  Set variable from the result of a field in a query
+
+  This function is useful when checking for a certain value
+  in the output from a query that can't be restricted to only
+  return some values. A very good example of that is most SHOW
+  commands.
+
+  SYNOPSIS
+  var_set_query_get_value()
+
+  DESCRIPTION
+  let $variable= query_get_value(<query to run>,<column name>,<row no>);
+
+  <query to run> -    The query that should be sent to the server
+  <column name> -     Name of the column that holds the field be compared
+                      against the expected value
+  <row no> -          Number of the row that holds the field to be
+                      compared against the expected value
+
+*/
+
+void var_set_query_get_value(struct st_command *command, VAR *var)
+{
+  ulong row_no;
+  int col_no= -1;
+  MYSQL_RES* res;
+  MYSQL* mysql= &cur_con->mysql;
+
+  static DYNAMIC_STRING ds_query;
+  static DYNAMIC_STRING ds_col;
+  static DYNAMIC_STRING ds_row;
+  const struct command_arg query_get_value_args[] = {
+    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
+    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
+    "row number", ARG_STRING, TRUE, &ds_row, "Number for row",
+  };
+
+  DBUG_ENTER("var_set_query_get_value");
+  LINT_INIT(res);
+
+  strip_parentheses(command);
+  DBUG_PRINT("info", ("query: %s", command->query));
+  check_command_args(command, command->first_argument, query_get_value_args,
+                     sizeof(query_get_value_args)/sizeof(struct command_arg),
+                     ',');
+
+  DBUG_PRINT("info", ("query: %s", ds_query.str));
+  DBUG_PRINT("info", ("col: %s", ds_col.str));
+
+  /* Convert row number to int */
+  if (!str2int(ds_row.str, 10, (long) 0, (long) INT_MAX, &row_no))
+    die("Invalid row number: '%s'", ds_row.str);
+  DBUG_PRINT("info", ("row: %s, row_no: %ld", ds_row.str, row_no));
+  dynstr_free(&ds_row);
+
+  /* Remove any surrounding "'s from the query - if there is any */
+  if (strip_surrounding(ds_query.str, '"', '"'))
+    die("Mismatched \"'s around query '%s'", ds_query.str);
+
+  /* Run the query */
+  if (mysql_real_query(mysql, ds_query.str, ds_query.length))
+    die("Error running query '%s': %d %s", ds_query.str,
+	mysql_errno(mysql), mysql_error(mysql));
+  if (!(res= mysql_store_result(mysql)))
+    die("Query '%s' didn't return a result set", ds_query.str);
+
+  {
+    /* Find column number from the given column name */
+    uint i;
+    uint num_fields= mysql_num_fields(res);
+    MYSQL_FIELD *fields= mysql_fetch_fields(res);
+
+    for (i= 0; i < num_fields; i++)
+    {
+      if (strcmp(fields[i].name, ds_col.str) == 0 &&
+          strlen(fields[i].name) == ds_col.length)
+      {
+        col_no= i;
+        break;
+      }
+    }
+    if (col_no == -1)
+    {
+      mysql_free_result(res);
+      die("Could not find column '%s' in the result of '%s'",
+          ds_col.str, ds_query.str);
+    }
+    DBUG_PRINT("info", ("Found column %d with name '%s'",
+                        i, fields[i].name));
+  }
+  dynstr_free(&ds_col);
+
+  {
+    /* Get the value */
+    MYSQL_ROW row;
+    ulong rows= 0;
+    const char* value= "No such row";
+
+    while ((row= mysql_fetch_row(res)))
+    {
+      if (++rows == row_no)
+      {
+
+        DBUG_PRINT("info", ("At row %ld, column %d is '%s'",
+                            row_no, col_no, row[col_no]));
+        /* Found the row to get */
+        if (row[col_no])
+          value= row[col_no];
+        else
+          value= "NULL";
+
+        break;
+      }
+    }
+    eval_expr(var, value, 0);
+  }
+  dynstr_free(&ds_query);
+  mysql_free_result(res);
+
+  DBUG_VOID_RETURN;
+}
+
+
 void var_copy(VAR *dest, VAR *src)
 {
   dest->int_val= src->int_val;
@@ -1480,26 +1653,47 @@ void var_copy(VAR *dest, VAR *src)
 
 void eval_expr(VAR *v, const char *p, const char **p_end)
 {
-  static int MIN_VAR_ALLOC= 32; /* MASV why 32? */
-  VAR *vp;
+
+  DBUG_ENTER("eval_expr");
+  DBUG_PRINT("enter", ("p: '%s'", p));
+
   if (*p == '$')
   {
+    VAR *vp;
     if ((vp= var_get(p, p_end, 0, 0)))
-    {
       var_copy(v, vp);
-      return;
-    }
+    DBUG_VOID_RETURN;
   }
-  else if (*p == '`')
+
+  if (*p == '`')
   {
     var_query_set(v, p, p_end);
+    DBUG_VOID_RETURN;
   }
-  else
+
+  {
+    /* Check if this is a "let $var= query_get_value()" */
+    const char* get_value_str= "query_get_value";
+    const size_t len= strlen(get_value_str);
+    if (strncmp(p, get_value_str, len)==0)
+    {
+      struct st_command command;
+      memset(&command, 0, sizeof(command));
+      command.query= (char*)p;
+      command.first_word_len= len;
+      command.first_argument= command.query + len;
+      command.end= (char*)*p_end;
+      var_set_query_get_value(&command, v);
+      DBUG_VOID_RETURN;
+    }
+  }
+
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
     if (new_val_len + 1 >= v->alloced_len)
     {
+      static int MIN_VAR_ALLOC= 32;
       v->alloced_len = (new_val_len < MIN_VAR_ALLOC - 1) ?
         MIN_VAR_ALLOC : new_val_len + 1;
       if (!(v->str_val =
@@ -1512,9 +1706,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
     v->int_val=atoi(p);
+    DBUG_PRINT("info", ("atoi on '%s', returns: %d", p, v->int_val));
     v->int_dirty=0;
   }
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2361,6 +2556,48 @@ void do_diff_files(struct st_command *command)
   handle_command_error(command, error);
   DBUG_VOID_RETURN;
 }
+
+  /*
+    SYNOPSIS
+    do_send_quit
+    command	called command
+
+    DESCRIPTION
+    Sends a simple quit command to the server for the named connection.
+
+  */
+
+void do_send_quit(struct st_command *command)
+{
+  char *p= command->first_argument, *name;
+  struct st_connection *con;
+
+  DBUG_ENTER("do_send_quit");
+  DBUG_PRINT("enter",("name: '%s'",p));
+
+  if (!*p)
+    die("Missing connection name in do_send_quit");
+  name= p;
+  while (*p && !my_isspace(charset_info,*p))
+    p++;
+
+  if (*p)
+    *p++= 0;
+  command->last_argument= p;
+
+  /* Loop through connection pool for connection to close */
+  for (con= connections; con < next_con; con++)
+  {
+    DBUG_PRINT("info", ("con->name: %s", con->name));
+    if (!strcmp(con->name, name))
+    {
+      simple_command(&con->mysql,COM_QUIT,NullS,0,1);
+      DBUG_VOID_RETURN;
+    }
+  }
+  die("connection '%s' not found in connection pool", name);
+}
+
 
 /*
   SYNOPSIS
@@ -3271,11 +3508,10 @@ void do_close_connection(struct st_command *command)
       my_free(con->name, MYF(0));
 
       /*
-        When the connection is closed set name to "closed_connection"
+        When the connection is closed set name to "-closed_connection-"
         to make it possible to reuse the connection name.
-        The connection slot will not be reused
       */
-      if (!(con->name = my_strdup("closed_connection", MYF(MY_WME))))
+      if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
         die("Out of memory");
 
       DBUG_VOID_RETURN;
@@ -3453,7 +3689,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   bool con_ssl= 0, con_compress= 0;
-  char *ptr;
+  struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -3481,20 +3717,7 @@ void do_connect(struct st_command *command)
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s", command->first_argument));
 
-  /* Remove parenteses around connect arguments */
-  if ((ptr= strstr(command->first_argument, "(")))
-  {
-    /* Replace it with a space */
-    *ptr= ' ';
-    if ((ptr= strstr(command->first_argument, ")")))
-    {
-      /* Replace it with \0 */
-      *ptr= 0;
-    }
-    else
-      die("connect - argument list started with '(' must be ended with ')'");
-  }
-
+  strip_parentheses(command);
   check_command_args(command, command->first_argument, connect_args,
                      sizeof(connect_args)/sizeof(struct command_arg),
                      ',');
@@ -3552,19 +3775,24 @@ void do_connect(struct st_command *command)
     con_options= end;
   }
 
-  if (next_con == connections_end)
-    die("Connection limit exhausted, you can have max %d connections",
-        (int) (sizeof(connections)/sizeof(struct st_connection)));
-
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
+    
+  if (next_con != connections_end)
+    con_slot= next_con;
+  else
+  {
+    if (!(con_slot= find_connection_by_name("-closed_connection-")))
+      die("Connection limit exhausted, you can have max %d connections",
+          (int) (sizeof(connections)/sizeof(struct st_connection)));
+  }
 
-  if (!mysql_init(&next_con->mysql))
+  if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
   if (opt_compress || con_compress)
-    mysql_options(&next_con->mysql, MYSQL_OPT_COMPRESS, NullS);
-  mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
+  mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
     mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
@@ -3573,12 +3801,12 @@ void do_connect(struct st_command *command)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
   {
-    mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
   }
@@ -3592,16 +3820,19 @@ void do_connect(struct st_command *command)
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
-  if (connect_n_handle_errors(command, &next_con->mysql,
+  if (connect_n_handle_errors(command, &con_slot->mysql,
                               ds_host.str,ds_user.str,
                               ds_password.str, ds_database.str,
                               con_port, ds_sock.str))
   {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
-    if (!(next_con->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
+    if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
-    cur_con= next_con++;
+    cur_con= con_slot;
+    
+    if (con_slot == next_con)
+      next_con++; /* if we used the next_con slot, advance the pointer */
   }
 
   dynstr_free(&ds_connection_name);
@@ -4192,16 +4423,12 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
-        (struct st_command*) my_malloc(sizeof(*command), MYF(MY_WME))) ||
+        (struct st_command*) my_malloc(sizeof(*command),
+                                       MYF(MY_WME|MY_ZEROFILL))) ||
       insert_dynamic(&q_lines, (gptr) &command))
     die(NullS);
-
-  command->require_file[0]= 0;
-  command->first_word_len= 0;
-  command->query_len= 0;
-
   command->type= Q_UNKNOWN;
-  command->query_buf= command->query= 0;
+
   read_command_buf[0]= 0;
   if (read_line(read_command_buf, sizeof(read_command_buf)))
   {
@@ -5999,6 +6226,12 @@ int main(int argc, char **argv)
   next_con= connections + 1;
   cur_con= connections;
 
+#ifdef EMBEDDED_LIBRARY
+  /* set appropriate stack for the 'query' threads */
+  (void) pthread_attr_init(&cn_thd_attrib);
+  pthread_attr_setstacksize(&cn_thd_attrib, DEFAULT_THREAD_STACK);
+#endif /*EMBEDDED_LIBRARY*/
+
   /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end=
@@ -6168,6 +6401,7 @@ int main(int argc, char **argv)
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
       case Q_DIFF_FILES: do_diff_files(command); break;
+      case Q_SEND_QUIT: do_send_quit(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;

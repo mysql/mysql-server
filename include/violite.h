@@ -88,7 +88,6 @@ my_bool	vio_peer_addr(Vio* vio, char *buf, uint16 *port);
 /* Remotes in_addr */
 void	vio_in_addr(Vio *vio, struct in_addr *in);
 my_bool	vio_poll_read(Vio *vio,uint timeout);
-void	vio_timeout(Vio *vio,uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -101,7 +100,9 @@ void	vio_timeout(Vio *vio,uint which, uint timeout);
 
 #define HEADER_DES_LOCL_H dummy_something
 #define YASSL_MYSQL_COMPATIBLE
+#ifndef YASSL_PREFIX
 #define YASSL_PREFIX
+#endif
 /* Set yaSSL to use same type as MySQL do for socket handles */
 typedef my_socket YASSL_SOCKET_T;
 #define YASSL_SOCKET_T_DEFINED

@@ -596,6 +596,25 @@ sub collect_one_test_case($$$$$$$) {
       }
     }
 
+    if ( $tinfo->{'need_binlog'} )
+    {
+      if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+      {
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "Test need binlog";
+	return;
+      }
+    }
+    else
+    {
+      if ( $::mysql_version_id >= 50100 )
+      {
+	# Test does not need binlog, add --skip-binlog to
+	# the options used when starting it
+	push(@{$tinfo->{'master_opt'}}, "--skip-log-bin");
+      }
+    }
+
   }
 }
 
@@ -608,6 +627,7 @@ our @tags=
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
  ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
  ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
+ ["include/have_log_bin.inc", "need_binlog", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

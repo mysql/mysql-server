@@ -402,12 +402,18 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   HANDLE handle_file_map = NULL;
   ulong connect_number;
   char connect_number_char[22], *p;
-  char tmp[64];
+  char *tmp= NULL;
   char *suffix_pos;
   DWORD error_allow = 0;
   DWORD error_code = 0;
   DWORD event_access_rights= SYNCHRONIZE | EVENT_MODIFY_STATE;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
+
+  /*
+     get enough space base-name + '_' + longest suffix we might ever send
+   */
+  if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
+    goto err;
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -416,7 +422,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     shared_memory_base_name is unique value for each server
     unique_part is uniquel value for each object (events and file-mapping)
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
   if (!(event_connect_request= OpenEvent(event_access_rights, FALSE, tmp)))
   {
@@ -470,8 +476,8 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     unique_part is uniquel value for each object (events and file-mapping)
     number_of_connection is number of connection between server and client
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
-		       "_",NullS);
+  suffix_pos = strxmov(tmp, "Global\\", shared_memory_base_name, "_", connect_number_char,
+		       "_", NullS);
   strmov(suffix_pos, "DATA");
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
@@ -551,6 +557,8 @@ err2:
       CloseHandle(handle_file_map);
   }
 err:
+  if (tmp)
+    my_free(tmp, MYF(0));
   if (error_allow)
     error_code = GetLastError();
   if (event_connect_request)
@@ -2047,13 +2055,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   /* If user set read_timeout, let it override the default */
   if (mysql->options.read_timeout)
-    net->read_timeout= mysql->options.read_timeout;
-  vio_timeout(net->vio, 0, net->read_timeout);
+    my_net_set_read_timeout(net, mysql->options.read_timeout);
 
   /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
-    net->write_timeout= mysql->options.write_timeout;
-  vio_timeout(net->vio, 1, net->write_timeout);
+    my_net_set_write_timeout(net, mysql->options.write_timeout);
 
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
@@ -2453,6 +2459,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   mysql_init(&tmp_mysql);
   tmp_mysql.options= mysql->options;
+  tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
   tmp_mysql.rpl_pivot= mysql->rpl_pivot;
   
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,

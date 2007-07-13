@@ -71,3 +71,20 @@ explain select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 drop table t1;
 # End of 4.1 tests
+
+#
+# Bug #28464: a string argument to 'limit ?' PS
+#
+
+prepare s from "select 1 limit ?"; 
+set @a='qwe'; 
+--error 1210
+execute s using @a;
+prepare s from "select 1 limit 1, ?";
+--error 1210
+execute s using @a;
+prepare s from "select 1 limit ?, ?";
+--error 1210
+execute s using @a, @a;
+
+--echo End of 5.0 tests

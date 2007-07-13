@@ -91,3 +91,14 @@ select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 c
 28
 drop table t1;
+prepare s from "select 1 limit ?";
+set @a='qwe';
+execute s using @a;
+ERROR HY000: Incorrect arguments to EXECUTE
+prepare s from "select 1 limit 1, ?";
+execute s using @a;
+ERROR HY000: Incorrect arguments to EXECUTE
+prepare s from "select 1 limit ?, ?";
+execute s using @a, @a;
+ERROR HY000: Incorrect arguments to EXECUTE
+End of 5.0 tests

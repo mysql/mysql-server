@@ -159,8 +159,8 @@ CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'c' at row 1
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'c' at row 2
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'c' cannot be null
 SELECT * FROM t1;
 c	i
 	1
@@ -455,3 +455,11 @@ ORDER BY c.b, c.d
 a	b	c	d	e	f	g	h	i	j	a	b	c	d
 2	2	1	2004-11-30 12:00:00	1	0	0	0	0	0	2	3388000	-553000	NULL
 DROP TABLE t1, t2;
+CREATE TABLE t1( a TINYINT, KEY(a) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES( 1 );
+ALTER TABLE t1 DISABLE KEYS;
+EXPLAIN SELECT MAX(a) FROM t1 FORCE INDEX(a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
+End of 5.0 tests.

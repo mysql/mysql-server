@@ -202,6 +202,19 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 }
 
 
+static void
+copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
+{
+  to->cset= from->cset;
+  to->coll= from->coll;
+  to->strxfrm_multiply= from->strxfrm_multiply;
+  to->min_sort_char= from->min_sort_char;
+  to->max_sort_char= from->max_sort_char;
+  to->mbminlen= from->mbminlen;
+  to->mbmaxlen= from->mbmaxlen;
+}
+
+
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
@@ -225,29 +238,30 @@ static int add_collation(CHARSET_INFO *cs)
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
-      CHARSET_INFO *new= all_charsets[cs->number];
+      CHARSET_INFO *newcs= all_charsets[cs->number];
       if (cs_copy_data(all_charsets[cs->number],cs))
         return MY_XML_ERROR;
 
       if (!strcmp(cs->csname,"ucs2") )
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
-        new->cset= my_charset_ucs2_general_uca.cset;
-        new->coll= my_charset_ucs2_general_uca.coll;
-        new->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
-        new->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
-        new->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
-        new->mbminlen= 2;
-        new->mbmaxlen= 2;
-        new->state |= MY_CS_AVAILABLE | MY_CS_LOADED;
+        copy_uca_collation(newcs, &my_charset_ucs2_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
 #endif        
+      }
+      else if (!strcmp(cs->csname, "utf8"))
+      {
+#if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
+        copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
+#endif
       }
       else
       {
         uchar *sort_order= all_charsets[cs->number]->sort_order;
         simple_cs_init_functions(all_charsets[cs->number]);
-        new->mbminlen= 1;
-        new->mbmaxlen= 1;
+        newcs->mbminlen= 1;
+        newcs->mbmaxlen= 1;
         if (simple_cs_is_full(all_charsets[cs->number]))
         {
           all_charsets[cs->number]->state |= MY_CS_LOADED;

@@ -11,6 +11,15 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "mtr0mtr.h"
 
+/*************************************************************************
+Print the mtr and block fields. */
+
+void
+buf_print_diagnostic(
+/*=================*/
+	mtr_t*			mtr,		/* in: mtr to print */
+	const buf_block_t*	block);		/* in: block to print */
+
 #ifdef UNIV_DEBUG
 extern ulint		buf_dbg_counter; /* This is used to insert validation
 					operations in execution in the
@@ -618,12 +627,9 @@ buf_page_release(
 					RW_NO_LATCH */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	buf_fix_count;
-	
 	ut_ad(block);
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
-	ut_a(block->buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
 		mutex_enter(&buf_pool->mutex);
@@ -633,11 +639,16 @@ buf_page_release(
 
 	mutex_enter(&block->mutex);
 
+	/* This debug code has been added to narrow down Bug# 26081 */
+	if (UNIV_UNLIKELY(block->buf_fix_count == 0)) {
+		buf_print_diagnostic(mtr, block);
+		ut_error;
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
-	buf_fix_count = block->buf_fix_count;
-	block->buf_fix_count = buf_fix_count - 1;
+	--block->buf_fix_count;
 
 	mutex_exit(&block->mutex);
 

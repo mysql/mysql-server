@@ -521,6 +521,37 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
+
+  /*
+    todo bug#27571: to avoid asynchronization of `error' and
+    `error_code' of binlog event constructor
+
+    The concept, which is a bit different for insert(!), is to
+    replace `error' assignment with the following lines
+
+       killed_status= thd->killed; // get the status of the volatile 
+    
+    Notice: thd->killed is type of "state" whereas the lhs has
+    "status" the suffix which translates according to WordNet: a state
+    at a particular time - at the time of the end of per-row loop in
+    our case. Binlogging ops are conducted with the status.
+
+       error= (killed_status == THD::NOT_KILLED)?  error : 1;
+    
+    which applies to most mysql_$query functions.
+    Event's constructor will accept `killed_status' as an argument:
+    
+       Query_log_event qinfo(..., killed_status);
+    
+    thd->killed might be changed after killed_status had got cached and this
+    won't affect binlogging event but other effects remain.
+
+    Open issue: In a case the error happened not because of KILLED -
+    and then KILLED was caught later still within the loop - we shall
+    do something to avoid binlogging of incorrect ER_SERVER_SHUTDOWN
+    error_code.
+  */
+
   if (thd->killed && !error)
     error= 1;					// Aborted
   end_read_record(&info);
@@ -915,6 +946,7 @@ bool mysql_multi_update(THD *thd,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
   multi_update *result;
+  bool res;
   DBUG_ENTER("mysql_multi_update");
 
   if (!(result= new multi_update(table_list,
@@ -929,7 +961,7 @@ bool mysql_multi_update(THD *thd,
                                MODE_STRICT_ALL_TABLES));
 
   List<Item> total_list;
-  (void) mysql_select(thd, &select_lex->ref_pointer_array,
+  res= mysql_select(thd, &select_lex->ref_pointer_array,
                       table_list, select_lex->with_wild,
                       total_list,
                       conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
@@ -937,6 +969,15 @@ bool mysql_multi_update(THD *thd,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
                       result, unit, select_lex);
+  DBUG_PRINT("info",("res: %d  report_error: %d", res,
+                     thd->net.report_error));
+  res|= thd->net.report_error;
+  if (unlikely(res))
+  {
+    /* If we had a another error reported earlier then this will be ignored */
+    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    result->abort();
+  }
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
@@ -970,6 +1011,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
   uint i, max_fields;
+  uint leaf_table_count= 0;
   DBUG_ENTER("multi_update::prepare");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -1003,6 +1045,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
+    leaf_table_count++;
     if (tables_to_update & table->map)
     {
       TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
@@ -1067,7 +1110,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   /* Allocate copy fields */
   max_fields=0;
   for (i=0 ; i < table_count ; i++)
-    set_if_bigger(max_fields, fields_for_table[i]->elements);
+    set_if_bigger(max_fields, fields_for_table[i]->elements + leaf_table_count);
   copy_field= new Copy_field[max_fields];
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
@@ -1160,13 +1203,22 @@ multi_update::initialize_tables(JOIN *join)
   trans_safe= transactional_tables= main_table->file->has_transactions();
   table_to_update= 0;
 
+  /* Any update has at least one pair (field, value) */
+  DBUG_ASSERT(fields->elements);
+  /*
+   Only one table may be modified by UPDATE of an updatable view.
+   For an updatable view first_table_for_update indicates this
+   table.
+   For a regular multi-update it refers to some updated table.
+  */ 
+  TABLE *first_table_for_update= ((Item_field *) fields->head())->field->table;
+
   /* Create a temporary table for keys to all tables, except main table */
   for (table_ref= update_tables; table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
-    Item_field *ifield;
-    List<Item> temp_fields= *fields_for_table[cnt];
+    List<Item> temp_fields;
     ORDER     group;
 
     if (ignore)
@@ -1174,10 +1226,27 @@ multi_update::initialize_tables(JOIN *join)
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables,
-                             &temp_fields))
+                             fields_for_table[cnt]))
       {
 	table_to_update= main_table;		// Update table on the fly
 	continue;
+      }
+    }
+
+    if (table == first_table_for_update && table_ref->check_option)
+    {
+      table_map unupdated_tables= table_ref->check_option->used_tables() &
+                                  ~first_table_for_update->map;
+      for (TABLE_LIST *tbl_ref =leaves;
+           unupdated_tables && tbl_ref;
+           tbl_ref= tbl_ref->next_leaf)
+      {
+        if (unupdated_tables & tbl_ref->table->map)
+          unupdated_tables&= ~tbl_ref->table->map;
+        else
+          continue;
+        if (unupdated_check_opt_tables.push_back(tbl_ref->table))
+          DBUG_RETURN(1);
       }
     }
 
@@ -1186,22 +1255,34 @@ multi_update::initialize_tables(JOIN *join)
     /*
       Create a temporary table to store all fields that are changed for this
       table. The first field in the temporary table is a pointer to the
-      original row so that we can find and update it
+      original row so that we can find and update it. For the updatable
+      VIEW a few following fields are rowids of tables used in the CHECK
+      OPTION condition.
     */
 
-    /* ok to be on stack as this is not referenced outside of this func */
-    Field_string offset(table->file->ref_length, 0, "offset",
-			table, &my_charset_bin);
-    /*
-      The field will be converted to varstring when creating tmp table if
-      table to be updated was created by mysql 4.1. Deny this.
-    */
-    offset.can_alter_field_type= 0;
-    if (!(ifield= new Item_field(((Field *) &offset))))
-      DBUG_RETURN(1);
-    ifield->maybe_null= 0;
-    if (temp_fields.push_front(ifield))
-      DBUG_RETURN(1);
+    List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
+    TABLE *tbl= table;
+    do
+    {
+      Field_string *field= new Field_string(tbl->file->ref_length, 0,
+                                            tbl->alias,
+                                            tbl, &my_charset_bin);
+      if (!field)
+        DBUG_RETURN(1);
+      /*
+        The field will be converted to varstring when creating tmp table if
+        table to be updated was created by mysql 4.1. Deny this.
+      */
+      field->can_alter_field_type= 0;
+      Item_field *ifield= new Item_field((Field *) field);
+      if (!ifield)
+         DBUG_RETURN(1);
+      ifield->maybe_null= 0;
+      if (temp_fields.push_back(ifield))
+        DBUG_RETURN(1);
+    } while ((tbl= tbl_it++));
+
+    temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
     bzero((char*) &group, sizeof(group));
@@ -1250,8 +1331,9 @@ multi_update::~multi_update()
   if (copy_field)
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
-  if (!trans_safe)
+  if (!trans_safe)  // todo: remove since redundant
     thd->no_trans_update.all= TRUE;
+  DBUG_ASSERT(trans_safe || thd->no_trans_update.all);
 }
 
 
@@ -1337,8 +1419,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	}
         else
         {
-          if (!table->file->has_transactions())
+          /* non-transactional or transactional table got modified   */
+          /* either multi_update class' flag is raised in its branch */
+          if (table->file->has_transactions())
+            transactional_tables= 1;
+          else
+          {
+            trans_safe= 0;
             thd->no_trans_update.stmt= TRUE;
+          }
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1350,10 +1439,26 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
-      fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
-      /* Store pointer to row */
-      memcpy((char*) tmp_table->field[0]->ptr,
-	     (char*) table->file->ref, table->file->ref_length);
+      /* Store regular updated fields in the row. */
+      fill_record(thd,
+                  tmp_table->field + 1 + unupdated_check_opt_tables.elements,
+                  *values_for_table[offset], 1);
+      /*
+       For updatable VIEW store rowid of the updated table and
+       rowids of tables used in the CHECK OPTION condition.
+      */
+      uint field_num= 0;
+      List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
+      TABLE *tbl= table;
+      do
+      {
+        if (tbl != table)
+          tbl->file->position(tbl->record[0]);
+        memcpy((char*) tmp_table->field[field_num]->ptr,
+               (char*) tbl->file->ref, tbl->file->ref_length);
+        field_num++;
+      } while ((tbl= tbl_it++));
+
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
@@ -1379,8 +1484,8 @@ void multi_update::send_error(uint errcode,const char *err)
   my_error(errcode, MYF(0), err);
 
   /* If nothing updated return */
-  if (!updated)
-    return;
+  if (updated == 0) /* the counter might be reset in send_eof */
+    return;         /* and then the query has been binlogged */
 
   /* Something already updated so we have to invalidate cache */
   query_cache_invalidate3(thd, update_tables, 1);
@@ -1391,11 +1496,43 @@ void multi_update::send_error(uint errcode,const char *err)
   */
 
   if (trans_safe)
-    ha_rollback_stmt(thd);
-  else if (do_update && table_count > 1)
   {
-    /* Add warning here */
-    VOID(do_updates(0));
+    DBUG_ASSERT(transactional_tables);
+    (void) ha_autocommit_or_rollback(thd, 1);
+  }
+  else
+  { 
+    DBUG_ASSERT(thd->no_trans_update.stmt);
+    if (do_update && table_count > 1)
+    {
+      /* Add warning here */
+      /* 
+         todo/fixme: do_update() is never called with the arg 1.
+         should it change the signature to become argless?
+      */
+      VOID(do_updates(0));
+    }
+  }
+  if (thd->no_trans_update.stmt)
+  {
+    /*
+      The query has to binlog because there's a modified non-transactional table
+      either from the query's list or via a stored routine: bug#13270,23333
+    */
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            transactional_tables, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+    if (!trans_safe)
+      thd->no_trans_update.all= TRUE;
+  }
+  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  
+  if (transactional_tables)
+  {
+    (void) ha_autocommit_or_rollback(thd, 1);
   }
 }
 
@@ -1403,9 +1540,10 @@ void multi_update::send_error(uint errcode,const char *err)
 int multi_update::do_updates(bool from_send_error)
 {
   TABLE_LIST *cur_table;
-  int local_error;
+  int local_error= 0;
   ha_rows org_updated;
   TABLE *table, *tmp_table;
+  List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   DBUG_ENTER("do_updates");
 
   do_update= 0;					// Don't retry this function
@@ -1413,8 +1551,8 @@ int multi_update::do_updates(bool from_send_error)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
-    byte *ref_pos;
     bool can_compare_record;
+    uint offset= cur_table->shared;
 
     table = cur_table->table;
     if (table == table_to_update)
@@ -1425,11 +1563,20 @@ int multi_update::do_updates(bool from_send_error)
     (void) table->file->ha_rnd_init(0);
     table->file->extra(HA_EXTRA_NO_CACHE);
 
+    check_opt_it.rewind();
+    while(TABLE *tbl= check_opt_it++)
+    {
+      if (tbl->file->ha_rnd_init(1))
+        goto err;
+      tbl->file->extra(HA_EXTRA_CACHE);
+    }
+
     /*
       Setup copy functions to copy fields from temporary table
     */
-    List_iterator_fast<Item> field_it(*fields_for_table[cur_table->shared]);
-    Field **field= tmp_table->field+1;		// Skip row pointer
+    List_iterator_fast<Item> field_it(*fields_for_table[offset]);
+    Field **field= tmp_table->field + 
+                   1 + unupdated_check_opt_tables.elements; // Skip row pointers
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
     for ( ; *field ; field++)
     {
@@ -1444,7 +1591,6 @@ int multi_update::do_updates(bool from_send_error)
     can_compare_record= !(table->file->table_flags() &
                           HA_PARTIAL_COLUMN_READ);
 
-    ref_pos= (byte*) tmp_table->field[0]->ptr;
     for (;;)
     {
       if (thd->killed && trans_safe)
@@ -1457,8 +1603,20 @@ int multi_update::do_updates(bool from_send_error)
 	  continue;				// May happen on dup key
 	goto err;
       }
-      if ((local_error= table->file->rnd_pos(table->record[0], ref_pos)))
-	goto err;
+
+      /* call rnd_pos() using rowids from temporary table */
+      check_opt_it.rewind();
+      TABLE *tbl= table;
+      uint field_num= 0;
+      do
+      {
+        if((local_error=
+              tbl->file->rnd_pos(tbl->record[0],
+                                (byte *) tmp_table->field[field_num]->ptr)))
+          goto err;
+        field_num++;
+      } while((tbl= check_opt_it++));
+
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
 
@@ -1502,12 +1660,19 @@ int multi_update::do_updates(bool from_send_error)
     if (updated != org_updated)
     {
       if (table->file->has_transactions())
-	transactional_tables= 1;
+        transactional_tables= 1;
       else
-	trans_safe= 0;				// Can't do safe rollback
+      {
+        trans_safe= 0;				// Can't do safe rollback
+        thd->no_trans_update.stmt= TRUE;
+      }
     }
     (void) table->file->ha_rnd_end();
     (void) tmp_table->file->ha_rnd_end();
+    check_opt_it.rewind();
+    while (TABLE *tbl= check_opt_it++)
+        tbl->file->ha_rnd_end();
+
   }
   DBUG_RETURN(0);
 
@@ -1521,13 +1686,19 @@ err:
 err2:
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();
+  check_opt_it.rewind();
+  while (TABLE *tbl= check_opt_it++)
+      tbl->file->ha_rnd_end();
 
   if (updated != org_updated)
   {
     if (table->file->has_transactions())
       transactional_tables= 1;
     else
+    {
       trans_safe= 0;
+      thd->no_trans_update.stmt= TRUE;
+    }
   }
   DBUG_RETURN(1);
 }
@@ -1556,20 +1727,26 @@ bool multi_update::send_eof()
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
     transactional tables.
+    
+    The query has to binlog because there's a modified non-transactional table
+    either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  if ((local_error == 0) || (updated && !trans_safe))
+  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  if (local_error == 0 || thd->no_trans_update.stmt)
   {
     if (mysql_bin_log.is_open())
     {
       if (local_error == 0)
         thd->clear_error();
+      else
+        updated= 0; /* if there's an error binlog it here not in ::send_error */
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
         local_error= 1;				// Rollback update
     }
-    if (!transactional_tables)
+    if (!trans_safe)
       thd->no_trans_update.all= TRUE;
   }
 
@@ -1581,7 +1758,7 @@ bool multi_update::send_eof()
 
   if (local_error > 0) // if the above log write did not fail ...
   {
-    /* Safety: If we haven't got an error before (should not happen) */
+    /* Safety: If we haven't got an error before (can happen in do_updates) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
     return TRUE;

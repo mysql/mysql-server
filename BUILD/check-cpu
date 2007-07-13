@@ -104,6 +104,12 @@ check_cpu () {
     *Athlon*64*)
       cpu_arg="athlon64";
       ;;
+    *Turion*)
+      cpu_arg="athlon64";
+      ;;
+    *Opteron*)
+      cpu_arg="athlon64";
+      ;;
     *Athlon*)
       cpu_arg="athlon";
       ;;

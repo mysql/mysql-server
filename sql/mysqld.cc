@@ -32,6 +32,9 @@
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 #endif
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
 
 #ifdef HAVE_INNOBASE_DB
 #define OPT_INNODB_DEFAULT 1
@@ -346,7 +349,15 @@ bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
-bool volatile shutdown_in_progress, grant_option;
+bool volatile shutdown_in_progress;
+/**
+   @brief 'grant_option' is used to indicate if privileges needs
+   to be checked, in which case the lock, LOCK_grant, is used
+   to protect access to the grant table.
+   @note This flag is dropped in 5.1 
+   @see grant_init()
+ */
+bool volatile grant_option;
 
 my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
@@ -434,8 +445,6 @@ ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 
-double log_10[32];			/* 10 potences */
-double log_01[32];
 time_t server_start_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
@@ -1365,6 +1374,15 @@ static struct passwd *check_user(const char *user)
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
   unireg_abort(1);
+
+#ifdef PR_SET_DUMPABLE
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    /* inform kernel that process is dumpable */
+    (void) prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
+
 #endif
   return NULL;
 }
@@ -2148,6 +2166,16 @@ later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
 mysqld that is not statically linked.\n");
 #endif
 
+#ifdef HAVE_NPTL
+  if (thd_lib_detected == THD_LIB_LT && !getenv("LD_ASSUME_KERNEL"))
+    fprintf(stderr,"\n\
+You are running a statically-linked LinuxThreads binary on an NPTL system.\n\
+This can result in crashes on some distributions due to LT/NPTL conflicts.\n\
+You should either build a dynamically-linked binary, or force LinuxThreads\n\
+to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
+the documentation for your distribution on how to do that.\n");
+#endif
+  
   if (locked_in_memory)
   {
     fprintf(stderr, "\n\
@@ -3574,6 +3602,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
   }
+  else
+  {
+    /* Don't show error dialog box when on foreground: it stops the server */ 
+    SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
+  }
 #endif
 
   /*
@@ -4387,7 +4420,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;
-  char tmp[63];
+  char *tmp= NULL;
   char *suffix_pos;
   char connect_number_char[22], *p;
   const char *errmsg= 0;
@@ -4395,6 +4428,12 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
+
+  /*
+     get enough space base-name + '_' + longest suffix we might ever send
+   */
+  if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
+    goto error;
 
   if (my_security_attr_create(&sa_event, &errmsg,
                               GENERIC_ALL, SYNCHRONIZE | EVENT_MODIFY_STATE))
@@ -4583,6 +4622,9 @@ errorconn:
 
   /* End shared memory handling */
 error:
+  if (tmp)
+    my_free(tmp, MYF(0));
+
   if (errmsg)
   {
     char buff[180];
@@ -5806,7 +5848,7 @@ log and this option does nothing anymore.",
    (gptr*) &dflt_key_cache_var.param_block_size,
    (gptr*) 0,
    0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
-   KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
+   KEY_CACHE_BLOCK_SIZE, 512, 1024 * 16, 0, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_division_limit,
@@ -6177,8 +6219,8 @@ struct show_var_st status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
-  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONG_STATUS},
-  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONG_STATUS},
+  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
+  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com_admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
   {"Com_alter_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]), SHOW_LONG_STATUS},
   {"Com_alter_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
@@ -7419,8 +7461,6 @@ static void get_options(int argc,char **argv)
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
-  if (opt_log_queries_not_using_indexes)
-    opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
 
   if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
 				  &global_system_variables.date_format) ||

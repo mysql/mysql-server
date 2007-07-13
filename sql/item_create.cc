@@ -418,6 +418,7 @@ Item *create_func_unhex(Item* a)
 
 Item *create_func_uuid(void)
 {
+  current_thd->lex->safe_to_cache_query= 0;
   return new Item_func_uuid();
 }
 
@@ -468,6 +469,18 @@ Item *create_func_cast(Item *a, Cast_target cast_type,
     if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
+      return 0;
+    }
+    if (len > DECIMAL_MAX_PRECISION)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
+               DECIMAL_MAX_PRECISION);
+      return 0;
+    }
+    if (dec > DECIMAL_MAX_SCALE)
+    {
+      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
+               DECIMAL_MAX_SCALE);
       return 0;
     }
     res= new Item_decimal_typecast(a, len, dec);

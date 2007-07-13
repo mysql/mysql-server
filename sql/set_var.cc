@@ -1226,7 +1226,11 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 
 static void fix_low_priority_updates(THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL)
+  if (type == OPT_GLOBAL)
+    thr_upgraded_concurrent_insert_lock= 
+      (global_system_variables.low_priority_updates ?
+       TL_WRITE_LOW_PRIORITY : TL_WRITE);
+  else
     thd->update_lock_default= (thd->variables.low_priority_updates ?
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
 }
@@ -1291,14 +1295,14 @@ static int check_completion_type(THD *thd, set_var *var)
 static void fix_net_read_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
+    my_net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
 }
 
 
 static void fix_net_write_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
+    my_net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
 }
 
 static void fix_net_retry_count(THD *thd, enum_var_type type)

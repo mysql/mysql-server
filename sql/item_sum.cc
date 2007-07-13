@@ -432,7 +432,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
       2-byte lenght. 
     */
     if (max_length/collation.collation->mbmaxlen > 255 && 
-        convert_blob_length < UINT_MAX16 && convert_blob_length)
+        convert_blob_length <= Field_varstring::MAX_SIZE && convert_blob_length)
       return new Field_varstring(convert_blob_length, maybe_null,
                                  name, table,
                                  collation.collation);
@@ -2461,7 +2461,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   }
   if (always_null)
     return FALSE;
-  count_field_types(tmp_table_param,list,0);
+  count_field_types(select_lex, tmp_table_param, list, 0);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
@@ -3209,6 +3209,27 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
 
+  uint32 offset;
+  if (separator->needs_conversion(separator->length(), separator->charset(),
+                                  collation.collation, &offset))
+  {
+    uint32 buflen= collation.collation->mbmaxlen * separator->length();
+    uint errors, conv_length;
+    char *buf;
+    String *new_separator;
+
+    if (!(buf= thd->stmt_arena->alloc(buflen)) ||
+        !(new_separator= new(thd->stmt_arena->mem_root)
+                           String(buf, buflen, collation.collation)))
+      return TRUE;
+    
+    conv_length= copy_and_convert(buf, buflen, collation.collation,
+                                  separator->ptr(), separator->length(),
+                                  separator->charset(), &errors);
+    new_separator->length(conv_length);
+    separator= new_separator;
+  }
+
   if (check_sum_func(thd, ref))
     return TRUE;
 
@@ -3265,18 +3286,24 @@ bool Item_func_group_concat::setup(THD *thd)
       setup_order(thd, args, context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
-  count_field_types(tmp_table_param,all_fields,0);
+  count_field_types(select_lex, tmp_table_param, all_fields, 0);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
+  /*
+    Currently we have to force conversion of BLOB values to VARCHAR's
+    if we are to store them in TREE objects used for ORDER BY and
+    DISTINCT. This leads to truncation if the BLOB's size exceeds
+    Field_varstring::MAX_SIZE.
+  */
+  if (arg_count_order > 0 || distinct)
+    set_if_smaller(tmp_table_param->convert_blob_length, 
+                   Field_varstring::MAX_SIZE);
   /*
     We have to create a temporary table to get descriptions of fields
     (types, sizes and so on).
 
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
-
-    We need to set set_sum_field in true for storing value of blob in buffer
-    of a record instead of a pointer of one.
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 (ORDER*) 0, 0, TRUE,

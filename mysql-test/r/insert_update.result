@@ -378,7 +378,7 @@ id	c1	cnt
 INSERT IGNORE INTO t1 (id,c1) SELECT 1,NULL
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'c1' at row 1
+Warning	1048	Column 'c1' cannot be null
 Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
@@ -386,10 +386,24 @@ id	c1	cnt
 INSERT IGNORE INTO t1 (id,c1) SELECT * FROM t2
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
-Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'c1' at row 1
+Warning	1048	Column 'c1' cannot be null
 Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
 1	0	3
 2	2	1
 DROP TABLE t1;
+create table t1(f1 int primary key,
+f2 timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+select @stamp1:=f2 from t1;
+@stamp1:=f2
+#
+insert into t1(f1) values(1) on duplicate key update f1=1;
+select @stamp2:=f2 from t1;
+@stamp2:=f2
+#
+select if( @stamp1 = @stamp2, "correct", "wrong");
+if( @stamp1 = @stamp2, "correct", "wrong")
+correct
+drop table t1;

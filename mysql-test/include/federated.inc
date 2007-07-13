@@ -1,3 +1,4 @@
+--source include/have_log_bin.inc
 --source include/not_embedded.inc
 --source ./include/have_federated_db.inc
 

@@ -1209,6 +1209,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
 		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
+  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
+  is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
 		  (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
@@ -1220,6 +1222,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   return 0;
 }
 
+
+#define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
+                          (int) (uchar) (x) == field_sep_char || \
+                          (int) (uchar) (x) == line_sep_char  || \
+                          !(x))
 
 bool select_export::send_data(List<Item> &items)
 {
@@ -1278,16 +1285,23 @@ bool select_export::send_data(List<Item> &items)
 	used_length=min(res->length(),item->max_length);
       else
 	used_length=res->length();
-      if (result_type == STRING_RESULT && escape_char != -1)
+      if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
+           escape_char != -1)
       {
-	char *pos,*start,*end;
-
+        char *pos, *start, *end;
+        CHARSET_INFO *res_charset= res->charset();
+        CHARSET_INFO *character_set_client= thd->variables.
+                                            character_set_client;
+        bool check_second_byte= (res_charset == &my_charset_bin) &&
+                                 character_set_client->
+                                 escape_with_backslash_is_dangerous;
+        DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
+                    !character_set_client->escape_with_backslash_is_dangerous);
 	for (start=pos=(char*) res->ptr(),end=pos+used_length ;
 	     pos != end ;
 	     pos++)
 	{
 #ifdef USE_MB
-          CHARSET_INFO *res_charset=res->charset();
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -1298,11 +1312,49 @@ bool select_export::send_data(List<Item> &items)
 	    }
 	  }
 #endif
-	  if ((int) *pos == escape_char || (int) *pos == field_sep_char ||
-	      (int) *pos == line_sep_char || !*pos)
-	  {
+
+          /*
+            Special case when dumping BINARY/VARBINARY/BLOB values
+            for the clients with character sets big5, cp932, gbk and sjis,
+            which can have the escape character (0x5C "\" by default)
+            as the second byte of a multi-byte sequence.
+            
+            If
+            - pos[0] is a valid multi-byte head (e.g 0xEE) and
+            - pos[1] is 0x00, which will be escaped as "\0",
+            
+            then we'll get "0xEE + 0x5C + 0x30" in the output file.
+            
+            If this file is later loaded using this sequence of commands:
+            
+            mysql> create table t1 (a varchar(128)) character set big5;
+            mysql> LOAD DATA INFILE 'dump.txt' INTO TABLE t1;
+            
+            then 0x5C will be misinterpreted as the second byte
+            of a multi-byte character "0xEE + 0x5C", instead of
+            escape character for 0x00.
+            
+            To avoid this confusion, we'll escape the multi-byte
+            head character too, so the sequence "0xEE + 0x00" will be
+            dumped as "0x5C + 0xEE + 0x5C + 0x30".
+            
+            Note, in the condition below we only check if
+            mbcharlen is equal to 2, because there are no
+            character sets with mbmaxlen longer than 2
+            and with escape_with_backslash_is_dangerous set.
+            DBUG_ASSERT before the loop makes that sure.
+          */
+
+          if (NEED_ESCAPING(*pos) ||
+              (check_second_byte &&
+               my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
+               pos + 1 < end &&
+               NEED_ESCAPING(pos[1])))
+          {
 	    char tmp_buff[2];
-	    tmp_buff[0]= escape_char;
+            tmp_buff[0]= ((int) *pos == field_sep_char &&
+                          is_ambiguous_field_sep) ?
+                          field_sep_char : escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';
 	    if (my_b_write(&cache,(byte*) start,(uint) (pos-start)) ||
 		my_b_write(&cache,(byte*) tmp_buff,2))

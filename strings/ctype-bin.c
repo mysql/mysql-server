@@ -271,6 +271,29 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+void my_hash_sort_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
+		      const uchar *key, uint len,ulong *nr1, ulong *nr2)
+{
+  const uchar *pos = key;
+  
+  key+= len;
+  
+  /*
+     Remove trailing spaces. We have to do this to be able to compare
+    'A ' and 'A' as identical
+  */
+  while (key > pos && key[-1] == ' ')
+    key--;
+
+  for (; pos < (uchar*) key ; pos++)
+  {
+    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
+	     ((uint)*pos)) + (nr1[0] << 8);
+    nr2[0]+=3;
+  }
+}
+
+
 void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 		      const uchar *key, uint len,ulong *nr1, ulong *nr2)
 {
@@ -471,7 +494,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
     my_wildcmp_bin,
     my_strcasecmp_bin,
     my_instr_bin,
-    my_hash_sort_bin,
+    my_hash_sort_8bit_bin,
     my_propagate_simple
 };
 

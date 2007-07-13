@@ -225,7 +225,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     key_parts+=fulltext_keys*FT_SEGS;
     if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
-	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
+	key_parts > MI_MAX_KEY * MI_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;

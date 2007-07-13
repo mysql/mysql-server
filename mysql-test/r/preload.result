@@ -143,10 +143,9 @@ Key_read_requests	0
 Key_reads	0
 load index into cache t3, t2 key (primary,b) ;
 Table	Op	Msg_type	Msg_text
-test.t3	preload_keys	error	Table 'test.t3' doesn't exist
+test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
+test.t3	preload_keys	error	Corrupt
 test.t2	preload_keys	status	OK
-Warnings:
-Error	1146	Table 'test.t3' doesn't exist
 show status like "key_read%";
 Variable_name	Value
 Key_read_requests	478
@@ -159,12 +158,10 @@ Key_read_requests	0
 Key_reads	0
 load index into cache t3 key (b), t2 key (c) ;
 Table	Op	Msg_type	Msg_text
-test.t3	preload_keys	error	Table 'test.t3' doesn't exist
-test.t2	preload_keys	error	Key 'c' doesn't exist in table 't2'
+test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
+test.t3	preload_keys	error	Corrupt
+test.t2	preload_keys	Error	Key 'c' doesn't exist in table 't2'
 test.t2	preload_keys	status	Operation failed
-Warnings:
-Error	1146	Table 'test.t3' doesn't exist
-Error	1176	Key 'c' doesn't exist in table 't2'
 show status like "key_read%";
 Variable_name	Value
 Key_read_requests	0

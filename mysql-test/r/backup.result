@@ -4,18 +4,16 @@ create table t4(n int);
 backup table t4 to '../bogus';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	Error	Can't create/write to file 'MYSQLTEST_VARDIR/bogus/t4.frm' (Errcode: X)
 test.t4	backup	status	Operation failed
-Warnings:
-Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/bogus/t4.frm' (Errcode: X)
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	status	OK
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	Error	Can't create/write to file 'MYSQLTEST_VARDIR/tmp/t4.frm' (Errcode: X)
 test.t4	backup	status	Operation failed
-Warnings:
-Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/tmp/t4.frm' (Errcode: X)
 drop table t4;
 restore table t4 from '../tmp';
 Table	Op	Msg_type	Msg_text

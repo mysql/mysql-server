@@ -1,0 +1,12 @@
+create table t1 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create table t2 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=MyISAM;
+create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
+select get_lock("a", 20);
+get_lock("a", 20)
+1
+reset master;
+insert into t2 values (null, null), (null, get_lock("a", 10));
+select @result /* must be zero either way */;
+@result
+0
+drop table t1,t2,t3;

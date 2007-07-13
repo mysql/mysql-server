@@ -192,3 +192,16 @@ drop table t1;
 select hex(convert(_big5 0xC84041 using ucs2));
 hex(convert(_big5 0xC84041 using ucs2))
 003F0041
+End of 4.1 tests
+create table t1 (a blob);
+insert into t1 values (0xEE00);
+delete from t1;
+select hex(load_file('test/t1.txt'));
+hex(load_file('test/t1.txt'))
+5CEE5C300A
+load data infile 't1.txt' into table t1;
+select hex(a) from t1;
+hex(a)
+EE00
+drop table t1;
+End of 5.0 tests

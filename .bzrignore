@@ -708,7 +708,6 @@ mysql-test/r/*.err
 mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
-mysql-test/r/*.warnings
 mysql-test/r/alter_table.err
 mysql-test/r/archive.err
 mysql-test/r/bdb-alter-table-1.err
@@ -1342,3 +1341,6 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+debian/control
+debian/defs.mk
+include/abi_check
