@@ -123,6 +123,16 @@ int vio_ssl_close(Vio *vio)
 
   if (ssl)
   {
+    /*
+    THE SSL standard says that SSL sockets must send and receive a close_notify
+    alert on socket shutdown to avoid truncation attacks. However, this can
+    cause problems since we often hold a lock during shutdown and this IO can
+    take an unbounded amount of time to complete. Since our packets are self
+    describing with length, we aren't vunerable to these attacks. Therefore,
+    we just shutdown by closing the socket (quiet shutdown).
+    */
+    SSL_set_quiet_shutdown(ssl, 1); 
+    
     switch ((r= SSL_shutdown(ssl)))
     {
     case 1:
