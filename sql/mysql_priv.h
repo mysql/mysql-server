@@ -302,6 +302,14 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+/* log.cc */
+void sql_perror(const char *message);
+
+void vprint_msg_to_log( enum loglevel level, const char *format, va_list args );
+void sql_print_error( const char *format, ... );
+void sql_print_warning( const char *format, ...); 
+void sql_print_information( const char *format, ...); 
+
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
@@ -656,15 +664,6 @@ int key_cmp(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
 void init_errmessage(void);
-
-void sql_perror(const char *message);
-
-void vprint_msg_to_log( enum loglevel level, const char *format, va_list args );
-void sql_print_error( const char *format, ... );
-void sql_print_warning( const char *format, ...); 
-void sql_print_information( const char *format, ...); 
-
-
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
