@@ -133,4 +133,28 @@ a
 42
 drop table t1;
 End of 4.1 tests
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1 (b INT) ENGINE MYISAM
+DATA DIRECTORY = '/home/kgeorge/mysql/work/B29325-winfix-5.0-opt/mysql-test/var/master-data/db1/';
+INSERT INTO db2.t1 VALUES (1);
+SELECT * FROM db2.t1;
+b
+1
+RESET QUERY CACHE;
+USE db1;
+SET SESSION keep_files_on_create = TRUE;
+CREATE TABLE t1 (a INT) ENGINE MYISAM;
+ERROR HY000: Can't create/write to file './db1/t1.MYD' (Errcode: 17)
+CREATE TABLE t3 (a INT) Engine=MyISAM;
+INSERT INTO t3 VALUES (1),(2),(3);
+TRUNCATE TABLE t3;
+SELECT * from t3;
+a
+SET SESSION keep_files_on_create = DEFAULT;
+DROP TABLE db2.t1, db1.t3;
+DROP DATABASE db1;
+DROP DATABASE db2;
+USE test;
 End of 5.0 tests
