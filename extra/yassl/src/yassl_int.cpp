@@ -291,7 +291,7 @@ const ClientKeyFactory& sslFactory::getClientKey() const
 SSL::SSL(SSL_CTX* ctx) 
     : secure_(ctx->getMethod()->getVersion(), crypto_.use_random(),
               ctx->getMethod()->getSide(), ctx->GetCiphers(), ctx,
-              ctx->GetDH_Parms().set_), has_data_(false), quietShutdown_(false)
+              ctx->GetDH_Parms().set_), quietShutdown_(false), has_data_(false)
 {
     if (int err = crypto_.get_random().GetError()) {
         SetError(YasslError(err));
