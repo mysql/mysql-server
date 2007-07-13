@@ -445,6 +445,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     {
       share->flags|= NSF_NO_BINLOG;
     }
+    share->old_ops.empty();
     DBUG_VOID_RETURN;
   }
   while (1) 
