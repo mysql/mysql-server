@@ -3763,14 +3763,14 @@ void do_connect(struct st_command *command)
 
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
-  
-  if (!(con_slot= find_connection_by_name("-closed_connection-")))
+    
+  if (next_con != connections_end)
+    con_slot= next_con;
+  else
   {
-    if (next_con == connections_end)
+    if (!(con_slot= find_connection_by_name("-closed_connection-")))
       die("Connection limit exhausted, you can have max %d connections",
           (int) (sizeof(connections)/sizeof(struct st_connection)));
-          
-    con_slot= next_con;
   }
 
   if (!mysql_init(&con_slot->mysql))
