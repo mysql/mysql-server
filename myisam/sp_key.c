@@ -31,11 +31,6 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
-static void get_double(double *d, const byte *pos)
-{
-  float8get(*d, pos);
-}
-  
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
 		 const byte *record, my_off_t filepos)
 {
@@ -62,48 +57,40 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
   
   for (i = 0, keyseg = keyinfo->seg; keyseg->type; keyseg++, i++)
   {
-    uint length = keyseg->length;
+    uint length = keyseg->length, start= keyseg->start;
+    double val;
+
+    DBUG_ASSERT(length == sizeof(double));
+    DBUG_ASSERT(!(start % sizeof(double)));
+    DBUG_ASSERT(start < sizeof(mbr));
+    DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
     
-    pos = ((byte*)mbr) + keyseg->start;
+    val= mbr[start / sizeof (double)];
+#ifdef HAVE_ISNAN
+    if (isnan(val))
+    {
+      bzero(key, length);
+      key+= length;
+      len+= length;
+      continue;
+    }
+#endif
+
     if (keyseg->flag & HA_SWAP_KEY)
     {
-#ifdef HAVE_ISNAN
-      if (keyseg->type == HA_KEYTYPE_FLOAT)
-      {
-	float nr;
-	float4get(nr, pos);
-	if (isnan(nr))
-	{
-	  /* Replace NAN with zero */
- 	  bzero(key, length);
-	  key+= length;
-	  continue;
-	}
-      }
-      else if (keyseg->type == HA_KEYTYPE_DOUBLE)
-      {
-	double nr;
-	get_double(&nr, pos);
-	if (isnan(nr))
-	{
- 	  bzero(key, length);
-	  key+= length;
-	  continue;
-	}
-      }
-#endif
-      pos += length;
-      while (length--)
-      {
+      char buf[sizeof(double)];
+
+      float8store(buf, val);
+      pos= &buf[length];
+      while (pos > buf)
         *key++ = *--pos;
-      }
     }
     else
     {
-      memcpy((byte*)key, pos, length);
-      key += keyseg->length;
+      float8store((byte *)key, val);
+      key += length;
     }
-    len += keyseg->length;
+    len+= length;
   }
   _mi_dpointer(info, key, filepos);
   return len;
@@ -141,13 +128,13 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    get_double(&ord, (const byte*) *wkb);
+    float8get(ord, (const byte*) *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
-      float8store((char*) mbr, ord);
+      *mbr= ord;
     mbr++;
     if (ord > *mbr)
-      float8store((char*) mbr, ord);
+      *mbr= ord;
     mbr++;
   }
   return 0;
