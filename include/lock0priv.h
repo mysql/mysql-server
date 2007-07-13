@@ -24,25 +24,29 @@ those functions in lock/ */
 
 /* A table lock */
 typedef struct lock_table_struct	lock_table_t;
-struct lock_table_struct{
-	dict_table_t*	table;	/* database table in dictionary cache */
+struct lock_table_struct {
+	dict_table_t*	table;		/* database table in dictionary
+					cache */
 	UT_LIST_NODE_T(lock_t)
-			locks;	/* list of locks on the same table */
+			locks;		/* list of locks on the same
+					table */
 };
 
 /* Record lock for a page */
 typedef struct lock_rec_struct		lock_rec_t;
-struct lock_rec_struct{
-	ulint	space;		/* space id */
-	ulint	page_no;	/* page number */
-	ulint	n_bits;		/* number of bits in the lock bitmap */
-				/* NOTE: the lock bitmap is placed immediately
-				after the lock struct */
+struct lock_rec_struct {
+	ulint	space;			/* space id */
+	ulint	page_no;		/* page number */
+	ulint	n_bits;			/* number of bits in the lock
+					bitmap; NOTE: the lock bitmap is
+					placed immediately after the
+					lock struct */
 };
 
 /* Lock struct */
-struct lock_struct{
-	trx_t*		trx;		/* transaction owning the lock */
+struct lock_struct {
+	trx_t*		trx;		/* transaction owning the
+					lock */
 	UT_LIST_NODE_T(lock_t)
 			trx_locks;	/* list of the locks of the
 					transaction */
