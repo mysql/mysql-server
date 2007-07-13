@@ -91,21 +91,21 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
-typedef struct ndb_alter_data {
-  ndb_alter_data(NdbDictionary::Dictionary *dict,
+class NDB_ALTER_DATA : public Sql_alloc
+{
+public:
+  NDB_ALTER_DATA(NdbDictionary::Dictionary *dict,
 		 const NdbDictionary::Table *table) :
     dictionary(dict),
     old_table(table),
     new_table(new NdbDictionary::Table(*table))
   {}
-  ~ndb_alter_data()
+  ~NDB_ALTER_DATA()
   { delete new_table; }
   NdbDictionary::Dictionary *dictionary;
   const  NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
-} NDB_ALTER_DATA;
-
-
+};
 
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
