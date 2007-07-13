@@ -616,6 +616,8 @@ sys_var_thd_time_zone            sys_time_zone(&vars, "time_zone");
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
 
+sys_var_thd_bool  sys_keep_files_on_create(&vars, "keep_files_on_create", 
+                                           &SV::keep_files_on_create);
 /* Read only variables */
 
 static sys_var_have_variable sys_have_compress(&vars, "have_compress", &have_compress);
