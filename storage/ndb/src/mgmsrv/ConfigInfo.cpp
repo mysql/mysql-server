@@ -3806,16 +3806,16 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       }
     }
     if (db_host_count > 1 && node_group_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:\n%s",node_group_warning.c_str());
+      ctx.reportWarning("Cluster configuration warning:\n%s",node_group_warning.c_str());
     if (!with_arbitration_rank) 
     {
-      ndbout_c("Cluster configuration warning:" 
+      ctx.reportWarning("Cluster configuration warning:" 
          "\n  Neither %s nor %s nodes are configured with arbitrator,"
          "\n  may cause complete cluster shutdown in case of host failure.", 
          MGM_TOKEN, API_TOKEN);
     }
     if (db_host_count > 1 && arbitration_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
+      ctx.reportWarning("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
 	       "\n  Running arbitrator on the same host as a database node may"
 	       "\n  cause complete cluster shutdown in case of host failure.");
   }
