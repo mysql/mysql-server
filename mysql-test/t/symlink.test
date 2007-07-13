@@ -196,6 +196,7 @@ USE db1;
 #no warning from create table
 SET SESSION keep_files_on_create = TRUE;
 --disable_abort_on_error
+--error 1,1
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
 --enable_abort_on_error
 
