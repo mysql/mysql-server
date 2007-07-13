@@ -186,8 +186,10 @@ CREATE DATABASE db1;
 CREATE DATABASE db2;
 
 USE db2;
+--disable_query_log
 eval CREATE TABLE t1 (b INT) ENGINE MYISAM
 DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/db1/';
+--enable_query_log
 
 INSERT INTO db2.t1 VALUES (1);
 SELECT * FROM db2.t1;
