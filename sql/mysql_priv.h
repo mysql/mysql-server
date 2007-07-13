@@ -901,8 +901,7 @@ void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-                         bool drop_temporary, bool drop_view, bool log_query,
-                         bool need_lock_open);
+                         bool drop_temporary, bool drop_view, bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
