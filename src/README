@@ -1,0 +1,91 @@
+cd ~/yobiduck/ydb/src
+make
+
+
+cd ~/mysql/bdbi/mysql-5.0.27/
+export LD_RUN_PATH=/home/bradley/yobiduck/ydb/src
+./configure --with-berkeley-db-includes=/home/bradley/yobiduck/ydb/include --with-berkeley-db --with-berkeley-db-libs=/home/bradley/yobiduck/ydb/src --prefix=/home/bradley/usr
+
+make
+
+make install
+
+#This one may not be needed
+~/mysql/bdbi/usr/bin/mysql_install_db
+
+#
+pushd /home/bradley/mysql/bdbi/usr/ ; /home/bradley/mysql/bdbi/usr//bin/mysqld_safe &
+popd
+
+~/mysql/bdbi/usr/bin/mysql -u root
+mysql> show databases;
+mysql> create database yobitest;
+mysql> use yobitest;
+mysql> create table t1 (i int) engine=bdb;
+
+Look for the error in /home/bradley/mysql/bdbi/usr/var/yobert.err
+
+
+
+----
+This links right:
+ LD_LIBRARY_PATH=/home/bradley/mysql/bdbi/usr/lib/mysql/ ldd sql/mysqld
+----
+This works, 
+ LD_LIBRARY_PATH=/home/bradley/mysql/bdbi/usr/lib/mysql/ /home/bradley/mysql/bdbi/usr//bin/mysqld
+producing the following in the log
+
+061208 16:11:35  InnoDB: Started; log sequence number 0 43655
+ydb.c:78 db_env_create flags=0
+
+----
+ the LD_RUN_PATH thing above works.
+
+
+--- on laptop I did this instead:
+
+export LD_RUN_PATH=/home/bradley/yobiduck/ydb/src
+./configure --with-berkeley-db-includes=/home/bradley/yobiduck/ydb/include --with-berkeley-db --with-berkeley-db-libs=/home/bradley/yobiduck/src --prefix=/home/bradley/usr
+
+make
+make install
+/home/bradley/usr/bin/mysql_install_db 
+/home/bradley/usr/bin/mysqld_safe &
+/home/bradley/usr/bin/mysql -u root
+~/mysql/bdbi/usr/bin/mysql -u root
+mysql> show databases;
+mysql> create database yobitest;
+mysql> use yobitest;
+mysql> create table t1 (i int) engine=bdb;
+
+Look for the error in ~/usr/var/localhost.localdomain.err
+
+---
+To clean up after a total screwup:
+
+rm -rf ~/usr/var/
+
+Didn't manage to clean it up very well.
+
+---
+Goal: compiler mysql wiht debugging
+
+export LD_RUN_PATH=/home/bradley/yobiduck/ydb/src
+./configure CFLAGS="-g -O2" --with-berkeley-db-includes=/home/bradley/yobiduck/ydb/include --with-berkeley-db --with-berkeley-db-libs=/home/bradley/yobiduck/src --prefix=/home/bradley/usr
+
+If you want to debug, you might need to start mysqld without using mysqld_safe.
+Here is one way to do it:
+
+gdb ~/usr/libexec/mysqld
+(gdb) run --basedir=/home/bradley/usr --datadir=/home/bradley/usr/var --pid-file=/home/bradley/usr/var/localhost.localdomain.pid --skip-external-locking
+
+
+That was screwed up (the configure args were wrong.)  Try again:
+
+---
+export LD_RUN_PATH=/home/bradley/yobiduck/ydb/src
+./configure CXXFLAGS="-g -O2" CFLAGS="-g -O2" --with-berkeley-db-includes=/home/bradley/yobiduck/ydb/include --with-berkeley-db --with-berkeley-db-libs=/home/bradley/yobiduck/ydb/src --prefix=/home/bradley/usr
+
+gdb ~/usr/libexec/mysqld
+(gdb) run --basedir=/home/bradley/usr --datadir=/home/bradley/usr/var --pid-file=/home/bradley/usr/var/localhost.localdomain.pid --skip-external-locking
+
