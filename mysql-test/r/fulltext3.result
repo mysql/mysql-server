@@ -11,3 +11,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SET NAMES latin1;
 DROP TABLE t1;
+CREATE TABLE t1(a VARCHAR(2) CHARACTER SET big5 COLLATE big5_chinese_ci,
+FULLTEXT(a));
+INSERT INTO t1 VALUES(0xA3C2);
+DROP TABLE t1;
