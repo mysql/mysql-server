@@ -15,7 +15,7 @@
 
 
 #include <ndb_global.h>
-#include <ndb_version.h>
+#include <util/version.h>
 
 #include <NdbMain.h>
 #include <NdbOut.hpp>
