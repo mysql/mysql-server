@@ -1938,10 +1938,11 @@ bool Item_field::val_bool_result()
 
 bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FIELD_ITEM)
+  Item *real_item= ((Item *) item)->real_item();
+  if (real_item->type() != FIELD_ITEM)
     return 0;
   
-  Item_field *item_field= (Item_field*) item;
+  Item_field *item_field= (Item_field*) real_item;
   if (item_field->field && field)
     return item_field->field == field;
   /*
@@ -2313,6 +2314,7 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(unsigned pos_in_query_arg) :
+  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
@@ -2507,16 +2509,16 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
-    switch (entry->type) {
+    if (strict_type && required_result_type != item_result_type)
+      DBUG_RETURN(1);
+    switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
       item_type= Item::REAL_ITEM;
-      item_result_type= REAL_RESULT;
       break;
     case INT_RESULT:
       set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
-      item_result_type= INT_RESULT;
       break;
     case STRING_RESULT:
     {
@@ -2538,7 +2540,6 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
         charset of connection, so we have to set it later.
       */
       item_type= Item::STRING_ITEM;
-      item_result_type= STRING_RESULT;
 
       if (set_str((const char *)entry->value, entry->length))
         DBUG_RETURN(1);
@@ -2552,6 +2553,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       decimals= ent_value->frac;
       max_length= my_decimal_precision_to_length(ent_value->precision(),
                                                  decimals, unsigned_flag);
+      item_type= Item::DECIMAL_ITEM;
       break;
     }
     default:
@@ -4317,7 +4319,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_GEOMETRY:
     return new Field_geom(max_length, maybe_null, name, table,
                           (Field::geometry_type)
-                          ((Item_geometry_func *)this)->get_geometry_type());
+                          ((type() == Item::TYPE_HOLDER) ?
+                           ((Item_type_holder *)this)->get_geometry_type() :
+                           ((Item_geometry_func *)this)->get_geometry_type()));
   }
 }
 
@@ -5498,6 +5502,21 @@ void Item_ref::make_field(Send_field *field)
 }
 
 
+Item *Item_ref::get_tmp_table_item(THD *thd)
+{
+  if (!result_field)
+    return (*ref)->get_tmp_table_item(thd);
+
+  Item_field *item= new Item_field(result_field);
+  if (item)
+  {
+    item->table_name= table_name;
+    item->db_name= db_name;
+  }
+  return item;
+}
+
+
 void Item_ref_null_helper::print(String *str)
 {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
@@ -5624,8 +5643,7 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   DESCRIPTION
     A view column reference is considered equal to another column
     reference if the second one is a view column and if both column
-    references resolve to the same item. It is assumed that both
-    items are of the same type.
+    references resolve to the same item.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -5641,8 +5659,6 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
     if (item_ref->ref_type() == VIEW_REF)
     {
       Item *item_ref_ref= *(item_ref->ref);
-      DBUG_ASSERT((*ref)->real_item()->type() == 
-                  item_ref_ref->real_item()->type());
       return ((*ref)->real_item() == item_ref_ref->real_item());
     }
   }
@@ -6422,6 +6438,10 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
   prev_decimal_int_part= item->decimal_int_part();
+  if (item->field_type() == MYSQL_TYPE_GEOMETRY)
+    geometry_type= (item->type() == Item::FIELD_ITEM) ?
+      ((Item_field *)item)->get_geometry_type() :
+      (Field::geometry_type)((Item_geometry_func *)item)->get_geometry_type();
 }
 
 
@@ -6575,9 +6595,15 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       expansion of the size of the values because of character set
       conversions.
      */
-    max_length= max(old_max_chars * collation.collation->mbmaxlen,
-                    display_length(item) / item->collation.collation->mbmaxlen *
-                    collation.collation->mbmaxlen);
+    if (collation.collation != &my_charset_bin)
+    {
+      max_length= max(old_max_chars * collation.collation->mbmaxlen,
+                      display_length(item) /
+                      item->collation.collation->mbmaxlen *
+                      collation.collation->mbmaxlen);
+    }
+    else
+      set_if_bigger(max_length, display_length(item));
     break;
   }
   case REAL_RESULT:

@@ -75,6 +75,7 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static void remove_escape(char *name);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1008,9 +1009,12 @@ static int check_connection(THD *thd)
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127 after casting to uint.
   */
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    *passwd++ : strlen(passwd);
+    (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
   uint db_len= db ? strlen(db) : 0;
@@ -1139,8 +1143,8 @@ pthread_handler_t handle_one_connection(void *arg)
     net->no_send_error= 0;
 
     /* Use "connect_timeout" value during connection phase */
-    net_set_read_timeout(net, connect_timeout);
-    net_set_write_timeout(net, connect_timeout);
+    my_net_set_read_timeout(net, connect_timeout);
+    my_net_set_write_timeout(net, connect_timeout);
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1183,8 +1187,8 @@ pthread_handler_t handle_one_connection(void *arg)
     }
 
     /* Connect completed, set read/write timeouts back to tdefault */
-    net_set_read_timeout(net, thd->variables.net_read_timeout);
-    net_set_write_timeout(net, thd->variables.net_write_timeout);
+    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+    my_net_set_write_timeout(net, thd->variables.net_write_timeout);
 
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
@@ -1536,7 +1540,7 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed
   */
-  net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   thd->clear_error();				// Clear error message
 
@@ -1568,7 +1572,7 @@ bool do_command(THD *thd)
   }
 
   /* Restore read timeout value */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   /*
     packet_length contains length of data, as it was stored in packet
@@ -1696,11 +1700,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Old clients send null-terminated string ('\0' for empty string) for
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
+
+      Cast *passwd to an unsigned char, so that it doesn't extend the sign
+      for *passwd > 127 and become 2**32-127 after casting to uint.
     */
     char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-      *passwd++ : strlen(passwd);
+      (uchar)(*passwd++) : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
     /* Small check for incoming packet */
@@ -2200,7 +2207,7 @@ void log_slow_statement(THD *thd)
 	thd->variables.long_query_time ||
         (thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-        (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES) &&
+        opt_log_queries_not_using_indexes &&
         /* == SQLCOM_END unless this is a SHOW command */
         thd->lex->orig_sql_command == SQLCOM_END)
     {
@@ -3080,9 +3087,9 @@ mysql_execute_command(THD *thd)
     else
     {
       /* regular create */
-      if (lex->name)
-        res= mysql_create_like_table(thd, create_table, &create_info,
-                                     (Table_ident *)lex->name);
+      if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+        res= mysql_create_like_table(thd, create_table, select_tables,
+                                     &create_info);
       else
       {
         res= mysql_create_table(thd, create_table->db,
@@ -3319,11 +3326,7 @@ end_with_restore_list:
         first_table->skip_temporary= 1;
 
       if (check_db_used(thd, all_tables) ||
-	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
-		       &first_table->grant.privilege, 0, 0, 
-                       test(first_table->schema_table)))
-	goto error;
-      if (grant_option && check_grant(thd, SELECT_ACL, all_tables, 2, UINT_MAX, 0))
+          check_show_create_table_access(thd, first_table))
 	goto error;
       res= mysqld_show_create(thd, first_table);
       break;
@@ -3834,7 +3837,10 @@ end_with_restore_list:
     break;
   case SQLCOM_LOCK_TABLES:
     unlock_locked_tables(thd);
-    if (check_db_used(thd, all_tables) || end_active_trans(thd))
+    /* we must end the trasaction first, regardless of anything */
+    if (end_active_trans(thd))
+      goto error;
+    if (check_db_used(thd, all_tables))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
       goto error;
@@ -3852,7 +3858,15 @@ end_with_restore_list:
       send_ok(thd);
     }
     else
+    {
+      /* 
+        Need to end the current transaction, so the storage engine (InnoDB)
+        can free its locks if LOCK TABLES locked some tables before finding
+        that it can't lock a table in its list
+      */
+      end_active_trans(thd);
       thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+    }
     thd->in_lock_tables=0;
     break;
   case SQLCOM_CREATE_DB:
@@ -4879,6 +4893,10 @@ create_sp_error:
 #endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
+      /*
+        Note: SQLCOM_CREATE_VIEW also handles 'ALTER VIEW' commands
+        as specified through the thd->lex->create_view_mode flag.
+      */
       if (end_active_trans(thd))
         goto error;
 
@@ -5255,7 +5273,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   Security_context *sctx= thd->security_ctx;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
-  bool  db_is_pattern= test(want_access & GRANT_ACL);
+  /*
+    GRANT command:
+    In case of database level grant the database name may be a pattern,
+    in case of table|column level grant the database name can not be a pattern.
+    We use 'dont_check_global_grants' as a flag to determine
+    if it's database level grant command 
+    (see SQLCOM_GRANT case, mysql_execute_command() function) and
+    set db_is_pattern according to 'dont_check_global_grants' value.
+  */
+  bool  db_is_pattern= (test(want_access & GRANT_ACL) &&
+                        dont_check_global_grants);
 #endif
   ulong dummy;
   DBUG_ENTER("check_access");
@@ -7519,6 +7547,25 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
 }
 
 
+/**
+   @brief  Check privileges for SHOW CREATE TABLE statement.
+
+   @param  thd    Thread context
+   @param  table  Target table
+
+   @retval TRUE  Failure
+   @retval FALSE Success
+*/
+
+static bool check_show_create_table_access(THD *thd, TABLE_LIST *table)
+{
+  return check_access(thd, SELECT_ACL | EXTRA_ACL, table->db,
+                      &table->grant.privilege, 0, 0,
+                      test(table->schema_table)) ||
+         grant_option && check_grant(thd, SELECT_ACL, table, 2, UINT_MAX, 0);
+}
+
+
 /*
   CREATE TABLE query pre-check
 
@@ -7581,6 +7628,11 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     }
 #endif
     if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    if (check_show_create_table_access(thd, tables))
       goto err;
   }
   error= FALSE;

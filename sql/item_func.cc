@@ -996,6 +996,8 @@ longlong Item_func_unsigned::val_int()
     my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
     if (!(null_value= args[0]->null_value))
       my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    else
+      value= 0;
     return value;
   }
   else if (args[0]->cast_to_int_type() != STRING_RESULT ||
@@ -1521,16 +1523,20 @@ void Item_func_neg::fix_length_and_dec()
     Use val() to get value as arg_type doesn't mean that item is
     Item_int or Item_real due to existence of Item_param.
   */
-  if (hybrid_type == INT_RESULT &&
-      args[0]->type() == INT_ITEM &&
-      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
+  if (hybrid_type == INT_RESULT && args[0]->const_item())
   {
-    /*
-      Ensure that result is converted to DECIMAL, as longlong can't hold
-      the negated number
-    */
-    hybrid_type= DECIMAL_RESULT;
-    DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    longlong val= args[0]->val_int();
+    if ((ulonglong) val >= (ulonglong) LONGLONG_MIN &&
+        ((ulonglong) val != (ulonglong) LONGLONG_MIN ||
+          args[0]->type() != INT_ITEM))        
+    {
+      /*
+        Ensure that result is converted to DECIMAL, as longlong can't hold
+        the negated number
+      */
+      hybrid_type= DECIMAL_RESULT;
+      DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    }
   }
   unsigned_flag= 0;
   DBUG_VOID_RETURN;
@@ -1955,7 +1961,13 @@ void Item_func_round::fix_length_and_dec()
   {
     max_length= args[0]->max_length;
     decimals= args[0]->decimals;
-    hybrid_type= REAL_RESULT;
+    if (args[0]->result_type() == DECIMAL_RESULT)
+    {
+      max_length++;
+      hybrid_type= DECIMAL_RESULT;
+    }
+    else
+      hybrid_type= REAL_RESULT;
     return;
   }
 
@@ -2499,7 +2511,6 @@ longlong Item_func_coercibility::val_int()
 
 void Item_func_locate::fix_length_and_dec()
 {
-  maybe_null= 0;
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
@@ -3447,6 +3458,7 @@ longlong Item_func_get_lock::val_int()
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
+  DBUG_ENTER("Item_func_get_lock::val_int");
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3456,7 +3468,7 @@ longlong Item_func_get_lock::val_int()
     it's not guaranteed to be same as on master.
   */
   if (thd->slave_thread)
-    return 1;
+    DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3464,8 +3476,10 @@ longlong Item_func_get_lock::val_int()
   {
     pthread_mutex_unlock(&LOCK_user_locks);
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s, thd=%ld", res->length(), res->ptr(),
+                      (long) thd->real_id));
   null_value=0;
 
   if (thd->ull)
@@ -3484,14 +3498,17 @@ longlong Item_func_get_lock::val_int()
       delete ull;
       pthread_mutex_unlock(&LOCK_user_locks);
       null_value=1;				// Probably out of memory
-      return 0;
+      DBUG_RETURN(0);
     }
     ull->thread=thd->real_id;
+    ull->thread_id=thd->thread_id;
     thd->ull=ull;
     pthread_mutex_unlock(&LOCK_user_locks);
-    return 1;					// Got new lock
+    DBUG_PRINT("info", ("made new lock"));
+    DBUG_RETURN(1);				// Got new lock
   }
   ull->count++;
+  DBUG_PRINT("info", ("ull->count=%d", ull->count));
 
   /*
     Structure is now initialized.  Try to get the lock.
@@ -3505,9 +3522,13 @@ longlong Item_func_get_lock::val_int()
   error= 0;
   while (ull->locked && !thd->killed)
   {
+    DBUG_PRINT("info", ("waiting on lock"));
     error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
     if (error == ETIMEDOUT || error == ETIME)
+    {
+      DBUG_PRINT("info", ("lock wait timeout"));
       break;
+    }
     error= 0;
   }
 
@@ -3531,6 +3552,7 @@ longlong Item_func_get_lock::val_int()
     ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
+    DBUG_PRINT("info", ("got the lock"));
   }
   pthread_mutex_unlock(&LOCK_user_locks);
 
@@ -3540,7 +3562,7 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  return !error ? 1 : 0;
+  DBUG_RETURN(!error ? 1 : 0);
 }
 
 
@@ -3558,11 +3580,14 @@ longlong Item_func_release_lock::val_int()
   String *res=args[0]->val_str(&value);
   User_level_lock *ull;
   longlong result;
+  THD *thd=current_thd;
+  DBUG_ENTER("Item_func_release_lock::val_int");
   if (!res || !res->length())
   {
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s", res->length(), res->ptr()));
   null_value=0;
 
   result=0;
@@ -3575,19 +3600,20 @@ longlong Item_func_release_lock::val_int()
   }
   else
   {
-#ifdef EMBEDDED_LIBRARY
-    if (ull->locked && pthread_equal(current_thd->real_id,ull->thread))
-#else
-    if (ull->locked && pthread_equal(pthread_self(),ull->thread))
-#endif
+    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%ld thd=%ld", 
+                        (int) ull->locked,
+                        (long)ull->thread,
+                        (long)thd->real_id));
+    if (ull->locked && pthread_equal(thd->real_id,ull->thread))
     {
+      DBUG_PRINT("info", ("release lock"));
       result=1;					// Release is ok
       item_user_lock_release(ull);
-      current_thd->ull=0;
+      thd->ull=0;
     }
   }
   pthread_mutex_unlock(&LOCK_user_locks);
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -4061,8 +4087,8 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  if (use_result_field)
-    DBUG_ASSERT(result_field);
+  if (use_result_field && !result_field)
+    use_result_field= FALSE;
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4206,6 +4232,40 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
+double Item_func_set_user_var::val_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+String *Item_func_set_user_var::str_result(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
 void Item_func_set_user_var::print(String *str)
 {
   str->append(STRING_WITH_LEN("(@"));
@@ -4288,9 +4348,11 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                          bool can_use_result_field)
 {
-  bool use_result_field= (result_field && result_field != field);
+  bool use_result_field= (!can_use_result_field ? 0 :
+                          (result_field && result_field != field));
   int error;
 
   /* Update the value of the user variable */
@@ -5213,10 +5275,11 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
+  uint len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
-             1 +                         // .
+             (m_name->m_explicit_name ?
+              3 : 0) +                   // '`', '`' and '.' for the db
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(thd->mem_root, len), len,
@@ -5347,6 +5410,8 @@ Item_func_sp::execute()
   {
     null_value= 1;
     context->process_error(thd);
+    if (thd->killed)
+      thd->send_kill_message();
     return TRUE;
   }
 

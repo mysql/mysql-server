@@ -15,7 +15,7 @@
 
 /* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
-have disables the InnoDB inlining in this file. */
+have disabled the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at the InnoDB
@@ -504,7 +504,7 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_TABLE_NOT_FOUND) {
 
-    		return(HA_ERR_KEY_NOT_FOUND);
+    		return(HA_ERR_NO_SUCH_TABLE);
 
   	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
@@ -2313,7 +2313,14 @@ ha_innobase::close(void)
 /*====================*/
 				/* out: 0 */
 {
+	THD*	thd;
+
   	DBUG_ENTER("ha_innobase::close");
+
+	thd = current_thd;  // avoid calling current_thd twice, it may be slow
+	if (thd != NULL) {
+		innobase_release_temporary_latches(thd);
+	}
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
 
@@ -5305,7 +5312,12 @@ ha_innobase::info(
 
         if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                DBUG_RETURN(HA_ERR_CRASHED);
+		/* We return success (0) instead of HA_ERR_CRASHED,
+		because we want MySQL to process this query and not
+		stop, like it would do if it received the error code
+		HA_ERR_CRASHED. */
+
+		DBUG_RETURN(0);
         }
 
 	/* We do not know if MySQL can call this function before calling
@@ -6150,6 +6162,12 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 
+	/* Release a possible FIFO ticket and search latch. Since we
+	may reserve the kernel mutex, we have to release the search
+	system latch first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
 
@@ -6157,12 +6175,6 @@ ha_innobase::external_lock(
 
 	        trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;
-
-		/* Release a possible FIFO ticket and search latch. Since we
-		may reserve the kernel mutex, we have to release the search
-		system latch first to obey the latching order. */
-
-		innobase_release_stat_resources(trx);
 
 		if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
                         if (trx->active_trans != 0) {
@@ -6593,8 +6605,15 @@ ha_innobase::store_lock(
 						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	trx_t*		trx;
 
-	/* NOTE: MySQL  can call this function with lock 'type' TL_IGNORE!
+	/* Note that trx in this function is NOT necessarily prebuilt->trx
+	because we call update_thd() later, in ::external_lock()! Failure to
+	understand this caused a serious memory corruption bug in 5.1.11. */
+
+	trx = check_trx_exists(thd);
+
+	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
 	only 'real' locks! */
 
@@ -6624,7 +6643,7 @@ ha_innobase::store_lock(
 		used. */
 
 		if (srv_locks_unsafe_for_binlog &&
-		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+		    trx->isolation_level != TRX_ISO_SERIALIZABLE &&
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
 		    (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
 		     thd->lex->sql_command == SQLCOM_UPDATE ||

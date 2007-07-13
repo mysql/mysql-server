@@ -290,3 +290,19 @@ INSERT IGNORE INTO t1 (id,c1) SELECT * FROM t2
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+#
+# Bug#28904: INSERT .. ON DUPLICATE was silently updating rows when it
+#            shouldn't.
+#
+create table t1(f1 int primary key,
+ f2 timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+--replace_column 1 #
+select @stamp1:=f2 from t1;
+--sleep 2
+insert into t1(f1) values(1) on duplicate key update f1=1;
+--replace_column 1 #
+select @stamp2:=f2 from t1;
+select if( @stamp1 = @stamp2, "correct", "wrong");
+drop table t1;

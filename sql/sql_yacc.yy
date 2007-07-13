@@ -1483,7 +1483,6 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
-	  lex->name=0;
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
@@ -2763,27 +2762,15 @@ create2:
         | opt_create_table_options create3 {}
         | LIKE table_ident
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
-            if (!(lex->name= (char *)$2))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $2, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($2->db.str == NULL &&
-                thd->copy_db_to(&($2->db.str), &($2->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         | '(' LIKE table_ident ')'
           {
-            LEX *lex=Lex;
-            THD *thd= lex->thd;
-            if (!(lex->name= (char *)$3))
+            Lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
+            if (!Lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0, TL_READ))
               MYSQL_YYABORT;
-            if ($3->db.str == NULL &&
-                thd->copy_db_to(&($3->db.str), &($3->db.length)))
-            {
-              MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -3684,6 +3671,11 @@ alter:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
+	    if (lex->sphead)
+            {
+              my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
+              MYSQL_YYABORT;
+            }
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
@@ -4376,8 +4368,12 @@ select_option:
           }
 	| SQL_CACHE_SYM
 	  {
-            /* Honor this flag only if SQL_NO_CACHE wasn't specified. */
-            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE)
+            /*
+             Honor this flag only if SQL_NO_CACHE wasn't specified AND
+             we are parsing the outermost SELECT in the query.
+            */
+            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE &&
+                Lex->current_select == &Lex->select_lex)
             {
               Lex->safe_to_cache_query=1;
 	      Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
@@ -5163,8 +5159,8 @@ simple_expr:
                 $$= new Item_func_sp(Lex->current_context(), name, *$4);
               else
                 $$= new Item_func_sp(Lex->current_context(), name);
-	      lex->safe_to_cache_query=0;
-	    }
+            }          
+          lex->safe_to_cache_query=0;
           }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
@@ -5433,8 +5429,11 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new (YYTHD->mem_root) String(",",1,default_charset_info); }
-    |SEPARATOR_SYM text_string  { $$ = $2; };
+    /* empty */
+      {
+        $$= new (YYTHD->mem_root) String(",", 1, &my_charset_latin1);
+      }
+    | SEPARATOR_SYM text_string { $$ = $2; };
 
 
 opt_gorder_clause:
@@ -5833,7 +5832,8 @@ select_derived2:
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
           if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+              lex->sql_command == (int)SQLCOM_KILL ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;
@@ -6214,6 +6214,9 @@ limit_options:
 	;
 limit_option:
         param_marker
+        {
+          ((Item_param *) $1)->set_strict_type(INT_RESULT);
+        }
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }
         | NUM           { $$= new Item_uint($1.str, $1.length); }
@@ -6561,7 +6564,7 @@ insert_lock_option:
               insert visible only after the table unlocking but everyone can
               read table.
             */
-            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
 #else
             $$= TL_WRITE_CONCURRENT_INSERT;
 #endif
@@ -6739,7 +6742,7 @@ insert_update_elem:
 	  };
 
 opt_low_priority:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
@@ -6750,7 +6753,7 @@ delete:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  mysql_init_select(lex);
-	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->lock_option= TL_WRITE_DEFAULT;
 	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
@@ -7285,6 +7288,7 @@ purge:
 	{
 	  LEX *lex=Lex;
 	  lex->type=0;
+          lex->sql_command = SQLCOM_PURGE;
 	} purge_options
 	{}
 	;
@@ -7296,7 +7300,6 @@ purge_options:
 purge_option:
         TO_SYM TEXT_STRING_sys
         {
-	   Lex->sql_command = SQLCOM_PURGE;
 	   Lex->to_log = $2.str;
         }
 	| BEFORE_SYM expr
@@ -7415,7 +7418,7 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ $$= YYTHD->update_lock_default; }
+	/* empty */	{ $$= TL_WRITE_DEFAULT; }
 	| CONCURRENT
           {
 #ifdef HAVE_QUERY_CACHE
@@ -7423,7 +7426,7 @@ load_data_lock:
               Ignore this option in SP to avoid problem with query cache
             */
             if (Lex->sphead != 0)
-              $$= YYTHD->update_lock_default;
+              $$= TL_WRITE_DEFAULT;
             else
 #endif
               $$= TL_WRITE_CONCURRENT_INSERT;
@@ -8736,7 +8739,7 @@ table_lock:
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
-	| WRITE_SYM     { $$=YYTHD->update_lock_default; }
+	| WRITE_SYM     { $$=TL_WRITE_DEFAULT; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
@@ -9415,7 +9418,8 @@ subselect_start:
 	{
 	  LEX *lex=Lex;
           if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+              lex->sql_command == (int)SQLCOM_KILL ||
+              lex->sql_command == (int)SQLCOM_PURGE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
 	    MYSQL_YYABORT;

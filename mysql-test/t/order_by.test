@@ -719,10 +719,10 @@ CREATE TABLE t1 (a INT UNSIGNED NOT NULL, b TIME);
 INSERT INTO t1 (a) VALUES (100000), (0), (100), (1000000),(10000), (1000), (10);
 UPDATE t1 SET b = SEC_TO_TIME(a);
 
--- Correct ORDER
+# Correct ORDER
 SELECT a, b FROM t1 ORDER BY b DESC;
 
--- must be ordered as the above
+# must be ordered as the above
 SELECT a, b FROM t1 ORDER BY SEC_TO_TIME(a) DESC;
 
 DROP TABLE t1;

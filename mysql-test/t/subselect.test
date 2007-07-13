@@ -1822,13 +1822,6 @@ SELECT * FROM t1
 DROP TABLE t1,t2,t3;
 
 #
-# BUG #10308: purge log with subselect
-#
-
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
-
-
-#
 # Bug#18503: Queries with a quantified subquery returning empty set may
 # return a wrong result. 
 #
@@ -2904,6 +2897,94 @@ SELECT id, st FROM t1
   WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
     GROUP BY id;
 
+DROP TABLE t1,t2;
+
+#
+# Bug #28728: crash with EXPLAIN EXTENDED for a query with a derived table
+#             over a grouping subselect
+# 
+
+CREATE TABLE t1 (a int);
+
+INSERT INTO t1 VALUES (1), (2);
+
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT count(*) FROM t1 GROUP BY a) as res;
+
+DROP TABLE t1;
+
+#
+# Bug #28811: crash for query containing subquery with ORDER BY and LIMIT 1 
+#
+ 
+CREATE TABLE t1 (
+  a varchar(255) default NULL,
+  b timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  INDEX idx(a,b)
+);
+CREATE TABLE t2 (
+  a varchar(255) default NULL
+);
+
+INSERT INTO t1 VALUES ('abcdefghijk','2007-05-07 06:00:24');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO `t1` VALUES ('asdf','2007-02-08 01:11:26');
+INSERT INTO `t2` VALUES ('abcdefghijk');
+INSERT INTO `t2` VALUES ('asdf');
+
+SET session sort_buffer_size=8192;
+
+SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2;
+
+DROP TABLE t1,t2;
+
+
+#
+# Bug #27333: subquery grouped for aggregate of outer query / no aggregate
+# of subquery
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+CREATE TABLE t2 (x INTEGER);
+INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
+INSERT INTO t2 VALUES (1), (2);
+
+# wasn't failing, but should
+--error ER_SUBQUERY_NO_1_ROW
+SELECT a, COUNT(b), (SELECT COUNT(b) FROM t2) FROM t1 GROUP BY a;
+
+# fails as it should
+--error ER_SUBQUERY_NO_1_ROW
+SELECT a, COUNT(b), (SELECT COUNT(b)+0 FROM t2) FROM t1 GROUP BY a;
+
+SELECT (SELECT SUM(t1.a)/AVG(t2.x) FROM t2) FROM t1;
+DROP TABLE t1,t2;
+
+# second test case from 27333
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1, 2), (1,3), (1,4), (2,1), (2,2);
+
+-- returns no rows, when it should
+SELECT a1.a, COUNT(*) FROM t1 a1 WHERE a1.a = 1
+AND EXISTS( SELECT a2.a FROM t1 a2 WHERE a2.a = a1.a)
+GROUP BY a1.a;
+DROP TABLE t1;
+
+#test cases from 29297
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+SELECT (SELECT SUM(t1.a) FROM t2 WHERE a=0) FROM t1;
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT SUM(t1.a) FROM t2 WHERE a!=0) FROM t1;
+SELECT (SELECT SUM(t1.a) FROM t2 WHERE a=1) FROM t1;
 DROP TABLE t1,t2;
 
 --echo End of 5.0 tests.

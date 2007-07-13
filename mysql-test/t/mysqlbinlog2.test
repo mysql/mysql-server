@@ -1,8 +1,7 @@
 # Test for the new options --start-datetime, stop-datetime,
 # and a few others.
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 --disable_warnings
 drop table if exists t1;

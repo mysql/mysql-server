@@ -715,6 +715,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     */
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   }
+  if (duplic == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   /*
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
@@ -870,9 +872,35 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         if (mysql_bin_log.is_open())
         {
           if (error <= 0)
+          {
+            /*
+              [Guilhem wrote] Temporary errors may have filled
+              thd->net.last_error/errno.  For example if there has
+              been a disk full error when writing the row, and it was
+              MyISAM, then thd->net.last_error/errno will be set to
+              "disk full"... and the my_pwrite() will wait until free
+              space appears, and so when it finishes then the
+              write_row() was entirely successful
+            */
+            /* todo: consider removing */
             thd->clear_error();
+          }
+          /* bug#22725: 
+               
+          A query which per-row-loop can not be interrupted with
+          KILLED, like INSERT, and that does not invoke stored
+          routines can be binlogged with neglecting the KILLED error.
+          
+          If there was no error (error == zero) until after the end of
+          inserting loop the KILLED flag that appeared later can be
+          disregarded since previously possible invocation of stored
+          routines did not result in any error due to the KILLED.  In
+          such case the flag is ignored for constructing binlog event.
+          */
           Query_log_event qinfo(thd, thd->query, thd->query_length,
-                                transactional_table, FALSE);
+                                transactional_table, FALSE,
+                                (error>0) ? thd->killed : THD::NOT_KILLED);
+          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
           if (mysql_bin_log.write(&qinfo) && transactional_table)
             error=1;
         }
@@ -921,20 +949,24 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+    thd->row_count_func= info.copied + info.deleted +
+                         ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                          info.touched : info.updated);
     send_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
     char buff[160];
+    ha_rows updated=((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                     info.touched : info.updated);
     if (ignore)
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-    thd->row_count_func= info.copied+info.deleted+info.updated;
+	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
+    thd->row_count_func= info.copied + info.deleted + updated;
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -1374,23 +1406,18 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment();
-        if ((error=table->file->update_row(table->record[1],table->record[0])))
-        {
-          if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
-          {
-            goto ok_or_after_trg_err;
-          }
-          goto err;
-        }
-
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
-        info->touched++;
-
         if ((table->file->table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table, thd->query_id))
         {
+          if ((error=table->file->update_row(table->record[1],table->record[0])))
+          {
+            if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+            {
+              goto ok_or_after_trg_err;
+            }
+            goto err;
+          }
+
           info->updated++;
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1398,6 +1425,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
                                                         TRUE));
           info->copied++;
         }
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
 
         goto ok_or_after_trg_err;
       }
@@ -2404,6 +2436,8 @@ bool Delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
       using_opt_replace= 1;
     }
+    if (info.handle_duplicates == DUP_UPDATE)
+      table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
     thd.clear_error(); // reset error for binlog
     if (write_record(&thd, table, &info))
     {
@@ -2731,6 +2765,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   }
+  if (info.handle_duplicates == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -2862,41 +2898,6 @@ void select_insert::send_error(uint errcode,const char *err)
 
   my_message(errcode, err, MYF(0));
 
-  if (!table)
-  {
-    /*
-      This can only happen when using CREATE ... SELECT and the table was not
-      created becasue of an syntax error
-    */
-    DBUG_VOID_RETURN;
-  }
-  if (!thd->prelocked_mode)
-    table->file->end_bulk_insert();
-  /*
-    If at least one row has been inserted/modified and will stay in the table
-    (the table doesn't have transactions) (example: we got a duplicate key
-    error while inserting into a MyISAM table) we must write to the binlog (and
-    the error code will make the slave stop).
-  */
-  if ((info.copied || info.deleted || info.updated) &&
-      !table->file->has_transactions())
-  {
-    if (last_insert_id)
-      thd->insert_id(last_insert_id);		// For binary log
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
-      mysql_bin_log.write(&qinfo);
-    }
-    if (!table->s->tmp_table)
-      thd->no_trans_update.all= TRUE;
-  }
-  if (info.copied || info.deleted || info.updated)
-  {
-    query_cache_invalidate3(thd, table, 1);
-  }
-  ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -2947,11 +2948,56 @@ bool select_insert::send_eof()
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
-  thd->row_count_func= info.copied+info.deleted+info.updated;
+  thd->row_count_func= info.copied + info.deleted +
+                       ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                        info.touched : info.updated);
   ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }
 
+void select_insert::abort()
+{
+  DBUG_ENTER("select_insert::abort");
+
+  if (!table)
+  {
+    /*
+      This can only happen when using CREATE ... SELECT and the table was not
+      created becasue of an syntax error
+    */
+    DBUG_VOID_RETURN;
+  }
+  if (!thd->prelocked_mode)
+    table->file->end_bulk_insert();
+  /*
+    If at least one row has been inserted/modified and will stay in the table
+    (the table doesn't have transactions) (example: we got a duplicate key
+    error while inserting into a MyISAM table) we must write to the binlog (and
+    the error code will make the slave stop).
+  */
+  if ((info.copied || info.deleted || info.updated) &&
+      !table->file->has_transactions())
+  {
+    if (last_insert_id)
+      thd->insert_id(last_insert_id);		// For binary log
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            table->file->has_transactions(), FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+    if (!table->s->tmp_table)
+      thd->no_trans_update.all= TRUE;
+  }
+  if (info.copied || info.deleted || info.updated)
+  {
+    query_cache_invalidate3(thd, table, 1);
+  }
+  ha_rollback_stmt(thd);
+
+  DBUG_VOID_RETURN;
+
+}
 
 /***************************************************************************
   CREATE TABLE (SELECT) ...
@@ -3186,6 +3232,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   }
+  if (info.handle_duplicates == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update.stmt= FALSE;
@@ -3209,13 +3257,7 @@ void select_create::store_values(List<Item> &values)
 
 void select_create::send_error(uint errcode,const char *err)
 {
-  /*
-   Disable binlog, because we "roll back" partial inserts in ::abort
-   by removing the table, even for non-transactional tables.
-  */
-  tmp_disable_binlog(thd);
   select_insert::send_error(errcode, err);
-  reenable_binlog(thd);
 }
 
 
@@ -3240,6 +3282,14 @@ bool select_create::send_eof()
 
 void select_create::abort()
 {
+  /*
+   Disable binlog, because we "roll back" partial inserts in ::abort
+   by removing the table, even for non-transactional tables.
+  */
+  tmp_disable_binlog(thd);
+  select_insert::abort();
+  reenable_binlog(thd);
+
   if (lock)
   {
     mysql_unlock_tables(thd, lock);

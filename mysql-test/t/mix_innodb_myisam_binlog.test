@@ -5,9 +5,7 @@
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
-
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
 --disable_warnings
@@ -28,9 +26,7 @@ insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
---replace_result "xid=14" "xid=8"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -42,8 +38,7 @@ insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
 rollback;
 
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -57,9 +52,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
---replace_result "xid=47" "xid=25"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -75,9 +68,7 @@ insert into t1 values(7);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
---replace_result "xid=69" "xid=37"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # and when ROLLBACK is not explicit?
 delete from t1;
@@ -97,8 +88,7 @@ connection con2;
 # so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
 # logging has been done, we use a user lock.
 select get_lock("a",10);
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # and when not in a transact1on?
 delete from t1;
@@ -108,9 +98,7 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 
---replace_column 5 #
---replace_result "xid=117" "xid=60"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
 # transaction, we log it immediately.
@@ -121,16 +109,11 @@ reset master;
 insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
---replace_column 5 #
---replace_result "xid=131" "xid=66"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 insert into t1 values(11);
 commit;
 
---replace_column 5 #
---replace_result "xid=131" "xid=66" "xid=134" "xid=68"
-show binlog events from 98;
-
+source include/show_binlog_events.inc;
 
 # Check that things work like before this BEGIN/ROLLBACK code was added,
 # when t2 is INNODB 
@@ -146,9 +129,7 @@ insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
---replace_result "xid=153" "xid=78"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -159,8 +140,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 
---replace_column 5 #
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -174,9 +154,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
---replace_result "xid=185" "xid=94"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
@@ -192,9 +170,7 @@ insert into t1 values(18);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
---replace_result "xid=206" "xid=105"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
 # release row-level locks in InnoDB
@@ -253,9 +229,7 @@ insert into t2 values (3);
 disconnect con2;
 connection con3;
 select get_lock("lock1",60);
---replace_column 5 #
---replace_result "xid=206" "xid=105" "xid=224" "xid=114" "xid=227" "xid=115" "xid=231" "xid=117" "xid=258" "xid=132"
-show binlog events from 98;
+source include/show_binlog_events.inc;
 do release_lock("lock1");
 drop table t0,t2;
 

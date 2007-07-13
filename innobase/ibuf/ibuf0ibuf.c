@@ -1436,6 +1436,9 @@ ibuf_entry_build(
 		*buf2++ = 0; /* write the compact format indicator */
 	}
 	for (i = 0; i < n_fields; i++) {
+		ulint			fixed_len;
+		const dict_field_t*	ifield;
+
 		/* We add 4 below because we have the 4 extra fields at the
 		start of an ibuf record */
 
@@ -1443,11 +1446,30 @@ ibuf_entry_build(
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
+		ifield = dict_index_get_nth_field(index, i);
+		/* Prefix index columns of fixed-length columns are of
+		fixed length.  However, in the function call below,
+		dfield_get_type(entry_field) contains the fixed length
+		of the column in the clustered index.  Replace it with
+		the fixed length of the secondary index column. */
+		fixed_len = ifield->fixed_len;
+
+#ifdef UNIV_DEBUG
+		if (fixed_len) {
+			/* dict_index_add_col() should guarantee these */
+			ut_ad(fixed_len <= (ulint) entry_field->type.len);
+			if (ifield->prefix_len) {
+				ut_ad(ifield->prefix_len == fixed_len);
+			} else {
+				ut_ad(fixed_len
+				      == (ulint) entry_field->type.len);
+			}
+		}
+#endif /* UNIV_DEBUG */
+
 		dtype_new_store_for_order_and_null_size(
-				buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
-				dfield_get_type(entry_field),
-				dict_index_get_nth_field(index, i)
-				->prefix_len);
+			buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
+			dfield_get_type(entry_field), fixed_len);
 	}
 
 	/* Store the type info in buf2 to field 3 of tuple */

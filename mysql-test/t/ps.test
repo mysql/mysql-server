@@ -1791,5 +1791,13 @@ execute stmt;
 deallocate prepare stmt;
 drop tables t1;
 
+#
+# Bug #28509: strange behaviour: passing a decimal value to PS
+#
+prepare stmt from "create table t1 select ?";
+set @a=1.0;
+execute stmt using @a;
+show create table t1;
+drop table t1;
 
 --echo End of 5.0 tests.

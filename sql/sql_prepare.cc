@@ -562,6 +562,8 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
 static void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
+  if (length > len)
+    length= len;
   param->set_str((const char *)*pos, length);
   *pos+= length;
 }
@@ -731,6 +733,8 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     res= param->query_val_str(&str);
@@ -767,6 +771,8 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     if (param->convert_str_value(stmt->thd))
@@ -849,6 +855,8 @@ static bool emb_insert_params(Prepared_statement *stmt, String *expanded_query)
                               client_param->length ?
                               *client_param->length :
                               client_param->buffer_length);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     if (param->convert_str_value(thd))
@@ -890,6 +898,8 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
                               client_param->length ?
                               *client_param->length :
                               client_param->buffer_length);
+        if (param->state == Item_param::NO_VALUE)
+          DBUG_RETURN(1);
       }
     }
     res= param->query_val_str(&str);
@@ -969,6 +979,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   String buf;
   const String *val;
   uint32 length= 0;
+  THD *thd= stmt->thd;
 
   DBUG_ENTER("insert_params_from_vars");
 
@@ -979,34 +990,20 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   {
     Item_param *param= *it;
     varname= var_it++;
-    if (get_var_with_binlog(stmt->thd, stmt->lex->sql_command,
-                            *varname, &entry))
-        DBUG_RETURN(1);
 
-    if (param->set_from_user_var(stmt->thd, entry))
+    entry= (user_var_entry *) hash_search(&thd->user_vars, (byte*) varname->str,
+                                          varname->length);
+    /*
+      We have to call the setup_one_conversion_function() here to set
+      the parameter's members that might be needed further
+      (e.g. value.cs_info.character_set_client is used in the query_val_str()).
+    */
+    setup_one_conversion_function(thd, param, param->param_type);
+    if (param->set_from_user_var(thd, entry))
       DBUG_RETURN(1);
-    /* Insert @'escaped-varname' instead of parameter in the query */
-    if (entry)
-    {
-      char *start, *ptr;
-      buf.length(0);
-      if (buf.reserve(entry->name.length*2+3))
-        DBUG_RETURN(1);
+    val= param->query_val_str(&buf);
 
-      start= ptr= buf.c_ptr_quick();
-      *ptr++= '@';
-      *ptr++= '\'';
-      ptr+= escape_string_for_mysql(&my_charset_utf8_general_ci,
-                                    ptr, 0, entry->name.str,
-                                    entry->name.length);
-      *ptr++= '\'';
-      buf.length(ptr - start);
-      val= &buf;
-    }
-    else
-      val= &my_null_string;
-
-    if (param->convert_str_value(stmt->thd))
+    if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
     if (query->replace(param->pos_in_query+length, 1, *val))
@@ -1727,6 +1724,13 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     res= mysql_test_create_table(stmt);
     break;
 
+  case SQLCOM_CREATE_VIEW:
+    if (lex->create_view_mode == VIEW_ALTER)
+    {
+      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      goto error;
+    }
+    break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
     break;
@@ -1769,7 +1773,6 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
   case SQLCOM_CALL:
-  case SQLCOM_CREATE_VIEW:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:

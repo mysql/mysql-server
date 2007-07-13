@@ -1,1 +1,3 @@
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select adddate(current_timestamp(), interval -4 day))' at line 1
+purge master logs before adddate(current_timestamp(), interval -4 day);

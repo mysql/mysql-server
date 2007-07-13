@@ -1378,45 +1378,39 @@ prepare stmt from "repair table t1, t4, t3";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-test.t4	repair	error	Table 'test.t4' doesn't exist
+test.t4	repair	Error	Table 'test.t4' doesn't exist
+test.t4	repair	error	Corrupt
 test.t3	repair	status	OK
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-test.t4	repair	error	Table 'test.t4' doesn't exist
+test.t4	repair	Error	Table 'test.t4' doesn't exist
+test.t4	repair	error	Corrupt
 test.t3	repair	status	OK
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
 prepare stmt from "optimize table t1, t3, t4";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t3	optimize	status	OK
-test.t4	optimize	error	Table 'test.t4' doesn't exist
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
+test.t4	optimize	Error	Table 'test.t4' doesn't exist
+test.t4	optimize	error	Corrupt
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 test.t3	optimize	status	Table is already up to date
-test.t4	optimize	error	Table 'test.t4' doesn't exist
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
+test.t4	optimize	Error	Table 'test.t4' doesn't exist
+test.t4	optimize	error	Corrupt
 prepare stmt from "analyze table t4, t1";
 execute stmt;
 Table	Op	Msg_type	Msg_text
-test.t4	analyze	error	Table 'test.t4' doesn't exist
+test.t4	analyze	Error	Table 'test.t4' doesn't exist
+test.t4	analyze	error	Corrupt
 test.t1	analyze	status	Table is already up to date
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
 execute stmt;
 Table	Op	Msg_type	Msg_text
-test.t4	analyze	error	Table 'test.t4' doesn't exist
+test.t4	analyze	Error	Table 'test.t4' doesn't exist
+test.t4	analyze	error	Corrupt
 test.t1	analyze	status	Table is already up to date
-Warnings:
-Error	1146	Table 'test.t4' doesn't exist
 deallocate prepare stmt;
 drop table t1, t2, t3;
 create database mysqltest_long_database_name_to_thrash_heap;
@@ -1683,4 +1677,13 @@ execute stmt;
 ERROR 42S22: Unknown column 'y.value' in 'field list'
 deallocate prepare stmt;
 drop tables t1;
+prepare stmt from "create table t1 select ?";
+set @a=1.0;
+execute stmt using @a;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `?` decimal(2,1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests.

@@ -241,6 +241,15 @@ void write_core(int sig)
 void write_core(int sig)
 {
   signal(sig, SIG_DFL);
+#ifdef HAVE_gcov
+  /*
+    For GCOV build, crashing will prevent the writing of code coverage
+    information from this process, causing gcov output to be incomplete.
+    So we force the writing of coverage information here before terminating.
+  */
+  extern void __gcov_flush(void);
+  __gcov_flush();
+#endif
   pthread_kill(pthread_self(), sig);
 #if defined(P_MYID) && !defined(SCO)
   /* On Solaris, the above kill is not enough */

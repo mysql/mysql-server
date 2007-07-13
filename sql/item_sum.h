@@ -966,8 +966,15 @@ public:
   bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
+
+    if (init_sum_func_check(thd))
+      return TRUE;
+
     fixed= 1;
-    return udf.fix_fields(thd, this, this->arg_count, this->args);
+    if (udf.fix_fields(thd, this, this->arg_count, this->args))
+      return TRUE;
+
+    return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   virtual bool have_field_update(void) const { return 0; }

@@ -507,7 +507,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   {
     if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
     {
-      precision= 5 * log_01[max((*a)->decimals, (*b)->decimals)];
+      precision= 5 / log_10[max((*a)->decimals, (*b)->decimals) + 1];
       if (func == &Arg_comparator::compare_real)
         func= &Arg_comparator::compare_real_fixed;
       else if (func == &Arg_comparator::compare_e_real)
@@ -766,7 +766,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   {
     value= item->val_int();
     *is_null= item->null_value;
-    if (item->field_type() == MYSQL_TYPE_DATE)
+    /*
+      Item_date_add_interval may return MYSQL_TYPE_STRING as the result
+      field type. To detect that the DATE value has been returned we
+      compare it with 1000000L - any DATE value should be less than it.
+    */
+    if (item->field_type() == MYSQL_TYPE_DATE || value < 100000000L)
       value*= 1000000L;
   }
   else
@@ -1749,6 +1754,23 @@ void Item_func_between::fix_length_and_dec()
   {
     ge_cmp.set_datetime_cmp_func(args, args + 1);
     le_cmp.set_datetime_cmp_func(args, args + 2);
+  }
+  else if (args[0]->real_item()->type() == FIELD_ITEM &&
+           thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+           thd->lex->sql_command != SQLCOM_SHOW_CREATE)
+  {
+    Field *field=((Item_field*) (args[0]->real_item()))->field;
+    if (field->can_be_compared_as_longlong())
+    {
+      /*
+        The following can't be recoded with || as convert_constant_item
+        changes the argument
+      */
+      if (convert_constant_item(thd, field,&args[1]))
+        cmp_type=INT_RESULT;			// Works for all types.
+      if (convert_constant_item(thd, field,&args[2]))
+        cmp_type=INT_RESULT;			// Works for all types.
+    }
   }
 }
 
