@@ -1,0 +1,62 @@
+# Turn on ssl between the client and server
+# and run a number of tests
+
+-- source include/have_ssl.inc
+
+connect (ssl_con,localhost,root,,,,,SSL);
+
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# Source select test case
+-- source include/common-tests.inc
+
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
+
+disconnect ssl_con;
+
+
+#
+# Bug #29579 Clients using SSL can hang the server
+#
+
+connect (ssl_con,localhost,root,,,,,SSL);
+
+create table t1 (a int);
+
+disconnect ssl_con;
+
+let $count= 2000;
+while ($count)
+{
+
+  connect (ssl_con,localhost,root,,,,,SSL);
+
+  let $i= 1;
+  while ($i)
+  {
+    eval insert into t1 values ($count);
+    dec $count;
+    dec $i;
+  }
+  
+  # This select causes the net buffer to fill as the server sends the results 
+  # but the client doesn't reap the results. The results are larger each time
+  # through the loop, so that eventually the buffer is completely full
+  # at the exact moment the server attempts to the close the connection with
+  # the lock held.
+  send select * from t1;
+  
+  # now send the quit the command so the server will initiate the shutdown.
+  send_quit ssl_con; 
+  
+  # if the server is hung, this will hang too:
+  connect (ssl_con2,localhost,root,,,,,SSL);
+  
+  # no hang if we get here, close and retry
+  disconnect ssl_con2;
+  
+  disconnect ssl_con;
+}
+
