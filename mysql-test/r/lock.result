@@ -40,7 +40,8 @@ test.t1	check	status	OK
 lock tables t1 write;
 check table t2;
 Table	Op	Msg_type	Msg_text
-test.t2	check	error	Table 't2' was not locked with LOCK TABLES
+test.t2	check	Error	Table 't2' was not locked with LOCK TABLES
+test.t2	check	error	Corrupt
 insert into t1 select index1,nr from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 unlock tables;

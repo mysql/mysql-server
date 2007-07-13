@@ -126,7 +126,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     sp_rcontext *spcont= thd->spcont;
 
     thd->no_warnings_for_error= 1;
-    thd->spcont= 0;
+    thd->spcont= NULL;
 
     thd->killed= THD::KILL_BAD_DATA;
     my_message(code, msg, MYF(0));
@@ -205,8 +205,8 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     TRUE  Error sending data to client
 */
 
-static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
-static int warning_level_length[]= { 4, 7, 5, 1 };
+const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
+int warning_level_length[]= { 4, 7, 5, 1 };
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  

@@ -37,7 +37,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff);
+                                    enum enum_enable_or_disable keys_onoff,
+                                    bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
@@ -2283,33 +2284,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (!table->table)
     {
-      char buf[ERRMSGSIZE+ERRMSGSIZE+2];
-      const char *err_msg;
-      protocol->prepare_for_resend();
-      protocol->store(table_name, system_charset_info);
-      protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
+      if (!thd->warn_list.elements)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-      {
-        strxmov(buf, err_msg, "; ", ER(ER_VIEW_CHECKSUM), NullS);
-        err_msg= (const char *)buf;
-      }
-      protocol->store(err_msg, system_charset_info);
-      lex->cleanup_after_one_table_open();
-      thd->clear_error();
-      /*
-        View opening can be interrupted in the middle of process so some
-        tables can be left opening
-      */
-      close_thread_tables(thd);
-      lex->reset_query_tables_list(FALSE);
-      if (protocol->write())
-	goto err;
-      continue;
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
+      result_code= HA_ADMIN_CORRUPT;
+      goto send_result;
     }
 
     if (table->view)
@@ -2391,6 +2375,22 @@ send_result:
 
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
+    {
+      List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+      MYSQL_ERROR *err;
+      while ((err= it++))
+      {
+        protocol->prepare_for_resend();
+        protocol->store(table_name, system_charset_info);
+        protocol->store((char*) operator_name, system_charset_info);
+        protocol->store(warning_level_names[err->level],
+                        warning_level_length[err->level], system_charset_info);
+        protocol->store(err->msg, system_charset_info);
+        if (protocol->write())
+          goto err;
+      }
+      mysql_reset_errors(thd, true);
+    }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
@@ -2718,7 +2718,8 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
   SYNOPSIS
     mysql_create_like_table()
     thd		Thread object
-    table	Table list (one table only)
+    table       Table list element for target table
+    src_table   Table list element for source table
     create_info Create info
     table_ident Src table_ident
 
@@ -2727,61 +2728,52 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
     TRUE  error
 */
 
-bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *create_info,
-                             Table_ident *table_ident)
+bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
+                             HA_CREATE_INFO *create_info)
 {
   TABLE **tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char *db= table->db;
   char *table_name= table->table_name;
-  char *src_db;
-  char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
   db_type not_used;
-
-  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
-  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
-  src_db= table_ident->db.str;
 
   /*
-    Validate the source table
+    By taking name-lock on the source table and holding LOCK_open mutex we
+    ensure that no concurrent DDL operation will mess with this table. Note
+    that holding only name-lock is not enough for this, because it won't block
+    other DDL statements that only take name-locks on the table and don't
+    open it (simple name-locks are not exclusive between each other).
+
+    Unfortunately, simply opening this table is not enough for our purproses,
+    since in 5.0 ALTER TABLE may change .FRM files on disk even if there are
+    connections that still have old version of table open. This 'optimization'
+    was removed in 5.1 so there we open the source table instead of taking
+    name-lock on it.
+
+    We also have to acquire LOCK_open to make copying of .frm file, call to
+    ha_create_table() and binlogging atomic against concurrent DML and DDL
+    operations on the target table.
   */
-  if (table_ident->table.length > NAME_LEN ||
-      (table_ident->table.length &&
-       check_table_name(src_table,table_ident->table.length)))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
-    DBUG_RETURN(TRUE);
-  }
-  if (!src_db || check_db_name(src_db))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
-    DBUG_RETURN(-1);
-  }
-
-  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= src_db;
-  src_tables_list.table_name= src_table;
-
-  if (lock_and_wait_for_table_name(thd, &src_tables_list))
+  if (lock_and_wait_for_table_name(thd, src_table))
     goto err;
 
-  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
+  pthread_mutex_lock(&LOCK_open);
+
+  if ((tmp_table= find_temporary_table(thd, src_table->db,
+                                       src_table->table_name)))
     strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
-	    reg_ext, NullS);
+    strxmov(src_path, mysql_data_home, "/", src_table->db, "/",
+            src_table->table_name, reg_ext, NullS);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
-    if (lower_case_table_names)
-      my_casedn_str(files_charset_info, src_path);
     if (access(src_path, F_OK))
     {
-      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table->table_name);
       goto err;
     }
   }
@@ -2791,9 +2783,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   */
   if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
+    my_error(ER_WRONG_OBJECT, MYF(0), src_table->db, src_table->table_name,
+             "BASE TABLE");
     goto err;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_check_if_exists", my_sleep(6000000););
 
   /*
     Validate the destination table
@@ -2810,26 +2805,21 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    bool exists;
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
     fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
 
     /*
-      Note that this critical section should actually cover most
-      of mysql_create_like_table() function. See bugs #18950 and
-      #23667 for more information.
-      Also note that starting from 5.1 we obtain name-lock on
-      target table instead of inspecting table cache for presence
+      Note that starting from 5.1 we obtain name-lock on target
+      table instead of inspecting table cache for presence
       of open placeholders (see comment in mysql_create_table()).
     */
-    pthread_mutex_lock(&LOCK_open);
-    exists= (table_cache_has_open_placeholder(thd, db, table_name) ||
-             !access(dst_path, F_OK));
-    pthread_mutex_unlock(&LOCK_open);
-    if (exists)
+    if (table_cache_has_open_placeholder(thd, db, table_name) ||
+        !access(dst_path, F_OK))
       goto table_exists;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
   /*
     Create a new table by copying from source table
@@ -2842,6 +2832,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
       my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
     goto err;
   }
+
+  DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
 
   /*
     As mysql_truncate don't work on a new table at this stage of
@@ -2867,6 +2859,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     goto err;	    /* purecov: inspected */
   }
 
+  DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
+
   // Must be written before unlock
   if (mysql_bin_log.is_open())
   {
@@ -2891,8 +2885,7 @@ table_exists:
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(thd, &src_tables_list);
+  unlock_table_name(thd, src_table);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(res);
 }
@@ -2924,7 +2917,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, HA_OPEN_FOR_REPAIR, 0, 0,
+				0, 0, HA_OPEN_FOR_REPAIR, 0,
 				&handler::ha_check, &view_checksum));
 }
 
@@ -3077,6 +3070,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   bool need_copy_table;
   bool no_table_reopen= FALSE, varchar= FALSE;
   frm_type_enum frm_type;
+  /*
+    Throw an error if the table to be altered isn't empty.
+    Used in DATE/DATETIME fields default value checking.
+  */
+  bool error_if_not_empty= FALSE;
+  /*
+    A field used for error reporting in DATE/DATETIME fields default
+    value checking.
+  */
+  create_field *new_datetime_field= 0;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3097,8 +3100,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 						   alter_info->tablespace_op));
   sprintf(new_name_buff,"%s/%s/%s%s",mysql_data_home, db, table_name, reg_ext);
   unpack_filename(new_name_buff, new_name_buff);
-  if (lower_case_table_names != 2)
-    my_casedn_str(files_charset_info, new_name_buff);
   frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
   /* Rename a view */
   if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
@@ -3445,6 +3446,22 @@ view_err:
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table_name);
       DBUG_RETURN(TRUE);
     }
+    /*
+      Check that the DATE/DATETIME not null field we are going to add is
+      either has a default value or the '0000-00-00' is allowed by the
+      set sql mode.
+      If the '0000-00-00' value isn't allowed then raise the error_if_not_empty
+      flag to allow ALTER TABLE only if the table to be altered is empty.
+    */
+    if ((def->sql_type == MYSQL_TYPE_DATE ||
+         def->sql_type == MYSQL_TYPE_NEWDATE ||
+         def->sql_type == MYSQL_TYPE_DATETIME) && !new_datetime_field &&
+         !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
+         thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    {
+        new_datetime_field= def;
+        error_if_not_empty= TRUE;
+    }
     if (!def->after)
       new_info.create_list.push_back(def);
     else if (def->after == first_keyword)
@@ -3765,7 +3782,8 @@ view_err:
     new_table->next_number_field=new_table->found_next_number_field;
     error= copy_data_between_tables(table, new_table, new_info.create_list,
                                     ignore, order_num, order,
-                                    &copied, &deleted, alter_info->keys_onoff);
+                                    &copied, &deleted, alter_info->keys_onoff,
+                                    error_if_not_empty);
   }
   else if (!new_table)
   {
@@ -3776,6 +3794,9 @@ view_err:
                             alter_info->keys_onoff);
     table->file->external_lock(thd, F_UNLCK);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    error= ha_commit_stmt(thd);
+    if (ha_commit(thd))
+      error= 1;
   }
 
   thd->last_insert_id=next_insert_id;		// Needed for correct log
@@ -3946,16 +3967,6 @@ view_err:
       goto err;
     }
   }
-  /* The ALTER TABLE is always in its own transaction */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
-    error=1;
-  if (error)
-  {
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    broadcast_refresh();
-    goto err;
-  }
   thd->proc_info="end";
   if (mysql_bin_log.is_open())
   {
@@ -3999,6 +4010,38 @@ end_temporary:
   DBUG_RETURN(FALSE);
 
 err:
+  /*
+    No default value was provided for a DATE/DATETIME field, the
+    current sql_mode doesn't allow the '0000-00-00' value and
+    the table to be altered isn't empty.
+    Report error here.
+  */
+  if (error_if_not_empty && thd->row_count)
+  {
+    const char *f_val= 0;
+    enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
+    switch (new_datetime_field->sql_type)
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        f_val= "0000-00-00";
+        t_type= MYSQL_TIMESTAMP_DATE;
+        break;
+      case MYSQL_TYPE_DATETIME:
+        f_val= "0000-00-00 00:00:00";
+        t_type= MYSQL_TIMESTAMP_DATETIME;
+        break;
+      default:
+        /* Shouldn't get here. */
+        DBUG_ASSERT(0);
+    }
+    bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= TRUE;
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                 f_val, strlength(f_val), t_type,
+                                 new_datetime_field->field_name);
+    thd->abort_on_warning= save_abort_on_warning;
+  }
   DBUG_RETURN(TRUE);
 }
 
@@ -4010,7 +4053,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted,
-                         enum enum_enable_or_disable keys_onoff)
+                         enum enum_enable_or_disable keys_onoff,
+                         bool error_if_not_empty)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -4125,6 +4169,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
+    /* Return error if source table isn't empty. */
+    if (error_if_not_empty)
+    {
+      error= 1;
+      break;
+    }
     if (to->next_number_field)
     {
       if (auto_increment_field_copied)
@@ -4165,8 +4215,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  ha_enable_transaction(thd,TRUE);
-
+  if (ha_enable_transaction(thd, TRUE))
+  {
+    error= 1;
+    goto err;
+  }
+  
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename

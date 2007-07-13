@@ -339,6 +339,7 @@ here is the sourced script
 
 In loop
 here is the sourced script
+here is the sourced script
 mysqltest: At line 1: Missing argument to sleep
 mysqltest: At line 1: Missing argument to real_sleep
 mysqltest: At line 1: Invalid argument to sleep "abc"
@@ -410,7 +411,6 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
 mysqltest: At line 1: Invalid integer argument "10!"
-mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
@@ -420,7 +420,7 @@ mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 OK
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Connection limit exhausted, you can have max 128 connections
+mysqltest: The test didn't produce any output
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
 connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
@@ -666,4 +666,43 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+CREATE TABLE t1(
+a int, b varchar(255), c datetime
+);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int(11)
+statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
+value= ->A B<-
+value= 1
+mysqltest: At line 1: query_get_value - argument list started with '(' must be ended with ')'
+mysqltest: At line 1: Missing required argument 'query' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'column name' to command 'query_get_value'
+mysqltest: At line 1: Missing required argument 'row number' to command 'query_get_value'
+value= No such row
+value= No such row
+mysqltest: At line 1: Invalid row number: 'notnumber'
+mysqltest: At line 1: Could not find column 'column_not_exists' in the result of 'SHOW COLUMNS FROM t1'
+mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
+mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
+value= No such row
+mysqltest: At line 1: Error running query 'SHOW COLNS FROM t1': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+
+Field Type Null Key Default Extra
+a int(11) YES -><- NULL 
+b varchar(255) YES -><- NULL 
+c datetime YES -><- NULL 
+
+Number of columns with Default NULL: 3
+
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	datetime	YES		NULL	
+drop table t1;
 End of tests

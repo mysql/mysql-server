@@ -1442,7 +1442,19 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[3]= (uchar) ha_checktype(thd,create_info->db_type,0,0);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
-    key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
+    /*
+      Keep in sync with pack_keys() in unireg.cc
+      For each key:
+      8 bytes for the key header
+      9 bytes for each key-part (MAX_REF_PARTS)
+      NAME_LEN bytes for the name
+      1 byte for the NAMES_SEP_CHAR (before the name)
+      For all keys:
+      6 bytes for the header
+      1 byte for the NAMES_SEP_CHAR (after the last name)
+      9 extra bytes (padding for safety? alignment?)
+    */
+    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16;
     length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
@@ -1986,6 +1998,47 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
 
 
 /*
+  Merge ON expressions for a view
+
+  SYNOPSIS
+    merge_on_conds()
+    thd             thread handle
+    table           table for the VIEW
+    is_cascaded     TRUE <=> merge ON expressions from underlying views
+
+  DESCRIPTION
+    This function returns the result of ANDing the ON expressions
+    of the given view and all underlying views. The ON expressions
+    of the underlying views are added only if is_cascaded is TRUE.
+
+  RETURN
+    Pointer to the built expression if there is any.
+    Otherwise and in the case of a failure NULL is returned.
+*/
+
+static Item *
+merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
+{
+  DBUG_ENTER("merge_on_conds");
+
+  Item *cond= NULL;
+  DBUG_PRINT("info", ("alias: %s", table->alias));
+  if (table->on_expr)
+    cond= table->on_expr->copy_andor_structure(thd);
+  if (!table->nested_join)
+    DBUG_RETURN(cond);
+  List_iterator<TABLE_LIST> li(table->nested_join->join_list);
+  while (TABLE_LIST *tbl= li++)
+  {
+    if (tbl->view && !is_cascaded)
+      continue;
+    cond= and_conds(cond, merge_on_conds(thd, tbl, is_cascaded));
+  }
+  DBUG_RETURN(cond);
+}
+
+
+/*
   Prepare check option expression of table
 
   SYNOPSIS
@@ -2001,8 +2054,8 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
                       VIEW_CHECK_LOCAL option.
 
   NOTE
-    This method build check options for every call
-    (usual execution or every SP/PS call)
+    This method builds check option condition to use it later on
+    every call (usual execution or every SP/PS call).
     This method have to be called after WHERE preparation
     (st_table_list::prep_where)
 
@@ -2014,38 +2067,42 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
 bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
 {
   DBUG_ENTER("st_table_list::prep_check_option");
+  bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     /* see comment of check_opt_type parameter */
-    if (tbl->view &&
-        tbl->prep_check_option(thd,
-                               ((check_opt_type == VIEW_CHECK_CASCADED) ?
-                                VIEW_CHECK_CASCADED :
-                                VIEW_CHECK_NONE)))
-    {
+    if (tbl->view && tbl->prep_check_option(thd, (is_cascaded ?
+                                                  VIEW_CHECK_CASCADED :
+                                                  VIEW_CHECK_NONE)))
       DBUG_RETURN(TRUE);
-    }
   }
 
-  if (check_opt_type)
+  if (check_opt_type && !check_option_processed)
   {
-    Item *item= 0;
+    Query_arena *arena= thd->stmt_arena, backup;
+    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
     if (where)
     {
       DBUG_ASSERT(where->fixed);
-      item= where->copy_andor_structure(thd);
+      check_option= where->copy_andor_structure(thd);
     }
-    if (check_opt_type == VIEW_CHECK_CASCADED)
+    if (is_cascaded)
     {
       for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       {
         if (tbl->check_option)
-          item= and_conds(item, tbl->check_option);
+          check_option= and_conds(check_option, tbl->check_option);
       }
     }
-    if (item)
-      thd->change_item_tree(&check_option, item);
+    check_option= and_conds(check_option,
+                            merge_on_conds(thd, this, is_cascaded));
+
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    check_option_processed= TRUE;
+
   }
 
   if (check_option)
@@ -2150,7 +2207,7 @@ void st_table_list::cleanup_items()
   check CHECK OPTION condition
 
   SYNOPSIS
-    check_option()
+    st_table_list::view_check_option()
     ignore_failure ignore check option fail
 
   RETURN

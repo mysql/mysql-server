@@ -54,6 +54,11 @@ enum thr_lock_type { TL_IGNORE=-1,
 		     TL_WRITE_CONCURRENT_INSERT,
 		     /* Write used by INSERT DELAYED.  Allows READ locks */
 		     TL_WRITE_DELAYED,
+                     /* 
+                       parser only! Late bound low_priority flag. 
+                       At open_tables() becomes thd->update_lock_default.
+                     */
+                     TL_WRITE_DEFAULT,
 		     /* WRITE lock that has lower priority than TL_READ */
 		     TL_WRITE_LOW_PRIORITY,
 		     /* Normal WRITE lock */

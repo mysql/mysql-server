@@ -88,6 +88,7 @@ my_off_t my_tell(File fd, myf MyFlags __attribute__((unused)))
   os_off_t pos;
   DBUG_ENTER("my_tell");
   DBUG_PRINT("my",("Fd: %d  MyFlags: %d",fd, MyFlags));
+  DBUG_ASSERT(fd >= 0);
 #ifdef HAVE_TELL
   pos=tell(fd);
 #else

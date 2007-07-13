@@ -67,8 +67,6 @@
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  CLIENT_NET_READ_TIMEOUT;
-ulong		net_write_timeout= CLIENT_NET_WRITE_TIMEOUT;
 
 
 #ifdef EMBEDDED_LIBRARY
@@ -170,8 +168,23 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 }
 
 
+/*
+  Free all memory and resources used by the client library
+
+  NOTES
+    When calling this there should not be any other threads using
+    the library.
+
+    To make things simpler when used with windows dll's (which calls this
+    function automaticly), it's safe to call this function multiple times.
+*/
+
+
 void STDCALL mysql_server_end()
 {
+  if (!mysql_client_init)
+    return;
+
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
@@ -1528,8 +1541,8 @@ my_bool STDCALL mysql_embedded(void)
 void my_net_local_init(NET *net)
 {
   net->max_packet=   (uint) net_buffer_length;
-  net->read_timeout= (uint) net_read_timeout;
-  net->write_timeout=(uint) net_write_timeout;
+  my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
+  my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
   net->retry_count=  1;
   net->max_packet_size= max(net_buffer_length, max_allowed_packet);
 }
@@ -3665,33 +3678,38 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_FLOAT:
   {
     /*
-      We need to store data in the buffer before the truncation check to
+      We need to mark the local variable volatile to
       workaround Intel FPU executive precision feature.
       (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
-      AFAIU it does not guarantee to work.
     */
-    float data;
+    volatile float data;
     if (is_unsigned)
+    {
       data= (float) ulonglong2double(value);
+      *param->error= ((ulonglong) value) != ((ulonglong) data);
+    }
     else
-      data= (float) value;
+    {
+      data= (float)value;
+      *param->error= value != ((longlong) data);
+    }
     floatstore(buffer, data);
-    *param->error= is_unsigned ?
-                   ((ulonglong) value) != ((ulonglong) (*(float*) buffer)) :
-                   ((longlong) value) != ((longlong) (*(float*) buffer));
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data;
+    volatile double data;
     if (is_unsigned)
+    {
       data= ulonglong2double(value);
+      *param->error= ((ulonglong) value) != ((ulonglong) data);
+    }
     else
+    {
       data= (double)value;
+      *param->error= value != ((longlong) data);
+    }
     doublestore(buffer, data);
-    *param->error= is_unsigned ?
-                   ((ulonglong) value) != ((ulonglong) (*(double*) buffer)) :
-                   ((longlong) value) != ((longlong) (*(double*) buffer));
     break;
   }
   case MYSQL_TYPE_TIME:

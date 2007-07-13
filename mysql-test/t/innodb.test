@@ -754,6 +754,45 @@ select * from t2;
 drop table t1,t2;
 
 #
+# Bug#27716  	multi-update did partially and has not binlogged
+#
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+
+CREATE TABLE `t2` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
+
+# A. testing multi_update::send_eof() execution branch
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+reset master;
+--error ER_DUP_ENTRY
+UPDATE t2,t1 SET t2.a=t1.a+2;
+# check
+select * from t2 /* must be (3,1), (4,4) */;
+show master status /* there must no UPDATE in binlog */;
+
+# B. testing multi_update::send_error() execution branch
+delete from t1;
+delete from t2;
+insert into t1 values (1,2),(3,4),(4,4);
+insert into t2 values (1,2),(3,4),(4,4);
+reset master;
+--error ER_DUP_ENTRY
+UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
+show master status /* there must be no UPDATE query event */;
+
+# cleanup bug#27716
+drop table t1, t2;
+
+#
 # Testing of IFNULL
 #
 create table t1 (a int, b int) engine=innodb;
@@ -1153,40 +1192,6 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 drop table t2, t1;
 
-
-#
-# Let us test binlog_cache_use and binlog_cache_disk_use status vars.
-# Actually this test has nothing to do with innodb per se, it just requires
-# transactional table. 
-#
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-create table t1 (a int) engine=innodb;
-
-# Now we are going to create transaction which is long enough so its 
-# transaction binlog will be flushed to disk...
-let $1=2000;
-disable_query_log;
-begin;
-while ($1)
-{
- eval insert into t1 values( $1 );
- dec $1;
-}
-commit;
-enable_query_log;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-# Transaction which should not be flushed to disk and so should not
-# increase binlog_cache_disk_use.
-begin;
-delete from t1;
-commit;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-drop table t1;
 
 #
 # Bug #6126: Duplicate columns in keys gives misleading error message

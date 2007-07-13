@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.44)
+AM_INIT_AUTOMAKE(mysql, 5.0.46)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -23,7 +23,7 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=44
+NDB_VERSION_BUILD=46
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -507,7 +507,7 @@ then
   FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 else
   case $SYSTEM_TYPE in
-    *freebsd*)
+    *freebsd*|*dragonfly*)
       FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
       ;;
     *darwin*)
@@ -776,6 +776,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
+ sys/prctl.h \
  sys/resource.h sys/param.h)
 
 #--------------------------------------------------------------------
@@ -1127,7 +1128,7 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *freebsd*)
+  *freebsd*|*dragonfly*)
     AC_MSG_WARN([Adding fix for interrupted reads])
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
     if test "$OSVERSION" -gt "480100" && \
@@ -1736,6 +1737,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
 
+AC_ARG_WITH(mysqld-libs,
+    [  --with-mysqld-libs   Extra libraries to link with for mysqld],
+    [MYSQLD_EXTRA_LIBS=$withval],
+    [MYSQLD_EXTRA_LIBS=])
+AC_SUBST(MYSQLD_EXTRA_LIBS)
+
 AC_ARG_WITH(lib-ccflags,
     [  --with-lib-ccflags      Extra CC options for libraries],
     [LIB_EXTRA_CCFLAGS=$withval],
@@ -1945,6 +1952,19 @@ else
   TERMCAP_LIB="$with_named_curses"
 fi
 AC_SUBST(TERMCAP_LIB)
+
+# Check if the termcap function 'tgoto' is already declared in
+# system header files or if it need to be declared locally
+AC_CHECK_DECLS(tgoto,,,[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
+#endif
+#ifdef HAVE_TERM_H
+# include <term.h>
+#endif
+])
 
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])

@@ -890,7 +890,7 @@ REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij123456789
 # Bug #6774: Replication fails with Wrong usage of DB GRANT and GLOBAL PRIVILEGES
 #
 # Check if GRANT ... ON * ... fails when no database is selected
-connect (con1, localhost, root,,*NO-ONE*)
+connect (con1, localhost, root,,*NO-ONE*);
 connection con1;
 --error ER_NO_DB_ERROR
 GRANT PROCESS ON * TO user@localhost;

@@ -301,5 +301,36 @@ deallocate prepare stmt;
 drop function bug19634;
 drop table t1, t2, t3;
 
+#
+# Bug #27907 Misleading error message when opening/locking tables
+#
+
+--disable_warnings
+drop table if exists bug_27907_logs;
+drop table if exists bug_27907_t1;
+--enable_warnings
+
+create table bug_27907_logs (a int);
+create table bug_27907_t1 (a int);
+
+delimiter |;
+
+create trigger bug_27907_t1_ai after insert on bug_27907_t1
+for each row
+begin
+  insert into bug_27907_logs (a) values (1);
+end|
+
+delimiter ;|
+
+drop table bug_27907_logs;
+
+#
+# was failing before with error ER_NOT_LOCKED
+#
+--error ER_NO_SUCH_TABLE
+insert into bug_27907_t1(a) values (1);
+
+drop table bug_27907_t1;
 
 --echo End of 5.0 tests

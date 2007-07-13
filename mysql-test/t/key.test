@@ -432,3 +432,15 @@ ORDER BY c.b, c.d
 ;
 
 DROP TABLE t1, t2;
+
+
+#
+# Bug #20604: Test for disabled keys with aggregate functions and FORCE INDEX.
+#
+CREATE TABLE t1( a TINYINT, KEY(a) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES( 1 );
+ALTER TABLE t1 DISABLE KEYS;
+EXPLAIN SELECT MAX(a) FROM t1 FORCE INDEX(a);
+DROP TABLE t1;
+
+--echo End of 5.0 tests.

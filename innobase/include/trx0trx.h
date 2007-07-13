@@ -604,7 +604,7 @@ struct trx_struct{
 					NULL */
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
-					for a lock, this it sets this to FALSE;
+					for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */

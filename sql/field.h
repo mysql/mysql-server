@@ -360,7 +360,12 @@ public:
   {
     return field_length / charset()->mbmaxlen;
   }
-
+  virtual geometry_type get_geometry_type()
+  {
+    /* shouldn't get here. */
+    DBUG_ASSERT(0);
+    return GEOM_GEOMETRY;
+  }
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -453,6 +458,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
+  my_bool not_fixed;
 
   Field_real(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, utype unireg_check_arg,
@@ -460,13 +466,16 @@ public:
              struct st_table *table_arg,
              uint8 dec_arg, bool zero_arg, bool unsigned_arg)
     :Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, unireg_check_arg,
-               field_name_arg, table_arg, dec_arg, zero_arg, unsigned_arg)
+               field_name_arg, table_arg, dec_arg, zero_arg, unsigned_arg),
+    not_fixed(dec_arg >= NOT_FIXED_DEC)
     {}
 
 
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
+  int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
+  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -675,7 +684,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  uint32 max_display_length() { return 11; }
+  uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
 };
 
 
@@ -758,7 +767,6 @@ public:
 
 class Field_double :public Field_real {
 public:
-  my_bool not_fixed;
   Field_double(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
@@ -766,21 +774,18 @@ public:
 	       uint8 dec_arg,bool zero_arg,bool unsigned_arg)
     :Field_real(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                 unireg_check_arg, field_name_arg, table_arg,
-                dec_arg, zero_arg, unsigned_arg),
-     not_fixed(dec_arg >= NOT_FIXED_DEC)
+                dec_arg, zero_arg, unsigned_arg)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
 	       struct st_table *table_arg, uint8 dec_arg)
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
-                NONE, field_name_arg, table_arg, dec_arg, 0, 0),
-     not_fixed(dec_arg >= NOT_FIXED_DEC)
+                NONE, field_name_arg, table_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       struct st_table *table_arg, uint8 dec_arg, my_bool not_fixed_srg)
+	       struct st_table *table_arg, uint8 dec_arg, my_bool not_fixed_arg)
     :Field_real((char*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
-	        NONE, field_name_arg, table_arg, dec_arg, 0, 0), 
-    not_fixed(not_fixed_srg)
-    {}
+                NONE, field_name_arg, table_arg, dec_arg, 0, 0)
+    {not_fixed= not_fixed_arg; }
   enum_field_types type() const { return FIELD_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -795,7 +800,6 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
-  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -1108,6 +1112,11 @@ public:
 
 class Field_varstring :public Field_longstr {
 public:
+  /*
+    The maximum space available in a Field_varstring, in bytes. See
+    length_bytes.
+  */
+  static const uint MAX_SIZE= UINT_MAX16;
   /* Store number of bytes used to store length (1 or 2) */
   uint32 length_bytes;
   Field_varstring(char *ptr_arg,
@@ -1320,6 +1329,7 @@ public:
   uint get_key_image(char *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+  geometry_type get_geometry_type() { return geom_type; };
 };
 #endif /*HAVE_SPATIAL*/
 

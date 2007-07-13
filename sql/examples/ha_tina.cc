@@ -301,7 +301,7 @@ ha_tina::ha_tina(TABLE *table_arg)
   chain_size(DEFAULT_CHAIN_LENGTH), records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
-  buffer.set(byte_buffer, IO_SIZE, system_charset_info);
+  buffer.set(byte_buffer, IO_SIZE, &my_charset_bin);
   chain= chain_buffer;
 }
 
@@ -447,7 +447,7 @@ int ha_tina::find_current_row(byte *buf)
       else
         buffer.append(*mapped_ptr);
     }
-    (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
+    (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
   }
   next_position= (end_ptr - share->mapped_file)+1;
   /* Maybe use \N for null? */

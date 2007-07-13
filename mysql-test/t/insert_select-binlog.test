@@ -1,5 +1,6 @@
 # Embedded server doesn't support binlog
 -- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 # Check if a partly-completed INSERT SELECT in a MyISAM table goes into the
 # binlog

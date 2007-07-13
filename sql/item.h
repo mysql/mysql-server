@@ -1304,6 +1304,11 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
   void print(String *str);
+  Field::geometry_type get_geometry_type()
+  {
+    DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
+    return field->get_geometry_type();
+  }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1359,8 +1364,10 @@ class Item_param :public Item
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
-public:
+  bool strict_type;
+  enum Item_result required_result_type;
 
+public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
@@ -1488,6 +1495,11 @@ public:
     Otherwise return FALSE.
   */
   bool eq(const Item *item, bool binary_cmp) const;
+  void set_strict_type(enum Item_result result_type_arg)
+  {
+    strict_type= TRUE;
+    required_result_type= result_type_arg;
+  }
 };
 
 
@@ -1752,11 +1764,17 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
 
+/**
+  Item_empty_string -- is a utility class to put an item into List<Item>
+  which is then used in protocol.send_fields() when sending SHOW output to
+  the client.
+*/
+
 class Item_empty_string :public Item_string
 {
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
-    Item_string("",0, cs ? cs : &my_charset_bin)
+    Item_string("",0, cs ? cs : &my_charset_utf8_general_ci)
     { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
@@ -1892,11 +1910,7 @@ public:
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
-  Item *get_tmp_table_item(THD *thd)
-  { 
-    return (result_field ? new Item_field(result_field) :
-                          (*ref)->get_tmp_table_item(thd));
-  }
+  Item *get_tmp_table_item(THD *thd);
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -1975,6 +1989,12 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  Item *get_tmp_table_item(THD *thd)
+  {
+    Item *item= Item_ref::get_tmp_table_item(thd);
+    item->name= name;
+    return item;
+  }
   virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
@@ -2563,6 +2583,7 @@ class Item_type_holder: public Item
 protected:
   TYPELIB *enum_set_typelib;
   enum_field_types fld_type;
+  Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
 
@@ -2582,6 +2603,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
+  Field::geometry_type get_geometry_type() { return geometry_type; };
 };
 
 

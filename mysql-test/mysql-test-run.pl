@@ -903,6 +903,9 @@ sub command_line_setup () {
     $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
@@ -1784,6 +1787,17 @@ sub environment_setup () {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
+  # The environment variable used for shared libs on AIX
+  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
+                           $ENV{'SHLIB_PATH'} ?
+                           split(':', $ENV{'SHLIB_PATH'}) : ());
+  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
+
+  # The environment variable used for shared libs on hp-ux
+  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
+                        $ENV{'LIBPATH'} ?
+                        split(':', $ENV{'LIBPATH'}) : ());
+  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1792,6 +1806,18 @@ sub environment_setup () {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
+  
+  #
+  # MySQL tests can produce output in various character sets
+  # (especially, ctype_xxx.test). To avoid confusing Perl
+  # with output which is incompatible with the current locale
+  # settings, we reset the current values of LC_ALL and LC_CTYPE to "C".
+  # For details, please see
+  # Bug#27636 tests fails if LC_* variables set to *_*.UTF-8
+  #
+  $ENV{'LC_ALL'}=             "C";
+  $ENV{'LC_CTYPE'}=           "C";
+  
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $opt_extern;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
@@ -2307,16 +2333,23 @@ sub  check_running_as_root () {
     close FILE;
   }
 
-  chmod(oct("0755"), $test_file);
-  unlink($test_file);
+  # Some filesystems( for example CIFS) allows reading a file
+  # although mode was set to 0000, but in that case a stat on
+  # the file will not return 0000
+  my $file_mode= (stat($test_file))[2] & 07777;
 
   $ENV{'MYSQL_TEST_ROOT'}= "NO";
-  if ($result eq "MySQL")
+  mtr_verbose("result: $result, file_mode: $file_mode");
+  if ($result eq "MySQL" && $file_mode == 0)
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
     $ENV{'MYSQL_TEST_ROOT'}= "YES";
   }
+
+  chmod(oct("0755"), $test_file);
+  unlink($test_file);
+
 }
 
 
@@ -2546,10 +2579,19 @@ sub ndbcluster_wait_started($$){
 sub mysqld_wait_started($){
   my $mysqld= shift;
 
-  my $res= sleep_until_file_created($mysqld->{'path_pid'},
-				    $mysqld->{'start_timeout'},
-				    $mysqld->{'pid'});
-  return $res == 0;
+  if (sleep_until_file_created($mysqld->{'path_pid'},
+			       $mysqld->{'start_timeout'},
+			       $mysqld->{'pid'}) == 0)
+  {
+    # Failed to wait for pid file
+    return 1;
+  }
+
+  # Get the "real pid" of the process, it will be used for killing
+  # the process in ActiveState's perl on windows
+  $mysqld->{'real_pid'}= mtr_get_pid_from_file($mysqld->{'path_pid'});
+
+  return 0;
 }
 
 
@@ -3285,9 +3327,12 @@ sub find_testcase_skipped_reason($)
 {
   my ($tinfo)= @_;
 
-  # Open mysqltest-time
-  my $F= IO::File->new($path_timefile) or
-    mtr_error("can't open file \"$path_timefile\": $!");
+  # Set default message
+  $tinfo->{'comment'}= "Detected by testcase(no log file)";
+
+  # Open mysqltest-time(the mysqltest log file)
+  my $F= IO::File->new($path_timefile)
+    or return;
   my $reason;
 
   while ( my $line= <$F> )
@@ -3340,8 +3385,8 @@ sub analyze_testcase_failure($)
   my ($tinfo)= @_;
 
   # Open mysqltest.log
-  my $F= IO::File->new($path_timefile) or
-    mtr_error("can't open file \"$path_timefile\": $!");
+  my $F= IO::File->new($path_timefile)
+    or return;
 
   while ( my $line= <$F> )
   {
@@ -3600,6 +3645,9 @@ sub do_before_start_master ($) {
 
   # FIXME what about second master.....
 
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
+
   foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
   {
     unlink($bin);
@@ -3630,6 +3678,9 @@ sub do_before_start_slave ($) {
 
   my $tname= $tinfo->{'name'};
   my $init_script= $tinfo->{'master_sh'};
+
+  # Don't delete anything if starting dirty
+  return if ($opt_start_dirty);
 
   foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
   {
@@ -3678,7 +3729,6 @@ sub mysqld_arguments ($$$$) {
 
   mtr_add_arg($args, "%s--no-defaults", $prefix);
 
-  mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
 
@@ -3740,8 +3790,7 @@ sub mysqld_arguments ($$$$) {
 	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
 
   # Check if "extra_opt" contains --skip-log-bin
-  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt);
-
+  my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
   if ( $mysqld->{'type'} eq 'master' )
   {
     if (! ($opt_skip_master_binlog || $skip_binlog) )
@@ -4052,9 +4101,11 @@ sub stop_all_servers () {
 
       push(@kill_pids,{
 		       pid      => $mysqld->{'pid'},
+		       real_pid => $mysqld->{'real_pid'},
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
+		       errfile   => $mysqld->{'path_myerr'},
 		      });
 
       $mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4258,9 +4309,11 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 	$mysqld->{'pid'}= 0; # Assume we are done with it
@@ -4308,9 +4361,11 @@ sub run_testcase_stop_servers($$$) {
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
+			 errfile   => $mysqld->{'path_myerr'},
 			});
 
 
@@ -4731,12 +4786,10 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
-  mtr_add_arg($args, "--test-file");
-  mtr_add_arg($args, $tinfo->{'path'});
+  mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
   if ( defined $tinfo->{'result_file'} ) {
-    mtr_add_arg($args, "--result-file");
-    mtr_add_arg($args, $tinfo->{'result_file'});
+    mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
 
   if ( $opt_record )

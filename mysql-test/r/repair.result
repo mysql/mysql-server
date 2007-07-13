@@ -26,16 +26,14 @@ t1	1	st_key	1	st	A	NULL	NULL	NULL	YES	BTREE	disabled
 drop table t1;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Table 'test.t1' doesn't exist
-Warnings:
-Error	1146	Table 'test.t1' doesn't exist
+test.t1	repair	Error	Table 'test.t1' doesn't exist
+test.t1	repair	error	Corrupt
 create table t1 engine=myisam SELECT 1,"table 1";
 flush tables;
 repair table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Incorrect file format 't1'
-Warnings:
-Error	130	Incorrect file format 't1'
+test.t1	repair	Error	Incorrect file format 't1'
+test.t1	repair	error	Corrupt
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1

@@ -4409,55 +4409,58 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 drop procedure bug13012|
 drop view v1;
 select * from t1|
@@ -4909,7 +4912,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` int(11) default NULL
+  `j` bigint(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j
@@ -6018,6 +6021,8 @@ select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
 lower bounds signed bigint
 0
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
 upper bounds signed bigint
 9223372036854775807
@@ -6030,9 +6035,13 @@ upper bounds unsigned bigint
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
 upper bounds unsigned bigint + 1
 18446744073709551615
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 lower bounds unsigned bigint - 1
 0
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 create table examplebug20777 as select 
 0 as 'i',
 bug20777(9223372036854775806) as '2**63-2',
@@ -6044,7 +6053,12 @@ bug20777(18446744073709551615) as '2**64-1',
 bug20777(18446744073709551616) as '2**64',
 bug20777(0) as '0',
 bug20777(-1) as '-1';
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+Warnings:
+Warning	1264	Out of range value adjusted for column '-1' at row 1
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
@@ -6152,3 +6166,14 @@ count(*)
 3
 drop table t1,t2;
 drop function   bug27354;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+End of 5.0 tests

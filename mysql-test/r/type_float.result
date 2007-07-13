@@ -344,3 +344,36 @@ create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
 create table t1 (s1 float(1,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
+create table t1 (f1 double(200, 0));
+insert into t1 values (1e199), (-1e199);
+insert into t1 values (1e200), (-1e200);
+insert into t1 values (2e200), (-2e200);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 2
+select f1 + 0e0 from t1;
+f1 + 0e0
+1e+199
+-1e+199
+1e+200
+-1e+200
+1e+200
+-1e+200
+drop table t1;
+create table t1 (f1 float(30, 0));
+insert into t1 values (1e29), (-1e29);
+insert into t1 values (1e30), (-1e30);
+insert into t1 values (2e30), (-2e30);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 2
+select f1 + 0e0 from t1;
+f1 + 0e0
+1.0000000150475e+29
+-1.0000000150475e+29
+1.0000000150475e+30
+-1.0000000150475e+30
+1.0000000150475e+30
+-1.0000000150475e+30
+drop table t1;
+End of 5.0 tests

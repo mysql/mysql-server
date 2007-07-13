@@ -87,27 +87,31 @@ my_bool my_thread_global_init(void)
     fprintf(stderr,"Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
-  
+
 #ifdef NPTL_PTHREAD_EXIT_BUG
+  /*
+    BUG#24507: Race conditions inside current NPTL pthread_exit()
+    implementation.
 
-/*
-  BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
+    To avoid a possible segmentation fault during concurrent
+    executions of pthread_exit(), a dummy thread is spawned which
+    initializes internal variables of pthread lib. See bug description
+    for a full explanation.
 
-  To avoid a possible segmentation fault during concurrent executions of 
-  pthread_exit(), a dummy thread is spawned which initializes internal variables
-  of pthread lib. See bug description for thoroughfull explanation. 
-  
-  TODO: Remove this code when fixed versions of glibc6 are in common use. 
-*/
+    TODO: Remove this code when fixed versions of glibc6 are in common
+    use.
+  */
+  if (thd_lib_detected == THD_LIB_NPTL)
+  {
+    pthread_t       dummy_thread;
+    pthread_attr_t  dummy_thread_attr;
 
-  pthread_t       dummy_thread;
-  pthread_attr_t  dummy_thread_attr;
+    pthread_attr_init(&dummy_thread_attr);
+    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_DETACHED);
 
-  pthread_attr_init(&dummy_thread_attr);
-  pthread_attr_setdetachstate(&dummy_thread_attr,PTHREAD_CREATE_DETACHED);
-
-  pthread_create(&dummy_thread,&dummy_thread_attr,nptl_pthread_exit_hack_handler,NULL);
-
+    pthread_create(&dummy_thread,&dummy_thread_attr,
+                   nptl_pthread_exit_hack_handler, NULL);
+  }
 #endif
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP

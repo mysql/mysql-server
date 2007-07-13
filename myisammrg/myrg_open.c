@@ -90,6 +90,11 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
     {
       my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+      if (handle_locking & HA_OPEN_FOR_REPAIR)
+      {
+        myrg_print_wrong_table(buff);
+        continue;
+      }
       goto err;
     }
     if (!m_info)                                /* First file */
@@ -118,6 +123,11 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     if (m_info->reclength != isam->s->base.reclength)
     {
       my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
+      if (handle_locking & HA_OPEN_FOR_REPAIR)
+      {
+        myrg_print_wrong_table(buff);
+        continue;
+      }
       goto err;
     }
     m_info->options|= isam->s->options;
@@ -131,6 +141,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                                      m_info->tables);
   }
 
+  if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
+    goto err;
   if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;

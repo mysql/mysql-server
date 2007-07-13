@@ -222,3 +222,23 @@ drop table t1;
 create table t1 (s1 float(0,2));
 --error 1427
 create table t1 (s1 float(1,2));
+
+#
+# Bug #28121 "INSERT or UPDATE into DOUBLE(200,0) field being truncated to 31 digits"
+#
+
+create table t1 (f1 double(200, 0));
+insert into t1 values (1e199), (-1e199);
+insert into t1 values (1e200), (-1e200);
+insert into t1 values (2e200), (-2e200);
+select f1 + 0e0 from t1;
+drop table t1;
+
+create table t1 (f1 float(30, 0));
+insert into t1 values (1e29), (-1e29);
+insert into t1 values (1e30), (-1e30);
+insert into t1 values (2e30), (-2e30);
+select f1 + 0e0 from t1;
+drop table t1;
+
+--echo End of 5.0 tests

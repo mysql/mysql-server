@@ -2267,6 +2267,7 @@ Field_new_decimal::Field_new_decimal(char *ptr_arg,
              dec_arg, zero_arg, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -2286,6 +2287,7 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
              0, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -3675,56 +3677,9 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_float::store(double nr)
 {
-  float j;
-  int error= 0;
+  int error= truncate(&nr, FLT_MAX);
+  float j= (float)nr;
 
-  if (isnan(nr))
-  {
-    j= 0;
-    set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else if (unsigned_flag && nr < 0)
-  {
-    j= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else
-  {
-    double max_value;
-    if (dec >= NOT_FIXED_DEC)
-    {
-      max_value= FLT_MAX;
-    }
-    else
-    {
-      uint tmp=min(field_length,array_elements(log_10)-1);
-      max_value= (log_10[tmp]-1)/log_10[dec];
-      /*
-	The following comparison is needed to not get an overflow if nr
-	is close to FLT_MAX
-      */
-      if (fabs(nr) < FLT_MAX/10.0e+32)
-	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
-    }
-    if (nr < -max_value)
-    {
-      j= (float)-max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (nr > max_value)
-    {
-      j= (float)max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else
-      j= (float) nr;
-  }
-  
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3963,48 +3918,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_double::store(double nr)
 {
-  int error= 0;
-
-  if (isnan(nr))
-  {
-    nr= 0;
-    set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else if (unsigned_flag && nr < 0)
-  {
-    nr= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-  }
-  else 
-  {
-    double max_value;
-    if (not_fixed)
-    {
-      max_value= DBL_MAX;
-    }
-    else
-    {
-      uint tmp=min(field_length,array_elements(log_10)-1);
-      max_value= (log_10[tmp]-1)/log_10[dec];
-      if (fabs(nr) < DBL_MAX/10.0e+32)
-	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
-    }
-    if (nr < -max_value)
-    {
-      nr= -max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (nr > max_value)
-    {
-      nr= max_value;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-  }
+  int error= truncate(&nr, DBL_MAX);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4021,6 +3935,63 @@ int Field_double::store(double nr)
 int Field_double::store(longlong nr, bool unsigned_val)
 {
   return store(unsigned_val ? ulonglong2double((ulonglong) nr) : (double) nr);
+}
+
+/*
+  If a field has fixed length, truncate the double argument pointed to by 'nr'
+  appropriately.
+  Also ensure that the argument is within [-max_value; max_value] range.
+*/
+
+int Field_real::truncate(double *nr, double max_value)
+{
+  int error= 1;
+  double res= *nr;
+  
+  if (isnan(res))
+  {
+    res= 0;
+    set_null();
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    goto end;
+  }
+  else if (unsigned_flag && res < 0)
+  {
+    res= 0;
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    goto end;
+  }
+
+  if (!not_fixed)
+  {
+    uint order= field_length - dec;
+    uint step= array_elements(log_10) - 1;
+    max_value= 1.0;
+    for (; order > step; order-= step)
+      max_value*= log_10[step];
+    max_value*= log_10[order];
+    max_value-= 1.0 / log_10[dec];
+
+    double tmp= rint((res - floor(res)) * log_10[dec]) / log_10[dec];
+    res= floor(res) + tmp;
+  }
+  
+  if (res < -max_value)
+  {
+   res= -max_value;
+   set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  }
+  else if (res > max_value)
+  {
+    res= max_value;
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  }
+  else
+    error= 0;
+
+end:
+  *nr= res;
+  return error;
 }
 
 
@@ -4285,7 +4256,7 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 const char *field_name_arg,
 				 struct st_table *table_arg,
 				 CHARSET_INFO *cs)
-  :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
+  :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4303,7 +4274,8 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg,
                                  struct st_table *table_arg, CHARSET_INFO *cs)
-  :Field_str((char*) 0, 19, maybe_null_arg ? (uchar*) "": 0, 0,
+  :Field_str((char*) 0, MAX_DATETIME_WIDTH,
+             maybe_null_arg ? (uchar*) "": 0, 0,
 	     NONE, field_name_arg, table_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -4834,7 +4806,7 @@ String *Field_time::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   MYSQL_TIME ltime;
-  val_buffer->alloc(19);
+  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
   long tmp=(long) sint3korr(ptr);
   ltime.neg= 0;
   if (tmp < 0)
@@ -5370,7 +5342,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[12];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5595,7 +5567,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                       MODE_INVALID_DATES))), &error))
     {
-      char buff[19];
+      char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
@@ -5669,7 +5641,7 @@ String *Field_datetime::val_str(String *val_buffer,
   part1=(long) (tmp/LL(1000000));
   part2=(long) (tmp - (ulonglong) part1*LL(1000000));
 
-  pos=(char*) val_buffer->ptr()+19;
+  pos= (char*) val_buffer->ptr() + MAX_DATETIME_WIDTH;
   *pos--=0;
   *pos--= (char) ('0'+(char) (part2%10)); part2/=10;
   *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
@@ -6249,7 +6221,8 @@ uint Field_string::get_key_image(char *buff, uint length, imagetype type_arg)
                           length / field_charset->mbmaxlen);
   memcpy(buff, ptr, bytes);
   if (bytes < length)
-    bzero(buff + bytes, length - bytes);
+    field_charset->cset->fill(field_charset, buff + bytes, length - bytes, 
+                              field_charset->pad_char);
   return bytes;
 }
 
@@ -7643,6 +7616,8 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 	tmp=0;
 	set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       }
+      if (!table->in_use->count_cuted_fields)
+        err= 0;
     }
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
@@ -8565,15 +8540,18 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     break;
   case FIELD_TYPE_TIMESTAMP:
     if (!fld_length)
-      length= 14;  /* Full date YYYYMMDDHHMMSS */
-    else if (length != 19)
+    {
+      /* Compressed date YYYYMMDDHHMMSS */
+      length= MAX_DATETIME_COMPRESSED_WIDTH;
+    }
+    else if (length != MAX_DATETIME_WIDTH)
     {
       /*
         We support only even TIMESTAMP lengths less or equal than 14
         and 19 as length of 4.1 compatible representation.
       */
       length= ((length+1)/2)*2; /* purecov: inspected */
-      length= min(length,14); /* purecov: inspected */
+      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH); /* purecov: inspected */
     }
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (fld_default_value)
@@ -8626,7 +8604,7 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     length= 10;
     break;
   case FIELD_TYPE_DATETIME:
-    length= 19;
+    length= MAX_DATETIME_WIDTH;
     break;
   case FIELD_TYPE_SET:
     {

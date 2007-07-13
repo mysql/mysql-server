@@ -606,8 +606,8 @@ struct system_variables
 
 typedef struct system_status_var
 {
-  ulong bytes_received;
-  ulong bytes_sent;
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -697,6 +697,13 @@ public:
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
 #endif
+  /*
+    The states relfects three diffrent life cycles for three
+    different types of statements:
+    Prepared statement: INITIALIZED -> PREPARED -> EXECUTED.
+    Stored procedure:   INITIALIZED_FOR_SP -> EXECUTED.
+    Other statements:   CONVENTIONAL_EXECUTION never changes.
+  */
   enum enum_state
   {
     INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
@@ -1397,7 +1404,14 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_BAD_DATA=1,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -1670,7 +1684,8 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    return killed != KILL_BAD_DATA ? killed : 0;
+    killed_state killed_val; /* to cache the volatile 'killed' */
+    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
   inline void send_kill_message() const
   {
@@ -1911,9 +1926,30 @@ public:
 };
 
 
+#define ESCAPE_CHARS "ntrb0ZN" // keep synchronous with READ_INFO::unescape
+
+
+/*
+ List of all possible characters of a numeric value text representation.
+*/
+#define NUMERIC_CHARS ".0123456789e+-"
+
+
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  /*
+    The is_ambiguous_field_sep field is true if a value of the field_sep_char
+    field is one of the 'n', 't', 'r' etc characters
+    (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
+  */
+  bool is_ambiguous_field_sep;
+  /*
+    The is_unsafe_field_sep field is true if a value of the field_sep_char
+    field is one of the '0'..'9', '+', '-', '.' and 'e' characters
+    (see the NUMERIC_CHARS constant value).
+  */
+  bool is_unsafe_field_sep;
   bool fixed_row_size;
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
@@ -1951,6 +1987,7 @@ class select_insert :public select_result_interceptor {
   virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  void abort();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
@@ -2283,6 +2320,11 @@ class multi_update :public select_result_interceptor
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;
   uint table_count;
+  /*
+   List of tables referenced in the CHECK OPTION condition of
+   the updated view excluding the updated table. 
+  */
+  List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
   bool do_update, trans_safe;

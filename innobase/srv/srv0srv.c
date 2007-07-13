@@ -1037,7 +1037,7 @@ retry:
 	if (!has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
-	        has_slept = TRUE; /* We let is sleep only once to avoid
+		has_slept = TRUE; /* We let it sleep only once to avoid
 				  starvation */
 
 		srv_conc_n_waiting_threads++;
@@ -1858,6 +1858,7 @@ srv_lock_timeout_and_monitor_thread(
 	double		time_elapsed;
 	time_t          current_time;
 	time_t		last_table_monitor_time;
+	time_t		last_tablespace_monitor_time;
 	time_t		last_monitor_time;
 	ibool		some_waits;
 	double		wait_time;
@@ -1870,6 +1871,7 @@ srv_lock_timeout_and_monitor_thread(
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
 	last_table_monitor_time = time(NULL);
+	last_tablespace_monitor_time = time(NULL);
 	last_monitor_time = time(NULL);
 loop:
 	srv_lock_timeout_and_monitor_active = TRUE;
@@ -1905,9 +1907,9 @@ loop:
 	    }
 
 	    if (srv_print_innodb_tablespace_monitor
-		&& difftime(current_time, last_table_monitor_time) > 60) {
+		&& difftime(current_time, last_tablespace_monitor_time) > 60) {
 
-		last_table_monitor_time = time(NULL);	
+		last_tablespace_monitor_time = time(NULL);	
 
 		fputs("================================================\n",
 			stderr);
@@ -2103,7 +2105,7 @@ loop:
 
 	os_thread_sleep(2000000);
 
-	if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
 		goto loop;
 	}

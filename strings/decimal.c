@@ -1517,9 +1517,10 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
     dec1 *p0= buf0+intg0+max(frac1, frac0);
     dec1 *p1= buf1+intg1+max(frac1, frac0);
 
-    to->buf[0]= 0;
     while (buf0 < p0)
       *(--p1) = *(--p0);
+    if (unlikely(intg1 > intg0))
+      to->buf[0]= 0;
 
     intg0= intg1;
     buf0=to->buf;

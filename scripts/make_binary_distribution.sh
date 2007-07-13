@@ -102,11 +102,41 @@ case $system in
     ;;
 esac
 
+# This is needed to prefer GNU tar over platform tar because that can't
+# always handle long filenames
+
+PATH_DIRS=`echo $PATH | \
+    sed -e 's/^:/. /' -e 's/:$/ ./' -e 's/::/ . /g' -e 's/:/ /g' `
+
+which_1 ()
+{
+  for cmd
+  do
+    for d in $PATH_DIRS
+    do
+      for file in $d/$cmd
+      do
+	if [ -x $file -a ! -d $file ] ; then
+	  echo $file
+	  exit 0
+	fi
+      done
+    done
+  done
+  exit 1
+}
+
+tar=`which_1 gnutar gtar`
+if [ "$?" = "1" -o x"$tar" = x"" ] ; then
+  tar=tar
+fi
+
 
 mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
- $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib
+ $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib \
+ $BASE/mysql-test/suite
 
 if [ $BASE_SYSTEM != "netware" ] ; then
  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
@@ -117,8 +147,8 @@ fi
 
 # Copy files if they exists, warn for those that don't.
 # Note that when listing files to copy, we might list the file name
-# twice, once in the directory location where it is build, and a
-# second time in the ".libs" location. In the case the firs one
+# twice, once in the directory location where it is built, and a
+# second time in the ".libs" location. In the case the first one
 # is a wrapper script, the second one will overwrite it with the
 # binary file.
 copyfileto()
@@ -274,6 +304,13 @@ $CP mysql-test/t/*.test mysql-test/t/*.imtest \
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 
+# Copy the additional suites "as is", they are in flux
+$tar cf - mysql-test/suite | ( cd $BASE ; $tar xf - )
+# Clean up if we did this from a bk tree
+if [ -d mysql-test/SCCS ] ; then
+  find $BASE/mysql-test -name SCCS -print | xargs rm -rf
+fi
+
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*
   copyfileto $BASE/bin scripts/*
@@ -374,40 +411,11 @@ if [ x$DEBUG = x1 ] ; then
  exit
 fi
 
-# This is needed to prefere gnu tar instead of tar because tar can't
-# always handle long filenames
-
-PATH_DIRS=`echo $PATH | \
-    sed -e 's/^:/. /' -e 's/:$/ ./' -e 's/::/ . /g' -e 's/:/ /g' `
-
-which_1 ()
-{
-  for cmd
-  do
-    for d in $PATH_DIRS
-    do
-      for file in $d/$cmd
-      do
-	if [ -x $file -a ! -d $file ] ; then
-	  echo $file
-	  exit 0
-	fi
-      done
-    done
-  done
-  exit 1
-}
-
 if [ $BASE_SYSTEM != "netware" ] ; then
 
   #
   # Create the result tar file
   #
-
-  tar=`which_1 gnutar gtar`
-  if [ "$?" = "1" -o x"$tar" = x"" ] ; then
-    tar=tar
-  fi
 
   echo "Using $tar to create archive"
 
