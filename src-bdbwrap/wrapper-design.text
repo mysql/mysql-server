@@ -1,0 +1,25 @@
+This directory provides a wrapper using the ydb db.h header file but
+it calls the bdb internals.  To get this to work requires a little
+magic, since both BDB and YDB use the same type names. 
+
+BDB helps with a ./configure option (--with-uniquename) that makes it
+so that all the link-time symbols have different names.  But the type
+names and enums collide.  Hence we cannot include both the
+../include/db.h and the BDB db.h.
+
+To fix that we have a header ydb-uniq.h, which uses completely
+different names for everything in the ydb interface.  But those names
+are compatible with the standard names: That is all the structs have
+the same layout.
+
+Thus we have the following three headers
+ bdb_db.h  which defines things like db_env_create_4001(DBENV **, ...)
+
+ ydb_db.h  which defines things like db_env_create(DBENV **, ...)       (but the DBENV is a different type from BDB's)
+ bdbw.h which defines things like db_env_create_ydb(DBENV_ydb **, ...)
+
+bdbw.h can be included with bdb_db.h or ydb_db.h
+bdb_db.h and ydb_db.h cannot both be included in the same file.
+
+An application, such as mysql, includes db.h from ../include
+That is the ydb header file.
