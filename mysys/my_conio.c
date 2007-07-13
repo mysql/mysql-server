@@ -184,16 +184,19 @@ char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
   }
   while (GetLastError() == ERROR_NOT_ENOUGH_MEMORY);
 
+  /* We go here on error reading the string (Ctrl-C for example) */
+  if (!*plen)
+    result= NULL;                              /* purecov: inspected */
 
   if (result != NULL)
   {
-    if (buffer[*plen - 2] == '\r')
+    if (*plen > 1 && buffer[*plen - 2] == '\r')
     {
       *plen= *plen - 2;
     }
     else 
     {
-      if (buffer[*plen - 1] == '\r')
+      if (*plen > 0 && buffer[*plen - 1] == '\r')
       {
         char tmp[3];
         int  tmplen= sizeof(tmp);

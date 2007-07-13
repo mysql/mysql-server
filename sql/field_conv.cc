@@ -790,11 +790,18 @@ int field_conv(Field *to,Field *from)
       blob->value.copy();
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());
   }
-  if ((from->result_type() == STRING_RESULT &&
-       (to->result_type() == STRING_RESULT ||
-	(from->real_type() != FIELD_TYPE_ENUM &&
-	 from->real_type() != FIELD_TYPE_SET))) ||
-      to->type() == FIELD_TYPE_DECIMAL)
+  if (from->real_type() == FIELD_TYPE_ENUM &&
+      to->real_type() == FIELD_TYPE_ENUM &&
+      from->val_int() == 0)
+  {
+    ((Field_enum *)(to))->store_type(0);
+    return 0;
+  }
+  else if ((from->result_type() == STRING_RESULT &&
+            (to->result_type() == STRING_RESULT ||
+             (from->real_type() != FIELD_TYPE_ENUM &&
+              from->real_type() != FIELD_TYPE_SET))) ||
+           to->type() == FIELD_TYPE_DECIMAL)
   {
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());
