@@ -793,7 +793,8 @@ void query_cache_end_of_result(THD *thd)
         query_cache.wreck() switched query cache off but left content
         untouched for investigation (it is debugging method).
       */
-      goto end;
+      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+      DBUG_VOID_RETURN;
     }
 #endif
     header->found_rows(current_thd->limit_found_rows);
@@ -808,7 +809,6 @@ void query_cache_end_of_result(THD *thd)
 
   }
 
-end:
   STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
