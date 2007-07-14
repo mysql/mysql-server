@@ -111,7 +111,8 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
 {
   uchar *doc=*start;
   int ctype;
-  uint mwc, length, mbl;
+  uint mwc, length;
+  int mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->weight_adjust= param->wasign= 0;
@@ -119,7 +120,7 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
 
   while (doc<end)
   {
-    for (; doc < end; doc+= (mbl > 0 ? mbl : 1))
+    for (; doc < end; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -157,7 +158,8 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
     }
 
     mwc=length=0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -200,13 +202,14 @@ uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
                          FT_WORD *word, my_bool skip_stopwords)
 {
   uchar *doc= *start;
-  uint mwc, length, mbl;
+  uint mwc, length;
+  int mbl;
   int ctype;
   DBUG_ENTER("ft_simple_get_word");
 
   do
   {
-    for (;; doc+= (mbl > 0 ? mbl : 1))
+    for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       if (doc >= end)
         DBUG_RETURN(0);
@@ -216,7 +219,8 @@ uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
     }
 
     mwc= length= 0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
