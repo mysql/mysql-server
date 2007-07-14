@@ -211,7 +211,7 @@ THD::THD()
   time_after_lock=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
-  variables.pseudo_thread_id= 0;
+  thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
@@ -328,6 +328,12 @@ void THD::init(void)
 					       variables.date_format);
   variables.datetime_format= date_time_format_copy((THD*) 0,
 						   variables.datetime_format);
+  /*
+    variables= global_system_variables above has reset
+    variables.pseudo_thread_id to 0. We need to correct it here to
+    avoid temporary tables replication failure.
+  */
+  variables.pseudo_thread_id= thread_id;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
@@ -578,6 +584,9 @@ bool THD::store_globals()
   /*
     By default 'slave_proxy_id' is 'thread_id'. They may later become different
     if this is the slave SQL thread.
+  */
+  /** @todo we already do it in init(), see if we still need to do it here.
+      add DBUG_ASSERT(variables.pseudo_thread_id == thread_id)
   */
   variables.pseudo_thread_id= thread_id;
   /*
