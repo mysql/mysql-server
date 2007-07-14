@@ -9,7 +9,7 @@ MACRO(MYSQL_EMBED_MANIFEST _target_name _required_privs)
     TARGET ${_target_name}
     PRE_LINK
     COMMAND cscript.exe 
-    ARGS "${PROJECT_SOURCE_DIR}/win/create_manifest.js" name=$(ProjectName) version=${VERSION} arch=${PROCESSOR_ARCH} type=$(PlatformName) exe_level=${_required_privs} outfile=$(IntDir)\\$(TargetFileName).intermediate.manifest
+    ARGS "${PROJECT_SOURCE_DIR}/win/create_manifest.js" name=$(ProjectName) version=${VERSION} arch=${PROCESSOR_ARCH} exe_level=${_required_privs} outfile=$(IntDir)\\$(TargetFileName).intermediate.manifest
     COMMENT "Generates the contents of the manifest contents.")
   ADD_CUSTOM_COMMAND(
     TARGET ${_target_name}

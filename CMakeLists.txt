@@ -174,7 +174,7 @@ IF(EMBED_MANIFESTS)
     ENDIF(NOT tmp_manifest)
     # Set the processor architecture.
     IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
-    	SET(PROCESSOR_ARCH "X64") 
+    	SET(PROCESSOR_ARCH "amd64") 
     ELSE(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
     	SET(PROCESSOR_ARCH "X86")
     ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")

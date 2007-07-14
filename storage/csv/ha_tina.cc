@@ -46,10 +46,9 @@ TODO:
 #endif
 
 #include "mysql_priv.h"
-
+#include <mysql/plugin.h>
 #include "ha_tina.h"
 
-#include <mysql/plugin.h>
 
 /*
   uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
@@ -590,6 +589,7 @@ int ha_tina::find_current_row(uchar *buf)
   int eoln_len;
   my_bitmap_map *org_bitmap;
   int error;
+  bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
   /*
@@ -601,6 +601,8 @@ int ha_tina::find_current_row(uchar *buf)
                        local_saved_data_file_length, &eoln_len)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
+  /* We must read all columns in case a table is opened for update */
+  read_all= !bitmap_is_clear_all(table->write_set);
   /* Avoid asserts in ::store() for columns that are not going to be updated */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
   error= HA_ERR_CRASHED_ON_USAGE;
@@ -609,37 +611,41 @@ int ha_tina::find_current_row(uchar *buf)
 
   for (Field **field=table->field ; *field ; field++)
   {
+    char curr_char;
+    
     buffer.length(0);
-    if (curr_offset < end_offset &&
-        file_buff->get_value(curr_offset) == '"')
+    if (curr_offset >= end_offset)
+      goto err;
+    curr_char= file_buff->get_value(curr_offset);
+    if (curr_char == '"')
     {
       curr_offset++; // Incrementpast the first quote
 
-      for(;curr_offset < end_offset; curr_offset++)
+      for(; curr_offset < end_offset; curr_offset++)
       {
+        curr_char= file_buff->get_value(curr_offset);
         // Need to convert line feeds!
-        if (file_buff->get_value(curr_offset) == '"' &&
-            ((file_buff->get_value(curr_offset + 1) == ',') ||
-             (curr_offset == end_offset -1 )))
+        if (curr_char == '"' &&
+            (curr_offset == end_offset - 1 ||
+             file_buff->get_value(curr_offset + 1) == ','))
         {
           curr_offset+= 2; // Move past the , and the "
           break;
         }
-        if (file_buff->get_value(curr_offset) == '\\' &&
-            curr_offset != (end_offset - 1))
+        if (curr_char == '\\' && curr_offset != (end_offset - 1))
         {
           curr_offset++;
-          if (file_buff->get_value(curr_offset) == 'r')
+          curr_char= file_buff->get_value(curr_offset);
+          if (curr_char == 'r')
             buffer.append('\r');
-          else if (file_buff->get_value(curr_offset) == 'n' )
+          else if (curr_char == 'n' )
             buffer.append('\n');
-          else if ((file_buff->get_value(curr_offset) == '\\') ||
-                   (file_buff->get_value(curr_offset) == '"'))
-            buffer.append(file_buff->get_value(curr_offset));
+          else if (curr_char == '\\' || curr_char == '"')
+            buffer.append(curr_char);
           else  /* This could only happed with an externally created file */
           {
             buffer.append('\\');
-            buffer.append(file_buff->get_value(curr_offset));
+            buffer.append(curr_char);
           }
         }
         else // ordinary symbol
@@ -650,36 +656,30 @@ int ha_tina::find_current_row(uchar *buf)
           */
           if (curr_offset == end_offset - 1)
             goto err;
-          buffer.append(file_buff->get_value(curr_offset));
+          buffer.append(curr_char);
         }
       }
     }
-    else if (my_isdigit(system_charset_info, 
-                        file_buff->get_value(curr_offset))) 
+    else 
     {
-      for(;curr_offset < end_offset; curr_offset++)
+      for(; curr_offset < end_offset; curr_offset++)
       {
-        if (file_buff->get_value(curr_offset) == ',')
+        curr_char= file_buff->get_value(curr_offset);
+        if (curr_char == ',')
         {
-          curr_offset+= 1; // Move past the ,
+          curr_offset++;       // Skip the ,
           break;
         }
-
-        if (my_isdigit(system_charset_info, file_buff->get_value(curr_offset))) 
-          buffer.append(file_buff->get_value(curr_offset));
-        else if (file_buff->get_value(curr_offset) == '.')
-          buffer.append(file_buff->get_value(curr_offset));
-        else
-          goto err;
+        buffer.append(curr_char);
       }
     }
-    else
-    {
-      goto err;
-    }
 
-    if (bitmap_is_set(table->read_set, (*field)->field_index))
-      (*field)->store(buffer.ptr(), buffer.length(), buffer.charset());
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index))
+    {
+      if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
+                          CHECK_FIELD_WARN))
+        goto err;
+    }
   }
   next_position= end_offset + eoln_len;
   error= 0;
@@ -904,6 +904,7 @@ int ha_tina::open_update_temp_file_if_needed()
                      0, O_RDWR | O_TRUNC, MYF(MY_WME))) < 0)
       return 1;
     share->update_file_opened= TRUE;
+    temp_file_length= 0;
   }
   return 0;
 }
@@ -928,6 +929,13 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
 
   size= encode_quote(new_data);
 
+  /*
+    During update we mark each updating record as deleted 
+    (see the chain_append()) then write new one to the temporary data file. 
+    At the end of the sequence in the rnd_end() we append all non-marked
+    records from the data file to the temporary data file then rename it.
+    The temp_file_length is used to calculate new data file length.
+  */
   if (chain_append())
     DBUG_RETURN(-1);
 
@@ -937,6 +945,7 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   if (my_write(update_temp_file, (uchar*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
+  temp_file_length+= size;
 
   /* UPDATE should never happen on the log tables */
   DBUG_ASSERT(!share->is_log_table);
@@ -963,6 +972,11 @@ int ha_tina::delete_row(const uchar * buf)
     DBUG_RETURN(-1);
 
   stats.records--;
+  /* Update shared info */
+  DBUG_ASSERT(share->rows_recorded);
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded--;
+  pthread_mutex_unlock(&share->mutex);
 
   /* DELETE should never happen on the log table */
   DBUG_ASSERT(!share->is_log_table);
@@ -1174,15 +1188,18 @@ int ha_tina::rnd_end()
     while ((file_buffer_start != -1))     // while not end of file
     {
       bool in_hole= get_write_pos(&write_end, ptr);
+      off_t write_length= write_end - write_begin;
 
       /* if there is something to write, write it */
-      if ((write_end - write_begin) &&
-          (my_write(update_temp_file,
-                    (uchar*)(file_buff->ptr() +
-                            (write_begin - file_buff->start())),
-                    write_end - write_begin, MYF_RW)))
-        goto error;
-
+      if (write_length)
+      {
+        if (my_write(update_temp_file, 
+                     (uchar*) (file_buff->ptr() +
+                               (write_begin - file_buff->start())),
+                     write_length, MYF_RW))
+          goto error;
+        temp_file_length+= write_length;
+      }
       if (in_hole)
       {
         /* skip hole */
@@ -1235,6 +1252,11 @@ int ha_tina::rnd_end()
       Here we record this fact to the meta-file.
     */
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
+    /* 
+      Update local_saved_data_file_length with the real length of the 
+      data file.
+    */
+    local_saved_data_file_length= temp_file_length;
   }
 
   DBUG_RETURN(0);
@@ -1300,6 +1322,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
+    thd_inc_row_count(thd);
     rows_repaired++;
     current_position= next_position;
   }
@@ -1392,6 +1415,11 @@ int ha_tina::delete_all_rows()
   rc= my_chsize(share->tina_write_filedes, 0, 0, MYF(MY_WME));
 
   stats.records=0;
+  /* Update shared info */
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded= 0;
+  pthread_mutex_unlock(&share->mutex);
+  local_saved_data_file_length= 0;
   DBUG_RETURN(rc);
 }
 
@@ -1465,6 +1493,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
+    thd_inc_row_count(thd);
     count--;
     current_position= next_position;
   }

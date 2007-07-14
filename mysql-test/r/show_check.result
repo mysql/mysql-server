@@ -1148,7 +1148,37 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
-End of 5.0 tests.
+flush status;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	ON
+select 1 from information_schema.tables limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	2
+set global log_queries_not_using_indexes=OFF;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	OFF
+select 1 from information_schema.tables limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	2
+set global log_queries_not_using_indexes=ON;
+show variables like "log_queries_not_using_indexes";
+Variable_name	Value
+log_queries_not_using_indexes	ON
+select 1 from information_schema.tables limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	4
+End of 5.0 tests
 SHOW AUTHORS;
 create database mysqltest;
 show create database mysqltest;
@@ -1168,7 +1198,7 @@ drop database mysqltest;
 show full plugin;
 show warnings;
 Level	Code	Message
-Warning	1543	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead
+Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead
 show plugin;
 show plugins;
 create database `mysqlttest\1`;
