@@ -1052,6 +1052,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   BUFFPEK *buffpek;
   QUEUE queue;
   qsort2_cmp cmp;
+  void *first_cmp_arg;
   volatile THD::killed_state *killed= &current_thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
@@ -1077,9 +1078,18 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   /* The following will fire if there is not enough space in sort_buffer */
   DBUG_ASSERT(maxcount!=0);
   
+  if (param->unique_buff)
+  {
+    cmp= param->compare;
+    first_cmp_arg= (void *) &param->cmp_context;
+  }
+  else
+  {
+    cmp= get_ptr_compare(sort_length);
+    first_cmp_arg= (void*) &sort_length;
+  }
   if (init_queue(&queue, (uint) (Tb-Fb)+1, offsetof(BUFFPEK,key), 0,
-                 (queue_compare) (cmp= get_ptr_compare(sort_length)),
-                 (void*) &sort_length))
+                 (queue_compare) cmp, first_cmp_arg))
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
@@ -1132,7 +1142,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek= (BUFFPEK*) queue_top(&queue);
       if (cmp)                                        // Remove duplicates
       {
-        if (!(*cmp)(&sort_length, &(param->unique_buff),
+        if (!(*cmp)(first_cmp_arg, &(param->unique_buff),
                     (uchar**) &buffpek->key))
               goto skip_duplicate;
             memcpy(param->unique_buff, (uchar*) buffpek->key, rec_length);
@@ -1184,7 +1194,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   */
   if (cmp)
   {
-    if (!(*cmp)(&sort_length, &(param->unique_buff), (uchar**) &buffpek->key))
+    if (!(*cmp)(first_cmp_arg, &(param->unique_buff), (uchar**) &buffpek->key))
     {
       buffpek->key+= rec_length;         // Remove duplicate
       --buffpek->mem_count;
