@@ -179,7 +179,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
     }
     for (end= a + a_length-length; a < end ; a++)
     {
-      if (*a != ' ')
+      if (map[*a] != ' ')
 	return (map[*a] < ' ') ? -swap : swap;
     }
   }

@@ -885,4 +885,7 @@ AsText(a)
 POINT(1 1)
 LINESTRING(0 0,1 1,2 2)
 drop table t1, t2;
+SELECT 1;
+1
+1
 End of 5.0 tests
