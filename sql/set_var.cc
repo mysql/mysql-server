@@ -592,6 +592,10 @@ sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 /* Global read-only variable containing hostname */
 sys_var_const_str		sys_hostname("hostname", glob_hostname);
 
+sys_var_thd_bool  sys_keep_files_on_create("keep_files_on_create", 
+                                           &SV::keep_files_on_create);
+							    
+
 
 
 /*
@@ -637,6 +641,7 @@ sys_var *sys_variables[]=
   &sys_delayed_insert_limit,
   &sys_delayed_insert_timeout,
   &sys_delayed_queue_size,
+  &sys_keep_files_on_create,
   &sys_error_count,
   &sys_expire_logs_days,
   &sys_flush,
@@ -849,6 +854,7 @@ struct show_var_st init_vars[]= {
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
+  {sys_keep_files_on_create.name,(char*) &sys_keep_files_on_create, SHOW_SYS},
   {sys_engine_condition_pushdown.name,
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},

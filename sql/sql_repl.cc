@@ -1420,13 +1420,11 @@ err:
   }
 
   if (errmsg)
-  {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
              "SHOW BINLOG EVENTS", errmsg);
-    DBUG_RETURN(TRUE);
-  }
+  else
+    send_eof(thd);
 
-  send_eof(thd);
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
