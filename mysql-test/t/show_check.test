@@ -761,7 +761,23 @@ DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 
---echo End of 5.0 tests.
+#
+# Bug #28808: log_queries_not_using_indexes variable dynamic change is ignored
+#
+flush status;
+show variables like "log_queries_not_using_indexes";
+select 1 from information_schema.tables limit 1;
+show status like 'slow_queries';
+set global log_queries_not_using_indexes=OFF;
+show variables like "log_queries_not_using_indexes";
+select 1 from information_schema.tables limit 1;
+show status like 'slow_queries';
+set global log_queries_not_using_indexes=ON;
+show variables like "log_queries_not_using_indexes";
+select 1 from information_schema.tables limit 1;
+show status like 'slow_queries';
+
+--echo End of 5.0 tests
 
 --disable_result_log
 SHOW AUTHORS;

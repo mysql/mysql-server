@@ -11795,7 +11795,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     sendEMPTY_LCP_CONF(signal, true);
   }
 
-  if (getNodeState().getNodeRestartInProgress())
+  if (getNodeState().getNodeRestartInProgress() && cstartRecReq != 3)
   {
     jam();
     ndbrequire(cstartRecReq == 2);
@@ -14215,15 +14215,6 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
    *   WE ALSO NEED TO SET CNEWEST_GCI TO ENSURE THAT LOG RECORDS ARE EXECUTED
    *   WITH A PROPER GCI.
    *------------------------------------------------------------------------ */
-  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
-    jam();
-    cstartRecReq = 2;
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
-    return;
-  }//if
 
   if (c_lcp_restoring_fragments.isEmpty())
   {
@@ -14276,6 +14267,19 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
+
+  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    jam();
+    cstartRecReq = 2;
+
+    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+	       StartRecConf::SignalLength, JBB);
+    return;
+  }
+
   c_lcp_complete_fragments.first(fragptr);
   build_acc(signal, fragptr.i);
   return;

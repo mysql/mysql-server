@@ -11,10 +11,10 @@ RESET SLAVE;
 CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00', 
 e CHAR(4) DEFAULT 'TEST') 
-ENGINE='MyISAM';
+ENGINE='InnoDB';
 *** Create t1 on Master ***
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(10)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -39,10 +39,10 @@ RESET SLAVE;
 CREATE TABLE t3 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00',
 e CHAR(5) DEFAULT 'TEST2')
-ENGINE='MyISAM';
+ENGINE='InnoDB';
 *** Create t3 on Master ***
 CREATE TABLE t3 (a BLOB, b INT PRIMARY KEY, c CHAR(20)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -72,7 +72,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -90,7 +90,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -102,10 +102,10 @@ RESET SLAVE;
 CREATE TABLE t4 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00',
 e CHAR(5) DEFAULT 'TEST2')
-ENGINE='MyISAM';
+ENGINE='InnoDB';
 *** Create t4 on Master ***
 CREATE TABLE t4 (a DECIMAL(8,2), b INT PRIMARY KEY, c CHAR(20)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -134,7 +134,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -152,7 +152,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -163,11 +163,11 @@ STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t5 (a INT PRIMARY KEY, b CHAR(5),
 c FLOAT, d INT, e DOUBLE,
-f DECIMAL(8,2))ENGINE='MyISAM';
+f DECIMAL(8,2))ENGINE='InnoDB';
 *** Create t5 on Master ***
 CREATE TABLE t5 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT, e BLOB,
-f FLOAT) ENGINE='MyISAM';
+f FLOAT) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -196,7 +196,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -214,7 +214,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -224,11 +224,11 @@ DROP TABLE t5;
 STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t6 (a INT PRIMARY KEY, b CHAR(5),
-c FLOAT, d INT)ENGINE='MyISAM';
+c FLOAT, d INT)ENGINE='InnoDB';
 *** Create t6 on Master ***
 CREATE TABLE t6 (a INT PRIMARY KEY, b VARCHAR(6),
 c DECIMAL(8,2), d BIT 
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -257,7 +257,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -275,7 +275,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
@@ -290,10 +290,10 @@ RESET SLAVE;
 CREATE TABLE t7 (a INT KEY, b BLOB, c CHAR(5),
 d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
 e CHAR(20) DEFAULT 'Extra Column Testing')
-ENGINE='MyISAM';
+ENGINE='InnoDB';
 *** Create t7 on Master ***
 CREATE TABLE t7 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -319,10 +319,10 @@ STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t8 (a INT KEY, b BLOB, c CHAR(5),
 d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
-e INT)ENGINE='MyISAM';
+e INT)ENGINE='InnoDB';
 *** Create t8 on Master ***
 CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -336,10 +336,10 @@ DROP TABLE t8;
 STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233', 
-c CHAR(5), e INT DEFAULT '1')ENGINE='MyISAM';
+c CHAR(5), e INT DEFAULT '1')ENGINE='InnoDB';
 *** Create t10 on Master ***
 CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -369,7 +369,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -387,7 +387,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -397,10 +397,10 @@ DROP TABLE t10;
 STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
-c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
 *** Create t11 on Master ***
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -430,7 +430,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -448,7 +448,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -458,10 +458,10 @@ DROP TABLE t11;
 STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
-c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
 *** Create t12 on Master ***
 CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -490,10 +490,10 @@ RESET SLAVE;
 CREATE TABLE t13 (a INT KEY, b BLOB, c CHAR(5),
 d INT DEFAULT '1',
 e TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-)ENGINE='MyISAM';
+)ENGINE='InnoDB';
 *** Create t13 on Master ***
 CREATE TABLE t13 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -522,10 +522,10 @@ RESET SLAVE;
 CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-)ENGINE='MyISAM';
+)ENGINE='InnoDB';
 *** Create t14 on Master ***
 CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -572,10 +572,10 @@ CREATE TABLE t15 (c1 INT KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-)ENGINE='MyISAM';
+)ENGINE='InnoDB';
 *** Create t15 on Master ***
 CREATE TABLE t15 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
-c4 BLOB, c5 CHAR(5)) ENGINE='MyISAM';
+c4 BLOB, c5 CHAR(5)) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -665,10 +665,10 @@ CREATE TABLE t16 (c1 INT KEY, c2 DECIMAL(8,2), c3 TEXT,
 c4 BLOB, c5 CHAR(5),
 c6 INT DEFAULT '1',
 c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-)ENGINE='MyISAM';
+)ENGINE='InnoDB';
 *** Create t16 on Master ***
 CREATE TABLE t16 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
-c4 BLOB, c5 CHAR(5))ENGINE='MyISAM';
+c4 BLOB, c5 CHAR(5))ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -701,7 +701,7 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -714,7 +714,7 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (c1) PARTITIONS 4  */
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***
@@ -724,10 +724,10 @@ RESET SLAVE;
 CREATE TABLE t17 (a SMALLINT, b INT PRIMARY KEY, c CHAR(5),
 d FLOAT DEFAULT '2.00',
 e CHAR(5) DEFAULT 'TEST2')
-ENGINE='MyISAM';
+ENGINE='InnoDB';
 *** Create t17 on Master ***
 CREATE TABLE t17 (a BIGINT PRIMARY KEY, b INT, c CHAR(10)
-) ENGINE='MyISAM';
+) ENGINE='InnoDB';
 RESET MASTER;
 *** Start Slave ***
 START SLAVE;
@@ -755,7 +755,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1523
+Last_Errno	1532
 Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -773,7 +773,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
-Last_SQL_Errno	1523
+Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;

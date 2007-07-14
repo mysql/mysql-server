@@ -207,6 +207,31 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   The following functions form part of the C plugin API
 */
 
+extern "C" int mysql_tmpfile(const char *prefix)
+{
+  char filename[FN_REFLEN];
+  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
+#ifdef __WIN__
+                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
+                             O_SHORT_LIVED |
+#endif /* __WIN__ */
+                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                             MYF(MY_WME));
+  if (fd >= 0) {
+#ifndef __WIN__
+    /*
+      This can be removed once the following bug is fixed:
+      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
+                  (file not removed) (Unix)
+    */
+    unlink(filename);
+#endif /* !__WIN__ */
+  }
+
+  return fd;
+}
+
+
 extern "C"
 int thd_in_lock_tables(const THD *thd)
 {
@@ -253,6 +278,11 @@ int thd_tx_isolation(const THD *thd)
   return (int) thd->variables.tx_isolation;
 }
 
+extern "C"
+void thd_inc_row_count(THD *thd)
+{
+  thd->row_count++;
+}
 
 /*
   Dumps a text description of a thread, its security context
@@ -483,6 +513,49 @@ void THD::pop_internal_handler()
   m_internal_handler= NULL;
 }
 
+extern "C"
+void *thd_alloc(MYSQL_THD thd, unsigned int size)
+{
+  return thd->alloc(size);
+}
+
+extern "C"
+void *thd_calloc(MYSQL_THD thd, unsigned int size)
+{
+  return thd->calloc(size);
+}
+
+extern "C"
+char *thd_strdup(MYSQL_THD thd, const char *str)
+{
+  return thd->strdup(str);
+}
+
+extern "C"
+char *thd_strmake(MYSQL_THD thd, const char *str, unsigned int size)
+{
+  return thd->strmake(str, size);
+}
+
+extern "C"
+LEX_STRING *thd_make_lex_string(THD *thd, LEX_STRING *lex_str,
+                                const char *str, unsigned int size,
+                                int allocate_lex_string)
+{
+  return thd->make_lex_string(lex_str, str, size,
+                              (bool) allocate_lex_string);
+}
+
+extern "C"
+void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size)
+{
+  return thd->memdup(str, size);
+}
+
+void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
+{
+  *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
+}
 
 /*
   Init common variables that has to be reset on start and on change_user
@@ -848,6 +921,30 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+}
+
+
+/**
+  Create a LEX_STRING in this connection
+
+  @param lex_str  pointer to LEX_STRING object to be initialized
+  @param str      initializer to be copied into lex_str
+  @param length   length of str, in bytes
+  @param allocate_lex_string  if TRUE, allocate new LEX_STRING object,
+                              instead of using lex_str value
+  @return  NULL on failure, or pointer to the LEX_STRING object
+*/
+LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
+                                 const char* str, uint length,
+                                 bool allocate_lex_string)
+{
+  if (allocate_lex_string)
+    if (!(lex_str= (LEX_STRING *)alloc(sizeof(LEX_STRING))))
+      return 0;
+  if (!(lex_str->str= strmake_root(mem_root, str, length)))
+    return 0;
+  lex_str->length= length;
+  return lex_str;
 }
 
 
@@ -1445,6 +1542,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
 		   field_term_length ? (*exchange->field_term)[0] : INT_MAX);
   escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
+  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
+  is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
 		  (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
@@ -1519,7 +1618,8 @@ bool select_export::send_data(List<Item> &items)
 	used_length=min(res->length(),item->max_length);
       else
 	used_length=res->length();
-      if (result_type == STRING_RESULT && escape_char != -1)
+      if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
+           escape_char != -1)
       {
         char *pos, *start, *end;
         CHARSET_INFO *res_charset= res->charset();
@@ -1585,7 +1685,9 @@ bool select_export::send_data(List<Item> &items)
                NEED_ESCAPING(pos[1])))
           {
 	    char tmp_buff[2];
-	    tmp_buff[0]= escape_char;
+            tmp_buff[0]= ((int) *pos == field_sep_char &&
+                          is_ambiguous_field_sep) ?
+                          field_sep_char : escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';
 	    if (my_b_write(&cache,(uchar*) start,(uint) (pos-start)) ||
 		my_b_write(&cache,(uchar*) tmp_buff,2))
@@ -2436,7 +2538,43 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Check the killed state of a user thread
+  @param thd  user thread
+  @retval 0 the user thread is active
+  @retval 1 the user thread has been killed
+*/
+extern "C" int thd_killed(const MYSQL_THD thd)
+{
+  return(thd->killed);
+}
 
+#ifdef INNODB_COMPATIBILITY_HOOKS
+extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
+{
+  return(thd->charset());
+}
+
+extern "C" char **thd_query(MYSQL_THD thd)
+{
+  return(&thd->query);
+}
+
+extern "C" int thd_slave_thread(const MYSQL_THD thd)
+{
+  return(thd->slave_thread);
+}
+
+extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
+{
+  return(thd->no_trans_update.all);
+}
+
+extern "C" int thd_binlog_format(const THD *thd)
+{
+  return (int) thd->variables.binlog_format;
+}
+#endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
   Handling of statement states in functions and triggers.

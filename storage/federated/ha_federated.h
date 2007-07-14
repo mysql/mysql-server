@@ -88,6 +88,9 @@ class ha_federated: public handler
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
   char remote_error_buf[FEDERATED_QUERY_BUFFER_SIZE];
+  bool ignore_duplicates, replace_duplicates;
+  bool insert_dup_update;
+  DYNAMIC_STRING bulk_insert;
 
 private:
   /*
@@ -102,6 +105,14 @@ private:
                              bool records_in_range, bool eq_range);
   int stash_remote_error();
 
+  bool append_stmt_insert(String *query);
+
+  int read_next(uchar *buf, MYSQL_RES *result);
+  int index_read_idx_with_result_set(uchar *buf, uint index,
+                                     const uchar *key,
+                                     uint key_len,
+                                     ha_rkey_function find_flag,
+                                     MYSQL_RES **result);
 public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_federated() {}
@@ -189,6 +200,8 @@ public:
   int open(const char *name, int mode, uint test_if_locked);    // required
   int close(void);                                              // required
 
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);
@@ -217,6 +230,7 @@ public:
   int rnd_pos(uchar *buf, uchar *pos);                            //required
   void position(const uchar *record);                            //required
   int info(uint);                                              //required
+  int extra(ha_extra_function operation);
 
   void update_auto_increment(void);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
@@ -231,18 +245,12 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
-  virtual bool get_error_message(int error, String *buf);
+  bool get_error_message(int error, String *buf);
   int external_lock(THD *thd, int lock_type);
   int connection_commit();
   int connection_rollback();
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
-
-  int read_next(uchar *buf, MYSQL_RES *result);
-  int index_read_idx_with_result_set(uchar *buf, uint index,
-                                     const uchar *key,
-                                     uint key_len,
-                                     ha_rkey_function find_flag,
-                                     MYSQL_RES **result);
+  int reset(void);
 };
 

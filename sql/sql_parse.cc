@@ -1025,8 +1025,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       HA_CREATE_INFO create_info;
 
       status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->LEX_STRING_make(&db, packet, packet_length -1) ||
-          thd->LEX_STRING_make(&alias, db.str, db.length) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+          thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1046,7 +1046,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
-      if (thd->LEX_STRING_make(&db, packet, packet_length - 1) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1323,7 +1323,7 @@ void log_slow_statement(THD *thd)
 	thd->variables.long_query_time ||
 	((thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
+	 opt_log_queries_not_using_indexes))
     {
       thd->status_var.long_query_count++;
       slow_log_print(thd, thd->query, thd->query_length, start_of_query);

@@ -28,7 +28,7 @@
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
-drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
+drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
 
@@ -672,6 +672,20 @@ SELECT * FROM t3 WHERE a = 'uk';
 
 DROP TABLE t1,t2,t3;
 
+#
+# Test bug when trying to drop data file which no InnoDB directory entry
+#
+
+create table t1 (a int) engine=innodb;
+copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/t2.frm;
+--error 1146
+select * from t2;
+drop table t1;
+--error 1051
+drop table t2;
+create table t2 (a int);
+drop table t2;
+
 
 #
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
@@ -704,6 +718,64 @@ CONNECTION default;
 SET AUTOCOMMIT=default;
 DISCONNECT c1;
 DISCONNECT c2;
+DROP TABLE t1,t2;
+
+
+#
+# Bug #25798: a query with forced index merge returns wrong result 
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL auto_increment PRIMARY KEY,
+  b int NOT NULL,
+  c datetime NOT NULL,
+  INDEX idx_b(b),
+  INDEX idx_c(c)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  b int NOT NULL auto_increment PRIMARY KEY,
+  c datetime NOT NULL
+) ENGINE= MyISAM;
+
+INSERT INTO t2(c) VALUES ('2007-01-01');
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-02';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-03';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+set @@sort_buffer_size=8192;
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+set @@sort_buffer_size=default;
+
 DROP TABLE t1,t2;
 
 
@@ -889,5 +961,29 @@ unlock tables;
 select * from t1;
 drop tables t1;
 
+#
+# Bug#29310: An InnoDB table was updated when the data wasn't actually changed.
+#
+create table t1(f1 varchar(5) unique, f2 timestamp NOT NULL DEFAULT
+  CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+--replace_column 1 #
+select @a:=f2 from t1;
+--sleep 5
+update t1 set f1=1;
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) values (1) on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+drop table t1;
 
 --echo End of 5.1 tests

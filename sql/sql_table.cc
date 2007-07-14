@@ -4697,8 +4697,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
 
   dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
   VOID(pthread_mutex_unlock(&LOCK_open));
+
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
