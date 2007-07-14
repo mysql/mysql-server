@@ -483,36 +483,36 @@ insert into t2 select * from t1;
 must use sort-union rather than union:
 explain select * from t1 where a=4 or b=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	4	Using sort_union(a,b); Using where
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	#	Using sort_union(a,b); Using where
 select * from t1 where a=4 or b=4;
 a	filler	b
-4	zz	4
-5	qq	4
+4	4	0
+4	5	0
+4	filler	4
 4	filler	4
 4	qq	5
-4	4	0
-4	filler	4
-4	5	0
+4	zz	4
+5	qq	4
 select * from t1 ignore index(a,b) where a=4 or b=4;
 a	filler	b
-4	filler	4
-4	filler	4
-4	5	0
 4	4	0
+4	5	0
+4	filler	4
+4	filler	4
 4	qq	5
-5	qq	4
 4	zz	4
+5	qq	4
 must use union, not sort-union:
 explain select * from t2 where a=4 or b=4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	a,b	a,b	5,5	NULL	7	Using union(a,b); Using where
+1	SIMPLE	t2	index_merge	a,b	a,b	5,5	NULL	#	Using union(a,b); Using where
 select * from t2 where a=4 or b=4;
 a	filler	b
+4	4	0
 4	5	0
-4	zz	4
-5	qq	4
+4	filler	4
 4	filler	4
 4	qq	5
-4	4	0
-4	filler	4
+4	zz	4
+5	qq	4
 drop table t1, t2;
