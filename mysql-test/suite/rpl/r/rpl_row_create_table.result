@@ -279,25 +279,25 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	192	Table_map	#	231	table_id: # (test.t1)
 #	231	Write_rows	#	275	table_id: # flags: STMT_END_F
 #	275	Query	#	343	use `test`; BEGIN
-#	343	Query	#	125	use `test`; CREATE TABLE `t2` (
+#	343	Query	#	468	use `test`; CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	468	Table_map	#	164	table_id: # (test.t2)
-#	507	Write_rows	#	208	table_id: # flags: STMT_END_F
+#	468	Table_map	#	507	table_id: # (test.t2)
+#	507	Write_rows	#	551	table_id: # flags: STMT_END_F
 #	551	Xid	#	578	COMMIT /* XID */
 #	578	Query	#	646	use `test`; BEGIN
-#	646	Query	#	125	use `test`; CREATE TABLE `t3` (
+#	646	Query	#	771	use `test`; CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	771	Table_map	#	164	table_id: # (test.t3)
-#	810	Write_rows	#	208	table_id: # flags: STMT_END_F
+#	771	Table_map	#	810	table_id: # (test.t3)
+#	810	Write_rows	#	854	table_id: # flags: STMT_END_F
 #	854	Xid	#	881	COMMIT /* XID */
 #	881	Query	#	949	use `test`; BEGIN
-#	949	Query	#	125	use `test`; CREATE TABLE `t4` (
+#	949	Query	#	1074	use `test`; CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	1074	Table_map	#	164	table_id: # (test.t4)
-#	1113	Write_rows	#	208	table_id: # flags: STMT_END_F
+#	1074	Table_map	#	1113	table_id: # (test.t4)
+#	1113	Write_rows	#	1157	table_id: # flags: STMT_END_F
 #	1157	Xid	#	1184	COMMIT /* XID */
 #	1184	Table_map	#	1223	table_id: # (test.t1)
 #	1223	Write_rows	#	1267	table_id: # flags: STMT_END_F
@@ -371,10 +371,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	231	Write_rows	#	275	table_id: # flags: STMT_END_F
 #	275	Query	#	375	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
 #	375	Query	#	443	use `test`; BEGIN
-#	443	Table_map	#	39	table_id: # (test.t2)
-#	482	Write_rows	#	83	table_id: # flags: STMT_END_F
-#	526	Table_map	#	122	table_id: # (test.t2)
-#	565	Write_rows	#	161	table_id: # flags: STMT_END_F
+#	443	Table_map	#	482	table_id: # (test.t2)
+#	482	Write_rows	#	526	table_id: # flags: STMT_END_F
+#	526	Table_map	#	565	table_id: # (test.t2)
+#	565	Write_rows	#	604	table_id: # flags: STMT_END_F
 #	604	Xid	#	631	COMMIT /* XID */
 SELECT * FROM t2 ORDER BY a;
 a
@@ -396,7 +396,7 @@ SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 631;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	631	Query	#	80	use `test`; TRUNCATE TABLE t2
+#	631	Query	#	711	use `test`; TRUNCATE TABLE t2
 #	711	Xid	#	738	COMMIT /* XID */
 SELECT * FROM t2 ORDER BY a;
 a

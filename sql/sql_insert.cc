@@ -695,6 +695,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+  if (duplic == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   /*
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
@@ -1419,7 +1421,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
+        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+             !bitmap_is_subset(table->write_set, table->read_set)) ||
             compare_record(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
@@ -2546,6 +2549,8 @@ bool Delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
       using_opt_replace= 1;
     }
+    if (info.handle_duplicates == DUP_UPDATE)
+      table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
     thd.clear_error(); // reset error for binlog
     if (write_record(&thd, table, &info))
     {
@@ -2890,6 +2895,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+  if (info.handle_duplicates == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -3481,6 +3488,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+  if (info.handle_duplicates == DUP_UPDATE)
+    table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->no_trans_update.stmt= FALSE;

@@ -8703,9 +8703,15 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 {
   TABLE_LIST *last_emb= last->table->pos_in_table_list->embedding;
   JOIN *join= last->join;
-  while (last_emb && !(--last_emb->nested_join->counter))
+  while (last_emb)
   {
-    join->cur_embedding_map &= last_emb->nested_join->nj_map;
+    if (!(--last_emb->nested_join->counter))
+      join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
+    else if (last_emb->nested_join->join_list.elements-1 ==
+             last_emb->nested_join->counter) 
+      join->cur_embedding_map|= last_emb->nested_join->nj_map;
+    else
+      break;
     last_emb= last_emb->embedding;
   }
 }
