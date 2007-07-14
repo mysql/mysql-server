@@ -1805,16 +1805,16 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   bzero(&table, sizeof(table));
   init_alloc_root(&table.mem_root, 8192, 0);
 
-  uchar key[MAX_DBKEY_LENGTH];
-  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
-                    old_table)-(char*)&key[0])+1;
-
   /*
     This method interfaces the mysql server code protected by
     either LOCK_open mutex or with an exclusive table name lock.
     In the future, only an exclusive table name lock will be enough.
   */
 #ifndef DBUG_OFF
+  uchar key[MAX_DBKEY_LENGTH];
+  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
+                    old_table)-(char*)&key[0])+1;
+
   if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
