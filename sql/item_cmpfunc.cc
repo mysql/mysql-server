@@ -673,7 +673,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
     get_time_value()
     thd                 thread handle
     item_arg   [in/out] item to retrieve TIME value from
-    cache_arg  [in/out] pointer to place to store the caching item to
+    cache_arg  [in/out] pointer to place to store the cache item to
     warn_item  [in]     unused
     is_null    [out]    TRUE <=> the item_arg is null
 
@@ -683,8 +683,8 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
     If item's result can be compared as longlong then its int value is used
     and a value returned by get_time function is used otherwise.
     If an item is a constant one then its value is cached and it isn't
-    get parsed again. An Item_cache_int object is used for caching values. It
-    seamlessly substitutes the original item.  The cache item is marked as
+    get parsed again. An Item_cache_int object is used for for cached values.
+    It seamlessly substitutes the original item.  The cache item is marked as
     non-constant to prevent re-caching it again.
 
   RETURN
