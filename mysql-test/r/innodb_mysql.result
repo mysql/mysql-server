@@ -676,4 +676,8 @@ INSERT INTO t1 VALUES (1);
 switch to connection default
 SET AUTOCOMMIT=default;
 DROP TABLE t1,t2;
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 End of 5.0 tests

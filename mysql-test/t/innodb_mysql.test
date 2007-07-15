@@ -670,5 +670,19 @@ DISCONNECT c1;
 DISCONNECT c2;
 DROP TABLE t1,t2;
 
+#
+# Bug#27296 Assertion in ALTER TABLE SET DEFAULT in Linux Debug build
+# (possible deadlock).
+#
+# The bug is applicable only to a transactoinal table.
+# Cover with tests behavior that no longer causes an
+# assertion.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 
 --echo End of 5.0 tests
