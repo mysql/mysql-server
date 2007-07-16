@@ -512,12 +512,35 @@ sp_head::init(LEX *lex)
   */
   lex->trg_table_fields.empty();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
-  m_param_begin= m_param_end= m_body_begin= 0;
-  m_qname.str= m_db.str= m_name.str= m_params.str=
-    m_body.str= m_defstr.str= 0;
-  m_qname.length= m_db.length= m_name.length= m_params.length=
-    m_body.length= m_defstr.length= 0;
+
+  m_param_begin= NULL;
+  m_param_end= NULL;
+
+  m_body_begin= NULL ;
+
+  m_qname.str= NULL;
+  m_qname.length= 0;
+
+  m_db.str= NULL;
+  m_db.length= 0;
+
+  m_name.str= NULL;
+  m_name.length= 0;
+
+  m_params.str= NULL;
+  m_params.length= 0;
+
+  m_body.str= NULL;
+  m_body.length= 0;
+
+  m_defstr.str= NULL;
+  m_defstr.length= 0;
+
+  m_sroutines_key.str= NULL;
+  m_sroutines_key.length= 0;
+
   m_return_field_def.charset= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -543,9 +566,14 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   if (spname->m_qname.length == 0)
     spname->init_qname(thd);
 
-  m_qname.length= spname->m_qname.length;
-  m_qname.str= strmake_root(thd->mem_root, spname->m_qname.str,
-                            m_qname.length);
+  m_sroutines_key.length= spname->m_sroutines_key.length;
+  m_sroutines_key.str= memdup_root(thd->mem_root,
+                                   spname->m_sroutines_key.str,
+                                   spname->m_sroutines_key.length + 1);
+  m_sroutines_key.str[0]= static_cast<char>(m_type);
+
+  m_qname.length= m_sroutines_key.length - 1;
+  m_qname.str= m_sroutines_key.str + 1;
 
   DBUG_VOID_RETURN;
 }
@@ -1924,8 +1952,11 @@ sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
-  LEX *oldlex= (LEX *)m_lex.pop();
+  LEX *oldlex;
 
+  sublex->set_trg_event_type_for_tables();
+
+  oldlex= (LEX *)m_lex.pop();
   if (! oldlex)
     return;			// Nothing to restore
 
@@ -3545,6 +3576,7 @@ typedef struct st_sp_table
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
   uint query_lock_count;
+  uint8 trg_event_map;
 } SP_TABLE;
 
 uchar *
@@ -3631,6 +3663,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
+        tab->trg_event_map|= table->trg_event_map;
       }
       else
       {
@@ -3652,6 +3685,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
+        tab->trg_event_map= table->trg_event_map;
 	my_hash_insert(&m_sptabs, (uchar *)tab);
       }
     }
@@ -3729,6 +3763,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
+      table->trg_event_map= stab->trg_event_map;
 
       /* Everyting else should be zeroed */
 

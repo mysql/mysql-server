@@ -2824,7 +2824,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
+static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3016,7 +3016,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_column_record(THD *thd, struct st_table_list *tables,
+static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3523,7 +3523,7 @@ err:
 }
 
 
-static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
+static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
 				  TABLE *table, bool res,
 				  const char *base_name,
 				  const char *file_name)
@@ -3613,7 +3613,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_views_record(THD *thd, struct st_table_list *tables,
+static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 				   TABLE *table, bool res,
 				   const char *base_name,
 				   const char *file_name)
@@ -3731,7 +3731,7 @@ bool store_constraints(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
+static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
@@ -3832,7 +3832,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
+static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 				      TABLE *table, bool res,
 				      const char *base_name,
 				      const char *file_name)
@@ -3909,7 +3909,7 @@ void store_key_column_usage(TABLE *table, const char*db, const char *tname,
 
 
 static int get_schema_key_column_usage_record(THD *thd,
-					      struct st_table_list *tables,
+					      TABLE_LIST *tables,
 					      TABLE *table, bool res,
 					      const char *base_name,
 					      const char *file_name)

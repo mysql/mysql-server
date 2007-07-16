@@ -137,4 +137,11 @@ class ha_myisam: public handler
   int dump(THD* thd, int fd);
   int net_read_dump(NET* net);
 #endif
+#ifdef HAVE_QUERY_CACHE
+  my_bool register_query_cache_table(THD *thd, char *table_key,
+                                     uint key_length,
+                                     qc_engine_callback
+                                     *engine_callback,
+                                     ulonglong *engine_data);
+#endif
 };

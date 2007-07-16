@@ -529,6 +529,10 @@ tes	1234
 drop table test;
 set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 End of 5.0 tests
 create table t1(
 id int auto_increment,
@@ -739,7 +743,6 @@ COUNT(*)
 3072
 set @@sort_buffer_size=default;
 DROP TABLE t1,t2;
-End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
