@@ -531,9 +531,9 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
-struct st_table_list;
+struct TABLE_LIST;
 class String;
-void view_store_options(THD *thd, st_table_list *table, String *buff);
+void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING	1
@@ -1372,7 +1372,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               st_table_list *TABLE_LIST::*link,
+                               TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,

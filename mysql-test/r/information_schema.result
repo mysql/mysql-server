@@ -1066,7 +1066,7 @@ c	int(11)	YES		NULL
 drop view v1;
 drop table t1;
 alter database information_schema;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.tables;
@@ -1412,6 +1412,10 @@ v2	YES
 delete from v1;
 drop view v1,v2;
 drop table t1,t2;
+alter database;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+alter database test;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS

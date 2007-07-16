@@ -85,6 +85,15 @@ enum tmp_table_type
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
 
+/** Event on which trigger is invoked. */
+enum trg_event_type
+{
+  TRG_EVENT_INSERT= 0,
+  TRG_EVENT_UPDATE= 1,
+  TRG_EVENT_DELETE= 2,
+  TRG_EVENT_MAX
+};
+
 enum frm_type_enum
 {
   FRMTYPE_ERROR= 0,
@@ -386,7 +395,7 @@ struct st_table {
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
-  struct st_table_list *pos_in_table_list;/* Element referring to this table */
+  TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
@@ -625,7 +634,7 @@ typedef struct st_field_info
 } ST_FIELD_INFO;
 
 
-struct st_table_list;
+struct TABLE_LIST;
 typedef class Item COND;
 
 typedef struct st_schema_table
@@ -633,12 +642,12 @@ typedef struct st_schema_table
   const char* table_name;
   ST_FIELD_INFO *fields_info;
   /* Create information_schema table */
-  TABLE *(*create_table)  (THD *thd, struct st_table_list *table_list);
+  TABLE *(*create_table)  (THD *thd, TABLE_LIST *table_list);
   /* Fill table with data */
-  int (*fill_table) (THD *thd, struct st_table_list *tables, COND *cond);
+  int (*fill_table) (THD *thd, TABLE_LIST *tables, COND *cond);
   /* Handle fileds for old SHOW */
   int (*old_format) (THD *thd, struct st_schema_table *schema_table);
-  int (*process_table) (THD *thd, struct st_table_list *tables,
+  int (*process_table) (THD *thd, TABLE_LIST *tables,
                         TABLE *table, bool res, const char *base_name,
                         const char *file_name);
   int idx_field1, idx_field2; 
@@ -671,7 +680,7 @@ struct st_lex;
 class select_union;
 class TMP_TABLE_PARAM;
 
-Item *create_view_field(THD *thd, st_table_list *view, Item **field_ref,
+Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                         const char *name);
 
 struct Field_translator
@@ -692,7 +701,7 @@ class Natural_join_column: public Sql_alloc
 public:
   Field_translator *view_field;  /* Column reference of merge view. */
   Field            *table_field; /* Column reference of table or temp view. */
-  st_table_list *table_ref; /* Original base table/view reference. */
+  TABLE_LIST *table_ref; /* Original base table/view reference. */
   /*
     True if a common join column of two NATURAL/USING join operands. Notice
     that when we have a hierarchy of nested NATURAL/USING joins, a column can
@@ -702,8 +711,8 @@ public:
   */
   bool is_common;
 public:
-  Natural_join_column(Field_translator *field_param, st_table_list *tab);
-  Natural_join_column(Field *field_param, st_table_list *tab);
+  Natural_join_column(Field_translator *field_param, TABLE_LIST *tab);
+  Natural_join_column(Field *field_param, TABLE_LIST *tab);
   const char *name();
   Item *create_item(THD *thd);
   Field *field();
@@ -746,9 +755,9 @@ public:
 */
 
 class index_hint;
-typedef struct st_table_list
+struct TABLE_LIST
 {
-  st_table_list() {}                          /* Remove gcc warning */
+  TABLE_LIST() {}                          /* Remove gcc warning */
 
   /**
     Prepare TABLE_LIST that consists of one table instance to use in
@@ -769,9 +778,9 @@ typedef struct st_table_list
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */
-  struct st_table_list *next_local;
+  TABLE_LIST *next_local;
   /* link in a global list of all queries tables */
-  struct st_table_list *next_global, **prev_global;
+  TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
@@ -791,7 +800,7 @@ typedef struct st_table_list
     'this' represents a NATURAL or USING join operation. Thus after
     parsing 'this' is a NATURAL/USING join iff (natural_join != NULL).
   */
-  struct st_table_list *natural_join;
+  TABLE_LIST *natural_join;
   /*
     True if 'this' represents a nested join that is a NATURAL JOIN.
     For one of the operands of 'this', the member 'natural_join' points
@@ -815,7 +824,7 @@ typedef struct st_table_list
     base tables. All of these TABLE_LIST instances contain a
     materialized list of columns. The list is local to a subquery.
   */
-  struct st_table_list *next_name_resolution_table;
+  TABLE_LIST *next_name_resolution_table;
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<index_hint> *index_hints;
   TABLE        *table;                          /* opened table */
@@ -832,7 +841,7 @@ typedef struct st_table_list
     here it will be reference of first occurrence of t1 to second (as you
     can see this lists can't be merged)
   */
-  st_table_list	*correspondent_table;
+  TABLE_LIST	*correspondent_table;
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
@@ -853,20 +862,20 @@ typedef struct st_table_list
     does not include the tables of subqueries used in the view. Is set only
     for merged views.
   */
-  st_table_list	*merge_underlying_list;
+  TABLE_LIST	*merge_underlying_list;
   /*
     - 0 for base tables
     - in case of the view it is the list of all (not only underlying
     tables but also used in subquery ones) tables of the view.
   */
-  List<st_table_list> *view_tables;
+  List<TABLE_LIST> *view_tables;
   /* most upper view this table belongs to */
-  st_table_list	*belong_to_view;
+  TABLE_LIST	*belong_to_view;
   /*
     The view directly referencing this table
     (non-zero only for merged underlying tables of a view).
   */
-  st_table_list	*referencing_view;
+  TABLE_LIST	*referencing_view;
   /*
     Security  context (non-zero only for tables which belong
     to view with SQL SECURITY DEFINER)
@@ -883,7 +892,7 @@ typedef struct st_table_list
     leaves. Created in setup_tables() -> make_leaves_list().
   */
   bool allowed_show;
-  st_table_list	*next_leaf;
+  TABLE_LIST	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	select_stmt;		/* text of (CREATE/SELECT) statement */
@@ -923,8 +932,8 @@ typedef struct st_table_list
   table_map     dep_tables;             /* tables the table depends on      */
   table_map     on_expr_dep_tables;     /* tables on expression depends on  */
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
-  st_table_list *embedding;             /* nested join containing the table */
-  List<struct st_table_list> *join_list;/* join list the table belongs to   */
+  TABLE_LIST *embedding;             /* nested join containing the table */
+  List<TABLE_LIST> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
@@ -979,6 +988,13 @@ typedef struct st_table_list
 
    /* End of view definition context. */
 
+  /**
+    Indicates what triggers we need to pre-load for this TABLE_LIST
+    when opening an associated TABLE. This is filled after
+    the parsed tree is created.
+  */
+  uint8 trg_event_map;
+
   enum enum_schema_table_state schema_table_state;
   void calc_md5(char *buffer);
   void set_underlying_merge();
@@ -991,15 +1007,15 @@ typedef struct st_table_list
            !table;
   }
   void print(THD *thd, String *str);
-  bool check_single_table(st_table_list **table, table_map map,
-                          st_table_list *view);
+  bool check_single_table(TABLE_LIST **table, table_map map,
+                          TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);
   void hide_view_error(THD *thd);
-  st_table_list *find_underlying_table(TABLE *table);
-  st_table_list *first_leaf_for_name_resolution();
-  st_table_list *last_leaf_for_name_resolution();
+  TABLE_LIST *find_underlying_table(TABLE *table);
+  TABLE_LIST *first_leaf_for_name_resolution();
+  TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
-  inline st_table_list *top_table()
+  inline TABLE_LIST *top_table()
     { return belong_to_view ? belong_to_view : this; }
   inline bool prepare_check_option(THD *thd)
   {
@@ -1036,6 +1052,7 @@ typedef struct st_table_list
   */
   bool process_index_hints(TABLE *table);
 
+  void set_trg_event_type(const st_lex *lex);
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1043,7 +1060,7 @@ private:
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
   */
-} TABLE_LIST;
+};
 
 class Item;
 

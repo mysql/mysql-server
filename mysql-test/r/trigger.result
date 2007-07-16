@@ -351,7 +351,7 @@ create trigger trg1 before insert on mysqltest.t1 for each row set @a:= 1;
 ERROR HY000: Trigger in wrong schema
 use mysqltest;
 create trigger test.trg1 before insert on t1 for each row set @a:= 1;
-ERROR HY000: Trigger in wrong schema
+ERROR 42S02: Table 'test.t1' doesn't exist
 drop database mysqltest;
 use test;
 create table t1 (i int, j int default 10, k int not null, key (k));
@@ -842,7 +842,7 @@ drop table t1;
 create trigger t1_bi before insert on test.t1 for each row set @a:=0;
 ERROR 3D000: No database selected
 create trigger test.t1_bi before insert on t1 for each row set @a:=0;
-ERROR 3D000: No database selected
+ERROR 42S02: Table 'test.t1' doesn't exist
 drop trigger t1_bi;
 ERROR 3D000: No database selected
 create table t1 (id int);
@@ -1476,6 +1476,463 @@ DROP TRIGGER t1_test;
 DROP TABLE t1,t2;
 SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
 SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
+
+Bug#28502 Triggers that update another innodb table will block
+on X lock unnecessarily
+
+Ensure we do not open and lock tables for triggers we do not fire.
+
+drop table if exists t1, t2;
+drop trigger if exists trg_bug28502_au;
+create table t1 (id int, count int);
+create table t2 (id int);
+create trigger trg_bug28502_au before update on t2
+for each row
+begin
+if (new.id is not null) then
+update t1 set count= count + 1 where id = old.id;
+end if;
+end|
+insert into t1 (id, count) values (1, 0);
+lock table t1 write;
+insert into t2 set id=1;
+unlock tables;
+update t2 set id=1 where id=1;
+select * from t1;
+id	count
+1	1
+select * from t2;
+id
+1
+drop table t1, t2;
+
+Additionally, provide test coverage for triggers and 
+all MySQL data changing commands.
+
+drop table if exists t1, t2, t1_op_log;
+drop view if exists v1;
+drop trigger if exists trg_bug28502_bi;
+drop trigger if exists trg_bug28502_ai;
+drop trigger if exists trg_bug28502_bu;
+drop trigger if exists trg_bug28502_au;
+drop trigger if exists trg_bug28502_bd;
+drop trigger if exists trg_bug28502_ad;
+create table t1 (id int primary key auto_increment, operation varchar(255));
+create table t2 (id int primary key);
+create table t1_op_log(operation varchar(255));
+create view v1 as select * from t1;
+create trigger trg_bug28502_bi before insert on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("Before INSERT, new=", new.operation));
+create trigger trg_bug28502_ai after insert on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("After INSERT, new=", new.operation));
+create trigger trg_bug28502_bu before update on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("Before UPDATE, new=", new.operation,
+", old=", old.operation));
+create trigger trg_bug28502_au after update on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("After UPDATE, new=", new.operation,
+", old=", old.operation));
+create trigger trg_bug28502_bd before delete on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("Before DELETE, old=", old.operation));
+create trigger trg_bug28502_ad after delete on t1
+for each row
+insert into t1_op_log (operation)
+values (concat("After DELETE, old=", old.operation));
+insert into t1 (operation) values ("INSERT");
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT
+After INSERT, new=INSERT
+truncate t1_op_log;
+update t1 set operation="UPDATE" where id=@id;
+select * from t1;
+id	operation
+1	UPDATE
+select * from t1_op_log;
+operation
+Before UPDATE, new=UPDATE, old=INSERT
+After UPDATE, new=UPDATE, old=INSERT
+truncate t1_op_log;
+delete from t1 where id=@id;
+select * from t1;
+id	operation
+select * from t1_op_log;
+operation
+Before DELETE, old=UPDATE
+After DELETE, old=UPDATE
+truncate t1;
+truncate t1_op_log;
+insert into t1 (id, operation) values
+(NULL, "INSERT ON DUPLICATE KEY UPDATE, inserting a new key")
+on duplicate key update id=NULL, operation="Should never happen";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+After INSERT, new=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+truncate t1_op_log;
+insert into t1 (id, operation) values
+(@id, "INSERT ON DUPLICATE KEY UPDATE, the key value is the same")
+on duplicate key update id=NULL,
+operation="INSERT ON DUPLICATE KEY UPDATE, updating the duplicate";
+select * from t1;
+id	operation
+0	INSERT ON DUPLICATE KEY UPDATE, updating the duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ON DUPLICATE KEY UPDATE, the key value is the same
+Before UPDATE, new=INSERT ON DUPLICATE KEY UPDATE, updating the duplicate, old=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+After UPDATE, new=INSERT ON DUPLICATE KEY UPDATE, updating the duplicate, old=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+truncate t1;
+truncate t1_op_log;
+replace into t1 values (NULL, "REPLACE, inserting a new key");
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	REPLACE, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE, inserting a new key
+After INSERT, new=REPLACE, inserting a new key
+truncate t1_op_log;
+replace into t1 values (@id, "REPLACE, deleting the duplicate");
+select * from t1;
+id	operation
+1	REPLACE, deleting the duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE, deleting the duplicate
+Before DELETE, old=REPLACE, inserting a new key
+After DELETE, old=REPLACE, inserting a new key
+After INSERT, new=REPLACE, deleting the duplicate
+truncate t1;
+truncate t1_op_log;
+create table if not exists t1
+select NULL, "CREATE TABLE ... SELECT, inserting a new key";
+Warnings:
+Note	1050	Table 't1' already exists
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	CREATE TABLE ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
+After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
+truncate t1_op_log;
+create table if not exists t1 replace
+select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+id	operation
+1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+select * from t1_op_log;
+operation
+Before INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+Before DELETE, old=CREATE TABLE ... SELECT, inserting a new key
+After DELETE, old=CREATE TABLE ... SELECT, inserting a new key
+After INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+truncate t1;
+truncate t1_op_log;
+insert into t1 (id, operation)
+select NULL, "INSERT ... SELECT, inserting a new key";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ... SELECT, inserting a new key
+After INSERT, new=INSERT ... SELECT, inserting a new key
+truncate t1_op_log;
+insert into t1 (id, operation)
+select @id,
+"INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate"
+on duplicate key update id=NULL,
+operation="INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate";
+select * from t1;
+id	operation
+0	INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate
+Before UPDATE, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate, old=INSERT ... SELECT, inserting a new key
+After UPDATE, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate, old=INSERT ... SELECT, inserting a new key
+truncate t1;
+truncate t1_op_log;
+replace into t1 (id, operation)
+select NULL, "REPLACE ... SELECT, inserting a new key";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	REPLACE ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE ... SELECT, inserting a new key
+After INSERT, new=REPLACE ... SELECT, inserting a new key
+truncate t1_op_log;
+replace into t1 (id, operation)
+select @id, "REPLACE ... SELECT, deleting a duplicate";
+select * from t1;
+id	operation
+1	REPLACE ... SELECT, deleting a duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE ... SELECT, deleting a duplicate
+Before DELETE, old=REPLACE ... SELECT, inserting a new key
+After DELETE, old=REPLACE ... SELECT, inserting a new key
+After INSERT, new=REPLACE ... SELECT, deleting a duplicate
+truncate t1;
+truncate t1_op_log;
+insert into t1 (id, operation) values (1, "INSERT for multi-DELETE");
+insert into t2 (id) values (1);
+delete t1.*, t2.* from t1, t2 where t1.id=1;
+select * from t1;
+id	operation
+select * from t2;
+id
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT for multi-DELETE
+After INSERT, new=INSERT for multi-DELETE
+Before DELETE, old=INSERT for multi-DELETE
+After DELETE, old=INSERT for multi-DELETE
+truncate t1;
+truncate t2;
+truncate t1_op_log;
+insert into t1 (id, operation) values (1, "INSERT for multi-UPDATE");
+insert into t2 (id) values (1);
+update t1, t2 set t1.id=2, operation="multi-UPDATE" where t1.id=1;
+update t1, t2
+set t2.id=3, operation="multi-UPDATE, SET for t2, but the trigger is fired" where t1.id=2;
+select * from t1;
+id	operation
+2	multi-UPDATE, SET for t2, but the trigger is fired
+select * from t2;
+id
+3
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT for multi-UPDATE
+After INSERT, new=INSERT for multi-UPDATE
+Before UPDATE, new=multi-UPDATE, old=INSERT for multi-UPDATE
+After UPDATE, new=multi-UPDATE, old=INSERT for multi-UPDATE
+Before UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi-UPDATE
+After UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi-UPDATE
+truncate table t1;
+truncate table t2;
+truncate table t1_op_log;
+
+Now do the same but use a view instead of the base table.
+
+insert into v1 (operation) values ("INSERT");
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT
+After INSERT, new=INSERT
+truncate t1_op_log;
+update v1 set operation="UPDATE" where id=@id;
+select * from t1;
+id	operation
+1	UPDATE
+select * from t1_op_log;
+operation
+Before UPDATE, new=UPDATE, old=INSERT
+After UPDATE, new=UPDATE, old=INSERT
+truncate t1_op_log;
+delete from v1 where id=@id;
+select * from t1;
+id	operation
+select * from t1_op_log;
+operation
+Before DELETE, old=UPDATE
+After DELETE, old=UPDATE
+truncate t1;
+truncate t1_op_log;
+insert into v1 (id, operation) values
+(NULL, "INSERT ON DUPLICATE KEY UPDATE, inserting a new key")
+on duplicate key update id=NULL, operation="Should never happen";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+After INSERT, new=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+truncate t1_op_log;
+insert into v1 (id, operation) values
+(@id, "INSERT ON DUPLICATE KEY UPDATE, the key value is the same")
+on duplicate key update id=NULL,
+operation="INSERT ON DUPLICATE KEY UPDATE, updating the duplicate";
+select * from t1;
+id	operation
+0	INSERT ON DUPLICATE KEY UPDATE, updating the duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ON DUPLICATE KEY UPDATE, the key value is the same
+Before UPDATE, new=INSERT ON DUPLICATE KEY UPDATE, updating the duplicate, old=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+After UPDATE, new=INSERT ON DUPLICATE KEY UPDATE, updating the duplicate, old=INSERT ON DUPLICATE KEY UPDATE, inserting a new key
+truncate t1;
+truncate t1_op_log;
+replace into v1 values (NULL, "REPLACE, inserting a new key");
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	REPLACE, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE, inserting a new key
+After INSERT, new=REPLACE, inserting a new key
+truncate t1_op_log;
+replace into v1 values (@id, "REPLACE, deleting the duplicate");
+select * from t1;
+id	operation
+1	REPLACE, deleting the duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE, deleting the duplicate
+Before DELETE, old=REPLACE, inserting a new key
+After DELETE, old=REPLACE, inserting a new key
+After INSERT, new=REPLACE, deleting the duplicate
+truncate t1;
+truncate t1_op_log;
+create table if not exists v1
+select NULL, "CREATE TABLE ... SELECT, inserting a new key";
+Warnings:
+Note	1050	Table 'v1' already exists
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	CREATE TABLE ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
+After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
+truncate t1_op_log;
+create table if not exists v1 replace
+select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
+Warnings:
+Note	1050	Table 'v1' already exists
+select * from t1;
+id	operation
+1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+select * from t1_op_log;
+operation
+Before INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+Before DELETE, old=CREATE TABLE ... SELECT, inserting a new key
+After DELETE, old=CREATE TABLE ... SELECT, inserting a new key
+After INSERT, new=CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
+truncate t1;
+truncate t1_op_log;
+insert into v1 (id, operation)
+select NULL, "INSERT ... SELECT, inserting a new key";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	INSERT ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ... SELECT, inserting a new key
+After INSERT, new=INSERT ... SELECT, inserting a new key
+truncate t1_op_log;
+insert into v1 (id, operation)
+select @id,
+"INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate"
+on duplicate key update id=NULL,
+operation="INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate";
+select * from t1;
+id	operation
+0	INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate
+Before UPDATE, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate, old=INSERT ... SELECT, inserting a new key
+After UPDATE, new=INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate, old=INSERT ... SELECT, inserting a new key
+truncate t1;
+truncate t1_op_log;
+replace into v1 (id, operation)
+select NULL, "REPLACE ... SELECT, inserting a new key";
+set @id=last_insert_id();
+select * from t1;
+id	operation
+1	REPLACE ... SELECT, inserting a new key
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE ... SELECT, inserting a new key
+After INSERT, new=REPLACE ... SELECT, inserting a new key
+truncate t1_op_log;
+replace into v1 (id, operation)
+select @id, "REPLACE ... SELECT, deleting a duplicate";
+select * from t1;
+id	operation
+1	REPLACE ... SELECT, deleting a duplicate
+select * from t1_op_log;
+operation
+Before INSERT, new=REPLACE ... SELECT, deleting a duplicate
+Before DELETE, old=REPLACE ... SELECT, inserting a new key
+After DELETE, old=REPLACE ... SELECT, inserting a new key
+After INSERT, new=REPLACE ... SELECT, deleting a duplicate
+truncate t1;
+truncate t1_op_log;
+insert into v1 (id, operation) values (1, "INSERT for multi-DELETE");
+insert into t2 (id) values (1);
+delete v1.*, t2.* from v1, t2 where v1.id=1;
+select * from t1;
+id	operation
+select * from t2;
+id
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT for multi-DELETE
+After INSERT, new=INSERT for multi-DELETE
+Before DELETE, old=INSERT for multi-DELETE
+After DELETE, old=INSERT for multi-DELETE
+truncate t1;
+truncate t2;
+truncate t1_op_log;
+insert into v1 (id, operation) values (1, "INSERT for multi-UPDATE");
+insert into t2 (id) values (1);
+update v1, t2 set v1.id=2, operation="multi-UPDATE" where v1.id=1;
+update v1, t2
+set t2.id=3, operation="multi-UPDATE, SET for t2, but the trigger is fired" where v1.id=2;
+select * from t1;
+id	operation
+2	multi-UPDATE, SET for t2, but the trigger is fired
+select * from t2;
+id
+3
+select * from t1_op_log;
+operation
+Before INSERT, new=INSERT for multi-UPDATE
+After INSERT, new=INSERT for multi-UPDATE
+Before UPDATE, new=multi-UPDATE, old=INSERT for multi-UPDATE
+After UPDATE, new=multi-UPDATE, old=INSERT for multi-UPDATE
+Before UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi-UPDATE
+After UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi-UPDATE
+drop view v1;
+drop table t1, t2, t1_op_log;
 End of 5.0 tests
 drop table if exists table_25411_a;
 drop table if exists table_25411_b;
