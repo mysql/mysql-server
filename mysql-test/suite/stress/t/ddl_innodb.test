@@ -1,0 +1,49 @@
+######## t/ddl_innodb.test ######
+#
+# Stress the storage engine InnoDB with CREATE/DROP TABLE/INDEX
+#
+# Please look for details within include/ddl1.inc.
+#
+# Creation of this test:
+# 2007-07-04 mleich
+#
+
+# Storage engine to be used in CREATE TABLE
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+
+
+if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
+{
+   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
+}
+let $run= `SELECT '$BIG_TEST' = '1'`;
+if ($run)
+{
+   # A run started with "--big-test" should be allowed to consume more time.
+   # Rough intended runtime per subtest variant in seconds
+   let $runtime = 5;
+   # number of rounds till we look at the clock again
+   let $loop_size= 100;
+}
+if (!$run)
+{
+   let $runtime = 1;
+   let $loop_size= 20;
+}
+
+
+##### Some preparations needed for the ddl*.inc scripts
+--source suite/stress/include/ddl.pre
+
+--source suite/stress/include/ddl1.inc
+--source suite/stress/include/ddl2.inc
+--source suite/stress/include/ddl3.inc
+--source suite/stress/include/ddl4.inc
+--source suite/stress/include/ddl5.inc
+--source suite/stress/include/ddl6.inc
+--source suite/stress/include/ddl7.inc
+--source suite/stress/include/ddl8.inc
+
+##### Cleanup
+--source suite/stress/include/ddl.cln
