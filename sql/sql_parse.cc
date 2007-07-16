@@ -5392,8 +5392,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
               (thd->query_length= (ulong)(*found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
-	  mysql_execute_command(thd);
-	  query_cache_end_of_result(thd);
+          lex->set_trg_event_type_for_tables();
+          mysql_execute_command(thd);
+          query_cache_end_of_result(thd);
 	}
       }
     }
@@ -5680,7 +5681,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= table->db.str;
     ptr->db_length= table->db.length;
   }
-  else if (thd->copy_db_to(&ptr->db, &ptr->db_length))
+  else if (lex->copy_db_to(&ptr->db, &ptr->db_length))
     DBUG_RETURN(0);
 
   ptr->alias= alias_str;

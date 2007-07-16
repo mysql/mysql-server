@@ -5659,6 +5659,31 @@ t3_id_1	t3_id_2	t4_id
 DROP PROCEDURE p1|
 DROP VIEW v1, v2|
 DROP TABLE t3, t4|
+drop database if exists mysqltest_db1;
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+Level	Code	Message
+drop database mysqltest_db1;
+drop database if exists mysqltest_db1;
+drop table if exists test.t1;
+create database mysqltest_db1;
+use mysqltest_db1;
+drop database mysqltest_db1;
+create table test.t1 (id int);
+insert into test.t1 (id) values (1);
+create procedure test.sp_bug29050() begin select * from t1; end//
+show warnings;
+Level	Code	Message
+call test.sp_bug29050();
+id
+1
+show warnings;
+Level	Code	Message
+use test;
+drop procedure sp_bug29050;
+drop table t1;
 End of 5.0 tests
 Begin of 5.1 tests
 drop function if exists pi;
