@@ -279,6 +279,7 @@ private:
   Cache_status m_cache_status;
 
   void free_query_internal(Query_cache_block *point);
+  void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
 
 protected:
   /*

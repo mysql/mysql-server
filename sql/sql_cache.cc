@@ -1347,7 +1347,9 @@ def_week_frmt: %lu",
                    ("Handler require invalidation queries of %s.%s %lu-%lu",
                     table_list.db, table_list.alias,
                     (ulong) engine_data, (ulong) table->engine_data()));
-        invalidate_table(thd, (uchar *) table->db(), table->key_length());
+        invalidate_table_internal(thd,
+                                  (uchar *) table->db(),
+                                  table->key_length());
       }
       else
         thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
@@ -2468,13 +2470,8 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
   m_cache_status= Query_cache::TABLE_FLUSH_IN_PROGRESS;
   STRUCT_UNLOCK(&structure_guard_mutex);
 
-  Query_cache_block *table_block=
-    (Query_cache_block*)hash_search(&tables, key, key_length);
-  if (query_cache_size > 0 && table_block)
-  {
-    Query_cache_block_table *list_root= table_block->table(0);
-    invalidate_query_block_list(thd, list_root);
-  }
+  if (query_cache_size > 0)
+    invalidate_table_internal(thd, key, key_length);
 
   STRUCT_LOCK(&structure_guard_mutex);
   m_cache_status= Query_cache::NO_FLUSH_IN_PROGRESS;
@@ -2487,6 +2484,26 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
   STRUCT_UNLOCK(&structure_guard_mutex);
 }
 
+
+/**
+  Try to locate and invalidate a table by name.
+  The caller must ensure that no other thread is trying to work with
+  the query cache when this function is executed.
+
+  @pre structure_guard_mutex is acquired or TABLE_FLUSH_IN_PROGRESS is set.
+*/
+
+void
+Query_cache::invalidate_table_internal(THD *thd, uchar *key, uint32 key_length)
+{
+  Query_cache_block *table_block=
+    (Query_cache_block*)hash_search(&tables, key, key_length);
+  if (table_block)
+  {
+    Query_cache_block_table *list_root= table_block->table(0);
+    invalidate_query_block_list(thd, list_root);
+  }
+}
 
 /**
   @brief Invalidate a linked list of query cache blocks.
