@@ -1391,7 +1391,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       LEX_STRING db;
       size_t dummy;
       if (lex->select_lex.db == NULL &&
-          thd->copy_db_to(&lex->select_lex.db, &dummy))
+          lex->copy_db_to(&lex->select_lex.db, &dummy))
       {
         DBUG_RETURN(1);
       }
