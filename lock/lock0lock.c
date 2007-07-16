@@ -1065,7 +1065,7 @@ lock_rec_set_nth_bit(
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found. */
-static
+
 ulint
 lock_rec_find_set_bit(
 /*==================*/
@@ -1357,7 +1357,7 @@ lock_rec_copy(
 
 /*************************************************************************
 Gets the previous record lock set on a record. */
-static
+
 lock_t*
 lock_rec_get_prev(
 /*==============*/

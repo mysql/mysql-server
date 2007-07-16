@@ -1,5 +1,5 @@
 /******************************************************
-Definition of the lock module internal structures.
+Lock module internal structures and methods.
 
 (c) 2007 Innobase Oy
 
@@ -62,5 +62,27 @@ struct lock_struct {
 		lock_rec_t	rec_lock;/* record lock */
 	} un_member;
 };
+
+/**************************************************************************
+Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
+if none found. */
+
+ulint
+lock_rec_find_set_bit(
+/*==================*/
+			/* out: bit index == heap number of the record, or
+			ULINT_UNDEFINED if none found */
+	lock_t*	lock);	/* in: record lock with at least one bit set */
+
+/*************************************************************************
+Gets the previous record lock set on a record. */
+
+lock_t*
+lock_rec_get_prev(
+/*==============*/
+			/* out: previous lock on the same record, NULL if
+			none exists */
+	lock_t*	in_lock,/* in: record lock */
+	ulint	heap_no);/* in: heap number of the record */
 
 #endif /* lock0priv_h */
