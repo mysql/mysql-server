@@ -677,14 +677,14 @@ DROP TABLE t1,t2,t3;
 #
 
 create table t1 (a int) engine=innodb;
-copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/t2.frm;
+copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/bug29807.frm;
 --error 1146
-select * from t2;
+select * from bug29807;
 drop table t1;
 --error 1051
-drop table t2;
-create table t2 (a int);
-drop table t2;
+drop table bug29807;
+create table bug29807 (a int);
+drop table bug29807;
 
 
 #
