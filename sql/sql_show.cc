@@ -4094,7 +4094,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 }
 
 
-static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
+static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
                                         const char *base_name,
                                         const char *file_name)
@@ -4640,7 +4640,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 */
 
 static int
-get_referential_constraints_record(THD *thd, struct st_table_list *tables,
+get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
                                    TABLE *table, bool res,
                                    const char *base_name, const char *file_name)
 {

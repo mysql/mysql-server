@@ -1301,6 +1301,7 @@ drop procedure f3;
 drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
+End of 4.1 tests
 SET GLOBAL query_cache_size=102400;
 create table t1(a int);
 insert into t1 values(0), (1), (4), (5);

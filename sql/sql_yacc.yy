@@ -1940,7 +1940,8 @@ sp_name:
 	  }
 	| ident
 	  {
-            LEX *lex= Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             LEX_STRING db;
 	    if (check_routine_name(&$1))
             {

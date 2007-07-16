@@ -878,7 +878,7 @@ drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
 
 #
 # Bug #10303: problem with last_query_cost
@@ -1129,7 +1129,7 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
-# End of 5.0 tests
+--echo End of 5.0 tests
 
 
 #
@@ -1174,4 +1174,4 @@ show status like 'Qcache_queries_in_cache';
 drop database db2;
 drop database db3;
 
-# End of 5.1 tests
+--echo End of 5.1 tests
