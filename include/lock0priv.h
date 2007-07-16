@@ -54,7 +54,8 @@ struct lock_struct {
 					LOCK_REC_NOT_GAP,
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
-	hash_node_t	hash;		/* hash chain node for a record lock */
+	hash_node_t	hash;		/* hash chain node for a record
+					lock */
 	dict_index_t*	index;		/* index for a record lock */
 	union {
 		lock_table_t	tab_lock;/* table lock */
