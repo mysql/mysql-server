@@ -1954,7 +1954,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
   }
   ret= sp_cache_routines_and_add_tables_aux(thd, lex,
                                             *last_cached_routine_ptr,
-                                            FALSE, NULL);
+                                            FALSE);
   return ret;
 }
 

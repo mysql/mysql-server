@@ -128,7 +128,7 @@ private:
    slave thread, but nowhere else.
  */
 struct RPL_TABLE_LIST
-  : public st_table_list
+  : public TABLE_LIST
 {
   bool m_tabledef_valid;
   table_def m_tabledef;

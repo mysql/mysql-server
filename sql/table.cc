@@ -98,7 +98,7 @@ View_creation_ctx *View_creation_ctx::create(THD *thd)
 /*************************************************************************/
 
 View_creation_ctx * View_creation_ctx::create(THD *thd,
-                                              st_table_list *view)
+                                              TABLE_LIST *view)
 {
   View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
 
@@ -4588,7 +4588,7 @@ Item_subselect *TABLE_LIST::containing_subselect()
 
   DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
-    (st_table_list::index_hints). Using the information in this tagged list
+    (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
     st_table::force_index and st_table::covering_keys.
@@ -4630,7 +4630,7 @@ Item_subselect *TABLE_LIST::containing_subselect()
     FALSE                no errors found
     TRUE                 found and reported an error.
 */
-bool st_table_list::process_index_hints(TABLE *table)
+bool TABLE_LIST::process_index_hints(TABLE *table)
 {
   /* initialize the result variables */
   table->keys_in_use_for_query= table->keys_in_use_for_group_by= 

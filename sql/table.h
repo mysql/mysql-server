@@ -38,7 +38,7 @@ public:
   static View_creation_ctx *create(THD *thd);
 
   static View_creation_ctx *create(THD *thd,
-                                   struct st_table_list *view);
+                                   TABLE_LIST *view);
 
 private:
   View_creation_ctx(THD *thd)

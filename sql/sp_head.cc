@@ -567,9 +567,9 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
     spname->init_qname(thd);
 
   m_sroutines_key.length= spname->m_sroutines_key.length;
-  m_sroutines_key.str= memdup_root(thd->mem_root,
-                                   spname->m_sroutines_key.str,
-                                   spname->m_sroutines_key.length + 1);
+  m_sroutines_key.str= (char*) memdup_root(thd->mem_root,
+                                           spname->m_sroutines_key.str,
+                                           spname->m_sroutines_key.length + 1);
   m_sroutines_key.str[0]= static_cast<char>(m_type);
 
   m_qname.length= m_sroutines_key.length - 1;
