@@ -9,12 +9,12 @@ BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 has
 bins: $(BINS)
 check: bins
 	./ybt-test
-	./mdict-test
 	./pma-test
 	./cachetable-test
 	./brt-serialize-test
 	./brt-test
 	./hashtest
+#	./mdict-test
 
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 key.o: brttypes.h key.h
