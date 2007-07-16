@@ -58,7 +58,8 @@ tags:
   test    test-force    test-full    test-force-full    test-force-mem \
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
-  test-ext-funcs test-ext-rpl test-ext-partitions test-ext \
+  test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
+  test-ext-stress test-ext \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -144,6 +145,8 @@ test-bt:
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	  @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
 	fi
+        -cd mysql-test ; MTR_BUILD_THREAD=auto \
+        @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
 
 # Re-enable the "rowlock" suite when bug#28685 is fixed
 #	-cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -182,12 +185,17 @@ test-ext-jp:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl --force --suite=jp
 
-test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp
+test-ext-stress:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --big-test --suite=stress
+
+test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp test-ext-stress
 
 test-fast:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
-	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=stress --do-test=ddl_myisam 
 
 test-fast-view:
 	$(MAKE) subset=--view-protocol test-fast
