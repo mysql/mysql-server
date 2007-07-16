@@ -661,7 +661,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  info.records= info.deleted= info.copied= info.updated= 0;
+  bzero((char*) &info,sizeof(info));
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -1421,6 +1421,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(
+            table->next_number_field->val_int());
+        info->touched++;
         if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) ||
             compare_record(table))
         {
@@ -1448,9 +1452,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             handled separately by THD::arg_of_last_insert_id_function.
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
-          if (table->next_number_field)
-            table->file->adjust_next_insert_id_after_explicit_value(
-              table->next_number_field->val_int());
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                         TRG_ACTION_AFTER, TRUE));
