@@ -2326,7 +2326,7 @@ uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 */
 
 bool
-st_lex::copy_db_to(char **p_db, uint *p_db_length) const
+st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
 {
   if (sphead)
   {
