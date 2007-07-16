@@ -373,8 +373,8 @@ UNIV_INLINE
 ulint
 lock_get_type(
 /*==========*/
-			/* out: LOCK_TABLE or LOCK_REC */
-	lock_t*	lock)	/* in: lock */
+				/* out: LOCK_TABLE or LOCK_REC */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
@@ -578,8 +578,8 @@ UNIV_INLINE
 ulint
 lock_get_mode(
 /*==========*/
-			/* out: mode */
-	lock_t*	lock)	/* in: lock */
+				/* out: mode */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
