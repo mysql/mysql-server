@@ -2272,7 +2272,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     DBUG_RETURN(1);
 #else
     if (lex->select_lex.db == NULL &&
-        thd->copy_db_to(&lex->select_lex.db, NULL))
+        lex->copy_db_to(&lex->select_lex.db, NULL))
     {
       DBUG_RETURN(1);
     }
