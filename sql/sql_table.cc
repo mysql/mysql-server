@@ -1430,18 +1430,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
-  thd->mysys_var->current_mutex= &LOCK_open;
-  thd->mysys_var->current_cond= &COND_refresh;
-  VOID(pthread_mutex_lock(&LOCK_open));
-
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
-
-  pthread_mutex_unlock(&LOCK_open);
-
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond= 0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1451,49 +1440,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   send_ok(thd);
   DBUG_RETURN(FALSE);
 }
-
-
-/*
- delete (drop) tables.
-
-  SYNOPSIS
-    mysql_rm_table_part2_with_lock()
-    thd			Thread handle
-    tables		List of tables to delete
-    if_exists		If 1, don't give error if one table doesn't exists
-    dont_log_query	Don't write query to log files. This will also not
-                        generate warnings if the handler files doesn't exists
-
- NOTES
-   Works like documented in mysql_rm_table(), but don't check
-   global_read_lock and don't send_ok packet to server.
-
- RETURN
-  0	ok
-  1	error
-*/
-
-int mysql_rm_table_part2_with_lock(THD *thd,
-				   TABLE_LIST *tables, bool if_exists,
-				   bool drop_temporary, bool dont_log_query)
-{
-  int error;
-  thd->mysys_var->current_mutex= &LOCK_open;
-  thd->mysys_var->current_cond= &COND_refresh;
-  VOID(pthread_mutex_lock(&LOCK_open));
-
-  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 1,
-			      dont_log_query);
-
-  pthread_mutex_unlock(&LOCK_open);
-
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond= 0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
-  return error;
-}
-
 
 /*
   Execute the drop of a normal or temporary table
@@ -1541,7 +1487,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   LINT_INIT(alias);
   LINT_INIT(path_length);
-  safe_mutex_assert_owner(&LOCK_open);
 
   if (thd->current_stmt_binlog_row_based && !dont_log_query)
   {
@@ -1551,6 +1496,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
       built_query.append("DROP TABLE ");
   }
+
+  pthread_mutex_lock(&LOCK_open);
+
   /*
     If we have the table in the definition cache, we don't have to check the
     .frm file to find if the table is a normal table (not view) and what
@@ -1570,12 +1518,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                            table->table_name_length, table->table_name, 1))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(1);
     }
   }
 
-  if (!drop_temporary && lock_table_names(thd, tables))
+  if (!drop_temporary && lock_table_names_exclusively(thd, tables))
+  {
+    pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(1);
+  }
 
   /* Don't give warnings for not found errors, as we already generate notes */
   thd->no_warnings_for_error= 1;
@@ -1586,7 +1538,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     handlerton *table_type;
     enum legacy_db_type frm_db_type;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, 1);
     if (!close_temporary_table(thd, table))
     {
       tmp_table_deleted=1;
@@ -1635,8 +1587,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       if (thd->killed)
       {
-        thd->no_warnings_for_error= 0;
-	DBUG_RETURN(-1);
+        error= -1;
+        goto err_with_placeholders;
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
@@ -1699,6 +1651,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
   }
+  /*
+    It's safe to unlock LOCK_open: we have an exclusive lock
+    on the table name.
+  */
+  pthread_mutex_unlock(&LOCK_open);
   thd->tmp_table_used= tmp_table_deleted;
   error= 0;
   if (wrong_tables.length())
@@ -1758,9 +1715,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
     }
   }
-
-  if (!drop_temporary)
-    unlock_table_names(thd, tables, (TABLE_LIST*) 0);
+  pthread_mutex_lock(&LOCK_open);
+err_with_placeholders:
+  unlock_table_names(thd, tables, (TABLE_LIST*) 0);
+  pthread_mutex_unlock(&LOCK_open);
   thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
