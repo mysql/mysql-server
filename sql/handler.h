@@ -663,7 +663,7 @@ struct handlerton
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
-                           struct st_table_list *tables,
+                           TABLE_LIST *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
    /*
