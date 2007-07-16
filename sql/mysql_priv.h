@@ -908,10 +908,7 @@ void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool drop_view, bool log_query);
-int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
-				   bool if_exists, bool drop_temporary,
-				   bool log_query);
+                         bool drop_temporary, bool drop_view, bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
@@ -1923,6 +1920,11 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table);
+bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
+                                                     TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
+                                                     int key_length);
 
 
 /* old unireg functions */
