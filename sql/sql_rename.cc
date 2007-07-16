@@ -150,7 +150,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     pthread_mutex_unlock(&LOCK_open);
     goto err;
   }
-  pthread_mutex_unlock(&LOCK_open);
 
   error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
@@ -174,6 +173,17 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
     error= 1;
   }
+  /*
+    An exclusive lock on table names is satisfactory to ensure
+    no other thread accesses this table.
+    However, NDB assumes that handler::rename_tables is called under
+    LOCK_open. And it indeed is, from ALTER TABLE.
+    TODO: remove this limitation.
+    We still should unlock LOCK_open as early as possible, to provide
+    higher concurrency - query_cache_invalidate can take minutes to
+    complete.
+  */
+  pthread_mutex_unlock(&LOCK_open);
 
   /* Lets hope this doesn't fail as the result will be messy */ 
   if (!silent && !error)
