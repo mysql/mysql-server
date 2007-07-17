@@ -3,7 +3,7 @@ Lock module internal inline methods.
 
 (c) 2007 Innobase Oy
 
-Created 16/07/2007 Vasil Dimov
+Created July 16, 2007 Vasil Dimov
 *******************************************************/
 
 /* This file contains only methods which are used in
