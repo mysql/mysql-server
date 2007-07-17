@@ -35,7 +35,7 @@ testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
 GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr
-PRESCRIPTS =		mysql-test-run.pl
+PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA = 		std_data/client-key.pem \
 			std_data/client-cert.pem \
