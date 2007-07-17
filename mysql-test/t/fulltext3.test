@@ -22,3 +22,13 @@ DROP TABLE t1;
 
 # End of 5.0 tests
 
+#
+# BUG#29464 - load data infile into table with big5 chinese fulltext index
+#             hangs 100% cpu
+#
+CREATE TABLE t1(a VARCHAR(2) CHARACTER SET big5 COLLATE big5_chinese_ci,
+FULLTEXT(a));
+INSERT INTO t1 VALUES(0xA3C2);
+DROP TABLE t1;
+
+# End of 5.1 tests
