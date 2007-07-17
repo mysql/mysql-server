@@ -5824,6 +5824,11 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
     param->is_ror_scan is cleared if the function detects that the key scan is
       not a Rowid-Ordered Retrieval scan ( see comments for is_key_scan_ror
       function for description of which key scans are ROR scans)
+
+  RETURN
+    #records      E(#records) for given subtree
+    HA_POS_ERROR  if subtree cannot be used for record retrieval
+
 */
 
 static ha_rows
