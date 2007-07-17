@@ -1188,6 +1188,8 @@ typedef struct st_lex : public Query_tables_list
       un->uncacheable|= cause;
     }
   }
+  void set_trg_event_type_for_tables();
+
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
@@ -1198,7 +1200,7 @@ typedef struct st_lex : public Query_tables_list
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
-  uint8 get_effective_with_check(st_table_list *view);
+  uint8 get_effective_with_check(TABLE_LIST *view);
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
@@ -1236,6 +1238,8 @@ typedef struct st_lex : public Query_tables_list
   {
     context_stack.pop();
   }
+
+  bool copy_db_to(char **p_db, uint *p_db_length) const;
 
   Name_resolution_context *current_context()
   {

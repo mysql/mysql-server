@@ -943,17 +943,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       table->triggers= triggers;
 
       /*
-        Construct key that will represent triggers for this table in the set
-        of routines used by statement.
-      */
-      triggers->sroutines_key.length= 1+strlen(db)+1+strlen(table_name)+1;
-      if (!(triggers->sroutines_key.str=
-              alloc_root(&table->mem_root, triggers->sroutines_key.length)))
-        DBUG_RETURN(1);
-      triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
-      strxmov(triggers->sroutines_key.str+1, db, ".", table_name, NullS);
-
-      /*
         TODO: This could be avoided if there is no triggers
               for UPDATE and DELETE.
       */
@@ -991,6 +980,15 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_ASSERT(lex.sphead == 0);
           goto err_with_lex_cleanup;
         }
+        /*
+          Not strictly necessary to invoke this method here, since we know
+          that we've parsed CREATE TRIGGER and not an
+          UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
+          maintain the invariant that this method is called for each
+          distinct statement, in case its logic is extended with other
+          types of analyses in future.
+        */
+        lex.set_trg_event_type_for_tables();
 
         lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
 
@@ -1550,6 +1548,12 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       new_field= record1_field;
       old_field= trigger_table->field;
     }
+    /*
+      This trigger must have been processed by the pre-locking
+      algorithm.
+    */
+    DBUG_ASSERT(trigger_table->pos_in_table_list->trg_event_map &
+                static_cast<uint>(1 << static_cast<int>(event)));
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
     err_status= sp_trigger->execute_trigger
@@ -1568,7 +1572,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
   SYNOPSIS
     mark_fields_used()
       thd    Current thread context
-      event  Type of event triggers for which we are going to inspect
+      event  Type of event triggers for which we are going to ins
 
   DESCRIPTION
     This method marks fields of subject table which are read/set in its
