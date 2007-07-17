@@ -1941,12 +1941,13 @@ sp_name:
 	| ident
 	  {
             THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             LEX_STRING db;
 	    if (check_routine_name(&$1))
             {
 	      MYSQL_YYABORT;
 	    }
-            if (thd->copy_db_to(&db.str, &db.length))
+            if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
 	    $$= new sp_name(db, $1, false);
             if ($$)
@@ -5130,14 +5131,13 @@ alter:
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
           }
-          opt_create_database_options
+          create_database_options
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
             if (lex->name.str == NULL &&
-                thd->copy_db_to(&lex->name.str, &lex->name.length))
+                lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
@@ -5591,12 +5591,11 @@ alter_list_item:
 	  }
 	| RENAME opt_to table_ident
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex=Lex;
 	    size_t dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-	                thd->copy_db_to(&lex->select_lex.db, &dummy))
+                lex->copy_db_to(&lex->select_lex.db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -10881,10 +10880,9 @@ require_list_element:
 grant_ident:
 	'*'
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex= Lex;
             size_t dummy;
-            if (thd->copy_db_to(&lex->current_select->db, &dummy))
+            if (lex->copy_db_to(&lex->current_select->db, &dummy))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
@@ -11530,12 +11528,12 @@ trigger_tail:
 	    MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(thd);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_TRIGGER;
           sp->init_sp_name(thd, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $11 - $7;
 
-	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
 	  lex->spname= $3;
 	  /*
@@ -11611,9 +11609,9 @@ sp_tail:
 	  sp= new sp_head();
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_PROCEDURE;
           sp->init_sp_name(YYTHD, $3);
 
-	  sp->m_type= TYPE_ENUM_PROCEDURE;
 	  lex->sphead= sp;
 	  /*
 	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a
