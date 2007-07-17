@@ -1138,9 +1138,9 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
       the storage engine calls in question happen to never fail with the 
       existing storage engines. 
     */
-    thd->net.report_error= 1;
+    thd->net.report_error= 1; /* purecov: inspected */
     /* Caller will free the memory */
-    goto failure;
+    goto failure;  /* purecov: inspected */
   }
   if (file->external_lock(thd, F_RDLCK))
     goto failure;
