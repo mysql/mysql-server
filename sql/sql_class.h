@@ -1557,11 +1557,27 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
+
+  static inline void safe_time(time_t *t)
+  {
+    /**
+       Wrapper around time() which retries on error (-1)
+
+       @details
+       This is needed because, despite the documentation, time() may fail
+       in some circumstances.  Here we retry time() until it succeeds, and
+       log the failure so that performance problems related to this can be
+       identified.
+    */
+    while(unlikely(time(t) == ((time_t) -1)))
+      sql_print_information("time() failed with %d", errno);
+  }
+
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else time_after_lock=time(&start_time); }
-  inline void	end_time()    { time(&start_time); }
+  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else { safe_time(&start_time); time_after_lock= start_time; }}
+  inline void	end_time()    { safe_time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
-  inline void	lock_time()   { time(&time_after_lock); }
+  inline void	lock_time()   { safe_time(&time_after_lock); }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
