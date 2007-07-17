@@ -37,9 +37,9 @@ C_OBJS= mut_pthread.lo    \
 
 install: libdb.so
 	cp libdb.so ../src/
-libdb.so: ydb.lo bdbw.lo
+libdb.so: ydb.lo bdbw.lo noticecall.lo
 	echo cc ydb.lo bdbw.lo BDB-OBJS -shared -fPIC -o libdb.so $(CFLAGS) 
-	@cc ydb.lo bdbw.lo $(patsubst %,/home/bradley/mysql/build-bdb-with-uniquename/bdb/build_unix/%,$(C_OBJS)) -shared -fPIC -o libdb.so $(CFLAGS) 
+	@cc ydb.lo bdbw.lo noticecall.lo $(patsubst %,/home/bradley/mysql/build-bdb-with-uniquename/bdb/build_unix/%,$(C_OBJS)) -shared -fPIC -o libdb.so $(CFLAGS) 
 ydb.lo: bdbw.h
 bdbw.lo: CPPFLAGS=-I/home/bradley/mysql/build-bdb-with-uniquename/bdb/build_unix
 %.lo: %.c
