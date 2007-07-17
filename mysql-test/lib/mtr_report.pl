@@ -358,7 +358,11 @@ sub mtr_report_stats ($) {
                 # Test case for Bug#14233 produces the following warnings:
                 /Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc/ or
                 /Stored routine 'test'.'bug14233_2': invalid value in column mysql.proc/ or
-                /Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc/
+                /Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc/ or
+
+                # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
+                #             from the internal data dictionary
+                /Cannot find table test\/bug29807 from the internal data dictionary/
 	       )
             {
               next;                       # Skip these lines

@@ -1113,7 +1113,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
     goto err;
 
   /* Remove RAID directories */
@@ -1397,10 +1397,10 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   {
     if (force_switch)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR));
-
-      /* Change db to NULL. */
+      /*
+        This can only happen when we restore the old db in THD after
+        execution of a routine is complete. Change db to NULL.
+      */
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
