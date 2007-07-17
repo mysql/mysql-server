@@ -25,4 +25,4 @@ ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Do
 
 mysql_upgrade        : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
 federated_innodb     : Bug#29522 failed assertion in binlog_close_connection()
-binlog_innodb        : Bug#29806 2007-07-15 ingo master.err: InnoDB: Error: MySQL is freeing a thd
+lowercase_table3     : Bug#29839 2007-07-17 ingo Cannot find table test/T1 from the internal data dictionary
