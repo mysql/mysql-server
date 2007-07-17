@@ -719,6 +719,26 @@ bool end_active_trans(THD *thd);
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
+
+/* log.cc */
+int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+typedef void (*sql_print_message_func)(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+extern sql_print_message_func sql_print_message_handlers[];
+
+int error_log_print(enum loglevel level, const char *format,
+                    va_list args);
+
+bool slow_log_print(THD *thd, const char *query, uint query_length,
+                    time_t query_start_arg);
+
+bool general_log_print(THD *thd, enum enum_server_command command,
+                       const char *format,...);
+
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
@@ -1619,25 +1639,6 @@ int key_rec_cmp(void *key_info, uchar *a, uchar *b);
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
 void sql_perror(const char *message);
-
-
-int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_information(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-extern sql_print_message_func sql_print_message_handlers[];
-
-int error_log_print(enum loglevel level, const char *format,
-                    va_list args);
-
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    time_t query_start_arg);
-
-bool general_log_print(THD *thd, enum enum_server_command command,
-                       const char *format,...);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
