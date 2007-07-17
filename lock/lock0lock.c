@@ -13,6 +13,7 @@ Created 5/7/1996 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "lock0lock.ic"
+#include "lock0priv.ic"
 #endif
 
 #include "usr0sess.h"
@@ -366,20 +367,6 @@ lock_deadlock_recursive(
 	ulint	depth);		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
-
-/*************************************************************************
-Gets the type of a lock. */
-UNIV_INLINE
-ulint
-lock_get_type(
-/*==========*/
-				/* out: LOCK_TABLE or LOCK_REC */
-	const lock_t*	lock)	/* in: lock */
-{
-	ut_ad(lock);
-
-	return(lock->type_mode & LOCK_TYPE_MASK);
-}
 
 /*************************************************************************
 Gets the nth bit of a record lock. */
