@@ -109,7 +109,13 @@ struct yobi_db_env {
   int  (*set_lk_max) (DB_ENV *, u_int32_t);
   int  (*log_archive) (DB_ENV *, char **[], u_int32_t);
   int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t);
+#ifdef _YDB_WRAP_H
+#undef txn_begin
+#endif
   int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t);
+#ifdef _YDB_WRAP_H
+#define txn_begin txn_begin_ydb
+#endif
   // Internal state
   struct db_env_ydb_internal *i;
 };
