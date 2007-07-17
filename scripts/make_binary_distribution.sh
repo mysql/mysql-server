@@ -284,7 +284,8 @@ rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 copyfileto $BASE/mysql-test \
          mysql-test/mysql-test-run mysql-test/install_test_db \
          mysql-test/mysql-test-run.pl mysql-test/README \
-	 mysql-test/valgrind.supp \
+         mysql-test/mysql-stress-test.pl \
+         mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 
 $CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
