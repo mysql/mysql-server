@@ -2326,7 +2326,7 @@ Item*
 Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
-  if (thd->copy_db_to(&db.str, &db.length))
+  if (thd->lex->copy_db_to(&db.str, &db.length))
     return NULL;
 
   return create(thd, db, name, false, item_list);

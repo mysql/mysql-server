@@ -531,9 +531,9 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
-struct st_table_list;
+struct TABLE_LIST;
 class String;
-void view_store_options(THD *thd, st_table_list *table, String *buff);
+void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING	1
@@ -928,10 +928,7 @@ void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool drop_view, bool log_query);
-int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
-				   bool if_exists, bool drop_temporary,
-				   bool log_query);
+                         bool drop_temporary, bool drop_view, bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
@@ -1395,7 +1392,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               st_table_list *TABLE_LIST::*link,
+                               TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
@@ -1924,6 +1921,11 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table);
+bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
+                                                     TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
+                                                     int key_length);
 
 
 /* old unireg functions */
