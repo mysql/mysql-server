@@ -20,9 +20,8 @@
 class String;
 class THD;
 struct st_ha_create_information;
-struct st_table_list;
 typedef st_ha_create_information HA_CREATE_INFO;
-typedef st_table_list TABLE_LIST;
+struct TABLE_LIST;
 
 enum find_files_result {
   FIND_FILES_OK,

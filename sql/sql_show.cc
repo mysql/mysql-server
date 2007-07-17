@@ -639,7 +639,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (table_list->view)
   {
-    protocol->store(buffer.ptr(), buffer.length(), &my_charset_bin);
+    protocol->store(buffer.ptr(), buffer.length(),
+                    table_list->view_creation_ctx->get_client_cs());
 
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
@@ -2823,7 +2824,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
+static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3015,7 +3016,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_column_record(THD *thd, struct st_table_list *tables,
+static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3522,7 +3523,7 @@ err:
 }
 
 
-static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
+static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
 				  TABLE *table, bool res,
 				  const char *base_name,
 				  const char *file_name)
@@ -3612,7 +3613,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_views_record(THD *thd, struct st_table_list *tables,
+static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 				   TABLE *table, bool res,
 				   const char *base_name,
 				   const char *file_name)
@@ -3730,7 +3731,7 @@ bool store_constraints(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
+static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
@@ -3831,7 +3832,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
+static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 				      TABLE *table, bool res,
 				      const char *base_name,
 				      const char *file_name)
@@ -3908,7 +3909,7 @@ void store_key_column_usage(TABLE *table, const char*db, const char *tname,
 
 
 static int get_schema_key_column_usage_record(THD *thd,
-					      struct st_table_list *tables,
+					      TABLE_LIST *tables,
 					      TABLE *table, bool res,
 					      const char *base_name,
 					      const char *file_name)
@@ -4093,7 +4094,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 }
 
 
-static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
+static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
                                         const char *base_name,
                                         const char *file_name)
@@ -4639,7 +4640,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 */
 
 static int
-get_referential_constraints_record(THD *thd, struct st_table_list *tables,
+get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
                                    TABLE *table, bool res,
                                    const char *base_name, const char *file_name)
 {
@@ -5967,6 +5968,8 @@ static bool show_create_trigger_impl(THD *thd,
   LEX_STRING trg_connection_cl_name;
   LEX_STRING trg_db_cl_name;
 
+  CHARSET_INFO *trg_client_cs;
+
   /*
     TODO: Check privileges here. This functionality will be added by
     implementation of the following WL items:
@@ -5991,6 +5994,11 @@ static bool show_create_trigger_impl(THD *thd,
   sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                      trg_sql_mode,
                                                      &trg_sql_mode_str);
+
+  /* Resolve trigger client character set. */
+
+  if (resolve_charset(trg_client_cs_name.str, NULL, &trg_client_cs))
+    return TRUE;
 
   /* Send header. */
 
@@ -6038,7 +6046,7 @@ static bool show_create_trigger_impl(THD *thd,
 
   p->store(trg_sql_original_stmt.str,
            trg_sql_original_stmt.length,
-           &my_charset_bin);
+           trg_client_cs);
 
   p->store(trg_client_cs_name.str,
            trg_client_cs_name.length,
