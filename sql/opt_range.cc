@@ -1131,6 +1131,14 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   THD *thd= current_thd;
   if (!(file= head->file->clone(thd->mem_root)))
   {
+    /* 
+      Manually set the error flag. Note: there seems to be quite a few
+      places where a failure could cause the server to "hang" the client by
+      sending no response to a query. ATM those are not real errors because 
+      the storage engine calls in question happen to never fail with the 
+      existing storage engines. 
+    */
+    thd->net.report_error= 1;
     /* Caller will free the memory */
     goto failure;
   }
