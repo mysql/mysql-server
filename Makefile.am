@@ -56,7 +56,7 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/hash0hash.ic include/ibuf0ibuf.h	\
 			include/ibuf0ibuf.ic include/ibuf0types.h	\
 			include/lock0lock.h include/lock0lock.ic	\
-			include/lock0priv.h				\
+			include/lock0priv.h include/lock0priv.ic	\
 			include/lock0types.h include/log0log.h		\
 			include/log0log.ic include/log0recv.h		\
 			include/log0recv.ic include/mach0data.h		\

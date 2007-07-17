@@ -63,6 +63,15 @@ struct lock_struct {
 	} un_member;
 };
 
+/*************************************************************************
+Gets the type of a lock. */
+UNIV_INLINE
+ulint
+lock_get_type(
+/*==========*/
+				/* out: LOCK_TABLE or LOCK_REC */
+	const lock_t*	lock);	/* in: lock */
+
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found. */
@@ -84,5 +93,9 @@ lock_rec_get_prev(
 			none exists */
 	lock_t*	in_lock,/* in: record lock */
 	ulint	heap_no);/* in: heap number of the record */
+
+#ifndef UNIV_NONINL
+#include "lock0priv.ic"
+#endif
 
 #endif /* lock0priv_h */
