@@ -3,7 +3,7 @@ Lock module internal structures and methods.
 
 (c) 2007 Innobase Oy
 
-Created 12/07/2007 Vasil Dimov
+Created July 12, 2007 Vasil Dimov
 *******************************************************/
 
 #ifndef lock0priv_h
