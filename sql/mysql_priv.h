@@ -617,6 +617,16 @@ enum enum_mysql_completiontype {
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
+
+/* log.cc */
+void sql_perror(const char *message);
+
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
@@ -1198,14 +1208,6 @@ bool is_key_used(TABLE *table, uint idx, List<Item> &fields);
 int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 
 bool init_errmessage(void);
-void sql_perror(const char *message);
-
-void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_information(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
