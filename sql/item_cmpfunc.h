@@ -42,6 +42,8 @@ class Arg_comparator: public Sql_alloc
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
   enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
                             CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
+  ulonglong (*get_value_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                              Item *warn_item, bool *is_null);
 public:
   DTCollation cmp_collation;
 
