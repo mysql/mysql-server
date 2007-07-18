@@ -5904,6 +5904,7 @@ int initialize_schema_table(st_plugin_int *plugin)
     schema_table->old_format= make_old_format;
     schema_table->idx_field1= -1, 
     schema_table->idx_field2= -1; 
+    schema_table->table_name= plugin->name.str;
 
     if (plugin->plugin->init(schema_table))
     {
@@ -5911,7 +5912,6 @@ int initialize_schema_table(st_plugin_int *plugin)
                       plugin->name.str);
       goto err;
     }
-    schema_table->table_name= plugin->name.str;
   }
 
   DBUG_RETURN(0);
