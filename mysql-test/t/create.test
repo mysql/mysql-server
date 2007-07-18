@@ -1118,5 +1118,24 @@ show create table t1;
 
 drop table t1;
 
+--echo
+--echo Bug #26104 Bug on foreign key class constructor
+--echo
+--echo Check that ref_columns is initalized correctly in the constructor
+--echo and semantic checks in mysql_prepare_table work.
+--echo
+--echo We do not need a storage engine that supports foreign keys
+--echo for this test, as the checks are purely syntax-based, and the
+--echo syntax is supported for all engines.
+--echo
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1(a int not null, b int not null, primary key (a, b));
+--error ER_WRONG_FK_DEF
+create table t2(a int not null, b int not null, c int not null, primary key (a),
+foreign key fk_bug26104 (b,c) references t1(a));
+drop table t1;
 
 --echo End of 5.0 tests
