@@ -267,4 +267,26 @@ drop table bug_27907_logs;
 insert into bug_27907_t1(a) values (1);
 ERROR 42S02: Table 'test.bug_27907_logs' doesn't exist
 drop table bug_27907_t1;
+
+Bug#22427 create table if not exists + stored function results in
+inconsistent behavior
+
+Add a test case, the bug itself was fixed by the patch for
+Bug#20662
+
+drop table if exists t1;
+drop function if exists f_bug22427;
+create table t1 (i int);
+insert into t1 values (1);
+create function f_bug22427() returns int return (select max(i) from t1);
+select f_bug22427();
+f_bug22427()
+1
+create table if not exists t1 select f_bug22427() as i;
+Warnings:
+Note	1050	Table 't1' already exists
+create table t1 select f_bug22427() as i;
+ERROR 42S01: Table 't1' already exists
+drop table t1;
+drop function f_bug22427;
 End of 5.0 tests
