@@ -32,6 +32,7 @@ class ha_heap: public handler
 public:
   ha_heap(TABLE *table);
   ~ha_heap() {}
+  handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const
   {
     return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
@@ -54,8 +55,8 @@ public:
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
-	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
-	    HA_ONLY_WHOLE_INDEX);
+            HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
+            HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
@@ -101,9 +102,7 @@ public:
 			     enum thr_lock_type lock_type);
   int cmp_ref(const byte *ref1, const byte *ref2)
   {
-    HEAP_PTR ptr1=*(HEAP_PTR*)ref1;
-    HEAP_PTR ptr2=*(HEAP_PTR*)ref2;
-    return ptr1 < ptr2? -1 : (ptr1 > ptr2? 1 : 0);
+    return memcmp(ref1, ref2, sizeof(HEAP_PTR));
   }
 private:
   void update_key_stats();
