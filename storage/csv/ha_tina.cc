@@ -163,6 +163,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     share->rows_recorded= 0;
     share->update_file_opened= FALSE;
     share->tina_write_opened= FALSE;
+    share->data_file_version= 0;
     strmov(share->table_name, table_name);
     fn_format(share->data_file_name, table_name, "", CSV_EXT,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
@@ -440,7 +441,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   */
   current_position(0), next_position(0), local_saved_data_file_length(0),
   file_buff(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH),
-  records_is_known(0)
+  local_data_file_version(0), records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -815,6 +816,7 @@ int ha_tina::open(const char *name, int mode, uint open_options)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
+  local_data_file_version= share->data_file_version;
   if ((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
     DBUG_RETURN(0);
 
@@ -985,6 +987,33 @@ int ha_tina::delete_row(const uchar * buf)
 }
 
 
+/**
+  @brief Initialize the data file.
+  
+  @details Compare the local version of the data file with the shared one.
+  If they differ, there are some changes behind and we have to reopen
+  the data file to make the changes visible.
+  Call @c file_buff->init_buff() at the end to read the beginning of the 
+  data file into buffer.
+  
+  @retval  0  OK.
+  @retval  1  There was an error.
+*/
+
+int ha_tina::init_data_file()
+{
+  if (local_data_file_version != share->data_file_version)
+  {
+    local_data_file_version= share->data_file_version;
+    if (my_close(data_file, MYF(0)) ||
+        (data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
+      return 1;
+  }
+  file_buff->init_buff(data_file);
+  return 0;
+}
+
+
 /*
   All table scans call this first.
   The order of a table scan is:
@@ -1021,9 +1050,8 @@ int ha_tina::rnd_init(bool scan)
   DBUG_ENTER("ha_tina::rnd_init");
 
   /* set buffer to the beginning of the file */
-  file_buff->init_buff(data_file);
-  if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  if (share->crashed || init_data_file())
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   current_position= next_position= 0;
   stats.records= 0;
@@ -1247,6 +1275,16 @@ int ha_tina::rnd_end()
     if (((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1))
       DBUG_RETURN(-1);
     /*
+      As we reopened the data file, increase share->data_file_version 
+      in order to force other threads waiting on a table lock and  
+      have already opened the table to reopen the data file.
+      That makes the latest changes become visible to them.
+      Update local_data_file_version as no need to reopen it in the 
+      current thread.
+    */
+    share->data_file_version++;
+    local_data_file_version= share->data_file_version;
+    /*
       The datafile is consistent at this point and the write filedes is
       closed, so nothing worrying will happen to it in case of a crash.
       Here we record this fact to the meta-file.
@@ -1308,7 +1346,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */
-  file_buff->init_buff(data_file);
+  if (init_data_file())
+    DBUG_RETURN(HA_ERR_CRASHED_ON_REPAIR);
 
   /*
     Local_saved_data_file_length is initialized during the lock phase.
@@ -1480,7 +1519,8 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   /* position buffer to the start of the file */
-  file_buff->init_buff(data_file);
+   if (init_data_file())
+     DBUG_RETURN(HA_ERR_CRASHED);
 
   /*
     Local_saved_data_file_length is initialized during the lock phase.

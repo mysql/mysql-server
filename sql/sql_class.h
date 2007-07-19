@@ -65,11 +65,23 @@ typedef struct st_user_var_events
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
 #define RP_FORCE_ROTATE               2
 
+/*
+  The COPY_INFO structure is used by INSERT/REPLACE code.
+  The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
+  UPDATE code:
+    If a row is inserted then the copied variable is incremented.
+    If a row is updated by the INSERT ... ON DUPLICATE KEY UPDATE and the
+      new data differs from the old one then the copied and the updated
+      variables are incremented.
+    The touched variable is incremented if a row was touched by the update part
+      of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
+      was actually changed or not.
+*/
 typedef struct st_copy_info {
-  ha_rows records;
-  ha_rows deleted;
-  ha_rows updated;
-  ha_rows copied;
+  ha_rows records; /* Number of processed records */
+  ha_rows deleted; /* Number of deleted records */
+  ha_rows updated; /* Number of updated records */
+  ha_rows copied;  /* Number of copied records */
   ha_rows error_count;
   ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
@@ -1558,11 +1570,27 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
+
+  static inline void safe_time(time_t *t)
+  {
+    /**
+       Wrapper around time() which retries on error (-1)
+
+       @details
+       This is needed because, despite the documentation, time() may fail
+       in some circumstances.  Here we retry time() until it succeeds, and
+       log the failure so that performance problems related to this can be
+       identified.
+    */
+    while(unlikely(time(t) == ((time_t) -1)))
+      sql_print_information("time() failed with %d", errno);
+  }
+
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else time_after_lock=time(&start_time); }
-  inline void	end_time()    { time(&start_time); }
+  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else { safe_time(&start_time); time_after_lock= start_time; }}
+  inline void	end_time()    { safe_time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
-  inline void	lock_time()   { time(&time_after_lock); }
+  inline void	lock_time()   { safe_time(&time_after_lock); }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;

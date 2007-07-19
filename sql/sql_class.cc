@@ -2576,7 +2576,7 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
   return(thd->no_trans_update.all);
 }
 
-extern "C" int thd_binlog_format(const THD *thd)
+extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
   return (int) thd->variables.binlog_format;
 }

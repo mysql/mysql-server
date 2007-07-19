@@ -2349,6 +2349,21 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1,t2;
 
+#
+# Bug #21101 (Prints wrong error message if max row size is too large)
+#
+--error 1118
+CREATE TABLE t1 (
+	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
+	c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
+	c09 CHAR(255), c10 CHAR(255), c11 CHAR(255), c12 CHAR(255),
+	c13 CHAR(255), c14 CHAR(255), c15 CHAR(255), c16 CHAR(255),
+	c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
+	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
+	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
+	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
+	) ENGINE = InnoDB;
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

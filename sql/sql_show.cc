@@ -5905,12 +5905,17 @@ int initialize_schema_table(st_plugin_int *plugin)
     schema_table->idx_field1= -1, 
     schema_table->idx_field2= -1; 
 
+    /* Make the name available to the init() function. */
+    schema_table->table_name= plugin->name.str;
+
     if (plugin->plugin->init(schema_table))
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       goto err;
     }
+    
+    /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }
 
