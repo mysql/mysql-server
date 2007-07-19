@@ -1542,5 +1542,18 @@ INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #28524: mysqldump --skip-add-drop-table is not
+--echo #             compatible with views
+--echo #
+
+CREATE VIEW v1 AS SELECT 1;
+--exec $MYSQL_DUMP --skip-add-drop-table test > $MYSQLTEST_VARDIR/tmp/bug28524.sql
+DROP VIEW v1;
+
+--exec $MYSQL test <  $MYSQLTEST_VARDIR/tmp/bug28524.sql
+SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo #
 --echo # End of 5.0 tests
 --echo #

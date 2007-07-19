@@ -566,6 +566,7 @@ struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
+  my_bool keep_files_on_create;
 
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;

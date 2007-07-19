@@ -40,3 +40,40 @@ drop table t1;
 # ##########################################################
 
 # End of 4.1 tests
+
+#
+# Bug#29555: Comparing time values as strings may lead to a wrong result.
+#
+select cast('100:55:50' as time) < cast('24:00:00' as time);
+select cast('100:55:50' as time) < cast('024:00:00' as time);
+select cast('300:55:50' as time) < cast('240:00:00' as time);
+select cast('100:55:50' as time) > cast('24:00:00' as time);
+select cast('100:55:50' as time) > cast('024:00:00' as time);
+select cast('300:55:50' as time) > cast('240:00:00' as time);
+create table t1 (f1 time);
+insert into t1 values ('24:00:00');
+select cast('24:00:00' as time) = (select f1 from t1);
+drop table t1;
+
+#
+# Bug#29739: Incorrect time comparison in BETWEEN.
+#
+create table t1(f1 time, f2 time);
+insert into t1 values('20:00:00','150:00:00');
+select 1 from t1 where cast('100:00:00' as time) between f1 and f2;
+drop table t1;
+
+#
+# Bug#29729: Wrong conversion error led to an empty result set.
+#
+CREATE TABLE  t1 (
+  f2 date NOT NULL,
+  f3 int(11) unsigned NOT NULL default '0',
+  PRIMARY KEY  (f3, f2)
+);
+insert into t1 values('2007-07-01', 1);
+insert into t1 values('2007-07-01', 2);
+insert into t1 values('2007-07-02', 1);
+insert into t1 values('2007-07-02', 2);
+SELECT sum(f3) FROM t1 where f2='2007-07-01 00:00:00' group by f2;
+drop table t1;
