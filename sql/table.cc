@@ -19,7 +19,7 @@
 #include "mysql_priv.h"
 #include <errno.h>
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
 
 	/* Functions defined in this file */
 
