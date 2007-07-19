@@ -49,6 +49,7 @@ struct db_env_ydb_internal {
     unsigned long long objnum;
     DB_ENV *env;
     void (*noticecall)(DB_ENV_ydb*, db_notices_ydb);
+    char *home;
 };
 
 struct yobi_db_txn_internal {
@@ -112,6 +113,14 @@ u_int32_t convert_db_create_flags(u_int32_t flags) {
     abort();
 }
 
+u_int32_t convert_db_set_flags (u_int32_t flags, char *flagstring, int flagstringlen) {
+    u_int32_t gotit=0;
+    snprintf(flagstring, flagstringlen, "0"); flagstringlen--; flagstring++;
+    doits(DB_DUP);
+    assert(flags==0);
+    return gotit;
+}
+
 #define retit(flag) ({ if (flag ## _ydb == flags) { strncpy(flagstring, #flag ,flagstringlen); return flag; } })
 
 u_int32_t convert_c_get_flags(u_int32_t flags, char *flagstring, int flagstringlen) {
@@ -127,6 +136,7 @@ int  ydb_env_open (DB_ENV_ydb *env, const char *home, u_int32_t flags, int mode)
     u_int32_t bdb_flags = convert_envopen_flags(flags, flagstring, sizeof(flagstring));
     //note();
     r = env->i->env->open(env->i->env, home, bdb_flags, mode);
+    env->i->home = strdup(home);
     tracef("r = envobj(%lld)->open(envobj(%lld), \"%s\", %s, 0%o); assert(r==%d);\n",
 	   env->i->objnum, env->i->objnum, home, flagstring, mode, r);
     return r;
@@ -246,6 +256,8 @@ int db_env_create_bdbw (struct yobi_db_env **envp, u_int32_t flags) {
     //note();
     result->i = malloc(sizeof(*result->i));
     result->i->objnum = objnum++;
+    result->i->noticecall = 0;
+    result->i->home = 0;
 
     result->err = ydb_env_err;
     result->open = ydb_env_open;
@@ -338,6 +350,7 @@ struct ydb_db_internal {
     long long objnum;
     DB *db;
     int (*bt_compare)(DB_ydb *, const DBT_ydb *, const DBT_ydb *);
+    DB_ENV_ydb *env;
 };
 
 static int bdbw_db_close (DB_ydb *db, u_int32_t flags) {
@@ -543,12 +556,27 @@ int  bdbw_db_put (DB_ydb *db, DB_TXN_ydb *txn, DBT_ydb *dbta, DBT_ydb *dbtb, u_i
     return r;
 }
 int  bdbw_db_remove (DB_ydb *db, const char *fname, const char *dbname, u_int32_t flags) {
-  barf();
-  abort();
+    int r;
+    assert(dbname==0);
+    assert(flags==0);
+    tracef(" r =dbobj(%lld)->remove(dbobj(%lld), \"%s\", 0, 0);", db->i->objnum, db->i->objnum, fname);
+    r = db->i->db->remove(db->i->db, fname, dbname, flags);
+    assert(r==0);
+    tracef(" assert(r==%d);\n", r);
+    return r;
 }
-int  bdbw_db_rename (DB_ydb *db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-  barf();
-  abort();
+int  bdbw_db_rename (DB_ydb *db, const char *namea, const char *database, const char *namec, u_int32_t flags) {
+    int r;
+    assert(database==0);
+    assert(flags==0);
+    tracef(" r = dbobj(%lld)->rename(dbobj(%lld), \"%s\", ", db->i->objnum, db->i->objnum, namea);
+    if (database) tracef("\"%s\"", database);
+    else tracef("0");
+    tracef(", \"%s\", 0); ", namec);
+    r=db->i->db->rename(db->i->db, namea, database, namec, 0);
+    tracef(" assert(r==%d);\n", r);
+    assert(r==0);
+    return r;
 }
 
 extern int berkeley_cmp_hidden_key(DB_ydb *, const DBT_ydb *, const DBT_ydb *);
@@ -572,11 +600,12 @@ static int  bdbw_db_set_bt_compare (DB_ydb *db, int (*bt_compare)(DB_ydb *, cons
 
 int  bdbw_db_set_flags (DB_ydb *db, u_int32_t flags) {
     int r;
-    assert(flags==0);
-    r = db->i->db->set_flags(db->i->db, 0);
+    char flagsstring[1000];
+    u_int32_t bdb_flags = convert_db_set_flags (flags, flagsstring, sizeof(flagsstring));
+    r = db->i->db->set_flags(db->i->db, bdb_flags);
     assert(r==0);
-    tracef("r=dbobj(%lld)->set_flags(dbobj(%lld), 0); assert(r==0);\n",
-	   db->i->objnum, db->i->objnum);
+    tracef("r=dbobj(%lld)->set_flags(dbobj(%lld), %s); assert(r==0);\n",
+	   db->i->objnum, db->i->objnum, flagsstring);
     return r;
 }
 int bdbw_db_stat (DB_ydb *db, void *v, u_int32_t flags) {
@@ -605,6 +634,7 @@ int db_create_bdbw (DB_ydb **db, DB_ENV_ydb *env, u_int32_t flags) {
   result->i->objnum = objnum++;
   result->i->db->app_private = result;
   result->i->bt_compare = 0;
+  result->i->env = env;
   *db = result;
   tracef("r=db_create(new_dbobj(%lld), envobj(%lld), %d); assert(r==%d);\n",
 	 result->i->objnum, env->i->objnum, flags, r);  
