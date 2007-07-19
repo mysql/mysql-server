@@ -37,7 +37,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <violite.h>
-#include <md5.h>
+#include "my_md5.h"
 #include <signal.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>

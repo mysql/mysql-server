@@ -22,7 +22,7 @@
 #include <mysql_version.h>
 #include <errno.h>
 #include <my_getopt.h>
-#include <md5.h>
+#include "my_md5.h"
 
 const char* outfile=0,*user="root";
 
