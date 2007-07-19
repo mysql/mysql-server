@@ -46,7 +46,8 @@ IF(DISABLE_GRANT_OPTIONS)
   ADD_DEFINITIONS(-DDISABLE_GRANT_OPTIONS)
 ENDIF(DISABLE_GRANT_OPTIONS)
 
-ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
+ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
+	       ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
                filesort.cc gstream.cc ha_blackhole.cc 
                ha_archive.cc ha_heap.cc ha_myisam.cc ha_myisammrg.cc
@@ -82,7 +83,8 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 			   ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 
-TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
+TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX}
+		      heap myisam myisammrg mysys yassl zlib dbug yassl 
                       taocrypt strings vio regex wsock32)
 
 IF(EMBED_MANIFESTS)
@@ -90,19 +92,19 @@ IF(EMBED_MANIFESTS)
 ENDIF(EMBED_MANIFESTS)
 
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld example)
+  TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX} example)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld innobase)
+  TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX} innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
 
 IF(WITH_BERKELEY_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld bdb)
+  TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX} bdb)
 ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
 
 
-ADD_DEPENDENCIES(mysqld GenError)
+ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
@@ -134,7 +136,7 @@ ADD_CUSTOM_COMMAND(
 	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
 	DEPENDS ${GEN_LEX_HASH_EXE}
 )
-ADD_DEPENDENCIES(mysqld gen_lex_hash)
+ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} gen_lex_hash)
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings)
