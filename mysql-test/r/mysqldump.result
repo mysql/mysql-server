@@ -1890,7 +1890,7 @@ DROP TABLE IF EXISTS `v2`;
 /*!50001 CREATE TABLE `v2` (
   `a` varchar(30)
 ) */;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -1981,7 +1981,7 @@ DROP TABLE IF EXISTS `v1`;
 /*!50001 CREATE TABLE `v1` (
   `a` int(11)
 ) */;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2049,7 +2049,7 @@ DROP TABLE IF EXISTS `v2`;
 /*!50001 CREATE TABLE `v2` (
   `a` varchar(30)
 ) */;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2168,7 +2168,7 @@ DROP TABLE IF EXISTS `v3`;
   `b` int(11),
   `c` varchar(30)
 ) */;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2182,7 +2182,7 @@ DROP TABLE IF EXISTS `v3`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2196,7 +2196,7 @@ DROP TABLE IF EXISTS `v3`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE IF EXISTS `v3`*/;
+/*!50001 DROP TABLE `v3`*/;
 /*!50001 DROP VIEW IF EXISTS `v3`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2888,7 +2888,7 @@ DROP TABLE IF EXISTS `v2`;
 ) */;
 
 USE `test`;
-/*!50001 DROP TABLE IF EXISTS `v0`*/;
+/*!50001 DROP TABLE `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2902,7 +2902,7 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -2917,6 +2917,7 @@ USE `test`;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3151,6 +3152,7 @@ mysqldump {
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v1` AS select `t`.`qty` AS `qty`,`t`.`price` AS `price`,(`t`.`qty` * `t`.`price`) AS `value` from `t` */;
@@ -3165,6 +3167,7 @@ mysqldump {
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v2` AS select `v1`.`qty` AS `qty` from `v1` */;
@@ -3251,7 +3254,7 @@ DROP TABLE IF EXISTS `v1`;
 ) */;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
@@ -3313,6 +3316,7 @@ USE `mysqldump_views`;
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
+/*!50001 DROP TABLE `nasishnasifu`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
@@ -3559,6 +3563,16 @@ CREATE TABLE `t1` (
 );
 INSERT INTO `t1` VALUES (11,0x7171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171);
 DROP TABLE t1;
+#
+# Bug #28524: mysqldump --skip-add-drop-table is not
+#             compatible with views
+#
+CREATE VIEW v1 AS SELECT 1;
+DROP VIEW v1;
+SELECT * FROM v1;
+1
+1
+DROP VIEW v1;
 #
 # End of 5.0 tests
 #
