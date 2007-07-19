@@ -28,7 +28,7 @@
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #endif /* HAVE_OPENSSL */
-#include "md5.h"
+#include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
 C_MODE_START
