@@ -15401,11 +15401,11 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   Print table as it should be in join list
 
   SYNOPSIS
-    st_table_list::print();
+    TABLE_LIST::print();
     str   string where table should bbe printed
 */
 
-void st_table_list::print(THD *thd, String *str)
+void TABLE_LIST::print(THD *thd, String *str)
 {
   if (nested_join)
   {

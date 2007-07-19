@@ -697,7 +697,7 @@ drop table t1;
 #
 # Bug #9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
 #
---error 1044
+--error ER_PARSE_ERROR
 alter database information_schema;
 --error 1044
 drop database information_schema;
@@ -1038,4 +1038,11 @@ delete from v1;
 drop view v1,v2;
 drop table t1,t2;
 
-# End of 5.0 tests.
+#
+# Bug#25859    ALTER DATABASE works w/o parameters
+#
+--error ER_PARSE_ERROR
+alter database;
+--error ER_PARSE_ERROR
+alter database test;
+--echo End of 5.0 tests.
