@@ -1705,8 +1705,8 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
   Delayed_insert *tmp;
   while ((tmp=it++))
   {
-    if (!strcmp(tmp->thd.db,table_list->db) &&
-	!strcmp(table_list->table_name,tmp->table->s->table_name))
+    if (!strcmp(table_list->db, tmp->table_list.db) &&
+	!strcmp(table_list->table_name, tmp->table_list.table_name))
     {
       tmp->lock();
       break;
@@ -1739,7 +1739,27 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
                 Two latter cases indicate a request for lock upgrade.
 
   XXX: why do we regard INSERT DELAYED into a view as an error and
-  do not simply a lock upgrade?
+  do not simply perform a lock upgrade?
+
+  TODO: The approach with using two mutexes to work with the
+  delayed thread list -- LOCK_delayed_insert and
+  LOCK_delayed_create -- is redundant, and we only need one of
+  them to protect the list.  The reason we have two locks is that
+  we do not want to block look-ups in the list while we're waiting
+  for the newly created thread to open the delayed table. However,
+  this wait itself is redundant -- we always call get_local_table
+  later on, and there wait again until the created thread acquires
+  a table lock.
+
+  As is redundant the concept of locks_in_memory, since we already
+  have another counter with similar semantics - tables_in_use,
+  both of them are devoted to counting the number of producers for
+  a given consumer (delayed insert thread), only at different
+  stages of producer-consumer relationship.
+
+  'dead' and 'status' variables in Delayed_insert are redundant
+  too, since there is already 'di->thd.killed' and
+  di->stacked_inserts.
 */
 
 static
@@ -1788,7 +1808,9 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
         goto end_create;
       }
       tmp->table_list= *table_list;			// Needed to open table
+      /* Replace volatile strings with local copies */
       tmp->table_list.alias= tmp->table_list.table_name= tmp->thd.query;
+      tmp->table_list.db= tmp->thd.db;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,
@@ -1834,6 +1856,9 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 	tmp->unlock();
         goto end_create;
       }
+      pthread_mutex_lock(&LOCK_delayed_insert);
+      delayed_threads.append(tmp);
+      pthread_mutex_unlock(&LOCK_delayed_insert);
     }
     pthread_mutex_unlock(&LOCK_delayed_create);
   }
@@ -2175,11 +2200,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
     goto end;
   }
   di->table->copy_blobs=1;
-
-  /* One can now use this */
-  pthread_mutex_lock(&LOCK_delayed_insert);
-  delayed_threads.append(di);
-  pthread_mutex_unlock(&LOCK_delayed_insert);
 
   /* Tell client that the thread is initialized */
   pthread_cond_signal(&di->cond_client);
