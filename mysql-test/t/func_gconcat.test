@@ -551,4 +551,15 @@ SELECT LENGTH( GROUP_CONCAT( a ) ) FROM t3 WHERE b = 3;
 SET group_concat_max_len= DEFAULT;
 DROP TABLE t1, t2, t3;
 
+#
+# Bug#29850: Wrong charset of the GROUP_CONCAT result when the select employs
+#            a temporary table.
+#
+set names latin1;
+create table t1 (id int, name varchar(20)) DEFAULT CHARSET=utf8;
+insert into t1 (id, name) values (1, "óra");
+insert into t1 (id, name) values (2, "óra");
+select b.id, group_concat(b.name) from t1 a, t1 b group by b.id;
+drop table t1;
+
 --echo End of 5.0 tests
