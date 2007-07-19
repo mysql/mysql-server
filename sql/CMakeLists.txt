@@ -15,9 +15,10 @@
 INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG 
-    "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
+    "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR /Zi")
 SET(CMAKE_C_FLAGS_DEBUG 
-    "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
+    "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR /Zi")
+SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /MAP /MAPINFO:EXPORTS") 
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
@@ -40,7 +41,8 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN)
 
-ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
+ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
+	       ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
                filesort.cc gstream.cc
                ha_partition.cc
@@ -81,7 +83,8 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 			   ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
 			   ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
-TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
+TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX}
+		      heap myisam myisammrg mysys yassl zlib dbug yassl 
                       taocrypt strings vio regex wsock32 ws2_32)
 
 IF(EMBED_MANIFESTS)
@@ -97,16 +100,16 @@ IF(WITH_CSV_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld csv)
 ENDIF(WITH_CSV_STORAGE_ENGINE)
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld example)
+  TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX} example)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
 IF(WITH_FEDERATED_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld federated)
 ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld innobase)
+  TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX} innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
 
-ADD_DEPENDENCIES(mysqld GenError)
+ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
@@ -138,8 +141,7 @@ ADD_CUSTOM_COMMAND(
 	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
 	DEPENDS ${GEN_LEX_HASH_EXE}
 )
-
-ADD_DEPENDENCIES(mysqld gen_lex_hash)
+ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} gen_lex_hash)
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings)
