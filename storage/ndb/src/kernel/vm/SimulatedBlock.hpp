@@ -18,7 +18,7 @@
 
 #include <NdbTick.h>
 #include <kernel_types.h>
-#include <ndb_version.h>
+#include <util/version.h>
 #include <ndb_limits.h>
 
 #include "VMSignal.hpp"

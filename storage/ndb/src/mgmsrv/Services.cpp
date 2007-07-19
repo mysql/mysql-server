@@ -18,7 +18,7 @@
 
 #include <uucode.h>
 #include <socket_io.h>
-#include <ndb_version.h>
+#include <util/version.h>
 #include <mgmapi.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
