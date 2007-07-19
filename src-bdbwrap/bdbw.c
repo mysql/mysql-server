@@ -220,6 +220,8 @@ void ydb_env_set_noticecall (DB_ENV_ydb *env, void (*noticecall)(DB_ENV_ydb *, d
 	    fun_name = "berkeley_noticecall";
 	} else {
 	    fun_name = "Unknown_function";
+	    barf();
+	    abort();
 	}
 	tracef("envobj(%lld)->set_noticecall(envobj(%lld), %s);\n",
 	       env->i->objnum, env->i->objnum, fun_name);
@@ -580,6 +582,7 @@ int  bdbw_db_rename (DB_ydb *db, const char *namea, const char *database, const 
 }
 
 extern int berkeley_cmp_hidden_key(DB_ydb *, const DBT_ydb *, const DBT_ydb *);
+extern int berkeley_cmp_packed_key(DB_ydb *, const DBT_ydb *, const DBT_ydb *);
 
 static int  bdbw_db_set_bt_compare (DB_ydb *db, int (*bt_compare)(DB_ydb *, const DBT_ydb *, const DBT_ydb *)) {
     int r;
@@ -589,8 +592,12 @@ static int  bdbw_db_set_bt_compare (DB_ydb *db, int (*bt_compare)(DB_ydb *, cons
 	const char *fun_name;
 	if (bt_compare==berkeley_cmp_hidden_key) {
 	    fun_name = "berkeley_cmp_hidden_key";
+	} else if (bt_compare==berkeley_cmp_packed_key) {
+	    fun_name = "berkeley_cmp_hidden_key";
 	} else {
 	    fun_name = "Unknown_function";
+	    barf();
+	    abort();
 	}
 	tracef("r = dbobj(%lld)->set_bt_compare(dbobj(%lld), %s); assert(r==%d);\n",
 	       db->i->objnum, db->i->objnum, fun_name, r);
