@@ -19,7 +19,7 @@
 #endif
 
 class Protocol;
-struct st_table_list;
+struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
 
@@ -2313,14 +2313,6 @@ public:
 enum trg_action_time_type
 {
   TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
-
-/*
-  Event on which trigger is invoked.
-*/
-enum trg_event_type
-{
-  TRG_EVENT_INSERT= 0 , TRG_EVENT_UPDATE= 1, TRG_EVENT_DELETE= 2, TRG_EVENT_MAX
 };
 
 class Table_triggers_list;
