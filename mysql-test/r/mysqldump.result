@@ -2916,7 +2916,6 @@ USE `test`;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP TABLE `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
@@ -3146,13 +3145,13 @@ insert into t values(5, 51);
 create view v1 as select qty, price, qty*price as value from t;
 create view v2 as select qty from v1;
 mysqldump {
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
-/*!50001 DROP TABLE `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v1` AS select `t`.`qty` AS `qty`,`t`.`price` AS `price`,(`t`.`qty` * `t`.`price`) AS `value` from `t` */;
@@ -3161,13 +3160,13 @@ mysqldump {
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 } mysqldump {
+/*!50001 DROP TABLE `v2`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
-/*!50001 DROP TABLE `v2`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v2` AS select `v1`.`qty` AS `qty` from `v1` */;
@@ -3310,13 +3309,13 @@ USE `mysqldump_views`;
 USE `mysqldump_tables`;
 
 USE `mysqldump_views`;
+/*!50001 DROP TABLE `nasishnasifu`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
 /*!50001 SET character_set_client      = latin1 */;
 /*!50001 SET character_set_results     = latin1 */;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
-/*!50001 DROP TABLE `nasishnasifu`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
@@ -3876,7 +3875,7 @@ DROP TABLE IF EXISTS `v1`;
 ) */;
 
 USE `mysqldump_test_db`;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP TABLE `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
