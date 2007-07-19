@@ -51,6 +51,7 @@ try
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "MYSQL_SERVER_SUFFIX":
+            case "MYSQLD_EXE_SUFFIX":
                     configfile.WriteLine("SET (" + parts[0] + " \""
                                          + parts[1] + "\")");
                     break;
