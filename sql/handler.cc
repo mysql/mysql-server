@@ -2355,7 +2355,13 @@ static bool update_frm_version(TABLE *table)
   int result= 1;
   DBUG_ENTER("update_frm_version");
 
-  if (table->s->mysql_version != MYSQL_VERSION_ID)
+  /*
+    No need to update frm version in case table was created or checked
+    by server with the same version. This also ensures that we do not
+    update frm version for temporary tables as this code doesn't support
+    temporary tables.
+  */
+  if (table->s->mysql_version == MYSQL_VERSION_ID)
     DBUG_RETURN(0);
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
