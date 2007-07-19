@@ -4939,7 +4939,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
       Reset stored result set if so was requested or it's a part
       of cursor fetch.
     */
-    if (result->data && (flags & RESET_STORE_RESULT))
+    if (flags & RESET_STORE_RESULT)
     {
       /* Result buffered */
       free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
