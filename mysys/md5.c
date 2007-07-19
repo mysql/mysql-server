@@ -45,7 +45,7 @@ documentation and/or software.
 
 #include <my_global.h>
 #include <m_string.h>
-#include "md5.h"
+#include "my_md5.h"
 
 /* Constants for MD5Transform routine. */
 
