@@ -1212,17 +1212,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       table->triggers= triggers;
 
       /*
-        Construct key that will represent triggers for this table in the set
-        of routines used by statement.
-      */
-      triggers->sroutines_key.length= 1+strlen(db)+1+strlen(table_name)+1;
-      if (!(triggers->sroutines_key.str= (char*)
-              alloc_root(&table->mem_root, triggers->sroutines_key.length)))
-        DBUG_RETURN(1);
-      triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
-      strxmov(triggers->sroutines_key.str+1, db, ".", table_name, NullS);
-
-      /*
         TODO: This could be avoided if there is no triggers
               for UPDATE and DELETE.
       */
@@ -1270,6 +1259,15 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_ASSERT(lex.sphead == 0);
           goto err_with_lex_cleanup;
         }
+        /*
+          Not strictly necessary to invoke this method here, since we know
+          that we've parsed CREATE TRIGGER and not an
+          UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
+          maintain the invariant that this method is called for each
+          distinct statement, in case its logic is extended with other
+          types of analyses in future.
+        */
+        lex.set_trg_event_type_for_tables();
 
         lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
 
@@ -1606,8 +1604,6 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
   bzero(&table, sizeof(table));
   init_alloc_root(&table.mem_root, 8192, 0);
 
-  safe_mutex_assert_owner(&LOCK_open);
-
   if (Table_triggers_list::check_n_load(thd, db, name, &table, 1))
   {
     result= 1;
@@ -1774,26 +1770,24 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
 }
 
 
-/*
-  Update .TRG and .TRN files after renaming triggers' subject table.
+/**
+  @brief Update .TRG and .TRN files after renaming triggers' subject table.
 
-  SYNOPSIS
-    change_table_name()
-      thd        Thread context
-      db         Old database of subject table
-      old_table  Old name of subject table
-      new_db     New database for subject table
-      new_table  New name of subject table
+  @param[in,out] thd Thread context
+  @param[in] db Old database of subject table
+  @param[in] old_table Old name of subject table
+  @param[in] new_db New database for subject table
+  @param[in] new_table New name of subject table
 
-  NOTE
+  @note
     This method tries to leave trigger related files in consistent state,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
     Also this method assumes that subject table is not renamed to itself.
+    This method needs to be called under an exclusive table name lock.
 
-  RETURN VALUE
-    FALSE  Success
-    TRUE   Error
+  @retval FALSE Success
+  @retval TRUE  Error
 */
 
 bool Table_triggers_list::change_table_name(THD *thd, const char *db,
@@ -1809,7 +1803,19 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   bzero(&table, sizeof(table));
   init_alloc_root(&table.mem_root, 8192, 0);
 
-  safe_mutex_assert_owner(&LOCK_open);
+  /*
+    This method interfaces the mysql server code protected by
+    either LOCK_open mutex or with an exclusive table name lock.
+    In the future, only an exclusive table name lock will be enough.
+  */
+#ifndef DBUG_OFF
+  uchar key[MAX_DBKEY_LENGTH];
+  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
+                    old_table)-(char*)&key[0])+1;
+
+  if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
+    safe_mutex_assert_owner(&LOCK_open);
+#endif
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
               my_strcasecmp(table_alias_charset, old_table, new_table));
@@ -1891,8 +1897,9 @@ bool Table_triggers_list::process_triggers(THD *thd,
 {
   bool err_status;
   Sub_statement_state statement_state;
+  sp_head *sp_trigger= bodies[event][time_type];
 
-  if (!bodies[event][time_type])
+  if (sp_trigger == NULL)
     return FALSE;
 
   if (old_row_is_record1)
@@ -1905,15 +1912,20 @@ bool Table_triggers_list::process_triggers(THD *thd,
     new_field= record1_field;
     old_field= trigger_table->field;
   }
+  /*
+    This trigger must have been processed by the pre-locking
+    algorithm.
+  */
+  DBUG_ASSERT(trigger_table->pos_in_table_list->trg_event_map &
+              static_cast<uint>(1 << static_cast<int>(event)));
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
   err_status=
-    bodies[event][time_type]->execute_trigger(
-      thd,
-      &trigger_table->s->db,
-      &trigger_table->s->table_name,
-      &subject_table_grants[event][time_type]);
+    sp_trigger->execute_trigger(thd,
+                                &trigger_table->s->db,
+                                &trigger_table->s->table_name,
+                                &subject_table_grants[event][time_type]);
 
   thd->restore_sub_statement_state(&statement_state);
 
@@ -1927,7 +1939,7 @@ bool Table_triggers_list::process_triggers(THD *thd,
   SYNOPSIS
     mark_fields_used()
       thd    Current thread context
-      event  Type of event triggers for which we are going to inspect
+      event  Type of event triggers for which we are going to ins
 
   DESCRIPTION
     This method marks fields of subject table which are read/set in its
