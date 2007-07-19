@@ -16291,7 +16291,7 @@ static void test_bug29687()
 
   for (i= 0; i < NUM_ITERATIONS; i++)
   {
-    mysql_stmt_execute(stmt);
+    rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     mysql_stmt_store_result(stmt);
     while (mysql_stmt_fetch(stmt)==0);
