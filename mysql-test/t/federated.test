@@ -1629,5 +1629,45 @@ drop table federated.t1;
 connection slave;
 drop table federated.t1;
 
+#
+# Bug#26909: Specified key was too long; max key length is 255 bytes 
+#       when creating a table
+#
+connection slave;
+CREATE TABLE federated.t1 (
+    categoryId int(11) NOT NULL AUTO_INCREMENT,
+    domainId varchar(745) NOT NULL DEFAULT '',
+    categoryName varchar(255) NOT NULL DEFAULT '',
+    PRIMARY KEY (categoryId),
+    UNIQUE KEY idx_unique_category_categoryName (domainId, categoryName),
+    KEY idx_category_domainId (domainId)
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    categoryId int(11) NOT NULL AUTO_INCREMENT,
+    domainId varchar(745) NOT NULL DEFAULT '',
+    categoryName varchar(255) NOT NULL DEFAULT '',
+    PRIMARY KEY (categoryId),
+    UNIQUE KEY idx_unique_category_categoryName (domainId, categoryName),
+    KEY idx_category_domainId (domainId)
+  ) ENGINE=FEDERATED DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+
+insert into federated.t1 (domainId, categoryName) values ( '1231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231  300', '1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345  250');
+insert into federated.t1 (domainId, categoryName) values ( '12312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312  301', '12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456  250');
+insert into federated.t1 (domainId, categoryName) values ('a', 'b');
+
+select categoryId from federated.t1 order by domainId, categoryName;
+select categoryId from federated.t1 where domainId='a' and categoryName='b' order by categoryId;
+select categoryId from federated.t1 where domainId='a' and categoryName='b' order by categoryId;
+select categoryId from federated.t1 where domainId<>'a' and categoryName<>'b' order by categoryId;
+
+drop table federated.t1;
+
+connection slave;
+drop table federated.t1;
 
 source include/federated_cleanup.inc;
