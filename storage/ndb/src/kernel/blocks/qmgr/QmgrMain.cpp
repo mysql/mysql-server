@@ -2793,7 +2793,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 	      "incompatible with %s",
 	      type == NodeInfo::API ? "api or mysqld" : "management server",
 	      apiNodePtr.i,
-	      getVersionString(version,"",buf,sizeof(buf)),
+	      ndbGetVersionString(version,"",buf,sizeof(buf)),
 	      NDB_VERSION_STRING);
     apiNodePtr.p->phase = ZAPI_INACTIVE;
     sendApiRegRef(signal, ref, ApiRegRef::UnsupportedVersion);

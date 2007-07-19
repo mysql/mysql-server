@@ -1195,7 +1195,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
 			(ulong) error);
 
-		ut_a(error == DB_OUT_OF_FILE_SPACE);
+		ut_a(error == DB_OUT_OF_FILE_SPACE
+		     || error == DB_TOO_MANY_CONCURRENT_TRXS);
 
 		fprintf(stderr,
 			"InnoDB: creation failed\n"
