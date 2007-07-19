@@ -16271,6 +16271,38 @@ static void test_bug27592()
 }
 
 
+
+/*
+  Bug#29687 mysql_stmt_store_result memory leak in libmysqld
+*/
+
+static void test_bug29687()
+{
+  const int NUM_ITERATIONS= 40;
+  int i;
+  int rc;
+  MYSQL_STMT *stmt= NULL;
+
+  DBUG_ENTER("test_bug29687");
+  myheader("test_bug29687");
+
+  stmt= mysql_simple_prepare(mysql, "SELECT 1 FROM dual WHERE 0=2");
+  DIE_UNLESS(stmt);
+
+  for (i= 0; i < NUM_ITERATIONS; i++)
+  {
+    mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    mysql_stmt_store_result(stmt);
+    while (mysql_stmt_fetch(stmt)==0);
+    mysql_stmt_free_result(stmt);
+  }
+
+  mysql_stmt_close(stmt);
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16560,6 +16592,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
+  { "test_bug29687", test_bug29687 },
   { 0, 0 }
 };
 
