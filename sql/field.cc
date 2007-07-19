@@ -5271,7 +5271,8 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   else
   {
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
-    if (!error && (ret != MYSQL_TIMESTAMP_DATE))
+    if (!error && (ret != MYSQL_TIMESTAMP_DATE) &&
+        thd->count_cuted_fields != CHECK_FIELD_IGNORE)
       error= 3;                                 // Datetime was cut (note)
   }
 

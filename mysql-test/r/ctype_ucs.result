@@ -886,4 +886,14 @@ collation(group_concat(a separator ','))
 latin1_swedish_ci
 drop table t1;
 set names latin1;
+create table t1 (s1 char(1) character set ascii, s2 char(1) character set ucs2);
+insert into t1 (s1) values (0x7f);
+update t1 set s2 = s1;
+select hex(s2) from t1;
+hex(s2)
+007F
+select hex(convert(s1 using latin1)) from t1;
+hex(convert(s1 using latin1))
+7F
+drop table t1;
 End of 5.0 tests
