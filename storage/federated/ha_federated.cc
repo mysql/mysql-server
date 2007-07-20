@@ -449,6 +449,13 @@ int federated_db_init(void *p)
   federated_hton->create= federated_create_handler;
   federated_hton->flags= HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
 
+  /*
+    Support for transactions disabled until WL#2952 fixes it.
+	We do it like this to avoid "defined but not used" compiler warnings.
+  */
+  federated_hton->commit= 0;
+  federated_hton->rollback= 0;
+
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
@@ -3163,6 +3170,10 @@ int ha_federated::external_lock(THD *thd, int lock_type)
   ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
   DBUG_ENTER("ha_federated::external_lock");
 
+  /*
+    Support for transactions disabled until WL#2952 fixes it.
+  */
+#ifdef XXX_SUPERCEDED_BY_WL2952
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info",("federated not lock F_UNLCK"));
@@ -3216,6 +3227,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
       }
     }
   }
+#endif /* XXX_SUPERCEDED_BY_WL2952 */
   DBUG_RETURN(0);
 }
 
