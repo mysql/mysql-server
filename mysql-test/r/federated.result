@@ -1878,6 +1878,8 @@ select categoryId from federated.t1 where domainId<>'a' and categoryName<>'b' or
 categoryId
 1
 2
+drop table federated.t1;
+drop table federated.t1;
 create table federated.t1 (a int primary key, b varchar(64))
 DEFAULT CHARSET=utf8;
 create table federated.t1 (a int primary key, b varchar(64))
