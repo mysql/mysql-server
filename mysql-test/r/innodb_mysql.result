@@ -735,4 +735,249 @@ COUNT(*)
 3072
 set @@sort_buffer_size=default;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
+INSERT INTO t1 SELECT a + 8, 2 FROM t1;
+INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	const
+rows	16
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b=2 ORDER BY a;
+a	b
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	range
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	NULL
+rows	16
+Extra	Using where; Using index; Using filesort
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+a	b
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+17	1
+18	1
+19	1
+20	1
+21	1
+22	1
+23	1
+24	1
+25	1
+26	1
+27	1
+28	1
+29	1
+30	1
+31	1
+32	1
+EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+id	1
+select_type	SIMPLE
+table	t1
+type	range
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	NULL
+rows	16
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+a	b
+17	1
+18	1
+19	1
+20	1
+21	1
+22	1
+23	1
+24	1
+25	1
+26	1
+27	1
+28	1
+29	1
+30	1
+31	1
+32	1
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
+ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
+INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
+INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	const
+rows	8
+Extra	Using where; Using index; Using filesort
+SELECT * FROM t2 WHERE b=1 ORDER BY a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+DROP TABLE t1,t2;
 End of 5.0 tests
