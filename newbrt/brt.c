@@ -43,7 +43,7 @@ void brtnode_free (BRTNODE node) {
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, node, node->mdicts[0]);
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children-1; i++) {
-	    my_free((void*)node->u.n.childkeys[i]);
+	    toku_free((void*)node->u.n.childkeys[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (node->u.n.htables[i]) {
@@ -54,7 +54,7 @@ void brtnode_free (BRTNODE node) {
 	if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
 	    pma_free(&node->u.l.buffer);
     }
-    my_free(node);
+    toku_free(node);
 }
 
 void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnode_v, int write_me, int keep_me) {
@@ -93,12 +93,12 @@ void brtheader_flush_callback (CACHEFILE cachefile, diskoff nodename, void *head
 	if (h->n_named_roots>0) {
 	    int i;
 	    for (i=0; i<h->n_named_roots; i++) {
-		my_free(h->names[i]);
+		toku_free(h->names[i]);
 	    }
-	    my_free(h->names);
-	    my_free(h->roots);
+	    toku_free(h->names);
+	    toku_free(h->roots);
 	}
-	my_free(h);
+	toku_free(h);
     }
 }
 
@@ -869,14 +869,14 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
     r=cachetable_put(t->cf, offset, node,
 		     brtnode_flush_callback, brtnode_fetch_callback, (void*)t->h->nodesize);
     if (r!=0) {
-	my_free(node);
+	toku_free(node);
 	return r;
     }
     //printf("%s:%d created %lld\n", __FILE__, __LINE__, node->thisnodename);
     verify_counts(node);
     r=cachetable_unpin(t->cf, node->thisnodename, 1);
     if (r!=0) {
-	my_free(node);
+	toku_free(node);
 	return r;
     }
     return 0;
@@ -900,14 +900,14 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     if ((MALLOC(t))==0) {
 	assert(errno==ENOMEM);
 	r = ENOMEM;
-	if (0) { died0: my_free(t); }
+	if (0) { died0: toku_free(t); }
 	return r;
     }
     if (dbname) {
 	malloced_name = mystrdup(dbname);
 	if (malloced_name==0) {
 	    r = ENOMEM;
-	    if (0) { died0a: if(malloced_name) my_free(malloced_name); }
+	    if (0) { died0a: if(malloced_name) toku_free(malloced_name); }
 	    goto died0;
 	}
     }
@@ -926,7 +926,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if ((MALLOC(t->h))==0) {
 		assert(errno==ENOMEM);
 		r = ENOMEM;
-		if (0) { died2: my_free(t->h); }
+		if (0) { died2: toku_free(t->h); }
 		goto died1;
 	    }
 	    t->h->nodesize=nodesize;
@@ -935,9 +935,9 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if (dbname) {
 		t->h->unnamed_root = -1;
 		t->h->n_named_roots = 1;
-		if ((MALLOC_N(1, t->h->names))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died3: my_free(t->h->names); } goto died2; }
-		if ((MALLOC_N(1, t->h->roots))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: my_free(t->h->roots); } goto died3; }
-		if ((t->h->names[0] = mystrdup(dbname))==0)  { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: my_free(t->h->names[0]); } goto died4; }
+		if ((MALLOC_N(1, t->h->names))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died3: toku_free(t->h->names); } goto died2; }
+		if ((MALLOC_N(1, t->h->roots))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: toku_free(t->h->roots); } goto died3; }
+		if ((t->h->names[0] = mystrdup(dbname))==0)  { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: toku_free(t->h->names[0]); } goto died4; }
 		t->h->roots[0] = nodesize;
 	    } else {
 		t->h->unnamed_root = nodesize;
@@ -958,8 +958,8 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 		    goto died1; /* deallocate everything. */
 		}
 	    }
-	    if ((t->h->names = my_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
-	    if ((t->h->roots = my_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
+	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
+	    if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    t->h->n_named_roots++;
 	    if ((t->h->names[t->h->n_named_roots-1] = mystrdup(dbname)) == 0)                                 { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
@@ -1002,8 +1002,8 @@ int close_brt (BRT brt) {
     assert(0==cachefile_count_pinned(brt->cf, 1));
     //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
     if ((r = cachefile_close(brt->cf))!=0) return r;
-    if (brt->database_name) my_free(brt->database_name);
-    my_free(brt);
+    if (brt->database_name) toku_free(brt->database_name);
+    toku_free(brt);
     return 0;
 }
 
@@ -1409,7 +1409,7 @@ int brt_cursor_close (BRT_CURSOR curs) {
 	int r2=pma_cursor_free(&curs->pmacurs);
 	if (r==0) r=r2;
     }
-    my_free(curs);
+    toku_free(curs);
     return r;
 }
 

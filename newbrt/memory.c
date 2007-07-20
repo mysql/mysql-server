@@ -22,7 +22,7 @@ void note_did_malloc (void *p, long size) {
     WHEN_MEM_DEBUG(
 		   if (n_items_malloced<items_limit) { items[n_items_malloced]=p; sizes[n_items_malloced]=size; }
 		   else overflowed=1;
-		   //printf("%s:%d %p=malloc(%ld)\n", __FILE__, __LINE__, r, size);
+		   printf("%s:%d %p=malloc(%ld)\n", __FILE__, __LINE__, p, size);
 		   );
     n_items_malloced++;
 }
@@ -44,7 +44,7 @@ void note_did_free(void *p) {
 		       abort();
 		   ok:;
 		   }
-		   //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
+		   printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
 		   );
     n_items_malloced--;
 }
@@ -123,7 +123,7 @@ void do_memory_check (void) {
 #endif
 
 
-void *my_calloc(long nmemb, long size) {
+void *toku_calloc(long nmemb, long size) {
     void *r;
     errno=0;
     r = actual_calloc(nmemb, size);
@@ -132,23 +132,24 @@ void *my_calloc(long nmemb, long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p\n", __FILE__, __LINE__, r);  }
     return r;
 }
-void *my_malloc(long size) {
+void *toku_malloc(long size) {
     void * r;
     errno=0;
     r=actual_malloc(size);
-    //printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
+    printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
     note_did_malloc(r, size);
     //if ((long)r==0x80523f8) { printf("%s:%d %p size=%ld\n", __FILE__, __LINE__, r, size);   }
     return r;
 }
 void *tagmalloc(unsigned long size, int typtag) {
-    void *r = my_malloc(size);
+    printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
+    void *r = toku_malloc(size);
     assert(size>sizeof(int));
     ((int*)r)[0] = typtag;
     return r;
 }
 
-void *my_realloc(void *p, long size) {
+void *toku_realloc(void *p, long size) {
     void *newp;
     note_did_free(p);
     errno=0;
@@ -158,14 +159,14 @@ void *my_realloc(void *p, long size) {
     return newp;
 }
 
-void my_free(void* p) {
+void toku_free(void* p) {
     //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
     note_did_free(p);
     actual_free(p);
 }
 
 void *memdup (const void *v, unsigned int len) {
-    void *r=my_malloc(len);
+    void *r=toku_malloc(len);
     memcpy(r,v,len);
     return r;
 }

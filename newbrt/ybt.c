@@ -12,12 +12,12 @@ int ybt_init (DBT *ybt) {
 int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
     if (ybt->flags==DB_DBT_MALLOC) {
     domalloc:
-	ybt->data = my_malloc(vallen);
+	ybt->data = toku_malloc(vallen);
 	if (errno!=0) return errno;
 	ybt->ulen = vallen;
     } else if (ybt->flags==DB_DBT_REALLOC) {
 	if (ybt->data==0) goto domalloc;
-	ybt->data = my_realloc(ybt->data, vallen);
+	ybt->data = toku_realloc(ybt->data, vallen);
 	if (errno!=0) return errno;
 	ybt->ulen = vallen;
 
@@ -27,9 +27,9 @@ int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
 	if (staticptrp==0) return -1;
 	void *staticptr=*staticptrp;
 	if (staticptr==0) 
-	    staticptr = my_malloc(vallen);
+	    staticptr = toku_malloc(vallen);
 	else
-	    staticptr = my_realloc(staticptr, vallen);
+	    staticptr = toku_realloc(staticptr, vallen);
 	if (errno!=0) return errno;
 	*staticptrp = staticptr;
 	ybt->data = staticptr;

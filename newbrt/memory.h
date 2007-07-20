@@ -1,14 +1,14 @@
 //#include <stdlib.h>
 
 /* errno is set to 0 or a value to indicate problems. */
-void *my_calloc(long nmemb, long size);
-void *my_malloc(long size);
+void *toku_calloc(long nmemb, long size);
+void *toku_malloc(long size);
 void *tagmalloc(unsigned long size, int typ);
-void my_free(void*);
-void *my_realloc(void *, long size);
+void toku_free(void*);
+void *toku_realloc(void *, long size);
 
-#define MALLOC(v) v = my_malloc(sizeof(*v))
-#define MALLOC_N(n,v) v = my_malloc((n)*sizeof(*v))
+#define MALLOC(v) v = toku_malloc(sizeof(*v))
+#define MALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
 
 #define TAGMALLOC(t,v) t v = tagmalloc(sizeof(*v), TYP_ ## t);
 

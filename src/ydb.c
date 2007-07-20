@@ -237,8 +237,7 @@ int txn_abort (DB_TXN *txn) {
 }
 
 int txn_commit (DB_TXN *txn, u_int32_t flags) {
-  fprintf(stderr, "%s:%d txn_commit(%p,%ud)\n", __FILE__, __LINE__, txn, flags);
-  abort();
+    return 0;
 }
 
 int log_compare (const DB_LSN *a, const DB_LSN *b) {

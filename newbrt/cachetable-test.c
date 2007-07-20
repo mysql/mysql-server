@@ -46,7 +46,7 @@ static void flush (CACHEFILE f, CACHEKEY key, void*value, int write_me __attribu
     printf("%lld was flushed, but I didn't expect it\n", key);
     abort();
  found_flush:
-    my_free(value);
+    toku_free(value);
 }
 
 struct item *make_item (CACHEKEY key) {

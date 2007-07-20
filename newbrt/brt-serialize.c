@@ -138,7 +138,7 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     int i;
     unsigned int calculated_size = serialize_brtnode_size(node);
     assert(size>0);
-    w.buf=my_malloc(size);
+    w.buf=toku_malloc(size);
     w.size=size;
     w.ndone=0;
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
@@ -190,7 +190,7 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     assert(w.ndone<=size);
-    my_free(w.buf);
+    toku_free(w.buf);
 }
 
 int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize) {
@@ -201,7 +201,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     int r;
     if (errno!=0) {
 	r=errno;
-	if (0) { died0: my_free(result); }
+	if (0) { died0: toku_free(result); }
 	return r;
     }
     {
@@ -216,9 +216,9 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	datasize = ntohl(datasize_n);
 	if (datasize<=0 || datasize>(1<<30)) { r = DB_BADFORMAT; goto died0; }
     }
-    rc.buf=my_malloc(datasize);
+    rc.buf=toku_malloc(datasize);
     if (errno!=0) {
-	if (0) { died1: my_free(rc.buf); }
+	if (0) { died1: toku_free(rc.buf); }
 	r=errno;
 	goto died0;
     }
@@ -316,7 +316,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	}
     }
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);
-    my_free(rc.buf);
+    toku_free(rc.buf);
     *brtnode = result;
     verify_counts(result);
     return 0;
@@ -360,7 +360,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
 	    size+=12 + 1 + strlen(h->names[i]);
 	}
     }
-    w.buf = my_malloc(size);
+    w.buf = toku_malloc(size);
     w.size = size;
     w.ndone = 0;
     wbuf_int    (&w, size);
@@ -384,24 +384,26 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
 	ssize_t r = pwrite(fd, w.buf, w.ndone, 0);
 	assert((size_t)r==w.ndone);
     }
-    my_free(w.buf);
+    toku_free(w.buf);
     return 0;
 }
 
 int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
+    printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     struct brt_header *MALLOC(h);
     struct cursor rc;
     int size;
     int sizeagain;
     assert(off==0);
+    printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
     {
 	uint32_t size_n;
 	ssize_t r = pread(fd, &size_n, sizeof(size_n), off);
-	if (r==0) { my_free(h); return -1; }
+	if (r==0) { toku_free(h); return -1; }
 	assert(r==sizeof(size_n));
 	size = ntohl(size_n);
     }
-    rc.buf = my_malloc(size);
+    rc.buf = toku_malloc(size);
     rc.size=size;
     assert(rc.size>0);
     rc.ndone=0;
@@ -435,7 +437,7 @@ int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
 	h->unnamed_root = rbuf_diskoff(&rc);
     }
     assert(rc.ndone==rc.size);
-    my_free(rc.buf);
+    toku_free(rc.buf);
     *brth = h;
     return 0;
 }
