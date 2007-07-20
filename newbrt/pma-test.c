@@ -455,6 +455,9 @@ void test_pma_cursor_3 (void) {
 
     r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
 
+    my_free(key.data);
+    my_free(val.data);
+
     r=pma_cursor_free(&c); assert(r==0);
     r=pma_free(&pma); assert(r==0);
 
