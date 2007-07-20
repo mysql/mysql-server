@@ -814,8 +814,16 @@ create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
 drop table t1;
 
---echo End of 5.0 tests
+#
+# Bug #28125: ERROR 2013 when adding index.
+#
+create table t1(a text) engine=innodb default charset=utf8; 
+insert into t1 values('aaa');
+alter table t1 add index(a(1024));
+show create table t1;
+drop table t1;
 
+--echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
 # UPDATE": if the row is updated, it's like a regular UPDATE:
@@ -916,6 +924,5 @@ select * from t1;
 unlock tables;
 select * from t1;
 drop tables t1;
-
 
 --echo End of 5.1 tests
