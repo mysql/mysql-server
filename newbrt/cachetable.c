@@ -143,21 +143,21 @@ int cachetable_assert_all_unpinned (CACHETABLE t) {
     return some_pinned;
 }
 
-int cachefile_assert_all_unpinned (CACHEFILE cf) {
+int cachefile_count_pinned (CACHEFILE cf, int print_them) {
     int i;
-    int some_pinned=0;
+    int n_pinned=0;
     CACHETABLE t = cf->cachetable;
     for (i=0; i<t->table_size; i++) {
 	PAIR p;
 	for (p=t->table[i]; p; p=p->hash_chain) {
 	    assert(p->pinned>=0);
 	    if (p->pinned && p->cachefile==cf) {
-		printf("%s:%d pinned: %lld (%p)\n", __FILE__, __LINE__, p->key, p->value);
-		some_pinned=1;
+		if (print_them) printf("%s:%d pinned: %lld (%p)\n", __FILE__, __LINE__, p->key, p->value);
+		n_pinned++;
 	    }
 	}
     }
-    return some_pinned;
+    return n_pinned;
 }
 
 static unsigned int hash_key (const char *key, int keylen) {
@@ -223,7 +223,7 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     unsigned int h = hashit(t, remove_me->key);
     lru_remove(t, remove_me);
     //printf("flush_callback(%lld,%p)\n", remove_me->key, remove_me->value);
-    WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->otherargs, remove_me->dirty && write_me)); 
+    WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->dirty && write_me)); 
     remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->dirty && write_me, 0);
     t->n_in_table--;
     // Remove it from the hash chain.
@@ -233,7 +233,7 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
 
 static void flush_and_keep (PAIR flush_me) {
     if (flush_me->dirty) {
-	WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, %p, dirty=1, 0)\n", __FILE__, __LINE__, flush_me->key, flush_me->value, flush_me->otherargs)); 
+	WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=1, 0)\n", __FILE__, __LINE__, flush_me->key, flush_me->value)); 
         flush_me->flush_callback(flush_me->cachefile, flush_me->key, flush_me->value, 1, 1);
 	flush_me->dirty=0;
     }
@@ -332,7 +332,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 	    *value = p->value;
 	    p->pinned++;
 	    lru_touch(t,p);
-	    printf("%s:%d cachtable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+	    printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
 	    return 0;
 	}
     }
@@ -344,15 +344,17 @@ int cachetable_unpin (CACHEFILE cachefile, CACHEKEY key, int dirty) {
     CACHETABLE t = cachefile->cachetable;
     int h = hashit(t,key);
     PAIR p;
-    WHEN_TRACE_CT(printf("%s:%d unpin(%lld)\n", __FILE__, __LINE__, key));
+    WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     for (p=t->table[h]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    assert(p->pinned>0);
 	    p->pinned--;
 	    p->dirty  |= dirty;
+	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    return 0;
 	}
     }
+    printf("\n");
     return 0;
 }
 

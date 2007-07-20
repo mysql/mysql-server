@@ -110,6 +110,7 @@ int brtheader_fetch_callback (CACHEFILE cachefile, diskoff nodename, void **head
 
 int read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header) {
     void *header_p;
+    //fprintf(stderr, "%s:%d read_and_pin_brt_header(...)\n", __FILE__, __LINE__);
     int r = cachetable_get_and_pin(cf, 0, &header_p,
 				   brtheader_flush_callback, brtheader_fetch_callback, 0);
     if (r!=0) return r;
@@ -881,7 +882,7 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
     return 0;
 }
 
-#define BRT_TRACE
+//#define BRT_TRACE
 #ifdef BRT_TRACE
 #define WHEN_BRTTRACE(x) x
 #else
@@ -894,8 +895,8 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     BRT t;
     char *malloced_name=0;
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
-			  fname, dbname, is_create, newbrt, nodesize, cachetable));
+    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
+			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if ((MALLOC(t))==0) {
 	assert(errno==ENOMEM);
 	r = ENOMEM;
@@ -998,7 +999,7 @@ int close_brt (BRT brt) {
 	r=brt_cursor_close(c);
 	if (r!=0) return r;
     }
-    assert(0==cachefile_assert_all_unpinned(brt->cf));
+    assert(0==cachefile_count_pinned(brt->cf, 1));
     //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
     if ((r = cachefile_close(brt->cf))!=0) return r;
     if (brt->database_name) my_free(brt->database_name);
@@ -1146,12 +1147,12 @@ int brt_lookup_node (BRT brt, diskoff off, bytevec key, ITEMLEN keylen, bytevec 
 int brt_lookup (BRT brt, bytevec key, unsigned int keylen, bytevec*val, unsigned int *vallen) {
     int r;
     CACHEKEY *rootp;
-    assert(0==cachefile_assert_all_unpinned(brt->cf));
+    assert(0==cachefile_count_pinned(brt->cf, 1));
     if ((r = read_and_pin_brt_header(brt->cf, &brt->h))) {
 	printf("%s:%d\n", __FILE__, __LINE__);
 	if (0) { died0: unpin_brt_header(brt); }
 	printf("%s:%d returning %d\n", __FILE__, __LINE__, r);
-	assert(0==cachefile_assert_all_unpinned(brt->cf));
+	assert(0==cachefile_count_pinned(brt->cf, 1));
 	return r;
     }
     rootp = calculate_root_offset_pointer(brt);
@@ -1161,7 +1162,7 @@ int brt_lookup (BRT brt, bytevec key, unsigned int keylen, bytevec*val, unsigned
     }
     //printf("%s:%d r=%d", __FILE__, __LINE__, r); if (r==0) printf(" vallen=%d", *vallen); printf("\n");
     if ((r = unpin_brt_header(brt))!=0) return r;
-    assert(0==cachefile_assert_all_unpinned(brt->cf));
+    assert(0==cachefile_count_pinned(brt->cf, 1));
     return 0;
 }
 
@@ -1496,12 +1497,14 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
     }
 }
 
-/* reuqires that the cursor is initialized. */
+/* requires that the cursor is initialized. */
 int brtcurs_set_position_next (BRT_CURSOR cursor) {
     int r = pma_cursor_set_position_next(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	/* We fell off the end of the pma. */
+	if (cursor->path_len==1) return DB_NOTFOUND;
 	fprintf(stderr, "Need to deal with falling off the end of the pma in a cursor\n");
+	/* Part of the trickyness is we need to leave the cursor pointing at the current (possibly deleted) value if there is no next value. */
 	abort();
     }
     return 0;
@@ -1525,6 +1528,7 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     CACHEKEY *rootp;
 
     dump_brt(cursor->brt);
+    fprintf(stderr, "%s:%d in brt_c_get(...)\n", __FILE__, __LINE__);
     if ((r = read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h))) {
 	if (0) { died0: unpin_brt_header(cursor->brt); }
 	return r;
@@ -1541,20 +1545,24 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	break;
     case DB_FIRST:
+    do_db_first:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	r=brtcurs_set_position_first(cursor, *rootp); if (r!=0) goto died0;
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	break;
     case DB_NEXT:
-	if (cursor->path_len<=0) return brt_c_get(cursor, kbt, vbt, (flags&(~DB_NEXT))|DB_FIRST);
+	if (cursor->path_len<=0) {
+	    goto do_db_first;
+	}
 	assert(cursor->path_len>0);
 	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
-	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
+	r=pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
 	break;
     default:
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
 	abort();
     }
+    printf("%s:%d unpinning header\n", __FILE__, __LINE__);
     if ((r = unpin_brt_header(cursor->brt))!=0) return r;
     return 0;
 }

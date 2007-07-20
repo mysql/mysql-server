@@ -650,13 +650,16 @@ void test_cursor_next (void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = brt_insert(brt, "hello", 6, "there", 6);
     r = brt_insert(brt, "byebye", 7, "byenow", 7);
+    printf("%s:%d calling brt_cursor(...)\n", __FILE__, __LINE__);
     r = brt_cursor(brt, &cursor);            assert(r==0);
     r = ybt_init(&kbt);                      assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = ybt_init(&vbt);                      assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
 
+    printf("%s:%d calling brt_c_get(...)\n", __FILE__, __LINE__);
     r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+    printf("%s:%d called brt_c_get(...)\n", __FILE__, __LINE__);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     assert(r==0);
     assert(kbt.size==7);

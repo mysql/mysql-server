@@ -42,7 +42,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, void**);
 int cachetable_unpin (CACHEFILE, CACHEKEY, int dirty); /* Note whether it is dirty when we unpin it. */
 int cachetable_remove (CACHEFILE, CACHEKEY, int /*write_me*/); /* Removing something already present is OK. */
 int cachetable_assert_all_unpinned (CACHETABLE);
-int cachefile_assert_all_unpinned (CACHEFILE);
+int cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 
 //int cachetable_fsync_all (CACHETABLE); /* Flush everything to disk, but keep it in cache. */
 int cachetable_close (CACHETABLE); /* Flushes everything to disk, and destroys the cachetable. */
