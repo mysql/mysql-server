@@ -634,7 +634,56 @@ void test_cursor_last_empty(void) {
     memory_check_all_free();
 }
 
+void test_cursor_next (void) {
+    const char *n="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+    int r;
+    DBT kbt, vbt;
+
+    unlink(n);
+    memory_check_all_free();
+    r = brt_create_cachetable(&ct, 0);       assert(r==0);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    r = open_brt(n, 0, 1, &brt, 1<<12, ct);  assert(r==0);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    r = brt_insert(brt, "hello", 6, "there", 6);
+    r = brt_insert(brt, "byebye", 7, "byenow", 7);
+    r = brt_cursor(brt, &cursor);            assert(r==0);
+    r = ybt_init(&kbt);                      assert(r==0);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    r = ybt_init(&vbt);                      assert(r==0);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+
+    r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    assert(r==0);
+    assert(kbt.size==7);
+    assert(memcmp(kbt.data, "byebye", 7)==0);
+    assert(vbt.size==7);
+    assert(memcmp(vbt.data, "byenow", 7)==0);
+
+    r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+    assert(r==0);
+    assert(kbt.size==6);
+    assert(memcmp(kbt.data, "hello", 6)==0);
+    assert(vbt.size==6);
+    assert(memcmp(vbt.data, "there", 6)==0);
+
+    r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+    assert(r==DB_NOTFOUND);
+
+    r = close_brt(brt);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    r = cachetable_close(ct); assert(r==0);
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
+    memory_check_all_free();
+    
+}
+
 static void brt_blackbox_test (void) {
+    test_cursor_next();                   memory_check_all_free();
     test_multiple_dbs_many();             memory_check_all_free();
     test_cursor_last_empty();             memory_check_all_free();
     test_multiple_brts_one_db_one_file(); memory_check_all_free();

@@ -417,10 +417,54 @@ void test_pma_cursor_2 (void) {
     r=pma_free(&pma); assert(r==0);
 }
 
+void test_pma_cursor_3 (void) {
+    PMA pma;
+    PMA_CURSOR c=0;
+    int r;
+    DBT key,val;
+    r=pma_create(&pma); assert(r==0);
+    r=pma_insert(pma, "x", 2, "xx", 3); assert(r==BRT_OK);
+    r=pma_insert(pma, "m", 2, "mm", 3); assert(r==BRT_OK);
+    r=pma_insert(pma, "aa", 3, "a", 2); assert(r==BRT_OK);
+    ybt_init(&key); key.flags=DB_DBT_REALLOC;
+    ybt_init(&val); val.flags=DB_DBT_REALLOC;
+    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+
+    r=pma_cursor_set_position_first(c); assert(r==0);
+    r=pma_cget_current(c, &key, &val); assert(r==0);
+    assert(key.size=3); assert(memcmp(key.data,"aa",3)==0);
+    assert(val.size=2); assert(memcmp(val.data,"a",2)==0);
+
+    r=pma_cursor_set_position_next(c); assert(r==0);
+    r=pma_cget_current(c, &key, &val); assert(r==0);
+    assert(key.size=2); assert(memcmp(key.data,"m",2)==0);
+    assert(val.size=3); assert(memcmp(val.data,"mm",3)==0);
+    
+    r=pma_cursor_set_position_next(c); assert(r==0);
+    r=pma_cget_current(c, &key, &val); assert(r==0);
+    assert(key.size=2); assert(memcmp(key.data,"x",2)==0);
+    assert(val.size=3); assert(memcmp(val.data,"xx",3)==0);
+    
+    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+
+    /* After an error, the cursor should still point at the same thing. */
+    r=pma_cget_current(c, &key, &val); assert(r==0);
+    assert(key.size=2); assert(memcmp(key.data,"x",2)==0);
+    assert(val.size=3); assert(memcmp(val.data,"xx",3)==0);
+
+
+    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+
+    r=pma_cursor_free(&c); assert(r==0);
+    r=pma_free(&pma); assert(r==0);
+
+}
+
 void test_pma_cursor (void) {
     test_pma_cursor_0();
     test_pma_cursor_1();
     test_pma_cursor_2();
+    test_pma_cursor_3();
 }
 
 void pma_tests (void) {

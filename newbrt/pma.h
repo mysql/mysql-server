@@ -40,6 +40,7 @@ int pma_cursor_free (PMA_CURSOR*);
 
 int pma_cursor_set_position_last (PMA_CURSOR c);
 int pma_cursor_set_position_first (PMA_CURSOR c);
+int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val);
 
 /* Return PMA_NOTFOUND if the pma is empty. */

@@ -330,6 +330,19 @@ int pma_cursor_set_position_first (PMA_CURSOR c)
     return 0;
 }
     
+int pma_cursor_set_position_next (PMA_CURSOR c)
+{
+    PMA pma = c->pma;
+    int old_position=c->position;
+    c->position++;
+    while (c->position<pma->N) {
+	if (c->pma->pairs[c->position].key!=0) return 0;
+	c->position++;
+    }
+    c->position=old_position;
+    return DB_NOTFOUND;
+}
+
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
     if (pma->pairs[c->position].key==0) return BRT_KEYEMPTY;
