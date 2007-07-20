@@ -3167,7 +3167,6 @@ bool ha_federated::get_error_message(int error, String* buf)
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
   DBUG_ENTER("ha_federated::external_lock");
 
   /*
@@ -3176,6 +3175,8 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 #ifdef XXX_SUPERCEDED_BY_WL2952
   if (lock_type != F_UNLCK)
   {
+    ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
+
     DBUG_PRINT("info",("federated not lock F_UNLCK"));
     if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
     {
@@ -3228,7 +3229,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
     }
   }
 #endif /* XXX_SUPERCEDED_BY_WL2952 */
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
