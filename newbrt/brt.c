@@ -1496,6 +1496,17 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
     }
 }
 
+/* reuqires that the cursor is initialized. */
+int brtcurs_set_position_next (BRT_CURSOR cursor) {
+    int r = pma_cursor_set_position_next(cursor->pmacurs);
+    if (r==DB_NOTFOUND) {
+	/* We fell off the end of the pma. */
+	fprintf(stderr, "Need to deal with falling off the end of the pma in a cursor\n");
+	abort();
+    }
+    return 0;
+}
+
 static int unpin_cursor (BRT_CURSOR cursor) {
     BRT brt=cursor->brt;
     int i;
@@ -1533,6 +1544,12 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     case DB_FIRST:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	r=brtcurs_set_position_first(cursor, *rootp); if (r!=0) goto died0;
+	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
+	break;
+    case DB_NEXT:
+	if (cursor->path_len<0) return brt_c_get(cursor, kbt, vbt, (flags&(~DB_NEXT))|DB_FIRST);
+	assert(cursor->path_len>0);
+	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	break;
     default:
