@@ -1525,7 +1525,6 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     CACHEKEY *rootp;
 
     dump_brt(cursor->brt);
-    assert(0==cachefile_assert_all_unpinned(cursor->brt->cf));
     if ((r = read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h))) {
 	if (0) { died0: unpin_brt_header(cursor->brt); }
 	return r;
