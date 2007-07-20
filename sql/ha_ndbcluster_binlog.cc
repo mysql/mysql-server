@@ -1860,7 +1860,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     share->table->s->table_name.str= share->table_name;
     share->table->s->table_name.length= strlen(share->table_name);
   }
-  DBUG_ASSERT(share->op == pOp || ndb_is_old_event_op(share, pOp));
+  DBUG_ASSERT(share->state == NSS_DROPPED || 
+              share->op == pOp || ndb_is_old_event_op(share, pOp));
   if (ndb_is_old_event_op(share, pOp))
   {
     Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
@@ -1871,7 +1872,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     }
     ndb_remove_old_event_op(share, pOp);
   }
-  else
+  else if (share->op)
   {
     Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
     if (event_data)
@@ -2321,7 +2322,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
       case SOT_RENAME_TABLE:
         // fall through
       case SOT_ALTER_TABLE:
-	   if (share) ndb_drop_old_event_ops(injector_ndb, share);
+        if (share && schema_type == SOT_ALTER_TABLE)
+          ndb_drop_old_event_ops(injector_ndb, share);
         // invalidation already handled by binlog thread
         if (!share || !share->op)
         {
