@@ -17,7 +17,7 @@ int hashtable_create (HASHTABLE *h) {
     tab->n_keys=0;
     tab->arraysize=128;
     assert(sizeof(*tab->array)==sizeof(void*));
-    tab->array = my_calloc(tab->arraysize, sizeof(*tab->array));
+    tab->array = toku_calloc(tab->arraysize, sizeof(*tab->array));
     for (i=0; i<tab->arraysize; i++) tab->array[i]=0;
     *h=tab;
     return 0;
@@ -86,7 +86,7 @@ int hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val
 	tab->n_keys++;
 	if (tab->n_keys > tab->arraysize) {
 	    int newarraysize = tab->arraysize*2;
-	    HASHELT *newarray = my_calloc(newarraysize, sizeof(*tab->array));
+	    HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
 	    int i;
 	    assert(newarray!=0);
 	    for (i=0; i<newarraysize; i++) newarray[i]=0;
@@ -98,7 +98,7 @@ int hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val
 		    newarray[h] = he;
 		}
 	    }
-	    my_free(tab->array);
+	    toku_free(tab->array);
 	   // printf("Freed\n");
 	    tab->array=newarray;
 	    tab->arraysize=newarraysize;
@@ -118,9 +118,9 @@ int hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
 	assert(*prev_ptr==he);
 	*prev_ptr = he->next;
 	//printf("Freeing %s %s\n", he->key, he->val);
-	my_free(he->key);
-	my_free(he->val);
-	my_free(he);
+	toku_free(he->key);
+	toku_free(he->val);
+	toku_free(he);
 	tab->n_keys--;
 	return BRT_OK;
     }
@@ -189,9 +189,9 @@ static void hasheltlist_free (HASHELT elt) {
     if (elt==0) return;
     else {
 	hasheltlist_free(elt->next);
-	my_free(elt->key);
-	my_free(elt->val);
-	my_free(elt);
+	toku_free(elt->key);
+	toku_free(elt->val);
+	toku_free(elt);
     }
 }
 
@@ -200,8 +200,8 @@ void hashtable_free(HASHTABLE *tab) {
     //printf("%s:%d free hashtable %p\n", __FILE__, __LINE__, tab);
     hashtable_clear(*tab);
     //printf("%s:%d free %p\n", __FILE__, __LINE__, tab);n
-    my_free((*tab)->array);
-    my_free(*tab);
+    toku_free((*tab)->array);
+    toku_free(*tab);
     *tab=0;
 }
 

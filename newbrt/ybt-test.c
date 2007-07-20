@@ -21,7 +21,7 @@ void ybt_test0 (void) {
     assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
     assert(strcmp(t1.data, "byebye")==0);
 
-    my_free(v0); my_free(v1);
+    toku_free(v0); toku_free(v1);
     memory_check_all_free();
 
     /* See if we can probe to find out how big something is by setting ulen=0 with YBT_USERMEM */
@@ -45,7 +45,7 @@ void ybt_test0 (void) {
     assert(t0.size==11);
     assert(strcmp(t0.data, "provincial")==0);
     
-    my_free(t0.data);
+    toku_free(t0.data);
     memory_check_all_free();
 }
 

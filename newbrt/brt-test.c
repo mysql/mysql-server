@@ -198,7 +198,7 @@ static void test5 (void) {
 	}
     }
     printf("\n");
-    my_free(values);
+    toku_free(values);
     r = close_brt(t);        assert(r==0);
     r = cachetable_close(ct); assert(r==0);
     memory_check_all_free();

@@ -56,7 +56,7 @@ int create_cachetable (CACHETABLE *result, int n_entries) {
     int i;
     t->n_in_table = 0;
     t->table_size = n_entries;
-    t->table = my_calloc(t->table_size, sizeof(struct ctpair));
+    t->table = toku_calloc(t->table_size, sizeof(struct ctpair));
     assert(t->table);
     t->head = t->tail = 0;
     for (i=0; i<t->table_size; i++) {
@@ -120,7 +120,7 @@ int cachefile_close (CACHEFILE cf) {
 	if ((r = cachefile_flush(cf))) return r;
 	r = close(cf->fd);
 	cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
-	my_free(cf);
+	toku_free(cf);
 	return r;
     } else {
 	return 0;
@@ -228,7 +228,7 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     t->n_in_table--;
     // Remove it from the hash chain.
     t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
-    my_free(remove_me);
+    toku_free(remove_me);
 }
 
 static void flush_and_keep (PAIR flush_me) {
@@ -312,12 +312,12 @@ int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
     }
     if (maybe_flush_some(t)) return -2;
     {
-	void *my_value;
+	void *toku_value;
 	int r;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
-	if ((r=fetch_callback(cachefile, key, &my_value,extraargs))) return r;
-	cachetable_put(cachefile, key, my_value, flush_callback, fetch_callback,extraargs);
-	*value = my_value;
+	if ((r=fetch_callback(cachefile, key, &toku_value,extraargs))) return r;
+	cachetable_put(cachefile, key, toku_value, flush_callback, fetch_callback,extraargs);
+	*value = toku_value;
     }
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return 0;
@@ -396,8 +396,8 @@ int cachetable_close (CACHETABLE t) {
     for (i=0; i<t->table_size; i++) {
 	if (t->table[i]) return -1;
     }
-    my_free(t->table);
-    my_free(t);
+    toku_free(t->table);
+    toku_free(t);
     return 0;
 }
 

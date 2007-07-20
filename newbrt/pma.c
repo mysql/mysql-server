@@ -220,7 +220,7 @@ int pmainternal_smooth_region (struct pair *pairs, int n, int idx) {
 	/* Now the tricky part.  Distribute the data. */
 	r=distribute_data (pairs, n,
 			   tmppairs, n_saved);
-	my_free(tmppairs);
+	toku_free(tmppairs);
 	return r;
     }
 }
@@ -271,7 +271,7 @@ int pma_create (PMA *pma) {
     result->pairs[result->N].key = (void*)0xdeadbeef;
     //printf("pairs=%p (size=%d)\n", result->pairs,result->N*sizeof(*result->pairs));
     if (result->pairs==0) {
-	my_free(result);
+	toku_free(result);
 	return -1;
     }
     for (i=0; i<result->N; i++) {
@@ -382,9 +382,9 @@ int pma_cursor_free (PMA_CURSOR *cursp) {
     } else {
 	curs->next->prev  = curs->prev;
     }
-    if (curs->skey) my_free(curs->skey);
-    if (curs->sval) my_free(curs->sval);
-    my_free(curs);
+    if (curs->skey) toku_free(curs->skey);
+    if (curs->sval) toku_free(curs->sval);
+    toku_free(curs);
     *cursp=0;
     return 0;
 }
@@ -424,7 +424,7 @@ int pmainternal_make_space_at (PMA pma, int idx) {
 		assert(size==pma_index_limit(pma));
 		size*=2;
 		//printf("realloc %p to %d\n", pma->pairs, size*sizeof(*pma->pairs));
-		pma->pairs = my_realloc(pma->pairs, (1+size)*sizeof(*pma->pairs));
+		pma->pairs = toku_realloc(pma->pairs, (1+size)*sizeof(*pma->pairs));
 		for (i=hi; i<size; i++) pma->pairs[i].key=0;
 		pma->pairs[size].key = (void*)0xdeadbeefL;
 		pma->N=size;
@@ -461,7 +461,7 @@ enum pma_errors pma_lookup (PMA pma, bytevec key, ITEMLEN keylen, bytevec*val, I
 }
 
 void maybe_free (const void *p) {
-    if (p) my_free((void*)p);
+    if (p) toku_free((void*)p);
 }
 
 /* returns 0 if OK.
@@ -478,8 +478,8 @@ int pma_free (PMA *pmap) {
 	    pma->pairs[i].val=0;
 	}
     }
-    my_free(pma->pairs);
-    my_free(pma);
+    toku_free(pma->pairs);
+    toku_free(pma);
     *pmap=0;
     return 0;
 }
@@ -535,8 +535,8 @@ int pma_delete (PMA pma, bytevec key, ITEMLEN keylen) {
 	return DB_NOTFOUND;
     }
     assert(pma->pairs[l].val!=0);
-    my_free((void*)pma->pairs[l].key);
-    my_free((void*)pma->pairs[l].val);
+    toku_free((void*)pma->pairs[l].key);
+    toku_free((void*)pma->pairs[l].val);
     pma->pairs[l].key = 0;
     pma->pairs[l].val = 0;
     pma->pairs[l].keylen = 0;
