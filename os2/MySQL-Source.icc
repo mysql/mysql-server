@@ -31,7 +31,7 @@ group server_global_pch =
             'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h',
             'sql_string.h', 'item.h', 'unireg.h',
             'field.h', 'sql_lex.h', 'sql_list.h', 'sql_repl.h',
-            'md5.h', 'sql_acl.h', 'slave.h',
+            'my_md5.h', 'sql_acl.h', 'slave.h',
             'ha_myisam.h', 'procedure.h', 'sql_select.h',
             'errmsg.h', 't_ctype.h', 'direct.h',
             'mysys_err.h', 'zconf.h', 'zlib.h',
