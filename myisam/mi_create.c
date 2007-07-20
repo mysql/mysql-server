@@ -586,7 +586,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 					     32 : 0));
     linkname_ptr=0;
     /* Replace the current file */
-    create_flag=MY_DELETE_OLD;
+    create_flag=(flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
   }
 
   /*
@@ -647,7 +647,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       {
 	fn_format(filename,name,"",MI_NAME_DEXT,4);
 	linkname_ptr=0;
-	create_flag=MY_DELETE_OLD;
+        create_flag=(flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
       }
       if ((dfile=
 	   my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
