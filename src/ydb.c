@@ -1,16 +1,18 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
-#include <sys/types.h>
-#include <db.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include <assert.h>
 #include <brt.h>
+#include <db.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "cachetable.h"
 
@@ -33,6 +35,7 @@ struct ydb_db_internal {
     u_int32_t open_flags;
     int open_mode;
     BRT brt;
+    int is_db_dup;
 };
 
 void yobi_db_env_err (const DB_ENV *env __attribute__((__unused__)), int error, const char *fmt, ...) {
@@ -372,12 +375,19 @@ int  yobi_db_put (DB *db, DB_TXN *txn, DBT *dbta, DBT *dbtb, u_int32_t flags) {
     return r;
 }
 int  yobi_db_remove (DB *db, const char *fname, const char *dbname, u_int32_t flags) {
-  barf();
-  abort();
+    int r;
+    char ffull[PATH_MAX];
+    assert(dbname==0);
+    r = snprintf(ffull, PATH_MAX, "%s%s", db->i->env->i->dir, fname);     assert(r<PATH_MAX);
+    return unlink(ffull);
 }
 int  yobi_db_rename (DB *db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-  barf();
-  abort();
+    char afull[PATH_MAX], cfull[PATH_MAX];
+    int r;
+    assert(nameb==0);
+    r = snprintf(afull, PATH_MAX, "%s%s", db->i->env->i->dir, namea);     assert(r<PATH_MAX);
+    r = snprintf(cfull, PATH_MAX, "%s%s", db->i->env->i->dir, namec);     assert(r<PATH_MAX);
+    return rename(afull, cfull);
 }
 int  yobi_db_set_bt_compare (DB *db, int (*bt_compare)(DB *, const DBT *, const DBT *)) {
   note();
@@ -385,6 +395,15 @@ int  yobi_db_set_bt_compare (DB *db, int (*bt_compare)(DB *, const DBT *, const 
   return 0;
 }
 int  yobi_db_set_flags (DB *db, u_int32_t flags) {
+    if (flags&DB_DUP) {
+	printf("Set DB_DUP\n");
+	if (db->i->brt && !db->i->is_db_dup) {
+	    printf("Already Not DB_DUP\n");
+	    return -1;
+	}
+	db->i->is_db_dup=1;
+	flags&=~DB_DUP;
+    }
     assert(flags==0);
     return 0;
 }
@@ -411,10 +430,17 @@ int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
   result->set_flags = yobi_db_set_flags;
   result->stat = yobi_db_stat;
   result->i = malloc(sizeof(*result->i));
-  result->i->env = env;
-  result->i->bt_compare = 0;
   result->i->freed = 0;
+  result->i->bt_compare = 0;
+  result->i->header = 0;
+  result->i->database_number = 0;
+  result->i->env = env;
   result->i->full_fname = 0;
+  result->i->database_name = 0;
+  result->i->open_flags = 0;
+  result->i->open_mode = 0;
+  result->i->brt = 0;
+  result->i->is_db_dup = 0;
   *db = result;
   return 0;
 }
