@@ -1547,7 +1547,7 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	break;
     case DB_NEXT:
-	if (cursor->path_len<0) return brt_c_get(cursor, kbt, vbt, (flags&(~DB_NEXT))|DB_FIRST);
+	if (cursor->path_len<=0) return brt_c_get(cursor, kbt, vbt, (flags&(~DB_NEXT))|DB_FIRST);
 	assert(cursor->path_len>0);
 	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt);
