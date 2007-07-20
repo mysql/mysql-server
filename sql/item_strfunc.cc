@@ -25,7 +25,7 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
 #include <zlib.h>
