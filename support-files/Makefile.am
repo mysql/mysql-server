@@ -25,6 +25,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			my-innodb-heavy-4G.cnf.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
+			mysqld_multi.server.sh \
 			binary-configure.sh \
 			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
@@ -42,7 +43,8 @@ pkgdata_DATA =		my-small.cnf \
 			binary-configure \
 			ndb-config-2-node.ini
 
-pkgdata_SCRIPTS =	mysql.server
+pkgdata_SCRIPTS =	mysql.server \
+			mysqld_multi.server
 
 aclocaldir =		$(datadir)/aclocal
 aclocal_DATA =		mysql.m4
@@ -59,6 +61,7 @@ CLEANFILES =		my-small.cnf \
 			mysql-@VERSION@.spec \
 			mysql-log-rotate \
 			mysql.server \
+			mysqld_multi.server \
 			binary-configure \
 			MySQL-shared-compat.spec \
 			ndb-config-2-node.ini
