@@ -735,6 +735,10 @@ COUNT(*)
 3072
 set @@sort_buffer_size=default;
 DROP TABLE t1,t2;
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 create table t1(a text) engine=innodb default charset=utf8;
 insert into t1 values('aaa');
 alter table t1 add index(a(1024));
@@ -746,8 +750,5 @@ t1	CREATE TABLE `t1` (
   `a` text,
   KEY `a` (`a`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-drop table if exists t1;
-create table t1 (a int) engine=innodb;
-alter table t1 alter a set default 1;
 drop table t1;
 End of 5.0 tests
