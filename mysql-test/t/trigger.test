@@ -2194,4 +2194,27 @@ drop table t1, t2, t1_op_log;
 
 #
 # TODO: test LOAD DATA INFILE
+#
+--echo
+--echo Bug#27248 Triggers: error if insert affects temporary table
+--echo
+--echo The bug was fixed by the fix for Bug#26141
+--echo
+--disable_warnings
+drop table if exists t1;
+drop temporary table if exists t2;
+--enable_warnings
+create table t1 (s1 int);
+create temporary table t2 (s1 int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (0);
+create trigger t1_bd before delete on t1 for each row delete from t2;
+insert into t1 values (0);
+insert into t1 values (0);
+select * from t1;
+select * from t2;
+delete from t1;
+select * from t1;
+select * from t2;
+drop table t1;
+drop temporary table t2;
 --echo End of 5.0 tests
