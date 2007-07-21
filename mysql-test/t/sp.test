@@ -7163,6 +7163,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
 
 DROP VIEW v1;
 DROP FUNCTION f1;
+DROP FUNCTION f2;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
