@@ -2122,8 +2122,7 @@ static void dump_triggers_for_table(char *table,
   }
   if (mysql_num_rows(result))
   {
-    if (opt_compact)
-      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+    fprintf(sql_file, "\n/*!50003 SET @SAVE_SQL_MODE=@@SQL_MODE*/;\n");
     fprintf(sql_file, "\nDELIMITER ;;\n");
   }
   while ((row= mysql_fetch_row(result)))
@@ -2167,9 +2166,11 @@ static void dump_triggers_for_table(char *table,
             row[3] /* Statement */);
   }
   if (mysql_num_rows(result))
+  {
     fprintf(sql_file,
             "DELIMITER ;\n"
-            "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
+            "/*!50003 SET SESSION SQL_MODE=@SAVE_SQL_MODE*/;\n");
+  }
   mysql_free_result(result);
   /*
     make sure to set back opt_compatible mode to
