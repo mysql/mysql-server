@@ -1933,6 +1933,34 @@ Before UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi
 After UPDATE, new=multi-UPDATE, SET for t2, but the trigger is fired, old=multi-UPDATE
 drop view v1;
 drop table t1, t2, t1_op_log;
+
+Bug#27248 Triggers: error if insert affects temporary table
+
+The bug was fixed by the fix for Bug#26141
+
+drop table if exists t1;
+drop temporary table if exists t2;
+create table t1 (s1 int);
+create temporary table t2 (s1 int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (0);
+create trigger t1_bd before delete on t1 for each row delete from t2;
+insert into t1 values (0);
+insert into t1 values (0);
+select * from t1;
+s1
+0
+0
+select * from t2;
+s1
+0
+0
+delete from t1;
+select * from t1;
+s1
+select * from t2;
+s1
+drop table t1;
+drop temporary table t2;
 End of 5.0 tests
 drop table if exists table_25411_a;
 drop table if exists table_25411_b;
