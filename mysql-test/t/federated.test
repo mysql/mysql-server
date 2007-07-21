@@ -1683,4 +1683,30 @@ connection slave;
 drop table federated.t1;
 
 
+#
+# BUG#29875 Disable support for transactions
+#
+connection slave;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (a INT PRIMARY KEY)
+  ENGINE=FEDERATED
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+
+SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
+INSERT INTO federated.t1 VALUES (1);
+SET autocommit=0;
+INSERT INTO federated.t1 VALUES (2);
+ROLLBACK;
+SET autocommit=1;
+SELECT * FROM federated.t1;
+
+DROP TABLE federated.t1;
+connection slave;
+DROP TABLE federated.t1;
+
+--echo End of 5.1 tests
+
 source include/federated_cleanup.inc;
