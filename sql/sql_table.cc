@@ -6333,11 +6333,9 @@ view_err:
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-    table->file->ha_external_lock(thd, F_WRLCK);
+    VOID(pthread_mutex_unlock(&LOCK_open));
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
-    table->file->ha_external_lock(thd, F_UNLCK);
-    VOID(pthread_mutex_unlock(&LOCK_open));
     error= ha_commit_stmt(thd);
     if (ha_commit(thd))
       error= 1;
