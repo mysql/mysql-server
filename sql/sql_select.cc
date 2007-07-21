@@ -8118,7 +8118,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
       field_count++;
   }
 
-  if (!field_count && !(join->select_options & OPTION_FOUND_ROWS)) 
+  if (!field_count && !(join->select_options & OPTION_FOUND_ROWS) && !having) 
   {                    // only const items with no OPTION_FOUND_ROWS
     join->unit->select_limit_cnt= 1;		// Only send first row
     DBUG_RETURN(0);
