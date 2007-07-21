@@ -5591,5 +5591,15 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
   DBUG_RETURN(res);
+}
+
+
+void Item_func_sp::update_used_tables()
+{
+  Item_func::update_used_tables();
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
 }
