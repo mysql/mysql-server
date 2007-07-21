@@ -1882,6 +1882,28 @@ a	b
 2	Curly
 drop table federated.t1;
 drop table federated.t1;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY) DEFAULT CHARSET=utf8;
+CREATE TABLE federated.t1 (a INT PRIMARY KEY)
+ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
+  DEFAULT CHARSET=utf8;
+SELECT transactions FROM information_schema.engines WHERE engine="FEDERATED";
+transactions
+NO
+INSERT INTO federated.t1 VALUES (1);
+SET autocommit=0;
+INSERT INTO federated.t1 VALUES (2);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SET autocommit=1;
+SELECT * FROM federated.t1;
+a
+1
+2
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
+End of 5.1 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

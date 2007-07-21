@@ -1030,6 +1030,7 @@ select * from t2;
 c
 NULL
 1
+Two
 Three
 lock table t2 write, t3 read;
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
@@ -1046,6 +1047,7 @@ select * from t1;
 vc
 NULL
 1
+Two
 Three
 Four
 drop tables t1, t3;
