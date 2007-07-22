@@ -878,10 +878,14 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   query_cache_size= query_cache_size_arg;
   ulong new_query_cache_size= init_cache();
 
-  DBUG_EXECUTE("check_querycache",check_integrity(0););
-
   STRUCT_LOCK(&structure_guard_mutex);
   m_cache_status= Query_cache::NO_FLUSH_IN_PROGRESS;
+  /*
+    Must not call check_integrity() with
+    m_cache_status != Query_cache::NO_FLUSH_IN_PROGRESS.
+    It would wait forever.
+  */
+  DBUG_EXECUTE("check_querycache",check_integrity(1););
   pthread_cond_signal(&COND_cache_status_changed);
   STRUCT_UNLOCK(&structure_guard_mutex);
 
@@ -4025,6 +4029,10 @@ my_bool Query_cache::check_integrity(bool locked)
   Query_cache_block * block = first_block;
   do
   {
+    /* When checking at system start, there is no block. */
+    if (!block)
+      break;
+
     DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			  (ulong) block, (uint) block->type));  
     // Check allignment
