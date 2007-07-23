@@ -370,7 +370,7 @@ int  yobi_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname, D
 }
 int  yobi_db_put (DB *db, DB_TXN *txn, DBT *dbta, DBT *dbtb, u_int32_t flags) {
     int r = brt_insert(db->i->brt, dbta->data, dbta->size, dbtb->data, dbtb->size);
-    printf("%s:%d %d=yobi_db_put(...)\n", __FILE__, __LINE__, r);
+    //printf("%s:%d %d=yobi_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
 int  yobi_db_remove (DB *db, const char *fname, const char *dbname, u_int32_t flags) {

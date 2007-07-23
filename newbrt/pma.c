@@ -261,7 +261,7 @@ int pmainternal_count_region (struct pair *pairs, int lo, int hi) {
     return n;
 }
 
-int pma_create (PMA *pma) {
+int pma_create (PMA *pma, int (*compare_fun)(DB*,DBT*,DBT*)) {
     TAGMALLOC(PMA, result);
     int i;
     if (result==0) return -1;
@@ -282,6 +282,7 @@ int pma_create (PMA *pma) {
     }
     pmainternal_calculate_parameters(result);
     result->cursors_head = result->cursors_tail = 0;
+    result->compare_fun = compare_fun;
     *pma = result;
     assert((unsigned long)result->pairs[result->N].key==0xdeadbeefL);
     return 0;
@@ -557,5 +558,3 @@ void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), voi
 	}
     }
 }
-
-

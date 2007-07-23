@@ -27,6 +27,7 @@ struct pma {
 			  *  Regions of size 128 are 60% full.  Regions of size 256 are 50% full.
 			  *  The densitystep is 0.10. */
     PMA_CURSOR cursors_head, cursors_tail;
+    int (*compare_fun)(DB*,DBT*,DBT*);
 };
 
 int pmainternal_count_region (struct pair *pairs, int lo, int hi);

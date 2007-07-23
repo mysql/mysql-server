@@ -36,8 +36,8 @@ C_OBJS= mut_pthread.lo    \
 	txn_region.lo txn_stat.lo txn_util.lo xa.lo xa_db.lo xa_map.lo
 
 MAYBENOTICECALL = noticecall.lo
-#install: libdb.so
-#	cp libdb.so ../src/
+install: libdb.so
+	cp libdb.so ../lib/
 libdb.so: ydb.lo bdbw.lo $(MAYBENOTICECALL)
 	echo cc ydb.lo bdbw.lo BDB-OBJS -shared -fPIC -o libdb.so $(CFLAGS) 
 	@cc ydb.lo bdbw.lo $(MAYBENOTICECALL) $(patsubst %,/home/bradley/mysql/build-bdb-with-uniquename/bdb/build_unix/%,$(C_OBJS)) -shared -fPIC -o libdb.so $(CFLAGS) 

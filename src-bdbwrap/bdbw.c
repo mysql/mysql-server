@@ -409,11 +409,26 @@ int yobi_dbc_c_get (DBC_ydb *dbc, DBT_ydb *a, DBT_ydb *b, u_int32_t flags) {
     tracef(" &a, &b, ");
     tracef(" %s);\n", flagstring);
     if (r==0) {
+	unsigned int i;
 	tracef("  assert(r==%d);\n", r);
 	tracef("  assert(a.size==%d);\n", da.size);
 	//tracef("  assert(memcmp(a.address, ");
 	tracef("  assert(b.size==%d);\n", db.size);
+	tracef("  { unsigned char adata[%d] = {", da.size);
+	for (i=0; i<da.size; i++) {
+	    if (i>0) tracef(", ");
+	    tracef("%u", ((unsigned char*)(da.data))[i]);
+	}
+	tracef("};\n    unsigned char bdata[%d] = {", db.size);
+	for (i=0; i<db.size; i++) {
+	    if (i>0) tracef(", ");
+	    tracef("%u", ((unsigned char*)(db.data))[i]);
+	}
+	tracef("};\n");
+	tracef("    assert(memcmp(a.data, adata, sizeof(adata))==0);\n");
+	tracef("    assert(memcmp(b.data, bdata, sizeof(bdata))==0);\n");
 	a->size = da.size;
+	tracef("  }\n");
 	a->data = da.data;
 	b->size = db.size;
 	b->data = db.data;
@@ -503,10 +518,11 @@ static int  bdbw_db_open (DB_ydb *db, DB_TXN_ydb *txn, const char *fname, const 
 static int bdbw_bt_compare (DB *db, const DBT *a, const DBT *b) {
     DB_ydb *ydb = db->app_private;
     DBT_ydb a_y, b_y;
-    note();
+    //note();
     assert(ydb);
     a_y.data = a->data;
     a_y.size = a->size;
+    a_y.app_private = a->app_private; /* mysql uses app_private for key compares. */
     b_y.data = b->data;
     b_y.size = b->size;
     return ydb->i->bt_compare(ydb, &a_y, &b_y);
@@ -551,6 +567,7 @@ int  bdbw_db_put (DB_ydb *db, DB_TXN_ydb *txn, DBT_ydb *dbta, DBT_ydb *dbtb, u_i
     a.flags = 0;            b.flags = 0;
     a.ulen = 0;             b.ulen = 0;
     a.size = dbta->size;    b.size = dbtb->size;
+    a.app_private = dbta->app_private; /* mysql uses app_private to inform bt_compare of the key structure, so comparisons can be done properly.   This is needed because mysql does not write the keys to disk in a format that memcmp() could be used. */
     r=db->i->db->put(db->i->db, txn ? txn->i->txn : 0, &a, &b, flags);
     assert(r==0);
     tracef("  r=dbobj(%lld)->put(dbobj(%lld), txnobj(%lld), &a, &b, %s); assert(r==%d);\n}\n",
@@ -593,7 +610,7 @@ static int  bdbw_db_set_bt_compare (DB_ydb *db, int (*bt_compare)(DB_ydb *, cons
 	if (bt_compare==berkeley_cmp_hidden_key) {
 	    fun_name = "berkeley_cmp_hidden_key";
 	} else if (bt_compare==berkeley_cmp_packed_key) {
-	    fun_name = "berkeley_cmp_hidden_key";
+	    fun_name = "berkeley_cmp_packed_key";
 	} else {
 	    fun_name = "Unknown_function";
 	    barf();
