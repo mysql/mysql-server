@@ -11,16 +11,18 @@ drop database if exists mysqltest;
 #
 
 # cannot have ROW_FORMAT=FIXED and var attrs mixed
---error 1005
 CREATE TABLE t1
   ( a INT KEY,
     b VARCHAR(10) )
   ROW_FORMAT=FIXED
   ENGINE=NDB;
 
-# warnings give more detail on the error
+# warnings give more detail on the conflict
 SHOW WARNINGS;
-
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
 
 #
 # Check force var part for different ROW_FORMAT
