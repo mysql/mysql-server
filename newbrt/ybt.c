@@ -9,6 +9,14 @@ int ybt_init (DBT *ybt) {
     return 0;
 }
 
+DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
+    ybt_init(dbt);
+    dbt->size=len;
+    dbt->data=(char*)k;
+    return dbt;
+}
+
+
 int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
     if (ybt->flags==DB_DBT_MALLOC) {
     domalloc:

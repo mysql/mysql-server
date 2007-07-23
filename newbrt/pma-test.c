@@ -70,37 +70,38 @@ static void test_pma_find (void) {
     int i;
     int r;
     const int N = 16;
+    DBT k;
     MALLOC(pma);
     MALLOC_N(N,pma->pairs);
     // All that is needed to test pma_find is N and pairs.
     pma->N = N;
     for (i=0; i<N; i++) pma->pairs[i].key=0;
     assert(pma_index_limit(pma)==N);
-    r=pmainternal_find(pma, "hello", 5);
+    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==0);
 
     pma->pairs[5].key="hello";
     pma->pairs[5].keylen=5;
     assert(pma_index_limit(pma)==N);
-    r=pmainternal_find(pma, "hello", 5);
+    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(pma_index_limit(pma)==N);
     assert(r==5);
-    r=pmainternal_find(pma, "there", 5);
+    r=pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
     assert(r==6);
-    r=pmainternal_find(pma, "aaa", 3);
+    r=pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
     assert(r==0);
 
     pma->pairs[N-1].key="there";
     pma->pairs[N-1].keylen=5;
-    r=pmainternal_find(pma, "hello", 5);
+    r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==5);
-    r=pmainternal_find(pma, "there", 5);
+    r=pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
     assert(r==N-1);
-    r=pmainternal_find(pma, "aaa", 3);
+    r=pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
     assert(r==0);
-    r=pmainternal_find(pma, "hellob", 6);
+    r=pmainternal_find(pma, fill_dbt(&k, "hellob", 6), 0);
     assert(r==6);
-    r=pmainternal_find(pma, "zzz", 3);
+    r=pmainternal_find(pma, fill_dbt(&k, "zzz", 3), 0);
     assert(r==N);
     toku_free(pma->pairs);
     toku_free(pma);
@@ -203,25 +204,26 @@ static void test_pma_random_pick (void) {
     int r = pma_create(&pma, default_compare_fun);
     bytevec key,val;
     ITEMLEN keylen,vallen;
+    DBT k,v;
     assert(r==0);
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
-    r = pma_insert(pma, "hello", 6, "there", 6);
+    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
     assert(r==BRT_OK);
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
-    r = pma_delete(pma, "nothello", 9);
+    r = pma_delete(pma, fill_dbt(&k, "nothello", 9), 0);
     assert(r==DB_NOTFOUND);
-    r = pma_delete(pma, "hello", 6);
+    r = pma_delete(pma, fill_dbt(&k, "hello", 6), 0);
     assert(r==BRT_OK);
 
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
     
-    r = pma_insert(pma, "hello", 6, "there", 6);
+    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
     assert(r==BRT_OK);
 
 
@@ -231,20 +233,20 @@ static void test_pma_random_pick (void) {
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
 
-    r = pma_insert(pma, "aaa", 4, "athere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aab", 4, "bthere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aac", 4, "cthere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aad", 4, "dthere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aae", 4, "ethere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aaf", 4, "fthere", 7); assert(r==BRT_OK);
-    r = pma_insert(pma, "aag", 4, "gthere", 7); assert(r==BRT_OK);
-    r = pma_delete(pma, "aaa", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "aab", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "aac", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "aad", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "aae", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "aag", 4);              assert(r==BRT_OK);
-    r = pma_delete(pma, "hello", 6);            assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aaa", 4), fill_dbt(&v, "athere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aab", 4), fill_dbt(&v, "bthere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aac", 4), fill_dbt(&v, "cthere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aad", 4), fill_dbt(&v, "dthere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aae", 4), fill_dbt(&v, "ethere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aaf", 4), fill_dbt(&v, "fthere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aag", 4), fill_dbt(&v, "gthere", 7), 0); assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aaa", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aab", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aac", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aad", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aae", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "aag", 4), 0);              assert(r==BRT_OK);
+    r = pma_delete(pma, fill_dbt(&k, "hello", 6), 0);            assert(r==BRT_OK);
    
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
@@ -258,34 +260,37 @@ static void test_pma_random_pick (void) {
 static void test_find_insert (void) {
     PMA pma;
     int r;
-    bytevec dv;
-    ITEMLEN dl;
+    DBT k,v;
     pma_create(&pma, default_compare_fun);
-    r=pma_lookup(pma, "aaa", 3, &dv, &dl);
+    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==DB_NOTFOUND);
 
-    r=pma_insert(pma, "aaa", 3, "aaadata", 7);
+    r=pma_insert(pma, fill_dbt(&k, "aaa", 3), fill_dbt(&v, "aaadata", 7), 0);
     assert(r==BRT_OK);
 
-    dv=0; dl=0;
-    r=pma_lookup(pma, "aaa", 3, &dv, &dl);
+    ybt_init(&v);
+    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
-    assert(keycompare(dv,dl,"aaadata", 7)==0);
+    assert(v.size==7);
+    assert(keycompare(v.data,v.size,"aaadata", 7)==0);
+    //toku_free(v.data); v.data=0;
 
-    r=pma_insert(pma, "bbb", 4, "bbbdata", 8);
+    r=pma_insert(pma, fill_dbt(&k, "bbb", 4), fill_dbt(&v, "bbbdata", 8), 0);
     assert(r==BRT_OK);
 
-    r=pma_lookup(pma, "aaa", 3, &dv, &dl);
+    ybt_init(&v);
+    r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
-    assert(keycompare(dv,dl,"aaadata", 7)==0);
+    assert(keycompare(v.data,v.size,"aaadata", 7)==0);
 
-    r=pma_lookup(pma, "bbb", 4, &dv, &dl);
+    ybt_init(&v);
+    r=pma_lookup(pma, fill_dbt(&k, "bbb", 4), &v, 0);
     assert(r==BRT_OK);
-    assert(keycompare(dv,dl,"bbbdata", 8)==0);
+    assert(keycompare(v.data,v.size,"bbbdata", 8)==0);
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
     
-    r=pma_insert(pma, "00000", 6, "d0", 3);
+    r=pma_insert(pma, fill_dbt(&k, "00000", 6), fill_dbt(&v, "d0", 3), 0);
     assert(r==BRT_OK);
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
@@ -301,7 +306,7 @@ static void test_find_insert (void) {
 	    snprintf(string,10,"%05d",i);
 	    snprintf(dstring,10,"d%d", i);
 	    printf("Inserting %d: string=%s dstring=%s\n", i, string, dstring);
-	    r=pma_insert(pma, string, strlen(string)+1, dstring, strlen(dstring)+1);
+	    r=pma_insert(pma, fill_dbt(&k, string, strlen(string)+1), fill_dbt(&v, dstring, strlen(dstring)+1), 0);
 	    assert(r==BRT_OK);
 	}
     }
@@ -327,12 +332,13 @@ static void test_pma_iterate_internal (PMA pma, int expected_k, int expected_v) 
 static void test_pma_iterate (void) {
     PMA pma;
     int r;
+    DBT k,v;
     pma_create(&pma, default_compare_fun);
-    r=pma_insert(pma, "42", 3, "-19", 4);
+    r=pma_insert(pma, fill_dbt(&k, "42", 3), fill_dbt(&v, "-19", 4), 0);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42, -19);
 
-    r=pma_insert(pma, "12", 3, "-100", 5);
+    r=pma_insert(pma, fill_dbt(&k, "12", 3), fill_dbt(&v, "-100", 5), 0);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42+12, -19-100);
     r=pma_free(&pma); assert(r==0); assert(pma==0);
@@ -343,11 +349,12 @@ static void test_pma_iterate2 (void) {
     int r;
     int sum=0;
     int n_items=0;
+    DBT k,v;
     r=pma_create(&pma0, default_compare_fun); assert(r==0);
     r=pma_create(&pma1, default_compare_fun); assert(r==0);
-    pma_insert(pma0, "a", 2, "aval", 5);
-    pma_insert(pma0, "b", 2, "bval", 5);
-    pma_insert(pma1, "x", 2, "xval", 5);
+    pma_insert(pma0, fill_dbt(&k, "a", 2), fill_dbt(&v, "aval", 5), 0);
+    pma_insert(pma0, fill_dbt(&k, "b", 2), fill_dbt(&v, "bval", 5), 0);
+    pma_insert(pma1, fill_dbt(&k, "x", 2), fill_dbt(&v, "xval", 5), 0);
     PMA_ITERATE(pma0,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)),dl, (n_items++,sum+=kl+dl));
     PMA_ITERATE(pma1,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)), dl, (n_items++,sum+=kl+dl));
     assert(sum==21);
@@ -422,10 +429,11 @@ void test_pma_cursor_3 (void) {
     PMA_CURSOR c=0;
     int r;
     DBT key,val;
+    DBT k,v;
     r=pma_create(&pma, default_compare_fun); assert(r==0);
-    r=pma_insert(pma, "x", 2, "xx", 3); assert(r==BRT_OK);
-    r=pma_insert(pma, "m", 2, "mm", 3); assert(r==BRT_OK);
-    r=pma_insert(pma, "aa", 3, "a", 2); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), 0); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), 0); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   0); assert(r==BRT_OK);
     ybt_init(&key); key.flags=DB_DBT_REALLOC;
     ybt_init(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
@@ -478,7 +486,6 @@ int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
     int siz = a->size;
     assert(a->size==b->size); // This function requires that the keys be the same size.
     
-    abort();
     for (i=0; i<a->size; i++) {
 	if (ad[siz-1-i]<bd[siz-1-i]) return -1;
 	if (ad[siz-1-i]>bd[siz-1-i]) return +1;
@@ -495,11 +502,12 @@ void test_pma_compare_fun (int wrong_endian_p) {
     char *right_endian_expected_keys[] = {"00", "01", "10", "11"};
     char **expected_keys = wrong_endian_p ? wrong_endian_expected_keys : right_endian_expected_keys;
     int i;
+    DBT k,v;
     r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun); assert(r==0);
-    r = pma_insert(pma, "10", 3, "10v", 4); assert(r==BRT_OK);
-    r = pma_insert(pma, "00", 3, "00v", 4); assert(r==BRT_OK);
-    r = pma_insert(pma, "01", 3, "01v", 4); assert(r==BRT_OK);
-    r = pma_insert(pma, "11", 3, "11v", 4); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "10", 3), fill_dbt(&v, "10v", 4), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "11", 3), fill_dbt(&v, "11v", 4), 0); assert(r==BRT_OK);
     ybt_init(&key); key.flags=DB_DBT_REALLOC;
     ybt_init(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
