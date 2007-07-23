@@ -1527,6 +1527,14 @@ NdbDictionary::Dictionary::dropTable(const char * name){
   return m_impl.dropTable(name);
 }
 
+bool
+NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
+					       const Table & t)
+{
+  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                                    NdbTableImpl::getImpl(t));
+}
+
 int
 NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
 {

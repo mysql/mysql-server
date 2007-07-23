@@ -2433,6 +2433,19 @@ NdbDictInterface::createTable(Ndb & ndb,
   DBUG_RETURN(sendCreateTable(impl, w));
 }
 
+bool NdbDictionaryImpl::supportedAlterTable(NdbTableImpl &old_impl,
+					    NdbTableImpl &impl)
+{
+  return m_receiver.supportedAlterTable(old_impl, impl);
+}
+
+bool NdbDictInterface::supportedAlterTable(const NdbTableImpl &old_impl,
+					   NdbTableImpl &impl)
+{
+  Uint32 change_mask;
+  return (compChangeMask(old_impl, impl, change_mask) == 0);
+}
+
 int NdbDictionaryImpl::alterTable(NdbTableImpl &old_impl,
                                   NdbTableImpl &impl)
 {
@@ -2496,6 +2509,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
                                  const NdbTableImpl &impl,
                                  Uint32 &change_mask)
 {
+  DBUG_ENTER("compChangeMask");
   bool found_varpart;
   change_mask= 0;
 
@@ -2539,7 +2553,10 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      impl.m_id != old_impl.m_id ||
      impl.m_version != old_impl.m_version ||
      sz < old_sz)
+  {
+    DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
+  }
 
   /*
     Check for new columns.
@@ -2557,7 +2574,10 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   {
     const NdbColumnImpl *col= impl.m_columns[i];
     if(!col->equal(*(old_impl.m_columns[i])))
+    {
+      DBUG_PRINT("info", ("Old and new column not equal"));
       goto invalid_alter_table;
+    }
     if(col->m_storageType == NDB_STORAGETYPE_MEMORY &&
        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED))
       found_varpart= true;
@@ -2566,7 +2586,10 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   if(sz > old_sz)
   {
     if(!found_varpart)
+    {
+      DBUG_PRINT("info", ("No old dynamic column found"));
       goto invalid_alter_table;
+    }
 
     for(Uint32 i=old_sz; i<sz; i++)
     {
@@ -2582,11 +2605,11 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     AlterTableReq::setAddAttrFlag(change_mask, true);
   }
 
-  return 0;
+  DBUG_RETURN(0);
 
  invalid_alter_table:
   m_error.code = 741;                           // "Unsupported alter table"
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 int 
