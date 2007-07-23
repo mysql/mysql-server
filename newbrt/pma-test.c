@@ -9,7 +9,7 @@
 
 static void test_make_space_at (void) {
     PMA pma;
-    int r=pma_create(&pma);
+    int r=pma_create(&pma, default_compare_fun);
     assert(r==0);
     assert(pma_n_entries(pma)==0);
     r=pmainternal_make_space_at(pma, 2);
@@ -200,7 +200,7 @@ static void test_count_region (void) {
 
 static void test_pma_random_pick (void) {
     PMA pma;
-    int r = pma_create(&pma);
+    int r = pma_create(&pma, default_compare_fun);
     bytevec key,val;
     ITEMLEN keylen,vallen;
     assert(r==0);
@@ -260,7 +260,7 @@ static void test_find_insert (void) {
     int r;
     bytevec dv;
     ITEMLEN dl;
-    pma_create(&pma);
+    pma_create(&pma, default_compare_fun);
     r=pma_lookup(pma, "aaa", 3, &dv, &dl);
     assert(r==DB_NOTFOUND);
 
@@ -291,7 +291,7 @@ static void test_find_insert (void) {
     assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
 
     r=pma_free(&pma); assert(r==0); assert(pma==0);
-    pma_create(&pma); assert(pma!=0);
+    pma_create(&pma, default_compare_fun); assert(pma!=0);
 
     {
 	int i;
@@ -327,7 +327,7 @@ static void test_pma_iterate_internal (PMA pma, int expected_k, int expected_v) 
 static void test_pma_iterate (void) {
     PMA pma;
     int r;
-    pma_create(&pma);
+    pma_create(&pma, default_compare_fun);
     r=pma_insert(pma, "42", 3, "-19", 4);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42, -19);
@@ -343,8 +343,8 @@ static void test_pma_iterate2 (void) {
     int r;
     int sum=0;
     int n_items=0;
-    r=pma_create(&pma0); assert(r==0);
-    r=pma_create(&pma1); assert(r==0);
+    r=pma_create(&pma0, default_compare_fun); assert(r==0);
+    r=pma_create(&pma1, default_compare_fun); assert(r==0);
     pma_insert(pma0, "a", 2, "aval", 5);
     pma_insert(pma0, "b", 2, "bval", 5);
     pma_insert(pma1, "x", 2, "xval", 5);
@@ -361,7 +361,7 @@ void test_pma_cursor_0 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
-    r=pma_create(&pma); assert(r==0);
+    r=pma_create(&pma, default_compare_fun); assert(r==0);
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     printf("%s:%d\n", __FILE__, __LINE__);
     r=pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
@@ -379,7 +379,7 @@ void test_pma_cursor_1 (void) {
     int r;
     int order;
     for (order=0; order<6; order++) {
-	r=pma_create(&pma); assert(r==0);
+	r=pma_create(&pma, default_compare_fun); assert(r==0);
 	r=pma_cursor(pma, &c0); assert(r==0); assert(c0!=0);
 	r=pma_cursor(pma, &c1); assert(r==0); assert(c1!=0);
 	r=pma_cursor(pma, &c2); assert(r==0); assert(c2!=0);
@@ -410,7 +410,7 @@ void test_pma_cursor_2 (void) {
     DBT key,val;
     ybt_init(&key); key.flags=DB_DBT_REALLOC;
     ybt_init(&val); val.flags=DB_DBT_REALLOC;
-    r=pma_create(&pma); assert(r==0);
+    r=pma_create(&pma, default_compare_fun); assert(r==0);
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     r=pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
     r=pma_cursor_free(&c); assert(r==0);
@@ -422,7 +422,7 @@ void test_pma_cursor_3 (void) {
     PMA_CURSOR c=0;
     int r;
     DBT key,val;
-    r=pma_create(&pma); assert(r==0);
+    r=pma_create(&pma, default_compare_fun); assert(r==0);
     r=pma_insert(pma, "x", 2, "xx", 3); assert(r==BRT_OK);
     r=pma_insert(pma, "m", 2, "mm", 3); assert(r==BRT_OK);
     r=pma_insert(pma, "aa", 3, "a", 2); assert(r==BRT_OK);
@@ -470,9 +470,67 @@ void test_pma_cursor (void) {
     test_pma_cursor_3();
 }
 
+int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
+			      DBT *a, DBT *b) {
+    unsigned int i;
+    unsigned char *ad=a->data;
+    unsigned char *bd=b->data;
+    int siz = a->size;
+    assert(a->size==b->size); // This function requires that the keys be the same size.
+    
+    abort();
+    for (i=0; i<a->size; i++) {
+	if (ad[siz-1-i]<bd[siz-1-i]) return -1;
+	if (ad[siz-1-i]>bd[siz-1-i]) return +1;
+    }
+    return 0;
+}
+
+void test_pma_compare_fun (int wrong_endian_p) {
+    PMA pma;
+    PMA_CURSOR c = 0;
+    DBT key,val;
+    int r;
+    char *wrong_endian_expected_keys[] = {"00", "10", "01", "11"}; /* Sorry for being judgemental.  But it's wrong. */ 
+    char *right_endian_expected_keys[] = {"00", "01", "10", "11"};
+    char **expected_keys = wrong_endian_p ? wrong_endian_expected_keys : right_endian_expected_keys;
+    int i;
+    r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun); assert(r==0);
+    r = pma_insert(pma, "10", 3, "10v", 4); assert(r==BRT_OK);
+    r = pma_insert(pma, "00", 3, "00v", 4); assert(r==BRT_OK);
+    r = pma_insert(pma, "01", 3, "01v", 4); assert(r==BRT_OK);
+    r = pma_insert(pma, "11", 3, "11v", 4); assert(r==BRT_OK);
+    ybt_init(&key); key.flags=DB_DBT_REALLOC;
+    ybt_init(&val); val.flags=DB_DBT_REALLOC;
+    r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
+    
+    for (i=0; i<4; i++) {
+	if (i==0) {
+	    r=pma_cursor_set_position_first(c); assert(r==0);
+	} else {
+	    r=pma_cursor_set_position_next(c); assert(r==0);
+	}
+	r=pma_cget_current(c, &key, &val); assert(r==0);
+	//printf("Got %s, expect %s\n", (char*)key.data, expected_keys[i]);
+	assert(key.size=3); assert(memcmp(key.data,expected_keys[i],3)==0);
+	assert(val.size=4); assert(memcmp(val.data,expected_keys[i],2)==0);
+	assert(memcmp(2+(char*)val.data,"v",2)==0);
+    }
+
+    r=pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+    
+    toku_free(key.data);
+    toku_free(val.data);
+
+    r=pma_cursor_free(&c); assert(r==0);
+    r=pma_free(&pma); assert(r==0);
+}
+
 void pma_tests (void) {
     memory_check=1;
-    test_pma_iterate();           memory_check_all_free();
+    test_pma_compare_fun(0);      memory_check_all_free();
+    test_pma_compare_fun(1);      memory_check_all_free();
+    test_pma_iterate();           
     test_pma_iterate2();          memory_check_all_free();
     test_make_space_at();         memory_check_all_free();
     test_smooth_region();         memory_check_all_free();

@@ -1526,9 +1526,9 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     int do_rmw=0;
     int r;
     CACHEKEY *rootp;
-
-    dump_brt(cursor->brt);
-    fprintf(stderr, "%s:%d in brt_c_get(...)\n", __FILE__, __LINE__);
+    
+    //dump_brt(cursor->brt);
+    //fprintf(stderr, "%s:%d in brt_c_get(...)\n", __FILE__, __LINE__);
     if ((r = read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h))) {
 	if (0) { died0: unpin_brt_header(cursor->brt); }
 	return r;
@@ -1562,7 +1562,7 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
 	abort();
     }
-    printf("%s:%d unpinning header\n", __FILE__, __LINE__);
+    //printf("%s:%d unpinning header\n", __FILE__, __LINE__);
     if ((r = unpin_brt_header(cursor->brt))!=0) return r;
     return 0;
 }

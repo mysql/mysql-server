@@ -1,5 +1,6 @@
 #include <db.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
 
@@ -32,4 +33,11 @@ berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
   unsigned long long a=uint5korr((char*) new_key->data);
   unsigned long long b=uint5korr((char*) saved_key->data);
   return  a < b ? -1 : (a > b ? 1 : 0);
+}
+
+int
+berkeley_cmp_packed_key(DB* file, const DBT *new_key, const DBT *saved_key)
+{
+    printf("Whoops\n");
+    abort();
 }
