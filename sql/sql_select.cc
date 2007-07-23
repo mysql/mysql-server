@@ -12033,6 +12033,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       */
       if (!on_primary_key &&
           (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+          table->s->db_type == DB_TYPE_INNODB &&
           table->s->primary_key != MAX_KEY)
       {
         on_primary_key= TRUE;
