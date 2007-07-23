@@ -28,6 +28,7 @@ struct pma {
 			  *  The densitystep is 0.10. */
     PMA_CURSOR cursors_head, cursors_tail;
     int (*compare_fun)(DB*,DBT*,DBT*);
+    void *skey, *sval; /* used in dbts */
 };
 
 int pmainternal_count_region (struct pair *pairs, int lo, int hi);
@@ -35,5 +36,5 @@ void pmainternal_calculate_parameters (PMA pma);
 int pmainternal_smooth_region (struct pair *pairs, int n, int idx);
 int pmainternal_printpairs (struct pair *pairs, int N);
 int pmainternal_make_space_at (PMA pma, int idx);
-int pmainternal_find (PMA pma, bytevec key, int keylen);
+int pmainternal_find (PMA pma, DBT *, DB*); // The DB is so the comparison fuction can be called.
 void print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */

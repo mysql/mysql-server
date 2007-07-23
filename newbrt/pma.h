@@ -24,15 +24,17 @@ int  pma_n_entries (PMA);
 /* The values returned should not be modified.by the caller. */
 /* Any cursors should be updated. */
 /* Duplicates the key and keylen. */
-enum pma_errors pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
+//enum pma_errors pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
+// The DB pointer is there so that the comparison function can be called.
+enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*);
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
-int pma_delete (PMA, bytevec key, ITEMLEN keylen);
+int pma_delete (PMA, DBT *, DB*);
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
  * Don't modify the returned data.  Don't free it. */
-enum pma_errors pma_lookup (PMA, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen);
+enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
 
 /* Move the cursor to the beginning or the end or to a key */
 int pma_cursor (PMA, PMA_CURSOR *);

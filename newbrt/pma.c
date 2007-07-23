@@ -92,7 +92,7 @@ void pma_show_stats (void) {
 // For example: if the array is empty, that means we return 0.
 // For example: if the array is full of small keys, that means we return pma_index_limit(pma), which is off the end of teh array.
 // For example: if the array is full of large keys, then we return 0.
-int pmainternal_find (PMA pma, bytevec key, int keylen) {
+int pmainternal_find (PMA pma, DBT *k, DB *db) {
     int lo=0, hi=pma_index_limit(pma);
     /* lo and hi are the minimum and maximum values (inclusive) that we could possibly return. */
     pma_count_finds++;
@@ -102,7 +102,8 @@ int pmainternal_find (PMA pma, bytevec key, int keylen) {
 	for (mid=(lo+hi)/2; mid<hi; mid++) {
 	    if (pma->pairs[mid].key!=0) {
 		// Found one.
-		int cmp = keycompare(key,keylen, pma->pairs[mid].key, pma->pairs[mid].keylen);
+		DBT k2;
+		int cmp = pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[mid].key, pma->pairs[mid].keylen));
 		if (cmp==0) return mid;
 		else if (cmp<0) {
 		    /* key is smaller than the midpoint, so look in the low half. */
@@ -131,7 +132,8 @@ int pmainternal_find (PMA pma, bytevec key, int keylen) {
     /* If lo points at something, the something should not be smaller than key. */
     if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo].key) {
 	//printf("lo=%d\n", lo);
-	assert(0 >= keycompare(key, keylen, pma->pairs[lo].key, pma->pairs[lo].keylen));
+	DBT k2;
+	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo].key, pma->pairs[lo].keylen)));
     }
     return lo;
 }
@@ -283,6 +285,8 @@ int pma_create (PMA *pma, int (*compare_fun)(DB*,DBT*,DBT*)) {
     pmainternal_calculate_parameters(result);
     result->cursors_head = result->cursors_tail = 0;
     result->compare_fun = compare_fun;
+    result->skey=0;
+    result->sval = 0;
     *pma = result;
     assert((unsigned long)result->pairs[result->N].key==0xdeadbeefL);
     return 0;
@@ -446,16 +450,13 @@ int pmainternal_make_space_at (PMA pma, int idx) {
 }
 
 
-/* Exposes internals of the PMA by returning a pointer to the guts.
- * Don't modify the returned data.  Don't free it. */
-enum pma_errors pma_lookup (PMA pma, bytevec key, ITEMLEN keylen, bytevec*val, ITEMLEN *vallen) {
-    int l = pmainternal_find(pma, key, keylen);
+enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
+    DBT k2;
+    int l = pmainternal_find(pma, k, db);
     assert(0<=l ); assert(l<=pma_index_limit(pma));
     if (l==pma_index_limit(pma)) return DB_NOTFOUND;
-    if (keycompare(key,keylen,pma->pairs[l].key,pma->pairs[l].keylen)==0) {
-	*val = pma->pairs[l].val;
-	*vallen = pma->pairs[l].vallen;
-	return BRT_OK;
+    if (pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[l].key,pma->pairs[l].keylen))==0) {
+	return ybt_set_value(v, pma->pairs[l].val, pma->pairs[l].vallen, &pma->sval);
     } else {
 	return DB_NOTFOUND;
     }
@@ -481,15 +482,18 @@ int pma_free (PMA *pmap) {
     }
     toku_free(pma->pairs);
     toku_free(pma);
+    if (pma->skey) toku_free(pma->skey);
+    if (pma->sval) toku_free(pma->sval);
     *pmap=0;
     return 0;
 }
 
 /* Copies keylen and datalen */ 
-int pma_insert (PMA pma, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen) {
-    int idx = pmainternal_find(pma, key, keylen);
+int pma_insert (PMA pma, DBT *k, DBT *v, DB* db) {
+    int idx = pmainternal_find(pma, k, db);
     if (idx < pma_index_limit(pma) && pma->pairs[idx].key) {
-	if (0==keycompare(key, keylen, pma->pairs[idx].key, pma->pairs[idx].keylen)) {
+	DBT k2;
+	if (0==pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[idx].key, pma->pairs[idx].keylen))) {
 	    return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
 	}
     }
@@ -497,40 +501,16 @@ int pma_insert (PMA pma, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN data
 	idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
     assert(!pma->pairs[idx].key);
-    pma->pairs[idx].key    = memdup(key, keylen);
-    pma->pairs[idx].keylen = keylen;
-    pma->pairs[idx].val    = memdup(data, datalen);
-    pma->pairs[idx].vallen = datalen;
+    pma->pairs[idx].key    = memdup(k->data, k->size);
+    pma->pairs[idx].keylen = k->size;
+    pma->pairs[idx].val    = memdup(v->data, v->size);
+    pma->pairs[idx].vallen = v->size;
     pma->n_pairs_present++;
     return BRT_OK;
 }    
 
-#if 0
-void smooth_after_delete (PMA pma, int idx) {
-    int size=pma->uplgN;
-    int lo=idx;
-    int hi=idx;
-    double density=0.1;
-    while (1) {
-	lo=idx-size/2;
-	hi=idx+size/2;
-	if (lo<0) { hi-=lo; lo=0; }
-	else if (hi>pma_index_limit(pma)) { lo-=(hi-pma_index_limit(pma)); hi=pma_index_limit(pma); }
-	else { ; /* nothing */ }
-
-	assert(density<0.25);
-	{
-	    int count=pmainternal_count_region(pma->pairs, lo, hi);
-	    if (count/(double)(hi-lo) >= density) break;
-	    if (lo==0 && hi==pma_index_limit(pma)) {
-		/* The array needs to be shrunk */
-		
-}
-#endif
-	    
-
-int pma_delete (PMA pma, bytevec key, ITEMLEN keylen) {
-    int l = pmainternal_find(pma, key, keylen);
+int pma_delete (PMA pma, DBT *k, DB *db) {
+    int l = pmainternal_find(pma, k, db);
     if (pma->pairs[l].key==0) {
 	printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, l, DB_NOTFOUND);
 	return DB_NOTFOUND;
