@@ -6251,14 +6251,6 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     if((error= create_index(key_info[idx].name, key, idx_type, idx)))
       break;
   }
-  if (error)
-  {
-    set_ndb_share_state(m_share, NSS_INITIAL);
-    /* ndb_share reference schema free */
-    DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
-                             m_share->key, m_share->use_count));
-    free_share(&m_share); // Decrease ref_count
-  }
   DBUG_RETURN(error);  
 }
 
@@ -6298,14 +6290,7 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
-  if((error= drop_indexes(ndb, table_arg)))
-  {
-    m_share->state= NSS_INITIAL;
-    /* ndb_share reference schema free */
-    DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
-                             m_share->key, m_share->use_count));
-    free_share(&m_share); // Decrease ref_count
-  }
+  error= drop_indexes(ndb, table_arg);
   DBUG_RETURN(error);
 }
 
@@ -10883,8 +10868,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   }
 #endif
 
-  ndbcluster_get_share(m_share); // Increase ref_count
-  set_ndb_share_state(m_share, NSS_ALTERED);
+  prepare_for_alter();
 
   if ((*alter_flags & adding).is_set())
   {
@@ -10987,6 +10971,11 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 
   DBUG_RETURN(0);
  err:
+  set_ndb_share_state(m_share, NSS_INITIAL);
+  /* ndb_share reference schema free */
+  DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
+                           m_share->key, m_share->use_count));
+  free_share(&m_share); // Decrease ref_count
   delete alter_data;
   DBUG_RETURN(error);
 }
@@ -11078,6 +11067,14 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   DBUG_ASSERT(alter_data);
   error= alter_frm(altered_table->s->path.str, alter_data);
  err:
+  if (error)
+  {
+    set_ndb_share_state(m_share, NSS_INITIAL);
+    /* ndb_share reference schema free */
+    DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
+                             m_share->key, m_share->use_count));
+    free_share(&m_share); // Decrease ref_count
+  }
   delete alter_data;
   DBUG_RETURN(error);
 }
