@@ -23,11 +23,11 @@ void test_serialize(void) {
     sn.u.n.totalchildkeylens = 6;
     sn.u.n.children[0] = sn.nodesize*30;
     sn.u.n.children[1] = sn.nodesize*35;
-    r = hashtable_create(&sn.u.n.htables[0]); assert(r==0);
-    r = hashtable_create(&sn.u.n.htables[1]); assert(r==0);
-    r = hash_insert(sn.u.n.htables[0], "a", 2, "aval", 5); assert(r==0);
-    r = hash_insert(sn.u.n.htables[0], "b", 2, "bval", 5); assert(r==0);
-    r = hash_insert(sn.u.n.htables[1], "x", 2, "xval", 5); assert(r==0);
+    r = toku_hashtable_create(&sn.u.n.htables[0]); assert(r==0);
+    r = toku_hashtable_create(&sn.u.n.htables[1]); assert(r==0);
+    r = toku_hash_insert(sn.u.n.htables[0], "a", 2, "aval", 5); assert(r==0);
+    r = toku_hash_insert(sn.u.n.htables[0], "b", 2, "bval", 5); assert(r==0);
+    r = toku_hash_insert(sn.u.n.htables[1], "x", 2, "xval", 5); assert(r==0);
     sn.u.n.n_bytes_in_hashtables = 3*(KEY_VALUE_OVERHEAD+2+5);
 
     serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);
@@ -43,17 +43,17 @@ void test_serialize(void) {
     assert(dn->u.n.children[1]==sn.nodesize*35);
     {
 	bytevec data; ITEMLEN datalen;
-	int r = hash_find(dn->u.n.htables[0], "a", 2, &data, &datalen);
+	int r = toku_hash_find(dn->u.n.htables[0], "a", 2, &data, &datalen);
 	assert(r==0);
 	assert(strcmp(data,"aval")==0);
 	assert(datalen==5);
 
-	r=hash_find(dn->u.n.htables[0], "b", 2, &data, &datalen);
+	r=toku_hash_find(dn->u.n.htables[0], "b", 2, &data, &datalen);
 	assert(r==0);
 	assert(strcmp(data,"bval")==0);
 	assert(datalen==5);
 
-	r=hash_find(dn->u.n.htables[1], "x", 2, &data, &datalen);
+	r=toku_hash_find(dn->u.n.htables[1], "x", 2, &data, &datalen);
 	assert(r==0);
 	assert(strcmp(data,"xval")==0);
 	assert(datalen==5);

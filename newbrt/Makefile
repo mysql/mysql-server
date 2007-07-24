@@ -25,14 +25,14 @@ ybt.o: ybt.h brttypes.h
 ybt-test: ybt-test.o ybt.o memory.o
 cachetable.o: cachetable.h
 brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
-brt-test.o brt.o: brt.h cachetable.h brttypes.h
+brt-test.o brt.o: brt.h hashtable.h pma.h brttypes.h
 brt-serialize-test.o: pma.h yerror.h brt.h memory.h hashtable.h brttypes.h brt-internal.h
-brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h
+brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
 mdict.o: pma.h
 hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/ydb-constants.h
 memory.o: memory.h
 hashtest: hashtable.o memory.o
-brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h
+brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h
 header-io.o: brttypes.h brt-internal.h memory.h
 mdict-test: hashtable.o pma.o memory.o
 

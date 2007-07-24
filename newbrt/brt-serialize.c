@@ -161,7 +161,7 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 	    int n_hash_tables = node->u.n.n_children;
 	    for (i=0; i< n_hash_tables; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
-		wbuf_int(&w, hashtable_n_entries(node->u.n.htables[i]));
+		wbuf_int(&w, toku_hashtable_n_entries(node->u.n.htables[i]));
 		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen,
 				  (wbuf_bytes(&w, key, keylen),
 				   wbuf_bytes(&w, data, datalen)));
@@ -257,11 +257,11 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	}
 	result->u.n.n_bytes_in_hashtables = 0; 
 	for (i=0; i<result->u.n.n_children; i++) {
-	    int r=hashtable_create(&result->u.n.htables[i]);
+	    int r=toku_hashtable_create(&result->u.n.htables[i]);
 	    if (r!=0) {
 		int j;
 		if (0) { died_12: j=result->u.n.n_bytes_in_hashtables; }
-		for (j=0; j<i; j++) hashtable_free(&result->u.n.htables[j]);
+		for (j=0; j<i; j++) toku_hashtable_free(&result->u.n.htables[j]);
 		goto died1;
 	    }
 	}
@@ -279,7 +279,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 		    rbuf_bytes(&rc, &val, &vallen);
 		    //printf("Found %s,%s\n", key, val);
 		    {
-			int r=hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen); /* Copies the data into the hash table. */
+			int r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
 		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD;

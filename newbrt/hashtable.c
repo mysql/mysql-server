@@ -10,7 +10,7 @@
 #include "key.h"
 #include "yerror.h"
 
-int hashtable_create (HASHTABLE *h) {
+int toku_hashtable_create (HASHTABLE *h) {
     HASHTABLE MALLOC(tab);
     int i;
     if (tab==0) return -1;
@@ -51,7 +51,7 @@ static void hash_find_internal (HASHTABLE tab, const char *key, ITEMLEN keylen, 
     *hashelt = 0;
 }
     
-int hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen) {
+int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen) {
     HASHELT he, *prev_ptr;
     hash_find_internal(tab, key, keylen, &he, &prev_ptr);
     if (he==0) {
@@ -64,7 +64,7 @@ int hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLE
 }
 
 
-int hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val, ITEMLEN vallen)
+int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val, ITEMLEN vallen)
 {
     unsigned int h = hash_key (key,keylen)%tab->arraysize;
     {
@@ -108,7 +108,7 @@ int hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val
     }
 }
 
-int hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
+int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
     HASHELT he, *prev_ptr;
     //printf("%s:%d deleting %s (bucket %d)\n", __FILE__, __LINE__, key, hash_key(key,keylen)%tab->arraysize);
     hash_find_internal(tab, key, keylen, &he, &prev_ptr);
@@ -127,7 +127,7 @@ int hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
 }
 
 
-int hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen) {
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen) {
     int i;
     for (i=0; i<h->arraysize; i++) {
 	HASHELT he=h->array[i];
@@ -167,7 +167,7 @@ int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *dat
 }
 #endif
 
-void hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, void*args), void* args) {
+void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, void*args), void* args) {
   /*
     int i;
     for (i=0; i<tab->arraysize; i++) {
@@ -180,7 +180,7 @@ void hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen, byt
     HASHTABLE_ITERATE(tab, key, keylen, val, vallen, f(key,keylen,val,vallen,args));
 }
 
-int hashtable_n_entries(HASHTABLE tab) {
+int toku_hashtable_n_entries(HASHTABLE tab) {
     return tab->n_keys;
 }
 
@@ -196,9 +196,9 @@ static void hasheltlist_free (HASHELT elt) {
 }
 
 /* Frees the table, but doesn't do anything to the contents of the table.   The keys are still alloc'd.  The internal storage of the hashtable is freed. */
-void hashtable_free(HASHTABLE *tab) {
+void toku_hashtable_free(HASHTABLE *tab) {
     //printf("%s:%d free hashtable %p\n", __FILE__, __LINE__, tab);
-    hashtable_clear(*tab);
+    toku_hashtable_clear(*tab);
     //printf("%s:%d free %p\n", __FILE__, __LINE__, tab);n
     toku_free((*tab)->array);
     toku_free(*tab);
@@ -206,7 +206,7 @@ void hashtable_free(HASHTABLE *tab) {
 }
 
 
-void hashtable_clear(HASHTABLE tab) {
+void toku_hashtable_clear(HASHTABLE tab) {
     int i;
     for (i=0; i<tab->arraysize; i++) {
 	hasheltlist_free(tab->array[i]);

@@ -47,7 +47,7 @@ void brtnode_free (BRTNODE node) {
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (node->u.n.htables[i]) {
-		hashtable_free(&node->u.n.htables[i]);
+		toku_hashtable_free(&node->u.n.htables[i]);
 	    }
 	}
     } else {
@@ -248,7 +248,7 @@ void delete_node (BRT t, BRTNODE node) {
     } else {
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (node->u.n.htables[i]) {
-		hashtable_free(&node->u.n.htables[i]);
+		toku_hashtable_free(&node->u.n.htables[i]);
 	    }
 	    node->u.n.n_bytes_in_hashtable[0]=0;
 	}
@@ -271,7 +271,7 @@ static void insert_to_buffer_in_leaf (BRTNODE node, DBT *k, DBT *v, DB *db) {
 
 static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v) {
     unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + k->size + v->size;
-    int r = hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
+    int r = toku_hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
     if (r!=0) return r;
     node->u.n.n_bytes_in_hashtable[childnum] += n_bytes_added;
     node->u.n.n_bytes_in_hashtables += n_bytes_added;
@@ -534,7 +534,7 @@ static int push_a_kvpair_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
 
     //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
     {
-	int r = hash_delete(node->u.n.htables[childnum], k->data, k->size); // Must delete after doing the insert, to avoid operating on freed' key
+	int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size); // Must delete after doing the insert, to avoid operating on freed' key
 	//printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
 	if (r!=0) return r;
     }
@@ -586,8 +586,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     }
     node->u.n.children[childnum]   = childa->thisnodename;
     node->u.n.children[childnum+1] = childb->thisnodename;
-    hashtable_create(&node->u.n.htables[childnum]);
-    hashtable_create(&node->u.n.htables[childnum+1]);
+    toku_hashtable_create(&node->u.n.htables[childnum]);
+    toku_hashtable_create(&node->u.n.htables[childnum+1]);
     node->u.n.n_bytes_in_hashtable[childnum] = 0;
     node->u.n.n_bytes_in_hashtable[childnum+1] = 0;
     // Slide the keys over
@@ -620,7 +620,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	}
 	if (r!=0) return r;
     }));
-    hashtable_free(&old_h);
+    toku_hashtable_free(&old_h);
 
     r=cachetable_unpin(t->cf, childa->thisnodename, 1);
     assert(r==0);
@@ -681,8 +681,8 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 	bytevec key,val;
 	ITEMLEN keylen, vallen;
 	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, node->u.n.n_bytes_in_hashtable[childnum]);
-	assert(hashtable_n_entries(node->u.n.htables[childnum])>0);
-	while(0==hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen)) {
+	assert(toku_hashtable_n_entries(node->u.n.htables[childnum])>0);
+	while(0==toku_hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen)) {
 	    int child_did_split=0; BRTNODE childa, childb;
 	    DBT hk,hv;
 	    DBT childsplitk;
@@ -704,7 +704,7 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 		printf("%s:%d sum=%d\n", __FILE__, __LINE__, sum);
 		assert(sum==node->u.n.n_bytes_in_hashtable[childnum]);
 	    }
-	    if (node->u.n.n_bytes_in_hashtable[childnum]>0) assert(hashtable_n_entries(node->u.n.htables[childnum])>0);
+	    if (node->u.n.n_bytes_in_hashtable[childnum]>0) assert(toku_hashtable_n_entries(node->u.n.htables[childnum])>0);
 	    //printf("%s:%d %d=push_a_kvpair_down=();  child_did_split=%d (weight=%d)\n", __FILE__, __LINE__, r, child_did_split, node->u.n.n_bytes_in_hashtable[childnum]);
 	    if (r!=0) return r;
 	    if (child_did_split) {
@@ -820,7 +820,7 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     bytevec olddata;
     ITEMLEN olddatalen;
     unsigned int childnum = brtnode_which_child(node, k, t, db);
-    int found = !hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen);
+    int found = !toku_hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen);
 
     if (0) { // It is faster to do this, except on yobiduck where things grind to a halt.
       void *child_v;
@@ -830,7 +830,7 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 	  BRTNODE child = child_v;
 	  if (found) {
 	      int diff = k->size + olddatalen + KEY_VALUE_OVERHEAD;
-	      int r = hash_delete(node->u.n.htables[childnum], k->data, k->size);
+	      int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size);
 	      assert(r==0);
 	      node->u.n.n_bytes_in_hashtables -= diff;
 	      node->u.n.n_bytes_in_hashtable[childnum] -= diff;
@@ -860,7 +860,7 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
     verify_counts(node);
     if (found) {
-	int r = hash_delete(node->u.n.htables[childnum], k->data, k->size);
+	int r = toku_hash_delete(node->u.n.htables[childnum], k->data, k->size);
 	int diff = k->size + olddatalen + KEY_VALUE_OVERHEAD;
 	assert(r==0);
 	node->u.n.n_bytes_in_hashtables -= diff;
@@ -869,7 +869,7 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     }
     {
 	int diff = k->size + v->size + KEY_VALUE_OVERHEAD;
-	int r=hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
+	int r=toku_hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
 	assert(r==0);
 	node->u.n.n_bytes_in_hashtables += diff;
 	node->u.n.n_bytes_in_hashtable[childnum] += diff;
@@ -1142,8 +1142,8 @@ int brt_insert (BRT brt, DBT *k, DBT *v, DB* db) {
 	newroot->u.n.totalchildkeylens=splitk.size;
 	newroot->u.n.children[0]=nodea->thisnodename;
 	newroot->u.n.children[1]=nodeb->thisnodename;
-	r=hashtable_create(&newroot->u.n.htables[0]); if (r!=0) return r;
-	r=hashtable_create(&newroot->u.n.htables[1]); if (r!=0) return r;
+	r=toku_hashtable_create(&newroot->u.n.htables[0]); if (r!=0) return r;
+	r=toku_hashtable_create(&newroot->u.n.htables[1]); if (r!=0) return r;
 	verify_counts(newroot);
 	r=cachetable_unpin(brt->cf, nodea->thisnodename, 1); if (r!=0) return r;
 	r=cachetable_unpin(brt->cf, nodeb->thisnodename, 1); if (r!=0) return r;
@@ -1191,7 +1191,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     {
 	bytevec hanswer;
 	ITEMLEN hanswerlen;
-	if (hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen)==0) {
+	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen)==0) {
 	    //printf("Found %d bytes\n", *vallen);
 	    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
 	    //printf("%s:%d Returning %p\n", __FILE__, __LINE__, v->data);
@@ -1255,7 +1255,7 @@ int dump_brtnode (BRT brt, diskoff off, int depth, bytevec lorange, ITEMLEN lole
 	{
 	    int i;
 	    for (i=0; i< node->u.n.n_children-1; i++) {
-		printf("%*schild %d buffered (%d entries):\n", depth+1, "", i, hashtable_n_entries(node->u.n.htables[i]));
+		printf("%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_hashtable_n_entries(node->u.n.htables[i]));
 		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen,
 				  ({
 				      printf("%*s %s %s\n", depth+2, "", (char*)key, (char*)data);
@@ -1376,7 +1376,7 @@ int verify_brtnode (BRT brt, diskoff off, bytevec lorange, ITEMLEN lolen, byteve
 			result=1;
 		    }
 		}
-		hashtable_iterate(node->u.n.htables[i], verify_pair, 0);
+		toku_hashtable_iterate(node->u.n.htables[i], verify_pair, 0);
 	    }
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
