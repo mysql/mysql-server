@@ -479,7 +479,7 @@ void test_pma_cursor (void) {
 }
 
 int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
-			      DBT *a, DBT *b) {
+			      const DBT *a, const DBT *b) {
     unsigned int i;
     unsigned char *ad=a->data;
     unsigned char *bd=b->data;

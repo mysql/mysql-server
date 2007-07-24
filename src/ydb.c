@@ -364,12 +364,13 @@ int  yobi_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname, D
     //  Each tree has its own cache, instead of a big shared cache.
     //  It doesn't do error checking on insert.
     //  It's tough to do cursors.
-    r=open_brt(db->i->full_fname, dbname, (flags&DB_CREATE), &db->i->brt, 1<<20, db->i->env->i->cachetable);
+    r=open_brt(db->i->full_fname, dbname, (flags&DB_CREATE), &db->i->brt, 1<<20, db->i->env->i->cachetable,
+	       db->i->bt_compare);
     assert(r==0);
     return 0;
 }
 int  yobi_db_put (DB *db, DB_TXN *txn, DBT *dbta, DBT *dbtb, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, dbta->data, dbta->size, dbtb->data, dbtb->size);
+    int r = brt_insert(db->i->brt, dbta, dbtb, db);
     //printf("%s:%d %d=yobi_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }

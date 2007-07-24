@@ -26,6 +26,6 @@ void test_keycompare (void) {
     assert(keycompare("aaaaa",3, "aaaba",3)==0);
 }
 
-int default_compare_fun (DB *db __attribute__((__unused__)), DBT *a, DBT*b) {
+int default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return keycompare(a->data, a->size, b->data, b->size);
 }

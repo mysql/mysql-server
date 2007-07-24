@@ -12,7 +12,7 @@ typedef struct pma *PMA;
 typedef struct pma_cursor *PMA_CURSOR;
 
 /* All functions return 0 on success. */
-int pma_create (PMA *,  int (*compare_fun)(DB*,DBT*,DBT*));
+int pma_create (PMA *,  int (*compare_fun)(DB*,const DBT*,const DBT*));
 
 /* returns 0 if OK.
  * You must have freed all the cursors, otherwise returns nonzero and does nothing. */

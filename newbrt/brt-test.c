@@ -692,7 +692,7 @@ DBT *fill_b(DBT *x, unsigned char *key, unsigned int keylen) {
     return x;
 }
 
-int wrong_compare_fun(DB *db, DBT *a, DBT *b) {
+int wrong_compare_fun(DB *db, const DBT *a, const DBT *b) {
     unsigned int i;
     unsigned char *ad=a->data;
     unsigned char *bd=b->data;

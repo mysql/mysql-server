@@ -64,7 +64,7 @@ struct brt {
 
     BRT_CURSOR cursors_head, cursors_tail;
 
-    int (*compare_fun)(DB*,DBT*,DBT*);
+    int (*compare_fun)(DB*,const DBT*,const DBT*);
 
     void *skey,*sval; /* Used for DBT return values. */
 };
