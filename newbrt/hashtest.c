@@ -68,8 +68,8 @@ void test0 (void) {
     char*saw =malloc(sizeof(*saw)*n_ops);
     int  data_n = 0;
     assert(data!=0);
-    r = hashtable_create(&htable); assert(r==0);
-    assert(hashtable_n_entries(htable)==0);
+    r = toku_hashtable_create(&htable); assert(r==0);
+    assert(toku_hashtable_n_entries(htable)==0);
 #if 0
     {
 	bytevec kv=(void*)0xdeadbeef;
@@ -97,7 +97,7 @@ void test0 (void) {
 		}
 		snprintf(kv, 99, "k%d", ra);
 		snprintf(dv, 99, "d%d", ra);
-		hash_insert(htable, kv, strlen(kv)+1, dv, strlen(dv)+1);
+		toku_hash_insert(htable, kv, strlen(kv)+1, dv, strlen(dv)+1);
 		data[data_n++]=ra;
 	    }
 	} else {

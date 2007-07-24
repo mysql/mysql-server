@@ -8,23 +8,23 @@
    
 typedef struct hashtable *HASHTABLE;
 
-int hashtable_create (HASHTABLE*);
+int toku_hashtable_create (HASHTABLE*);
 
 /* Return 0 if the key is found in the hashtable, -1 otherwise. */
 /* Warning: The data returned points to the internals of the hashtable.  It is set to "const" to try to prevent you from messing it up. */
-int hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen);
+int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen);
 
 /* Replace the key if it was already there. */
-int hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *data, ITEMLEN datalen);
+int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *data, ITEMLEN datalen);
 
 /* It is OK to delete something that isn't there. */
-int hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen);
-void hashtable_free(HASHTABLE *tab);
-int hashtable_n_entries(HASHTABLE);
+int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen);
+void toku_hashtable_free(HASHTABLE *tab);
+int toku_hashtable_n_entries(HASHTABLE);
   
-void hashtable_clear(HASHTABLE);
+void toku_hashtable_clear(HASHTABLE);
 
-int hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 //int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
 typedef struct hashelt *HASHELT;
@@ -41,7 +41,7 @@ struct hashtable {
 };
 
 /* You cannot add or delete elements from the hashtable while iterating. */
-void hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,void*), void*);
+void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,void*), void*);
 // If you don't want to use something, do something like use "key __attribute__((__unused__))" for keyvar.
 #define HASHTABLE_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) ({ \
   int hi_counter;                                                            \
