@@ -32,7 +32,10 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
+struct dict_index_struct;
 struct row_prebuilt_struct;
+
+typedef struct dict_index_struct dict_index_t;
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /* The class defining a handle to an Innodb table */
@@ -70,6 +73,11 @@ class ha_innobase: public handler
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
 	int innobase_read_and_init_auto_inc(longlong* ret);
+	ulong innobase_autoinc_lock();
+	ulong innobase_set_max_autoinc(ulonglong auto_inc);
+	ulong innobase_reset_autoinc(ulonglong auto_inc);
+	ulong innobase_get_auto_increment(ulonglong* value);
+	dict_index_t* innobase_get_index(uint keynr);
 
 	/* Init values for the class: */
  public:
