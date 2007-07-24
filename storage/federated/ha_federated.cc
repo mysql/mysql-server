@@ -2029,7 +2029,7 @@ int ha_federated::write_row(uchar *buf)
     update_auto_increment();
 
     /* mysql_insert() uses this for protocol return value */
-    table->next_number_field->store(auto_increment_value, 1);
+    table->next_number_field->store(stats.auto_increment_value, 1);
   }
 
   DBUG_RETURN(0);
@@ -2940,7 +2940,7 @@ int ha_federated::info(uint flag)
   }
 
   if (flag & HA_STATUS_AUTO)
-    auto_increment_value= mysql->last_used_con->insert_id;
+    stats.auto_increment_value= mysql->last_used_con->insert_id;
 
   mysql_free_result(result);
 
