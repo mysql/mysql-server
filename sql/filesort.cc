@@ -1430,7 +1430,8 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
     doesn't work for alter table
   */
   if (thd->lex->sql_command != SQLCOM_SELECT &&
-      thd->lex->sql_command != SQLCOM_INSERT_SELECT)
+      thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
+      thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     return 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {
