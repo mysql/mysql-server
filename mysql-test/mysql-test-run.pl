@@ -144,6 +144,7 @@ our $exe_mysqladmin;
 our $exe_mysql_upgrade;
 our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
+our $exe_bug25714;
 our $exe_mysqld;
 our $exe_mysqlcheck;
 our $exe_mysqldump;
@@ -1630,6 +1631,12 @@ sub executable_setup () {
                            "$glob_basedir/tests/mysql_client_test",
                            "$glob_basedir/bin/mysql_client_test");
   }
+
+  # Look for bug25714 executable which may _not_ exist in
+  # some versions, test using it should be skipped
+  $exe_bug25714=
+      mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
+                           "$glob_basedir/tests/bug25714");
 }
 
 
@@ -2009,6 +2016,11 @@ sub environment_setup () {
     "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute bug25714
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BUG25714'}=  $exe_bug25714;
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_client_test
