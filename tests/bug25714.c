@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_global.h>
+#include <my_sys.h>
 #include <mysql.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <m_string.h>
 #include <assert.h>
 
 int main (int argc, char **argv)
@@ -26,6 +26,8 @@ int main (int argc, char **argv)
 
   const char* query4= "INSERT INTO federated.t1 SET Value=54";
   const char* query5= "INSERT INTO federated.t1 SET Value=55";
+
+  MY_INIT(argv[0]);
 
   if (argc != 2)
     return -1;
@@ -63,6 +65,7 @@ int main (int argc, char **argv)
          (long) mysql_insert_id(&conn));
 
   mysql_close(&conn);
+  my_end(0);
 
   return 0;
 };
