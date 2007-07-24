@@ -19,12 +19,14 @@ static void *items[items_limit];
 static long sizes[items_limit];
 
 void note_did_malloc (void *p, long size) {
+    static long long count=0;
     WHEN_MEM_DEBUG(
 		   if (n_items_malloced<items_limit) { items[n_items_malloced]=p; sizes[n_items_malloced]=size; }
 		   else overflowed=1;
 		   //printf("%s:%d %p=malloc(%ld)\n", __FILE__, __LINE__, p, size);
 		   );
     n_items_malloced++;
+    count++;
 }
 
 void note_did_free(void *p) {

@@ -52,7 +52,7 @@ struct cachefile {
 };
 
 int create_cachetable (CACHETABLE *result, int n_entries) {
-    CACHETABLE MALLOC(t);
+    TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
     t->table_size = n_entries;

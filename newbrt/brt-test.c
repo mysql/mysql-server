@@ -560,6 +560,7 @@ static void  test_read_what_was_written (void) {
     }
 
     r = close_brt(brt); assert(r==0);
+    printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
     r = cachetable_close(ct); assert(r==0);
     
     memory_check_all_free();
@@ -683,12 +684,12 @@ void test_cursor_next (void) {
 }
 
 static void brt_blackbox_test (void) {
+    test_read_what_was_written();         memory_check_all_free(); printf("did read_what_was_written\n");
     test_cursor_next();                   memory_check_all_free();
     test_multiple_dbs_many();             memory_check_all_free();
     test_cursor_last_empty();             memory_check_all_free();
     test_multiple_brts_one_db_one_file(); memory_check_all_free();
     test_dump_empty_db();                 memory_check_all_free();
-    test_read_what_was_written();
     test_named_db();
     memory_check_all_free();
     test_multiple_dbs();
