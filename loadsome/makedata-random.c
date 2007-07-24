@@ -14,10 +14,10 @@ long long parsell (char *s) {
 int main (int argc, char *argv[]) {
     long long i;
     assert(argc==3);
-    long long lo=parsell(argv[1]);
-    long long count=parsell(argv[2]);
-    for (i=lo*count; count>0; i++, count--) {
-	printf("%lld\t%d\n", i*100, random());
+    long long count=parsell(argv[1]);
+    long long range=100*parsell(argv[2]);
+    for (i=0; i<count; i++) {
+	printf("%lld\t%d\n", (random()%range), random());
     }
     return 0;
 }
