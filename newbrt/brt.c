@@ -405,15 +405,18 @@ void find_heaviest_child (BRTNODE node, int *childnum) {
     int max_weight = node->u.n.n_bytes_in_hashtable[0];
     int i;
 
+    if (0) printf("%s:%d weights: %d", __FILE__, __LINE__, max_weight);
     assert(node->u.n.n_children>0);
     for (i=1; i<node->u.n.n_children; i++) {
 	int this_weight = node->u.n.n_bytes_in_hashtable[i];
+	if (0) printf(" %d", this_weight);
 	if (max_weight < this_weight) {
 	    max_child = i;
 	    max_weight = this_weight;
 	}
     }
     *childnum = max_child;
+    if (0) printf("\n");
 }
 
 #if 0
@@ -528,16 +531,19 @@ static int push_a_kvpair_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
 			       db);
 	if (r!=0) return r;
     }
+
     //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
     {
 	int r = hash_delete(node->u.n.htables[childnum], k->data, k->size); // Must delete after doing the insert, to avoid operating on freed' key
+	//printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
 	if (r!=0) return r;
     }
     {
-	int n_bytes_removed = (k->size + k->size + KEY_VALUE_OVERHEAD);
+	int n_bytes_removed = (k->size + v->size + KEY_VALUE_OVERHEAD);
 	node->u.n.n_bytes_in_hashtables -= n_bytes_removed;
 	node->u.n.n_bytes_in_hashtable[childnum] -= n_bytes_removed;
     }
+
     return 0;
 }
 
@@ -672,18 +678,32 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
     {
 	bytevec key,val;
 	ITEMLEN keylen, vallen;
+	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, node->u.n.n_bytes_in_hashtable[childnum]);
+	assert(hashtable_n_entries(node->u.n.htables[childnum])>0);
 	while(0==hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen)) {
 	    int child_did_split=0; BRTNODE childa, childb;
 	    DBT hk,hv;
 	    DBT childsplitk;
+	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
 	    init_dbt(&childsplitk);
 	    childsplitk.app_private = splitk->app_private;
+
 	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_kvpair_down (t, node, child, childnum,
 				    fill_dbt(&hk, key, keylen), fill_dbt(&hv, val, vallen),
 				    &child_did_split, &childa, &childb,
 				    &childsplitk,
 				    db);
+
+	    if (0){
+		unsigned int sum=0;
+		HASHTABLE_ITERATE(node->u.n.htables[childnum], hk __attribute__((__unused__)), hkl, hd __attribute__((__unused__)), hdl,
+				  sum+=hkl+hdl+KEY_VALUE_OVERHEAD);
+		printf("%s:%d sum=%d\n", __FILE__, __LINE__, sum);
+		assert(sum==node->u.n.n_bytes_in_hashtable[childnum]);
+	    }
+	    if (node->u.n.n_bytes_in_hashtable[childnum]>0) assert(hashtable_n_entries(node->u.n.htables[childnum])>0);
+	    //printf("%s:%d %d=push_a_kvpair_down=();  child_did_split=%d (weight=%d)\n", __FILE__, __LINE__, r, child_did_split, node->u.n.n_bytes_in_hashtable[childnum]);
 	    if (r!=0) return r;
 	    if (child_did_split) {
 		// If the child splits, we don't push down any further.
@@ -694,11 +714,13 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 		return r; /* Don't do any more pushing if the child splits. */ 
 	    }
 	}
+	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
     }
     if (debug) printf("%s:%d %*sdone push_some_kvpairs_down, unpinning %lld\n", __FILE__, __LINE__, debug, "", targetchild);
     r=cachetable_unpin(t->cf, targetchild, 1);
     if (r!=0) return r;
     *did_split=0;
+    assert(serialize_brtnode_size(node)<=node->nodesize);
     return 0;
 }
 
@@ -718,9 +740,9 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    /* Find the heaviest child, and push stuff to it.  Keep pushing to the child until we run out.
 	     * But if the child pushes something to its child and our buffer has gotten small enough, then we stop pushing. */
 	    int childnum;
-	    if (debug) printf("%s:%d %*sfind_heaviest_data\n", __FILE__, __LINE__, debug, "");
+	    if (0) printf("%s:%d %*sfind_heaviest_data\n", __FILE__, __LINE__, debug, "");
 	    find_heaviest_child(node, &childnum);
-	    if (debug) printf("%s:%d %*spush some down from %lld into %lld\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum]);
+	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum], childnum);
 	    assert(node->u.n.children[childnum]!=0);
 	    int r = push_some_kvpairs_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), db);
 	    if (r!=0) return r;
@@ -1134,9 +1156,6 @@ int brt_insert (BRT brt, DBT *k, DBT *v, DB* db) {
     return 0;
 }
 
-// This is pretty ugly.
-static unsigned char lookup_result[1000000];
-
 int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
@@ -1170,9 +1189,8 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
 	ITEMLEN hanswerlen;
 	if (hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen)==0) {
 	    //printf("Found %d bytes\n", *vallen);
-	    assert(hanswerlen<=(int)(sizeof(lookup_result)));
 	    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
-	    //printf("Returning %s\n", lookup_result);
+	    //printf("%s:%d Returning %p\n", __FILE__, __LINE__, v->data);
 	    r = cachetable_unpin(brt->cf, off, 0);
 	    assert(r==0);
 	    return 0;

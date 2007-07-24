@@ -320,6 +320,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 }
 
 void verify_counts (BRTNODE node) {
+    /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
     } else {
