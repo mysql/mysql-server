@@ -2025,7 +2025,12 @@ int ha_federated::write_row(uchar *buf)
     field, then store the last_insert_id() value from the foreign server
   */
   if (auto_increment_update_required)
+  {
     update_auto_increment();
+
+    /* mysql_insert() uses this for protocol return value */
+    table->next_number_field->store(auto_increment_value, 1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -2110,8 +2115,9 @@ void ha_federated::update_auto_increment(void)
   THD *thd= current_thd;
   DBUG_ENTER("ha_federated::update_auto_increment");
 
+  ha_federated::info(HA_STATUS_AUTO);
   thd->first_successful_insert_id_in_cur_stmt= 
-    mysql->last_used_con->insert_id;
+    stats.auto_increment_value;
   DBUG_PRINT("info",("last_insert_id: %ld", (long) stats.auto_increment_value));
 
   DBUG_VOID_RETURN;
@@ -2933,8 +2939,10 @@ int ha_federated::info(uint flag)
 
   }
 
-  if (result)
-    mysql_free_result(result);
+  if (flag & HA_STATUS_AUTO)
+    auto_increment_value= mysql->last_used_con->insert_id;
+
+  mysql_free_result(result);
 
   DBUG_RETURN(0);
 
