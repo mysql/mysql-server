@@ -333,4 +333,27 @@ insert into bug_27907_t1(a) values (1);
 
 drop table bug_27907_t1;
 
+--echo
+--echo Bug#22427 create table if not exists + stored function results in
+--echo inconsistent behavior
+--echo
+--echo Add a test case, the bug itself was fixed by the patch for
+--echo Bug#20662
+--echo
+--disable_warnings
+drop table if exists t1;
+drop function if exists f_bug22427;
+--enable_warnings
+create table t1 (i int);
+insert into t1 values (1);
+create function f_bug22427() returns int return (select max(i) from t1);
+select f_bug22427();
+# Until this bug was fixed, the following emitted error
+# ERROR 1213: Deadlock found when trying to get lock
+create table if not exists t1 select f_bug22427() as i;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 select f_bug22427() as i;
+drop table t1;
+drop function f_bug22427;
+
 --echo End of 5.0 tests
