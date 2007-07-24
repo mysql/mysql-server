@@ -34,11 +34,13 @@ int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
     } else {
 	if (staticptrp==0) return -1;
 	void *staticptr=*staticptrp;
+	//void *old=staticptr;
 	if (staticptr==0) 
 	    staticptr = toku_malloc(vallen);
 	else
 	    staticptr = toku_realloc(staticptr, vallen);
 	if (errno!=0) return errno;
+	//if (old!=staticptr) printf("%s:%d MALLOC --> %p\n", __FILE__, __LINE__, staticptr);
 	*staticptrp = staticptr;
 	ybt->data = staticptr;
 	ybt->ulen = vallen;

@@ -1066,11 +1066,11 @@ int close_brt (BRT brt) {
 	if (r!=0) return r;
     }
     assert(0==cachefile_count_pinned(brt->cf, 1));
-    //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
+    printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
     if ((r = cachefile_close(brt->cf))!=0) return r;
     if (brt->database_name) toku_free(brt->database_name);
-    free(brt->skey);
-    free(brt->sval);
+    if (brt->skey) { toku_free(brt->skey); }
+    if (brt->sval) { toku_free(brt->sval); }
     toku_free(brt);
     return 0;
 }
