@@ -14,6 +14,9 @@ if [ $# -ne 2 ] ; then
   die "Usage: export.sh revision-number-of-last-snapshot current-revision-number"
 fi
 
+START_REV=$(($1 + 1))
+END_REV=$2
+
 set +u
 if test -z $EDITOR; then
   die "\$EDITOR is not set"
@@ -22,10 +25,11 @@ set -u
 
 rm -rf to-mysql
 mkdir to-mysql{,/storage,/patches,/mysql-test{,/t,/r,/include}}
-svn log -v -r "$(($1 + 1)):BASE" > to-mysql/log
+svn log -v -r "$START_REV:BASE" > to-mysql/log
 svn export -q . to-mysql/storage/innobase
 
-seq $(($1+1)) $2|while read REV
+REV=$START_REV
+while [ $REV -le $END_REV ]
 do
   PATCH=to-mysql/patches/r$REV.patch
   svn log -v -r$REV > $PATCH
@@ -35,6 +39,7 @@ do
   else
     rm $PATCH
   fi
+  REV=$(($REV + 1))
 done
 
 cd to-mysql/storage/innobase
