@@ -173,6 +173,12 @@ static unsigned int hash_key (const char *key, int keylen) {
     return hash;
 }
 
+unsigned int ct_hash_longlong (unsigned long long l) {
+    unsigned int r = hash_key((char*)&l, 8);
+    printf("%lld --> %d --> %d\n", l, r, r%64);
+    return  r;
+}
+
 static unsigned int hashit (CACHETABLE t, CACHEKEY key) {
     return hash_key((char*)&key, sizeof(key))%t->table_size;
 }

@@ -13,11 +13,13 @@ long long parsell (char *s) {
 
 int main (int argc, char *argv[]) {
     long long i;
-    assert(argc==3);
+    assert(argc==4);
     long long count=parsell(argv[1]);
     long long range=100*parsell(argv[2]);
+    long long seed =parsell(argv[3]);
+    srandom(seed);
     for (i=0; i<count; i++) {
-	printf("%lld\t%d\n", (random()%range), random());
+	printf("%lld\t%ld\n", (random()%range), random());
     }
     return 0;
 }
