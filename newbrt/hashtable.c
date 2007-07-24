@@ -63,6 +63,27 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     }
 }
 
+int toku_hash_rehash_everything (HASHTABLE tab, int newarraysize) {
+    HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
+    int i;
+    assert(newarray!=0);
+    for (i=0; i<newarraysize; i++) newarray[i]=0;
+    for (i=0; i<tab->arraysize; i++) {
+	HASHELT he;
+	while ((he=tab->array[i])!=0) {
+	    unsigned int h = hash_key(he->key, he->keylen)%newarraysize;
+	    tab->array[i] = he->next;
+	    he->next = newarray[h];
+	    newarray[h] = he;
+	}
+    }
+    toku_free(tab->array);
+    // printf("Freed\n");
+    tab->array=newarray;
+    tab->arraysize=newarraysize;
+    //printf("Done growing or shrinking\n");
+    return 0;
+}
 
 int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val, ITEMLEN vallen)
 {
@@ -85,24 +106,7 @@ int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char
 	tab->array[h]=he;
 	tab->n_keys++;
 	if (tab->n_keys > tab->arraysize) {
-	    int newarraysize = tab->arraysize*2;
-	    HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
-	    int i;
-	    assert(newarray!=0);
-	    for (i=0; i<newarraysize; i++) newarray[i]=0;
-	    for (i=0; i<tab->arraysize; i++) {
-		while ((he=tab->array[i])!=0) {
-		    h = hash_key(he->key, he->keylen)%newarraysize;
-		    tab->array[i] = he->next;
-		    he->next = newarray[h];
-		    newarray[h] = he;
-		}
-	    }
-	    toku_free(tab->array);
-	   // printf("Freed\n");
-	    tab->array=newarray;
-	    tab->arraysize=newarraysize;
-	    //printf("Done growing\n");
+	    return toku_hash_rehash_everything(tab, tab->arraysize*2);
 	}
 	return BRT_OK;
     }
@@ -122,6 +126,10 @@ int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
 	toku_free(he->val);
 	toku_free(he);
 	tab->n_keys--;
+
+	if ((tab->n_keys * 4 < tab->arraysize) && tab->arraysize>4) {
+	    return toku_hash_rehash_everything(tab, tab->arraysize/2);
+	}
 	return BRT_OK;
     }
 }
@@ -129,8 +137,10 @@ int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
 
 int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen) {
     int i;
-    for (i=0; i<h->arraysize; i++) {
-	HASHELT he=h->array[i];
+    int usei = random()%h->arraysize;
+    for (i=0; i<h->arraysize; i++, usei++) {
+	if (usei>h->arraysize) usei=0;
+	HASHELT he=h->array[usei];
 	if (he) {
 	    *key = he->key;
 	    *keylen = he->keylen;
