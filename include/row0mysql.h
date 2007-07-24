@@ -670,6 +670,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
+	ulonglong	last_value;	/* last value of AUTO-INC interval */
 	ulint		magic_n2;	/* this should be the same as
 					magic_n */
 };

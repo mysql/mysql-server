@@ -4519,3 +4519,169 @@ row_search_check_if_query_cache_permitted(
 
 	return(ret);
 }
+
+/***********************************************************************
+Read the AUTOINC column from the current row. */
+static
+ib_longlong
+row_search_autoinc_read_column(
+/*===========================*/
+					/* out: value read from the column */
+	dict_index_t*	index,		/* in: index to read from */
+	const rec_t*	rec,		/* in: current rec */
+	ulint		col_no,		/* in: column number */
+	ibool		unsigned_type)	/* in: signed or unsigned flag */
+{
+	ulint		len;
+	byte*		ptr;
+	const byte*	data;
+	ib_longlong	value;
+	mem_heap_t*	heap = NULL;
+	byte		dest[sizeof(value)];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets	= offsets_;
+
+	*offsets_ = sizeof offsets_ / sizeof *offsets_;
+
+	/* TODO: We have to cast away the const of rec for now.  This needs
+	to be fixed later.*/
+	offsets = rec_get_offsets(
+		(rec_t*) rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+	/* TODO: We have to cast away the const of rec for now.  This needs
+	to be fixed later.*/
+	data = rec_get_nth_field((rec_t*)rec, offsets, col_no, &len);
+
+	ut_a(len != UNIV_SQL_NULL);
+	ut_a(len <= sizeof value);
+
+	/* Convert integer data from Innobase to a little-endian format,
+	sign bit restored to normal */
+
+	for (ptr = dest + len; ptr != dest; ++data) {
+		--ptr;
+		*ptr = *data;
+	}
+
+	if (!unsigned_type) {
+		dest[len - 1] ^= 128;
+	}
+
+	/* The assumption here is that the AUTOINC value can't be negative.*/
+	switch (len) {
+	case 8:
+		value = *(ib_longlong*) ptr;
+		break;
+
+	case 4:
+		value = *(ib_uint32_t*) ptr;
+		break;
+
+	case 2:
+		value = *(uint16 *) ptr;
+		break;
+
+	case 1:
+		value = *ptr;
+		break;
+
+	default:
+		ut_error;
+	}
+
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
+
+	ut_a(value >= 0);
+
+	return(value);
+}
+
+/***********************************************************************
+Get the last row. */
+static
+const rec_t*
+row_search_autoinc_get_rec(
+/*=======================*/
+					/* out: current rec or NULL */
+	btr_pcur_t*	pcur,		/* in: the current cursor */
+	mtr_t*		mtr)		/* in: mini transaction */
+{
+	do {
+		const rec_t* rec = btr_pcur_get_rec(pcur);
+
+		if (page_rec_is_user_rec(rec)) {
+			return(rec);
+		}
+	} while (btr_pcur_move_to_prev(pcur, mtr));
+
+	return(NULL);
+}
+
+/***********************************************************************
+Read the max AUTOINC value from an index. */
+
+ulint
+row_search_max_autoinc(
+/*===================*/
+					/* out: DB_SUCCESS if all OK else
+					error code, DB_RECORD_NOT_FOUND if
+					column name can't be found in index */
+	dict_index_t*	index,		/* in: index to search */
+	const char*	col_name,	/* in: name of autoinc column */
+	ib_longlong*	value)		/* out: AUTOINC value read */
+{
+	ulint		i;
+	ulint		n_cols;
+	dict_field_t*	dfield = NULL;
+	ulint		error = DB_SUCCESS;
+
+	n_cols = dict_index_get_n_ordering_defined_by_user(index);
+
+	/* Search the index for the AUTOINC column name */
+	for (i = 0; i < n_cols; ++i) {
+		dfield = dict_index_get_nth_field(index, i);
+
+		if (strcmp(col_name, dfield->name) == 0) {
+			break;
+		}
+	}
+
+	*value = 0;
+
+	/* Must find the AUTOINC column name */
+	if (i < n_cols && dfield) {
+		mtr_t		mtr;
+		btr_pcur_t	pcur;
+
+		mtr_start(&mtr);
+
+		/* Open at the high/right end (FALSE), and INIT
+		cursor (TRUE) */
+		btr_pcur_open_at_index_side(
+			FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+			const rec_t*	rec;
+
+			rec = row_search_autoinc_get_rec(&pcur, &mtr);
+
+			if (rec != NULL) {
+				ibool unsigned_type = (
+					dfield->col->prtype & DATA_UNSIGNED);
+
+				*value = row_search_autoinc_read_column(
+					index, rec, i, unsigned_type);
+			}
+		}
+
+		btr_pcur_close(&pcur);
+
+		mtr_commit(&mtr);
+	} else {
+		error = DB_RECORD_NOT_FOUND;
+	}
+
+	return(error);
+}
