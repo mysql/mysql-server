@@ -263,7 +263,7 @@ int pmainternal_count_region (struct pair *pairs, int lo, int hi) {
     return n;
 }
 
-int pma_create (PMA *pma, int (*compare_fun)(DB*,DBT*,DBT*)) {
+int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     TAGMALLOC(PMA, result);
     int i;
     if (result==0) return -1;

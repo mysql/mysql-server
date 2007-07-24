@@ -9,7 +9,7 @@
 #include "../include/ydb-constants.h"
 #include "cachetable.h"
 typedef struct brt *BRT;
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,DBT*,DBT*));
+int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,const DBT*,const DBT*));
 //int brt_create (BRT **, int nodesize, int n_nodes_in_cache); /* the nodesize and n_nodes in cache really should be separately configured. */
 //int brt_open (BRT *, char *fname, char *dbname);
 int brt_insert (BRT brt, DBT *k, DBT *v, DB*db);

@@ -957,7 +957,7 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
 #endif
 
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable,
-	      int (*compare_fun)(DB*,DBT*,DBT*)) {
+	      int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     BRT t;
