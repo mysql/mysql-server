@@ -2220,9 +2220,9 @@ void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock();
-  logger.init_slow_log(LOG_TABLE);
-  logger.init_general_log(LOG_TABLE);
-  *value= LOG_TABLE;
+  logger.init_slow_log(LOG_FILE);
+  logger.init_general_log(LOG_FILE);
+  *value= LOG_FILE;
   logger.unlock();
   pthread_mutex_unlock(&LOCK_global_system_variables);
 }
