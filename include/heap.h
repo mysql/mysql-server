@@ -189,11 +189,14 @@ typedef struct st_heap_create_info
   ulonglong max_table_size;
   ulonglong auto_increment;
   my_bool with_auto_increment;
+  my_bool internal_table;
 } HP_CREATE_INFO;
 
 	/* Prototypes for heap-functions */
 
 extern HP_INFO *heap_open(const char *name, int mode);
+extern HP_INFO *heap_open_from_share(HP_SHARE *share, int mode);
+extern HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const uchar *buff);
 extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);
@@ -204,7 +207,7 @@ extern int heap_delete(HP_INFO *info,const uchar *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
 extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 		       uint reclength, ulong max_records, ulong min_records,
-		       HP_CREATE_INFO *create_info);
+		       HP_CREATE_INFO *create_info, HP_SHARE **share);
 extern int heap_delete_table(const char *name);
 extern void heap_drop_table(HP_INFO *info);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
