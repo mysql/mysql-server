@@ -686,7 +686,7 @@ void test_cursor_next (void) {
 static int nonce;
 DB nonce_db;
 
-DBT *fill_b(DBT *x, char *key, unsigned int keylen) {
+DBT *fill_b(DBT *x, unsigned char *key, unsigned int keylen) {
     fill_dbt(x, key, keylen);
     x->app_private = &nonce;
     return x;
@@ -708,35 +708,112 @@ int wrong_compare_fun(DB *db, DBT *a, DBT *b) {
 
 }
 
-static void test_wrongendian_compare (void) {
+static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
-//    BRT_CURSOR cursor;
+    BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
-    int i;
+    unsigned int i;
 
     unlink(n);
     memory_check_all_free();
 
-    r = brt_create_cachetable(&ct, 0);       assert(r==0);
-
-    r = open_brt(n, 0, 1, &brt, 1<<12, ct, wrong_compare_fun);  assert(r==0);
-    
-    for (i=0; i<1000; i++) {
-	r = brt_insert(brt, fill_b(&kbt, (void*)&i, sizeof(i)), fill_dbt(&vbt, (void*)&i, sizeof(i)), &nonce_db);
-	assert(r==0);
+    {
+	char a[4]={0,1,0,0};
+	char b[4]={1,0,0,0};
+	DBT at, bt;
+	assert(wrong_compare_fun(&nonce_db, fill_dbt_ap(&at, a, 4, &nonce), fill_dbt(&bt, b, 4))>0);
+	assert(wrong_compare_fun(&nonce_db, fill_dbt_ap(&at, b, 4, &nonce), fill_dbt(&bt, a, 4))<0);
     }
 
+    r = brt_create_cachetable(&ct, 0);       assert(r==0);
+    printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
+
+    if (0) {
+    r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+    for (i=1; i<257; i+=255) {
+	unsigned char a[4],b[4];
+	b[3] = a[0] = i&255;
+	b[2] = a[1] = (i>>8)&255;
+	b[1] = a[2] = (i>>16)&255;
+	b[0] = a[3] = (i>>24)&255;
+	fill_b(&kbt, a, sizeof(a));
+	fill_dbt(&vbt, b, sizeof(b));
+	printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+	       ((char*)kbt.data)[0], ((char*)kbt.data)[1], ((char*)kbt.data)[2], ((char*)kbt.data)[3],
+	       ((char*)vbt.data)[0], ((char*)vbt.data)[1], ((char*)vbt.data)[2], ((char*)vbt.data)[3]);
+	r = brt_insert(brt, &kbt, &vbt, &nonce_db);
+	assert(r==0);
+    }
+    r = brt_cursor(brt, &cursor);            assert(r==0);
+
+    for (i=0; i<2; i++) {
+	init_dbt(&kbt); init_dbt(&vbt);
+	r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+	assert(r==0);
+	assert(kbt.size==4 && vbt.size==4);
+	printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+	       ((char*)kbt.data)[0], ((char*)kbt.data)[1], ((char*)kbt.data)[2], ((char*)kbt.data)[3],
+	       ((char*)vbt.data)[0], ((char*)vbt.data)[1], ((char*)vbt.data)[2], ((char*)vbt.data)[3]);
+    }
+
+    
     r = close_brt(brt);
+    }
+
+    if (1) {
+    r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+    
+    for (i=0; i<N; i++) {
+	unsigned char a[4],b[4];
+	b[3] = a[0] = i&255;
+	b[2] = a[1] = (i>>8)&255;
+	b[1] = a[2] = (i>>16)&255;
+	b[0] = a[3] = (i>>24)&255;
+	fill_b(&kbt, a, sizeof(a));
+	fill_dbt(&vbt, b, sizeof(b));
+	if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+	       ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
+	       ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
+	r = brt_insert(brt, &kbt, &vbt, &nonce_db);
+	assert(r==0);
+    }
+    r = brt_cursor(brt, &cursor);            assert(r==0);
+
+    int prev=-1;
+    for (i=0; i<N; i++) {
+	int this;
+	init_dbt(&kbt); init_dbt(&vbt);
+	r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+	assert(r==0);
+	assert(kbt.size==4 && vbt.size==4);
+	if (0) printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+		      ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
+		      ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
+	this= ( (((unsigned char*)kbt.data)[3] << 24) +
+		(((unsigned char*)kbt.data)[2] << 16) +
+		(((unsigned char*)kbt.data)[1] <<  8) +
+		(((unsigned char*)kbt.data)[0] <<  0));
+	assert(prev<this);
+	prev=this;
+	assert(this==(int)i);
+	    
+    }
+
+  
+    r = close_brt(brt);
+    }
     r = cachetable_close(ct); assert(r==0);
     memory_check_all_free();
-
 }
 
 static void brt_blackbox_test (void) {
-    test_wrongendian_compare();           memory_check_all_free();
+    test_wrongendian_compare(0, 2);          memory_check_all_free();
+    test_wrongendian_compare(1, 2);          memory_check_all_free();
+    test_wrongendian_compare(1, 257);        memory_check_all_free();
+    test_wrongendian_compare(1, 1000);        memory_check_all_free();
     test_read_what_was_written();         memory_check_all_free(); printf("did read_what_was_written\n");
     test_cursor_next();                   memory_check_all_free();
     test_multiple_dbs_many();             memory_check_all_free();
