@@ -63,13 +63,16 @@ struct brt {
     struct brt_header *h;
 
     BRT_CURSOR cursors_head, cursors_tail;
+
+    int (*compare_fun)(DB*,DBT*,DBT*);
+
+    void *skey,*sval; /* Used for DBT return values. */
 };
 
 /* serialization code */
 void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node);
 int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize);
 unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
-unsigned int brtnode_which_child (BRTNODE node, bytevec key, ITEMLEN keylen);
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
 void verify_counts(BRTNODE);
@@ -77,7 +80,7 @@ void verify_counts(BRTNODE);
 int serialize_brt_header_to (int fd, struct brt_header *h);
 int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth);
 
-static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
+//static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
 
 //int write_brt_header (int fd, struct brt_header *header);
 

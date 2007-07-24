@@ -213,7 +213,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, diskoff nodename, int height) 
 	}
 	n->u.n.n_bytes_in_hashtables = 0;
     } else {
-	int r = pma_create(&n->u.l.buffer);
+	int r = pma_create(&n->u.l.buffer, t->compare_fun);
 	static int rcount=0;
 	assert(r==0);
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
@@ -262,16 +262,16 @@ void delete_node (BRT t, BRTNODE node) {
 }
 
 
-static void insert_to_buffer_in_leaf (BRTNODE node, bytevec key, unsigned int keylen, bytevec val, unsigned int vallen) {
-    unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + keylen + vallen;
-    int r = pma_insert(node->u.l.buffer, key, keylen, val, vallen);
+static void insert_to_buffer_in_leaf (BRTNODE node, DBT *k, DBT *v, DB *db) {
+    unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + k->size + v->size;
+    int r = pma_insert(node->u.l.buffer, k, v, db);
     assert(r==0);
     node->u.l.n_bytes_in_buffer += n_bytes_added;
 }
 
-static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, bytevec key, unsigned int keylen, bytevec val, unsigned int vallen) {
-    unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + keylen + vallen;
-    int r = hash_insert(node->u.n.htables[childnum], key, keylen, val, vallen);
+static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v) {
+    unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + k->size + v->size;
+    int r = hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
     if (r!=0) return r;
     node->u.n.n_bytes_in_hashtable[childnum] += n_bytes_added;
     node->u.n.n_bytes_in_hashtables += n_bytes_added;
@@ -279,7 +279,7 @@ static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, bytevec key, u
 }
 
 
-int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen) {
+int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, DB *db) {
     int did_split=0;
     BRTNODE A,B;
     assert(node->height==0);
@@ -296,15 +296,15 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, bytevec*
     assert(node->height>0 || node->u.l.buffer!=0);
     PMA_ITERATE(node->u.l.buffer, key, keylen, val, vallen,
 		({
+		    DBT k,v;
 		    if (!did_split) {
-			insert_to_buffer_in_leaf(A, key, keylen, val, vallen);
+			insert_to_buffer_in_leaf(A, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), db);
 			if (A->u.l.n_bytes_in_buffer *2 >= node->u.l.n_bytes_in_buffer) {
-			    *splitkey = memdup(key, keylen);
-			    *splitkeylen = keylen;
+			    fill_dbt(splitk, memdup(key, keylen), keylen);
 			    did_split=1;
 			}
 		    } else {
-			insert_to_buffer_in_leaf(B, key, keylen, val, vallen);
+			insert_to_buffer_in_leaf(B, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), db);
 		    }
 		}));
     assert(node->height>0 || node->u.l.buffer!=0);
@@ -320,7 +320,8 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, bytevec*
     return 0;
 }
 
-void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen) {
+/* Side effect: sets splitk->data pointer to a malloc'd value */
+void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     int n_children_in_a = node->u.n.n_children/2;
     BRTNODE A,B;
     assert(node->height>0);
@@ -363,8 +364,8 @@ void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, byt
 	    node->u.n.childkeys[i] = 0;
 	    node->u.n.childkeylens[i] = 0;
 	}
-	*splitkey = node->u.n.childkeys[n_children_in_a-1];
-	*splitkeylen = node->u.n.childkeylens[n_children_in_a-1];
+	splitk->data = (void*)(node->u.n.childkeys[n_children_in_a-1]);
+	splitk->size = node->u.n.childkeylens[n_children_in_a-1];
 	node->u.n.totalchildkeylens -= node->u.n.childkeylens[n_children_in_a-1];
 	node->u.n.childkeys[n_children_in_a-1]=0;
 	node->u.n.childkeylens[n_children_in_a-1]=0;
@@ -470,60 +471,70 @@ void find_heaviest_data (BRTNODE node, int *childnum_ret, KVPAIR *pairs_ret, int
 }
 #endif
 
-static int brtnode_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen,
-			    int debug);
+static int brtnode_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
+			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+			   DBT *split,
+			   int debug,
+			   DB *db);
 
 /* key is not in the hashtable in node.  Either put the key-value pair in the child, or put it in the node. */
 static int push_kvpair_down_only_if_it_wont_push_more_else_put_here (BRT t, BRTNODE node, BRTNODE child,
-								      bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-								      int childnum_of_node) {
+								     DBT *k, DBT *v,
+								     int childnum_of_node,
+								     DB *db) {
     assert(node->height>0); /* Not a leaf. */
-    int to_child=serialize_brtnode_size(child)+keylen+vallen+KEY_VALUE_OVERHEAD <= child->nodesize;
+    int to_child=serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD <= child->nodesize;
     if (brt_debug_mode) {
-	printf("%s:%d pushing %s to %s %d", __FILE__, __LINE__, (char*)key, to_child? "child" : "hash", childnum_of_node);
+	printf("%s:%d pushing %s to %s %d", __FILE__, __LINE__, (char*)k->data, to_child? "child" : "hash", childnum_of_node);
 	if (childnum_of_node+1<node->u.n.n_children) {
+	    DBT k2;
 	    printf(" nextsplitkey=%s\n", (char*)node->u.n.childkeys[childnum_of_node]);
-	    assert(keycompare(key, keylen, node->u.n.childkeys[childnum_of_node], node->u.n.childkeylens[childnum_of_node])<=0);
+	    assert(t->compare_fun(db, k, fill_dbt(&k2, node->u.n.childkeys[childnum_of_node], node->u.n.childkeylens[childnum_of_node]))<=0);
 	} else {
 	    printf("\n");
 	}
     }
     if (to_child) {
-	int again_split=-1; BRTNODE againa,againb; bytevec againkey; ITEMLEN againlen;
+	int again_split=-1; BRTNODE againa,againb;
+	DBT againk;
+	init_dbt(&againk);
 	//printf("%s:%d hello!\n", __FILE__, __LINE__);
-	int r = brtnode_insert(t, child, key, keylen, val, vallen,
-		       &again_split, &againa, &againb, &againkey, &againlen,
-		       0);
+	int r = brtnode_insert(t, child, k, v,
+			       &again_split, &againa, &againb, &againk,
+			       0,
+			       db);
 	if (r!=0) return r;
 	assert(again_split==0); /* I only did the insert if I knew it wouldn't push down, and hence wouldn't split. */
 	return r;
     } else {
-	int r=insert_to_hash_in_nonleaf(node, childnum_of_node, key, keylen, val, vallen);
+	int r=insert_to_hash_in_nonleaf(node, childnum_of_node, k, v);
 	return r;
     }
 }
 
 static int push_a_kvpair_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
-				bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-				int *child_did_split, BRTNODE *childa, BRTNODE *childb, bytevec*childsplitkey, ITEMLEN *childsplitkeylen) {
+			       DBT *k, DBT *v,
+			       int *child_did_split, BRTNODE *childa, BRTNODE *childb,
+			       DBT *childsplitk,
+			       DB *db) {
     //if (debug) printf("%s:%d %*sinserting down\n", __FILE__, __LINE__, debug, "");
     //printf("%s:%d hello!\n", __FILE__, __LINE__);
     assert(node->height>0);
     
     {
-	int r = brtnode_insert(t, child, key, keylen, val, vallen,
-			       child_did_split, childa, childb, childsplitkey, childsplitkeylen,
-			       0);
+	int r = brtnode_insert(t, child, k, v,
+			       child_did_split, childa, childb, childsplitk,
+			       0,
+			       db);
 	if (r!=0) return r;
     }
     //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
     {
-	int r = hash_delete(node->u.n.htables[childnum], key, keylen); // Must delete after doing the insert, to avoid operating on freed' key
+	int r = hash_delete(node->u.n.htables[childnum], k->data, k->size); // Must delete after doing the insert, to avoid operating on freed' key
 	if (r!=0) return r;
     }
     {
-	int n_bytes_removed = (keylen + vallen + KEY_VALUE_OVERHEAD);
+	int n_bytes_removed = (k->size + k->size + KEY_VALUE_OVERHEAD);
 	node->u.n.n_bytes_in_hashtables -= n_bytes_removed;
 	node->u.n.n_bytes_in_hashtable[childnum] -= n_bytes_removed;
     }
@@ -540,8 +551,11 @@ int split_count=0;
  * We also unpin the new children.
  */
 static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
-				   BRTNODE childa, BRTNODE childb,  bytevec childsplitkey, ITEMLEN childsplitkeylen,
-				   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen) {
+				  BRTNODE childa, BRTNODE childb,
+				  DBT *childsplitk, /* the data in the childsplitk is alloc'd and is consumed by this call. */
+				  int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+				  DBT *splitk,
+				  DB *db) {
     assert(node->height>0);
     HASHTABLE old_h = node->u.n.htables[childnum];
     int       old_count = node->u.n.n_bytes_in_hashtable[childnum];
@@ -551,7 +565,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     if (brt_debug_mode) {
 	int i;
-	printf("%s:%d Child %d did split on %s\n", __FILE__, __LINE__, childnum, (char*)childsplitkey);
+	printf("%s:%d Child %d did split on %s\n", __FILE__, __LINE__, childnum, (char*)childsplitk->data);
 	printf("%s:%d oldsplitkeys:", __FILE__, __LINE__);
 	for(i=0; i<node->u.n.n_children-1; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
 	printf("\n");
@@ -574,9 +588,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
 	node->u.n.childkeylens[cnum] = node->u.n.childkeylens[cnum-1];
     }
-    node->u.n.childkeys[childnum]=childsplitkey;
-    node->u.n.childkeylens[childnum]= childsplitkeylen;
-    node->u.n.totalchildkeylens += childsplitkeylen;
+    node->u.n.childkeys[childnum]= (char*)childsplitk->data;
+    node->u.n.childkeylens[childnum]= childsplitk->size;
+    node->u.n.totalchildkeylens += childsplitk->size;
     node->u.n.n_children++;
 
     if (brt_debug_mode) {
@@ -589,10 +603,13 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     node->u.n.n_bytes_in_hashtables -= old_count; /* By default, they are all removed.  We might add them back in. */
     /* Keep pushing to the children, but not if the children would require a pushdown */
     HASHTABLE_ITERATE(old_h, skey, skeylen, sval, svallen, ({
-	if (keycompare(skey, skeylen, childsplitkey, childsplitkeylen)<=0) {
-	    r=push_kvpair_down_only_if_it_wont_push_more_else_put_here(t, node, childa, skey, skeylen, sval, svallen, childnum);
+        DBT skd, svd;
+	fill_dbt(&skd, skey, skeylen); skd.app_private=childsplitk->app_private;
+	fill_dbt(&svd, sval, svallen);
+	if (t->compare_fun(db, &skd, childsplitk)<=0) {
+	    r=push_kvpair_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &skd, &svd, childnum, db);
 	} else {
-	    r=push_kvpair_down_only_if_it_wont_push_more_else_put_here(t, node, childb, skey, skeylen, sval, svallen, childnum+1);
+	    r=push_kvpair_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &skd, &svd, childnum+1, db);
 	}
 	if (r!=0) return r;
     }));
@@ -610,7 +627,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     if (node->u.n.n_children>TREE_FANOUT) {
 	//printf("%s:%d about to split having pushed %d out of %d keys\n", __FILE__, __LINE__, i, n_pairs);
-	brt_nonleaf_split(t, node, nodea, nodeb, splitkey, splitkeylen);
+	brt_nonleaf_split(t, node, nodea, nodeb, splitk);
 	//printf("%s:%d did split\n", __FILE__, __LINE__);
 	split_count++;
 	*did_split=1;
@@ -630,8 +647,10 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 }
 
 static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
-				    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec *splitkey, ITEMLEN *splitkeylen,
-				    int debug) {
+				   int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+				   DBT *splitk,
+				   int debug,
+				   DB *db) {
     void *childnode_v;
     BRTNODE child;
     int r;
@@ -654,18 +673,24 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 	bytevec key,val;
 	ITEMLEN keylen, vallen;
 	while(0==hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen)) {
-	    int child_did_split=0; BRTNODE childa, childb; bytevec childsplitkey; ITEMLEN childsplitkeylen;
+	    int child_did_split=0; BRTNODE childa, childb;
+	    DBT hk,hv;
+	    DBT childsplitk;
+	    init_dbt(&childsplitk);
+	    childsplitk.app_private = splitk->app_private;
 	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_kvpair_down (t, node, child, childnum,
-				    key, keylen, val, vallen,
-				    &child_did_split, &childa, &childb, &childsplitkey, &childsplitkeylen);
+				    fill_dbt(&hk, key, keylen), fill_dbt(&hv, val, vallen),
+				    &child_did_split, &childa, &childb,
+				    &childsplitk,
+				    db);
 	    if (r!=0) return r;
 	    if (child_did_split) {
 		// If the child splits, we don't push down any further.
-		if (debug) printf("%s:%d %*shandle split splitkey=%s\n", __FILE__, __LINE__, debug, "", (char*)childsplitkey);
+		if (debug) printf("%s:%d %*shandle split splitkey=%s\n", __FILE__, __LINE__, debug, "", (char*)childsplitk.data);
 		r=handle_split_of_child (t, node, childnum,
-					 childa, childb, childsplitkey, childsplitkeylen,
-					 did_split, nodea, nodeb, splitkey, splitkeylen);
+					 childa, childb, &childsplitk,
+					 did_split, nodea, nodeb, splitk, db);
 		return r; /* Don't do any more pushing if the child splits. */ 
 	    }
 	}
@@ -681,7 +706,7 @@ int debugp1 (int debug) {
     return debug ? debug+1 : 0;
 }
 
-static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec *splitkey, ITEMLEN *splitkeylen, int debug)
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug, DB *db)
 /* If the buffer is too full, then push down.  Possibly the child will split.  That may make us split. */
 {
     assert(node->height>0);
@@ -697,7 +722,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    find_heaviest_child(node, &childnum);
 	    if (debug) printf("%s:%d %*spush some down from %lld into %lld\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum]);
 	    assert(node->u.n.children[childnum]!=0);
-	    int r = push_some_kvpairs_down(t, node, childnum, did_split, nodea, nodeb, splitkey, splitkeylen, debugp1(debug));
+	    int r = push_some_kvpairs_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), db);
 	    if (r!=0) return r;
 	    assert(*did_split==0 || *did_split==1);
 	    if (debug) printf("%s:%d %*sdid push_some_kvpairs_down did_split=%d\n", __FILE__, __LINE__, debug, "", *did_split);
@@ -719,22 +744,22 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
-static int brt_leaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen,
-			    int debug) {
-    bytevec olddata;
-    ITEMLEN olddatalen;
-    enum pma_errors pma_status = pma_lookup(node->u.l.buffer, key, keylen, &olddata, &olddatalen);
+static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
+			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+			    int debug,
+			    DB *db) {
+    DBT v2;
+    enum pma_errors pma_status = pma_lookup(node->u.l.buffer, k, init_dbt(&v2), db);
     if (pma_status==BRT_OK) {
-	pma_status = pma_delete(node->u.l.buffer, key, keylen);
+	pma_status = pma_delete(node->u.l.buffer, k, db);
 	assert(pma_status==BRT_OK);
-	node->u.l.n_bytes_in_buffer -= keylen + olddatalen + KEY_VALUE_OVERHEAD;
+	node->u.l.n_bytes_in_buffer -= k->size + v2.size + KEY_VALUE_OVERHEAD;
     }
-    pma_status = pma_insert(node->u.l.buffer, key, keylen, val, vallen);
-    node->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
+    pma_status = pma_insert(node->u.l.buffer, k, v, db);
+    node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
     // If it doesn't fit, then split the leaf.
     if (serialize_brtnode_size(node) > node->nodesize) {
-	int r = brtleaf_split (t, node, nodea, nodeb, splitkey, splitkeylen);
+	int r = brtleaf_split (t, node, nodea, nodeb, splitk, db);
 	if (r!=0) return r;
 	//printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
 	split_count++;
@@ -749,14 +774,28 @@ static int brt_leaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen, by
     return 0;
 }
 
-static int brt_nonleaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen,
-			    int debug) {
+static unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
+    int i;
+    assert(node->height>0);
+    for (i=0; i<node->u.n.n_children-1; i++) {
+	DBT k2;
+	if (t->compare_fun(db, k, fill_dbt(&k2, node->u.n.childkeys[i], node->u.n.childkeylens[i]))<=0) {
+	    return i;
+	}
+    }
+    return node->u.n.n_children-1;
+}
 
+
+static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
+			       int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+			       DBT *splitk,
+			       int debug,
+			       DB *db) {
     bytevec olddata;
     ITEMLEN olddatalen;
-    unsigned int childnum = brtnode_which_child(node, key, keylen);
-    int found = !hash_find(node->u.n.htables[childnum], key, keylen, &olddata, &olddatalen);
+    unsigned int childnum = brtnode_which_child(node, k, t, db);
+    int found = !hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen);
 
     if (0) { // It is faster to do this, except on yobiduck where things grind to a halt.
       void *child_v;
@@ -765,8 +804,8 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen,
 	  /* If the child is in memory, then go ahead and put it in the child. */
 	  BRTNODE child = child_v;
 	  if (found) {
-	      int diff = keylen + olddatalen + KEY_VALUE_OVERHEAD;
-	      int r = hash_delete(node->u.n.htables[childnum], key, keylen);
+	      int diff = k->size + olddatalen + KEY_VALUE_OVERHEAD;
+	      int r = hash_delete(node->u.n.htables[childnum], k->data, k->size);
 	      assert(r==0);
 	      node->u.n.n_bytes_in_hashtables -= diff;
 	      node->u.n.n_bytes_in_hashtable[childnum] -= diff;
@@ -774,15 +813,14 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen,
 	  {
 	      int child_did_split;
 	      BRTNODE childa, childb;
-	      bytevec childsplitkey;
-	      ITEMLEN childsplitkeylen;
-	      int r = brtnode_insert(t, child, key, keylen, val, vallen,
-				     &child_did_split, &childa, &childb, &childsplitkey, &childsplitkeylen, 0);
+	      DBT childsplitk;
+	      int r = brtnode_insert(t, child, k, v,
+				     &child_did_split, &childa, &childb, &childsplitk, 0, db);
 	      if (r!=0) return r;
 	      if (child_did_split) {
 		  r=handle_split_of_child(t, node, childnum,
-					  childa, childb, childsplitkey, childsplitkeylen,
-					  did_split, nodea, nodeb, splitkey, splitkeylen);
+					  childa, childb, &childsplitk,
+					  did_split, nodea, nodeb, splitk, db);
 		  if (r!=0) return r;
 	      } else {
 		  cachetable_unpin(t->cf, child->thisnodename, 1);
@@ -796,23 +834,23 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen,
     if (debug) printf("%s:%d %*sDoing hash_insert\n", __FILE__, __LINE__, debug, "");
     verify_counts(node);
     if (found) {
-	int r = hash_delete(node->u.n.htables[childnum], key, keylen);
-	int diff = keylen + olddatalen + KEY_VALUE_OVERHEAD;
+	int r = hash_delete(node->u.n.htables[childnum], k->data, k->size);
+	int diff = k->size + olddatalen + KEY_VALUE_OVERHEAD;
 	assert(r==0);
 	node->u.n.n_bytes_in_hashtables -= diff;
 	node->u.n.n_bytes_in_hashtable[childnum] -= diff;	
 	//printf("%s:%d deleted %d bytes\n", __FILE__, __LINE__, diff);
     }
     {
-	int diff = keylen + vallen + KEY_VALUE_OVERHEAD;
-	int r=hash_insert(node->u.n.htables[childnum], key, keylen, val, vallen);
+	int diff = k->size + v->size + KEY_VALUE_OVERHEAD;
+	int r=hash_insert(node->u.n.htables[childnum], k->data, k->size, v->data, v->size);
 	assert(r==0);
 	node->u.n.n_bytes_in_hashtables += diff;
 	node->u.n.n_bytes_in_hashtable[childnum] += diff;
 
     }
     if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
-    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitkey, splitkeylen, debugp1(debug));
+    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), db);
     if (r!=0) return r;
     if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
     if (*did_split) {
@@ -832,17 +870,20 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen,
 }
 
 
-static int brtnode_insert (BRT t, BRTNODE node, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen,
-			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, bytevec*splitkey, ITEMLEN *splitkeylen,
-			   int debug) {
+static int brtnode_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
+			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+			   int debug,
+			   DB *db) {
     if (node->height==0) {
-	return brt_leaf_insert(t, node, key, keylen, val, vallen,
-			       did_split, nodea, nodeb, splitkey, splitkeylen,
-			       debug);
+	return brt_leaf_insert(t, node, k, v,
+			       did_split, nodea, nodeb, splitk,
+			       debug,
+			       db);
     } else {
-	return brt_nonleaf_insert(t, node, key, keylen, val, vallen,
-				  did_split, nodea, nodeb, splitkey, splitkeylen,
-				  debug);
+	return brt_nonleaf_insert(t, node, k, v,
+				  did_split, nodea, nodeb, splitk,
+				  debug,
+				  db);
     }
 }
 
@@ -889,7 +930,8 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
 #define WHEN_BRTTRACE(x) ((void)0)
 #endif
 
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable) {
+int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable,
+	      int (*compare_fun)(DB*,DBT*,DBT*)) {
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     BRT t;
@@ -903,6 +945,8 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	if (0) { died0: toku_free(t); }
 	return r;
     }
+    t->compare_fun = compare_fun;
+    t->skey = t->sval = 0;
     if (dbname) {
 	malloced_name = mystrdup(dbname);
 	if (malloced_name==0) {
@@ -1003,6 +1047,8 @@ int close_brt (BRT brt) {
     //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
     if ((r = cachefile_close(brt->cf))!=0) return r;
     if (brt->database_name) toku_free(brt->database_name);
+    free(brt->skey);
+    free(brt->sval);
     toku_free(brt);
     return 0;
 }
@@ -1023,12 +1069,13 @@ CACHEKEY* calculate_root_offset_pointer (BRT brt) {
     abort();
 }
 
-int brt_insert (BRT brt, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen) {
+int brt_insert (BRT brt, DBT *k, DBT *v, DB* db) {
     void *node_v;
     BRTNODE node;
     CACHEKEY *rootp;
     int r;
-    int did_split; BRTNODE nodea=0, nodeb=0; bytevec splitkey; ITEMLEN splitkeylen;
+    int did_split; BRTNODE nodea=0, nodeb=0;
+    DBT splitk;
     int debug = brt_debug_mode;//strcmp(key,"hello387")==0;
     //assert(0==cachetable_assert_all_unpinned(brt->cachetable));
     if ((r = read_and_pin_brt_header(brt->cf, &brt->h))) {
@@ -1043,9 +1090,9 @@ int brt_insert (BRT brt, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN valle
     }
     node=node_v;
     if (debug) printf("%s:%d node inserting\n", __FILE__, __LINE__);
-    r = brtnode_insert(brt, node, key, keylen, val, vallen,
-		       &did_split, &nodea, &nodeb, &splitkey, &splitkeylen,
-		       debug);
+    r = brtnode_insert(brt, node, k, v,
+		       &did_split, &nodea, &nodeb, &splitk,
+		       debug, db);
     if (r!=0) return r;
     if (debug) printf("%s:%d did_insert\n", __FILE__, __LINE__);
     if (did_split) {
@@ -1064,9 +1111,9 @@ int brt_insert (BRT brt, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN valle
 	initialize_brtnode (brt, newroot, newroot_diskoff, nodea->height+1);
 	newroot->u.n.n_children=2;
 	//printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
-	newroot->u.n.childkeys[0] = splitkey;
-	newroot->u.n.childkeylens[0] = splitkeylen;
-	newroot->u.n.totalchildkeylens=splitkeylen;
+	newroot->u.n.childkeys[0] = splitk.data;
+	newroot->u.n.childkeylens[0] = splitk.size;
+	newroot->u.n.totalchildkeylens=splitk.size;
 	newroot->u.n.children[0]=nodea->thisnodename;
 	newroot->u.n.children[1]=nodeb->thisnodename;
 	r=hashtable_create(&newroot->u.n.htables[0]); if (r!=0) return r;
@@ -1090,12 +1137,11 @@ int brt_insert (BRT brt, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN valle
 // This is pretty ugly.
 static unsigned char lookup_result[1000000];
 
-int brt_lookup_node (BRT brt, diskoff off, bytevec key, ITEMLEN keylen, bytevec *val, ITEMLEN *vallen) {
+int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)brt->h->nodesize);
-    bytevec answer;
-    ITEMLEN answerlen;
+    DBT answer;
     BRTNODE node;
     int childnum;
     if (r!=0) {
@@ -1107,28 +1153,30 @@ int brt_lookup_node (BRT brt, diskoff off, bytevec key, ITEMLEN keylen, bytevec 
     }
     node=node_v;
     if (node->height==0) {
-	r = pma_lookup(node->u.l.buffer, key, keylen, &answer, &answerlen);
+	r = pma_lookup(node->u.l.buffer, k, &answer, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
 	if (r!=0) goto died0;
 	if (r==0) {
-	    *val = answer;
-	    *vallen = answerlen;
+	    *v = answer;
 	}
 	r = cachetable_unpin(brt->cf, off, 0);
 	return r;
     }
 
-    childnum = brtnode_which_child(node, key, keylen);
+    childnum = brtnode_which_child(node, k, brt, db);
     // Leaves have a single mdict, where the data is found.
-    if (hash_find (node->u.n.htables[childnum], key, keylen, &answer, vallen)==0) {
-	//printf("Found %d bytes\n", *vallen);
-	assert(*vallen<=(int)(sizeof(lookup_result)));
-	memcpy(lookup_result, answer, *vallen);
-	//printf("Returning %s\n", lookup_result);
-	*val = lookup_result;
-	r = cachetable_unpin(brt->cf, off, 0);
-	assert(r==0);
-	return 0;
+    {
+	bytevec hanswer;
+	ITEMLEN hanswerlen;
+	if (hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen)==0) {
+	    //printf("Found %d bytes\n", *vallen);
+	    assert(hanswerlen<=(int)(sizeof(lookup_result)));
+	    ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
+	    //printf("Returning %s\n", lookup_result);
+	    r = cachetable_unpin(brt->cf, off, 0);
+	    assert(r==0);
+	    return 0;
+	}
     }
     if (node->height==0) {
 	r = cachetable_unpin(brt->cf, off, 0);
@@ -1136,7 +1184,7 @@ int brt_lookup_node (BRT brt, diskoff off, bytevec key, ITEMLEN keylen, bytevec 
 	else return r;
     }
     {
-	int result = brt_lookup_node(brt, node->u.n.children[childnum], key, keylen, val, vallen);
+	int result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
 	r = cachetable_unpin(brt->cf, off, 0);
 	if (r!=0) return r;
 	return result;
@@ -1144,7 +1192,7 @@ int brt_lookup_node (BRT brt, diskoff off, bytevec key, ITEMLEN keylen, bytevec 
 }
 
 
-int brt_lookup (BRT brt, bytevec key, unsigned int keylen, bytevec*val, unsigned int *vallen) {
+int brt_lookup (BRT brt, DBT *k, DBT *v, DB *db) {
     int r;
     CACHEKEY *rootp;
     assert(0==cachefile_count_pinned(brt->cf, 1));
@@ -1156,7 +1204,7 @@ int brt_lookup (BRT brt, bytevec key, unsigned int keylen, bytevec*val, unsigned
 	return r;
     }
     rootp = calculate_root_offset_pointer(brt);
-    if ((r = brt_lookup_node(brt, *rootp, key, keylen, val, vallen))) {
+    if ((r = brt_lookup_node(brt, *rootp, k, v, db))) {
 	printf("%s:%d\n", __FILE__, __LINE__);
 	goto died0;
     }

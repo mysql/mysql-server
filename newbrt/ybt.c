@@ -4,13 +4,13 @@
 #include <errno.h>
 #include <string.h>
 
-int ybt_init (DBT *ybt) {
+DBT *init_dbt (DBT *ybt) {
     memset(ybt, 0, sizeof(*ybt));
-    return 0;
+    return ybt;
 }
 
 DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
-    ybt_init(dbt);
+    init_dbt(dbt);
     dbt->size=len;
     dbt->data=(char*)k;
     return dbt;

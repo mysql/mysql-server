@@ -6,7 +6,7 @@
 #include "../include/db.h"
 
 
-int ybt_init (DBT *);
+DBT* init_dbt (DBT *);
 DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
 int ybt_set_value (DBT *, bytevec val, ITEMLEN vallen, void **staticptrp);
 

@@ -8,8 +8,8 @@
 void ybt_test0 (void) {
     void *v0=0,*v1=0;
     DBT  t0,t1;
-    ybt_init(&t0);
-    ybt_init(&t1);
+    init_dbt(&t0);
+    init_dbt(&t1);
     ybt_set_value(&t0, "hello", 6, &v0);
     ybt_set_value(&t1, "foo",   4, &v1);
     assert(t0.size==6);
@@ -25,7 +25,7 @@ void ybt_test0 (void) {
     memory_check_all_free();
 
     /* See if we can probe to find out how big something is by setting ulen=0 with YBT_USERMEM */
-    ybt_init(&t0);
+    init_dbt(&t0);
     t0.flags = DB_DBT_USERMEM;
     t0.ulen  = 0;
     ybt_set_value(&t0, "hello", 6, 0);
@@ -33,7 +33,7 @@ void ybt_test0 (void) {
     assert(t0.size==6);
 
     /* Check realloc. */
-    ybt_init(&t0);
+    init_dbt(&t0);
     t0.flags = DB_DBT_REALLOC;
     v0 = 0;
     ybt_set_value(&t0, "internationalization", 21, &v0);

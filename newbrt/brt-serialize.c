@@ -4,6 +4,7 @@
 #include "memory.h"
 //#include "pma.h"
 #include "brt-internal.h"
+#include "key.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -87,7 +88,7 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
 	for (i=0; i<node->u.n.n_children; i++) {
 	    size+=8;
 	}
-	int n_hashtables = brtnode_n_hashtables(node);
+	int n_hashtables = node->u.n.n_bytes_in_hashtables;
 	size+=4; /* n_entries */
 	for (i=0; i< n_hashtables; i++) {
 	    HASHTABLE_ITERATE(node->u.n.htables[i],
@@ -118,8 +119,7 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
 	result+=4; /* n_children */
 	result+=4*(node->u.n.n_children-1); /* key lengths */
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result+=8*(node->u.n.n_children); /* child offsets. */
-	result+=4; /* n_entries in hash table. */
+	result+=(8+4)*(node->u.n.n_children); /* For each child, a child offset and a count for the number of hash table entries. */
 	result+=node->u.n.n_bytes_in_hashtables;
     } else {
 	result+=4; /* n_entries in buffer table. */
@@ -158,15 +158,10 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 	}
 
 	{
-	    int n_entries=0;
-	    int n_hash_tables = brtnode_n_hashtables(node);
+	    int n_hash_tables = node->u.n.n_children;
 	    for (i=0; i< n_hash_tables; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
-		n_entries += hashtable_n_entries(node->u.n.htables[i]);
-	    }
-	    //printf("%s:%d n_entries=%d\n", __FILE__, __LINE__, n_entries);
-	    wbuf_int(&w, n_entries);
-	    for (i=0; i< n_hash_tables; i++) {
+		wbuf_int(&w, hashtable_n_entries(node->u.n.htables[i]));
 		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen,
 				  (wbuf_bytes(&w, key, keylen),
 				   wbuf_bytes(&w, data, datalen)));
@@ -206,7 +201,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     }
     {
 	uint32_t datasize_n;
-	int r = pread(fd, &datasize_n, sizeof(datasize_n), off);
+	r = pread(fd, &datasize_n, sizeof(datasize_n), off);
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, ntohl(datasize_n));
 	if (r!=sizeof(datasize_n)) {
 	    if (r==-1) r=errno;
@@ -261,42 +256,43 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    result->u.n.n_bytes_in_hashtable[i] = 0;
 	}
 	result->u.n.n_bytes_in_hashtables = 0; 
-	for (i=0; i<brtnode_n_hashtables(result); i++) {
+	for (i=0; i<result->u.n.n_children; i++) {
 	    int r=hashtable_create(&result->u.n.htables[i]);
 	    if (r!=0) {
 		int j;
-		if (0) { died_12: j=brtnode_n_hashtables(result); }
+		if (0) { died_12: j=result->u.n.n_bytes_in_hashtables; }
 		for (j=0; j<i; j++) hashtable_free(&result->u.n.htables[j]);
 		goto died1;
 	    }
 	}
 	{
-	    int n_in_hash = rbuf_int(&rc);
-	    //printf("%d in hash\n", n_in_hash);
-
-	    for (i=0; i<n_in_hash; i++) {
-		int childnum, diff;
-		bytevec key; ITEMLEN keylen; 
-		bytevec val; ITEMLEN vallen;
-		verify_counts(result);
-		rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
-		rbuf_bytes(&rc, &val, &vallen);
-		//printf("Found %s,%s\n", key, val);
-		childnum = brtnode_which_child(result, key, keylen);
-		{
-		    int r=hash_insert(result->u.n.htables[childnum], key, keylen, val, vallen); /* Copies the data into the hash table. */
-		    if (r!=0) { goto died_12; }
+	    int cnum;
+	    for (cnum=0; cnum<result->u.n.n_children; cnum++) {
+		int n_in_this_hash = rbuf_int(&rc);
+		//printf("%d in hash\n", n_in_hash);
+		for (i=0; i<n_in_this_hash; i++) {
+		    int diff;
+		    bytevec key; ITEMLEN keylen; 
+		    bytevec val; ITEMLEN vallen;
+		    verify_counts(result);
+		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
+		    rbuf_bytes(&rc, &val, &vallen);
+		    //printf("Found %s,%s\n", key, val);
+		    {
+			int r=hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen); /* Copies the data into the hash table. */
+			if (r!=0) { goto died_12; }
+		    }
+		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD;
+		    result->u.n.n_bytes_in_hashtables += diff;
+		    result->u.n.n_bytes_in_hashtable[cnum] += diff;
+		    //printf("Inserted\n");
 		}
-		diff =  keylen + vallen + KEY_VALUE_OVERHEAD;
-		result->u.n.n_bytes_in_hashtables += diff;
-		result->u.n.n_bytes_in_hashtable[childnum] += diff;
-	    //printf("Inserted\n");
 	    }
 	}
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	int r=pma_create(&result->u.l.buffer);
+	int r=pma_create(&result->u.l.buffer, default_compare_fun);
 	if (r!=0) {
 	    if (0) { died_21: pma_free(&result->u.l.buffer); }
 	    goto died1;
@@ -309,7 +305,8 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 	    rbuf_bytes(&rc, &val, &vallen);
 	    {
-		int r = pma_insert(result->u.l.buffer, key, keylen, val, vallen);
+		DBT k,v;
+		int r = pma_insert(result->u.l.buffer, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), 0);
 		if (r!=0) goto died_21;
 	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
@@ -320,17 +317,6 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     *brtnode = result;
     verify_counts(result);
     return 0;
-}
-
-unsigned int brtnode_which_child (BRTNODE node, bytevec key, ITEMLEN keylen) {
-    int i;
-    assert(node->height>0);
-    for (i=0; i<node->u.n.n_children-1; i++) {
-	if (keycompare(key, keylen, node->u.n.childkeys[i], node->u.n.childkeylens[i])<=0) {
-	    return i;
-	}
-    }
-    return node->u.n.n_children-1;
 }
 
 void verify_counts (BRTNODE node) {
