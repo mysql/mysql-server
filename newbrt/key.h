@@ -1,3 +1,4 @@
+#include "ybt.h"
 #include "brttypes.h"
 
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);

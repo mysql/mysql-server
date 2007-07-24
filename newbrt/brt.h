@@ -9,11 +9,11 @@
 #include "../include/ydb-constants.h"
 #include "cachetable.h"
 typedef struct brt *BRT;
-int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE);
+int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,DBT*,DBT*));
 //int brt_create (BRT **, int nodesize, int n_nodes_in_cache); /* the nodesize and n_nodes in cache really should be separately configured. */
 //int brt_open (BRT *, char *fname, char *dbname);
-int brt_insert (BRT brt, bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen);
-int brt_lookup (BRT brt, bytevec key, ITEMLEN keylen, bytevec*val, ITEMLEN *vallen);
+int brt_insert (BRT brt, DBT *k, DBT *v, DB*db);
+int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);
 int close_brt (BRT);
 int dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */

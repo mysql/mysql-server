@@ -1,6 +1,6 @@
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 #PROF_FLAGS = -pg
-#OPTFLAGS = -O2
+OPTFLAGS = -O2
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror -fPIC
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
 
@@ -24,7 +24,7 @@ pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h  ../include
 ybt.o: ybt.h brttypes.h
 ybt-test: ybt-test.o ybt.o memory.o
 cachetable.o: cachetable.h
-brt-test: brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
 brt-test.o brt.o: brt.h cachetable.h brttypes.h
 brt-serialize-test.o: pma.h yerror.h brt.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h

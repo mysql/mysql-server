@@ -268,7 +268,7 @@ static void test_find_insert (void) {
     r=pma_insert(pma, fill_dbt(&k, "aaa", 3), fill_dbt(&v, "aaadata", 7), 0);
     assert(r==BRT_OK);
 
-    ybt_init(&v);
+    init_dbt(&v);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
     assert(v.size==7);
@@ -278,12 +278,12 @@ static void test_find_insert (void) {
     r=pma_insert(pma, fill_dbt(&k, "bbb", 4), fill_dbt(&v, "bbbdata", 8), 0);
     assert(r==BRT_OK);
 
-    ybt_init(&v);
+    init_dbt(&v);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==BRT_OK);
     assert(keycompare(v.data,v.size,"aaadata", 7)==0);
 
-    ybt_init(&v);
+    init_dbt(&v);
     r=pma_lookup(pma, fill_dbt(&k, "bbb", 4), &v, 0);
     assert(r==BRT_OK);
     assert(keycompare(v.data,v.size,"bbbdata", 8)==0);
@@ -415,8 +415,8 @@ void test_pma_cursor_2 (void) {
     PMA_CURSOR c=0;
     int r;
     DBT key,val;
-    ybt_init(&key); key.flags=DB_DBT_REALLOC;
-    ybt_init(&val); val.flags=DB_DBT_REALLOC;
+    init_dbt(&key); key.flags=DB_DBT_REALLOC;
+    init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_create(&pma, default_compare_fun); assert(r==0);
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     r=pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
@@ -434,8 +434,8 @@ void test_pma_cursor_3 (void) {
     r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), 0); assert(r==BRT_OK);
     r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), 0); assert(r==BRT_OK);
     r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   0); assert(r==BRT_OK);
-    ybt_init(&key); key.flags=DB_DBT_REALLOC;
-    ybt_init(&val); val.flags=DB_DBT_REALLOC;
+    init_dbt(&key); key.flags=DB_DBT_REALLOC;
+    init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
 
     r=pma_cursor_set_position_first(c); assert(r==0);
@@ -508,8 +508,8 @@ void test_pma_compare_fun (int wrong_endian_p) {
     r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), 0); assert(r==BRT_OK);
     r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), 0); assert(r==BRT_OK);
     r = pma_insert(pma, fill_dbt(&k, "11", 3), fill_dbt(&v, "11v", 4), 0); assert(r==BRT_OK);
-    ybt_init(&key); key.flags=DB_DBT_REALLOC;
-    ybt_init(&val); val.flags=DB_DBT_REALLOC;
+    init_dbt(&key); key.flags=DB_DBT_REALLOC;
+    init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     
     for (i=0; i<4; i++) {
