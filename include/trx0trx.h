@@ -681,6 +681,9 @@ struct trx_struct{
 	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
+	ulint		n_autoinc_rows;	/* no. of AUTO-INC rows required for
+					an SQL statement. This is useful for
+					multi-row INSERTs */
 	/*------------------------------*/
 	char detailed_error[256];	/* detailed error message for last
 					error, or empty. */

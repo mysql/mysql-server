@@ -410,6 +410,11 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
 				next inserted row */
+
+	ib_longlong	autoinc_increment;
+				/* The increment step of the auto increment
+				column. Value must be greater than or equal
+				to 1 */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_TABLE_MAGIC_N	76333786

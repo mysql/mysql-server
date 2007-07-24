@@ -195,6 +195,8 @@ trx_create(
 	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
 
+	trx->n_autoinc_rows = 0;
+
 	trx_reset_new_rec_lock_info(trx);
 
 	return(trx);

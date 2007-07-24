@@ -418,6 +418,18 @@ dict_table_get_col_name(
 	return(s);
 }
 
+
+/************************************************************************
+Acquire the autoinc lock.*/
+
+void
+dict_table_autoinc_lock(
+/*====================*/
+	dict_table_t*	table)
+{
+	mutex_enter(&table->autoinc_mutex);
+}
+
 /************************************************************************
 Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */
@@ -428,54 +440,8 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value)	/* in: next value to assign to a row */
 {
-	mutex_enter(&(table->autoinc_mutex));
-
 	table->autoinc_inited = TRUE;
 	table->autoinc = value;
-
-	mutex_exit(&(table->autoinc_mutex));
-}
-
-/************************************************************************
-Gets the next autoinc value (== autoinc counter value), 0 if not yet
-initialized. If initialized, increments the counter by 1. */
-
-ib_longlong
-dict_table_autoinc_get(
-/*===================*/
-				/* out: value for a new row, or 0 */
-	dict_table_t*	table)	/* in: table */
-{
-	ib_longlong	value;
-
-	mutex_enter(&(table->autoinc_mutex));
-
-	if (!table->autoinc_inited) {
-
-		value = 0;
-	} else {
-		value = table->autoinc;
-		table->autoinc = table->autoinc + 1;
-	}
-
-	mutex_exit(&(table->autoinc_mutex));
-
-	return(value);
-}
-
-/************************************************************************
-Decrements the autoinc counter value by 1. */
-
-void
-dict_table_autoinc_decrement(
-/*=========================*/
-	dict_table_t*	table)	/* in: table */
-{
-	mutex_enter(&(table->autoinc_mutex));
-
-	table->autoinc = table->autoinc - 1;
-
-	mutex_exit(&(table->autoinc_mutex));
 }
 
 /************************************************************************
@@ -490,32 +456,6 @@ dict_table_autoinc_read(
 {
 	ib_longlong	value;
 
-	mutex_enter(&(table->autoinc_mutex));
-
-	if (!table->autoinc_inited) {
-
-		value = 0;
-	} else {
-		value = table->autoinc;
-	}
-
-	mutex_exit(&(table->autoinc_mutex));
-
-	return(value);
-}
-
-/************************************************************************
-Peeks the autoinc counter value, 0 if not yet initialized. Does not
-increment the counter. The read not protected by any mutex! */
-
-ib_longlong
-dict_table_autoinc_peek(
-/*====================*/
-				/* out: value of the counter */
-	dict_table_t*	table)	/* in: table */
-{
-	ib_longlong	value;
-
 	if (!table->autoinc_inited) {
 
 		value = 0;
@@ -527,7 +467,7 @@ dict_table_autoinc_peek(
 }
 
 /************************************************************************
-Updates the autoinc counter if the value supplied is equal or bigger than the
+Updates the autoinc counter if the value supplied is greater than the
 current value. If not inited, does nothing. */
 
 void
@@ -537,15 +477,21 @@ dict_table_autoinc_update(
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value)	/* in: value which was assigned to a row */
 {
-	mutex_enter(&(table->autoinc_mutex));
+	if (table->autoinc_inited && value > table->autoinc) {
 
-	if (table->autoinc_inited) {
-		if (value >= table->autoinc) {
-			table->autoinc = value + 1;
-		}
+		table->autoinc = value;
 	}
+}
 
-	mutex_exit(&(table->autoinc_mutex));
+/************************************************************************
+Release the autoinc lock.*/
+
+void
+dict_table_autoinc_unlock(
+/*======================*/
+	dict_table_t*	table)	/* in: release autoinc lock for this table */
+{
+	mutex_exit(&table->autoinc_mutex);
 }
 
 /************************************************************************
