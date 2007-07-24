@@ -62,11 +62,11 @@ Prelock_error_handler::handle_error(uint sql_errno,
   if (sql_errno == ER_NO_SUCH_TABLE)
   {
     m_handled_errors++;
-    return TRUE;                                // 'TRUE', as per coding style
+    return TRUE;
   }
 
   m_unhandled_errors++;
-  return FALSE;                                 // 'FALSE', as per coding style
+  return FALSE;
 }
 
 
@@ -2674,7 +2674,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
-    safe_to_ignore_table= FALSE;                // 'FALSE', as per coding style
+    safe_to_ignore_table= FALSE;
 
     if (tables->lock_type == TL_WRITE_DEFAULT)
     {
