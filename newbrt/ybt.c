@@ -16,6 +16,12 @@ DBT *fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
     return dbt;
 }
 
+DBT *fill_dbt_ap(DBT *dbt, bytevec k, ITEMLEN len, void *app_private) {
+    fill_dbt(dbt, k, len);
+    dbt->app_private=app_private;
+    return dbt;
+}
+
 
 int ybt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp) {
     if (ybt->flags==DB_DBT_MALLOC) {

@@ -455,7 +455,7 @@ enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
     int l = pmainternal_find(pma, k, db);
     assert(0<=l ); assert(l<=pma_index_limit(pma));
     if (l==pma_index_limit(pma)) return DB_NOTFOUND;
-    if (pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[l].key,pma->pairs[l].keylen))==0) {
+    if (pma->pairs[l].key!=0 && pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[l].key,pma->pairs[l].keylen))==0) {
 	return ybt_set_value(v, pma->pairs[l].val, pma->pairs[l].vallen, &pma->sval);
     } else {
 	return DB_NOTFOUND;

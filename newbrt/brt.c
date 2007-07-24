@@ -279,7 +279,7 @@ static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v
 }
 
 
-int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, DB *db) {
+int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, void *app_private, DB *db) {
     int did_split=0;
     BRTNODE A,B;
     assert(node->height==0);
@@ -298,13 +298,13 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 		({
 		    DBT k,v;
 		    if (!did_split) {
-			insert_to_buffer_in_leaf(A, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), db);
+			insert_to_buffer_in_leaf(A, fill_dbt_ap(&k, key, keylen, app_private), fill_dbt(&v, val, vallen), db);
 			if (A->u.l.n_bytes_in_buffer *2 >= node->u.l.n_bytes_in_buffer) {
 			    fill_dbt(splitk, memdup(key, keylen), keylen);
 			    did_split=1;
 			}
 		    } else {
-			insert_to_buffer_in_leaf(B, fill_dbt(&k, key, keylen), fill_dbt(&v, val, vallen), db);
+			insert_to_buffer_in_leaf(B, fill_dbt_ap(&k, key, keylen, app_private), fill_dbt(&v, val, vallen), db);
 		    }
 		}));
     assert(node->height>0 || node->u.l.buffer!=0);
@@ -561,6 +561,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 				  DBT *childsplitk, /* the data in the childsplitk is alloc'd and is consumed by this call. */
 				  int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				  DBT *splitk,
+				  void *app_private,
 				  DB *db) {
     assert(node->height>0);
     HASHTABLE old_h = node->u.n.htables[childnum];
@@ -610,7 +611,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     /* Keep pushing to the children, but not if the children would require a pushdown */
     HASHTABLE_ITERATE(old_h, skey, skeylen, sval, svallen, ({
         DBT skd, svd;
-	fill_dbt(&skd, skey, skeylen); skd.app_private=childsplitk->app_private;
+	fill_dbt_ap(&skd, skey, skeylen, app_private);
 	fill_dbt(&svd, sval, svallen);
 	if (t->compare_fun(db, &skd, childsplitk)<=0) {
 	    r=push_kvpair_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &skd, &svd, childnum, db);
@@ -656,6 +657,7 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 				   int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				   DBT *splitk,
 				   int debug,
+				   void *app_private,
 				   DB *db) {
     void *childnode_v;
     BRTNODE child;
@@ -690,7 +692,7 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 
 	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_kvpair_down (t, node, child, childnum,
-				    fill_dbt(&hk, key, keylen), fill_dbt(&hv, val, vallen),
+				    fill_dbt_ap(&hk, key, keylen, app_private), fill_dbt(&hv, val, vallen),
 				    &child_did_split, &childa, &childb,
 				    &childsplitk,
 				    db);
@@ -710,7 +712,8 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
 		if (debug) printf("%s:%d %*shandle split splitkey=%s\n", __FILE__, __LINE__, debug, "", (char*)childsplitk.data);
 		r=handle_split_of_child (t, node, childnum,
 					 childa, childb, &childsplitk,
-					 did_split, nodea, nodeb, splitk, db);
+					 did_split, nodea, nodeb, splitk,
+					 app_private, db);
 		return r; /* Don't do any more pushing if the child splits. */ 
 	    }
 	}
@@ -728,7 +731,7 @@ int debugp1 (int debug) {
     return debug ? debug+1 : 0;
 }
 
-static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug, DB *db)
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug, void *app_private, DB *db)
 /* If the buffer is too full, then push down.  Possibly the child will split.  That may make us split. */
 {
     assert(node->height>0);
@@ -744,7 +747,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    find_heaviest_child(node, &childnum);
 	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum], childnum);
 	    assert(node->u.n.children[childnum]!=0);
-	    int r = push_some_kvpairs_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), db);
+	    int r = push_some_kvpairs_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), app_private, db);
 	    if (r!=0) return r;
 	    assert(*did_split==0 || *did_split==1);
 	    if (debug) printf("%s:%d %*sdid push_some_kvpairs_down did_split=%d\n", __FILE__, __LINE__, debug, "", *did_split);
@@ -781,7 +784,7 @@ static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
     // If it doesn't fit, then split the leaf.
     if (serialize_brtnode_size(node) > node->nodesize) {
-	int r = brtleaf_split (t, node, nodea, nodeb, splitk, db);
+	int r = brtleaf_split (t, node, nodea, nodeb, splitk, k->app_private, db);
 	if (r!=0) return r;
 	//printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
 	split_count++;
@@ -842,7 +845,8 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 	      if (child_did_split) {
 		  r=handle_split_of_child(t, node, childnum,
 					  childa, childb, &childsplitk,
-					  did_split, nodea, nodeb, splitk, db);
+					  did_split, nodea, nodeb, splitk,
+					  k->app_private, db);
 		  if (r!=0) return r;
 	      } else {
 		  cachetable_unpin(t->cf, child->thisnodename, 1);
@@ -872,7 +876,7 @@ static int brt_nonleaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 
     }
     if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
-    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), db);
+    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), k->app_private, db);
     if (r!=0) return r;
     if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
     if (*did_split) {

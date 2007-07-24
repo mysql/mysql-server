@@ -683,7 +683,60 @@ void test_cursor_next (void) {
     
 }
 
+static int nonce;
+DB nonce_db;
+
+DBT *fill_b(DBT *x, char *key, unsigned int keylen) {
+    fill_dbt(x, key, keylen);
+    x->app_private = &nonce;
+    return x;
+}
+
+int wrong_compare_fun(DB *db, DBT *a, DBT *b) {
+    unsigned int i;
+    unsigned char *ad=a->data;
+    unsigned char *bd=b->data;
+    unsigned int siz=a->size;
+    assert(a->size==b->size);
+    assert(a->app_private == &nonce); // a must have the nonce in it, but I don't care if b does.
+    assert(db==&nonce_db); // make sure the db was passed  down correctly
+    for (i=0; i<siz; i++) {
+	if (ad[siz-1-i]<bd[siz-1-i]) return -1;
+	if (ad[siz-1-i]>bd[siz-1-i]) return +1;
+    }
+    return 0;
+
+}
+
+static void test_wrongendian_compare (void) {
+    const char *n="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+//    BRT_CURSOR cursor;
+    int r;
+    DBT kbt, vbt;
+    int i;
+
+    unlink(n);
+    memory_check_all_free();
+
+    r = brt_create_cachetable(&ct, 0);       assert(r==0);
+
+    r = open_brt(n, 0, 1, &brt, 1<<12, ct, wrong_compare_fun);  assert(r==0);
+    
+    for (i=0; i<1000; i++) {
+	r = brt_insert(brt, fill_b(&kbt, (void*)&i, sizeof(i)), fill_dbt(&vbt, (void*)&i, sizeof(i)), &nonce_db);
+	assert(r==0);
+    }
+
+    r = close_brt(brt);
+    r = cachetable_close(ct); assert(r==0);
+    memory_check_all_free();
+
+}
+
 static void brt_blackbox_test (void) {
+    test_wrongendian_compare();           memory_check_all_free();
     test_read_what_was_written();         memory_check_all_free(); printf("did read_what_was_written\n");
     test_cursor_next();                   memory_check_all_free();
     test_multiple_dbs_many();             memory_check_all_free();
