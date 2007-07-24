@@ -37,6 +37,7 @@ int main(int argc, char **argv)
   HP_KEYDEF keyinfo[10];
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
+  HP_SHARE *tmp_share;
   MY_INIT(argv[0]);
 
   filename= "test1";
@@ -52,6 +53,7 @@ int main(int argc, char **argv)
   keyinfo[0].seg[0].start=1;
   keyinfo[0].seg[0].length=6;
   keyinfo[0].seg[0].charset= &my_charset_latin1;
+  keyinfo[0].seg[0].null_bit= 0;
   keyinfo[0].flag = HA_NOSAME;
   
   deleted=0;
@@ -59,7 +61,7 @@ int main(int argc, char **argv)
 
   printf("- Creating heap-file\n");
   if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,10L,
-		  &hp_create_info) ||
+		  &hp_create_info, &tmp_share) ||
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");

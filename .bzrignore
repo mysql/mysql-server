@@ -2995,3 +2995,4 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+support-files/mysqld_multi.server

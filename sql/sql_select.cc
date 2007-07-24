@@ -10198,7 +10198,7 @@ static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
-                                  HA_OPEN_TMP_TABLE)))
+                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;
@@ -10436,8 +10436,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
-  (void) table->file->close();
-  (void) table->file->delete_table(table->s->table_name.str);
+  (void) table->file->close();                  // This deletes the table !
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
