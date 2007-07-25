@@ -60,6 +60,11 @@
   - When calling UNLOCK TABLES we call mysql_unlock_tables() for all
     tables used in LOCK TABLES
 
+  If table_handler->external_lock(thd, locktype) fails, we call
+  table_handler->external_lock(thd, F_UNLCK) for each table that was locked,
+  excluding one that caused failure. That means handler must cleanup itself
+  in case external_lock() fails.
+
 TODO:
   Change to use my_malloc() ONLY when using LOCK TABLES command or when
   we are forced to use mysql_lock_merge.
@@ -269,8 +274,9 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
     if ((error=(*tables)->file->ha_external_lock(thd,lock_type)))
     {
       print_lock_error(error, (*tables)->file->table_type());
-      for (; i-- ; tables--)
+      while (--i)
       {
+        tables--;
 	(*tables)->file->ha_external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
