@@ -722,3 +722,18 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 DROP DATABASE events_test;
+
+
+#
+# Bug#28641 CREATE EVENT with '2038.01.18 03:00:00' let server crash.
+#
+SET GLOBAL event_scheduler= ON;
+DELIMITER |;
+CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
+            DO BEGIN
+		SELECT 1;
+               END;|
+
+DELIMITER ;|
+SET GLOBAL event_scheduler= OFF;
+DROP EVENT bug28641;
