@@ -2812,10 +2812,16 @@ int ha_ndbcluster::write_row(byte *record)
 
   if (unlikely(m_slow_path))
   {
-    if (!(thd->options & OPTION_BIN_LOG))
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-    else if (thd->slave_thread)
+    /*
+      ignore OPTION_BIN_LOG for slave thd.  It is used to indicate
+      log-slave-updates option.  This is instead handled in the
+      injector thread, by looking explicitly at the
+      opt_log_slave_updates flag.
+    */
+    if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
+    else if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
   m_rows_changed++;
 
@@ -3101,10 +3107,16 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 
   if (unlikely(m_slow_path))
   {
-    if (!(thd->options & OPTION_BIN_LOG))
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-    else if (thd->slave_thread)
+    /*
+      ignore OPTION_BIN_LOG for slave thd.  It is used to indicate
+      log-slave-updates option.  This is instead handled in the
+      injector thread, by looking explicitly at the
+      opt_log_slave_updates flag
+    */
+    if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
+    else if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
   /*
     Execute update operation if we are not doing a scan for update
@@ -3168,12 +3180,18 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     if (unlikely(m_slow_path))
     {
-      if (!(thd->options & OPTION_BIN_LOG))
-        ((NdbOperation *)trans->getLastDefinedOperation())->
-          setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-      else if (thd->slave_thread)
+      /*
+        ignore OPTION_BIN_LOG for slave thd.  It is used to indicate
+        log-slave-updates option.  This is instead handled in the
+        injector thread, by looking explicitly at the
+        opt_log_slave_updates flag
+      */
+      if (thd->slave_thread)
         ((NdbOperation *)trans->getLastDefinedOperation())->
           setAnyValue(thd->server_id);
+      else if (!(thd->options & OPTION_BIN_LOG))
+        ((NdbOperation *)trans->getLastDefinedOperation())->
+          setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     }
     if (!(m_primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
@@ -3207,10 +3225,16 @@ int ha_ndbcluster::delete_row(const byte *record)
 
     if (unlikely(m_slow_path))
     {
-      if (!(thd->options & OPTION_BIN_LOG))
-        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-      else if (thd->slave_thread)
+      /*
+        ignore OPTION_BIN_LOG for slave thd.  It is used to indicate
+        log-slave-updates option.  This is instead handled in the
+        injector thread, by looking explicitly at the
+        opt_log_slave_updates flag
+      */
+      if (thd->slave_thread)
         op->setAnyValue(thd->server_id);
+      else if (!(thd->options & OPTION_BIN_LOG))
+        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     }
   }
 
