@@ -181,8 +181,8 @@ struct err_code_mapping
 static const err_code_mapping err_map[]= 
 {
   { 626, HA_ERR_KEY_NOT_FOUND, 0 },
-  { 630, HA_ERR_FOUND_DUPP_KEY, 0 },
-  { 893, HA_ERR_FOUND_DUPP_KEY, 0 },
+  { 630, HA_ERR_FOUND_DUPP_KEY, 1 },
+  { 893, HA_ERR_FOUND_DUPP_KEY, 1 },
   { 721, HA_ERR_TABLE_EXIST, 1 },
   { 4244, HA_ERR_TABLE_EXIST, 1 },
 
