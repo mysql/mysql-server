@@ -740,7 +740,7 @@ Event_queue::dump_internal_status()
   printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
 
   MYSQL_TIME time;
-  my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, next_activation_at);
   if (time.year != 1970)
     printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
            time.year, time.month, time.day, time.hour, time.minute, time.second);
