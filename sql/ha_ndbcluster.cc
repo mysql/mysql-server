@@ -4383,7 +4383,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 
         trans= ndb->startTransaction();
         if (trans == NULL)
+        {
+          thd_ndb->lock_count= 0;
           ERR_RETURN(ndb->getNdbError());
+        }
         thd_ndb->init_open_tables();
         thd_ndb->stmt= trans;
 	thd_ndb->query_state&= NDB_QUERY_NORMAL;
@@ -4409,7 +4412,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           
           trans= ndb->startTransaction();
           if (trans == NULL)
+          {
+            thd_ndb->lock_count= 0;
             ERR_RETURN(ndb->getNdbError());
+          }
           thd_ndb->init_open_tables();
           thd_ndb->all= trans; 
 	  thd_ndb->query_state&= NDB_QUERY_NORMAL;
