@@ -124,7 +124,7 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   m_tok_start_prev(NULL),
   m_buf(buffer),
   m_buf_length(length),
-  m_echo(true),
+  m_echo(TRUE),
   m_cpp_tok_start(NULL),
   m_cpp_tok_start_prev(NULL),
   m_cpp_tok_end(NULL),
@@ -1200,7 +1200,7 @@ int MYSQLlex(void *arg, void *yythd)
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
         lip->yySkip();
         lip->yySkip();
@@ -1233,7 +1233,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (version <= MYSQL_VERSION_ID)
           {
             /* Expand the content of the special comment as real code */
-            lip->set_echo(true);
+            lip->set_echo(TRUE);
             state=MY_LEX_START;
             break;
           }
@@ -1241,7 +1241,7 @@ int MYSQLlex(void *arg, void *yythd)
         else
         {
           state=MY_LEX_START;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           break;
         }
       }
@@ -1261,7 +1261,7 @@ int MYSQLlex(void *arg, void *yythd)
       if (! lip->eof())
         lip->yySkip();                  // remove last '/'
       state = MY_LEX_START;             // Try again
-      lip->set_echo(true);
+      lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
       if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
@@ -1272,7 +1272,7 @@ int MYSQLlex(void *arg, void *yythd)
         lip->set_echo(lip->in_comment == PRESERVE_COMMENT);
         lip->yySkipn(2);
         /* And start recording the tokens again */
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->in_comment=NO_COMMENT;
         state=MY_LEX_START;
       }
@@ -1297,7 +1297,7 @@ int MYSQLlex(void *arg, void *yythd)
           lip->found_semicolon= lip->get_ptr();
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           lip->next_state= MY_LEX_END;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           return (END_OF_INPUT);
         }
         state= MY_LEX_CHAR;		// Return ';'
@@ -1309,9 +1309,9 @@ int MYSQLlex(void *arg, void *yythd)
       if (lip->eof())
       {
         lip->yyUnget();                 // Reject the last '\0'
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->next_state=MY_LEX_END;     // Mark for next loop
         return(END_OF_INPUT);
       }
@@ -2297,7 +2297,7 @@ bool st_lex::need_correct_ident()
     VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
 */
 
-uint8 st_lex::get_effective_with_check(st_table_list *view)
+uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 {
   if (view->select_lex->master_unit() == &unit &&
       which_check_option_applicable())
@@ -2305,6 +2305,43 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
   return VIEW_CHECK_NONE;
 }
 
+
+/**
+  This method should be called only during parsing.
+  It is aware of compound statements (stored routine bodies)
+  and will initialize the destination with the default
+  database of the stored routine, rather than the default
+  database of the connection it is parsed in.
+  E.g. if one has no current database selected, or current database 
+  set to 'bar' and then issues:
+
+  CREATE PROCEDURE foo.p1() BEGIN SELECT * FROM t1 END//
+
+  t1 is meant to refer to foo.t1, not to bar.t1.
+
+  This method is needed to support this rule.
+
+  @return TRUE in case of error (parsing should be aborted, FALSE in
+  case of success
+*/
+
+bool
+st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
+{
+  if (sphead)
+  {
+    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    /*
+      It is safe to assign the string by-pointer, both sphead and
+      its statements reside in the same memory root.
+    */
+    *p_db= sphead->m_db.str;
+    if (p_db_length)
+      *p_db_length= sphead->m_db.length;
+    return FALSE;
+  }
+  return thd->copy_db_to(p_db, p_db_length);
+}
 
 /*
   initialize limit counters
@@ -2326,6 +2363,27 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
+}
+
+
+/**
+  Update the parsed tree with information about triggers that
+  may be fired when executing this statement.
+*/
+
+void st_lex::set_trg_event_type_for_tables()
+{
+  /*
+    Do not iterate over sub-selects, only the tables in the outermost
+    SELECT_LEX can be modified, if any.
+  */
+  TABLE_LIST *tables= select_lex.get_table_list();
+
+  while (tables)
+  {
+    tables->set_trg_event_type(this);
+    tables= tables->next_local;
+  }
 }
 
 

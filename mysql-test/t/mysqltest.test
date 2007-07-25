@@ -1263,7 +1263,7 @@ while ($i)
 EOF
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
 
-# Repeat connect/disconnect, exceed max number of connections
+# Repeat connect/disconnect
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 let $i=200;
 while ($i)

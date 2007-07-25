@@ -878,7 +878,7 @@ drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
 
 #
 # Bug #10303: problem with last_query_cost
@@ -1057,7 +1057,79 @@ drop table t1;
 
 set GLOBAL query_cache_size= default;
 
-# End of 5.0 tests
+#
+# Bug #28249 Query Cache returns wrong result with concurrent insert / certain lock
+#
+--echo Bug#28249 Query Cache returns wrong result with concurrent insert/ certain lock
+connect (user1,localhost,root,,test,,);
+connect (user2,localhost,root,,test,,);
+connect (user3,localhost,root,,test,,);
+
+connection user1;
+
+set GLOBAL query_cache_type=1;
+set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_min_res_unit=0;
+set GLOBAL query_cache_size= 100000;
+
+flush tables;
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3);
+connection user2;
+--echo Locking table T2 with a write lock.
+lock table t2 write;
+
+connection user1;
+--echo Select blocked by write lock.
+--send select *, (select count(*) from t2) from t1;
+--echo Sleeing is ok, because selecting should be done very fast.
+sleep 5;
+
+connection user3;
+--echo Inserting into table T1.
+insert into t1 values (4);
+
+connection user2;
+--echo Unlocking the tables.
+unlock tables;
+
+connection user1;
+--echo Collecting result from previously blocked select.
+# 
+# Since the lock ordering rule in thr_multi_lock depends on
+# pointer values, from execution to execution we might have
+# different lock order, and therefore, sometimes lock t1 and block
+# on t2, and sometimes block on t2 right away. In the second case,
+# the following insert succeeds, and only then this select can
+# proceed, and we actually test nothing, as the very first select
+# returns 4 rows right away.
+# It's fine to have a test case that covers the problematic area
+# at least once in a while.
+# We, however, need to disable the result log here to make the
+# test repeatable.
+--disable_result_log
+--reap
+--enable_result_log
+--echo Next select should contain 4 rows, as the insert is long finished.
+select *, (select count(*) from t2) from t1;
+reset query cache;
+select *, (select count(*) from t2) from t1;
+
+drop table t1,t2;
+
+connection default;
+disconnect user1;
+disconnect user2;
+disconnect user3;
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_min_res_unit=default;
+set GLOBAL query_cache_size=default;
+--echo End of 5.0 tests
 
 
 #
@@ -1102,4 +1174,4 @@ show status like 'Qcache_queries_in_cache';
 drop database db2;
 drop database db3;
 
-# End of 5.1 tests
+--echo End of 5.1 tests

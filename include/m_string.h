@@ -246,17 +246,17 @@ extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
 
 /*
   LEX_STRING -- a pair of a C-string and its length.
-
-  NOTE: this exactly form of declaration is required for some C-compilers
-  (for one, Sun C 5.7 2005/01/07). Unfortunately with such declaration
-  LEX_STRING can not be forward declared.
 */
 
-typedef struct
+#ifndef _my_plugin_h
+/* This definition must match the one given in mysql/plugin.h */
+struct st_mysql_lex_string
 {
   char *str;
   size_t length;
-} LEX_STRING;
+};
+#endif
+typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))

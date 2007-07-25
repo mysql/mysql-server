@@ -25,6 +25,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
+#include "ha_prototypes.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
 copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
@@ -130,6 +131,8 @@ trx_create(
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
+	trx->active_trans = 0;
+	trx->duplicates = 0;
 
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
@@ -1771,6 +1774,61 @@ trx_print(
 	}
 }
 
+/***********************************************************************
+Compares the "weight" (or size) of two transactions. The weight of one
+transaction is estimated as the number of altered rows + the number of
+locked rows. Transactions that have edited non-transactional tables are
+considered heavier than ones that have not. */
+
+int
+trx_weight_cmp(
+/*===========*/
+			/* out: <0, 0 or >0; similar to strcmp(3) */
+	trx_t*	a,	/* in: the first transaction to be compared */
+	trx_t*	b)	/* in: the second transaction to be compared */
+{
+	ibool	a_notrans_edit;
+	ibool	b_notrans_edit;
+
+	/* If mysql_thd is NULL for a transaction we assume that it has
+	not edited non-transactional tables. */
+
+	a_notrans_edit = a->mysql_thd != NULL
+	    && thd_has_edited_nontrans_tables(a->mysql_thd);
+
+	b_notrans_edit = b->mysql_thd != NULL
+	    && thd_has_edited_nontrans_tables(b->mysql_thd);
+
+	if (a_notrans_edit && !b_notrans_edit) {
+
+		return(1);
+	}
+
+	if (!a_notrans_edit && b_notrans_edit) {
+
+		return(-1);
+	}
+
+	/* Either both had edited non-transactional tables or both had
+	not, we fall back to comparing the number of altered/locked
+	rows. */
+
+#if 0
+	fprintf(stderr,
+		"%s TRX_WEIGHT(a): %lld+%lu, TRX_WEIGHT(b): %lld+%lu\n",
+		__func__,
+		ut_conv_dulint_to_longlong(a->undo_no),
+		UT_LIST_GET_LEN(a->trx_locks),
+		ut_conv_dulint_to_longlong(b->undo_no),
+		UT_LIST_GET_LEN(b->trx_locks));
+#endif
+
+#define TRX_WEIGHT(t)	\
+	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
+
+	return(ut_dulint_cmp(TRX_WEIGHT(a), TRX_WEIGHT(b)));
+}
+
 /********************************************************************
 Prepares a transaction. */
 
@@ -1889,7 +1947,7 @@ Does the transaction prepare for MySQL. */
 
 ulint
 trx_prepare_for_mysql(
-/*====-=============*/
+/*==================*/
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {

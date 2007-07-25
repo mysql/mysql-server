@@ -28,7 +28,7 @@
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
-drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
+drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
 
@@ -221,9 +221,6 @@ t.a6=t.a6 AND t1.a6=NULL AND
 t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
 
 DROP TABLE t1;
-
---echo End of 4.1 tests
-
 
 #
 # Bug #12882  	min/max inconsistent on empty table
@@ -424,24 +421,6 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 DROP TABLE t1,t2;
 
 #
-# Bug#22781: SQL_BIG_RESULT fails to influence sort plan
-#
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
-
-INSERT INTO t1 VALUES (    1 , 1              , 1);
-INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
-
-EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
-EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
-DROP TABLE t1;
-
-#
 # Bug#26159: crash for a loose scan of a table that has been emptied 
 #
 
@@ -500,40 +479,6 @@ set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
 
 --source include/innodb_rollback_on_timeout.inc
-
-#
-# Bug #27210: INNODB ON DUPLICATE KEY UPDATE
-#
-
-set @save_qcache_size=@@global.query_cache_size;
-set @save_qcache_type=@@global.query_cache_type;
-set global query_cache_size=10*1024*1024;
-set global query_cache_type=1;
-connect (con1,localhost,root,,);
-connection con1;
-drop table if exists `test`;
-CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
-  `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
-  ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
-disconnect con1;
-connect (con2,localhost,root,,);
-connection con2;
-select * from test;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
-  ON DUPLICATE KEY UPDATE `test2` = '1234';
-select * from test;
-flush tables;
-select * from test;
-disconnect con2;
-connection default;
-drop table test;
-set global query_cache_type=@save_qcache_type;
-set global query_cache_size=@save_qcache_size;
-
---echo End of 5.0 tests
-
--- source include/have_innodb.inc
 
 #
 # Bug #27650: INSERT fails after multi-row INSERT of the form:
@@ -672,6 +617,20 @@ SELECT * FROM t3 WHERE a = 'uk';
 
 DROP TABLE t1,t2,t3;
 
+#
+# Test bug when trying to drop data file which no InnoDB directory entry
+#
+
+create table t1 (a int) engine=innodb;
+copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/bug29807.frm;
+--error 1146
+select * from bug29807;
+drop table t1;
+--error 1051
+drop table bug29807;
+create table bug29807 (a int);
+drop table bug29807;
+
 
 #
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
@@ -706,8 +665,62 @@ DISCONNECT c1;
 DISCONNECT c2;
 DROP TABLE t1,t2;
 
+#
+# Bug #25798: a query with forced index merge returns wrong result 
+#
 
---echo End of 5.0 tests
+CREATE TABLE t1 (
+  id int NOT NULL auto_increment PRIMARY KEY,
+  b int NOT NULL,
+  c datetime NOT NULL,
+  INDEX idx_b(b),
+  INDEX idx_c(c)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  b int NOT NULL auto_increment PRIMARY KEY,
+  c datetime NOT NULL
+) ENGINE= MyISAM;
+
+INSERT INTO t2(c) VALUES ('2007-01-01');
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-02';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-03';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+set @@sort_buffer_size=8192;
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+set @@sort_buffer_size=default;
+
+DROP TABLE t1,t2;
 
 #
 # Test of behaviour with CREATE ... SELECT
@@ -785,6 +798,21 @@ EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
 
 --source include/innodb_rollback_on_timeout.inc
+
+#
+# Bug#27296 Assertion in ALTER TABLE SET DEFAULT in Linux Debug build
+# (possible deadlock).
+#
+# The bug is applicable only to a transactoinal table.
+# Cover with tests behavior that no longer causes an
+# assertion.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 
 --echo End of 5.0 tests
 
@@ -889,5 +917,29 @@ unlock tables;
 select * from t1;
 drop tables t1;
 
+#
+# Bug#29310: An InnoDB table was updated when the data wasn't actually changed.
+#
+create table t1(f1 varchar(5) unique, f2 timestamp NOT NULL DEFAULT
+  CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+--replace_column 1 #
+select @a:=f2 from t1;
+--sleep 5
+update t1 set f1=1;
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) values (1) on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+drop table t1;
 
 --echo End of 5.1 tests

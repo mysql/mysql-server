@@ -26,7 +26,7 @@ EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
 GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
-PRESCRIPTS =		mysql-test-run.pl
+PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA =		std_data/client-key.pem std_data/client-cert.pem \
 			std_data/cacert.pem std_data/server-cert.pem \
@@ -52,8 +52,8 @@ dist-hook:
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
-	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
+	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(distdir)/extra/binlog_tests
 	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(distdir)/extra/rpl_tests
 	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(distdir)/extra/binlog_tests
@@ -91,9 +91,9 @@ install-data-local:
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
-	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
+	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(DESTDIR)$(testdir)/extra/binlog_tests

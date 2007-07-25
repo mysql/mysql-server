@@ -5665,7 +5665,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1581	This function 'pi' has the same name as a native function
+Note	1582	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5714,15 +5714,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1581	This function 'database' has the same name as a native function
+Note	1582	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1581	This function 'current_user' has the same name as a native function
+Note	1582	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1581	This function 'md5' has the same name as a native function
+Note	1582	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
@@ -6281,6 +6281,31 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
+drop database if exists mysqltest_db1;
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+Level	Code	Message
+drop database mysqltest_db1;
+drop database if exists mysqltest_db1;
+drop table if exists test.t1;
+create database mysqltest_db1;
+use mysqltest_db1;
+drop database mysqltest_db1;
+create table test.t1 (id int);
+insert into test.t1 (id) values (1);
+create procedure test.sp_bug29050() begin select * from t1; end//
+show warnings;
+Level	Code	Message
+call test.sp_bug29050();
+id
+1
+show warnings;
+Level	Code	Message
+use test;
+drop procedure sp_bug29050;
+drop table t1;
 drop procedure if exists proc_25411_a;
 drop procedure if exists proc_25411_b;
 drop procedure if exists proc_25411_c;

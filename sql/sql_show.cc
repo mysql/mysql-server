@@ -639,7 +639,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (table_list->view)
   {
-    protocol->store(buffer.ptr(), buffer.length(), &my_charset_bin);
+    protocol->store(buffer.ptr(), buffer.length(),
+                    table_list->view_creation_ctx->get_client_cs());
 
     protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
                     system_charset_info);
@@ -2175,20 +2176,6 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 }
 
 
-LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
-                            const char* str, uint length,
-                            bool allocate_lex_string)
-{
-  MEM_ROOT *mem= thd->mem_root;
-  if (allocate_lex_string)
-    if (!(lex_str= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING))))
-      return 0;
-  lex_str->str= strmake_root(mem, str, length);
-  lex_str->length= length;
-  return lex_str;
-}
-
-
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= { C_STRING_WITH_LEN("information_schema")};
 
@@ -2273,11 +2260,9 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
   if (item->type() == Item::FUNC_ITEM)
   {
     Item_func *item_func= (Item_func*)item;
-    Item **child;
-    Item **item_end= (item_func->arguments()) + item_func->argument_count();
-    for (child= item_func->arguments(); child != item_end; child++)
+    for (uint i=0; i<item_func->argument_count(); i++)
     {
-      if (!uses_only_table_name_fields(*child, table))
+      if (!uses_only_table_name_fields(item_func->arguments()[i], table))
         return 0;
     }
   }
@@ -2839,7 +2824,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
+static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3031,7 +3016,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_column_record(THD *thd, struct st_table_list *tables,
+static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 				    TABLE *table, bool res,
 				    const char *base_name,
 				    const char *file_name)
@@ -3538,7 +3523,7 @@ err:
 }
 
 
-static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
+static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
 				  TABLE *table, bool res,
 				  const char *base_name,
 				  const char *file_name)
@@ -3628,7 +3613,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static int get_schema_views_record(THD *thd, struct st_table_list *tables,
+static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 				   TABLE *table, bool res,
 				   const char *base_name,
 				   const char *file_name)
@@ -3746,7 +3731,7 @@ bool store_constraints(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
+static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
@@ -3847,7 +3832,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
 }
 
 
-static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
+static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 				      TABLE *table, bool res,
 				      const char *base_name,
 				      const char *file_name)
@@ -3924,7 +3909,7 @@ void store_key_column_usage(TABLE *table, const char*db, const char *tname,
 
 
 static int get_schema_key_column_usage_record(THD *thd,
-					      struct st_table_list *tables,
+					      TABLE_LIST *tables,
 					      TABLE *table, bool res,
 					      const char *base_name,
 					      const char *file_name)
@@ -4109,7 +4094,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 }
 
 
-static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
+static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                         TABLE *table, bool res,
                                         const char *base_name,
                                         const char *file_name)
@@ -4655,7 +4640,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 */
 
 static int
-get_referential_constraints_record(THD *thd, struct st_table_list *tables,
+get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
                                    TABLE *table, bool res,
                                    const char *base_name, const char *file_name)
 {
@@ -5194,10 +5179,10 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
      We have to make non const db_name & table_name
      because of lower_case_table_names
   */
-  make_lex_string(thd, &db, INFORMATION_SCHEMA_NAME.str,
-                  INFORMATION_SCHEMA_NAME.length, 0);
-  make_lex_string(thd, &table, schema_table->table_name,
-                  strlen(schema_table->table_name), 0);
+  thd->make_lex_string(&db, INFORMATION_SCHEMA_NAME.str,
+                       INFORMATION_SCHEMA_NAME.length, 0);
+  thd->make_lex_string(&table, schema_table->table_name,
+                       strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
                               0, 0, TL_READ))
@@ -5920,12 +5905,17 @@ int initialize_schema_table(st_plugin_int *plugin)
     schema_table->idx_field1= -1, 
     schema_table->idx_field2= -1; 
 
+    /* Make the name available to the init() function. */
+    schema_table->table_name= plugin->name.str;
+
     if (plugin->plugin->init(schema_table))
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       goto err;
     }
+    
+    /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }
 
@@ -5983,6 +5973,8 @@ static bool show_create_trigger_impl(THD *thd,
   LEX_STRING trg_connection_cl_name;
   LEX_STRING trg_db_cl_name;
 
+  CHARSET_INFO *trg_client_cs;
+
   /*
     TODO: Check privileges here. This functionality will be added by
     implementation of the following WL items:
@@ -6007,6 +5999,11 @@ static bool show_create_trigger_impl(THD *thd,
   sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                      trg_sql_mode,
                                                      &trg_sql_mode_str);
+
+  /* Resolve trigger client character set. */
+
+  if (resolve_charset(trg_client_cs_name.str, NULL, &trg_client_cs))
+    return TRUE;
 
   /* Send header. */
 
@@ -6054,7 +6051,7 @@ static bool show_create_trigger_impl(THD *thd,
 
   p->store(trg_sql_original_stmt.str,
            trg_sql_original_stmt.length,
-           &my_charset_bin);
+           trg_client_cs);
 
   p->store(trg_client_cs_name.str,
            trg_client_cs_name.length,
