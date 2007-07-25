@@ -1142,6 +1142,12 @@ int ha_partition::prepare_new_partition(TABLE *table,
   create_flag= TRUE;
   if ((error= file->ha_open(table, part_name, m_mode, m_open_test_lock)))
     goto error;
+  /*
+    Note: if you plan to add another call that may return failure,
+    better to do it before external_lock() as cleanup_new_partition()
+    assumes that external_lock() is last call that may fail here.
+    Otherwise see description for cleanup_new_partition().
+  */
   if ((error= file->external_lock(current_thd, m_lock_type)))
     goto error;
 
@@ -1164,6 +1170,14 @@ error:
     NONE
 
   DESCRIPTION
+    This function is called immediately after prepare_new_partition() in
+    case the latter fails.
+
+    In prepare_new_partition() last call that may return failure is
+    external_lock(). That means if prepare_new_partition() fails,
+    partition does not have external lock. Thus no need to call
+    external_lock(F_UNLCK) here.
+
   TODO:
     We must ensure that in the case that we get an error during the process
     that we call external_lock with F_UNLCK, close the table and delete the
@@ -1182,7 +1196,6 @@ void ha_partition::cleanup_new_partition(uint part_count)
     m_file= m_added_file;
     m_added_file= NULL;
 
-    external_lock(current_thd, F_UNLCK);
     /* delete_table also needed, a bit more complex */
     close();
 
