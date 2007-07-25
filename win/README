@@ -63,7 +63,9 @@ The options right now are:
     MYSQL_TCP_PORT=<port>                Server port, default 3306
     CYBOZU                               Default character set is UTF8
     EMBED_MANIFESTS                      Embed custom manifests into final exes, otherwise VS
-                                         default will be used.
+                                         default will be used. (Note - This option should only be
+                                         used by MySQL AB.)
+                                
 
 So the command line could look like:
 
