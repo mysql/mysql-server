@@ -1360,6 +1360,18 @@ bool Field::send_binary(Protocol *protocol)
 }
 
 
+int Field::store(const char *to, uint length, CHARSET_INFO *cs,
+                 enum_check_fields check_level)
+{
+  int res;
+  enum_check_fields old_check_level= table->in_use->count_cuted_fields;
+  table->in_use->count_cuted_fields= check_level;
+  res= store(to, length, cs);
+  table->in_use->count_cuted_fields= old_check_level;
+  return res;
+}
+
+
 my_decimal *Field::val_decimal(my_decimal *decimal)
 {
   /* This never have to be called */
@@ -2316,6 +2328,7 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg,
              unireg_check_arg, field_name_arg, dec_arg, zero_arg, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -2332,6 +2345,7 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
              NONE, name, dec_arg, 0, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -5392,7 +5406,8 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   else
   {
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
-    if (!error && (ret != MYSQL_TIMESTAMP_DATE))
+    if (!error && (ret != MYSQL_TIMESTAMP_DATE) &&
+        thd->count_cuted_fields != CHECK_FIELD_IGNORE)
       error= 3;                                 // Datetime was cut (note)
   }
 
@@ -6457,6 +6472,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
   is 2.
 ****************************************************************************/
 
+const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {

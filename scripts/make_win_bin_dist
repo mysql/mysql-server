@@ -304,7 +304,7 @@ cp mysys/$TARGET/mysys.lib $DESTDIR/lib/opt/mysys_tls.lib
 
 mkdir -p $DESTDIR/mysql-test/include $DESTDIR/mysql-test/lib \
          $DESTDIR/mysql-test/r $DESTDIR/mysql-test/std_data \
-         $DESTDIR/mysql-test/t
+         $DESTDIR/mysql-test/t $DESTDIR/mysql-test/suite
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
 cp mysql-test/install_test_db.sh $DESTDIR/mysql-test/install_test_db
@@ -324,7 +324,7 @@ cp mysql-test/std_data/*.pem        $DESTDIR/mysql-test/std_data/
 cp mysql-test/std_data/*.MY*        $DESTDIR/mysql-test/std_data/
 cp mysql-test/t/*.opt $DESTDIR/mysql-test/t/
 cp mysql-test/t/*.sh $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.slave-mi $DESTDIR/mysql-test/t/
+cp mysql-test/t/*.slave-mi $DESTDIR/mysql-test/t/ || /bin/true
 cp mysql-test/t/*.sql $DESTDIR/mysql-test/t/
 cp mysql-test/t/*.def $DESTDIR/mysql-test/t/
 (cd mysql-test/t/ && cp *.test $ABS_DST/mysql-test/t/)
@@ -334,6 +334,12 @@ if [ -d mysql-test/extra ] ; then
   mkdir -p $DESTDIR/mysql-test/extra
   cp -pR mysql-test/extra/* $DESTDIR/mysql-test/extra/
 fi
+
+# Copy all directories in mysql-test/suite/
+for i in `cd mysql-test/suite && ls`; do \
+    mkdir -p $DESTDIR/mysql-test/suite/$i; \
+    cp -R mysql-test/suite/$i $DESTDIR/mysql-test/suite/; \
+done
 
 # ----------------------------------------------------------------------
 # Copy what could be usable in the "scripts" directory. Currently

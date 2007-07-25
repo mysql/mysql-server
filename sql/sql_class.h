@@ -39,8 +39,6 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-enum enum_check_fields
-{ CHECK_FIELD_IGNORE, CHECK_FIELD_WARN, CHECK_FIELD_ERROR_FOR_NULL };
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
@@ -67,11 +65,23 @@ typedef struct st_user_var_events
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
 #define RP_FORCE_ROTATE               2
 
+/*
+  The COPY_INFO structure is used by INSERT/REPLACE code.
+  The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
+  UPDATE code:
+    If a row is inserted then the copied variable is incremented.
+    If a row is updated by the INSERT ... ON DUPLICATE KEY UPDATE and the
+      new data differs from the old one then the copied and the updated
+      variables are incremented.
+    The touched variable is incremented if a row was touched by the update part
+      of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
+      was actually changed or not.
+*/
 typedef struct st_copy_info {
-  ha_rows records;
-  ha_rows deleted;
-  ha_rows updated;
-  ha_rows copied;
+  ha_rows records; /* Number of processed records */
+  ha_rows deleted; /* Number of deleted records */
+  ha_rows updated; /* Number of updated records */
+  ha_rows copied;  /* Number of copied records */
   ha_rows error_count;
   ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
@@ -179,7 +189,7 @@ public:
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
-    ref_table(table), ref_columns(cols),
+    ref_table(table), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
@@ -305,6 +315,7 @@ struct system_variables
   my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
+  my_bool keep_files_on_create;
   my_bool ndb_force_send;
   my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
@@ -492,13 +503,6 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
-  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str,
-                              size_t size)
-  {
-    return ((lex_str->str= 
-             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
-  }
-
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
   inline void *memdup_w_gap(const void *str, size_t size, uint gap)
@@ -1566,11 +1570,27 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
+
+  static inline void safe_time(time_t *t)
+  {
+    /**
+       Wrapper around time() which retries on error (-1)
+
+       @details
+       This is needed because, despite the documentation, time() may fail
+       in some circumstances.  Here we retry time() until it succeeds, and
+       log the failure so that performance problems related to this can be
+       identified.
+    */
+    while(unlikely(time(t) == ((time_t) -1)))
+      sql_print_information("time() failed with %d", errno);
+  }
+
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else time_after_lock=time(&start_time); }
-  inline void	end_time()    { time(&start_time); }
+  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else { safe_time(&start_time); time_after_lock= start_time; }}
+  inline void	end_time()    { safe_time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
-  inline void	lock_time()   { time(&time_after_lock); }
+  inline void	lock_time()   { safe_time(&time_after_lock); }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
@@ -1595,6 +1615,10 @@ public:
   {
     return alloc_root(&transaction.mem_root,size);
   }
+
+  LEX_STRING *make_lex_string(LEX_STRING *lex_str,
+                              const char* str, uint length,
+                              bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
@@ -1949,9 +1973,30 @@ public:
 };
 
 
+#define ESCAPE_CHARS "ntrb0ZN" // keep synchronous with READ_INFO::unescape
+
+
+/*
+ List of all possible characters of a numeric value text representation.
+*/
+#define NUMERIC_CHARS ".0123456789e+-"
+
+
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  /*
+    The is_ambiguous_field_sep field is true if a value of the field_sep_char
+    field is one of the 'n', 't', 'r' etc characters
+    (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
+  */
+  bool is_ambiguous_field_sep;
+  /*
+    The is_unsafe_field_sep field is true if a value of the field_sep_char
+    field is one of the '0'..'9', '+', '-', '.' and 'e' characters
+    (see the NUMERIC_CHARS constant value).
+  */
+  bool is_unsafe_field_sep;
   bool fixed_row_size;
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
@@ -1999,8 +2044,8 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
-  TABLE_LIST *select_tables;
   HA_CREATE_INFO *create_info;
+  TABLE_LIST *select_tables;
   Alter_info *alter_info;
   Field **field;
 public:

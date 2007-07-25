@@ -125,6 +125,26 @@ int ha_heap::close(void)
 
 
 /*
+  Create a copy of this table
+
+  DESCRIPTION
+    Do same as default implementation but use file->s->name instead of 
+    table->s->path. This is needed by Windows where the clone() call sees
+    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    with '\'-delimited path.
+*/
+
+handler *ha_heap::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;  /* purecov: inspected */
+}
+
+
+/*
   Compute which keys to use for scanning
 
   SYNOPSIS

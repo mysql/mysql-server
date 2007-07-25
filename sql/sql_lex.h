@@ -1239,19 +1239,19 @@ public:
   }
 
   /** Get the raw query buffer. */
-  const char* get_buf()
+  const char *get_buf()
   {
     return m_buf;
   }
 
   /** Get the pre-processed query buffer. */
-  const char* get_cpp_buf()
+  const char *get_cpp_buf()
   {
     return m_cpp_buf;
   }
 
   /** Get the end of the raw query buffer. */
-  const char* get_end_of_query()
+  const char *get_end_of_query()
   {
     return m_end_of_query;
   }
@@ -1279,43 +1279,43 @@ public:
   }
 
   /** Get the token start position, in the raw buffer. */
-  const char* get_tok_start()
+  const char *get_tok_start()
   {
     return m_tok_start;
   }
 
   /** Get the token start position, in the pre-processed buffer. */
-  const char* get_cpp_tok_start()
+  const char *get_cpp_tok_start()
   {
     return m_cpp_tok_start;
   }
 
   /** Get the token end position, in the raw buffer. */
-  const char* get_tok_end()
+  const char *get_tok_end()
   {
     return m_tok_end;
   }
 
   /** Get the token end position, in the pre-processed buffer. */
-  const char* get_cpp_tok_end()
+  const char *get_cpp_tok_end()
   {
     return m_cpp_tok_end;
   }
 
   /** Get the previous token start position, in the raw buffer. */
-  const char* get_tok_start_prev()
+  const char *get_tok_start_prev()
   {
     return m_tok_start_prev;
   }
 
   /** Get the current stream pointer, in the raw buffer. */
-  const char* get_ptr()
+  const char *get_ptr()
   {
     return m_ptr;
   }
 
   /** Get the current stream pointer, in the pre-processed buffer. */
-  const char* get_cpp_ptr()
+  const char *get_cpp_ptr()
   {
     return m_cpp_ptr;
   }
@@ -1365,22 +1365,22 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char* m_ptr;
+  const char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
-  const char* m_tok_start;
+  const char *m_tok_start;
 
   /** Ending position of the previous token parsed, in the raw buffer. */
-  const char* m_tok_end;
+  const char *m_tok_end;
 
   /** End of the query text in the input stream, in the raw buffer. */
-  const char* m_end_of_query;
+  const char *m_end_of_query;
 
   /** Starting position of the previous token parsed, in the raw buffer. */
-  const char* m_tok_start_prev;
+  const char *m_tok_start_prev;
 
   /** Begining of the query text in the input stream, in the raw buffer. */
-  const char* m_buf;
+  const char *m_buf;
 
   /** Length of the raw buffer. */
   uint m_buf_length;
@@ -1389,28 +1389,28 @@ private:
   bool m_echo;
 
   /** Pre-processed buffer. */
-  char* m_cpp_buf;
+  char *m_cpp_buf;
 
   /** Pointer to the current position in the pre-processed input stream. */
-  char* m_cpp_ptr;
+  char *m_cpp_ptr;
 
   /**
     Starting position of the last token parsed,
     in the pre-processed buffer.
   */
-  const char* m_cpp_tok_start;
+  const char *m_cpp_tok_start;
 
   /**
     Starting position of the previous token parsed,
     in the pre-procedded buffer.
   */
-  const char* m_cpp_tok_start_prev;
+  const char *m_cpp_tok_start_prev;
 
   /**
     Ending position of the previous token parsed,
     in the pre-processed buffer.
   */
-  const char* m_cpp_tok_end;
+  const char *m_cpp_tok_end;
 
   /** UTF8-body buffer created during parsing. */
   char *m_body_utf8;
@@ -1433,7 +1433,7 @@ public:
     Position of ';' in the stream, to delimit multiple queries.
     This delimiter is in the raw buffer.
   */
-  const char* found_semicolon;
+  const char *found_semicolon;
 
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;
@@ -1732,6 +1732,8 @@ typedef struct st_lex : public Query_tables_list
       un->uncacheable|= cause;
     }
   }
+  void set_trg_event_type_for_tables();
+
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
@@ -1741,7 +1743,7 @@ typedef struct st_lex : public Query_tables_list
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
-  uint8 get_effective_with_check(st_table_list *view);
+  uint8 get_effective_with_check(TABLE_LIST *view);
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
@@ -1779,6 +1781,8 @@ typedef struct st_lex : public Query_tables_list
   {
     context_stack.pop();
   }
+
+  bool copy_db_to(char **p_db, size_t *p_db_length) const;
 
   Name_resolution_context *current_context()
   {

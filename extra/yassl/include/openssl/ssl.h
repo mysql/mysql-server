@@ -277,6 +277,8 @@ int  SSL_session_reused(SSL*);
 int  SSL_set_rfd(SSL*, int);
 int  SSL_set_wfd(SSL*, int);
 void SSL_set_shutdown(SSL*, int);
+void SSL_set_quiet_shutdown(SSL *ssl,int mode);
+int SSL_get_quiet_shutdown(SSL *ssl);
 
 int SSL_want_read(SSL*);
 int SSL_want_write(SSL*);

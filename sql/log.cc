@@ -1445,7 +1445,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open() && trx_data->empty());
+  DBUG_ASSERT(trx_data->empty());
   thd->ha_data[binlog_hton->slot]= 0;
   trx_data->~binlog_trx_data();
   my_free((uchar*)trx_data, MYF(0));
@@ -1570,7 +1570,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty())
   {
@@ -1598,7 +1597,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   int error=0;
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   if (trx_data->empty()) {
     trx_data->reset();
@@ -1659,7 +1657,6 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
-  DBUG_ASSERT(mysql_bin_log.is_open());
 
   /*
     Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
@@ -3945,13 +3942,120 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     return ER_ERROR_ON_WRITE;
-  uint bytes= my_b_bytes_in_cache(cache);
+  uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
+  long val;
+  uchar header[LOG_EVENT_HEADER_LEN];
+
+  /*
+    The events in the buffer have incorrect end_log_pos data
+    (relative to beginning of group rather than absolute),
+    so we'll recalculate them in situ so the binlog is always
+    correct, even in the middle of a group. This is possible
+    because we now know the start position of the group (the
+    offset of this cache in the log, if you will); all we need
+    to do is to find all event-headers, and add the position of
+    the group to the end_log_pos of each event.  This is pretty
+    straight forward, except that we read the cache in segments,
+    so an event-header might end up on the cache-border and get
+    split.
+  */
+
+  group= (uint)my_b_tell(&log_file);
+  hdr_offs= carry= 0;
+
   do
   {
-    if (my_b_write(&log_file, cache->read_pos, bytes))
+
+    /*
+      if we only got a partial header in the last iteration,
+      get the other half now and process a full header.
+    */
+    if (unlikely(carry > 0))
+    {
+      DBUG_ASSERT(carry < LOG_EVENT_HEADER_LEN);
+
+      /* assemble both halves */
+      memcpy(&header[carry], (char *)cache->read_pos, LOG_EVENT_HEADER_LEN - carry);
+
+      /* fix end_log_pos */
+      val= uint4korr(&header[LOG_POS_OFFSET]) + group;
+      int4store(&header[LOG_POS_OFFSET], val);
+
+      /* write the first half of the split header */
+      if (my_b_write(&log_file, header, carry))
+        return ER_ERROR_ON_WRITE;
+
+      /*
+        copy fixed second half of header to cache so the correct
+        version will be written later.
+      */
+      memcpy((char *)cache->read_pos, &header[carry], LOG_EVENT_HEADER_LEN - carry);
+
+      /* next event header at ... */
+      hdr_offs = uint4korr(&header[EVENT_LEN_OFFSET]) - carry;
+
+      carry= 0;
+    }
+
+    /* if there is anything to write, process it. */
+
+    if (likely(length > 0))
+    {
+      /*
+        process all event-headers in this (partial) cache.
+        if next header is beyond current read-buffer,
+        we'll get it later (though not necessarily in the
+        very next iteration, just "eventually").
+      */
+
+      while (hdr_offs < length)
+      {
+        /*
+          partial header only? save what we can get, process once
+          we get the rest.
+        */
+
+        if (hdr_offs + LOG_EVENT_HEADER_LEN > length)
+        {
+          carry= length - hdr_offs;
+          memcpy(header, (char *)cache->read_pos + hdr_offs, carry);
+          length= hdr_offs;
+        }
+        else
+        {
+          /* we've got a full event-header, and it came in one piece */
+
+          uchar *log_pos= (uchar *)cache->read_pos + hdr_offs + LOG_POS_OFFSET;
+
+          /* fix end_log_pos */
+          val= uint4korr(log_pos) + group;
+          int4store(log_pos, val);
+
+          /* next event header at ... */
+          log_pos= (uchar *)cache->read_pos + hdr_offs + EVENT_LEN_OFFSET;
+          hdr_offs += uint4korr(log_pos);
+
+        }
+      }
+
+      /*
+        Adjust hdr_offs. Note that it may still point beyond the segment
+        read in the next iteration; if the current event is very long,
+        it may take a couple of read-iterations (and subsequent adjustments
+        of hdr_offs) for it to point into the then-current segment.
+        If we have a split header (!carry), hdr_offs will be set at the
+        beginning of the next iteration, overwriting the value we set here:
+      */
+      hdr_offs -= length;
+    }
+
+    /* Write data to the binary log file */
+    if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
-    cache->read_pos= cache->read_end;
-  } while ((bytes= my_b_fill(cache)));
+    cache->read_pos=cache->read_end;		// Mark buffer used up
+  } while ((length= my_b_fill(cache)));
+
+  DBUG_ASSERT(carry == 0);
 
   if (sync_log)
     flush_and_sync();
@@ -4028,7 +4132,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
       if ((write_error= write_cache(cache, false, false)))
         goto err;
-      
+
       if (commit_event && commit_event->write(&log_file))
         goto err;
       if (flush_and_sync())
@@ -5139,6 +5243,29 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
+
+
+#ifdef INNODB_COMPATIBILITY_HOOKS
+/**
+  Get the file name of the MySQL binlog.
+  @return the name of the binlog file
+*/
+extern "C"
+const char* mysql_bin_log_file_name(void)
+{
+  return mysql_bin_log.get_log_fname();
+}
+/**
+  Get the current position of the MySQL binlog.
+  @return byte offset from the beginning of the binlog
+*/
+extern "C"
+ulonglong mysql_bin_log_file_pos(void)
+{
+  return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
+}
+#endif /* INNODB_COMPATIBILITY_HOOKS */
+
 
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

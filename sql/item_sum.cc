@@ -3089,6 +3089,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   original(item)
 {
   quick_group= item->quick_group;
+  result.set_charset(collation.collation);
 }
 
 

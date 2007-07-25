@@ -23,6 +23,17 @@
 #define HAVE_EXTERNAL_CLIENT
 #endif
 
+/*
+  InnoDB depends on some MySQL internals which other plugins should not
+  need.  This is because of InnoDB's foreign key support, "safe" binlog
+  truncation, and other similar legacy features.
+
+  We define accessors for these internals unconditionally, but do not
+  expose them in mysql/plugin.h.  They are declared in ha_innodb.h for
+  InnoDB's use.
+*/
+#define INNODB_COMPATIBILITY_HOOKS
+
 #ifdef __CYGWIN__
 /* We use a Unix API, so pretend it's not Windows */
 #undef WIN
@@ -968,7 +979,12 @@ typedef unsigned long uint32;
 typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
 #ifndef longlong_defined
-#if defined(HAVE_LONG_LONG) && SIZEOF_LONG != 8
+/* 
+  Using [unsigned] long long is preferable as [u]longlong because we use 
+  [unsigned] long long unconditionally in many places, 
+  for example in constants with [U]LL suffix.
+*/
+#if defined(HAVE_LONG_LONG) && SIZEOF_LONG_LONG == 8
 typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
 typedef long long int	longlong;
 #else

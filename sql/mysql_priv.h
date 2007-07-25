@@ -98,7 +98,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
     if (((uchar*)Thd) != NULL)                                                         \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),    \
+                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
                         (Old), (Ver), (New));                                        \
     else                                                                             \
       sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
@@ -531,9 +531,9 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
-struct st_table_list;
+struct TABLE_LIST;
 class String;
-void view_store_options(THD *thd, st_table_list *table, String *buff);
+void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING	1
@@ -574,6 +574,13 @@ enum enum_parsing_place
 struct st_table;
 class THD;
 
+enum enum_check_fields
+{
+  CHECK_FIELD_IGNORE,
+  CHECK_FIELD_WARN,
+  CHECK_FIELD_ERROR_FOR_NULL
+};
+                                  
 /* Struct to handle simple linked lists */
 
 typedef struct st_sql_list {
@@ -712,6 +719,26 @@ bool end_active_trans(THD *thd);
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
+
+/* log.cc */
+int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+typedef void (*sql_print_message_func)(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+extern sql_print_message_func sql_print_message_handlers[];
+
+int error_log_print(enum loglevel level, const char *format,
+                    va_list args);
+
+bool slow_log_print(THD *thd, const char *query, uint query_length,
+                    time_t query_start_arg);
+
+bool general_log_print(THD *thd, enum enum_server_command command,
+                       const char *format,...);
+
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
@@ -901,10 +928,7 @@ void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool drop_view, bool log_query);
-int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
-				   bool if_exists, bool drop_temporary,
-				   bool log_query);
+                         bool drop_temporary, bool drop_view, bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
@@ -1175,7 +1199,11 @@ bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -1204,9 +1232,6 @@ void reset_status_vars();
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern const LEX_STRING partition_keywords[];
-LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
-                            const char* str, uint length,
-                            bool allocate_lex_string);
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
@@ -1367,7 +1392,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               st_table_list *TABLE_LIST::*link,
+                               TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
@@ -1612,25 +1637,6 @@ bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
 void sql_perror(const char *message);
 
-
-int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_information(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-extern sql_print_message_func sql_print_message_handlers[];
-
-int error_log_print(enum loglevel level, const char *format,
-                    va_list args);
-
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    time_t query_start_arg);
-
-bool general_log_print(THD *thd, enum enum_server_command command,
-                       const char *format,...);
-
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
 #ifdef MYSQL_SERVER
@@ -1684,9 +1690,14 @@ extern int creating_table;    // How many mysql_create_table() are running
 */
 
 extern time_t server_start_time;
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern uint mysql_data_home_len;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
+            mysql_real_data_home[];
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
+extern char *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
@@ -1703,8 +1714,13 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
+extern char language[FN_REFLEN];
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+extern char reg_ext[FN_EXTLEN];
 extern uint reg_ext_length;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
@@ -1733,17 +1749,32 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
-extern ulong specialflag, current_pid;
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+extern ulong specialflag;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
+extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
-extern uint delay_key_write_options, lower_case_table_names;
+extern uint delay_key_write_options;
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+extern uint lower_case_table_names;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
-extern bool opt_using_transactions, mysqld_embedded;
+extern bool opt_using_transactions;
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+extern bool mysqld_embedded;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
@@ -1767,8 +1798,12 @@ extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 extern char *opt_logname, *opt_slow_logname;
 extern const char *log_output_str;
 
@@ -1804,7 +1839,11 @@ extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
 extern SHOW_VAR status_vars[];
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern struct system_variables global_system_variables;
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
@@ -1882,6 +1921,11 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table);
+bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
+                                                     TABLE_LIST *table_list);
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
+                                                     int key_length);
 
 
 /* old unireg functions */
@@ -2002,10 +2046,14 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 char *fn_rext(char *name);
 
 /* Conversion functions */
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 uint strconvert(CHARSET_INFO *from_cs, const char *from,
                 CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
 
