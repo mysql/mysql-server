@@ -32,25 +32,28 @@ CREATE TABLE federated.t1 (
 
 # test non-existant table
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---error 1434
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t3';
+--error 1431
+SELECT * FROM federated.t1;
+DROP TABLE federated.t1;
 
 # test bad user/password 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---error 1429
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://user:pass@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+--error 1429
+SELECT * FROM federated.t1;
+DROP TABLE federated.t1;
 
-DROP TABLE IF EXISTS federated.t1;
 # # correct connection, same named tables
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
