@@ -40,17 +40,18 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
-ERROR HY000: Can't create federated table. Foreign data src error:  error: 1146  'Table 'federated.t3' doesn't exist'
+SELECT * FROM federated.t1;
+ERROR HY000: The foreign data source you are trying to reference does not exist. Data source error:  error: 1146  'Table 'federated.t3' doesn't exist'
+DROP TABLE federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
-ERROR HY000: Unable to connect to foreign data source: database: 'federated'  username: 'user'  hostname: '127.0.0.1'
-DROP TABLE IF EXISTS federated.t1;
-Warnings:
-Note	1051	Unknown table 't1'
+SELECT * FROM federated.t1;
+ERROR HY000: Unable to connect to foreign data source: Access denied for user 'user'@'localhost' (using password: YES)
+DROP TABLE federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''

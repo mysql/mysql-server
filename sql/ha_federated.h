@@ -182,6 +182,8 @@ private:
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
+  int real_query(const char *query, uint length);
+  int real_connect();
 public:
   ha_federated(TABLE *table_arg);
   ~ha_federated()
