@@ -24,8 +24,6 @@
 
 /* NDB status version */
 #define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
-/* some backwards compatible macros */
-#define MAKE_VERSION(A,B,C) NDB_MAKE_VERSION(A,B,C)
 
 #define NDB_MYSQL_VERSION_MAJOR @NDB_MYSQL_VERSION_MAJOR@
 #define NDB_MYSQL_VERSION_MINOR @NDB_MYSQL_VERSION_MINOR@
