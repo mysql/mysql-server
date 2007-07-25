@@ -300,7 +300,7 @@ bool Mysqld_output_parser_win::run_command(const char *command)
                            &si_start_info, /* STARTUPINFO pointer. */
                            &pi_proc_info); /* Rec. PROCESS_INFORMATION. */
 
-  if (!retval)
+  if (!op_status)
   {
     CloseHandle(m_h_child_stdout_rd);
     CloseHandle(m_h_child_stdout_wr);
@@ -324,7 +324,7 @@ bool Mysqld_output_parser_win::read_line(char *line_buffer,
   char *buff_ptr= line_buffer;
   char ch;
 
-  while (buff_ptr - line_buffer < line_buffer_size)
+  while ((unsigned)(buff_ptr - line_buffer) < line_buffer_size)
   {
     do
     {
