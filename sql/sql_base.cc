@@ -3797,13 +3797,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
   if (table)
   {
-#if defined( __WIN__)
-    /* Win32 can't drop a file that is open */
-    if (lock_type == TL_WRITE_ALLOW_READ)
-    {
-      lock_type= TL_WRITE;
-    }
-#endif /* __WIN__ */
     table_list->lock_type= lock_type;
     table_list->table=	   table;
     table->grant= table_list->grant;

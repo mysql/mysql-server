@@ -1516,6 +1516,19 @@ t1	CREATE TABLE `t1` (
   `c17` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1(f1 int,f2 int);
+insert into t1 value(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
+flush status;
+create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	7
+drop table t1,t2;
 End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
