@@ -28,9 +28,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (a decimal(64, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` decimal(64,20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 INSERT INTO `t1` VALUES ('1234567890123456789012345678901234567890.00000000000000000000'),('987654321098765432109876543210987654321.00000000000000000000');
 DROP TABLE t1;
 #
@@ -40,9 +43,12 @@ CREATE TABLE t1 (a double);
 INSERT INTO t1 VALUES ('-9e999999');
 Warnings:
 Warning	1264	Out of range value adjusted for column 'a' at row 1
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 INSERT INTO `t1` VALUES (RES);
 DROP TABLE t1;
 #
@@ -58,15 +64,21 @@ INSERT INTO t1 VALUES ('1.2345', 2.3456);
 INSERT INTO t1 VALUES ("1.2345", 2.3456);
 ERROR 42S22: Unknown column '1.2345' in 'field list'
 SET SQL_MODE=@OLD_SQL_MODE;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` decimal(10,5) default NULL,
   `b` float default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 INSERT INTO `t1` VALUES ('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456);
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` decimal(10,5) default NULL,
   `b` float default NULL
 );
+SET character_set_client = @saved_cs_client;
 INSERT INTO `t1` VALUES ('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456);
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -80,10 +92,13 @@ INSERT INTO `t1` VALUES ('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456)
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` decimal(10,5) default NULL,
   `b` float default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -106,10 +121,13 @@ UNLOCK TABLES;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` decimal(10,5) default NULL,
   `b` float default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 INSERT INTO `t1` VALUES ('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456),('1.23450',2.3456);
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -185,9 +203,12 @@ INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` varchar(255) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=koi8r;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -218,9 +239,12 @@ INSERT INTO t1 VALUES (1), (2);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL40' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) TYPE=MyISAM;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -241,9 +265,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) TYPE=MyISAM;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -262,9 +289,12 @@ DROP TABLE t1;
 # Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
 #
 create table ```a` (i int);
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE ```a` (
   `i` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 drop table ```a`;
 #
 # Bug #2591 "mysqldump quotes names inconsistently"
@@ -282,9 +312,12 @@ create table t1(a int);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -307,9 +340,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS "t1";
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE "t1" (
   "a" int(11) default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES "t1" WRITE;
 /*!40000 ALTER TABLE "t1" DISABLE KEYS */;
@@ -335,9 +371,12 @@ set global sql_mode='ANSI_QUOTES';
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -360,9 +399,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS "t1";
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE "t1" (
   "a" int(11) default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES "t1" WRITE;
 /*!40000 ALTER TABLE "t1" DISABLE KEYS */;
@@ -392,9 +434,12 @@ insert into t1 values (1),(2),(3);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -483,9 +528,12 @@ INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -516,9 +564,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) TYPE=MyISAM;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -539,9 +590,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) TYPE=MyISAM;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -562,9 +616,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) TYPE=MyISAM;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -598,9 +655,12 @@ INSERT INTO t2 VALUES (4),(5),(6);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
@@ -636,9 +696,12 @@ INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `b` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -674,9 +737,12 @@ INSERT INTO t1 VALUES (4),(5),(6);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -705,9 +771,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
 INSERT  DELAYED IGNORE INTO `t1` VALUES (1),(2),(3),(4),(5),(6);
@@ -1071,6 +1140,8 @@ insert into t1 (F_8d3bba7425e7c98c50f52ca1b52d3735) values (1);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `F_c4ca4238a0b923820dcc509a6f75849b` int(11) default NULL,
   `F_c81e728d9d4c2f636f067f89cc14862c` int(11) default NULL,
@@ -1403,6 +1474,7 @@ CREATE TABLE `t1` (
   `F_6faa8040da20ef399b63a72d0e4ab575` int(11) default NULL,
   `F_fe73f687e5bc5280214e0486b273a5f9` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -1443,9 +1515,12 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -1484,13 +1559,19 @@ INSERT INTO t2 VALUES (1), (2);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1513,13 +1594,19 @@ CREATE TABLE `t2` (
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1719,17 +1806,26 @@ create table t3(a int);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t3`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t3` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1759,9 +1855,12 @@ mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manu
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1792,12 +1891,15 @@ insert into t1 values (0815, 4711, 2006);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS "t1";
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE "t1" (
   "a b" int(11) NOT NULL default '0',
   "c""d" int(11) NOT NULL default '0',
   "e`f" int(11) NOT NULL default '0',
   PRIMARY KEY  ("a b","c""d","e`f")
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES "t1" WRITE;
 /*!40000 ALTER TABLE "t1" DISABLE KEYS */;
@@ -1823,12 +1925,15 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a b` int(11) NOT NULL default '0',
   `c"d` int(11) NOT NULL default '0',
   `e``f` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a b`,`c"d`,`e``f`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -1874,10 +1979,13 @@ create view v2 as select * from t2 where a like 'a%' with check option;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` varchar(30) default NULL,
   KEY `a` (`a`(5))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
@@ -1955,9 +2063,12 @@ create view v1 as select * from t1;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2012,10 +2123,13 @@ create view v2 as select * from t2 where a like 'a%' with check option;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` varchar(30) default NULL,
   KEY `a` (`a`(5))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
@@ -2064,9 +2178,12 @@ INSERT INTO t1 VALUES ('\'');
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2107,11 +2224,14 @@ select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL,
   `b` int(11) default NULL,
   `c` varchar(30) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2227,10 +2347,13 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL,
   `b` bigint(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2262,9 +2385,12 @@ end */;;
 DELIMITER ;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
@@ -2307,10 +2433,13 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL,
   `b` bigint(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2318,9 +2447,12 @@ INSERT INTO `t1` VALUES (1,NULL),(2,NULL),(4,NULL),(11,NULL);
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
@@ -2444,9 +2576,12 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `id` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2534,10 +2669,13 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `d` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   UNIQUE KEY `d` (`d`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2568,10 +2706,13 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `d` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   UNIQUE KEY `d` (`d`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2618,9 +2759,12 @@ a2
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS "t1 test";
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE "t1 test" (
   "a1" int(11) default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES "t1 test" WRITE;
 /*!40000 ALTER TABLE "t1 test" DISABLE KEYS */;
@@ -2636,9 +2780,12 @@ INSERT INTO `t2 test` SET a2 = NEW.a1; END */;;
 DELIMITER ;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;
 DROP TABLE IF EXISTS "t2 test";
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE "t2 test" (
   "a2" int(11) default NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES "t2 test" WRITE;
 /*!40000 ALTER TABLE "t2 test" DISABLE KEYS */;
@@ -2687,11 +2834,14 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL,
   `b` varchar(32) default NULL,
   `c` varchar(32) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2779,9 +2929,12 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2825,10 +2978,13 @@ insert into t1 values ('','');
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` binary(1) default NULL,
   `b` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2857,10 +3013,13 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` binary(1) default NULL,
   `b` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -3015,9 +3174,12 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CH
 
 USE `mysqldump_test_db`;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `id` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -3062,11 +3224,14 @@ create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_tables` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
 USE `mysqldump_tables`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `basetable` (
   `id` bigint(20) unsigned NOT NULL auto_increment,
   `tag` varchar(64) default NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
@@ -3134,10 +3299,13 @@ mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SU
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=537;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL,
   `b` varchar(34) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 drop table t1;
 drop user mysqltest_1@localhost;
 #
@@ -3226,22 +3394,31 @@ CREATE TABLE t1 (a int) ENGINE=merge UNION=(t2, t3);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t2`,`t3`);
+SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t3`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t3` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t3` WRITE;
 /*!40000 ALTER TABLE `t3` DISABLE KEYS */;
@@ -3317,10 +3494,13 @@ drop database mysqldump_test_db;
 #
 CREATE TABLE t1 (c1 INT, c2 LONGBLOB);
 INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `c1` int(11) default NULL,
   `c2` longblob
 );
+SET character_set_client = @saved_cs_client;
 INSERT INTO `t1` VALUES (11,0x7171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171);
 DROP TABLE t1;
 #

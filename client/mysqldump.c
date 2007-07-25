@@ -992,6 +992,21 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   return 0;
 }
 
+
+static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
+{
+  char query_buffer[QUERY_LENGTH];
+  size_t query_length;
+
+  query_length= my_snprintf(query_buffer,
+                            sizeof (query_buffer),
+                            "SET SESSION character_set_results = '%s'",
+                            (const char *) cs_name);
+
+  return mysql_real_query(mysql, query_buffer, query_length);
+}
+
+
 /*
   Open a new .sql file to dump the table or view into
 
@@ -1671,7 +1686,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       MYSQL_FIELD *field;
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
-      if (mysql_query_with_error_report(mysql, 0, buff))
+
+      if (switch_character_set_results(mysql, "binary") ||
+          mysql_query_with_error_report(mysql, &result, buff) ||
+          switch_character_set_results(mysql, default_charset))
         DBUG_RETURN(0);
 
       if (path)
@@ -1702,7 +1720,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         check_io(sql_file);
       }
 
-      result= mysql_store_result(mysql);
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
@@ -1794,7 +1811,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
 
       row= mysql_fetch_row(result);
-      fprintf(sql_file, "%s;\n", row[1]);
+
+      fprintf(sql_file,
+              "SET @saved_cs_client     = @@character_set_client;\n"
+              "SET character_set_client = utf8;\n"
+              "%s;\n"
+              "SET character_set_client = @saved_cs_client;\n",
+              row[1]);
+
       check_io(sql_file);
       mysql_free_result(result);
     }
