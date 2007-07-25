@@ -9,6 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-binlog_innodb        : Bug#29806 2007-07-15 ingo master.err: InnoDB: Error: MySQL is freeing a thd
-binlog_killed        : Bug#29806 2007-07-17 ingo master.err: InnoDB: Error: MySQL is freeing a thd
