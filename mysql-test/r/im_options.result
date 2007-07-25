@@ -37,9 +37,10 @@ log-slow-queries	option_value
 language	option_value
 character-sets-dir	option_value
 basedir	option_value
+shutdown-delay	option_value
 skip-stack-trace	option_value
-skip-innodb	option_value
-skip-ndbcluster	option_value
+loose-skip-innodb	option_value
+loose-skip-ndbcluster	option_value
 nonguarded	option_value
 log-output	option_value
 SET mysqld2.server_id = 2;
@@ -57,9 +58,10 @@ log-slow-queries	option_value
 language	option_value
 character-sets-dir	option_value
 basedir	option_value
+shutdown-delay	option_value
 skip-stack-trace	option_value
-skip-innodb	option_value
-skip-ndbcluster	option_value
+loose-skip-innodb	option_value
+loose-skip-ndbcluster	option_value
 nonguarded	option_value
 log-output	option_value
 server_id	option_value
