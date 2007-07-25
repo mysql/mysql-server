@@ -5,6 +5,7 @@
 *.bb
 *.bbg
 *.bin
+*.cdf
 *.core
 *.d
 *.da
