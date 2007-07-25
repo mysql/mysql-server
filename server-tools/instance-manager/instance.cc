@@ -524,24 +524,17 @@ bool Instance::init(const LEX_STRING *name_arg)
 
 
 /**
-  Complete instance options initialization.
+  @brief Complete instance options initialization.
 
-  SYNOPSIS
-    complete_initialization()
-
-  RETURN
-    FALSE - ok
-    TRUE  - error
+  @return Error status.
+    @retval FALSE ok
+    @retval TRUE error
 */
 
 bool Instance::complete_initialization()
 {
   configured= ! options.complete_initialization();
-  return FALSE;
-  /*
-    TODO: return actual status (from
-    Instance_options::complete_initialization()) here.
-  */
+  return !configured;
 }
 
 /**************************************************************************
@@ -644,24 +637,23 @@ bool Instance::is_mysqld_running()
 
 
 /**
-  Start mysqld.
+  @brief Start mysqld.
 
-  SYNOPSIS
-    start_mysqld()
+  Reset flags and start Instance Monitor thread, which will start mysqld.
 
-  DESCRIPTION
-    Reset flags and start Instance Monitor thread, which will start mysqld.
+  @note Instance must be locked before calling the operation.
 
-    MT-NOTE: instance must be locked before calling the operation.
-
-  RETURN
-    FALSE - ok
-    TRUE  - could not start instance
+  @return Error status code
+    @retval FALSE Ok
+    @retval TRUE Could not start instance
 */
 
 bool Instance::start_mysqld()
 {
   Instance_monitor *instance_monitor;
+
+  if (!configured)
+    return TRUE;
 
   /*
     Prepare instance to start Instance Monitor thread.
