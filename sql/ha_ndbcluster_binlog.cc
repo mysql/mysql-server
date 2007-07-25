@@ -114,6 +114,9 @@ NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
 pthread_mutex_t ndb_schema_share_mutex;
 
+extern my_bool opt_log_slave_updates;
+static my_bool g_ndb_log_slave_updates;
+
 /* Schema object distribution handling */
 HASH ndb_schema_objects;
 typedef struct st_ndb_schema_object {
@@ -3606,6 +3609,14 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                         originating_server_id);
     return 0;
   }
+  else if (!g_ndb_log_slave_updates)
+  {
+    /*
+      This event comes from a slave applier since it has an originating
+      server id set. Since option to log slave updates is not set, skip it.
+    */
+    return 0;
+  }
 
   /*
      Filter away duplicate events by checking if event was generated
@@ -4265,6 +4276,8 @@ restart:
                     ! IS_NDB_BLOB_PREFIX(pOp->getEvent()->getTable()->getName()));
         DBUG_ASSERT(gci <= ndb_latest_received_binlog_epoch);
 
+        /* initialize some variables for this epoch */
+        g_ndb_log_slave_updates= opt_log_slave_updates;
         i_ndb->
           setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
         i_ndb->setReportThreshEventFreeMem(ndb_report_thresh_binlog_mem_usage);
