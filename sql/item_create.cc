@@ -2326,7 +2326,7 @@ Item*
 Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
-  if (thd->copy_db_to(&db.str, &db.length))
+  if (thd->lex->copy_db_to(&db.str, &db.length))
     return NULL;
 
   return create(thd, db, name, false, item_list);
@@ -5037,6 +5037,18 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
+      return 0;
+    }
+    if (len > DECIMAL_MAX_PRECISION)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
+               DECIMAL_MAX_PRECISION);
+      return 0;
+    }
+    if (dec > DECIMAL_MAX_SCALE)
+    {
+      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
+               DECIMAL_MAX_SCALE);
       return 0;
     }
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);

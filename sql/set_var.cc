@@ -616,6 +616,8 @@ sys_var_thd_time_zone            sys_time_zone(&vars, "time_zone");
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
 
+sys_var_thd_bool  sys_keep_files_on_create(&vars, "keep_files_on_create", 
+                                           &SV::keep_files_on_create);
 /* Read only variables */
 
 static sys_var_have_variable sys_have_compress(&vars, "have_compress", &have_compress);
@@ -2218,9 +2220,9 @@ void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.lock();
-  logger.init_slow_log(LOG_TABLE);
-  logger.init_general_log(LOG_TABLE);
-  *value= LOG_TABLE;
+  logger.init_slow_log(LOG_FILE);
+  logger.init_general_log(LOG_FILE);
+  *value= LOG_FILE;
   logger.unlock();
   pthread_mutex_unlock(&LOCK_global_system_variables);
 }

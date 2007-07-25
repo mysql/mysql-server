@@ -328,13 +328,21 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
 #define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
 
-#define XIDDATASIZE 128
+#define XIDDATASIZE MYSQL_XIDDATASIZE
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+/**
+  struct xid_t is binary compatible with the XID structure as
+  in the X/Open CAE Specification, Distributed Transaction Processing:
+  The XA Specification, X/Open Company Ltd., 1991.
+  http://www.opengroup.org/bookstore/catalog/c193.htm
+
+  @see MYSQL_XID in mysql/plugin.h
+*/
 struct xid_t {
   long formatID;
   long gtrid_length;
@@ -655,7 +663,7 @@ struct handlerton
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
-                           struct st_table_list *tables,
+                           TABLE_LIST *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
    /*
@@ -1631,16 +1639,49 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /* ask handler about permission to cache table when query is to be cached */
+
+
+  /**
+    @brief Register a named table with a call back function to the query cache.
+
+    @param thd The thread handle
+    @param table_key A pointer to the table name in the table cache
+    @param key_length The length of the table name
+    @param[out] engine_callback The pointer to the storage engine call back
+      function
+    @param[out] engine_data Storage engine specific data which could be
+      anything
+
+    This method offers the storage engine, the possibility to store a reference
+    to a table name which is going to be used with query cache. 
+    The method is called each time a statement is written to the cache and can
+    be used to verify if a specific statement is cachable. It also offers
+    the possibility to register a generic (but static) call back function which
+    is called each time a statement is matched against the query cache.
+
+    @note If engine_data supplied with this function is different from
+      engine_data supplied with the callback function, and the callback returns
+      FALSE, a table invalidation on the current table will occur.
+
+    @return Upon success the engine_callback will point to the storage engine
+      call back function, if any, and engine_data will point to any storage
+      engine data used in the specific implementation.
+      @retval TRUE Success
+      @retval FALSE The specified table or current statement should not be
+        cached
+  */
+
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-					     uint key_length,
-					     qc_engine_callback 
-					     *engine_callback,
-					     ulonglong *engine_data)
+                                             uint key_length,
+                                             qc_engine_callback
+                                             *engine_callback,
+                                             ulonglong *engine_data)
   {
     *engine_callback= 0;
-    return 1;
+    return TRUE;
   }
+
+
  /*
   RETURN
     true  Primary key (if there is one) is clustered key covering all fields

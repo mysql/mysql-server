@@ -449,7 +449,6 @@ private:
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
   void return_top_record(uchar * buf);
-  void include_partition_fields_in_used_fields();
 public:
   /*
     -------------------------------------------------------------------------

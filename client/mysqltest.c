@@ -264,6 +264,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
+  Q_SEND_QUIT,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -351,6 +352,7 @@ const char *command_names[]=
   "append_file",
   "cat_file",
   "diff_files",
+  "send_quit",
   0
 };
 
@@ -2541,6 +2543,48 @@ void do_diff_files(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
+  /*
+    SYNOPSIS
+    do_send_quit
+    command	called command
+
+    DESCRIPTION
+    Sends a simple quit command to the server for the named connection.
+
+  */
+
+void do_send_quit(struct st_command *command)
+{
+  char *p= command->first_argument, *name;
+  struct st_connection *con;
+
+  DBUG_ENTER("do_send_quit");
+  DBUG_PRINT("enter",("name: '%s'",p));
+
+  if (!*p)
+    die("Missing connection name in do_send_quit");
+  name= p;
+  while (*p && !my_isspace(charset_info,*p))
+    p++;
+
+  if (*p)
+    *p++= 0;
+  command->last_argument= p;
+
+  /* Loop through connection pool for connection to close */
+  for (con= connections; con < next_con; con++)
+  {
+    DBUG_PRINT("info", ("con->name: %s", con->name));
+    if (!strcmp(con->name, name))
+    {
+      simple_command(&con->mysql,COM_QUIT,NullS,0,1);
+      DBUG_VOID_RETURN;
+    }
+  }
+  die("connection '%s' not found in connection pool", name);
+}
+
+
 /*
   SYNOPSIS
   do_perl
@@ -3454,11 +3498,10 @@ void do_close_connection(struct st_command *command)
       my_free(con->name, MYF(0));
 
       /*
-        When the connection is closed set name to "closed_connection"
+        When the connection is closed set name to "-closed_connection-"
         to make it possible to reuse the connection name.
-        The connection slot will not be reused
       */
-      if (!(con->name = my_strdup("closed_connection", MYF(MY_WME))))
+      if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
         die("Out of memory");
 
       DBUG_VOID_RETURN;
@@ -3636,6 +3679,7 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   bool con_ssl= 0, con_compress= 0;
+  struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -3717,19 +3761,24 @@ void do_connect(struct st_command *command)
     con_options= end;
   }
 
-  if (next_con == connections_end)
-    die("Connection limit exhausted, you can have max %d connections",
-        (int) (sizeof(connections)/sizeof(struct st_connection)));
-
   if (find_connection_by_name(ds_connection_name.str))
     die("Connection %s already exists", ds_connection_name.str);
+    
+  if (next_con != connections_end)
+    con_slot= next_con;
+  else
+  {
+    if (!(con_slot= find_connection_by_name("-closed_connection-")))
+      die("Connection limit exhausted, you can have max %d connections",
+          (int) (sizeof(connections)/sizeof(struct st_connection)));
+  }
 
-  if (!mysql_init(&next_con->mysql))
+  if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
   if (opt_compress || con_compress)
-    mysql_options(&next_con->mysql, MYSQL_OPT_COMPRESS, NullS);
-  mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
+  mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
     mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
@@ -3738,12 +3787,12 @@ void do_connect(struct st_command *command)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
   {
-    mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
   }
@@ -3757,16 +3806,19 @@ void do_connect(struct st_command *command)
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
-  if (connect_n_handle_errors(command, &next_con->mysql,
+  if (connect_n_handle_errors(command, &con_slot->mysql,
                               ds_host.str,ds_user.str,
                               ds_password.str, ds_database.str,
                               con_port, ds_sock.str))
   {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
-    if (!(next_con->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
+    if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
-    cur_con= next_con++;
+    cur_con= con_slot;
+    
+    if (con_slot == next_con)
+      next_con++; /* if we used the next_con slot, advance the pointer */
   }
 
   dynstr_free(&ds_connection_name);
@@ -6335,6 +6387,7 @@ int main(int argc, char **argv)
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
       case Q_DIFF_FILES: do_diff_files(command); break;
+      case Q_SEND_QUIT: do_send_quit(command); break;
       case Q_CAT_FILE: do_cat_file(command); break;
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
