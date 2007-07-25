@@ -66,7 +66,6 @@ lock_queue_iterator_get_prev(
 					/* out: previous lock or NULL */
 	lock_queue_iterator_t*	iter)	/* in/out: iterator */
 {
-	ulint	bit_no;
 	lock_t*	prev_lock;
 
 	switch (lock_get_type(iter->current_lock)) {
