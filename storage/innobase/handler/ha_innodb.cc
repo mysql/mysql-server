@@ -7042,18 +7042,6 @@ ha_innobase::store_lock(
 		    && !thd_tablespace_op(thd)
 		    && sql_command != SQLCOM_TRUNCATE
 		    && sql_command != SQLCOM_OPTIMIZE
-
-#ifdef __WIN__
-		    /* For alter table on win32 for successful
-		    operation completion it is used TL_WRITE(=10) lock
-		    instead of TL_WRITE_ALLOW_READ(=6), however here
-		    in innodb handler TL_WRITE is lifted to
-		    TL_WRITE_ALLOW_WRITE, which causes race condition
-		    when several clients do alter table simultaneously
-		    (bug #17264). This fix avoids the problem. */
-		    && sql_command != SQLCOM_ALTER_TABLE
-#endif
-
 		    && sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
