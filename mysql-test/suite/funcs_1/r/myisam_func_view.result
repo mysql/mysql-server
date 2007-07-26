@@ -2400,16 +2400,10 @@ my_time, id FROM t1_values
 WHERE select_id = 89 OR select_id IS NULL;
 CAST(my_time AS UNSIGNED INTEGER)	my_time	id
 NULL	NULL	1
-18446744073709550778	-838:59:59	2
-838	838:59:59	3
-13	13:00:00	4
-10	10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-838:59:59'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1292	Truncated incorrect INTEGER value: '838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '13:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '10:00:00'
+18446744073701165657	-838:59:59	2
+8385959	838:59:59	3
+130000	13:00:00	4
+100000	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as unsigned) AS `CAST(my_time AS UNSIGNED INTEGER)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2418,16 +2412,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 89 OR select_id IS NULL);
 CAST(my_time AS UNSIGNED INTEGER)	my_time	id
 NULL	NULL	1
-18446744073709550778	-838:59:59	2
-838	838:59:59	3
-13	13:00:00	4
-10	10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-838:59:59'
-Warning	1105	Cast to unsigned converted negative integer to it's positive complement
-Warning	1292	Truncated incorrect INTEGER value: '838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '13:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '10:00:00'
+18446744073701165657	-838:59:59	2
+8385959	838:59:59	3
+130000	13:00:00	4
+100000	10:00:00	5
 DROP VIEW v1;
 
 
@@ -2438,16 +2426,10 @@ my_timestamp, id FROM t1_values
 WHERE select_id = 88 OR select_id IS NULL;
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
-1970	1970-01-01 03:00:01	2
-2038	2038-01-01 02:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0000-00-00 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '1970-01-01 03:00:01'
-Warning	1292	Truncated incorrect INTEGER value: '2038-01-01 02:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+19700101030001	1970-01-01 03:00:01	2
+20380101025959	2038-01-01 02:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_timestamp` as unsigned) AS `CAST(my_timestamp AS UNSIGNED INTEGER)`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2456,16 +2438,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 88 OR select_id IS NULL);
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
-1970	1970-01-01 03:00:01	2
-2038	2038-01-01 02:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0000-00-00 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '1970-01-01 03:00:01'
-Warning	1292	Truncated incorrect INTEGER value: '2038-01-01 02:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+19700101030001	1970-01-01 03:00:01	2
+20380101025959	2038-01-01 02:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 DROP VIEW v1;
 
 
@@ -2476,15 +2452,10 @@ my_date, id FROM t1_values
 WHERE select_id = 87 OR select_id IS NULL;
 CAST(my_date AS UNSIGNED INTEGER)	my_date	id
 NULL	NULL	1
-1	0001-01-01	2
-9999	9999-12-31	3
-2004	2004-02-29	4
-2005	2005-06-28	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28'
+10101	0001-01-01	2
+99991231	9999-12-31	3
+20040229	2004-02-29	4
+20050628	2005-06-28	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_date` as unsigned) AS `CAST(my_date AS UNSIGNED INTEGER)`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2493,15 +2464,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 87 OR select_id IS NULL);
 CAST(my_date AS UNSIGNED INTEGER)	my_date	id
 NULL	NULL	1
-1	0001-01-01	2
-9999	9999-12-31	3
-2004	2004-02-29	4
-2005	2005-06-28	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28'
+10101	0001-01-01	2
+99991231	9999-12-31	3
+20040229	2004-02-29	4
+20050628	2005-06-28	5
 DROP VIEW v1;
 
 
@@ -2512,15 +2478,10 @@ my_datetime, id FROM t1_values
 WHERE select_id = 86 OR select_id IS NULL;
 CAST(my_datetime AS UNSIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
-1	0001-01-01 00:00:00	2
-9999	9999-12-31 23:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+10101000000	0001-01-01 00:00:00	2
+99991231235959	9999-12-31 23:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_datetime` as unsigned) AS `CAST(my_datetime AS UNSIGNED INTEGER)`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2529,15 +2490,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 86 OR select_id IS NULL);
 CAST(my_datetime AS UNSIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
-1	0001-01-01 00:00:00	2
-9999	9999-12-31 23:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+10101000000	0001-01-01 00:00:00	2
+99991231235959	9999-12-31 23:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 DROP VIEW v1;
 
 
@@ -2780,15 +2736,10 @@ my_time, id FROM t1_values
 WHERE select_id = 78 OR select_id IS NULL;
 CAST(my_time AS SIGNED INTEGER)	my_time	id
 NULL	NULL	1
--838	-838:59:59	2
-838	838:59:59	3
-13	13:00:00	4
-10	10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '13:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '10:00:00'
+-8385959	-838:59:59	2
+8385959	838:59:59	3
+130000	13:00:00	4
+100000	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as signed) AS `CAST(my_time AS SIGNED INTEGER)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2797,15 +2748,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 78 OR select_id IS NULL);
 CAST(my_time AS SIGNED INTEGER)	my_time	id
 NULL	NULL	1
--838	-838:59:59	2
-838	838:59:59	3
-13	13:00:00	4
-10	10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '838:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '13:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '10:00:00'
+-8385959	-838:59:59	2
+8385959	838:59:59	3
+130000	13:00:00	4
+100000	10:00:00	5
 DROP VIEW v1;
 
 
@@ -2816,16 +2762,10 @@ my_timestamp, id FROM t1_values
 WHERE select_id = 77 OR select_id IS NULL;
 CAST(my_timestamp AS SIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
-1970	1970-01-01 03:00:01	2
-2038	2038-01-01 02:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0000-00-00 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '1970-01-01 03:00:01'
-Warning	1292	Truncated incorrect INTEGER value: '2038-01-01 02:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+19700101030001	1970-01-01 03:00:01	2
+20380101025959	2038-01-01 02:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_timestamp` as signed) AS `CAST(my_timestamp AS SIGNED INTEGER)`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2834,16 +2774,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 77 OR select_id IS NULL);
 CAST(my_timestamp AS SIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
-1970	1970-01-01 03:00:01	2
-2038	2038-01-01 02:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0000-00-00 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '1970-01-01 03:00:01'
-Warning	1292	Truncated incorrect INTEGER value: '2038-01-01 02:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+19700101030001	1970-01-01 03:00:01	2
+20380101025959	2038-01-01 02:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 DROP VIEW v1;
 
 
@@ -2854,15 +2788,10 @@ my_date, id FROM t1_values
 WHERE select_id = 76 OR select_id IS NULL;
 CAST(my_date AS SIGNED INTEGER)	my_date	id
 NULL	NULL	1
-1	0001-01-01	2
-9999	9999-12-31	3
-2004	2004-02-29	4
-2005	2005-06-28	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28'
+10101	0001-01-01	2
+99991231	9999-12-31	3
+20040229	2004-02-29	4
+20050628	2005-06-28	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_date` as signed) AS `CAST(my_date AS SIGNED INTEGER)`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2871,15 +2800,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 76 OR select_id IS NULL);
 CAST(my_date AS SIGNED INTEGER)	my_date	id
 NULL	NULL	1
-1	0001-01-01	2
-9999	9999-12-31	3
-2004	2004-02-29	4
-2005	2005-06-28	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28'
+10101	0001-01-01	2
+99991231	9999-12-31	3
+20040229	2004-02-29	4
+20050628	2005-06-28	5
 DROP VIEW v1;
 
 
@@ -2890,15 +2814,10 @@ my_datetime, id FROM t1_values
 WHERE select_id = 75 OR select_id IS NULL;
 CAST(my_datetime AS SIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
-1	0001-01-01 00:00:00	2
-9999	9999-12-31 23:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+10101000000	0001-01-01 00:00:00	2
+99991231235959	9999-12-31 23:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_datetime` as signed) AS `CAST(my_datetime AS SIGNED INTEGER)`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`
@@ -2907,15 +2826,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 75 OR select_id IS NULL);
 CAST(my_datetime AS SIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
-1	0001-01-01 00:00:00	2
-9999	9999-12-31 23:59:59	3
-2004	2004-02-29 23:59:59	4
-2005	2005-06-28 10:00:00	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '0001-01-01 00:00:00'
-Warning	1292	Truncated incorrect INTEGER value: '9999-12-31 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2004-02-29 23:59:59'
-Warning	1292	Truncated incorrect INTEGER value: '2005-06-28 10:00:00'
+10101000000	0001-01-01 00:00:00	2
+99991231235959	9999-12-31 23:59:59	3
+20040229235959	2004-02-29 23:59:59	4
+20050628100000	2005-06-28 10:00:00	5
 DROP VIEW v1;
 
 
@@ -2926,8 +2840,8 @@ my_decimal, id FROM t1_values
 WHERE select_id = 74 OR select_id IS NULL;
 CAST(my_decimal AS SIGNED INTEGER)	my_decimal	id
 NULL	NULL	1
--10000000000000000	-9999999999999999999999999999999999.999999999999999999999999999999	2
-10000000000000000	9999999999999999999999999999999999.999999999999999999999999999999	3
+-9223372036854775808	-9999999999999999999999999999999999.999999999999999999999999999999	2
+9223372036854775807	9999999999999999999999999999999999.999999999999999999999999999999	3
 0	0.000000000000000000000000000000	4
 -1	-1.000000000000000000000000000000	5
 Warnings:
@@ -2941,8 +2855,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 74 OR select_id IS NULL);
 CAST(my_decimal AS SIGNED INTEGER)	my_decimal	id
 NULL	NULL	1
--10000000000000000	-9999999999999999999999999999999999.999999999999999999999999999999	2
-10000000000000000	9999999999999999999999999999999999.999999999999999999999999999999	3
+-9223372036854775808	-9999999999999999999999999999999999.999999999999999999999999999999	2
+9223372036854775807	9999999999999999999999999999999999.999999999999999999999999999999	3
 0	0.000000000000000000000000000000	4
 -1	-1.000000000000000000000000000000	5
 Warnings:
@@ -3115,12 +3029,12 @@ Warning	1292	Truncated incorrect INTEGER value: ' ---‰÷¸ﬂ@µ*$--'
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_year AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_year AS DECIMAL(37,2)),
 my_year, id FROM t1_values;
-SELECT CAST(my_year AS DECIMAL),
+SELECT CAST(my_year AS DECIMAL(37,2)),
 my_year, id FROM t1_values
 WHERE select_id = 68 OR select_id IS NULL;
-CAST(my_year AS DECIMAL)	my_year	id
+CAST(my_year AS DECIMAL(37,2))	my_year	id
 NULL	NULL	1
 1901.00	1901	2
 2155.00	2155	3
@@ -3128,11 +3042,11 @@ NULL	NULL	1
 2005.00	2005	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as decimal) AS `CAST(my_year AS DECIMAL)`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as decimal(37,2)) AS `CAST(my_year AS DECIMAL(37,2))`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 68 OR select_id IS NULL);
-CAST(my_year AS DECIMAL)	my_year	id
+CAST(my_year AS DECIMAL(37,2))	my_year	id
 NULL	NULL	1
 1901.00	1901	2
 2155.00	2155	3
@@ -3141,12 +3055,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_time AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_time AS DECIMAL(37,2)),
 my_time, id FROM t1_values;
-SELECT CAST(my_time AS DECIMAL),
+SELECT CAST(my_time AS DECIMAL(37,2)),
 my_time, id FROM t1_values
 WHERE select_id = 67 OR select_id IS NULL;
-CAST(my_time AS DECIMAL)	my_time	id
+CAST(my_time AS DECIMAL(37,2))	my_time	id
 NULL	NULL	1
 -8385959.00	-838:59:59	2
 8385959.00	838:59:59	3
@@ -3154,11 +3068,11 @@ NULL	NULL	1
 100000.00	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as decimal) AS `CAST(my_time AS DECIMAL)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as decimal(37,2)) AS `CAST(my_time AS DECIMAL(37,2))`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 67 OR select_id IS NULL);
-CAST(my_time AS DECIMAL)	my_time	id
+CAST(my_time AS DECIMAL(37,2))	my_time	id
 NULL	NULL	1
 -8385959.00	-838:59:59	2
 8385959.00	838:59:59	3
@@ -3167,12 +3081,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_timestamp AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_timestamp AS DECIMAL(37,2)),
 my_timestamp, id FROM t1_values;
-SELECT CAST(my_timestamp AS DECIMAL),
+SELECT CAST(my_timestamp AS DECIMAL(37,2)),
 my_timestamp, id FROM t1_values
 WHERE select_id = 66 OR select_id IS NULL;
-CAST(my_timestamp AS DECIMAL)	my_timestamp	id
+CAST(my_timestamp AS DECIMAL(37,2))	my_timestamp	id
 0.00	0000-00-00 00:00:00	1
 19700101030001.00	1970-01-01 03:00:01	2
 20380101025959.00	2038-01-01 02:59:59	3
@@ -3180,11 +3094,11 @@ CAST(my_timestamp AS DECIMAL)	my_timestamp	id
 20050628100000.00	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_timestamp` as decimal) AS `CAST(my_timestamp AS DECIMAL)`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_timestamp` as decimal(37,2)) AS `CAST(my_timestamp AS DECIMAL(37,2))`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 66 OR select_id IS NULL);
-CAST(my_timestamp AS DECIMAL)	my_timestamp	id
+CAST(my_timestamp AS DECIMAL(37,2))	my_timestamp	id
 0.00	0000-00-00 00:00:00	1
 19700101030001.00	1970-01-01 03:00:01	2
 20380101025959.00	2038-01-01 02:59:59	3
@@ -3193,12 +3107,12 @@ CAST(my_timestamp AS DECIMAL)	my_timestamp	id
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_date AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_date AS DECIMAL(37,2)),
 my_date, id FROM t1_values;
-SELECT CAST(my_date AS DECIMAL),
+SELECT CAST(my_date AS DECIMAL(37,2)),
 my_date, id FROM t1_values
 WHERE select_id = 65 OR select_id IS NULL;
-CAST(my_date AS DECIMAL)	my_date	id
+CAST(my_date AS DECIMAL(37,2))	my_date	id
 NULL	NULL	1
 10101.00	0001-01-01	2
 99991231.00	9999-12-31	3
@@ -3206,11 +3120,11 @@ NULL	NULL	1
 20050628.00	2005-06-28	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_date` as decimal) AS `CAST(my_date AS DECIMAL)`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_date` as decimal(37,2)) AS `CAST(my_date AS DECIMAL(37,2))`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 65 OR select_id IS NULL);
-CAST(my_date AS DECIMAL)	my_date	id
+CAST(my_date AS DECIMAL(37,2))	my_date	id
 NULL	NULL	1
 10101.00	0001-01-01	2
 99991231.00	9999-12-31	3
@@ -3219,12 +3133,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_datetime AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_datetime AS DECIMAL(37,2)),
 my_datetime, id FROM t1_values;
-SELECT CAST(my_datetime AS DECIMAL),
+SELECT CAST(my_datetime AS DECIMAL(37,2)),
 my_datetime, id FROM t1_values
 WHERE select_id = 64 OR select_id IS NULL;
-CAST(my_datetime AS DECIMAL)	my_datetime	id
+CAST(my_datetime AS DECIMAL(37,2))	my_datetime	id
 NULL	NULL	1
 10101000000.00	0001-01-01 00:00:00	2
 99991231235959.00	9999-12-31 23:59:59	3
@@ -3232,11 +3146,11 @@ NULL	NULL	1
 20050628100000.00	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_datetime` as decimal) AS `CAST(my_datetime AS DECIMAL)`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_datetime` as decimal(37,2)) AS `CAST(my_datetime AS DECIMAL(37,2))`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 64 OR select_id IS NULL);
-CAST(my_datetime AS DECIMAL)	my_datetime	id
+CAST(my_datetime AS DECIMAL(37,2))	my_datetime	id
 NULL	NULL	1
 10101000000.00	0001-01-01 00:00:00	2
 99991231235959.00	9999-12-31 23:59:59	3
@@ -3245,12 +3159,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_decimal AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_decimal AS DECIMAL(37,2)),
 my_decimal, id FROM t1_values;
-SELECT CAST(my_decimal AS DECIMAL),
+SELECT CAST(my_decimal AS DECIMAL(37,2)),
 my_decimal, id FROM t1_values
 WHERE select_id = 63 OR select_id IS NULL;
-CAST(my_decimal AS DECIMAL)	my_decimal	id
+CAST(my_decimal AS DECIMAL(37,2))	my_decimal	id
 NULL	NULL	1
 -10000000000000000000000000000000000.00	-9999999999999999999999999999999999.999999999999999999999999999999	2
 10000000000000000000000000000000000.00	9999999999999999999999999999999999.999999999999999999999999999999	3
@@ -3258,11 +3172,11 @@ NULL	NULL	1
 -1.00	-1.000000000000000000000000000000	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_decimal` as decimal) AS `CAST(my_decimal AS DECIMAL)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_decimal` as decimal(37,2)) AS `CAST(my_decimal AS DECIMAL(37,2))`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 63 OR select_id IS NULL);
-CAST(my_decimal AS DECIMAL)	my_decimal	id
+CAST(my_decimal AS DECIMAL(37,2))	my_decimal	id
 NULL	NULL	1
 -10000000000000000000000000000000000.00	-9999999999999999999999999999999999.999999999999999999999999999999	2
 10000000000000000000000000000000000.00	9999999999999999999999999999999999.999999999999999999999999999999	3
@@ -3271,12 +3185,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_bigint AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_bigint AS DECIMAL(37,2)),
 my_bigint, id FROM t1_values;
-SELECT CAST(my_bigint AS DECIMAL),
+SELECT CAST(my_bigint AS DECIMAL(37,2)),
 my_bigint, id FROM t1_values
 WHERE select_id = 62 OR select_id IS NULL;
-CAST(my_bigint AS DECIMAL)	my_bigint	id
+CAST(my_bigint AS DECIMAL(37,2))	my_bigint	id
 NULL	NULL	1
 -9223372036854775808.00	-9223372036854775808	2
 9223372036854775807.00	9223372036854775807	3
@@ -3284,11 +3198,11 @@ NULL	NULL	1
 -1.00	-1	5
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_bigint` as decimal) AS `CAST(my_bigint AS DECIMAL)`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_bigint` as decimal(37,2)) AS `CAST(my_bigint AS DECIMAL(37,2))`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 62 OR select_id IS NULL);
-CAST(my_bigint AS DECIMAL)	my_bigint	id
+CAST(my_bigint AS DECIMAL(37,2))	my_bigint	id
 NULL	NULL	1
 -9223372036854775808.00	-9223372036854775808	2
 9223372036854775807.00	9223372036854775807	3
@@ -3297,12 +3211,12 @@ NULL	NULL	1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_varbinary_1000 AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_varbinary_1000 AS DECIMAL(37,2)),
 my_varbinary_1000, id FROM t1_values;
-SELECT CAST(my_varbinary_1000 AS DECIMAL),
+SELECT CAST(my_varbinary_1000 AS DECIMAL(37,2)),
 my_varbinary_1000, id FROM t1_values
 WHERE select_id = 61 OR select_id IS NULL;
-CAST(my_varbinary_1000 AS DECIMAL)	my_varbinary_1000	id
+CAST(my_varbinary_1000 AS DECIMAL(37,2))	my_varbinary_1000	id
 NULL	NULL	1
 0.00		2
 0.00	<---------1000 characters-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->	3
@@ -3315,11 +3229,11 @@ Error	1366	Incorrect decimal value: '' for column '' at row -1
 Error	1366	Incorrect decimal value: '' for column '' at row -1
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as decimal) AS `CAST(my_varbinary_1000 AS DECIMAL)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as decimal(37,2)) AS `CAST(my_varbinary_1000 AS DECIMAL(37,2))`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 61 OR select_id IS NULL);
-CAST(my_varbinary_1000 AS DECIMAL)	my_varbinary_1000	id
+CAST(my_varbinary_1000 AS DECIMAL(37,2))	my_varbinary_1000	id
 NULL	NULL	1
 0.00		2
 0.00	<---------1000 characters-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->	3
@@ -3333,12 +3247,12 @@ Error	1366	Incorrect decimal value: '' for column '' at row -1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_binary_30 AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_binary_30 AS DECIMAL(37,2)),
 my_binary_30, id FROM t1_values;
-SELECT CAST(my_binary_30 AS DECIMAL),
+SELECT CAST(my_binary_30 AS DECIMAL(37,2)),
 my_binary_30, id FROM t1_values
 WHERE select_id = 60 OR select_id IS NULL;
-CAST(my_binary_30 AS DECIMAL)	my_binary_30	id
+CAST(my_binary_30 AS DECIMAL(37,2))	my_binary_30	id
 NULL	NULL	1
 0.00	                              	2
 0.00	<--------30 characters------->	3
@@ -3356,11 +3270,11 @@ Warning	1292	Truncated incorrect DECIMAL value: '-1'
 Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as decimal) AS `CAST(my_binary_30 AS DECIMAL)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as decimal(37,2)) AS `CAST(my_binary_30 AS DECIMAL(37,2))`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 60 OR select_id IS NULL);
-CAST(my_binary_30 AS DECIMAL)	my_binary_30	id
+CAST(my_binary_30 AS DECIMAL(37,2))	my_binary_30	id
 NULL	NULL	1
 0.00	                              	2
 0.00	<--------30 characters------->	3
@@ -3379,12 +3293,12 @@ Warning	1292	Truncated incorrect DECIMAL value: '-3333.3333'
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_varchar_1000 AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_varchar_1000 AS DECIMAL(37,2)),
 my_varchar_1000, id FROM t1_values;
-SELECT CAST(my_varchar_1000 AS DECIMAL),
+SELECT CAST(my_varchar_1000 AS DECIMAL(37,2)),
 my_varchar_1000, id FROM t1_values
 WHERE select_id = 59 OR select_id IS NULL;
-CAST(my_varchar_1000 AS DECIMAL)	my_varchar_1000	id
+CAST(my_varchar_1000 AS DECIMAL(37,2))	my_varchar_1000	id
 NULL	NULL	1
 0.00		2
 0.00	<---------1000 characters-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->	3
@@ -3397,11 +3311,11 @@ Error	1366	Incorrect decimal value: '' for column '' at row -1
 Error	1366	Incorrect decimal value: '' for column '' at row -1
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as decimal) AS `CAST(my_varchar_1000 AS DECIMAL)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as decimal(37,2)) AS `CAST(my_varchar_1000 AS DECIMAL(37,2))`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 59 OR select_id IS NULL);
-CAST(my_varchar_1000 AS DECIMAL)	my_varchar_1000	id
+CAST(my_varchar_1000 AS DECIMAL(37,2))	my_varchar_1000	id
 NULL	NULL	1
 0.00		2
 0.00	<---------1000 characters-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->	3
@@ -3415,12 +3329,12 @@ Error	1366	Incorrect decimal value: '' for column '' at row -1
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT CAST(my_char_30 AS DECIMAL),
+CREATE VIEW v1 AS SELECT CAST(my_char_30 AS DECIMAL(37,2)),
 my_char_30, id FROM t1_values;
-SELECT CAST(my_char_30 AS DECIMAL),
+SELECT CAST(my_char_30 AS DECIMAL(37,2)),
 my_char_30, id FROM t1_values
 WHERE select_id = 58 OR select_id IS NULL;
-CAST(my_char_30 AS DECIMAL)	my_char_30	id
+CAST(my_char_30 AS DECIMAL(37,2))	my_char_30	id
 NULL	NULL	1
 0.00		2
 0.00	<--------30 characters------->	3
@@ -3436,11 +3350,11 @@ Error	1366	Incorrect decimal value: '' for column '' at row -1
 Warning	1292	Truncated incorrect DECIMAL value: ' ---‰÷¸ﬂ@µ*$--           '
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as decimal) AS `CAST(my_char_30 AS DECIMAL)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as decimal(37,2)) AS `CAST(my_char_30 AS DECIMAL(37,2))`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 58 OR select_id IS NULL);
-CAST(my_char_30 AS DECIMAL)	my_char_30	id
+CAST(my_char_30 AS DECIMAL(37,2))	my_char_30	id
 NULL	NULL	1
 0.00		2
 0.00	<--------30 characters------->	3
