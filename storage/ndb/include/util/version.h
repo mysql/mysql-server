@@ -19,6 +19,7 @@
 #include <ndb_version.h>
 
 /* some backwards compatible macros */
+#define MAKE_VERSION(A,B,C) NDB_MAKE_VERSION(A,B,C)
 #define getMajor(a) ndbGetMajor(a)
 #define getMinor(a) ndbGetMinor(a)
 #define getBuild(a) ndbGetBuild(a)
