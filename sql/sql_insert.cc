@@ -560,6 +560,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   int error, res;
   bool transactional_table, joins_freed= FALSE;
   bool changed;
+  bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -859,14 +860,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
     transactional_table= table->file->has_transactions();
 
-    if ((changed= (info.copied || info.deleted || info.updated)))
+    if ((changed= (info.copied || info.deleted || info.updated)) ||
+        was_insert_delayed)
     {
       /*
         Invalidate the table in the query cache if something changed.
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      query_cache_invalidate3(thd, table_list, 1);
+      if (changed)
+        query_cache_invalidate3(thd, table_list, 1);
       if (error <= 0 || !transactional_table)
       {
         if (mysql_bin_log.is_open())
@@ -904,7 +907,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           if (mysql_bin_log.write(&qinfo) && transactional_table)
             error=1;
         }
-        if (!transactional_table)
+        if (!transactional_table && changed)
           thd->no_trans_update.all= TRUE;
       }
     }
