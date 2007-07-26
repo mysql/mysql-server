@@ -10224,7 +10224,8 @@ SHOW FIELDS  FROM v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 CHECK TABLE v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	Table 'test.v1' doesn't exist
+test.v1	check	Error	Table 'test.v1' doesn't exist
+test.v1	check	error	Corrupt
 DESCRIBE v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 EXPLAIN SELECT * FROM v1;
