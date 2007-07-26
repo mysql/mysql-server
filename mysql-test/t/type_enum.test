@@ -200,4 +200,24 @@ CREATE TABLE t2 SELECT * FROM t1;
 SELECT c1 + 0 FROM t2;
 
 DROP TABLE t1,t2;
+
+#
+# Bug#29661: Lookup by 0 for a primary index over a enum type  
+#
+
+CREATE TABLE t1(a enum('a','b','c','d'));
+INSERT INTO t1 VALUES (4),(1),(0),(3);
+
+SELECT a FROM t1;
+
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+SELECT a FROM t1 WHERE a=0;
+
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+SELECT a FROM t1 WHERE a=0;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
