@@ -289,7 +289,7 @@ typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
                                      struct st_translog_parts *parts);
 
 typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
-                                    TRN *trn,
+                                    TRN *trn, struct st_maria_share *share,
                                     LSN *lsn,
                                     struct st_translog_parts *parts);
 
@@ -309,6 +309,11 @@ enum record_class
 
 /* C++ can't bear that a variable's name is "class" */
 #ifndef __cplusplus
+
+enum enum_record_in_group {
+  LOGREC_NOT_LAST_IN_GROUP= 0, LOGREC_LAST_IN_GROUP, LOGREC_IS_GROUP_ITSELF
+};
+
 /*
   Descriptor of log record type
   Note: Don't reorder because of constructs later...
@@ -338,7 +343,7 @@ typedef struct st_log_record_type_descriptor
   /*  the rest is for maria_read_log & Recovery */
   /** @brief for debug error messages or "maria_read_log" command-line tool */
   const char *name;
-  my_bool record_ends_group;
+  enum enum_record_in_group record_in_group;
   /* a function to execute when we see the record during the REDO phase */
   int (*record_execute_in_redo_phase)(const TRANSLOG_HEADER_BUFFER *);
   /* a function to execute when we see the record during the UNDO phase */

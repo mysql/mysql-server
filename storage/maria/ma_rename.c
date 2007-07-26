@@ -62,8 +62,8 @@ int maria_rename(const char *old_name, const char *new_name)
     this is important; make sure transactionality has been re-enabled.
   */
   DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
-  sync_dir= (share->now_transactional && !share->temporary) ?
-    MY_SYNC_DIR : 0;
+  sync_dir= (share->now_transactional && !share->temporary &&
+             !maria_in_recovery) ? MY_SYNC_DIR : 0;
   if (sync_dir)
   {
     uchar log_data[2 + 2];

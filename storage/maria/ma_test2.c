@@ -47,7 +47,7 @@ static void copy_key(struct st_maria_info *info,uint inx,
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
             rec_pointer_size=0,pack_fields=1,silent=0,
-            opt_quick_mode=0, transactional= 0;
+            opt_quick_mode=0, transactional= 0, skip_update= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0;
 static ulong pagecache_size=IO_SIZE*16;
@@ -84,7 +84,24 @@ int main(int argc, char *argv[])
   if (! async_io)
     my_disable_async_io=1;
 
-  maria_init();
+  maria_data_root= ".";
+  /* Maria requires that we always have a page cache */
+  if (maria_init() ||
+      (init_pagecache(maria_pagecache, pagecache_size, 0, 0,
+		      maria_block_size) == 0) ||
+      ma_control_file_create_or_open(TRUE) ||
+      (init_pagecache(maria_log_pagecache,
+		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+		      TRANSLOG_PAGE_SIZE) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+		    0, 0, maria_log_pagecache,
+		    TRANSLOG_DEFAULT_FLAGS) ||
+      (transactional && trnman_init()))
+  {
+    fprintf(stderr, "Error in initialization");
+    exit(1);
+  }
+
   reclength=STANDARD_LENGTH+60+(use_blob ? 8 : 0);
   blob_pos=STANDARD_LENGTH+60;
   keyinfo[0].seg= &glob_keyseg[0][0];
@@ -220,22 +237,6 @@ int main(int argc, char *argv[])
     goto err;
   if (!silent)
     printf("- Writing key:s\n");
-  maria_data_root= ".";
-  /* Maria requires that we always have a page cache */
-  if ((init_pagecache(maria_pagecache, pagecache_size, 0, 0,
-		      maria_block_size) == 0) ||
-      ma_control_file_create_or_open(TRUE) ||
-      (init_pagecache(maria_log_pagecache,
-		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
-		      TRANSLOG_PAGE_SIZE) == 0) ||
-      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
-		    0, 0, maria_log_pagecache,
-		    TRANSLOG_DEFAULT_FLAGS))
-  {
-    fprintf(stderr, "Error in initialization");
-    exit(1);
-  }
-
   if (locking)
     maria_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -246,6 +247,14 @@ int main(int argc, char *argv[])
   for (i=0 ; i < recant ; i++)
   {
     ulong blob_length;
+#if 0
+    /*
+      Starting from i==72, there was a difference between runtime and
+      log-appplying. This is now fixed, by not using non_header_data_len in
+      log-applying.
+    */
+    if (i == 72) goto end;
+#endif
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
     sprintf(record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
     int4store(record+STANDARD_LENGTH-4,(long) i);
@@ -260,7 +269,7 @@ int main(int argc, char *argv[])
 	printf("Error: %d in write at record: %d\n",my_errno,i);
 	goto err;
       }
-      if (verbose) printf("   Double key: %d\n",n3);
+      if (verbose) printf("   Double key: %d at record# %d\n", n3, i);
     }
     else
     {
@@ -294,7 +303,7 @@ int main(int argc, char *argv[])
     if (maria_extra(file,HA_EXTRA_NO_CACHE,0))
     {
       puts("got error from maria_extra(HA_EXTRA_NO_CACHE)");
-      goto end;
+      goto err;
     }
   }
 #ifdef REMOVE_WHEN_WE_HAVE_RESIZE
@@ -376,6 +385,8 @@ int main(int argc, char *argv[])
 	else
 	  bmove(record+blob_pos,read_record+blob_pos,8);
       }
+      if (skip_update)
+        continue;
       if (maria_update(file,read_record,record2))
       {
 	if (my_errno != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
@@ -423,7 +434,7 @@ int main(int argc, char *argv[])
     if (memcmp(read_record,read_record2,reclength) != 0)
     {
       printf("maria_rsame didn't find same record\n");
-      goto end;
+      goto err;
     }
     info.recpos=maria_position(file);
     if (maria_rfirst(file,read_record2,0) ||
@@ -431,7 +442,7 @@ int main(int argc, char *argv[])
 	memcmp(read_record,read_record2,reclength) != 0)
     {
       printf("maria_rsame_with_pos didn't find same record\n");
-      goto end;
+      goto err;
     }
     {
       info.recpos= maria_position(file);
@@ -442,7 +453,7 @@ int main(int argc, char *argv[])
           info.recpos != maria_position(file))
       {
 	printf("maria_rsame_with_pos lost position\n");
-	goto end;
+	goto err;
       }
     }
     ant=1;
@@ -451,7 +462,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys)
     {
       printf("next: Found: %d keys of %d\n",ant,dupp_keys);
-      goto end;
+      goto err;
     }
     ant=0;
     while (maria_rprev(file,read_record3,0) == 0 &&
@@ -459,7 +470,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys)
     {
       printf("prev: Found: %d records of %d\n",ant,dupp_keys);
-      goto end;
+      goto err;
     }
 
     /* Check of maria_rnext_same */
@@ -471,7 +482,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys || my_errno != HA_ERR_END_OF_FILE)
     {
       printf("maria_rnext_same: Found: %d records of %d\n",ant,dupp_keys);
-      goto end;
+      goto err;
     }
   }
 
@@ -482,7 +493,7 @@ int main(int argc, char *argv[])
   if (maria_rfirst(file,read_record,0))
   {
     printf("Can't find first record\n");
-    goto end;
+    goto err;
   }
   while ((error=maria_rnext(file,read_record3,0)) == 0 && ant < write_count+10)
     ant++;
@@ -490,7 +501,7 @@ int main(int argc, char *argv[])
   {
     printf("next: I found: %d records of %d (error: %d)\n",
 	   ant, write_count - opt_delete, error);
-    goto end;
+    goto err;
   }
   if (maria_rlast(file,read_record2,0) ||
       bcmp(read_record2,read_record3,reclength))
@@ -498,7 +509,7 @@ int main(int argc, char *argv[])
     printf("Can't find last record\n");
     DBUG_DUMP("record2",(byte*) read_record2,reclength);
     DBUG_DUMP("record3",(byte*) read_record3,reclength);
-    goto end;
+    goto err;
   }
   ant=1;
   while (maria_rprev(file,read_record3,0) == 0 && ant < write_count+10)
@@ -506,12 +517,12 @@ int main(int argc, char *argv[])
   if (ant != write_count - opt_delete)
   {
     printf("prev: I found: %d records of %d\n",ant,write_count);
-    goto end;
+    goto err;
   }
   if (bcmp(read_record,read_record3,reclength))
   {
     printf("Can't find first record\n");
-    goto end;
+    goto err;
   }
 
   if (!silent)
@@ -552,7 +563,7 @@ int main(int argc, char *argv[])
     if (bcmp(read_record+start,key,(uint) i))
     {
       puts("Didn't find right record");
-      goto end;
+      goto err;
     }
   }
   if (dupp_keys > 2)
@@ -570,7 +581,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys-1)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-1);
-      goto end;
+      goto err;
     }
   }
   if (dupp_keys>4)
@@ -588,7 +599,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys-2)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-2);
-      goto end;
+      goto err;
     }
   }
   if (dupp_keys > 6)
@@ -607,7 +618,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys-3)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-3);
-      goto end;
+      goto err;
     }
 
     if (!silent)
@@ -622,7 +633,7 @@ int main(int argc, char *argv[])
     if (ant != dupp_keys-4)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-4);
-      goto end;
+      goto err;
     }
   }
 
@@ -655,7 +666,7 @@ int main(int argc, char *argv[])
     if (bcmp(read_record,read_record2,reclength) != 0)
     {
       printf("maria_rsame didn't find same record\n");
-      goto end;
+      goto err;
     }
   }
   if (!silent)
@@ -682,7 +693,7 @@ int main(int argc, char *argv[])
     {
       printf("maria_records_range returned %ld; Should be about %ld\n",
 	     (long) range_records,(long) info.records);
-      goto end;
+      goto err;
     }
     if (verbose)
     {
@@ -719,7 +730,7 @@ int main(int argc, char *argv[])
       {
 	printf("maria_records_range for key: %d returned %lu; Should be about %lu\n",
 	       i, (ulong) range_records, (ulong) records);
-	goto end;
+	goto err;
       }
       if (verbose && records)
       {
@@ -740,6 +751,7 @@ int main(int argc, char *argv[])
     puts("Wrong info from maria_info");
     printf("Got: records: %lu  delete: %lu  i_keys: %d\n",
 	   (ulong) info.records, (ulong) info.deleted, info.keys);
+    goto err;
   }
   if (verbose)
   {
@@ -764,7 +776,7 @@ int main(int argc, char *argv[])
     if (locking || (!use_blob && !pack_fields))
     {
       puts("got error from maria_extra(HA_EXTRA_CACHE)");
-      goto end;
+      goto err;
     }
   }
   ant=0;
@@ -777,12 +789,12 @@ int main(int argc, char *argv[])
   {
     printf("scan with cache: I can only find: %d records of %d\n",
 	   ant,write_count-opt_delete);
-    goto end;
+    goto err;
   }
   if (maria_extra(file,HA_EXTRA_NO_CACHE,0))
   {
     puts("got error from maria_extra(HA_EXTRA_NO_CACHE)");
-    goto end;
+    goto err;
   }
 
   ant=0;
@@ -794,7 +806,7 @@ int main(int argc, char *argv[])
   {
     printf("scan with cache: I can only find: %d records of %d\n",
 	   ant,write_count-opt_delete);
-    goto end;
+    goto err;
   }
 
   if (testflag == 4)
@@ -852,6 +864,15 @@ int main(int argc, char *argv[])
 	goto err;
       }
       opt_delete++;
+#if 0
+      /
+      /*
+        179 is ok, 180 causes a difference between runtime and log-applying.
+        This is now fixed (we zero the last directory entry during
+        log-applying, just to eliminate this irrelevant difference).
+      */
+      if (opt_delete==180) goto end;
+#endif
     }
     else
       found_parts++;
@@ -1020,6 +1041,9 @@ static void get_options(int argc, char **argv)
       break;
     case 'D':
       create_flag|=HA_CREATE_DELAY_KEY_WRITE;
+      break;
+    case 'g':
+      skip_update= TRUE;
       break;
     case '?':
     case 'I':

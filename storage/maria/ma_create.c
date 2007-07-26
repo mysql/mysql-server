@@ -677,7 +677,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   /* max_data_file_length and max_key_file_length are recalculated on open */
   if (tmp_table)
     share.base.max_data_file_length= (my_off_t) ci->data_file_length;
-  else if (ci->transactional && translog_inited)
+  else if (ci->transactional && translog_inited && !maria_in_recovery)
   {
     /*
       we have checked translog_inited above, because maria_chk may call us
@@ -940,23 +940,31 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     for (i= TRANSLOG_INTERNAL_PARTS;
          i < (sizeof(log_array)/sizeof(log_array[0])); i++)
       total_rec_length+= log_array[i].length;
-    /*
-      For this record to be of any use for Recovery, we need the upper
-      MySQL layer to be crash-safe, which it is not now (that would require
-      work using the ddl_log of sql/sql_table.cc); when it is, we should
-      reconsider the moment of writing this log record (before or after op,
-      under THR_LOCK_maria or not...), how to use it in Recovery.
-      For now this record can serve when we apply logs to a backup,
-      so we sync it. This happens before the data file is created. If the data
-      file was created before, and we crashed before writing the log record,
-      at restart the table may be used, so we would not have a trustable
-      history in the log (impossible to apply this log to a backup). The way
-      we do it, if we crash before writing the log record then there is no
-      data file and the table cannot be used.
-      Note that in case of TRUNCATE TABLE we also come here.
-      When in CREATE/TRUNCATE (or DROP or RENAME or REPAIR) we have not called
-      external_lock(), so have no TRN. It does not matter, as all these
-      operations are non-transactional and sync their files.
+    /**
+       For this record to be of any use for Recovery, we need the upper
+       MySQL layer to be crash-safe, which it is not now (that would require
+       work using the ddl_log of sql/sql_table.cc); when it is, we should
+       reconsider the moment of writing this log record (before or after op,
+       under THR_LOCK_maria or not...), how to use it in Recovery.
+       For now this record can serve when we apply logs to a backup,
+       so we sync it. This happens before the data file is created. If the
+       data file was created before, and we crashed before writing the log
+       record, at restart the table may be used, so we would not have a
+       trustable history in the log (impossible to apply this log to a
+       backup). The way we do it, if we crash before writing the log record
+       then there is no data file and the table cannot be used.
+       @todo Note that in case of TRUNCATE TABLE we also come here; for
+       Recovery to be able to finish TRUNCATE TABLE, instead of leaving a
+       half-truncated table, we should log the record at start of
+       maria_create(); for that we shouldn't write to the index file but to a
+       buffer (DYNAMIC_STRING), put the buffer into the record, then put the
+       buffer into the index file (so, change _ma_keydef_write() etc). That
+       would also enable Recovery to finish a CREATE TABLE. The final result
+       would be that we would be able to finish what the SQL layer has asked
+       for: it would be atomic.
+       When in CREATE/TRUNCATE (or DROP or RENAME or REPAIR) we have not
+       called external_lock(), so have no TRN. It does not matter, as all
+       these operations are non-transactional and sync their files.
     */
     if (unlikely(translog_write_record(&share.state.create_rename_lsn,
                                        LOGREC_REDO_CREATE_TABLE,
@@ -1016,6 +1024,20 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       goto err;
     errpos=3;
 
+    /*
+      QQ: this sets data_file_length from 0 to 8192, but we wrote the state
+      already to the index file (because:
+      - log record is built from index header so state must be written before
+      log record
+      - data file must be created after log record, so that "missing log
+      record" implies "unusable table").
+      Thus, we below create a 8192-byte data file, but its recorded size is 0,
+      so next time we read the bitmap (a maria_write() for example) we'll
+      overwrite the bitmap we just created below.
+      It's not very efficient. Though there is no bug.
+      Why do we absolutely want to create a 8192-byte page for a freshly
+      created, empty table? Why don't we leave the data file empty?
+    */
     if (_ma_initialize_data_file(&share, dfile))
       goto err;
   }
@@ -1159,11 +1181,14 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 {
   if (share->data_file_type == BLOCK_RECORD)
   {
-    if (my_chsize(dfile, share->base.block_size, 0, MYF(MY_WME)))
-      return 1;
-    share->state.state.data_file_length= share->base.block_size;
-    _ma_bitmap_delete_all(share);
+    share->bitmap.block_size= share->base.block_size;
+    share->bitmap.file.file = dfile;
+    return _ma_bitmap_create_first(share);
   }
+  /*
+    So, in BLOCK_RECORD, a freshly created datafile is one page long; while in
+    other formats it is 0-byte long.
+  */
   return 0;
 }
 

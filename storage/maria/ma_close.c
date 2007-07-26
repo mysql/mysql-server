@@ -87,7 +87,7 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
         IF using --external-locking, which does not apply to Maria.
       */
-      if (share->mode != O_RDONLY && maria_is_crashed(info))
+      if (share->mode != O_RDONLY)
 	_ma_state_info_write(share->kfile.file, &share->state, 1);
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;

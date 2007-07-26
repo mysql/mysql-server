@@ -130,6 +130,7 @@
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
 
+/** all bitmap pages end with this 2-byte signature */
 uchar maria_bitmap_marker[2]= {(uchar) 'b',(uchar) 'm'};
 
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
@@ -244,7 +245,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
 
 
 /*
-  Flush bitmap to disk
+  Send updated bitmap to the page cache
 
   SYNOPSIS
     _ma_flush_bitmap()
@@ -286,7 +287,7 @@ my_bool _ma_flush_bitmap(MARIA_SHARE *share)
     share		Share handler
 
   NOTES
-    This is called on ma_delete_all (truncate data file).
+    This is called on maria_delete_all_rows (truncate data file).
 */
 
 void _ma_bitmap_delete_all(MARIA_SHARE *share)
@@ -294,8 +295,9 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   if (bitmap->map)                              /* Not in create */
   {
-    bzero(bitmap->map, share->block_size);
-    memcpy(bitmap->map + share->block_size - 2, maria_bitmap_marker, 2);
+    bzero(bitmap->map, bitmap->block_size);
+    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
+           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->changed= 1;
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
@@ -497,6 +499,10 @@ static void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap)
   TODO
     Update 'bitmap->used_size' to real size of used bitmap
 
+  NOTE
+    We don't always have share->bitmap.bitmap_lock here
+    (when called from_ma_check_bitmap_data() for example).
+
   RETURN
     0  ok
     1  error  (Error writing old bitmap or reading bitmap page)
@@ -516,7 +522,8 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   {
     share->state.state.data_file_length= position + bitmap->block_size;
     bzero(bitmap->map, bitmap->block_size);
-    memcpy(bitmap->map + share->block_size - 2, maria_bitmap_marker, 2);
+    memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
+           maria_bitmap_marker, sizeof(maria_bitmap_marker));
     bitmap->used_size= 0;
 #ifndef DBUG_OFF
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -525,11 +532,14 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   }
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
-  res= pagecache_read(share->pagecache,
-                      (PAGECACHE_FILE*)&bitmap->file, page, 0,
-                      (byte*) bitmap->map,
-                      PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0;
+  res= (pagecache_read(share->pagecache,
+                       (PAGECACHE_FILE*)&bitmap->file, page, 0,
+                       (byte*) bitmap->map,
+                       PAGECACHE_PLAIN_PAGE,
+                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL) |
+    memcmp(bitmap->map + bitmap->block_size -
+           sizeof(maria_bitmap_marker),
+           maria_bitmap_marker, sizeof(maria_bitmap_marker));
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -1630,9 +1640,16 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
-  if (fill_pattern != 3 && fill_pattern != 7 &&
-      bitmap_page < info->s->state.first_bitmap_with_space)
-    info->s->state.first_bitmap_with_space= bitmap_page;
+  if (fill_pattern != 3 && fill_pattern != 7)
+    set_if_smaller(info->s->state.first_bitmap_with_space, bitmap_page);
+  /*
+    Note that if the condition above is false (page is full), and all pages of
+    this bitmap are now full, and that bitmap page was
+    first_bitmap_with_space, we don't modify first_bitmap_with_space, indeed
+    its value still tells us where to start our search for a bitmap with space
+    (which is for sure after this full one).
+    That does mean that first_bitmap_with_space is only a lower bound.
+  */
   DBUG_RETURN(0);
 }
 
@@ -1747,8 +1764,7 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     tmp= (1 << bit_count) - 1;
     *data&= ~tmp;
   }
-  if (bitmap_page < info->s->state.first_bitmap_with_space)
-    info->s->state.first_bitmap_with_space= bitmap_page;
+  set_if_smaller(info->s->state.first_bitmap_with_space, bitmap_page);
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
   DBUG_RETURN(0);
@@ -2013,4 +2029,29 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
   }
   DBUG_ASSERT(0);
   return 1;
+}
+
+
+/**
+   @brief create the first bitmap page of a freshly created data file
+
+   @param  share           table's share
+
+   @return Operation status
+     @retval 0      OK
+     @retval !=0    Error
+*/
+
+int _ma_bitmap_create_first(MARIA_SHARE *share)
+{ 
+  uint block_size= share->bitmap.block_size;
+  File file= share->bitmap.file.file;
+  if (my_chsize(file, block_size, 0, MYF(MY_WME)) ||
+      my_pwrite(file, maria_bitmap_marker, sizeof(maria_bitmap_marker),
+                block_size - sizeof(maria_bitmap_marker),
+                MYF(MY_NABP | MY_WME)))
+    return 1;
+  share->state.state.data_file_length= block_size;
+  _ma_bitmap_delete_all(share);
+  return 0;
 }
