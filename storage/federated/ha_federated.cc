@@ -2831,6 +2831,7 @@ error:
     my_error(error_code, MYF(0), error_buffer);
   }
   else
+  if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
     my_error(error_code, MYF(0), ER(error_code));
