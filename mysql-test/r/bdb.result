@@ -136,8 +136,8 @@ update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102 order by parent_id,id;
 id	parent_id	level
 1008	102	2
-1010	102	2
 1015	102	2
+1010	102	2
 explain select level from t1 where level=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	level	level	1	const	X	Using index
