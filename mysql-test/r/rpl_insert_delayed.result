@@ -32,10 +32,12 @@ drop table t1;
 CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+flush table t1;
 show binlog events limit 11,100;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+x	x	x	x	x	use `test`; flush table t1
 select * from t1;
 a
 1
@@ -44,6 +46,7 @@ show binlog events limit 12,100;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+x	x	x	x	x	use `test`; flush table t1
 select * from t1;
 a
 1
