@@ -236,7 +236,7 @@ typedef uchar index_clause_map;
                              INDEX_HINT_MASK_ORDER)
 
 /* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
-class index_hint : public Sql_alloc
+class Index_hint : public Sql_alloc
 {
 public:
   /* The type of the hint : USE/FORCE/IGNORE */
@@ -249,7 +249,7 @@ public:
   */ 
   LEX_STRING key_name;
 
-  index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
+  Index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
               char *str, uint length) :
     type(type_arg), clause(clause_arg)
   {
@@ -441,7 +441,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
-					List<index_hint> *hints= 0,
+					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -719,7 +719,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
-				List<index_hint> *hints= 0,
+				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -779,9 +779,9 @@ public:
   /* make a list to hold index hints */
   void alloc_index_hints (THD *thd);
   /* read and clear the index hints */
-  List<index_hint>* pop_index_hints(void) 
+  List<Index_hint>* pop_index_hints(void) 
   {
-    List<index_hint> *hints= index_hints;
+    List<Index_hint> *hints= index_hints;
     index_hints= NULL;
     return hints;
   }
@@ -793,7 +793,7 @@ private:
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
-  List<index_hint> *index_hints;
+  List<Index_hint> *index_hints;
 };
 typedef class st_select_lex SELECT_LEX;
 
