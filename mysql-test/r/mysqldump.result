@@ -3573,6 +3573,28 @@ SELECT * FROM v1;
 1
 DROP VIEW v1;
 #
+# Bug #29788: mysqldump discards the NO_AUTO_VALUE_ON_ZERO value of
+#             the SQL_MODE variable after the dumping of triggers.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TRIGGER t1bd BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TABLE t2 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET @TMP_SQL_MODE = @@SQL_MODE;
+SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
+INSERT INTO t2 VALUES (0), (1), (2);
+SET SQL_MODE = @TMP_SQL_MODE;
+SELECT * FROM t2;
+c1
+0
+1
+2
+SELECT * FROM t2;
+c1
+0
+1
+2
+DROP TABLE t1,t2;
+#
 # End of 5.0 tests
 #
 drop table if exists t1;

@@ -814,6 +814,91 @@ create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
 drop table t1;
 
+#
+# Bug #28591: MySQL need not sort the records in case of ORDER BY
+# primary_key on InnoDB table
+#
+
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
+INSERT INTO t1 SELECT a + 8, 2 FROM t1;
+INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
+SELECT * FROM t1 WHERE b=2 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+
+CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
+  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
+INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
+INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
+SELECT * FROM t2 WHERE b=1 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+
+DROP TABLE t1,t2;
+
+
+#
+# Bug #29644: alter table hangs if records locked in share mode by long
+# running transaction
+#
+
+CREATE TABLE t1 (a INT, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a + 8  FROM t1;
+INSERT INTO t1 SELECT a + 16 FROM t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1 ()
+BEGIN
+  DECLARE i INT DEFAULT 50;
+  DECLARE cnt INT;
+  START TRANSACTION;
+    ALTER TABLE t1 ENGINE=InnoDB;
+  COMMIT;
+  START TRANSACTION;
+  WHILE (i > 0) DO
+    SET i = i - 1;
+    SELECT COUNT(*) INTO cnt FROM t1 LOCK IN SHARE MODE;
+  END WHILE;
+  COMMIT;
+END;|
+
+DELIMITER ;|
+
+CONNECT (con1,localhost,root,,);
+CONNECT (con2,localhost,root,,);
+
+CONNECTION con1;
+SEND CALL p1();
+CONNECTION con2;
+SEND CALL p1();
+CONNECTION default;
+CALL p1();
+
+CONNECTION con1;
+REAP;
+CONNECTION con2;
+REAP;
+CONNECTION default;
+DISCONNECT con1;
+DISCONNECT con2;
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 
