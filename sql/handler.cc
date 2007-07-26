@@ -2808,7 +2808,7 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 
 int ha_init_pagecache(const char *name, PAGECACHE *pagecache)
 {
-  DBUG_ENTER("ha_init_key_cache");
+  DBUG_ENTER("ha_init_pagecache");
 
   if (!pagecache->inited)
   {

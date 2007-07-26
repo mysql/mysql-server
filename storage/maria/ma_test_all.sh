@@ -6,6 +6,9 @@
 # If you want to run this in Valgrind, you should use --trace-children=yes,
 # so that it detects problems in ma_test* and not in the shell script
 
+# Running in a "shared memory" disk is 10 times faster; you can do
+# mkdir /dev/shm/test; cd /dev/shm/test; maria_path=<path_to_maria_binaries>
+
 # Remove # from following line if you need some more information
 #set -x -v -e
 
@@ -21,6 +24,7 @@ fi
 
 # Delete temporary files
 rm -f *.TMD
+rm -f maria_log*
 
 run_tests()
 {
@@ -211,7 +215,13 @@ echo "$maria_path/maria_chk$suffix -sm test2 will warn that 'Datafile is almost 
 $maria_path/maria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1
 cat ma_test2_message.txt
 grep "warning: Datafile is almost full" ma_test2_message.txt >/dev/null
+rm -f ma_test2_message.txt
 $maria_path/maria_chk$suffix -ssm test2
+
+#
+# Test that removing tables and applying the log leads to identical tables
+#
+/bin/sh $maria_path/ma_test_recovery
 
 #
 # Some timing tests

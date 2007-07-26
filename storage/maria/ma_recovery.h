@@ -22,4 +22,8 @@
 /* This is the interface of this module. */
 
 /* Performs recovery of the engine at start */
-int recovery();
+
+C_MODE_START
+int maria_recover();
+int maria_apply_log(LSN lsn, my_bool applyn, FILE *trace_file);
+C_MODE_END

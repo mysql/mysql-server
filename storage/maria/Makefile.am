@@ -30,8 +30,8 @@ DEFS =                  @DEFS@
 # "." is needed first because tests in unittest need libmaria
 SUBDIRS =		. unittest
 
-EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt plug.in
-pkgdata_DATA =		ma_test_all ma_test_all.res
+EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt plug.in ma_test_recovery
+pkgdata_DATA =		ma_test_all ma_test_all.res ma_test_recovery
 pkglib_LIBRARIES =	libmaria.a
 bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
@@ -61,7 +61,7 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_ft_eval.h trnman.h lockman.h tablockman.h \
 			ma_control_file.h ha_maria.h ma_blockrec.h \
 			ma_loghandler.h ma_loghandler_lsn.h ma_pagecache.h \
-			ma_commit.h
+			ma_recovery.h ma_commit.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
@@ -120,7 +120,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c \
 			ma_sp_key.c ma_control_file.c ma_loghandler.c \
 			ma_pagecache.c ma_pagecaches.c \
-			ma_commit.c
+			ma_recovery.c ma_commit.c
 CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA?
 
 SUFFIXES = .sh

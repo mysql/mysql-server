@@ -105,8 +105,6 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 /* Don't allocate memory for too many row extents on the stack */
 #define ROW_EXTENTS_ON_STACK	32
 
-extern uchar maria_bitmap_marker[2];
-
 /* Functions to convert MARIA_RECORD_POS to/from page:offset */
 
 static inline MARIA_RECORD_POS ma_recordpos(ulonglong page, uint dir_entry)
@@ -178,6 +176,7 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        ulonglong page,
                                        uint *bitmap_pattern);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
+int  _ma_bitmap_create_first(MARIA_SHARE *share);
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
                                             const uchar *header,
@@ -186,3 +185,5 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
 uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            uint page_type,
                                            const uchar *header);
+uint _ma_apply_redo_purge_blocks(MARIA_HA *info, LSN lsn,
+                                 const uchar *header);

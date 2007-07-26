@@ -398,7 +398,8 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
       File must be synced as it is going out of the maria_open_list and so
       becoming unknown to Checkpoint.
     */
-    if (my_sync(share->bitmap.file.file, MYF(MY_WME)) ||
+    if ((share->now_transactional &&
+         my_sync(share->bitmap.file.file, MYF(MY_WME))) ||
         my_close(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
     /*
@@ -1455,9 +1456,6 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
 
 static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
 {
-  uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
-                 ROW_EXTENT_SIZE];
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
   my_bool res= 0;
 
   if (pagecache_delete_pages(info->s->pagecache, &info->dfile,
@@ -1467,12 +1465,16 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
   if (info->s->now_transactional)
   {
     LSN lsn;
+    /** @todo unify log_data's shape with delete_head_or_tail() */
+    uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
+                   ROW_EXTENT_SIZE];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     DBUG_ASSERT(info->trn->rec_lsn);
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
-    int5store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
+    page_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
               page);
-    int2store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE + 5,
-              count);
+    int2store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
+              PAGE_STORE_SIZE, count);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
@@ -1967,8 +1969,8 @@ static my_bool write_block_record(MARIA_HA *info,
             ((last_head_block - head_block) - 2) * ROW_EXTENT_SIZE;
         }
         DBUG_ASSERT(uint2korr(extent_data+5) & TAIL_BIT);
-        int5store(extent_data, head_tail_block->page);
-        int2store(extent_data + 5, head_tail_block->page_count);
+        page_store(extent_data, head_tail_block->page);
+        int2store(extent_data + PAGE_STORE_SIZE, head_tail_block->page_count);
       }
     }
     else
@@ -2225,7 +2227,11 @@ disk_err:
      and this hook will mark the table corrupted.
      Maybe hook should be stored in the pagecache's block structure, or in a
      hash "file->maria_ha*".
-  */
+
+     @todo RECOVERY we should distinguish below between log write error and
+     table write error. The former should stop Maria immediately, the latter
+     should mark the table corrupted.
+ */
   /* Unpin all pinned pages to not cause problems for disk cache */
   _ma_unpin_all_pages(info, 0);
 
@@ -2340,7 +2346,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   {
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[LSN_STORE_SIZE];
+    uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
 
     /*
       Write UNDO record
@@ -2351,16 +2357,28 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
     */
     /**
        @todo RECOVERY BUG
-       We will soon change that: we will here execute the UNDO records
-       generated while we were trying to write the row; this will log some
-       CLRs which will replace this LOGREC_UNDO_PURGE.
+       We do need the code above (delete_head_or_tail() etc) for
+       non-transactional tables.
+       For transactional tables we can either also use it or execute the
+       UNDO_INSERT. If we crash before this
+       _ma_write_abort_block_record(), Recovery will do the work of this
+       function by executing UNDO_INSERT.
+       For transactional tables, we will remove this LOGREC_UNDO_PURGE and
+       replace it with a LOGREC_CLR_END: we should go back the UNDO chain
+       until we reach the UNDO which inserted the row into the data file, and
+       use its previous_undo_lsn.
+       Same logic for when we remove inserted keys (in case of error in
+       maria_write(): we come to the present function only after removing the
+       inserted keys... as long as we unpin the key pages only after writing
+       the CLR_END, this would be recovery-safe...).
     */
     lsn_store(log_data, info->trn->undo_lsn);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (translog_write_record(&lsn, LOGREC_UNDO_ROW_PURGE,
-                              info->trn, NULL, sizeof(log_data),
-                              TRANSLOG_INTERNAL_PARTS + 1, log_array, NULL))
+                              info->trn, info->s, sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                              log_data + LSN_STORE_SIZE))
       res= 1;
   }
   _ma_unpin_all_pages(info, info->trn->undo_lsn);
@@ -2390,6 +2408,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   ulonglong page;
   struct st_row_pos_info row_pos;
   MARIA_SHARE *share= info->s;
+  my_bool res;
   DBUG_ENTER("_ma_update_block_record");
   DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
 
@@ -2486,8 +2505,8 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   row_pos.dir= dir;
   row_pos.data= buff + uint2korr(dir);
   row_pos.length= head_length;
-  DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks, 1,
-                                 &row_pos));
+  res= write_block_record(info, oldrec, record, new_row, blocks, 1, &row_pos);
+  DBUG_RETURN(res);
 
 err:
   _ma_unpin_all_pages(info, 0);
@@ -2609,7 +2628,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   res= delete_dir_entry(buff, block_size, record_number, &empty_space);
   if (res < 0)
     DBUG_RETURN(1);
-  if (res == 0)
+  if (res == 0) /* after our deletion, page is still not empty */
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
@@ -2637,14 +2656,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                         PAGECACHE_WRITE_DELAY, &page_link.link))
       DBUG_RETURN(1);
   }
-  else
+  else /* page is now empty */
   {
-    uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
-                   PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-
     if (info->s->now_transactional)
     {
+      uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
+                     PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE];
+      LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
       pagerange_store(log_data + FILEID_STORE_SIZE, 1);
       page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
       pagerange_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
@@ -2849,7 +2867,7 @@ static void init_extent(MARIA_EXTENT_CURSOR *extent, uchar *extent_info,
   uint page_count;
   extent->extent=       extent_info;
   extent->extent_count= extents;
-  extent->page=         uint5korr(extent_info);         /* First extent */
+  extent->page=         page_korr(extent_info);         /* First extent */
   page_count=           uint2korr(extent_info + ROW_EXTENT_PAGE_SIZE);
   extent->page_count=   page_count & ~TAIL_BIT;
   extent->tail=         page_count & TAIL_BIT;
@@ -2889,7 +2907,7 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
     if (!--extent->extent_count)
       goto crashed;
     extent->extent+=    ROW_EXTENT_SIZE;
-    extent->page=       uint5korr(extent->extent);
+    extent->page=       page_korr(extent->extent);
     page_count=         uint2korr(extent->extent+ROW_EXTENT_PAGE_SIZE);
     if (!page_count)
       goto crashed;
@@ -4123,15 +4141,21 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   uint      block_size= share->block_size;
   uint      rec_offset;
   uchar      *buff= info->keyread_buff, *dir;
-  DBUG_ENTER("_ma_apply_redo_insert_row_head");
+  DBUG_ENTER("_ma_apply_redo_insert_row_head_or_tail");
   
   info->keyread_buff_used= 1;
   page=  page_korr(header);
   rownr= dirpos_korr(header+PAGE_STORE_SIZE);
 
-  if (page * info->s->block_size > info->state->data_file_length)
+  if (((page + 1) * info->s->block_size) > info->state->data_file_length)
   {
-    /* New page at end of file */
+    /*
+      New page at end of file. Note that the test above is also positive if
+      data_file_length is not a multiple of block_size (system crashed while
+      writing the last page): in this case we just extend the last page and
+      fill it entirely with zeroes, then the REDO will put correct data on
+      it.
+    */
     DBUG_ASSERT(rownr == 0);
     if (rownr != 0)
       goto err;
@@ -4141,7 +4165,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     dir= buff+ block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE;
 
     /* Update that file is extended */
-    info->state->data_file_length= page * info->s->block_size;
+    info->state->data_file_length= (page + 1) * info->s->block_size;
   }
   else
   {
@@ -4294,8 +4318,6 @@ err:
     lsn			LSN to put on page		
     page_type		HEAD_PAGE or TAIL_PAGE
     header		Header (without FILEID)
-    data		Data to be put on page
-    data_length		Length of data
 
   NOTES
     This function is very similar to delete_head_or_tail()
@@ -4340,6 +4362,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   if (delete_dir_entry(buff, block_size, record_number, &empty_space) < 0)
     DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 
+  lsn_store(buff, lsn);
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
@@ -4353,4 +4376,92 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     DBUG_RETURN(my_errno);
 
   DBUG_RETURN(0);
+}
+
+
+/**
+   @brief Apply LOGREC_REDO_PURGE_BLOCKS
+
+   @param  info            Maria handler
+   @param  header          Header (without FILEID)
+
+   @note It marks the page free in the bitmap, and sets the directory's count
+   to 0.
+
+   @return Operation status
+     @retval 0      OK
+     @retval !=0    Error
+*/
+
+uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
+                                 LSN lsn, const byte *header)
+{
+  MARIA_SHARE *share= info->s;
+  ulonglong page;
+  uint      page_range;
+  uint      res;
+  byte      *buff= info->keyread_buff;
+  uint      block_size= share->block_size;
+  DBUG_ENTER("_ma_apply_redo_purge_blocks");
+
+  info->keyread_buff_used= 1;  
+  page_range= pagerange_korr(header);
+  /* works only for a one-page range for now */
+  DBUG_ASSERT(page_range == 1); // for now
+  header+= PAGERANGE_STORE_SIZE;
+  page= page_korr(header);
+  header+= PAGE_STORE_SIZE;
+  page_range= pagerange_korr(header);
+  DBUG_ASSERT(page_range == 1); // for now
+
+  if (!(buff= pagecache_read(share->pagecache,
+                             &info->dfile,
+                             page, 0,
+                             buff, PAGECACHE_PLAIN_PAGE,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+    DBUG_RETURN(my_errno);
+
+  if (lsn_korr(buff) >= lsn)
+  {
+    /* Already applied */
+    goto mark_free_in_bitmap;
+  }
+
+  buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
+
+  /*
+    Strictly speaking, we don't need to zero the last directory entry of this
+    page; setting the directory's count to zero is enough (it makes the last
+    directory entry invisible, irrelevant).
+    But as the "runtime" code (delete_head_or_tail()) called
+    delete_dir_entry() which zeroed the entry, if we don't do it here, we get
+    a difference between runtime and log-applying. Irrelevant, but it's
+    time-consuming to differentiate irrelevant differences from relevant
+    ones. So we remove the difference by zeroing the entry.
+  */
+  {
+    uint rownr= ((uint) ((uchar *) buff)[DIR_COUNT_OFFSET]) - 1;
+    byte *dir= (buff + block_size - DIR_ENTRY_SIZE * rownr -
+                DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
+    dir[0]= dir[1]= 0;                            /* Delete entry */
+  }
+
+  buff[DIR_COUNT_OFFSET]= 0;
+  
+  lsn_store(buff, lsn);
+  if (pagecache_write(share->pagecache,
+                      &info->dfile, page, 0,
+                      buff, PAGECACHE_PLAIN_PAGE,
+                      PAGECACHE_LOCK_LEFT_UNLOCKED,
+                      PAGECACHE_PIN_LEFT_UNPINNED,
+                      PAGECACHE_WRITE_DELAY, 0))
+    DBUG_RETURN(my_errno);
+
+mark_free_in_bitmap:
+  /** @todo leave bitmap lock to the bitmap code... */
+  pthread_mutex_lock(&share->bitmap.bitmap_lock);
+  res= _ma_reset_full_page_bits(info, &share->bitmap, page, 1);
+  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+
+  DBUG_RETURN(res);
 }

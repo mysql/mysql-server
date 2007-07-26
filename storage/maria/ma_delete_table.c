@@ -64,7 +64,8 @@ int maria_delete_table(const char *name)
     raid_type=      info->s->base.raid_type;
     raid_chunks=    info->s->base.raid_chunks;
 #endif
-    sync_dir= (info->s->now_transactional && !info->s->temporary) ?
+    sync_dir= (info->s->now_transactional && !info->s->temporary &&
+               !maria_in_recovery) ?
       MY_SYNC_DIR : 0;
     maria_close(info);
   }
@@ -85,7 +86,7 @@ int maria_delete_table(const char *name)
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)name;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= strlen(name);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= strlen(name) + 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DROP_TABLE,
                                        &dummy_transaction_object, NULL,
                                        log_array[TRANSLOG_INTERNAL_PARTS +

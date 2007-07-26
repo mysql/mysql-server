@@ -37,6 +37,15 @@
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
 #endif
 
+/**
+   @todo For now there is no way for a user to set a different value of
+   maria_recover_options, i.e. auto-check-and-repair is always disabled.
+   We could enable it. As the auto-repair is initiated when opened from the
+   SQL layer (open_unireg_entry(), check_and_repair()), it does not happen
+   when Maria's Recovery internally opens the table to apply log records to
+   it, which is good. It would happen only after Recovery, if the table is
+   still corrupted.
+*/
 ulong maria_recover_options= HA_RECOVER_NONE;
 static handlerton *maria_hton;
 
@@ -1867,6 +1876,10 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     corresponding unlock (they just stay locked and are later dropped while
     locked); if a tmp table was transactional, "SELECT FROM non_tmp, tmp"
     would never commit as its "locked_tables" count would stay 1.
+    When Maria has has_transactions()==TRUE, open_temporary_table()
+    (sql_base.cc) will use TRANSACTIONAL_TMP_TABLE and thus the
+    external_lock(F_UNLCK) will happen and we can then allow the user to
+    create transactional temporary tables.
   */
   if (!file->s->base.born_transactional)
     goto skip_transaction;

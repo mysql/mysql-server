@@ -51,6 +51,8 @@ uint32 last_logno=          FILENO_IMPOSSIBLE;
    it is called at startup.
 */
 my_bool maria_multi_threaded= FALSE;
+/** @brief if currently doing a recovery */
+my_bool maria_in_recovery= FALSE;
 
 /*
   Control file is less then  512 bytes (a disk sector),

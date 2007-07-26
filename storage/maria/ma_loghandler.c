@@ -181,10 +181,10 @@ static MARIA_SHARE **id_to_share= NULL;
 static my_atomic_rwlock_t LOCK_id_to_share;
 
 static my_bool write_hook_for_redo(enum translog_record_type type,
-                                   TRN *trn, LSN *lsn,
+                                   TRN *trn, MARIA_SHARE *share, LSN *lsn,
                                    struct st_translog_parts *parts);
 static my_bool write_hook_for_undo(enum translog_record_type type,
-                                   TRN *trn, LSN *lsn,
+                                   TRN *trn, MARIA_SHARE *share, LSN *lsn,
                                    struct st_translog_parts *parts);
 
 /*
@@ -197,27 +197,27 @@ LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE=
 {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0,
- "fixed0example", FALSE, NULL, NULL};
+ "fixed0example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, NULL, NULL, 0,
-"variable0example", FALSE, NULL, NULL};
+"variable0example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_1LSN_EXAMPLE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 7, 7, NULL, NULL, NULL, 1,
-"fixed1example", FALSE, NULL, NULL};
+"fixed1example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 12, NULL, NULL, NULL, 1,
-"variable1example", FALSE, NULL, NULL};
+"variable1example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_2LSN_EXAMPLE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 23, 23, NULL, NULL, NULL, 2,
-"fixed2example", FALSE, NULL, NULL};
+"fixed2example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 19, NULL, NULL, NULL, 2,
-"variable2example", FALSE, NULL, NULL};
+"variable2example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 
 void example_loghandler_init()
@@ -239,157 +239,172 @@ void example_loghandler_init()
 
 static LOG_DESC INIT_LOGREC_RESERVED_FOR_CHUNKS23=
 {LOGRECTYPE_NOT_ALLOWED, 0, 0, NULL, NULL, NULL, 0,
- "reserved", FALSE, NULL, NULL };
+ "reserved", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL };
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
  write_hook_for_redo, NULL, 0,
- "redo_insert_row_head", FALSE, NULL, NULL};
+ "redo_insert_row_head", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
  write_hook_for_redo, NULL, 0,
- "redo_insert_row_tail", FALSE, NULL, NULL};
+ "redo_insert_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
- "redo_insert_row_blob", FALSE, NULL, NULL};
+ "redo_insert_row_blob", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 /*QQQ:TODO:header???*/
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, FILEID_STORE_SIZE, NULL,
  write_hook_for_redo, NULL, 0,
- "redo_insert_row_blobs", FALSE, NULL, NULL};
+ "redo_insert_row_blobs", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_HEAD=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
- "redo_purge_row_head", FALSE, NULL, NULL};
+ "redo_purge_row_head", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
 {LOGRECTYPE_FIXEDLENGTH,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
- "redo_purge_row_tail", FALSE, NULL, NULL};
+ "redo_purge_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 /* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
 {LOGRECTYPE_VARIABLE_LENGTH,
- 0,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
+ PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
+ PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
- "redo_purge_blocks", FALSE, NULL, NULL};
+ "redo_purge_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
 {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
- "redo_delete_row", FALSE, NULL, NULL};
+ "redo_delete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_UPDATE_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
- "redo_update_row_head", FALSE, NULL, NULL};
+ "redo_update_row_head", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INDEX=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
- "redo_index", FALSE, NULL, NULL};
+ "redo_index", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
 {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
- "redo_undelete_row", FALSE, NULL, NULL};
+ "redo_undelete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CLR_END=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_redo, NULL, 1,
- "clr_end", TRUE, NULL, NULL};
+ "clr_end", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PURGE_END=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1,
- "purge_end", TRUE, NULL, NULL};
+ "purge_end", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
 {LOGRECTYPE_FIXEDLENGTH,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_undo, NULL, 0,
- "undo_row_insert", TRUE, NULL, NULL};
+ "undo_row_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_undo, NULL, 0,
- "undo_row_delete", TRUE, NULL, NULL};
+ "undo_row_delete", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_undo, NULL, 1,
- "undo_row_update", TRUE, NULL, NULL};
+ "undo_row_update", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE, LSN_STORE_SIZE,
- NULL, NULL, NULL, 1,
- "undo_row_purge", TRUE, NULL, NULL};
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE + FILEID_STORE_SIZE,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE,
+ NULL, write_hook_for_undo, NULL, 1,
+ "undo_row_purge", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1,
- "undo_key_insert", TRUE, NULL, NULL};
+ "undo_key_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 0,
- "undo_key_delete", TRUE, NULL, NULL}; // QQ: why not compressed?
+ "undo_key_delete", LOGREC_LAST_IN_GROUP, NULL, NULL}; // QQ: why not compressed?
 
 static LOG_DESC INIT_LOGREC_PREPARE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
- "prepare", TRUE, NULL, NULL};
+ "prepare", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PREPARE_WITH_UNDO_PURGE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1,
- "prepare_with_undo_purge", TRUE, NULL, NULL};
+ "prepare_with_undo_purge", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT=
-{LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL, NULL, NULL, 0,
- "commit", TRUE, NULL, NULL};
+{LOGRECTYPE_FIXEDLENGTH, 0, 0, NULL,
+ NULL, NULL, 0, "commit", LOGREC_IS_GROUP_ITSELF, NULL,
+ NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT_WITH_UNDO_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, NULL, NULL, 1,
- "commit_with_undo_purge", TRUE, NULL, NULL};
+ "commit_with_undo_purge", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CHECKPOINT=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
- "checkpoint", TRUE, NULL, NULL};
+ "checkpoint", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_CREATE_TABLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 1 + 2, NULL, NULL, NULL, 0,
-"redo_create_table", TRUE, NULL, NULL};
+"redo_create_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_RENAME_TABLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
- "redo_rename_table", TRUE, NULL, NULL};
+ "redo_rename_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
+/**
+   @todo LOG BUG
+   the "1" below is a hack to overcome a bug in the log handler where a 0-byte
+   header is considered a read failure:
+   translog_read_record() calls translog_init_reader_data() which calls
+   translog_read_record_header_scan() which calls
+   translog_read_record_header_from_buffer() which calls
+   translog_variable_length_header() which returns 0 (normal);
+   translog_init_reader_data() considers this 0 as a problem,
+   and thus translog_read_record() fails.
+*/
 static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
- "redo_drop_table", TRUE, NULL, NULL};
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 1, NULL, NULL, NULL, 0,
+ "redo_drop_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ALL=
 {LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE, FILEID_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
- "redo_delete_all", TRUE, NULL, NULL};
+ "redo_delete_all", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_REPAIR_TABLE=
 {LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE + 4, FILEID_STORE_SIZE + 4,
  NULL, NULL, NULL, 0,
- "redo_repair_table", TRUE, NULL, NULL};
+ "redo_repair_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FILE_ID=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 2, NULL, NULL, NULL, 0,
- "file_id", TRUE, NULL, NULL};
+ "file_id", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
 {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0,
- "long_transaction_id", TRUE, NULL, NULL};
+ "long_transaction_id", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
@@ -3045,6 +3060,7 @@ static translog_size_t translog_get_current_group_size()
 static my_bool
 translog_write_variable_record_1group(LSN *lsn,
                                       enum translog_record_type type,
+                                      MARIA_SHARE *share,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3062,7 +3078,8 @@ translog_write_variable_record_1group(LSN *lsn,
 
   *lsn= horizon= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, lsn, parts))
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, share,
+                                                       lsn, parts))
   {
     translog_unlock();
     DBUG_RETURN(1);
@@ -3199,6 +3216,7 @@ translog_write_variable_record_1group(LSN *lsn,
 static my_bool
 translog_write_variable_record_1chunk(LSN *lsn,
                                       enum translog_record_type type,
+                                      MARIA_SHARE *share,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3214,7 +3232,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, trn,
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, share,
                                                        lsn, parts))
   {
     translog_unlock();
@@ -3567,6 +3585,7 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
 static my_bool
 translog_write_variable_record_mgroup(LSN *lsn,
                                       enum translog_record_type type,
+                                      MARIA_SHARE *share,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3909,7 +3928,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
       first_chunk0= 0;
       *lsn= horizon;
       if (log_record_type_descriptor[type].inwrite_hook &&
-          (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
+          (*log_record_type_descriptor[type].inwrite_hook) (type, trn, share,
                                                             lsn, parts))
         goto err;
     }
@@ -3995,6 +4014,7 @@ err:
 
 static my_bool translog_write_variable_record(LSN *lsn,
                                               enum translog_record_type type,
+                                              MARIA_SHARE *share,
                                               SHORT_TRANSACTION_ID short_trid,
                                               struct st_translog_parts *parts,
                                               TRN *trn)
@@ -4007,6 +4027,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
   /* Max number of such LSNs per record is 2 */
   uchar compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
     COMPRESSED_LSN_MAX_STORE_SIZE];
+  my_bool res;
   DBUG_ENTER("translog_write_variable_record");
 
   translog_lock();
@@ -4071,9 +4092,11 @@ static my_bool translog_write_variable_record(LSN *lsn,
   if (page_rest >= parts->record_length + header_length1)
   {
     /* following function makes translog_unlock(); */
-    DBUG_RETURN(translog_write_variable_record_1chunk(lsn, type, short_trid,
-                                                      parts, buffer_to_flush,
-                                                      header_length1, trn));
+    res= translog_write_variable_record_1chunk(lsn, type, share,
+                                               short_trid,
+                                               parts, buffer_to_flush,
+                                               header_length1, trn);
+    DBUG_RETURN(res);
   }
 
   buffer_rest= translog_get_current_group_size();
@@ -4081,15 +4104,19 @@ static my_bool translog_write_variable_record(LSN *lsn,
   if (buffer_rest >= parts->record_length + header_length1 - page_rest)
   {
     /* following function makes translog_unlock(); */
-    DBUG_RETURN(translog_write_variable_record_1group(lsn, type, short_trid,
-                                                      parts, buffer_to_flush,
-                                                      header_length1, trn));
+    res= translog_write_variable_record_1group(lsn, type, share,
+                                               short_trid,
+                                               parts, buffer_to_flush,
+                                               header_length1, trn);
+    DBUG_RETURN(res);
   }
   /* following function makes translog_unlock(); */
-  DBUG_RETURN(translog_write_variable_record_mgroup(lsn, type, short_trid,
-                                                    parts, buffer_to_flush,
-                                                    header_length1,
-                                                    buffer_rest, trn));
+  res= translog_write_variable_record_mgroup(lsn, type, share,
+                                             short_trid,
+                                             parts, buffer_to_flush,
+                                             header_length1,
+                                             buffer_rest, trn);
+  DBUG_RETURN(res);
 }
 
 
@@ -4112,6 +4139,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
 
 static my_bool translog_write_fixed_record(LSN *lsn,
                                            enum translog_record_type type,
+                                           MARIA_SHARE *share,
                                            SHORT_TRANSACTION_ID short_trid,
                                            struct st_translog_parts *parts,
                                            TRN *trn)
@@ -4164,7 +4192,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
+      (*log_record_type_descriptor[type].inwrite_hook) (type, trn, share,
                                                         lsn, parts))
   {
     rc= 1;
@@ -4363,11 +4391,13 @@ my_bool translog_write_record(LSN *lsn,
   {
     switch (log_record_type_descriptor[type].class) {
     case LOGRECTYPE_VARIABLE_LENGTH:
-      rc= translog_write_variable_record(lsn, type, short_trid, &parts, trn);
+      rc= translog_write_variable_record(lsn, type, share,
+                                         short_trid, &parts, trn);
       break;
     case LOGRECTYPE_PSEUDOFIXEDLENGTH:
     case LOGRECTYPE_FIXEDLENGTH:
-      rc= translog_write_fixed_record(lsn, type, short_trid, &parts, trn);
+      rc= translog_write_fixed_record(lsn, type, share,
+                                      short_trid, &parts, trn);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
     default:
@@ -4927,6 +4957,7 @@ translog_read_record_header_from_buffer(uchar *page,
                                         TRANSLOG_HEADER_BUFFER *buff,
                                         TRANSLOG_SCANNER_DATA *scanner)
 {
+  translog_size_t res;
   DBUG_ENTER("translog_read_record_header_from_buffer");
   DBUG_ASSERT((page[page_offset] & TRANSLOG_CHUNK_TYPE) ==
               TRANSLOG_CHUNK_LSN ||
@@ -4941,15 +4972,18 @@ translog_read_record_header_from_buffer(uchar *page,
   /* Read required bytes from the header and call hook */
   switch (log_record_type_descriptor[buff->type].class) {
   case LOGRECTYPE_VARIABLE_LENGTH:
-    DBUG_RETURN(translog_variable_length_header(page, page_offset, buff,
-                                                scanner));
+    res= translog_variable_length_header(page, page_offset, buff,
+                                         scanner);
+    break;
   case LOGRECTYPE_PSEUDOFIXEDLENGTH:
   case LOGRECTYPE_FIXEDLENGTH:
-    DBUG_RETURN(translog_fixed_length_header(page, page_offset, buff));
+    res= translog_fixed_length_header(page, page_offset, buff);
+    break;
   default:
     DBUG_ASSERT(0);
+    res= 0;
   }
-  DBUG_RETURN(0);                               /* purecov: deadcode */
+  DBUG_RETURN(res);
 }
 
 
@@ -4979,7 +5013,7 @@ translog_size_t translog_read_record_header(LSN lsn,
                                             TRANSLOG_HEADER_BUFFER *buff)
 {
   uchar buffer[TRANSLOG_PAGE_SIZE], *page;
-  translog_size_t page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
+  translog_size_t res, page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
   TRANSLOG_ADDRESS addr;
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_read_record_header");
@@ -4993,11 +5027,9 @@ translog_size_t translog_read_record_header(LSN lsn,
   data.was_recovered= 0;
   addr= lsn;
   addr-= page_offset; /* offset decreasing */
-  if (!(page= translog_get_page(&data, buffer)))
-    DBUG_RETURN(0);
-
-  DBUG_RETURN(translog_read_record_header_from_buffer(page, page_offset,
-                                                      buff, 0));
+  res= (!(page= translog_get_page(&data, buffer))) ? 0 :
+    translog_read_record_header_from_buffer(page, page_offset, buff, 0);
+  DBUG_RETURN(res);
 }
 
 
@@ -5030,6 +5062,7 @@ translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
                                  TRANSLOG_HEADER_BUFFER *buff,
                                  my_bool move_scanner)
 {
+  translog_size_t res;
   DBUG_ENTER("translog_read_record_header_scan");
   DBUG_PRINT("enter", ("Scanner: Cur: (%lu,0x%lx)  Hrz: (%lu,0x%lx)  "
                        "Lst: (%lu,0x%lx)  Offset: %u(%x)  fixed %d",
@@ -5044,11 +5077,12 @@ translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
   buff->groups_no= 0;
   buff->lsn= scanner->page_addr;
   buff->lsn+= scanner->page_offset; /* offset increasing */
-  DBUG_RETURN(translog_read_record_header_from_buffer(scanner->page,
-                                                      scanner->page_offset,
-                                                      buff,
-                                                      (move_scanner ?
-                                                       scanner : 0)));
+  res= translog_read_record_header_from_buffer(scanner->page,
+                                               scanner->page_offset,
+                                               buff,
+                                               (move_scanner ?
+                                                scanner : 0));
+  DBUG_RETURN(res);
 }
 
 
@@ -5083,7 +5117,7 @@ translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
                                                  TRANSLOG_HEADER_BUFFER *buff)
 {
   uint8 chunk_type;
-
+  translog_size_t res;
   buff->groups_no= 0;        /* to be sure that we will free it right */
 
   DBUG_ENTER("translog_read_next_record_header");
@@ -5114,9 +5148,11 @@ translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
     /* Last record was read */
     buff->lsn= LSN_IMPOSSIBLE;
     /* Return 'end of log' marker */
-    DBUG_RETURN(TRANSLOG_RECORD_HEADER_MAX_SIZE + 1);
+    res= TRANSLOG_RECORD_HEADER_MAX_SIZE + 1;
   }
-  DBUG_RETURN(translog_read_record_header_scan(scanner, buff, 0));
+  else
+    res= translog_read_record_header_scan(scanner, buff, 0);
+  DBUG_RETURN(res);
 }
 
 
@@ -5610,7 +5646,9 @@ my_bool translog_flush(LSN lsn)
 
 static my_bool write_hook_for_redo(enum translog_record_type type
                                    __attribute__ ((unused)),
-                                   TRN *trn, LSN *lsn,
+                                   TRN *trn, MARIA_SHARE *share
+                                   __attribute__ ((unused)),
+                                   LSN *lsn,
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
@@ -5646,7 +5684,9 @@ static my_bool write_hook_for_redo(enum translog_record_type type
 
 static my_bool write_hook_for_undo(enum translog_record_type type
                                    __attribute__ ((unused)),
-                                   TRN *trn, LSN *lsn,
+                                   TRN *trn, MARIA_SHARE *share
+                                     __attribute__ ((unused)),
+                                   LSN *lsn,
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {

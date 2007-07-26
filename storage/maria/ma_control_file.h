@@ -18,6 +18,9 @@
   First version written by Guilhem Bichot on 2006-04-27.
 */
 
+#ifndef _ma_control_file_h
+#define _ma_control_file_h
+
 #define CONTROL_FILE_BASE_NAME "maria_log_control"
 
 /* Here is the interface of this module */
@@ -33,7 +36,7 @@ extern LSN last_checkpoint_lsn;
 */
 extern uint32 last_logno;
 
-extern my_bool maria_multi_threaded;
+extern my_bool maria_multi_threaded, maria_in_recovery;
 
 typedef enum enum_control_file_error {
   CONTROL_FILE_OK= 0,
@@ -73,4 +76,5 @@ int ma_control_file_end();
 
 #ifdef	__cplusplus
 }
+#endif
 #endif
