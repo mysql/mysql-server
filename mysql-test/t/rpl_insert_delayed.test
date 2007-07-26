@@ -73,6 +73,7 @@ connection master;
 CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+flush table t1; # to wait for INSERT DELAYED to be done
 
 #must show two INSERT DELAYED
 --replace_column 1 x 2 x 3 x 4 x 5 x
