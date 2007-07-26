@@ -18,26 +18,65 @@
 #
 # All unrecognized arguments to this script are passed to mysqld.
 
+force=0
 in_rpm=0
+ip_only=0
 windows=0
-defaults=""
-user=""
 
 case "$1" in
-    --no-defaults|--defaults-file=*|--defaults-extra-file=*)
-      defaults="$1"; shift
-      ;;
+  --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+    defaults="$1"; shift
+    ;;
 esac
+
+usage()
+{
+  cat <<EOF
+Usage: $0 [OPTIONS]
+  --basedir=path       The path to the MySQL installation directory.
+  --datadir=path       The path to the MySQL data directory.
+  --force              Causes mysql_install_db to run even if DNS does not
+                       work.  In that case, grant table entries that normally
+                       use hostnames will use IP addresses.
+  --ldata=path         The path to the MySQL data directory.
+  --rpm                For internal use.  This option is used by RPM files
+                       during the MySQL installation process.
+  --skip-name-resolve  Use IP addresses rather than hostnames when creating
+                       grant table entries.  This option can be useful if
+                       your DNS does not work.
+  --srcdir=path        For internal use.  The directory under which
+                       mysql_install_db looks for support files such as the
+                       error message file and the file for popoulating the
+                       help tables.
+  --user=user_name     The login username to use for running mysqld.  Files
+                       and directories created by mysqld will be owned by this
+                       user.  You must be root to use this option.  By default
+                       mysqld runs using your current login name and files and
+                       directories that it creates will be owned by you.
+  --windows            For internal use.  This option is used for creating
+                       Windows distributions.
+
+All other options are passed to the mysqld program
+
+EOF
+  exit 1
+}
 
 s_echo()
 {
   if test "$in_rpm" -eq 0 -a "$windows" -eq 0
   then
-    echo $1
+    echo "$1"
   fi
 }
 
-parse_arguments() {
+parse_arg()
+{
+  echo "$1" | sed -e 's/^[^=]*=//'
+}
+
+parse_arguments()
+{
   # We only need to pass arguments through to the server if we don't
   # handle them here.  So, we collect unrecognized options (passed on
   # the command line) into the args variable.
@@ -51,17 +90,18 @@ parse_arguments() {
   for arg do
     case "$arg" in
       --force) force=1 ;;
-      --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --srcdir=*)  srcdir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --basedir=*) basedir=`parse_arg "$arg"` ;;
+      --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
+      --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
       --user=*)
         # Note that the user will be passed to mysqld so that it runs
         # as 'user' (crucial e.g. if log-bin=/some_other_path/
         # where a chown of datadir won't help)
-	 user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+	 user=`parse_arg "$arg"` ;;
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;; # Obsolete
       --rpm) in_rpm=1 ;;
+      --help) usage ;;
 
       --windows)
 	# This is actually a "cross bootstrap" argument used when
@@ -89,137 +129,100 @@ parse_arguments() {
   done
 }
 
-# Get first arguments from the my.cfg file, groups [mysqld] and
-# [mysql_install_db], and then merge with the command line arguments
-if test -x ./bin/my_print_defaults
+# Sanity check - make sure we can find my_print_defaults either in the binary
+# distribution or within the installed source compile.
+print_defaults="@bindir@/my_print_defaults"
+if ! test -x $print_defaults
 then
-  print_defaults="./bin/my_print_defaults"
-elif test -x ./extra/my_print_defaults
-then
-  print_defaults="./extra/my_print_defaults"
-elif test -x @bindir@/my_print_defaults
-then
-  print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
-then
-  print_defaults="@bindir@/mysql_print_defaults"
-else
-  print_defaults="my_print_defaults"
+  echo "FATAL ERROR: Could not find $print_defaults"
+  echo
+  echo "If you are using a binary release, you must run this script from"
+  echo "within the directory the archive extracted into.  If you compiled"
+  echo "MySQL yourself you must run 'make install' first."
+  exit 1
 fi
 
-args=
-ldata=
-execdir=
-bindir=
-basedir=
-srcdir=
-force=0
-
+# Firstly, get arguments from the groups [mysqld] and [mysql_install_db]
+# in the my.cfg file, then re-run to merge with command line arguments.
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-test -z "$ldata" && ldata=@localstatedir@
+# Path to MySQL installation directory
 if test -z "$basedir"
 then
-  basedir=@prefix@
-  bindir=@bindir@
-  execdir=@libexecdir@
-  pkgdatadir=@pkgdatadir@
+  basedir="@prefix@"
+  bindir="@bindir@"
+  mysqld="@libexecdir@/mysqld"
 else
   bindir="$basedir/bin"
-  if test -x "$basedir/libexec/mysqld"
-  then
-    execdir="$basedir/libexec"
-  elif test -x "$basedir/sbin/mysqld"
-  then
-    execdir="$basedir/sbin"
-  else
-    execdir="$basedir/bin"
-  fi
-fi
-
-# Find SQL scripts needed for bootstrap
-fill_help_tables="fill_help_tables.sql"
-create_system_tables="mysql_system_tables.sql"
-fill_system_tables="mysql_system_tables_data.sql"
-if test -n "$srcdir"
-then
-  fill_help_tables=$srcdir/scripts/$fill_help_tables
-  create_system_tables=$srcdir/scripts/$create_system_tables
-  fill_system_tables=$srcdir/scripts/$fill_system_tables
-else
-  for i in $basedir/support-files $basedir/share $basedir/share/mysql \
-           $basedir/scripts `pwd` `pwd`/scripts @pkgdatadir@
+  for dir in libexec sbin bin
   do
-    if test -f $i/$fill_help_tables
+    if test -x "$basedir/$dir/mysqld"
     then
-      pkgdatadir=$i
+      mysqld="$basedir/$dir/mysqld"
       break
     fi
   done
-
-  fill_help_tables=$pkgdatadir/$fill_help_tables
-  create_system_tables=$pkgdatadir/$create_system_tables
-  fill_system_tables=$pkgdatadir/$fill_system_tables
+  if test -z "$mysqld"
+  then
+    echo "FATAL ERROR: Could not find mysqld inside supplied --basedir"
+    exit 1
+  fi
 fi
 
-if test ! -f $create_system_tables
+# Path to data directory
+if test -z "$ldata"
 then
-  echo "FATAL ERROR: Could not find SQL file '$create_system_tables' in"
-  echo "@pkgdatadir@ or inside $basedir"
-  exit 1;
+  ldata="@localstatedir@"
 fi
 
-if test ! -f $fill_help_tables
+# Set up paths to SQL scripts required for bootstrap and ensure they exist.
+if test -n "$srcdir"
 then
-  echo "FATAL ERROR: Could not find help file '$fill_help_tables' in"
-  echo "@pkgdatadir@ or inside $basedir"
-  exit 1;
+  pkgdatadir="$srcdir/scripts"
+else
+  pkgdatadir="@pkgdatadir@"
 fi
 
-if test ! -f $fill_system_tables
-then
-  echo "FATAL ERROR: Could not find help file '$fill_system_tables' in"
-  echo "@pkgdatadir@ or inside $basedir"
-  exit 1;
-fi
+fill_help_tables="$pkgdatadir/fill_help_tables.sql"
+create_system_tables="$pkgdatadir/mysql_system_tables.sql"
+fill_system_tables="$pkgdatadir/mysql_system_tables_data.sql"
 
-# Find executables and paths
-mysqld=$execdir/mysqld
-mysqld_opt=""
-scriptdir=$bindir
+for f in $fill_help_tables $create_system_tables $fill_system_tables
+do
+  if test ! -f "$f"
+  then
+    echo "FATAL ERROR: Could not find SQL file '$f'"
+    exit 1
+  fi
+done
 
-if test "$windows" = 1
+# Set up Windows-specific paths
+if test "$windows" -eq 1
 then
   mysqld="./sql/mysqld"
-  if test -n "$srcdir" -a -f $srcdir/sql/share/english/errmsg.sys
+  if test -n "$srcdir" -a -f "$srcdir/sql/share/english/errmsg.sys"
   then
-    langdir=$srcdir/sql/share/english
+    langdir="$srcdir/sql/share/english"
   else
-    langdir=./sql/share/english
+    langdir="./sql/share/english"
   fi
   mysqld_opt="--language=$langdir"
-  scriptdir="./scripts"
 fi
 
-if test ! -x $mysqld
+# Make sure mysqld is available in default location (--basedir option is
+# already tested above).
+if test ! -x "$mysqld"
 then
-  if test "$in_rpm" = 1
-  then
-    echo "FATAL ERROR $mysqld not found!"
-    exit 1
-  else
-    echo "FATAL ERROR Didn't find $mysqld"
-    echo "You should do a 'make install' before executing this script"
-    exit 1
-  fi
+  echo "FATAL ERROR: $mysqld not found!"
+  exit 1
 fi
 
 # Try to determine the hostname
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$windows" = 0 -a "$in_rpm" = 0 -a $force = 0
+if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -244,39 +247,35 @@ then
   fi
 fi
 
-if test "$ip_only" = "1"
+if test "$ip_only" -eq 1
 then
-  ip=`echo "$resolved" | awk '/ /{print $6}'`
-  hostname=$ip
+  hostname=`echo "$resolved" | awk '/ /{print $6}'`
 fi
 
 # Create database directories mysql & test
-if test ! -d $ldata; then
-  mkdir $ldata;
-  chmod 700 $ldata ;
-fi
-if test ! -d $ldata/mysql; then
-  mkdir $ldata/mysql;
-  chmod 700 $ldata/mysql ;
-fi
-if test ! -d $ldata/test; then
-  mkdir $ldata/test;
-  chmod 700 $ldata/test ;
-fi
-if test -w / -a ! -z "$user"; then
-  chown $user $ldata $ldata/mysql $ldata/test;
-fi
+for dir in $ldata $ldata/mysql $ldata/test
+do
+  if test ! -d $dir
+  then
+    mkdir -p $dir
+    chmod 700 $dir
+  fi
+  if test -w / -a ! -z "$user"
+  then
+    chown $user $dir
+  fi
+done
 
-if test -n "$user"; then
+if test -n "$user"
+then
   args="$args --user=$user"
 fi
 
 # Peform the install of system tables
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
---basedir=$basedir --datadir=$ldata --skip-innodb \
---skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M \
---net_buffer_length=16K"
+  --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb \
+  --skip-ndbcluster $args --max_allowed_packet=8M --net_buffer_length=16K"
 
 # Pipe mysql_system_tables.sql to "mysqld --bootstrap"
 s_echo "Installing MySQL system tables..."
@@ -284,23 +283,20 @@ if `(echo "use mysql;"; cat $create_system_tables $fill_system_tables) | $mysqld
 then
   s_echo "OK"
 
-  if test -n "$fill_help_tables"
+  s_echo "Filling help tables..."
+  # Pipe fill_help_tables.sql to "mysqld --bootstrap"
+  if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
   then
-    s_echo "Filling help tables..."
-    # Pipe fill_help_tables.sql to "mysqld --bootstrap"
-    if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
-    then
-      # Fill suceeded
-      s_echo "OK"
-    else
-      echo ""
-      echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"
-      echo "The \"HELP\" command might not work properly"
-      echo ""
-    fi
+    # Fill suceeded
+    s_echo "OK"
+  else
+    echo
+    echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"
+    echo "The \"HELP\" command might not work properly"
+    echo
   fi
 
-  s_echo ""
+  s_echo
   s_echo "To start mysqld at boot time you have to copy"
   s_echo "support-files/mysql.server to the right place for your system"
   s_echo
@@ -319,7 +315,7 @@ then
     echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
     echo "See the manual for more instructions."
 
-    if test "$in_rpm" = "0"
+    if test "$in_rpm" -eq 0
     then
       echo "You can start the MySQL daemon with:"
       echo "cd @prefix@ ; $bindir/mysqld_safe &"
