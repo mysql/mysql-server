@@ -62,11 +62,11 @@ Prelock_error_handler::handle_error(uint sql_errno,
   if (sql_errno == ER_NO_SUCH_TABLE)
   {
     m_handled_errors++;
-    return TRUE;                                // 'TRUE', as per coding style
+    return TRUE;
   }
 
   m_unhandled_errors++;
-  return FALSE;                                 // 'FALSE', as per coding style
+  return FALSE;
 }
 
 
@@ -2674,7 +2674,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   */
   for (tables= *start; tables ;tables= tables->next_global)
   {
-    safe_to_ignore_table= FALSE;                // 'FALSE', as per coding style
+    safe_to_ignore_table= FALSE;
 
     if (tables->lock_type == TL_WRITE_DEFAULT)
     {
@@ -2938,13 +2938,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
   if (table)
   {
-#if defined( __WIN__) || defined(OS2)
-    /* Win32 can't drop a file that is open */
-    if (lock_type == TL_WRITE_ALLOW_READ)
-    {
-      lock_type= TL_WRITE;
-    }
-#endif /* __WIN__ || OS2 */
     table_list->lock_type= lock_type;
     table_list->table=	   table;
     table->grant= table_list->grant;

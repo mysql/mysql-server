@@ -1118,5 +1118,34 @@ show create table t1;
 
 drop table t1;
 
+--echo
+--echo Bug #26104 Bug on foreign key class constructor
+--echo
+--echo Check that ref_columns is initalized correctly in the constructor
+--echo and semantic checks in mysql_prepare_table work.
+--echo
+--echo We do not need a storage engine that supports foreign keys
+--echo for this test, as the checks are purely syntax-based, and the
+--echo syntax is supported for all engines.
+--echo
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1(a int not null, b int not null, primary key (a, b));
+--error ER_WRONG_FK_DEF
+create table t2(a int not null, b int not null, c int not null, primary key (a),
+foreign key fk_bug26104 (b,c) references t1(a));
+drop table t1;
+
+#
+# Bug#15130:CREATE .. SELECT was denied to use advantages of the SQL_BIG_RESULT.
+#
+create table t1(f1 int,f2 int);
+insert into t1 value(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
+flush status;
+create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
+show status like 'handler_read%';
+drop table t1,t2;
 
 --echo End of 5.0 tests
