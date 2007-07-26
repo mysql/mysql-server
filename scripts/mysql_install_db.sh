@@ -215,7 +215,7 @@ then
   then
     mysqld_opt="--language=$srcdir/sql/share/english"
   else
-    mysqld_opt="./sql/share/english"
+    mysqld_opt="--language=./sql/share/english"
   fi
 fi
 
