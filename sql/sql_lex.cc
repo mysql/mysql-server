@@ -1770,7 +1770,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
-						  List<index_hint> *hints,
+						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -2723,7 +2723,7 @@ void st_select_lex::set_index_hint_type(enum index_hint_type type,
 
 void st_select_lex::alloc_index_hints (THD *thd)
 { 
-  index_hints= new (thd->mem_root) List<index_hint>(); 
+  index_hints= new (thd->mem_root) List<Index_hint>(); 
 }
 
 
@@ -2744,7 +2744,7 @@ void st_select_lex::alloc_index_hints (THD *thd)
 bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 {
   return index_hints->push_front (new (thd->mem_root) 
-                                 index_hint(current_index_hint_type,
+                                 Index_hint(current_index_hint_type,
                                             current_index_hint_clause,
                                             str, length));
 }
