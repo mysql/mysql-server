@@ -433,6 +433,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   struct AlterTabOperation {
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
+    Uint32 newNoOfCharsets;
+    Uint32 newNoOfKeyAttrs;
     Uint32 noOfDynNullBits;
     Uint32 noOfDynVar;
     Uint32 noOfDynFix;

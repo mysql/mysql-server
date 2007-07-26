@@ -471,7 +471,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   if(signal)
   {
-    /* Denna branch körs vid GET_TABINFOREQ */
+    /* This branch is run at GET_TABINFOREQ */
 
     Uint32 * theData = signal->getDataPtrSend();
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
@@ -492,7 +492,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
   else
   {
-    /* Denna del körs vid CREATE_TABLEREQ, ALTER_TABLEREQ */
+    /* This part is run at CREATE_TABLEREQ, ALTER_TABLEREQ */
     ;
   }
   
@@ -4571,7 +4571,7 @@ void Dbdict::execALTER_TAB_REF(Signal * signal){
     ref->errorLine = 0;
     ref->errorKey = 0;
     ref->errorStatus = 0;
-    sendSignal(alterTabPtr.p->m_senderRef, GSN_ALTER_TAB_REF, signal, 
+    sendSignal(alterTabPtr.p->m_coordinatorRef, GSN_ALTER_TAB_REF, signal, 
                AlterTabRef::SignalLength, JBB);
   
     c_blockState = BS_IDLE;
@@ -4823,7 +4823,7 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
       conf->tableVersion = tableVersion;
       conf->gci = gci;
       conf->requestType = requestType;
-      sendSignal(alterTabPtr.p->m_senderRef, GSN_ALTER_TAB_CONF, signal, 
+      sendSignal(alterTabPtr.p->m_coordinatorRef, GSN_ALTER_TAB_CONF, signal, 
                  AlterTabConf::SignalLength, JBB);
       return;
     }
@@ -5009,7 +5009,7 @@ int Dbdict::handleAlterTab(AlterTabReq * req,
   }
 
 /*
-  TODO RONM: Lite ny kod för FragmentData och RangeOrListData
+  TODO RONM: Some new code for FragmentData and RangeOrListData
 */
   if (supportedAlteration)
   {
@@ -5637,7 +5637,7 @@ Dbdict::createTab_dih(Signal* signal,
   req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
 
 /*
-  Behöver fiska upp fragDataPtr från table object istället
+  Need to fetch fragDataPtr from table object instead
 */
   if(!fragDataPtr.isNull()){
     signal->setSection(fragDataPtr, DiAddTabReq::FRAGMENTATION);

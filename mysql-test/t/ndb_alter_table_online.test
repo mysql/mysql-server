@@ -1,0 +1,29 @@
+-- source include/have_multi_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+#
+# basic online alter test
+#
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+ALTER TABLE t1 ADD c CHAR(19);
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
+INSERT INTO t1 values (1,"a");
+ALTER TABLE t1 ADD c INT;
+INSERT INTO t1 values (2,"a",1);
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+ALTER TABLE t1 ADD c INT;
+INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
