@@ -1472,7 +1472,7 @@ public:
   virtual ~Item_func_sp()
   {}
 
-  table_map used_tables() const { return RAND_TABLE_BIT; }
+  void update_used_tables();
 
   void cleanup();
 

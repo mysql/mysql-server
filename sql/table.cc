@@ -1349,7 +1349,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             the primary key, then we can use any key to find this column
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
+          {
             field->part_of_key= share->keys_in_use;
+            if (ha_legacy_type(share->db_type()) == DB_TYPE_INNODB &&
+                field->part_of_sortkey.is_set(key))
+              field->part_of_sortkey= share->keys_in_use;
+          }
         }
         if (field->key_length() != key_part->length)
         {
@@ -4642,11 +4647,11 @@ bool TABLE_LIST::process_index_hints(TABLE *table)
     key_map index_join[INDEX_HINT_FORCE + 1];
     key_map index_order[INDEX_HINT_FORCE + 1];
     key_map index_group[INDEX_HINT_FORCE + 1];
-    index_hint *hint;
+    Index_hint *hint;
     int type;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;
-    List_iterator <index_hint> iter(*index_hints);
+    List_iterator <Index_hint> iter(*index_hints);
 
     /* initialize temporary variables used to collect hints of each kind */
     for (type= INDEX_HINT_IGNORE; type <= INDEX_HINT_FORCE; type++)

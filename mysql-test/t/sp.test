@@ -24,6 +24,8 @@ use test;
 #
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+drop function if exists f1;
+drop function if exists f2;
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
@@ -7214,7 +7216,7 @@ CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
 set @a=0;
 
 delimiter |;
-CREATE function bug27354() RETURNS int deterministic
+CREATE function bug27354() RETURNS int not deterministic
 begin
 insert into t1 values (null);
 set @a=@a+1;
@@ -7368,3 +7370,33 @@ where ROUTINE_NAME = "proc_26302";
 drop procedure proc_26302;
 
 
+# Bug #29338: no optimization for stored functions with a trivial body
+# always returning constant.
+#
+
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 2;
+CREATE FUNCTION f2(I INT) RETURNS INT DETERMINISTIC RETURN 3;
+
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+
+EXPLAIN SELECT * FROM t1 WHERE c1=1;
+EXPLAIN SELECT * FROM t1 WHERE c1=f1();
+
+EXPLAIN SELECT * FROM v1 WHERE c1=1;
+EXPLAIN SELECT * FROM v1 WHERE c1=f1();
+
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
+
+
+DROP VIEW v1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+--echo End of 5.0 tests
