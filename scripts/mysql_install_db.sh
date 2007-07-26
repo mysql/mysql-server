@@ -18,6 +18,15 @@
 #
 # All unrecognized arguments to this script are passed to mysqld.
 
+basedir=""
+ldata=""
+srcdir=""
+
+args=""
+defaults=""
+mysqld_opt=""
+user=""
+
 force=0
 in_rpm=0
 ip_only=0
@@ -87,7 +96,8 @@ parse_arguments()
     shift
   fi
 
-  for arg do
+  for arg
+  do
     case "$arg" in
       --force) force=1 ;;
       --basedir=*) basedir=`parse_arg "$arg"` ;;
@@ -203,11 +213,10 @@ then
   mysqld="./sql/mysqld"
   if test -n "$srcdir" -a -f "$srcdir/sql/share/english/errmsg.sys"
   then
-    langdir="$srcdir/sql/share/english"
+    mysqld_opt="--language=$srcdir/sql/share/english"
   else
-    langdir="./sql/share/english"
+    mysqld_opt="./sql/share/english"
   fi
-  mysqld_opt="--language=$langdir"
 fi
 
 # Make sure mysqld is available in default location (--basedir option is
