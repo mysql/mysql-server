@@ -94,7 +94,7 @@ static TRN *short_trid_to_TRN(uint16 short_trid)
 }
 #endif
 
-static uchar *trn_get_hash_key(const uchar *trn, uint* len,
+static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
                               my_bool unused __attribute__ ((unused)))
 {
   *len= sizeof(TrID);

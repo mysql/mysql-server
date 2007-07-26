@@ -320,6 +320,8 @@ struct st_pagecache_block_link
 
 #ifndef DBUG_OFF
 /* debug checks */
+
+#ifdef NOT_USED
 static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
                               enum pagecache_page_pin mode
                               __attribute__((unused)))
@@ -380,7 +382,6 @@ static my_bool info_check_pin(PAGECACHE_BLOCK_LINK *block,
     1 - Error
 */
 
-#ifdef NOT_USED
 static my_bool info_check_lock(PAGECACHE_BLOCK_LINK *block,
                                enum pagecache_page_lock lock,
                                enum pagecache_page_pin pin)

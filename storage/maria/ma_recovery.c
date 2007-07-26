@@ -321,8 +321,8 @@ err:
   error= 1;
   fprintf(tracef, "Recovery of tables with transaction logs FAILED\n");
 end:
-  my_free((gptr)all_tables, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((gptr)all_active_trans, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(all_tables, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(all_active_trans, MYF(MY_ALLOW_ZERO_PTR));
   my_free(log_record_buffer.str, MYF(MY_ALLOW_ZERO_PTR));
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
@@ -701,7 +701,7 @@ end:
 prototype_exec_hook(REDO_INSERT_ROW_HEAD)
 {
   int error= 1;
-  byte *buff= NULL;
+  uchar *buff= NULL;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;
@@ -746,7 +746,7 @@ end:
 prototype_exec_hook(REDO_INSERT_ROW_TAIL)
 {
   int error= 1;
-  byte *buff= NULL;
+  uchar *buff= NULL;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;

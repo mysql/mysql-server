@@ -1742,7 +1742,7 @@ static my_bool write_block_record(MARIA_HA *info,
     int2store(page_buff + EMPTY_SPACE_OFFSET, row_pos->empty_space);
     /* Mark in bitmaps how the current page was actually used */
     head_block->empty_space= row_pos->empty_space;
-    if (page_buff[DIR_COUNT_OFFSET] == (char) MAX_ROWS_PER_PAGE)
+    if (page_buff[DIR_COUNT_OFFSET] == MAX_ROWS_PER_PAGE)
       head_block->empty_space= 0;               /* Page is full */
     head_block->used= BLOCKUSED_USED;
   }
@@ -4394,13 +4394,13 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
 */
 
 uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
-                                 LSN lsn, const byte *header)
+                                 LSN lsn, const uchar *header)
 {
   MARIA_SHARE *share= info->s;
   ulonglong page;
   uint      page_range;
   uint      res;
-  byte      *buff= info->keyread_buff;
+  uchar     *buff= info->keyread_buff;
   uint      block_size= share->block_size;
   DBUG_ENTER("_ma_apply_redo_purge_blocks");
 
@@ -4441,8 +4441,8 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
   */
   {
     uint rownr= ((uint) ((uchar *) buff)[DIR_COUNT_OFFSET]) - 1;
-    byte *dir= (buff + block_size - DIR_ENTRY_SIZE * rownr -
-                DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
+    uchar *dir= (buff + block_size - DIR_ENTRY_SIZE * rownr -
+                 DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
     dir[0]= dir[1]= 0;                            /* Delete entry */
   }
 

@@ -108,11 +108,11 @@ end:
 static struct my_option my_long_options[] =
 {
   {"only-display", 'o', "display brief info about records's header",
-   (gptr*) &opt_only_display, (gptr*) &opt_only_display, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
+   NO_ARG,0, 0, 0, 0, 0, 0},
   {"display-and-apply", 'a',
    "like --only-display but displays more info and modifies tables",
-   (gptr*) &opt_display_and_apply, (gptr*) &opt_display_and_apply, 0,
+   (uchar **) &opt_display_and_apply, (uchar **) &opt_display_and_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",

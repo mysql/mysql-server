@@ -170,7 +170,8 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   uint i,trees,huff_tree_bits,rec_reflength,length;
   uint16 *decode_table,*tmp_buff;
   ulong elements,intervall_length;
-  char *disk_cache,*intervall_buff;
+  char *disk_cache;
+  uchar *intervall_buff;
   uchar header[HEAD_LENGTH];
   MARIA_BIT_BUFF bit_buff;
   DBUG_ENTER("_ma_read_pack_info");

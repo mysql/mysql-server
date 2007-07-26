@@ -834,7 +834,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 	tot_length=rest_length+length;
 
 	/* If the stored length has changed, we must move the key */
-	if (tot_length >= 255 && *start != (char) 255)
+	if (tot_length >= 255 && *start != 255)
 	{
 	  /* length prefix changed from a length of one to a length of 3 */
 	  bmove_upp((char*) key+length+3,(char*) key+length+1,length);
@@ -842,7 +842,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 	  mi_int2store(key+1,tot_length);
 	  key+=3+length;
 	}
-	else if (tot_length < 255 && *start == (char) 255)
+	else if (tot_length < 255 && *start == 255)
 	{
 	  bmove(key+1,key+3,length);
 	  *key=tot_length;

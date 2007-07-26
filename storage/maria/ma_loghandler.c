@@ -3541,7 +3541,7 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
     uchar *dst_ptr= compressed_LSNs + (MAX_NUMBER_OF_LSNS_PER_RECORD *
                                       COMPRESSED_LSN_MAX_STORE_SIZE);
     for (src_ptr= buffer + lsns_len - LSN_STORE_SIZE;
-         src_ptr >=  buffer;
+         src_ptr >= (uchar *)buffer;
          src_ptr-= LSN_STORE_SIZE)
     {
       ref= lsn_korr(src_ptr);

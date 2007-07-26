@@ -95,7 +95,7 @@ typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
 #include <wqueue.h>
 
-typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar** data);
+typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
 
 #define PAGECACHE_CHANGED_BLOCKS_HASH 128  /* must be power of 2 */
 
