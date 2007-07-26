@@ -3253,10 +3253,16 @@ ha_ndbcluster::eventSetAnyValue(const THD *thd, NdbOperation *op)
 {
   if (unlikely(m_slow_path))
   {
-    if (!(thd->options & OPTION_BIN_LOG))
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
-    else if (thd->slave_thread)
+    /*
+      ignore OPTION_BIN_LOG for slave thd.  It is used to indicate
+      log-slave-updates option.  This is instead handled in the
+      injector thread, by looking explicitly at the
+      opt_log_slave_updates flag.
+    */
+    if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
+    else if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
 }
 
