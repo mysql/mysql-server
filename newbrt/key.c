@@ -2,7 +2,24 @@
 #include <assert.h>
 #include <string.h>
 
-int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) {
+    const unsigned char *key1 = key1b;
+    const unsigned char *key2 = key2b;
+    while (key1len > 0 && key2len > 0) {
+	unsigned char b1 = key1[0];
+	unsigned char b2 = key2[0];
+	if (b1<b2) return -1;
+	if (b1>b2) return 1;
+	key1len--; key1++;
+	key2len--; key2++;
+    }
+    if (key1len<key2len) return -1;
+    if (key1len>key2len) return 1;
+    return 0;
+}
+
+#if 0
+int oldkeycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
     } else if (key1len<key2len) {
@@ -13,6 +30,7 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 	return -keycompare(key2,key2len,key1,key1len);
     }
 }
+#endif
 
 void test_keycompare (void) {
     assert(keycompare("a",1, "a",1)==0);
