@@ -318,7 +318,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   copyfileto $BASE/bin scripts/*
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ \
       ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ \
-      @HOSTNAME@ \@pkgdatadir\@ ./support-files \
+      @HOSTNAME@ \@pkgdatadir\@ ./share \
       < scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \
       \@sbindir\@ ./bin \@libexecdir\@ ./bin \
