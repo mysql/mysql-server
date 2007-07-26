@@ -5640,7 +5640,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
-					     List<index_hint> *index_hints_arg,
+					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;

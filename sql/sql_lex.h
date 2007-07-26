@@ -236,7 +236,7 @@ typedef uchar index_clause_map;
                              INDEX_HINT_MASK_ORDER)
 
 /* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
-class index_hint : public Sql_alloc
+class Index_hint : public Sql_alloc
 {
 public:
   /* The type of the hint : USE/FORCE/IGNORE */
@@ -249,7 +249,7 @@ public:
   */ 
   LEX_STRING key_name;
 
-  index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
+  Index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
               char *str, uint length) :
     type(type_arg), clause(clause_arg)
   {
@@ -441,7 +441,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
-					List<index_hint> *hints= 0,
+					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -719,7 +719,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
-				List<index_hint> *hints= 0,
+				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -779,9 +779,9 @@ public:
   /* make a list to hold index hints */
   void alloc_index_hints (THD *thd);
   /* read and clear the index hints */
-  List<index_hint>* pop_index_hints(void) 
+  List<Index_hint>* pop_index_hints(void) 
   {
-    List<index_hint> *hints= index_hints;
+    List<Index_hint> *hints= index_hints;
     index_hints= NULL;
     return hints;
   }
@@ -793,7 +793,7 @@ private:
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
-  List<index_hint> *index_hints;
+  List<Index_hint> *index_hints;
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -1239,19 +1239,19 @@ public:
   }
 
   /** Get the raw query buffer. */
-  const char* get_buf()
+  const char *get_buf()
   {
     return m_buf;
   }
 
   /** Get the pre-processed query buffer. */
-  const char* get_cpp_buf()
+  const char *get_cpp_buf()
   {
     return m_cpp_buf;
   }
 
   /** Get the end of the raw query buffer. */
-  const char* get_end_of_query()
+  const char *get_end_of_query()
   {
     return m_end_of_query;
   }
@@ -1279,43 +1279,43 @@ public:
   }
 
   /** Get the token start position, in the raw buffer. */
-  const char* get_tok_start()
+  const char *get_tok_start()
   {
     return m_tok_start;
   }
 
   /** Get the token start position, in the pre-processed buffer. */
-  const char* get_cpp_tok_start()
+  const char *get_cpp_tok_start()
   {
     return m_cpp_tok_start;
   }
 
   /** Get the token end position, in the raw buffer. */
-  const char* get_tok_end()
+  const char *get_tok_end()
   {
     return m_tok_end;
   }
 
   /** Get the token end position, in the pre-processed buffer. */
-  const char* get_cpp_tok_end()
+  const char *get_cpp_tok_end()
   {
     return m_cpp_tok_end;
   }
 
   /** Get the previous token start position, in the raw buffer. */
-  const char* get_tok_start_prev()
+  const char *get_tok_start_prev()
   {
     return m_tok_start_prev;
   }
 
   /** Get the current stream pointer, in the raw buffer. */
-  const char* get_ptr()
+  const char *get_ptr()
   {
     return m_ptr;
   }
 
   /** Get the current stream pointer, in the pre-processed buffer. */
-  const char* get_cpp_ptr()
+  const char *get_cpp_ptr()
   {
     return m_cpp_ptr;
   }
@@ -1365,22 +1365,22 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char* m_ptr;
+  const char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
-  const char* m_tok_start;
+  const char *m_tok_start;
 
   /** Ending position of the previous token parsed, in the raw buffer. */
-  const char* m_tok_end;
+  const char *m_tok_end;
 
   /** End of the query text in the input stream, in the raw buffer. */
-  const char* m_end_of_query;
+  const char *m_end_of_query;
 
   /** Starting position of the previous token parsed, in the raw buffer. */
-  const char* m_tok_start_prev;
+  const char *m_tok_start_prev;
 
   /** Begining of the query text in the input stream, in the raw buffer. */
-  const char* m_buf;
+  const char *m_buf;
 
   /** Length of the raw buffer. */
   uint m_buf_length;
@@ -1389,28 +1389,28 @@ private:
   bool m_echo;
 
   /** Pre-processed buffer. */
-  char* m_cpp_buf;
+  char *m_cpp_buf;
 
   /** Pointer to the current position in the pre-processed input stream. */
-  char* m_cpp_ptr;
+  char *m_cpp_ptr;
 
   /**
     Starting position of the last token parsed,
     in the pre-processed buffer.
   */
-  const char* m_cpp_tok_start;
+  const char *m_cpp_tok_start;
 
   /**
     Starting position of the previous token parsed,
     in the pre-procedded buffer.
   */
-  const char* m_cpp_tok_start_prev;
+  const char *m_cpp_tok_start_prev;
 
   /**
     Ending position of the previous token parsed,
     in the pre-processed buffer.
   */
-  const char* m_cpp_tok_end;
+  const char *m_cpp_tok_end;
 
   /** UTF8-body buffer created during parsing. */
   char *m_body_utf8;
@@ -1433,7 +1433,7 @@ public:
     Position of ';' in the stream, to delimit multiple queries.
     This delimiter is in the raw buffer.
   */
-  const char* found_semicolon;
+  const char *found_semicolon;
 
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;

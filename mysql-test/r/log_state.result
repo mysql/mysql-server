@@ -131,7 +131,7 @@ set global general_log=ON;
 set global log_output=default;
 show variables like 'log_output';
 Variable_name	Value
-log_output	TABLE
+log_output	FILE
 set global general_log=OFF;
 set global log_output=FILE;
 truncate table mysql.general_log;
