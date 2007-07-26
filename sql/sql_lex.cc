@@ -124,7 +124,7 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   m_tok_start_prev(NULL),
   m_buf(buffer),
   m_buf_length(length),
-  m_echo(true),
+  m_echo(TRUE),
   m_cpp_tok_start(NULL),
   m_cpp_tok_start_prev(NULL),
   m_cpp_tok_end(NULL),
@@ -1200,7 +1200,7 @@ int MYSQLlex(void *arg, void *yythd)
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
         lip->yySkip();
         lip->yySkip();
@@ -1233,7 +1233,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (version <= MYSQL_VERSION_ID)
           {
             /* Expand the content of the special comment as real code */
-            lip->set_echo(true);
+            lip->set_echo(TRUE);
             state=MY_LEX_START;
             break;
           }
@@ -1241,7 +1241,7 @@ int MYSQLlex(void *arg, void *yythd)
         else
         {
           state=MY_LEX_START;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           break;
         }
       }
@@ -1261,7 +1261,7 @@ int MYSQLlex(void *arg, void *yythd)
       if (! lip->eof())
         lip->yySkip();                  // remove last '/'
       state = MY_LEX_START;             // Try again
-      lip->set_echo(true);
+      lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
       if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
@@ -1272,7 +1272,7 @@ int MYSQLlex(void *arg, void *yythd)
         lip->set_echo(lip->in_comment == PRESERVE_COMMENT);
         lip->yySkipn(2);
         /* And start recording the tokens again */
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->in_comment=NO_COMMENT;
         state=MY_LEX_START;
       }
@@ -1297,7 +1297,7 @@ int MYSQLlex(void *arg, void *yythd)
           lip->found_semicolon= lip->get_ptr();
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           lip->next_state= MY_LEX_END;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           return (END_OF_INPUT);
         }
         state= MY_LEX_CHAR;		// Return ';'
@@ -1309,9 +1309,9 @@ int MYSQLlex(void *arg, void *yythd)
       if (lip->eof())
       {
         lip->yyUnget();                 // Reject the last '\0'
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->next_state=MY_LEX_END;     // Mark for next loop
         return(END_OF_INPUT);
       }
@@ -1770,7 +1770,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
-						  List<index_hint> *hints,
+						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -2723,7 +2723,7 @@ void st_select_lex::set_index_hint_type(enum index_hint_type type,
 
 void st_select_lex::alloc_index_hints (THD *thd)
 { 
-  index_hints= new (thd->mem_root) List<index_hint>(); 
+  index_hints= new (thd->mem_root) List<Index_hint>(); 
 }
 
 
@@ -2744,7 +2744,7 @@ void st_select_lex::alloc_index_hints (THD *thd)
 bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 {
   return index_hints->push_front (new (thd->mem_root) 
-                                 index_hint(current_index_hint_type,
+                                 Index_hint(current_index_hint_type,
                                             current_index_hint_clause,
                                             str, length));
 }
