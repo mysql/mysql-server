@@ -977,4 +977,12 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
 
+#
+# Bug #30036: SHOW TABLE TYPES causes the debug client to crash
+#
+--disable_result_log
+SHOW TABLE TYPES;
+--enable_result_log
+
+
 --echo End of 5.1 tests
