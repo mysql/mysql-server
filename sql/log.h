@@ -213,9 +213,6 @@ public:
                 WRITE_CACHE);
   }
 
-  /* TODO: fix MYSQL_LOG::write to be thread safe instead. */
-  inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
-
 private:
   time_t last_time;
 };

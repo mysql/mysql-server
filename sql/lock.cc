@@ -111,21 +111,23 @@ static void print_lock_error(int error, const char *);
 static int thr_lock_errno_to_mysql[]=
 { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
-                              uint flags, bool *need_reopen)
+/**
+  Perform semantic checks for mysql_lock_tables.
+  @param thd The current thread
+  @param tables The tables to lock
+  @param count The number of tables to lock
+  @param flags Lock flags
+  @return 0 if all the check passed, non zero if a check failed.
+*/
+int mysql_lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
 {
-  MYSQL_LOCK *sql_lock;
-  TABLE *write_lock_used;
-  int rc;
-  uint i;
   bool log_table_write_query;
   uint system_count;
+  uint i;
 
-  DBUG_ENTER("mysql_lock_tables");
+  DBUG_ENTER("mysql_lock_tables_check");
 
-  *need_reopen= FALSE;
   system_count= 0;
-
   log_table_write_query= (is_log_table_write_query(thd->lex->sql_command)
                          || ((flags & MYSQL_LOCK_PERF_SCHEMA) != 0));
 
@@ -154,7 +156,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
           || (thd->lex->sql_command == SQLCOM_LOCK_TABLES))
       {
         my_error(ER_CANT_LOCK_LOG_TABLE, MYF(0));
-        DBUG_RETURN(0);
+        DBUG_RETURN(1);
       }
     }
 
@@ -173,8 +175,25 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
   if ((system_count > 0) && (system_count < count))
   {
     my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
+
+  DBUG_RETURN(0);
+}
+
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
+                              uint flags, bool *need_reopen)
+{
+  MYSQL_LOCK *sql_lock;
+  TABLE *write_lock_used;
+  int rc;
+
+  DBUG_ENTER("mysql_lock_tables");
+
+  *need_reopen= FALSE;
+
+  if (mysql_lock_tables_check(thd, tables, count, flags))
+    DBUG_RETURN (NULL);
 
   for (;;)
   {
