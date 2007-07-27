@@ -1676,6 +1676,64 @@ drop database mysqldump_test_db;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
+###########################################################################
+
+--echo #
+--echo # Bug #30027: mysqldump does not dump views properly.
+--echo #            
+
+--echo
+--echo # Cleanup.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqldump_test_db;
+--enable_warnings
+
+--echo
+--echo # Create objects.
+
+CREATE DATABASE mysqldump_test_db;
+
+set names koi8r;
+
+CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS колонка1;
+CREATE VIEW mysqldump_test_db.v1 AS SELECT колонка1 FROM mysqldump_test_db.v2;
+
+set names latin1;
+
+--echo
+--echo # Dump mysqldump_test_db to $MYSQLTEST_VARDIR/tmp/bug30027.sql.
+
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=latin1 --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
+# --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
+
+--echo
+--echo # Drop mysqldump_test_db.
+
+DROP DATABASE mysqldump_test_db;
+
+--echo
+--echo # Restore mysqldump_test_db from $MYSQLTEST_VARDIR/tmp/bug30027.sql.
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug30027.sql
+
+--echo
+--echo # Check the view.
+
+set names utf8;
+
+SHOW CREATE VIEW mysqldump_test_db.v1;
+SHOW CREATE VIEW mysqldump_test_db.v2;
+
+set names latin1;
+
+--echo
+--echo # Cleanup.
+
+DROP DATABASE mysqldump_test_db;
+
+###########################################################################
+
 --echo #
 --echo # End of 5.1 tests
 --echo #
