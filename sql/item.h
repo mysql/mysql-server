@@ -612,6 +612,7 @@ public:
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
+  int save_str_value_in_field(Field *field, String *result);
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
@@ -2166,7 +2167,10 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
-  int save_in_field(Field *field, bool no_conversions);
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return save_str_value_in_field(field, &str_value);
+  }
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
