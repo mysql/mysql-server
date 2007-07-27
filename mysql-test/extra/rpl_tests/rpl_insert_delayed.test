@@ -84,3 +84,33 @@ USE test;
 DROP SCHEMA mysqlslap;
 sync_slave_with_master;
 connection master;
+
+#
+# Bug #29571: INSERT DELAYED IGNORE written to binary log on the master but
+# on the slave
+#
+CREATE TABLE t1(a int, UNIQUE(a));
+INSERT DELAYED IGNORE INTO t1 VALUES(1);
+INSERT DELAYED IGNORE INTO t1 VALUES(1);
+flush table t1; # to wait for INSERT DELAYED to be done
+
+#must show two INSERT DELAYED
+--replace_column 1 x 2 x 3 x 4 x 5 x
+show binlog events limit 11,100;
+select * from t1;
+
+sync_slave_with_master;
+echo On slave;
+#must show two INSERT DELAYED
+--replace_column 1 x 2 x 3 x 4 x 5 x
+show binlog events limit 12,100;
+select * from t1;
+
+
+# clean up
+connection master;
+drop table t1;
+sync_slave_with_master;
+connection master;
+
+--echo End of 5.0 tests
