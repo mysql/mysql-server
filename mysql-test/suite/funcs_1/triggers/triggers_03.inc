@@ -29,23 +29,23 @@ let $message= Testcase 3.5.3:;
 	set password for test_yesprivs@localhost = password('PWD');
 
 #Section 3.5.3.1 / 3.5.3.2
-# Test case: Ensure TRIGGER privilege is required to create a trigger
+# Test case: Ensure SUPER privilege is required to create a trigger
 #Section 3.5.3.3 / 3.5.3.4
-# Test case: Ensure that root always has the TRIGGER privilege.
+# Test case: Ensure that root always has the SUPER privilege.
 # OMR - No need to test this since SUPER priv is an existing one and not related
 #       or added for triggers (TP 2005-06-06)
 #Section 3.5.3.5 / 3.5.3.6
-# Test case: Ensure that the TRIGGER privilege is required to drop a trigger.
+# Test case: Ensure that the SUPER privilege is required to drop a trigger.
 let $message= Testcase 3.5.3.2/6:;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 	grant ALL  on *.* to test_noprivs@localhost;
-	revoke TRIGGER on *.* from test_noprivs@localhost;
+	revoke SUPER  on *.* from test_noprivs@localhost;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 # Adding the minimal priv to be able to set to the db
 	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
@@ -63,15 +63,14 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-# error 1227 is better, as it says, that not the privilege
-	--error 1142,1227
+	--error 1227
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 3.5.3.2_1-no';
 
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.2-no');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 	connection yes_privs;
         select current_user;
@@ -84,27 +83,29 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-        --error 1143
+        # Added following the fix to bug 5861
+	--error 1143
 	insert into t1 (f1) values ('insert 3.5.3.2-yes');
-	select f1 from t1 order by f1;
+	select f1 from t1;
+	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
+let $message= note: once 15166 is fixed a similar case for SELECT needs to be added;
+--source include/show_msg.inc
 
-        grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
-        insert into t1 (f1) values ('insert 3.5.3.2-yes');
-        select f1 from t1 order by f1;
-
+	insert into t1 (f1) values ('insert 3.5.3.2-yes');
+	select f1 from t1;
 let $message= Testcase 3.5.3.6:;
 --source include/show_msg.inc
 
 	connection no_privs;
 	use priv_db;
 
-	--error 1142,1227
+	--error 1227
 	drop trigger trg1_2;
 
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.6-yes');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 	connection yes_privs;
 	use priv_db;
@@ -114,7 +115,7 @@ let $message= Testcase 3.5.3.6:;
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.6-no');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 # Cleanup
 	--disable_warnings
@@ -143,7 +144,7 @@ let $message=Testcase 3.5.3.7a:;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
+	grant SUPER, UPDATE on *.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
@@ -155,7 +156,7 @@ let $message=Testcase 3.5.3.7a:;
 	select current_user;
 	use priv_db;
 	show grants;
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 let $message= Trigger create disabled - should fail - Bug 8884;
 --source include/show_msg.inc
@@ -165,7 +166,7 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1a');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	--error 0, 1360
 	drop trigger trg4a_1;
 
@@ -178,8 +179,14 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
+
+        # Added to bypass bug 15166
+let $message= SELECT priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant SELECT on *.* to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.7-2b');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 # Cleanup
 	--disable_warnings
@@ -193,13 +200,13 @@ let $message= Testcase 3.5.3.7b:;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs;
+	grant SUPER on *.* to test_noprivs;
 	grant ALL  on priv_db.* to test_noprivs@localhost;
 	revoke UPDATE  on priv_db.* from test_noprivs@localhost;
 	show grants for test_noprivs;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant UPDATE on priv_db.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -221,9 +228,9 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1b');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	update t1 set  f1 = 'update 3.5.3.7-1b' where f1 = 'insert 3.5.3.7-1b';
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	--error 0, 1360
 	drop trigger trg4b_1;
 
@@ -235,10 +242,15 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
+        # Added to bypass bug 15166
+let $message= SELECT priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant SELECT on priv_db.* to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.7-2b');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	update t1 set  f1 = 'update 3.5.3.7-2b' where f1 = 'insert 3.5.3.7-2b';
-	select f1 from t1 order by f1;
+	select f1 from t1;
 # Cleanup
 	--disable_warnings
 	drop trigger trg4b_2;
@@ -251,13 +263,13 @@ let $message= Testcase 3.5.3.7c;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs@localhost;
+	grant SUPER on *.* to test_noprivs@localhost;
 	grant ALL  on priv_db.t1 to test_noprivs@localhost;
 	revoke UPDATE  on priv_db.t1 from test_noprivs@localhost;
 	show grants for test_noprivs;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -279,7 +291,7 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1c');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	--error 0, 1360
 	drop trigger trg4c_1;
 
@@ -291,8 +303,13 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
+        # Added to bypass bug 15166
+let $message= SELECT priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.7-2c');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 # Cleanup
 	--disable_warnings
@@ -308,13 +325,13 @@ let $message= Testcase 3.5.3.7d:;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs@localhost;
+	grant SUPER on *.* to test_noprivs@localhost;
 # There is no ALL privs on the column level
 	grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 	show grants for test_noprivs;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_noprivs;
 
@@ -335,7 +352,7 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1d');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 	--error 0, 1360
 	drop trigger trg4d_1;
 
@@ -347,8 +364,13 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
+        # Added to bypass bug 15166
+let $message= SELECT priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.7-2d');
-	select f1 from t1 order by f1;
+	select f1 from t1;
 
 # Cleanup
 	--disable_warnings
@@ -372,7 +394,7 @@ let $message= Testcase 3.5.3.8a:;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
+	grant SUPER, SELECT on *.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
 	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
@@ -411,6 +433,11 @@ let $message= Trigger create disabled - should fail - Bug 8887;
         set @test_var= 'before trig 3.5.3.8-2a';
 	select @test_var;
 
+        # Added to bypass bug 15166
+let $message= UPDATE priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant UPDATE on *.* to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.8-2a');
 	select @test_var;
 
@@ -426,13 +453,13 @@ let $message= Testcase: 3.5.3.8b;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs@localhost;
+	grant SUPER on *.* to test_noprivs@localhost;
 	grant ALL  on priv_db.* to test_noprivs@localhost;
 	revoke SELECT  on priv_db.* from test_noprivs@localhost;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant SELECT on priv_db.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -472,6 +499,11 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	insert into t1 (f1) values ('insert 3.5.3.8-2b');
 	select @test_var;
 
+        # Added to bypass bug 15166
+let $message= UPDATE priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant UPDATE on priv_db.* to test_yesprivs@localhost;
+
 	update t1 set  f1= 'update 3.5.3.8-2b' where f1 = 'insert 3.5.3.8-2b';
 	select @test_var;
 # Cleanup
@@ -486,13 +518,13 @@ let $message= Testcase 3.5.3.8c:;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs@localhost;
+	grant SUPER on *.* to test_noprivs@localhost;
 	grant ALL  on priv_db.t1 to test_noprivs@localhost;
 	revoke SELECT  on priv_db.t1 from test_noprivs@localhost;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -528,6 +560,11 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	connection default;
         set @test_var='before trig 3.5.3.8-2c';
 
+        # Added to bypass bug 15166
+let $message= UPDATE priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.8-2c');
 	select @test_var;
 # Cleanup
@@ -542,13 +579,13 @@ let $message=Testcase: 3.5.3.8d:;
 --source include/show_msg.inc
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-	grant TRIGGER on *.* to test_noprivs@localhost;
+	grant SUPER on *.* to test_noprivs@localhost;
 # There is no ALL prov on the column level
 	grant UPDATE (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 	show grants for test_noprivs@localhost;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_noprivs@localhost;
 
@@ -583,6 +620,11 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	connection default;
         set @test_var='before trig 3.5.3.8-2d';
 
+        # Added to bypass bug 15166
+let $message= UPDATE priv added to bypass bug 15166;
+--source include/show_msg.inc
+	grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
+
 	insert into t1 (f1) values ('insert 3.5.3.8-2d');
 	select @test_var;
 
@@ -608,7 +650,7 @@ let $message=Testcase: 3.5.3.x:;
         eval create table t2 (f2 int) engine= $engine_type;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-	grant TRIGGER on *.* to test_yesprivs@localhost;
+	grant SUPER on *.* to test_yesprivs@localhost;
 	grant SELECT, UPDATE on priv_db.t1 to test_yesprivs@localhost;
 	grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
@@ -629,8 +671,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 	grant INSERT on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (4);
-	select f1 from t1 order by f1;
-	select f2 from t2 order by f2;
+	select f1 from t1;
+	select f2 from t2;
 
 	connection yes_353x;
 	use priv_db;
@@ -645,8 +687,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke INSERT on priv_db.t2 from test_yesprivs@localhost;
 	grant UPDATE on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (2);
-	select f1 from t1 order by f1;
-	select f2 from t2 order by f2;
+	select f1 from t1;
+	select f2 from t2;
 
 	connection yes_353x;
 	use priv_db;
@@ -661,8 +703,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke UPDATE on priv_db.t2 from test_yesprivs@localhost;
 	grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (1);
-	select f1 from t1 order by f1;
-	select f2 from t2 order by f2;
+	select f1 from t1;
+	select f2 from t2;
         select @aaa;
 
 	connection yes_353x;
@@ -678,8 +720,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 	grant DELETE on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (1);
-	select f1 from t1 order by f1;
-	select f2 from t2 order by f2;
+	select f1 from t1;
+	select f2 from t2;
 
 
 

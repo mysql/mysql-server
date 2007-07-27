@@ -470,8 +470,7 @@ SET @x=0;
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 ERROR HY000: View's SELECT contains a 'INTO' clause
 Select @x;
-@x
-0
+ERROR HY000: View's SELECT contains a variable or parameter
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
 ERROR HY000: View's SELECT contains a subquery in the FROM clause
@@ -608,9 +607,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE or REPLACE view v1 as Select f59, f60
 from tb2 by group f59  ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'by group f59' at line 2
-
-Testcase 3.3.1.5 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 DROP VIEW  IF EXISTS v1 ;
 CREATE VIEW v1 SELECT * FROM tb2 limit 100 ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT * FROM tb2 limit 100' at line 1
@@ -630,9 +627,7 @@ CREATE VIEW v1    SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
 CREATE VIEW v1 AS         ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-
-Testcase 3.3.1.6 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 DROP VIEW  IF EXISTS v1 ;
 CREATE or REPLACE                       VIEW v1
 as SELECT * from tb2 limit 100 ;
@@ -1817,9 +1812,7 @@ ERROR HY000: View's SELECT contains a subquery in the FROM clause
 SELECT * FROM test.v1      ;
 ERROR 42S02: Table 'test.v1' doesn't exist
 Drop view if exists test.v1 ;
-
-Testcase 3.3.1.40 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 Drop view if exists test.v1 ;
 Set @var1 = 'ABC' ;
 Set @var2 = 'XYZ' ;
@@ -1828,9 +1821,7 @@ ERROR HY000: View's SELECT contains a variable or parameter
 CREATE VIEW test.v1 AS SELECT @@global.sort_buffer_size;
 ERROR HY000: View's SELECT contains a variable or parameter
 Drop view if exists test.v1 ;
-
-Testcase 3.3.1.41 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 Drop view if exists test.v1 ;
 Drop procedure if exists sp1 ;
 Create procedure sp1() DETERMINISTIC
@@ -1847,9 +1838,7 @@ Warnings:
 Note	1051	Unknown table 'test.v1'
 Drop procedure sp1 ;
 ERROR 42000: PROCEDURE test.sp1 does not exist
-
-Testcase 3.3.1.42 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 Drop VIEW if exists test.v1 ;
 CREATE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
@@ -1861,9 +1850,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM test.tb2 limit 2' at line 1
 Drop view if exists test.v1 ;
 Use test;
-
-Testcase 3.3.1.43 
---------------------------------------------------------------------------------
+ERROR HY000: View's SELECT contains a variable or parameter
 Drop view if exists test.v1 ;
 CREATE VIEW test.v1 AS SELECT f59,f60 FROM test.tb2;
 INSERT INTO test.v1 values(122,432);
@@ -1948,7 +1935,7 @@ f1	f2
 2	two
 4	four
 INSERT INTO v1 VALUES(2,'two');
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 1
 INSERT INTO v1 VALUES(3,'three');
 affected rows: 1
 INSERT INTO v1 VALUES(6,'six');
@@ -1967,7 +1954,7 @@ f1	f2
 3	three
 4	four
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 1
 UPDATE v1 SET f2 = 'number' WHERE f1 = 3;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
@@ -2014,12 +2001,12 @@ DROP VIEW  IF EXISTS test.v1;
 CREATE TABLE t1 (f1 ENUM('A', 'B', 'C') NOT NULL, f2 INTEGER)
 ENGINE = myisam;
 INSERT INTO t1 VALUES ('A', 1);
-SELECT * FROM t1 order by f1, f2;
+SELECT * FROM t1;
 f1	f2
 A	1
 CREATE VIEW  v1 AS SELECT * FROM t1 WHERE f2 BETWEEN 1 AND 2
 WITH CASCADED CHECK OPTION ;
-SELECT * FROM v1 order by f1, f2;
+SELECT * FROM v1;
 f1	f2
 A	1
 UPDATE v1 SET f2 = 2 WHERE f2 = 1;
@@ -2027,7 +2014,7 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
 INSERT INTO v1 VALUES('B',2);
 affected rows: 1
-SELECT * FROM v1 order by f1, f2;
+SELECT * FROM v1;
 f1	f2
 A	2
 B	2
@@ -2035,7 +2022,7 @@ UPDATE v1 SET f2 = 4;
 ERROR HY000: CHECK OPTION failed 'test.v1'
 INSERT INTO v1 VALUES('B',3);
 ERROR HY000: CHECK OPTION failed 'test.v1'
-SELECT * FROM v1 order by f1, f2;
+SELECT * FROM v1;
 f1	f2
 A	2
 B	2
@@ -10575,7 +10562,7 @@ f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 1
 SELECT * from t1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
@@ -10644,7 +10631,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '0' for key 1
 SELECT * from t1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
@@ -10979,11 +10966,11 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(5)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11003,12 +10990,12 @@ f4x	char(5)	YES		NULL
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4x	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
 0	NULL	ABC	t1 1
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER TABLE t1 CHANGE COLUMN f4x f4 CHAR(5);
 ALTER TABLE t1 CHANGE COLUMN f4 f4 CHAR(10);
@@ -11026,14 +11013,14 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(10)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
 0	NULL	ABC	t1 1
 2	NULL	<-- 10 -->	t1 2
 2	NULL	<-- 10 -->	v1 2
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11062,7 +11049,7 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(8)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11071,7 +11058,7 @@ f1	f2	f4	report
 2	NULL	<-- 10 -	v1 2
 3	NULL	<-- 10 -	t1 3
 3	NULL	<-- 10 -	v1 3
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11095,7 +11082,7 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11106,7 +11093,7 @@ f1	f2	f4	report
 3	NULL	<-- 10 -	v1 3
 4	NULL	<------ 20 -------->	t1 4
 4	NULL	<------ 20 -------->	v1 4
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11134,7 +11121,7 @@ f1	varchar(30)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11147,7 +11134,7 @@ f1	f2	f4	report
 4	NULL	<------ 20 -------->	v1 4
 <------------- 30 ----------->	NULL	<------ 20 -------->	t1 5
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11171,7 +11158,7 @@ f4	varchar(20)	YES		NULL
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f4	report
 -1	ABC	t1 0
 -1	ABC	v1 0
@@ -11185,7 +11172,7 @@ f1	f4	report
 <------------- 30 ----------->	<------ 20 -------->	t1 5
 <------------- 30 ----------->	<------ 20 -------->	v1 5
 ABC	<------ 20 -------->	t1 6
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER TABLE t1 ADD COLUMN f2 DATE DEFAULT NULL;
 INSERT INTO t1 SET f1 = 'ABC', f2 = '1500-12-04',
@@ -11204,7 +11191,7 @@ f1	varchar(30)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f4	report	f2
 -1	ABC	t1 0	NULL
 -1	ABC	v1 0	NULL
@@ -11220,7 +11207,7 @@ f1	f4	report	f2
 ABC	<------ 20 -------->	t1 6	NULL
 ABC	<------ 20 -------->	t1 7	1500-12-04
 ABC	<------ 20 -------->	v1 7	1500-12-04
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11254,7 +11241,7 @@ f1	varchar(30)	YES		NULL
 f2	float	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f4	report	f2
 -1	ABC	t1 0	NULL
 -1	ABC	v1 0	NULL
@@ -11269,10 +11256,10 @@ f1	f4	report	f2
 <------------- 30 ----------->	<------ 20 -------->	v1 5	NULL
 ABC	<------ 20 -------->	t1 6	NULL
 ABC	<------ 20 -------->	t1 7	NULL
-ABC	<------ 20 -------->	t1 8	-0.00033
 ABC	<------ 20 -------->	v1 7	NULL
+ABC	<------ 20 -------->	t1 8	-0.00033
 ABC	<------ 20 -------->	v1 8	-0.00033
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11287,8 +11274,8 @@ f1	f2	f4	report
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
 ABC	NULL	<------ 20 -------->	t1 6
 ABC	NULL	<------ 20 -------->	t1 7
-ABC	-0.00033	<------ 20 -------->	t1 8
 ABC	NULL	<------ 20 -------->	v1 7
+ABC	-0.00033	<------ 20 -------->	t1 8
 ABC	-0.00033	<------ 20 -------->	v1 8
 ALTER TABLE t1 ADD COLUMN f3 NUMERIC(7,2);
 INSERT INTO t1 SET f1 = 'ABC', f2 = -3.3E-4,
@@ -11311,7 +11298,7 @@ f1	varchar(30)	YES		NULL
 f2	float	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1 order by f1, report;
+SELECT * FROM t1;
 f1	f4	report	f2	f3
 -1	ABC	t1 0	NULL	NULL
 -1	ABC	v1 0	NULL	NULL
@@ -11326,12 +11313,12 @@ f1	f4	report	f2	f3
 <------------- 30 ----------->	<------ 20 -------->	v1 5	NULL	NULL
 ABC	<------ 20 -------->	t1 6	NULL	NULL
 ABC	<------ 20 -------->	t1 7	NULL	NULL
-ABC	<------ 20 -------->	t1 8	-0.00033	NULL
-ABC	<------ 20 -------->	t1 9	-0.00033	-2.20
 ABC	<------ 20 -------->	v1 7	NULL	NULL
+ABC	<------ 20 -------->	t1 8	-0.00033	NULL
 ABC	<------ 20 -------->	v1 8	-0.00033	NULL
+ABC	<------ 20 -------->	t1 9	-0.00033	-2.20
 ABC	<------ 20 -------->	v1 9a	-0.00033	NULL
-SELECT * FROM v1 order by f1, report;
+SELECT * FROM v1;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11346,10 +11333,10 @@ f1	f2	f4	report
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
 ABC	NULL	<------ 20 -------->	t1 6
 ABC	NULL	<------ 20 -------->	t1 7
-ABC	-0.00033	<------ 20 -------->	t1 8
-ABC	-0.00033	<------ 20 -------->	t1 9
 ABC	NULL	<------ 20 -------->	v1 7
+ABC	-0.00033	<------ 20 -------->	t1 8
 ABC	-0.00033	<------ 20 -------->	v1 8
+ABC	-0.00033	<------ 20 -------->	t1 9
 ABC	-0.00033	<------ 20 -------->	v1 9a
 DROP TABLE t1;
 DROP VIEW  v1;
@@ -11364,10 +11351,10 @@ DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM t1 order by f1, f2;
+SELECT * FROM t1;
 f1	f2
 ABC	3
-SELECT * FROM v1 order by 2;
+SELECT * FROM v1;
 f1	my_sqrt
 ABC	1.7320508075689
 ALTER TABLE t1 CHANGE COLUMN f2 f2 VARCHAR(30);
@@ -11380,21 +11367,21 @@ DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM t1 order by f1, f2;
+SELECT * FROM t1;
 f1	f2
 ABC	3
 ABC	DEF
-SELECT * FROM v1 order by 2;
+SELECT * FROM v1;
 f1	my_sqrt
-ABC	0
 ABC	1.7320508075689
+ABC	0
 SELECT SQRT('DEF');
 SQRT('DEF')
 0
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 CREATE VIEW v2 AS SELECT SQRT('DEF');
-SELECT * FROM v2 order by 1;
+SELECT * FROM v2;
 SQRT('DEF')
 0
 Warnings:
@@ -11404,27 +11391,27 @@ DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM v2 order by 2;
+SELECT * FROM v2;
 f1	my_sqrt
-ABC	0
 ABC	1.7320508075689
-CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
-SELECT * FROM t2 order by 2;
-f1	my_sqrt
 ABC	0
+CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
+SELECT * FROM t2;
+f1	my_sqrt
 ABC	1.73205080756888
+ABC	0
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
-SELECT * FROM t2 order by 2;
+SELECT * FROM t2;
 f1	my_sqrt
-ABC	0
 ABC	1.73205080756888
+ABC	0
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
-SELECT * FROM t2 order by 2;
+SELECT * FROM t2;
 f1	my_sqrt
-ABC	0
 ABC	1.73205080756888
+ABC	0
 DROP TABLE t1;
 DROP TABLE t2;
 DROP VIEW  v1;

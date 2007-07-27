@@ -6,16 +6,19 @@ let $message= .
               .                         IMPORTANT NOTICE:
               .                         -----------------
               .
-              .  FIXME: The .result files are still NOT CHECKED for correctness!
+              .  FIXME: The <engine>_storedproc.result files are still NOT CHECKED
+              .         for correctness!
               .
               .  FIXME: Several tests are affected by known problems around DECIMAL
-              .  FIXME: and NUMERIC that will be checked again after WL#2984 once
+              .  FIXME: and NUMERIC that needs to be checked again after WL#2984
               .  FIXME: has been completed. Some of them are marked in the result.
               .
-              . Currently (Dec 06, 2005) this .result file is checked OK for Linux
-              . with 5.0.17-bk (ChangeSet@1.1975.1.2, 2005-12-05 18:33:48+01:00).
-              . Using the available Windows version 5.0.16 there are differences
-              . that can be ignored (e.g. WL#2984).
+              .  This .result file has been checked OK with Linux 5.0.23-bk,
+              .  ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+              .
+              . This file has been saved although it might contain failures / wrong
+              . results to be able to detect _new_ differences in the behaviour.
+              . Hopefully the remaining checks can be made soon.
               .;
 --source include/show_msg80.inc
 
@@ -911,7 +914,7 @@ SELECT * from t1 where f2 = f1;
 #/t'ql/mysql-test
 #t]# t@localhost t
 
---error 0,1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE function()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE function;
@@ -1012,7 +1015,7 @@ CREATE PROCEDURE collate()
 CREATE PROCEDURE column()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE columns()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE columns;
@@ -1189,7 +1192,7 @@ CREATE PROCEDURE false()
 CREATE PROCEDURE fetch()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE fields()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE fields;
@@ -1210,7 +1213,7 @@ CREATE PROCEDURE force()
 CREATE PROCEDURE foreign()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE found()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE found;
@@ -1223,7 +1226,7 @@ CREATE PROCEDURE from()
 CREATE PROCEDURE fulltext()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE goto()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE goto;
@@ -1492,7 +1495,7 @@ CREATE PROCEDURE precision()
 CREATE PROCEDURE primary()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE privileges()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE privileges;
@@ -1653,7 +1656,7 @@ CREATE PROCEDURE straight_join()
 CREATE PROCEDURE table()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE PROCEDURE tables()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE tables;
@@ -1834,7 +1837,7 @@ CREATE FUNCTION char ascii not null(f1 char ascii not null) returns char ascii n
 CREATE FUNCTION tinytext(f1 tinytext) returns tinytext
     return f1;
 
---error 1064
+#FIXME check this is OK:--error 1064
 CREATE FUNCTION text(f1 text) returns text
     return f1;
   DROP FUNCTION text;
@@ -10125,7 +10128,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME check this is OK:--error 1064
+--error 1064
 CREATE PROCEDURE sp1()
 BEGIN
     declare precision char;
@@ -10427,7 +10430,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME check this is OK:--error 1064
+--error 1064
 CREATE PROCEDURE sp1()
 BEGIN
     declare soname char;
