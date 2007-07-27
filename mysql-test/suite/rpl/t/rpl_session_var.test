@@ -40,3 +40,25 @@ drop table t1,t2;
 save_master_pos;
 connection slave;
 sync_with_master;
+
+#
+# Bug #29878 Garbage data generation when executing SESSION_USER() on a slave. 
+#
+
+connection master;
+CREATE TABLE t1 (
+  `id` int(11) NOT NULL auto_increment,
+  `data` varchar(100),
+  PRIMARY KEY  (`id`)
+ ) ENGINE=MyISAM;
+
+INSERT INTO t1(data) VALUES(SESSION_USER());
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
