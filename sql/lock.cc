@@ -117,9 +117,64 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
   int rc;
+  uint i;
+  bool log_table_write_query;
+  uint system_count;
+
   DBUG_ENTER("mysql_lock_tables");
 
   *need_reopen= FALSE;
+  system_count= 0;
+
+  log_table_write_query= (is_log_table_write_query(thd->lex->sql_command)
+                         || ((flags & MYSQL_LOCK_PERF_SCHEMA) != 0));
+
+  for (i=0 ; i<count; i++)
+  {
+    TABLE *t= tables[i];
+
+    /* Protect against 'fake' partially initialized TABLE_SHARE */
+    DBUG_ASSERT(t->s->table_category != TABLE_UNKNOWN_CATEGORY);
+
+    /*
+      Table I/O to performance schema tables is performed
+      only internally by the server implementation.
+      When a user is requesting a lock, the following
+      constraints are enforced:
+    */
+    if (t->s->require_write_privileges() &&
+        ! log_table_write_query)
+    {
+      /*
+        A user should not be able to prevent writes,
+        or hold any type of lock in a session,
+        since this would be a DOS attack.
+      */
+      if ((t->reginfo.lock_type >= TL_READ_NO_INSERT)
+          || (thd->lex->sql_command == SQLCOM_LOCK_TABLES))
+      {
+        my_error(ER_CANT_LOCK_LOG_TABLE, MYF(0));
+        DBUG_RETURN(0);
+      }
+    }
+
+    if ((t->s->table_category == TABLE_CATEGORY_SYSTEM) &&
+        (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE))
+    {
+      system_count++;
+    }
+  }
+
+  /*
+    Locking of system tables is restricted:
+    locking a mix of system and non-system tables in the same lock
+    is prohibited, to prevent contention.
+  */
+  if ((system_count > 0) && (system_count < count))
+  {
+    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
+    DBUG_RETURN(0);
+  }
 
   for (;;)
   {
@@ -439,7 +494,8 @@ void mysql_lock_downgrade_write(THD *thd, TABLE *table,
 {
   MYSQL_LOCK *locked;
   TABLE *write_lock_used;
-  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  if ((locked = get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK,
+                              &write_lock_used)))
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_downgrade_write_lock(locked->locks[i], new_lock_type);
@@ -698,25 +754,19 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   TABLE **to, **table_buf;
   DBUG_ENTER("get_lock_data");
 
+  DBUG_ASSERT((flags == GET_LOCK_UNLOCK) || (flags == GET_LOCK_STORE_LOCKS));
+
   DBUG_PRINT("info", ("count %d", count));
   *write_lock_used=0;
-  uint system_count= 0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
-    if (table_ptr[i]->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE)
+    TABLE *t= table_ptr[i];
+
+    if (t->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE)
     {
-      tables+=table_ptr[i]->file->lock_count();
+      tables+= t->file->lock_count();
       lock_count++;
     }
-    /*
-      Check if we can lock the table. For some tables we cannot do that
-      beacause of handler-specific locking issues.
-    */
-    if (!table_ptr[i]-> file->
-          check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
-                                      table_ptr[i], count, i, &system_count,
-                                      logger.is_privileged_thread(thd)))
-      DBUG_RETURN(0);
   }
 
   /*

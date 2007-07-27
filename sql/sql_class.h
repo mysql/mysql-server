@@ -2438,6 +2438,7 @@ public:
 #define CF_HAS_ROW_COUNT	2
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
+#define CF_WRITE_LOGS_COMMAND  16
 
 /* Functions in sql_class.cc */
 

@@ -438,6 +438,11 @@ drop table if exists t1;
 CREATE TABLE txt1(a int);
 CREATE TABLE tyt2(a int);
 CREATE TABLE urkunde(a int);
+
+# make the output deterministic:
+# the order used in SHOW OPEN TABLES
+# is too much implementation dependent
+--disable_ps_protocol
 FLUSH TABLES;
 SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
 SHOW OPEN TABLES;
@@ -447,6 +452,8 @@ SHOW OPEN TABLES LIKE 't%';
 SHOW OPEN TABLES LIKE '%o%';
 FLUSH TABLES;
 SHOW OPEN TABLES;
+--enable_ps_protocol
+
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
