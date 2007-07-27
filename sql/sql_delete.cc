@@ -906,9 +906,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   char path[FN_REFLEN];
   TABLE *table;
   bool error;
-  uint closed_log_tables= 0, lock_logger= 0;
   uint path_length;
-  uint log_type;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -960,18 +958,6 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
-  log_type= check_if_log_table(table_list->db_length, table_list->db,
-                               table_list->table_name_length,
-                               table_list->table_name, 1);
-  /* close log tables in use */
-  if (log_type)
-  {
-    lock_logger= 1;
-    logger.lock();
-    logger.close_log_table(log_type, FALSE);
-    closed_log_tables= closed_log_tables | log_type;
-  }
-
   // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
   // crashes, replacement works.  *(path + path_length - reg_ext_length)=
   // '\0';
@@ -997,14 +983,6 @@ end:
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
-
-    if (opt_slow_log && (closed_log_tables & QUERY_LOG_SLOW))
-      logger.reopen_log_table(QUERY_LOG_SLOW);
-
-    if (opt_log && (closed_log_tables & QUERY_LOG_GENERAL))
-      logger.reopen_log_table(QUERY_LOG_GENERAL);
-    if (lock_logger)
-      logger.unlock();
   }
   else if (error)
   {

@@ -1602,7 +1602,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 #endif
 
-  if (!(table= open_ltable(thd, &tables, TL_WRITE)))
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
     DBUG_RETURN(1);
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
