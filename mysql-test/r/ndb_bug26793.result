@@ -3,7 +3,11 @@ CREATE TABLE `test` (
 `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `t` VARCHAR( 10 ) NOT NULL
 ) ENGINE = ndbcluster;
+create table test.db_temp as select * from mysql.db where user='';
 delete from mysql.db where user='';
 flush privileges;
 GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
 DROP TABLE `test`.`test`;
+insert into mysql.db select * from test.db_temp;
+drop table db_temp;
+flush privileges;
