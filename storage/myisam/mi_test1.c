@@ -258,7 +258,8 @@ static int run_test(const char *filename)
 	continue;
       create_key(key,j);
       my_errno=0;
-      if ((error = mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)))
+      if ((error = mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,
+                           HA_READ_KEY_EXACT)))
       {
 	if (verbose || (flags[j] >= 1 ||
 			(error && my_errno != HA_ERR_KEY_NOT_FOUND)))
@@ -285,7 +286,7 @@ static int run_test(const char *filename)
   {
     create_key(key,i);
     my_errno=0;
-    error=mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT);
+    error=mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT);
     if (verbose ||
 	(error == 0 && flags[i] == 0 && unique_key) ||
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
