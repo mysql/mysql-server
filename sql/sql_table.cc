@@ -3791,10 +3791,10 @@ view_err:
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-    table->file->external_lock(thd, F_WRLCK);
+    table->file->ha_external_lock(thd, F_WRLCK);
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
-    table->file->external_lock(thd, F_UNLCK);
+    table->file->ha_external_lock(thd, F_UNLCK);
     VOID(pthread_mutex_unlock(&LOCK_open));
     error= ha_commit_stmt(thd);
     if (ha_commit(thd))
@@ -3813,7 +3813,7 @@ view_err:
 	The following function call will free the new_table pointer,
 	in close_temporary_table(), so we can safely directly jump to err
       */
-      close_temporary_table(thd,new_db,tmp_name);
+      close_temporary_table(thd, new_db, tmp_name);
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -4086,7 +4086,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  if (to->file->external_lock(thd, F_WRLCK))
+  if (to->file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
 
   /* We need external lock before we can disable/enable keys */
@@ -4238,7 +4238,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
-  if (to->file->external_lock(thd,F_UNLCK))
+  if (to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
