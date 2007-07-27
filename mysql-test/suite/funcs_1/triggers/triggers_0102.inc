@@ -214,21 +214,29 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	eval create table t1 (f1 int, f2 char(25),f3 int) engine=$engine_type;
 	CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1 
 		for each row set new.f3 = '14';
+# In 5.0 names to long (more than 64 chars) were trimed without an error
+# In 5.1 an error is returned. So adding a call with the expected error 
+# and one with a shorter name to validate proper execution
+	--error 1059
 	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
+		BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
+	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
 		BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 
 	insert into t1 (f2) values ('insert 3.5.1.7');
 	select * from t1;
 	update t1 set f2='update 3.5.1.7';
 	select * from t1;
-	select trigger_name from information_schema.triggers;
+	select trigger_name from information_schema.triggers order by trigger_name;
 
 #Cleanup
 	--disable_warnings 
 	--error 0, 1360
 	drop trigger trg5_1;
-	# The above trigger should be dropped since the name was trimmed.
+	# In 5.1 the long name should generate an error that is to long
+	--error 1059
 	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
+	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 	drop table t1;
 
 #Section 3.5.1.8
@@ -385,10 +393,10 @@ let $message= Testcase 3.5.1.11:;
 	insert into trig_db2.t2 (f1,f2) values ('insert to db2 t2 from db1',3);
 	insert into trig_db3.t1 (f1,f2) values ('insert to db3 t1 from db1',4);
 	select @test_var1, @test_var2, @test_var3;
-	select * from t1;
+	select * from t1 order by f2;
 	select * from trig_db2.t2;
 	select * from trig_db3.t1;
-	select * from t1;
+	select * from t1 order by f2;
 	use test;
 
 #Cleanup
@@ -434,7 +442,7 @@ let $message= Testcase 3.5.2.1/2/3:;
 	create trigger trig_db2.trig2 before insert on trig_db2.t1 
 		for each row set @test_var3='trig2';
 	select trigger_schema, trigger_name, event_object_table
-		from information_schema.triggers;
+		from information_schema.triggers order by trigger_name;
 
 	set @test_var1= '', @test_var2= '', @test_var3= '';
 	insert into t1 (f1,f2) values ('insert to db1 t1 from db1',352);

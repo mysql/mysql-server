@@ -3881,11 +3881,11 @@ let $message= Testcase 3.2.20.1:;
 let $is_table= referential_constraints;
 # when table is implemented remove this and the next 4 lines and "enable" 5th line:
 # and don't forget to add the test description to QATestPlanV50func
-let $message= checking a table that will be implemented later;
---source include/show_msg.inc
---error 1109
+#let $message= checking a table that will be implemented later;
+#--source include/show_msg.inc
+#--error 1109
 eval DESC $is_table;
-#--source suite/funcs_1/datadict/datadict_show_table_design.inc
+--source suite/funcs_1/datadict/datadict_show_table_design.inc
 # -------------------------------------------------------------------------------------------------------
 
 

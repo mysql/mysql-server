@@ -1772,7 +1772,7 @@ SELECT * FROM v1 ORDER BY f1;
 --enable_info
 # 1.   The record to be inserted will be within the scope of the view.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 VALUES(2,'two');
 # 2.   The record to be inserted will be within the scope of the view.
 #      There is no already existing record with the PRIMARY KEY f1 = 3 .
@@ -1789,7 +1789,7 @@ SELECT * FROM v1 ORDER BY f1;
 # 1.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
 # 2.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
@@ -1873,11 +1873,11 @@ DROP VIEW  IF EXISTS test.v1;
 eval CREATE TABLE t1 (f1 ENUM('A', 'B', 'C') NOT NULL, f2 INTEGER)
      ENGINE = $engine_type;
 INSERT INTO t1 VALUES ('A', 1);
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, f2;
 
 CREATE VIEW  v1 AS SELECT * FROM t1 WHERE f2 BETWEEN 1 AND 2
 WITH CASCADED CHECK OPTION ;
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 --enable_info
 # positive cases
 UPDATE v1 SET f2 = 2 WHERE f2 = 1;
@@ -1885,7 +1885,7 @@ INSERT INTO v1 VALUES('B',2);
 --disable_info
 # Bug#11771: View over InnoDB table, wrong result SELECT on VIEW,
 #            field->query_id wrong
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 # negative cases
 --enable_info
 --error 1369
@@ -1895,7 +1895,7 @@ INSERT INTO v1 VALUES('B',3);
 --disable_info
 # Bug#11771: View over InnoDB table, wrong result SELECT on VIEW,
 #            field->query_id wrong
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 
 
 let $message= Testcase 3.3.1.49 ;
@@ -3287,7 +3287,7 @@ DELETE FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0, but this value is already exists
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;
@@ -3375,7 +3375,7 @@ CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0 and this value is already exists
---error 1062
+--error ER_DUP_ENTRY_WITH_KEY_NAME
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;
@@ -3838,8 +3838,8 @@ INSERT INTO v1 SET f1 = -1, f4 = 'ABC', report = 'v1 0';
 # 0. Initial state
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 1. Name of one base table column is altered
 ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
@@ -3854,9 +3854,9 @@ DESCRIBE t1;
 # Bug#12533 crash on DESCRIBE <view> after renaming base table column;
 --error 1356
 DESCRIBE v1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 --error 1356
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 ALTER TABLE t1 CHANGE COLUMN f4x f4 CHAR(5);
 #
 # 2. Length of one base table column is increased
@@ -3865,8 +3865,8 @@ INSERT INTO t1 SET f1 = 2, f4 = '<-- 10 -->', report = 't1 2';
 INSERT INTO v1 SET f1 = 2, f4 = '<-- 10 -->', report = 'v1 2';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 3. Length of one base table column is reduced
 ALTER TABLE t1 CHANGE COLUMN f4 f4 CHAR(8);
@@ -3874,8 +3874,8 @@ INSERT INTO t1 SET f1 = 3, f4 = '<-- 10 -->', report = 't1 3';
 INSERT INTO v1 SET f1 = 3, f4 = '<-- 10 -->', report = 'v1 3';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 4. Type of one base table column is altered   string -> string
 ALTER TABLE t1 CHANGE COLUMN f4 f4 VARCHAR(20);
@@ -3883,8 +3883,8 @@ INSERT INTO t1 SET f1 = 4, f4 = '<------ 20 -------->', report = 't1 4';
 INSERT INTO v1 SET f1 = 4, f4 = '<------ 20 -------->', report = 'v1 4';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 5. Type of one base table column altered   numeric -> string 
 ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30);
@@ -3894,8 +3894,8 @@ INSERT INTO v1 SET f1 = '<------------- 30 ----------->',
                    f4 = '<------ 20 -------->', report = 'v1 5';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 6. DROP of one base table column
 ALTER TABLE t1 DROP COLUMN f2;
@@ -3905,9 +3905,9 @@ INSERT INTO v1 SET f1 = 'ABC', f4 = '<------ 20 -------->', report = 'v1 6';
 DESCRIBE t1;
 --error 1356
 DESCRIBE v1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 --error 1356
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 #
 # 7. Recreation of dropped base table column with the same data type like before
 ALTER TABLE t1 ADD COLUMN f2 DATE DEFAULT NULL;
@@ -3917,8 +3917,8 @@ INSERT INTO v1 SET f1 = 'ABC', f2 = '1500-12-04',
                    f4 = '<------ 20 -------->', report = 'v1 7';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 8. Recreation of dropped base table column with a different data type
 #    like before
@@ -3930,8 +3930,8 @@ INSERT INTO v1 SET f1 = 'ABC', f2 = -3.3E-4,
                    f4 = '<------ 20 -------->', report = 'v1 8';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 9. Add a column to the base table
 ALTER TABLE t1 ADD COLUMN f3 NUMERIC(7,2);
@@ -3944,8 +3944,8 @@ INSERT INTO v1 SET f1 = 'ABC', f2 = -3.3E-4,
                    f4 = '<------ 20 -------->', report = 'v1 9a';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, report;
+SELECT * FROM v1 order by f1, report;
 #
 # 10. VIEW with numeric function is "victim" of data type change
 DROP TABLE t1;
@@ -3955,32 +3955,32 @@ INSERT INTO t1   SET f1 = 'ABC', f2 = 3;
 CREATE VIEW v1 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, f2;
+SELECT * FROM v1 order by 2;
 ALTER TABLE t1 CHANGE COLUMN f2 f2 VARCHAR(30);
 INSERT INTO t1   SET f1 = 'ABC', f2 = 'DEF';
 DESCRIBE t1;
 DESCRIBE v1;
-SELECT * FROM t1;
-SELECT * FROM v1;
+SELECT * FROM t1 order by f1, f2;
+SELECT * FROM v1 order by 2;
 # Some statements for comparison
 # - the ugly SQRT('DEF) as constant
 SELECT SQRT('DEF');
 # - Will a VIEW based on the same definition show the same result ?
 CREATE VIEW v2 AS SELECT SQRT('DEF');
-SELECT * FROM v2;
+SELECT * FROM v2 order by 1;
 # - Will a VIEW v2 created after the base table column recreation show the same
 #   result set like v1 ?
 CREATE OR REPLACE VIEW v2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
 DESCRIBE v2;
-SELECT * FROM v2;
+SELECT * FROM v2 order by 2;
 # - What will be the content of base table created with AS SELECT ?
 CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 --enable_ps_protocol
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
@@ -3988,7 +3988,7 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 --enable_ps_protocol
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
@@ -3996,7 +3996,7 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 --enable_ps_protocol
 #
 DROP TABLE t1;

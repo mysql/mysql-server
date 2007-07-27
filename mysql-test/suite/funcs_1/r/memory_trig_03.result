@@ -78,16 +78,16 @@ Testcase 3.5.3.2/6:
 -------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
-revoke SUPER  on *.* from test_noprivs@localhost;
+revoke TRIGGER on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
@@ -100,10 +100,10 @@ test_noprivs@localhost
 use priv_db;
 create trigger trg1_1 before INSERT on t1 for each row
 set new.f1 = 'trig 3.5.3.2_1-no';
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+Got one of the listed errors
 use priv_db;
 insert into t1 (f1) values ('insert 3.5.3.2-no');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 select current_user;
@@ -118,15 +118,12 @@ root@localhost
 use priv_db;
 insert into t1 (f1) values ('insert 3.5.3.2-yes');
 ERROR 42000: UPDATE command denied to user 'test_yesprivs'@'localhost' for column 'f1' in table 't1'
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
-
-note: once 15166 is fixed a similar case for SELECT needs to be added
----------------------------------------------------------------------
 insert into t1 (f1) values ('insert 3.5.3.2-yes');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 trig 3.5.3.2_2-yes
@@ -135,10 +132,10 @@ Testcase 3.5.3.6:
 -----------------
 use priv_db;
 drop trigger trg1_2;
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
+Got one of the listed errors
 use priv_db;
 insert into t1 (f1) values ('insert 3.5.3.6-yes');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 trig 3.5.3.2_2-yes
@@ -147,12 +144,12 @@ use priv_db;
 drop trigger trg1_2;
 use priv_db;
 insert into t1 (f1) values ('insert 3.5.3.6-no');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
 drop trigger trg1_2;
 
 Testcase 3.5.3.7a:
@@ -162,12 +159,12 @@ grant ALL  on *.* to test_noprivs@localhost;
 revoke UPDATE  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER, UPDATE on *.* to test_yesprivs@localhost;
+grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
@@ -176,24 +173,24 @@ test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-select f1 from t1;
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
 
 Trigger create disabled - should fail - Bug 8884
 ------------------------------------------------
 insert into t1 (f1) values ('insert 3.5.3.7-1a');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
 drop trigger trg4a_1;
 use priv_db;
 select current_user;
@@ -201,236 +198,220 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 create trigger trg4a_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2a';
-
-SELECT priv added to bypass bug 15166
--------------------------------------
-grant SELECT on *.* to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.7-2b');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 drop trigger trg4a_2;
 
 Testcase 3.5.3.7b:
 ------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs;
+grant TRIGGER on *.* to test_noprivs;
 grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke UPDATE  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT SUPER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
 use priv_db;
 
 Trigger create disabled - should fail - Bug 8884
 ------------------------------------------------
 insert into t1 (f1) values ('insert 3.5.3.7-1b');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
 insert 3.5.3.7-1b
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
 update t1 set  f1 = 'update 3.5.3.7-1b' where f1 = 'insert 3.5.3.7-1b';
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 update 3.5.3.7-1b
 drop trigger trg4b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg4b_2 before UPDATE  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2b';
-
-SELECT priv added to bypass bug 15166
--------------------------------------
-grant SELECT on priv_db.* to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.7-2b');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
-update 3.5.3.7-1b
 insert 3.5.3.7-2b
-update t1 set  f1 = 'update 3.5.3.7-2b' where f1 = 'insert 3.5.3.7-2b';
-select f1 from t1;
-f1
-insert 3.5.3.2-no
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
-insert 3.5.3.6-no
-insert 3.5.3.7-1a
 trig 3.5.3.7-2a
 update 3.5.3.7-1b
+update t1 set  f1 = 'update 3.5.3.7-2b' where f1 = 'insert 3.5.3.7-2b';
+select f1 from t1 order by f1;
+f1
+insert 3.5.3.2-no
+insert 3.5.3.6-no
+insert 3.5.3.7-1a
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
 trig 3.5.3.7-2b
+update 3.5.3.7-1b
 drop trigger trg4b_2;
 
 Testcase 3.5.3.7c
 -----------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs@localhost;
+grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke UPDATE  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT SUPER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
 
 Trigger create disabled - should fail - Bug 8884
 ------------------------------------------------
 insert into t1 (f1) values ('insert 3.5.3.7-1c');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
-update 3.5.3.7-1b
-trig 3.5.3.7-2b
 insert 3.5.3.7-1c
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
+trig 3.5.3.7-2b
+update 3.5.3.7-1b
 drop trigger trg4c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg4c_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2c';
-
-SELECT priv added to bypass bug 15166
--------------------------------------
-grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.7-2c');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
-update 3.5.3.7-1b
-trig 3.5.3.7-2b
 insert 3.5.3.7-1c
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
+trig 3.5.3.7-2b
 trig 3.5.3.7-2c
+update 3.5.3.7-1b
 drop trigger trg4c_2;
 
 Testcase 3.5.3.7d:
 ------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs@localhost;
+grant TRIGGER on *.* to test_noprivs@localhost;
 grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT SUPER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
-GRANT SUPER ON *.* TO 'test_noprivs'@'%'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT (f1), INSERT (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
 
 Trigger create disabled - should fail - Bug 8884
 ------------------------------------------------
 insert into t1 (f1) values ('insert 3.5.3.7-1d');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
-update 3.5.3.7-1b
-trig 3.5.3.7-2b
 insert 3.5.3.7-1c
-trig 3.5.3.7-2c
 insert 3.5.3.7-1d
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
+trig 3.5.3.7-2b
+trig 3.5.3.7-2c
+update 3.5.3.7-1b
 drop trigger trg4d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg4d_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2d';
-
-SELECT priv added to bypass bug 15166
--------------------------------------
-grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.7-2d');
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
-trig 3.5.3.2_2-yes
-trig 3.5.3.2_2-yes
 insert 3.5.3.6-no
 insert 3.5.3.7-1a
-trig 3.5.3.7-2a
-update 3.5.3.7-1b
-trig 3.5.3.7-2b
 insert 3.5.3.7-1c
-trig 3.5.3.7-2c
 insert 3.5.3.7-1d
+trig 3.5.3.2_2-yes
+trig 3.5.3.2_2-yes
+trig 3.5.3.7-2a
+trig 3.5.3.7-2b
+trig 3.5.3.7-2c
 trig 3.5.3.7-2d
+update 3.5.3.7-1b
 drop trigger trg4d_2;
 
 Testcase 3.5.3.8a:
@@ -440,12 +421,12 @@ grant ALL  on *.* to test_noprivs@localhost;
 revoke SELECT  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER, SELECT on *.* to test_yesprivs@localhost;
+grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SELECT, SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
@@ -454,7 +435,7 @@ test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 
 Trigger create disabled - should fail - Bug 8887
 ------------------------------------------------
@@ -473,17 +454,13 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SELECT, SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 create trigger trg5a_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
 set @test_var= 'before trig 3.5.3.8-2a';
 select @test_var;
 @test_var
 before trig 3.5.3.8-2a
-
-UPDATE priv added to bypass bug 15166
--------------------------------------
-grant UPDATE on *.* to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.8-2a');
 select @test_var;
 @test_var
@@ -493,26 +470,26 @@ drop trigger trg5a_2;
 Testcase: 3.5.3.8b
 ------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs@localhost;
+grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke SELECT  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
 use priv_db;
 
 Trigger create disabled - should fail - Bug 8887
@@ -529,7 +506,7 @@ before trig 3.5.3.8-1b
 drop trigger trg5b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg5b_2 before UPDATE  on t1 for each row
@@ -539,10 +516,6 @@ insert into t1 (f1) values ('insert 3.5.3.8-2b');
 select @test_var;
 @test_var
 before trig 3.5.3.8-2b
-
-UPDATE priv added to bypass bug 15166
--------------------------------------
-grant UPDATE on priv_db.* to test_yesprivs@localhost;
 update t1 set  f1= 'update 3.5.3.8-2b' where f1 = 'insert 3.5.3.8-2b';
 select @test_var;
 @test_var
@@ -552,26 +525,26 @@ drop trigger trg5b_2;
 Testcase 3.5.3.8c:
 ------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs@localhost;
+grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke SELECT  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
 
 Trigger create disabled - should fail - Bug 8887
@@ -584,16 +557,12 @@ before trig 3.5.3.8-1c
 drop trigger trg5c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg5c_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
 set @test_var='before trig 3.5.3.8-2c';
-
-UPDATE priv added to bypass bug 15166
--------------------------------------
-grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.8-2c');
 select @test_var;
 @test_var
@@ -603,24 +572,24 @@ drop trigger trg5c_2;
 Testcase: 3.5.3.8d:
 -------------------
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-grant SUPER on *.* to test_noprivs@localhost;
+grant TRIGGER on *.* to test_noprivs@localhost;
 grant UPDATE (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
-GRANT SUPER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
 
@@ -634,16 +603,12 @@ before trig 3.5.3.8-1d
 drop trigger trg5d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 use priv_db;
 create trigger trg5d_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
 set @test_var='before trig 3.5.3.8-2d';
-
-UPDATE priv added to bypass bug 15166
--------------------------------------
-grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 insert into t1 (f1) values ('insert 3.5.3.8-2d');
 select @test_var;
 @test_var
@@ -658,12 +623,12 @@ drop table if exists t2;
 create table t1 (f1 int) engine= memory;
 create table t2 (f2 int) engine= memory;
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-grant SUPER on *.* to test_yesprivs@localhost;
+grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT, UPDATE on priv_db.t1 to test_yesprivs@localhost;
 grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SUPER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t2` TO 'test_yesprivs'@'localhost'
 GRANT SELECT, UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
@@ -679,10 +644,10 @@ ERROR 42000: INSERT command denied to user 'test_yesprivs'@'localhost' for table
 revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 grant INSERT on priv_db.t2 to test_yesprivs@localhost;
 insert into t1 (f1) values (4);
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
 4
-select f2 from t2;
+select f2 from t2 order by f2;
 f2
 4
 use priv_db;
@@ -695,11 +660,11 @@ ERROR 42000: UPDATE command denied to user 'test_yesprivs'@'localhost' for table
 revoke INSERT on priv_db.t2 from test_yesprivs@localhost;
 grant UPDATE on priv_db.t2 to test_yesprivs@localhost;
 insert into t1 (f1) values (2);
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
-4
 2
-select f2 from t2;
+4
+select f2 from t2 order by f2;
 f2
 1
 use priv_db;
@@ -712,12 +677,12 @@ ERROR 42000: SELECT command denied to user 'test_yesprivs'@'localhost' for table
 revoke UPDATE on priv_db.t2 from test_yesprivs@localhost;
 grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 insert into t1 (f1) values (1);
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
-4
-2
 1
-select f2 from t2;
+2
+4
+select f2 from t2 order by f2;
 f2
 1
 select @aaa;
@@ -733,13 +698,13 @@ ERROR 42000: DELETE command denied to user 'test_yesprivs'@'localhost' for table
 revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 grant DELETE on priv_db.t2 to test_yesprivs@localhost;
 insert into t1 (f1) values (1);
-select f1 from t1;
+select f1 from t1 order by f1;
 f1
-4
+1
+1
 2
-1
-1
-select f2 from t2;
+4
+select f2 from t2 order by f2;
 f2
 drop database if exists priv_db;
 drop user test_yesprivs@localhost;

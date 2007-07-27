@@ -83,7 +83,7 @@ Insert into vw11 (f122, f151) values ('Test 3.5.10.1/2/3', 1);
 Insert into vw11 (f122, f151) values ('Test 3.5.10.1/2/3', 2);
 Insert into vw11 (f122, f151) values ('Not in View', 3);
 select f121, f122, f151, f163
-from tb3 where f122 like 'Test 3.5.10.1/2/3%';
+from tb3 where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 f121	f122	f151	f163
 NULL	Test 3.5.10.1/2/3	1	111.110000000000000000000000000000
 NULL	Test 3.5.10.1/2/3	2	111.110000000000000000000000000000
@@ -97,7 +97,7 @@ f121	f122	f151	f163
 NULL	Not in View	3	111.110000000000000000000000000000
 Update vw11 set f163=1;
 select f121, f122, f151, f163 from tb3
-where f122 like 'Test 3.5.10.1/2/3%';
+where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 f121	f122	f151	f163
 Y	Test 3.5.10.1/2/3-Update	1	1.000000000000000000000000000000
 Y	Test 3.5.10.1/2/3-Update	2	1.000000000000000000000000000000
@@ -111,7 +111,7 @@ before delete
 0
 delete from vw11 where f151=1;
 select f121, f122, f151, f163 from tb3
-where f122 like 'Test 3.5.10.1/2/3%';
+where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 f121	f122	f151	f163
 Y	Test 3.5.10.1/2/3-Update	2	1.000000000000000000000000000000
 select f121, f122, f151, f163 from vw11;
@@ -142,7 +142,7 @@ load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table tb_load;
 select @counter as 'Rows Loaded After';
 Rows Loaded After
 10
-Select * from tb_load limit 10;
+Select * from tb_load order by f1 limit 10;
 f1	f2	f3
 -5000	a`	1000
 -4999	aaa	999
@@ -237,7 +237,7 @@ insert into t3 (f1) values (new.f1+1000);
 create trigger tr2_4 after insert on t2_4 for each row
 insert into t3 (f1) values (new.f1+10000);
 insert into t1 values (1);
-select * from t3;
+select * from t3 order by f1;
 f1
 12
 102
@@ -272,17 +272,17 @@ create trigger tr4 after insert on t4
 for each row insert into t1 (f1) values (new.f4+1);
 insert into t1 values (1);
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
-select * from t1;
+select * from t1 order by f1;
 f1
 0
 1
-select * from t2;
+select * from t2 order by f2;
 f2
 2
-select * from t3;
+select * from t3 order by f3;
 f3
 3
-select * from t4;
+select * from t4 order by f4;
 f4
 4
 drop trigger tr1;
@@ -369,7 +369,7 @@ create table t4 (f4 tinyint) engine = memory;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) default NULL
+  `f1` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values (1);
 create trigger tr1 after insert on t1
@@ -381,16 +381,16 @@ for each row insert into t4 (f4) values (new.f3+1000);
 set autocommit=0;
 start transaction;
 insert into t1 values (1);
-ERROR 22003: Out of range value adjusted for column 'f4' at row 1
+ERROR 22003: Out of range value for column 'f4' at row 1
 commit;
-select * from t1;
+select * from t1 order by f1;
 f1
 1
 1
-select * from t2;
+select * from t2 order by f2;
 f2
 2
-select * from t3;
+select * from t3 order by f3;
 f3
 3
 drop trigger tr1;

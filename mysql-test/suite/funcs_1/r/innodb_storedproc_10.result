@@ -80,7 +80,7 @@ connect(localhost,user_1,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 user_1@localhost	db_storedproc
 CREATE PROCEDURE sp31102 () SQL SECURITY INVOKER
 BEGIN
-SELECT * FROM db_storedproc.t1 LIMIT 1;
+SELECT * FROM db_storedproc.t1 WHERE f4=-5000 LIMIT 1;
 END//
 CREATE FUNCTION fn31105(n INT) RETURNS INT
 BEGIN
@@ -209,7 +209,7 @@ CALL sp_ins_1();
 SELECT row_count();
 row_count()
 1
-SELECT * FROM temp;
+SELECT * FROM temp ORDER BY f4;
 f1	f2	f3	f4	f5	f6
 a`	a`	1000-01-01	-5000	a`	-5000
 aaa	aaa	1000-01-02	-4999	aaa	-4999
@@ -226,7 +226,7 @@ CALL sp_ins_3();
 SELECT row_count();
 row_count()
 1
-SELECT * FROM temp;
+SELECT * FROM temp ORDER BY f4;
 f1	f2	f3	f4	f5	f6
 a`	a`	1000-01-01	-5000	a`	-5000
 aaa	aaa	1000-01-02	-4999	aaa	-4999
@@ -246,7 +246,7 @@ CALL sp_upd();
 SELECT row_count();
 row_count()
 4
-SELECT * FROM temp;
+SELECT * FROM temp ORDER BY f4;
 f1	f2	f3	f4	f5	f6
 a`	a`	1000-01-01	-5000	a`	-5000
 aaa	aaa	1000-01-02	-4999	aaa	-4999
@@ -279,7 +279,7 @@ COUNT( f1 )	f1
 SELECT row_count();
 row_count()
 3
-SELECT * FROM temp;
+SELECT * FROM temp ORDER BY f4;
 f1	f2	f3	f4	f5	f6
 a`	a`	1000-01-01	-5000	a`	-5000
 aaa	aaa	1000-01-02	-4999	aaa	-4999
