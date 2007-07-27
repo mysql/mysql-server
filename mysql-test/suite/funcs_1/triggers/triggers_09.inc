@@ -85,7 +85,7 @@ let $message= Testcase 3.5.9.3:;
 		values ('Test 3.5.9.3', 7, 123.17);
 	Update tb3 Set f136=8 where f122='Test 3.5.9.3';
 
-	select f118, f121, f122, f136, f163 from tb3 where f122='Test 3.5.9.3';
+	select f118, f121, f122, f136, f163 from tb3 where f122='Test 3.5.9.3' order by f136;
 	select  @tr_var_b4_118, @tr_var_b4_121, @tr_var_b4_122, 
 		@tr_var_b4_136, @tr_var_b4_163;
 	select  @tr_var_af_118, @tr_var_af_121, @tr_var_af_122, 
@@ -104,7 +104,7 @@ let $message= Testcase 3.5.9.3:;
 
 	delete from tb3 where f122='Test 3.5.9.3';
 
-	select f118, f121, f122, f136, f163 from tb3 where f122='Test 3.5.9.3';
+	select f118, f121, f122, f136, f163 from tb3 where f122='Test 3.5.9.3' order by f136;
 	select  @tr_var_b4_118, @tr_var_b4_121, @tr_var_b4_122, 
 		@tr_var_b4_136, @tr_var_b4_163;
 	select  @tr_var_af_118, @tr_var_af_121, @tr_var_af_122, 
@@ -159,7 +159,7 @@ let $message= Testcase 3.5.9.4:;
 		values ('Test 3.5.9.4', 7, DEFAULT, 995.24);
 
 	select f118, f121, f122, f136, f151, f163 from tb3 
-		where f122 like 'Test 3.5.9.4%';
+		where f122 like 'Test 3.5.9.4%' order by f163;
 	select  @tr_var_b4_118, @tr_var_b4_121, @tr_var_b4_122, 
 		@tr_var_b4_136, @tr_var_b4_151, @tr_var_b4_163;
 	select  @tr_var_af_118, @tr_var_af_121, @tr_var_af_122, 
@@ -180,7 +180,7 @@ let $message= Testcase 3.5.9.4:;
 		 where f122='Test 3.5.9.4';
 
 	select f118, f121, f122, f136, f151, f163 from tb3 
-		where f122 like 'Test 3.5.9.4-trig';
+		where f122 like 'Test 3.5.9.4-trig' order by f163;
 	select  @tr_var_b4_118, @tr_var_b4_121, @tr_var_b4_122, 
 		@tr_var_b4_136, @tr_var_b4_151, @tr_var_b4_163;
 	select  @tr_var_af_118, @tr_var_af_121, @tr_var_af_122, 

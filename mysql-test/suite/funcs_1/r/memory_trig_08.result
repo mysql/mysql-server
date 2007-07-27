@@ -135,10 +135,10 @@ values ('1', 'Test 3.5.8.4', 222, 23456, 1.05);
 Select f120, f122, f136, f144, f163 from tb3 where f122= 'Test 3.5.8.4';
 f120	f122	f136	f144	f163
 1	Test 3.5.8.4	00222	0000023456	1.050000000000000000000000000000
-select * from db_test.t1_i;
+select * from db_test.t1_i order by i120;
 i120	i136	i144	i163
 1	00222	0000023456	1.050000000000000000000000000000
-select * from db_test.t1_u;
+select * from db_test.t1_u order by u120;
 u120	u136	u144	u163
 a	00111	0000099999	999.990000000000000000000000000000
 b	00222	0000023456	1.050000000000000000000000000000
@@ -146,7 +146,7 @@ c	00333	0000099999	999.990000000000000000000000000000
 d	00222	0000023456	1.050000000000000000000000000000
 e	00222	0000023456	1.050000000000000000000000000000
 f	00333	0000099999	999.990000000000000000000000000000
-select * from db_test.t1_d;
+select * from db_test.t1_d order by d120;
 d120	d136	d144	d163
 a	00111	0000099999	999.990000000000000000000000000000
 c	00333	0000099999	999.990000000000000000000000000000
@@ -158,14 +158,22 @@ select @test_var;
 3.5.8.4 - single SQL - insert
 -----------------------------
 Create trigger trg2 BEFORE UPDATE on tb3 for each row
+BEGIN
 insert into db_test.t1_i 
 values (new.f120, new.f136, new.f144, new.f163);
+END//
+Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
+f120	f122	f136	f144	f163
+1	Test 3.5.8.4	00222	0000023456	1.050000000000000000000000000000
+select * from db_test.t1_i order by i120;
+i120	i136	i144	i163
+1	00222	0000023456	1.050000000000000000000000000000
 update tb3 set f120='I', f122='Test 3.5.8.4-Single Insert'
 		 where f122='Test 3.5.8.4';
 Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
 f120	f122	f136	f144	f163
 I	Test 3.5.8.4-Single Insert	00222	0000023456	1.050000000000000000000000000000
-select * from db_test.t1_i;
+select * from db_test.t1_i order by i120;
 i120	i136	i144	i163
 1	00222	0000023456	1.050000000000000000000000000000
 I	00222	0000023456	1.050000000000000000000000000000
@@ -182,14 +190,14 @@ update tb3 set f120='U', f122='Test 3.5.8.4-Single Update'
 Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
 f120	f122	f136	f144	f163
 U	Test 3.5.8.4-Single Update	00222	0000023456	1.050000000000000000000000000000
-select * from db_test.t1_u;
+select * from db_test.t1_u order by u120;
 u120	u136	u144	u163
 a	00111	0000099999	999.990000000000000000000000000000
-U	00222	0000023456	1.050000000000000000000000000000
 c	00333	0000099999	999.990000000000000000000000000000
-U	00222	0000023456	1.050000000000000000000000000000
-U	00222	0000023456	1.050000000000000000000000000000
 f	00333	0000099999	999.990000000000000000000000000000
+U	00222	0000023456	1.050000000000000000000000000000
+U	00222	0000023456	1.050000000000000000000000000000
+U	00222	0000023456	1.050000000000000000000000000000
 
 3.5.8.3/4 - single SQL - delete
 -------------------------------
@@ -202,7 +210,7 @@ f122='Test 3.5.8.4-Single Delete'
 Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
 f120	f122	f136	f144	f163
 D	Test 3.5.8.4-Single Delete	00444	0000023456	1.050000000000000000000000000000
-select * from db_test.t1_d;
+select * from db_test.t1_d order by d120;
 d120	d136	d144	d163
 a	00111	0000099999	999.990000000000000000000000000000
 c	00333	0000099999	999.990000000000000000000000000000
@@ -249,29 +257,29 @@ END//
 set @test_var='Empty', @test_var2=0;
 Insert into tb3 (f120, f122, f136) values ('1', 'Test 3.5.8.5-if', 101);
 select f120, f122, f136, @test_var, @test_var2 
-from tb3 where f122 = 'Test 3.5.8.5-if';
+from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 f120	f122	f136	@test_var	@test_var2
 D	Test 3.5.8.5-if	00101	one	2nd else
 Insert into tb3 (f120, f122, f136) values ('2', 'Test 3.5.8.5-if', 102);
 select f120, f122, f136, @test_var, @test_var2 
-from tb3 where f122 = 'Test 3.5.8.5-if';
+from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 f120	f122	f136	@test_var	@test_var2
 D	Test 3.5.8.5-if	00101	two	2nd else
 D	Test 3.5.8.5-if	00102	two	2nd else
 Insert into tb3 (f120, f122, f136) values ('3', 'Test 3.5.8.5-if', 10);
 select f120, f122, f136, @test_var, @test_var2 
-from tb3 where f122 = 'Test 3.5.8.5-if';
+from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 f120	f122	f136	@test_var	@test_var2
+d	Test 3.5.8.5-if	00010	three	2nd if
 D	Test 3.5.8.5-if	00101	three	2nd if
 D	Test 3.5.8.5-if	00102	three	2nd if
-d	Test 3.5.8.5-if	00010	three	2nd if
 Insert into tb3 (f120, f122, f136) values ('3', 'Test 3.5.8.5-if', 103);
 select f120, f122, f136, @test_var, @test_var2 
-from tb3 where f122 = 'Test 3.5.8.5-if';
+from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 f120	f122	f136	@test_var	@test_var2
+d	Test 3.5.8.5-if	00010	three	2nd else
 D	Test 3.5.8.5-if	00101	three	2nd else
 D	Test 3.5.8.5-if	00102	three	2nd else
-d	Test 3.5.8.5-if	00010	three	2nd else
 D	Test 3.5.8.5-if	00103	three	2nd else
 create trigger trg3 before update on tb3 for each row
 BEGIN
@@ -331,20 +339,20 @@ set @test_var='Empty';
 Insert into tb3 (f120, f122, f136, f144) 
 values ('a', 'Test 3.5.8.5-case', 5, 7);
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
 A	Test 3.5.8.5-case	00125	0000000007	A*seven
 Insert into tb3 (f120, f122, f136, f144) 
 values ('b', 'Test 3.5.8.5-case', 71,16);
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
 A	Test 3.5.8.5-case	00125	0000000007	B*0000000016
 B	Test 3.5.8.5-case	00191	0000000016	B*0000000016
 Insert into tb3 (f120, f122, f136, f144) 
 values ('c', 'Test 3.5.8.5-case', 80,1);
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
 A	Test 3.5.8.5-case	00125	0000000007	C=one
 B	Test 3.5.8.5-case	00191	0000000016	C=one
@@ -354,34 +362,34 @@ values ('d', 'Test 3.5.8.5-case', 152);
 Warnings:
 Warning	1265	Data truncated for column 'f120' at row 1
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
+1	Test 3.5.8.5-case	00152	0000099999	1*0000099999
 A	Test 3.5.8.5-case	00125	0000000007	1*0000099999
 B	Test 3.5.8.5-case	00191	0000000016	1*0000099999
 C	Test 3.5.8.5-case	00200	0000000001	1*0000099999
-1	Test 3.5.8.5-case	00152	0000099999	1*0000099999
 Insert into tb3 (f120, f122, f136, f144) 
 values ('e', 'Test 3.5.8.5-case', 200, 8);
 Warnings:
 Warning	1265	Data truncated for column 'f120' at row 1
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
+1	Test 3.5.8.5-case	00152	0000099999	1=eight
+1	Test 3.5.8.5-case	00200	0000000008	1=eight
 A	Test 3.5.8.5-case	00125	0000000007	1=eight
 B	Test 3.5.8.5-case	00191	0000000016	1=eight
 C	Test 3.5.8.5-case	00200	0000000001	1=eight
-1	Test 3.5.8.5-case	00152	0000099999	1=eight
-1	Test 3.5.8.5-case	00200	0000000008	1=eight
 Insert into tb3 (f120, f122, f136, f144) 
 values ('f', 'Test 3.5.8.5-case', 100, 8);
 select f120, f122, f136, f144, @test_var 
-from tb3 where f122 = 'Test 3.5.8.5-case';
+from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 f120	f122	f136	f144	@test_var
+1	Test 3.5.8.5-case	00152	0000099999	1=eight
+1	Test 3.5.8.5-case	00200	0000000008	1=eight
 A	Test 3.5.8.5-case	00125	0000000007	1=eight
 B	Test 3.5.8.5-case	00191	0000000016	1=eight
 C	Test 3.5.8.5-case	00200	0000000001	1=eight
-1	Test 3.5.8.5-case	00152	0000099999	1=eight
-1	Test 3.5.8.5-case	00200	0000000008	1=eight
 create trigger trg3a before update on tb3 for each row
 BEGIN
 CASE
