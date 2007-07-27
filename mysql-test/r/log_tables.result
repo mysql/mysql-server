@@ -29,30 +29,83 @@ on (mysql.general_log.command_type = join_test.command_type)
 drop table join_test;
 flush logs;
 lock tables mysql.general_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.slow_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.general_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.slow_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
-unlock tables;
-lock tables mysql.general_log READ LOCAL;
+ERROR HY000: You can't use locks with log tables.
+show create table mysql.general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext,
+  `thread_id` int(11) DEFAULT NULL,
+  `server_id` int(11) DEFAULT NULL,
+  `command_type` varchar(64) DEFAULT NULL,
+  `argument` mediumtext
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+show fields from mysql.general_log;
+Field	Type	Null	Key	Default	Extra
+event_time	timestamp	NO		CURRENT_TIMESTAMP	
+user_host	mediumtext	YES		NULL	
+thread_id	int(11)	YES		NULL	
+server_id	int(11)	YES		NULL	
+command_type	varchar(64)	YES		NULL	
+argument	mediumtext	YES		NULL	
+show create table mysql.slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `query_time` time NOT NULL,
+  `lock_time` time NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) DEFAULT NULL,
+  `last_insert_id` int(11) DEFAULT NULL,
+  `insert_id` int(11) DEFAULT NULL,
+  `server_id` int(11) DEFAULT NULL,
+  `sql_text` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+show fields from mysql.slow_log;
+Field	Type	Null	Key	Default	Extra
+start_time	timestamp	NO		CURRENT_TIMESTAMP	
+user_host	mediumtext	NO			
+query_time	time	NO			
+lock_time	time	NO			
+rows_sent	int(11)	NO			
+rows_examined	int(11)	NO			
+db	varchar(512)	YES		NULL	
+last_insert_id	int(11)	YES		NULL	
+insert_id	int(11)	YES		NULL	
+server_id	int(11)	YES		NULL	
+sql_text	mediumtext	NO			
 flush logs;
-unlock tables;
-select "Mark that we woke up from flush logs in the test"
-       as "test passed";
-test passed
-Mark that we woke up from flush logs in the test
-lock tables mysql.general_log READ LOCAL;
-truncate mysql.general_log;
-unlock tables;
-select "Mark that we woke up from TRUNCATE in the test"
-       as "test passed";
-test passed
-Mark that we woke up from TRUNCATE in the test
-use test;
+flush tables;
+SET GLOBAL GENERAL_LOG=ON;
+SET GLOBAL SLOW_QUERY_LOG=ON;
+show open tables;
+Database	Table	In_use	Name_locked
+mysql	general_log	0	0
+flush logs;
+show open tables;
+Database	Table	In_use	Name_locked
+mysql	general_log	0	0
+flush tables;
+show open tables;
+Database	Table	In_use	Name_locked
+mysql	general_log	0	0
+SET GLOBAL GENERAL_LOG=OFF;
+SET GLOBAL SLOW_QUERY_LOG=OFF;
+flush tables;
+show open tables;
+Database	Table	In_use	Name_locked
+SET GLOBAL GENERAL_LOG=ON;
+SET GLOBAL SLOW_QUERY_LOG=ON;
 truncate table mysql.general_log;
 set names utf8;
 create table bug16905 (s char(15) character set utf8 default 'пусто');
@@ -71,7 +124,7 @@ sleep(2)
 0
 select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(2)
+TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	mysql	0	0	1	select sleep(2)
 alter table mysql.general_log engine=myisam;
 ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 alter table mysql.slow_log engine=myisam;
@@ -158,15 +211,13 @@ TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set global slow_query_log='ON'
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 flush logs;
 lock tables mysql.general_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.slow_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.general_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
+ERROR HY000: You can't use locks with log tables.
 lock tables mysql.slow_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
-lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
-unlock tables;
+ERROR HY000: You can't use locks with log tables.
 set global general_log='OFF';
 set global slow_query_log='OFF';
 set @save_storage_engine= @@session.storage_engine;
@@ -217,6 +268,7 @@ flush tables with read lock;
 unlock tables;
 use mysql;
 lock tables general_log read local, help_category read local;
+ERROR HY000: You can't use locks with log tables.
 unlock tables;
 use mysql;
 RENAME TABLE general_log TO renamed_general_log;
@@ -258,9 +310,9 @@ RENAME TABLE general_log TO general_log2;
 set global slow_query_log='OFF';
 RENAME TABLE slow_log TO slow_log2;
 set global general_log='ON';
-ERROR HY000: Cannot activate 'general' log
+ERROR 42S02: Table 'mysql.general_log' doesn't exist
 set global slow_query_log='ON';
-ERROR HY000: Cannot activate 'slow query' log
+ERROR 42S02: Table 'mysql.slow_log' doesn't exist
 RENAME TABLE general_log2 TO general_log;
 RENAME TABLE slow_log2 TO slow_log;
 set global general_log='ON';
@@ -355,3 +407,192 @@ SET SESSION long_query_time =@old_long_query_time;
 FLUSH LOGS;
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
+drop procedure if exists proc25422_truncate_slow;
+drop procedure if exists proc25422_truncate_general;
+drop procedure if exists proc25422_alter_slow;
+drop procedure if exists proc25422_alter_general;
+use test//
+create procedure proc25422_truncate_slow (loops int)
+begin
+declare v1 int default 0;
+while v1 < loops do
+truncate mysql.slow_log;
+set v1 = v1 + 1;
+end while;
+end//
+create procedure proc25422_truncate_general (loops int)
+begin
+declare v1 int default 0;
+while v1 < loops do
+truncate mysql.general_log;
+set v1 = v1 + 1;
+end while;
+end//
+create procedure proc25422_alter_slow (loops int)
+begin
+declare v1 int default 0;
+declare ER_BAD_LOG_STATEMENT condition for 1575;
+declare continue handler for ER_BAD_LOG_STATEMENT begin end;
+while v1 < loops do
+set @old_log_state = @@global.slow_query_log;
+set global slow_query_log = 'OFF';
+alter table mysql.slow_log engine = CSV;
+set global slow_query_log = @old_log_state;
+set v1 = v1 + 1;
+end while;
+end//
+create procedure proc25422_alter_general (loops int)
+begin
+declare v1 int default 0;
+declare ER_BAD_LOG_STATEMENT condition for 1575;
+declare continue handler for ER_BAD_LOG_STATEMENT begin end;
+while v1 < loops do
+set @old_log_state = @@global.general_log;
+set global general_log = 'OFF';
+alter table mysql.general_log engine = CSV;
+set global general_log = @old_log_state;
+set v1 = v1 + 1;
+end while;
+end//
+"Serial test (proc25422_truncate_slow)"
+call proc25422_truncate_slow(100);
+"Serial test (proc25422_truncate_general)"
+call proc25422_truncate_general(100);
+"Serial test (proc25422_alter_slow)"
+call proc25422_alter_slow(100);
+"Serial test (proc25422_alter_general)"
+call proc25422_alter_general(100);
+"Parallel test"
+call proc25422_truncate_slow(100);
+call proc25422_truncate_slow(100);
+call proc25422_truncate_general(100);
+call proc25422_truncate_general(100);
+call proc25422_alter_slow(100);
+call proc25422_alter_slow(100);
+call proc25422_alter_general(100);
+call proc25422_alter_general(100);
+drop procedure proc25422_truncate_slow;
+drop procedure proc25422_truncate_general;
+drop procedure proc25422_alter_slow;
+drop procedure proc25422_alter_general;
+FLUSH TABLE mysql.general_log;
+show warnings;
+Level	Code	Message
+FLUSH TABLE mysql.slow_log;
+show warnings;
+Level	Code	Message
+DROP TABLE IF EXISTS `db_17876.slow_log_data`;
+DROP TABLE IF EXISTS `db_17876.general_log_data`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
+DROP DATABASE IF EXISTS `db_17876`;
+CREATE DATABASE db_17876;
+CREATE TABLE `db_17876.slow_log_data` (
+`start_time` timestamp  default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+`user_host` mediumtext ,
+`query_time` time ,
+`lock_time` time ,
+`rows_sent` int(11) ,
+`rows_examined` int(11) ,
+`db` varchar(512) default NULL,
+`last_insert_id` int(11) default NULL,
+`insert_id` int(11) default NULL,
+`server_id` int(11) default NULL,
+`sql_text` mediumtext 
+);
+CREATE TABLE `db_17876.general_log_data` (
+`event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+`user_host` mediumtext,
+`thread_id` int(11) DEFAULT NULL,
+`server_id` int(11) DEFAULT NULL,
+`command_type` varchar(64) DEFAULT NULL,
+`argument` mediumtext
+);
+CREATE procedure `db_17876.archiveSlowLog`()
+BEGIN
+DECLARE start_time, query_time, lock_time CHAR(20);
+DECLARE user_host MEDIUMTEXT;
+DECLARE rows_set, rows_examined, last_insert_id, insert_id, server_id INT;
+DECLARE dbname MEDIUMTEXT;
+DECLARE sql_text BLOB;
+DECLARE done INT DEFAULT 0;
+DECLARE ER_SP_FETCH_NO_DATA CONDITION for 1329;
+DECLARE cur1 CURSOR FOR SELECT * FROM mysql.slow_log;
+OPEN cur1;
+REPEAT
+BEGIN
+BEGIN
+DECLARE CONTINUE HANDLER FOR ER_SP_FETCH_NO_DATA SET done = 1;
+FETCH cur1 INTO
+start_time, user_host, query_time, lock_time,
+rows_set, rows_examined, dbname, last_insert_id,
+insert_id, server_id, sql_text;
+END;
+IF NOT done THEN
+BEGIN
+INSERT INTO
+`db_17876.slow_log_data`
+            VALUES(start_time, user_host, query_time, lock_time, rows_set, rows_examined,
+dbname, last_insert_id,  insert_id, server_id, sql_text);
+END;
+END IF;
+END;
+UNTIL done END REPEAT;
+CLOSE cur1;
+TRUNCATE mysql.slow_log;
+END //
+CREATE procedure `db_17876.archiveGeneralLog`()
+BEGIN
+DECLARE event_time CHAR(20);
+DECLARE user_host, argument MEDIUMTEXT;
+DECLARE thread_id, server_id INT;
+DECLARE sql_text BLOB;
+DECLARE done INT DEFAULT 0;
+DECLARE command_type VARCHAR(64);
+DECLARE ER_SP_FETCH_NO_DATA CONDITION for 1329;
+DECLARE cur1 CURSOR FOR SELECT * FROM mysql.general_log;
+OPEN cur1;
+REPEAT
+BEGIN
+BEGIN
+DECLARE CONTINUE HANDLER FOR ER_SP_FETCH_NO_DATA SET done = 1;
+FETCH cur1 INTO
+event_time, user_host, thread_id, server_id,
+command_type, argument;
+END;
+IF NOT done THEN
+BEGIN
+INSERT INTO
+`db_17876.general_log_data`
+            VALUES(event_time, user_host, thread_id, server_id,
+command_type, argument);
+END;
+END IF;
+END;
+UNTIL done END REPEAT;
+CLOSE cur1;
+TRUNCATE mysql.general_log;
+END //
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+select "put something into general_log";
+put something into general_log
+put something into general_log
+select "... and something more ...";
+... and something more ...
+... and something more ...
+call `db_17876.archiveSlowLog`();
+call `db_17876.archiveGeneralLog`();
+SET GLOBAL general_log = OFF;
+SET GLOBAL slow_query_log = OFF;
+call `db_17876.archiveSlowLog`();
+call `db_17876.archiveGeneralLog`();
+DROP TABLE `db_17876.slow_log_data`;
+DROP TABLE `db_17876.general_log_data`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
+DROP DATABASE IF EXISTS `db_17876`;
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
