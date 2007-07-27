@@ -31,6 +31,15 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
         AC_MSG_NOTICE([disabling inlining for yassl/taocrypt/src/])
         ;;
     esac
+    case $SYSTEM_TYPE in
+      *hpux11*)
+      if test "$ac_cv_prog_gcc" = "no"
+      then
+        # yass compiled with the HPUX 11.0 compiler requires a special lib
+        NON_THREADED_LIBS="$NON_THREADED_LIBS -lCsup"
+      fi
+        ;;
+    esac
     AC_SUBST([yassl_taocrypt_extra_cxxflags])
     # Link extra/yassl/include/openssl subdir to include/
     yassl_h_ln_cmd="\$(LN) -s \$(top_srcdir)/extra/yassl/include/openssl openssl"
