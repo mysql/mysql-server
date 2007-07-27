@@ -708,19 +708,10 @@ bool Log_to_file_event_handler::
            longlong query_time, longlong lock_time, bool is_command,
            const char *sql_text, uint sql_text_len)
 {
-  bool res;
-
-  (void) pthread_mutex_lock(mysql_slow_log.get_log_lock());
-
-  /* TODO: MYSQL_QUERY_LOG::write is not thread-safe */
-  res= mysql_slow_log.write(thd, current_time, query_start_arg,
-                            user_host, user_host_len,
-                            query_time, lock_time, is_command,
-                            sql_text, sql_text_len);
-
-  (void) pthread_mutex_unlock(mysql_slow_log.get_log_lock());
-
-  return res;
+  return mysql_slow_log.write(thd, current_time, query_start_arg,
+                              user_host, user_host_len,
+                              query_time, lock_time, is_command,
+                              sql_text, sql_text_len);
 }
 
 
@@ -736,18 +727,9 @@ bool Log_to_file_event_handler::
               const char *sql_text, uint sql_text_len,
               CHARSET_INFO *client_cs)
 {
-  bool res;
-
-  (void) pthread_mutex_lock (mysql_log.get_log_lock());
-
-  /* TODO: MYSQL_QUERY_LOG::write is not thread-safe */
-  res= mysql_log.write(event_time, user_host, user_host_len,
-                       thread_id, command_type, command_type_len,
-                       sql_text, sql_text_len);
-
-  (void) pthread_mutex_unlock (mysql_log.get_log_lock());
-
-  return res;
+  return mysql_log.write(event_time, user_host, user_host_len,
+                         thread_id, command_type, command_type_len,
+                         sql_text, sql_text_len);
 }
 
 
@@ -1959,6 +1941,8 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
   struct tm start;
   uint time_buff_len= 0;
 
+  (void) pthread_mutex_lock(&LOCK_log);
+
   /* Test if someone closed between the is_open test and lock */
   if (is_open())
   {
@@ -2003,6 +1987,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
       goto err;
   }
 
+  (void) pthread_mutex_unlock(&LOCK_log);
   return FALSE;
 err:
 
@@ -2011,6 +1996,7 @@ err:
     write_error= 1;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
   }
+  (void) pthread_mutex_unlock(&LOCK_log);
   return TRUE;
 }
 
@@ -2053,8 +2039,13 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
   bool error= 0;
   DBUG_ENTER("MYSQL_QUERY_LOG::write");
 
+  (void) pthread_mutex_lock(&LOCK_log);
+
   if (!is_open())
+  {
+    (void) pthread_mutex_unlock(&LOCK_log);
     DBUG_RETURN(0);
+  }
 
   if (is_open())
   {						// Safety agains reopen
@@ -2158,6 +2149,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       }
     }
   }
+  (void) pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
 }
 
