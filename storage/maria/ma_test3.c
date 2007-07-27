@@ -243,7 +243,7 @@ int test_read(MARIA_HA *file,int id)
   {
     find=rnd(100000);
     if (!maria_rkey(file,record.id,1,(uchar*) &find,
-		 sizeof(find),HA_READ_KEY_EXACT))
+                    HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       found++;
     else
     {
@@ -426,7 +426,7 @@ int test_update(MARIA_HA *file,int id,int lock_type)
     tmp=rnd(100000);
     int4store(find,tmp);
     if (!maria_rkey(file,record.id,1,(uchar*) find,
-		 sizeof(find),HA_READ_KEY_EXACT))
+                    HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       found++;
     else
     {

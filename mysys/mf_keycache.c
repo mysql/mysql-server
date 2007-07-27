@@ -2977,8 +2977,8 @@ int key_cache_write(KEY_CACHE *keycache,
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
-             ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length:
- %u",
+             ("fd: %u  pos: %lu  length: %u  block_length: %u"
+              "  key_block_length: %u",
               (uint) file, (ulong) filepos, length, block_length,
               keycache ? keycache->key_cache_block_size : 0));
 

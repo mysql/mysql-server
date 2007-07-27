@@ -746,7 +746,6 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
 
-#ifdef ASK_MONTY
   /*
     This is a protection for the case of a frm and MAI containing incompatible
     table definitions (as in BUG#25908). This was merged from MyISAM.
@@ -764,9 +763,13 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
       goto err;
       /* purecov: end */
     }
+#ifdef ASK_MONTY
     if (maria_check_definition(keyinfo, recinfo, table->s->keys, recs,
                                file->s->keyinfo, file->s->columndef,
                                file->s->base.keys, file->s->base.fields, true))
+#else
+    if (0)
+#endif
     {
       /* purecov: begin inspected */
       my_errno= HA_ERR_CRASHED;
@@ -774,7 +777,6 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
       /* purecov: end */
     }
   }
-#endif
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));

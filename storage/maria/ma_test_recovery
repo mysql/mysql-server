@@ -1,5 +1,5 @@
 set -e
-
+silent="-s"
 if [ -z "$maria_path" ]
 then
     maria_path="."
@@ -13,7 +13,7 @@ echo "MARIA RECOVERY TESTS - success is if exit code is 0"
 # Does not test the index file as we don't have logging for it yet.
 
 rm -f maria_log*
-prog="$maria_path/ma_test1 -M -T --skip-update"
+prog="$maria_path/ma_test1 $silent -M -T --skip-update"
 echo "TEST WITH $prog"
 $prog
 mv -f test1.MAD test1.MAD.good
@@ -24,7 +24,7 @@ cmp test1.MAD test1.MAD.good
 rm -f test1.*
 
 rm -f maria_log*
-prog="$maria_path/ma_test2 -s -L -K -W -P -M -T -g"
+prog="$maria_path/ma_test2 $silent -L -K -W -P -M -T -g"
 echo "TEST WITH $prog"
 $prog
 mv -f test2.MAD test2.MAD.good

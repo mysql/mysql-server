@@ -288,7 +288,7 @@ int main(int argc, char *argv[])
       if (!j)
 	for (j=999 ; j>0 && key1[j] == 0 ; j--) ;
       sprintf(key,"%6d",j);
-      if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("Test in loop: Can't find key: \"%s\"\n",key);
 	goto err;
@@ -321,7 +321,7 @@ int main(int argc, char *argv[])
     if (j != 0)
     {
       sprintf(key,"%6d",j);
-      if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
     if (j != 0)
     {
       sprintf(key,"%6d",j);
-      if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
     DBUG_PRINT("progpos",("first - next -> last - prev -> first"));
     if (verbose) printf("	 Using key: \"%s\"  Keys: %d\n",key,dupp_keys);
 
-    if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+    if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       goto err;
     if (maria_rsame(file,read_record2,-1))
       goto err;
@@ -474,7 +474,7 @@ int main(int argc, char *argv[])
     }
 
     /* Check of maria_rnext_same */
-    if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+    if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       goto err;
     ant=1;
     while (!maria_rnext_same(file,read_record3) && ant < dupp_keys+10)
@@ -548,7 +548,7 @@ int main(int argc, char *argv[])
       goto err;
   if (bcmp(read_record2,read_record3,reclength))
      printf("Can't find last record\n");
-
+#ifdef NOT_ANYMORE
   if (!silent)
     puts("- Test read key-part");
   strmov(key2,key);
@@ -566,12 +566,14 @@ int main(int argc, char *argv[])
       goto err;
     }
   }
+#endif
   if (dupp_keys > 2)
   {
     if (!silent)
       printf("- Read key (first) - next - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - next - delete - next -> last"));
-    if (maria_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
+    if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+      goto err;
     if (maria_rnext(file,read_record3,0)) goto err;
     if (maria_delete(file,read_record3)) goto err;
     opt_delete++;
@@ -607,7 +609,8 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read first - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - delete - next -> last"));
-    if (maria_rkey(file,read_record3,0,key,0,HA_READ_KEY_EXACT)) goto err;
+    if (maria_rkey(file,read_record3,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+      goto err;
     if (maria_delete(file,read_record3)) goto err;
     opt_delete++;
     ant=1;
@@ -681,10 +684,10 @@ int main(int argc, char *argv[])
     copy_key(file,(uint) i,(uchar*) read_record,(uchar*) key);
     copy_key(file,(uint) i,(uchar*) read_record2,(uchar*) key2);
     min_key.key= key;
-    min_key.length= USE_WHOLE_KEY;
+    min_key.keypart_map= HA_WHOLE_KEY;
     min_key.flag= HA_READ_KEY_EXACT;
     max_key.key= key2;
-    max_key.length= USE_WHOLE_KEY;
+    max_key.keypart_map= HA_WHOLE_KEY;
     max_key.flag= HA_READ_AFTER_KEY;
 
     range_records= maria_records_in_range(file,(int) i, &min_key, &max_key);
