@@ -4503,6 +4503,8 @@ int ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (m_table && table->found_next_number_field)
     {
+      if ((my_errno= check_ndb_connection()))
+        DBUG_RETURN(my_errno);
       Ndb *ndb= get_ndb();
       Ndb_tuple_id_range_guard g(m_share);
       
