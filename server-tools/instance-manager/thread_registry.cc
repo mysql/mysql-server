@@ -64,8 +64,12 @@ Thread_registry::~Thread_registry()
   /* Check that no one uses the repository. */
   pthread_mutex_lock(&LOCK_thread_registry);
 
-  if (head.next != &head)
-    log_error("Not all threads died properly\n");
+  for (Thread_info *ti= head.next; ti != &head; ti= ti->next)
+  {
+    log_error("Thread_registry: unregistered thread: %lu.",
+              (unsigned long) ti->thread_id);
+  }
+
   /* All threads must unregister */
   DBUG_ASSERT(head.next == &head);
 

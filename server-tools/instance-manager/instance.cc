@@ -771,7 +771,7 @@ bool Instance::stop_mysqld()
     These operations should also be used in Guardian to manage instances.
 */
 
-void Instance::kill_mysqld(int signum)
+bool Instance::kill_mysqld(int signum)
 {
   pid_t mysqld_pid= options.load_pid();
 
@@ -780,7 +780,7 @@ void Instance::kill_mysqld(int signum)
     log_info("Instance '%s': no pid file to send a signal (%d).",
              (const char *) get_name()->str,
              (int) signum);
-    return;
+    return TRUE;
   }
 
   log_info("Instance '%s': sending %d to %d...",
@@ -792,7 +792,7 @@ void Instance::kill_mysqld(int signum)
   {
     log_info("Instance '%s': kill() failed.",
              (const char *) get_name()->str);
-    return;
+    return TRUE;
   }
 
   /* Kill suceeded */
@@ -804,6 +804,8 @@ void Instance::kill_mysqld(int signum)
     /* After sucessful hard kill the pidfile need to be removed */
     options.unlink_pidfile();
   }
+
+  return FALSE;
 }
 
 
