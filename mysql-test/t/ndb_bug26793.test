@@ -9,6 +9,7 @@ CREATE TABLE `test` (
 `t` VARCHAR( 10 ) NOT NULL
 ) ENGINE = ndbcluster;
 
+create table test.db_temp as select * from mysql.db where user='';
 delete from mysql.db where user='';
 
 flush privileges;
@@ -31,3 +32,7 @@ enable_result_log;
 connect (root,localhost,root,,test);
 connection root;
 DROP TABLE `test`.`test`;
+insert into mysql.db select * from test.db_temp;
+drop table db_temp;
+flush privileges;
+
