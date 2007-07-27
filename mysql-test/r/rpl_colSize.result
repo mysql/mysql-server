@@ -1,0 +1,179 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1;
+**** Testing WL#3228 changes. ****
+*** Create "wider" table on slave ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t1 (
+a float     (47),
+b double    (143,9),
+c decimal   (65,30),
+d numeric   (4,0),
+e bit       (32),
+f char      (21),
+g varchar   (1300),
+h binary    (33),
+j varbinary (200),
+k enum      ('5','6','7', '8','9','0'),
+l set       ('1','2','3','4','5','6','7','8','9','0','11','12','13','14','15','16','17','18','19','21','22','23','24','25','26','27','28','29'),
+m TINYBLOB,
+n BLOB,
+o MEDIUMBLOB,
+p LONGBLOB,
+q TINYTEXT,
+r TEXT,
+s MEDIUMTEXT,
+t LONGTEXT
+);
+*** Create same table on master but with narrow columns ***
+CREATE TABLE t1 (
+a float     (44),
+b double    (10,3),
+c decimal   (10,2),
+d numeric   (3,0),
+e bit       (16),
+f char      (10),
+g varchar   (100),
+h binary    (20),
+j varbinary (20),
+k enum      ('5','6','7'),
+l set       ('1','2','3','4','5','6','7','8','9','0'),
+m TINYBLOB,
+n BLOB,
+o MEDIUMBLOB,
+p LONGBLOB,
+q TINYTEXT,
+r TEXT,
+s MEDIUMTEXT,
+t LONGTEXT
+);
+RESET MASTER;
+*** Start replication ***
+START SLAVE;
+*** Insert data on master and display it. ***
+INSERT INTO t1 () VALUES (
+17.567, 
+2.123, 
+10.20, 
+125,
+hex(64),
+'TEST',
+'This is a test',
+'binary data',
+'more binary data',
+'6',
+'7',
+"blob 1",
+"blob  2",
+"blob   3",
+"blob    4",
+"text 1",
+"text  2",
+"text   3",
+"text    4");
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e	f	g	h	j	k	l	m	n	o	p	q	r	s	t
+17.567	2.123	10.20	125	#	TEST	This is a test	#	more binary data	6	7	blob 1	blob  2	blob   3	blob    4	text 1	text  2	text   3	text    4
+*** Select data from slave to compare ***
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e	f	g	h	j	k	l	m	n	o	p	q	r	s	t
+17.567	2.123000000	10.200000000000000000000000000000	125	#	TEST	This is a test	#	more binary data	6	7	blob 1	blob  2	blob   3	blob    4	text 1	text  2	text   3	text    4
+DROP TABLE t1;
+Create varchar table on master
+CREATE TABLE t1 (
+a VARCHAR(50),
+b VARCHAR(100),
+c VARCHAR(300),
+d CHAR(5)
+);
+Alter varchar table on slave
+ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(100);
+ALTER TABLE t1 CHANGE COLUMN b b VARCHAR(400);
+ALTER TABLE t1 CHANGE COLUMN c c VARCHAR(500);
+ALTER TABLE t1 CHANGE COLUMN d d CHAR(100);
+Insert some values and select them on master
+INSERT INTO t1 VALUES ("This is a test of col a.", 
+"This is another test of col b.",
+"This is a test of the large col c.",
+"Col d");
+SELECT * FROM t1;
+a	b	c	d
+This is a test of col a.	This is another test of col b.	This is a test of the large col c.	Col d
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(50) DEFAULT NULL,
+  `b` varchar(100) DEFAULT NULL,
+  `c` varchar(300) DEFAULT NULL,
+  `d` char(5) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Insert some values and select them on slave
+SELECT * FROM t1;
+a	b	c	d
+This is a test of col a.	This is another test of col b.	This is a test of the large col c.	Col d
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(100) DEFAULT NULL,
+  `b` varchar(400) DEFAULT NULL,
+  `c` varchar(500) DEFAULT NULL,
+  `d` char(100) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+Create bit table on master
+CREATE TABLE t1 (
+a BIT(7),
+b BIT(8),
+c BIT(21),
+d BIT(11),
+e BIT(11)
+);
+Create bit table on slave
+DROP TABLE t1;
+CREATE TABLE t1 (
+a BIT(16),
+b BIT(22),
+c BIT(54),
+d BIT(25),
+e BIT(13)
+);
+Insert some values and select them on master
+INSERT INTO t1 VALUES (
+b'1010101',
+b'10101011',
+b'101010110101010101111',
+b'10101010101',
+b'10101011111'
+  );
+SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+BIN(a)	BIN(b)	BIN(c)	BIN(d)	BIN(e)
+1010101	10101011	101010110101010101111	10101010101	10101011111
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(7) DEFAULT NULL,
+  `b` bit(8) DEFAULT NULL,
+  `c` bit(21) DEFAULT NULL,
+  `d` bit(11) DEFAULT NULL,
+  `e` bit(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Insert some values and select them on master
+SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+BIN(a)	BIN(b)	BIN(c)	BIN(d)	BIN(e)
+1010101	10101011	101010110101010101111	10101010101	10101011111
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(16) DEFAULT NULL,
+  `b` bit(22) DEFAULT NULL,
+  `c` bit(54) DEFAULT NULL,
+  `d` bit(25) DEFAULT NULL,
+  `e` bit(13) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+*** Cleanup  ***
+DROP TABLE t1;
