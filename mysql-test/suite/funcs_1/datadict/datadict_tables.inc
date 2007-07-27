@@ -58,5 +58,5 @@ eval $dd_part1 triggers                              $dd_part2;
 --error 1109
 eval $dd_part1 parameters $dd_part2;
 
---error 1109
+--error 0,1109
 eval $dd_part1 referential_constraints $dd_part2;

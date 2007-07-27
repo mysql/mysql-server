@@ -111,9 +111,10 @@ let $message= 3.5.8.4 - multiple SQL;
 	Insert into tb3 (f120, f122, f136, f144, f163) 
 		values ('1', 'Test 3.5.8.4', 222, 23456, 1.05);
 	Select f120, f122, f136, f144, f163 from tb3 where f122= 'Test 3.5.8.4';
-	select * from db_test.t1_i;
-	select * from db_test.t1_u;
-	select * from db_test.t1_d;
+# error in ndb
+	select * from db_test.t1_i order by i120;
+	select * from db_test.t1_u order by u120;
+	select * from db_test.t1_d order by d120;
 	select @test_var;
 
 
@@ -121,16 +122,22 @@ let $message= 3.5.8.4 - single SQL - insert;
 --source include/show_msg.inc
 # Trigger definition - single SQL Insert
 	connection con2_super;
+        delimiter //;
 	Create trigger trg2 BEFORE UPDATE on tb3 for each row
+        BEGIN
 		insert into db_test.t1_i 
 			values (new.f120, new.f136, new.f144, new.f163);
+        END//
+        delimiter ;//
 
 # Trigger exeution - single SQL Insert
 	connection con2_general;
+        Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
+        select * from db_test.t1_i order by i120;
 	update tb3 set f120='I', f122='Test 3.5.8.4-Single Insert'
 		 where f122='Test 3.5.8.4';
 	Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
-	select * from db_test.t1_i;
+	select * from db_test.t1_i order by i120;
 
 
 let $message= 3.5.8.4 - single SQL - update;
@@ -148,7 +155,7 @@ let $message= 3.5.8.4 - single SQL - update;
 	update tb3 set f120='U', f122='Test 3.5.8.4-Single Update'
 		 where f122='Test 3.5.8.4-Single Insert';
 	Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
-	select * from db_test.t1_u;
+	select * from db_test.t1_u order by u120;
 
 
 let $message= 3.5.8.3/4 - single SQL - delete;
@@ -167,7 +174,7 @@ let $message= 3.5.8.3/4 - single SQL - delete;
 		 where f122='Test 3.5.8.4-Single Update';
 #unlock tables;
 	Select f120, f122, f136, f144, f163 from tb3 where f122 like 'Test 3.5.8.4%';
-	select * from db_test.t1_d;
+	select * from db_test.t1_d order by d120;
 
 
 let $message= 3.5.8.3/4 - single SQL - select;
@@ -228,16 +235,16 @@ let $message= Testcase 3.5.8.5 (IF):;
 	set @test_var='Empty', @test_var2=0;
 	Insert into tb3 (f120, f122, f136) values ('1', 'Test 3.5.8.5-if', 101);
 	select f120, f122, f136, @test_var, @test_var2 
-		from tb3 where f122 = 'Test 3.5.8.5-if';
+		from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 	Insert into tb3 (f120, f122, f136) values ('2', 'Test 3.5.8.5-if', 102);
 	select f120, f122, f136, @test_var, @test_var2 
-		from tb3 where f122 = 'Test 3.5.8.5-if';
+		from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 	Insert into tb3 (f120, f122, f136) values ('3', 'Test 3.5.8.5-if', 10);
 	select f120, f122, f136, @test_var, @test_var2 
-		from tb3 where f122 = 'Test 3.5.8.5-if';
+		from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 	Insert into tb3 (f120, f122, f136) values ('3', 'Test 3.5.8.5-if', 103);
 	select f120, f122, f136, @test_var, @test_var2 
-		from tb3 where f122 = 'Test 3.5.8.5-if';
+		from tb3 where f122 = 'Test 3.5.8.5-if' order by f136;
 
 	delimiter //;
 	--error 1064
@@ -313,28 +320,28 @@ let $message= Testcase 3.5.8.5-case:;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('a', 'Test 3.5.8.5-case', 5, 7);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('b', 'Test 3.5.8.5-case', 71,16);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('c', 'Test 3.5.8.5-case', 80,1);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 	Insert into tb3 (f120, f122, f136) 
 		values ('d', 'Test 3.5.8.5-case', 152);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('e', 'Test 3.5.8.5-case', 200, 8);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 	--error 0, 1339
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('f', 'Test 3.5.8.5-case', 100, 8);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case';
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
 
 	delimiter //;
 	--error 1064

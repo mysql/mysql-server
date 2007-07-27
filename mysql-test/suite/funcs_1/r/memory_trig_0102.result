@@ -195,6 +195,9 @@ CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 for each row set new.f3 = '14';
 CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
 BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
+BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 insert into t1 (f2) values ('insert 3.5.1.7');
 select * from t1;
 f1	f2	f3
@@ -203,12 +206,14 @@ update t1 set f2='update 3.5.1.7';
 select * from t1;
 f1	f2	f3
 NULL	update 3.5.1.7	42
-select trigger_name from information_schema.triggers;
+select trigger_name from information_schema.triggers order by trigger_name;
 trigger_name
 trg5_1
 trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
 drop trigger trg5_1;
 drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
+ERROR 42000: Identifier name 'trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ' is too long
+drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 drop table t1;
 
 Testcase 3.5.1.8:
@@ -310,7 +315,7 @@ insert into trig_db3.t1 (f1,f2) values ('insert to db3 t1 from db1',4);
 select @test_var1, @test_var2, @test_var3;
 @test_var1	@test_var2	@test_var3
 trig1	trig2	trig3
-select * from t1;
+select * from t1 order by f2;
 f1	f2
 trig1	1
 trig1	2
@@ -320,7 +325,7 @@ trig2	3
 select * from trig_db3.t1;
 f1	f2
 trig3	4
-select * from t1;
+select * from t1 order by f2;
 f1	f2
 trig1	1
 trig1	2
@@ -345,10 +350,10 @@ for each row set @test_var2='trig1_a';
 create trigger trig_db2.trig2 before insert on trig_db2.t1 
 for each row set @test_var3='trig2';
 select trigger_schema, trigger_name, event_object_table
-from information_schema.triggers;
+from information_schema.triggers order by trigger_name;
 trigger_schema	trigger_name	event_object_table
-trig_db1	trig1_b	t1
 trig_db1	trig1_a	t1
+trig_db1	trig1_b	t1
 trig_db2	trig2	t1
 set @test_var1= '', @test_var2= '', @test_var3= '';
 insert into t1 (f1,f2) values ('insert to db1 t1 from db1',352);

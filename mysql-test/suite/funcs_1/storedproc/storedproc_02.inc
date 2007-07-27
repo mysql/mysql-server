@@ -209,7 +209,7 @@ BEGIN
     set @x = x;
     set @y = y;
     set @z = 234;
-    SELECT f1, f2 into @x, @y from t2 limit 1;
+    SELECT f1, f2 into @x, @y from t2 where f1='a`' and f2='a`' limit 1;
     SELECT @x, @y, @z, invar;
     BEGIN
       set @x = 2;
@@ -257,7 +257,7 @@ BEGIN
    declare x integer; declare y integer;
    set @x=x;
    set @y=y;
-   SELECT f4, f3 into @x, @y from t2 limit 1;
+   SELECT f4, f3 into @x, @y from t2 where f4=-5000 and f3='1000-01-01' limit 1;
    SELECT @x, @y;
 END//
 delimiter ;//
@@ -1271,7 +1271,8 @@ BEGIN
    declare f5_value char(20);
    declare f4_value integer;
    declare f6_value integer;
-   declare cur1 cursor for SELECT f1, f2, f4, f5, f6 from t2 limit 3;
+   declare cur1 cursor for SELECT f1, f2, f4, f5, f6 from t2
+                where f4 >=-5000 order by f4 limit 3;
    open cur1;
    while proceed do
       SELECT count AS 'loop';
@@ -1368,7 +1369,7 @@ create table temp1( f0 char(20), f1 char(20), f2 char(20), f3 int, f4 char(20) )
 
 #Error: 1329 SQLSTATE: 02000 (ER_SP_FETCH_NO_DATA) Message: No data to FETCH
 
-SELECT f1, f2, f4, f5 from t2;
+SELECT f1, f2, f4, f5 from t2 order by f4;
 
 delimiter //;
 CREATE PROCEDURE sp1( )
@@ -1379,21 +1380,21 @@ BEGIN
    declare newf2 char(20);
    declare newf5 char(20);
    declare newf4 integer;
-   declare cur1 cursor for SELECT f1, f2, f4, f5 from t2 limit 5;
-   declare cur2 cursor for SELECT f1, f2, f4, f5 from t2 limit 5;
+   declare cur1 cursor for SELECT f1, f2, f4, f5 from t2 where f4 >= -5000 order by f4 limit 5;
+   declare cur2 cursor for SELECT f1, f2, f4, f5 from t2 where f4 >= -5000 order by f4 limit 5;
    open cur1;
    open cur2;
    BEGIN
-      declare continue handler for sqlstate '02000' set count = 1;
+      declare continue handler for sqlstate '02000' set count=1;
       fetch cur1 into newf1, newf2, newf4, newf5;
       SELECT '-1-', count, newf1, newf2, newf4, newf5;
       insert into temp1 values ('cur1_out', newf1, newf2, newf4, newf5);
-      set count = 4;
+      set count= 4;
       BEGIN
-         while count > 0 do
+         while count> 0 do
             fetch cur1 into newf1, newf2, newf4, newf5;
             SELECT '-2-', count, newf1, newf2, newf4, newf5;
-            set count = count - 1;
+            set count = count- 1;
          END while;
          SELECT '-3-', count, newf1, newf2, newf4, newf4;
       END;
@@ -1453,8 +1454,10 @@ BEGIN
    declare i_newf12 char(20);
    declare i_newf13 date;
    declare i_newf14 integer;
-   declare cur1 cursor for SELECT f1, f2, f3, f4 from t2 limit 4;
-   declare cur2 cursor for SELECT f1, f2, f3, f4 from t2 limit 3;
+   declare cur1 cursor for SELECT f1, f2, f3, f4 from t2
+                where f4>=-5000 order by f4 limit 4;
+   declare cur2 cursor for SELECT f1, f2, f3, f4 from t2
+                where f4>=-5000 order by f4 limit 3;
    declare continue handler for sqlstate '02000' set proceed=0;
    open cur1;
    open cur2;
@@ -1486,8 +1489,10 @@ BEGIN
    DECLARE o_newf12 CHAR(20);
    DECLARE o_newf13 DATE;
    DECLARE o_newf14 INTEGER;
-   DECLARE cur1 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2 LIMIT 5;
-   DECLARE cur2 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2 LIMIT 5;
+   DECLARE cur1 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2
+                WHERE f4>=-5000 ORDER BY f4 LIMIT 5;
+   DECLARE cur2 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2
+                WHERE f4>=-5000 ORDER BY f4 LIMIT 5;
    DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET proceed=0;
    OPEN cur1;
    OPEN cur2;

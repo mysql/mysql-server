@@ -3,7 +3,8 @@
 #  Functions within VIEWs                         #
 #                                                 #
 ###################################################
-# 14.09.2005 ML
+# 2006-12-08 ML   Maintenance + refinements
+# 2005-09-14 ML   Create this test
 
 let $message= ! Attention: The file with the expected results suffers from
 Bug#10713: mysqldump includes database in create view and referenced tables;
@@ -68,7 +69,7 @@ Bug#10713: mysqldump includes database in create view and referenced tables;
 #         But there will be a special messages within the protocol files.
 #         Example:
 #            "Attention: CAST --> SIGNED INTEGER
-#            The file with expected results suffers from Bug 5083 5913 9809";
+#            The file with expected results suffers from Bug 5913";
 #            means, the file with expected results contains result sets which
 #            are known to be wrong.
 #            "Attention: The last <whatever> failed" 
@@ -187,6 +188,7 @@ CREATE TABLE t1_modes
 --enable_query_log
 
 # The table to be used in the FROM parts of the SELECTs
+--replace_result $type <engine_to_be_tested>
 eval CREATE TABLE t1_values
 (
    id BIGINT AUTO_INCREMENT,
@@ -416,8 +418,8 @@ eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = -25;
 # SELECT * FROM t1_values;
 
-# 1.     Cast Functions and Operators
-# 1.1.   CAST
+# 1.    Cast Functions and Operators
+# 1.1   CAST
 #
 # Note(ML): I guess the CAST routines are used in many other functions.
 #           Therefore check also nearly all "ugly" variants like 
@@ -587,15 +589,10 @@ let $col_type= my_bigint;
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = 1758;
 let $col_type= my_double;
-let $message= some statements disabled because of
-Bug#12440: CAST(data type DOUBLE AS TIME) strange results;
---source include/show_msg80.inc
-if (0)
-{
+# Bug#12440: CAST(data type DOUBLE AS TIME) strange results;
 --source suite/funcs_1/views/fv_cast.inc
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = +1.758E+3;
-}
 let $col_type= my_datetime;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_date;
@@ -631,16 +628,11 @@ let $col_type= my_bigint;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_decimal;
 --source suite/funcs_1/views/fv_cast.inc
-let $message= some statements disabled because of
-Bug#13349: CAST(1.0E+300 TO DECIMAL) returns wrong result + diff little/big endian;
---source include/show_msg80.inc
-if (0)
-{
+# Bug#13349: CAST(1.0E+300 TO DECIMAL) returns wrong result + diff little/big endian;
 let $col_type= my_double;
 --source suite/funcs_1/views/fv_cast.inc
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = -0.33333333E+4;
-}
 let $col_type= my_datetime;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_date;
@@ -658,11 +650,8 @@ let $target_type= SIGNED INTEGER;
 #
 let $message= 
 "Attention: CAST --> SIGNED INTEGER
-            The file with expected results suffers from
-            Bug#5083 Big integer values are inserted as negative into 
-                     decimal/string columns
             Bug#5913 Traditional mode: BIGINT range not correctly delimited
-            Both have the status: To be fixed later";
+            Status: To be fixed later";
 --source include/show_msg80.inc
 let $col_type= my_char_30;
 --source suite/funcs_1/views/fv_cast.inc
@@ -676,14 +665,9 @@ let $col_type= my_bigint;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_decimal;
 --source suite/funcs_1/views/fv_cast.inc
-let $message= some statements disabled because of
-Bug #13344: CAST(1E+300 TO signed int) on little endian CPU, wrong result;
---source include/show_msg80.inc
-if (0)
-{
+# Bug #13344: CAST(1E+300 TO signed int) on little endian CPU, wrong result;
 let $col_type= my_double;
 --source suite/funcs_1/views/fv_cast.inc
-}
 let $col_type= my_datetime;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_date;
@@ -701,7 +685,7 @@ let $target_type= UNSIGNED INTEGER;
 #
 let $message= 
 "Attention: CAST --> UNSIGNED INTEGER
-            The file with expected results suffers from Bug 5083 5913 9809";
+            The file with expected results suffers from Bug 5913";
 --source include/show_msg80.inc
 let $col_type= my_char_30;
 --source suite/funcs_1/views/fv_cast.inc
@@ -716,10 +700,11 @@ let $col_type= my_bigint;
 let $col_type= my_decimal;
 --source suite/funcs_1/views/fv_cast.inc
 let $message= some statements disabled because of
-Bugs#8663: cant use bgint unsigned as input to cast;
+Bug#5913 Traditional mode: BIGINT range not correctly delimited;
 --source include/show_msg80.inc
 if (0)
 {
+# Bugs#8663: cant use bgint unsigned as input to cast
 let $col_type= my_double;
 --source suite/funcs_1/views/fv_cast.inc
 }
@@ -847,11 +832,6 @@ let $col_type= my_year;
 #           select if(isnull(`test`.`t1`.`f1`),_latin1'IS     NULL',
 #                  _latin1'IS NOT NULL'),...
 #
-let $message=
-"Attention: IF($col_type IS NULL, ...
-            The file with expected results suffers from 
-            Bug#11689. successful CREATE VIEW but SELECT on view fails.";
---source include/show_msg80.inc
 # Bug#11689 success on Create view .. IF(col1 IS NULL,...), col2 ; but SELECT fails
 let $col_type= my_char_30;
 --source suite/funcs_1/views/fv_if2.inc
@@ -1030,7 +1010,7 @@ eval SET @my_select =
 #
 let $message= 
 "Attention: LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', <numeric column>)
-            The file with expected results suffers from Bug 10963 11728"
+            The file with expected results suffers from Bug 10963"
             and the testcases with length = BIGINT or DOUBLE column are deactivated,
             because there are 32/64 Bit differences;
 --source include/show_msg80.inc
@@ -1084,8 +1064,10 @@ $col_type, id FROM t1_values';
 #            If the file doesn't exist or cannot be read ... ,
 #            the function returns NULL.
 # SELECT LOADFILE
+#        Prepare a file:
+SELECT 'äÄ@' INTO OUTFILE '../tmp/func_view.dat';
 eval SET @my_select = 
-'SELECT LOAD_FILE(''../log/current_test''), id FROM t1_values';
+'SELECT LOAD_FILE(''../tmp/func_view.dat''), id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 
 
@@ -1309,14 +1291,13 @@ while ($select_id)
        --disable_query_log
        eval set @got_errno= $mysql_errno ;
        let $run0= `SELECT @got_errno = 0`;
-       let $print_warning= `SELECT @got_errno`;
-       if ($print_warning)
-       {
-          SELECT 'Attention: The last CREATE VIEW failed ' AS ""
-           UNION
-          SELECT '' ;
-       }
        --enable_query_log
+       if (!$run0)
+       {
+          --echo
+          --echo Attention: The last CREATE VIEW failed
+          --echo
+       }
     }
 
     # FIXME           The loop over the modes will start here.
@@ -1330,21 +1311,17 @@ while ($select_id)
           --disable_result_log
        }
        eval $my_select
-            WHERE select_id = $select_id OR select_id IS NULL;
+            WHERE select_id = $select_id OR select_id IS NULL order by id;
        if ($run_no_result)
        {
           --enable_result_log
        }
-       --disable_query_log
-       eval set @got_errno= $mysql_errno ;
-       let $print_warning= `SELECT @got_errno`;
-       if ($print_warning)
+       if ($mysql_errno)
        {
-          SELECT 'Attention: The last SELECT on the base table failed' AS ""
-           UNION
-          SELECT '' ;
+          --echo
+          --echo Attention: The last SELECT on the base table failed
+          --echo
        }
-       --enable_query_log
     }
 
     # $run0 is 1, if CREATE VIEW was successful.
@@ -1353,16 +1330,12 @@ while ($select_id)
     {
        # Check the CREATE VIEW statement
        SHOW CREATE VIEW v1;
-       --disable_query_log
-       eval set @got_errno= $mysql_errno ;
-       let $print_warning= `SELECT @got_errno`;
-       if ($print_warning)
+       if ($mysql_errno)
        {
-          SELECT 'Attention: The last SHOW CREATE VIEW failed' AS ""
-           UNION
-          SELECT '' ;
+          --echo
+          --echo Attention: The last SHOW CREATE VIEW failed
+          --echo
        }
-       --enable_query_log
 
        # Maybe a Join is faster
        if ($run_no_result)
@@ -1371,21 +1344,17 @@ while ($select_id)
        }
        eval SELECT v1.* FROM v1
             WHERE v1.id IN (SELECT id FROM t1_values
-                            WHERE select_id = $select_id OR select_id IS NULL);
+                            WHERE select_id = $select_id OR select_id IS NULL) order by id;
        if ($run_no_result)
        {
           --enable_result_log
        }
-       --disable_query_log
-       eval set @got_errno= $mysql_errno ;
-       let $print_warning= `SELECT @got_errno`;
-       if ($print_warning)
+       if ($mysql_errno)
        {
-          SELECT 'Attention: The last SELECT from VIEW failed' AS ""
-           UNION
-          SELECT '' ;
+          --echo
+          --echo Attention: The last SELECT from VIEW failed
+          --echo
        }
-       --enable_query_log
 
        DROP VIEW v1;
     }
@@ -1394,11 +1363,11 @@ while ($select_id)
 
     # Produce two empty lines as separator between different SELECTS
     # to be tested.
-    --disable_query_log
-    SELECT '' AS "";
-    --enable_query_log
+    --echo
+    --echo
 
     dec $select_id ;
 }
 
 DROP TABLE t1_selects, t1_modes, t1_values;
+--exec rm $MYSQLTEST_VARDIR/tmp/func_view.dat
