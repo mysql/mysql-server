@@ -22,7 +22,7 @@
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
 int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
-               uint key_len, enum ha_rkey_function search_flag)
+               key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
   MARIA_SHARE *share=info->s;
@@ -47,20 +47,21 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
       key is already packed!;  This happens when we are using a MERGE TABLE
     */
     key_buff= info->lastkey+info->s->base.max_key_length;
-    pack_key_length= key_len;
-    bmove(key_buff,key,key_len);
-    last_used_keyseg= 0;
+    pack_key_length= keypart_map;
+    bmove(key_buff, key, pack_key_length);
+    last_used_keyseg= info->s->keyinfo[inx].seg + info->last_used_keyseg;
   }
   else
   {
-    if (key_len == 0)
-      key_len=USE_WHOLE_KEY;
+    DBUG_ASSERT(keypart_map);
     /* Save the packed key for later use in the second buffer of lastkey. */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length= _ma_pack_key(info,(uint) inx, key_buff, key,
-                                  key_len, &last_used_keyseg);
+                                  keypart_map, &last_used_keyseg);
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length= pack_key_length;
+    info->last_used_keyseg= (uint16) (last_used_keyseg -
+                                      info->s->keyinfo[inx].seg);
     DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, keyinfo->seg,
                                       key_buff, pack_key_length););
   }

@@ -114,6 +114,14 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   }
   length= (uint) (strxmov(name, param->db_name, ".", param->table_name,
                           NullS) - name);
+  /*
+    TODO: switch from protocol to push_warning here. The main reason we didn't
+    it yet is parallel repair. Due to following trace:
+    ma_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+
+    Also we likely need to lock mutex here (in both cases with protocol and
+    push_warning).
+  */
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -353,10 +361,11 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
     0 - Equal definitions.
     1 - Different definitions.
 
-  NOTES
-    This is currently not used. In MyISAM the corresponding function
-    (myisam_check_definition()) is used only by MERGE tables
-    (in ha_myisammrg.cc).
+  TODO
+    - compare FULLTEXT keys;
+    - compare SPATIAL keys;
+    - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
+      (should be corretly detected in table2maria).
 */
 int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
                            MARIA_COLUMNDEF *t1_recinfo,
@@ -383,6 +392,28 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
   {
     HA_KEYSEG *t1_keysegs= t1_keyinfo[i].seg;
     HA_KEYSEG *t2_keysegs= t2_keyinfo[i].seg;
+    if (t1_keyinfo[i].flag & HA_FULLTEXT && t2_keyinfo[i].flag & HA_FULLTEXT)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_FULLTEXT ||
+             t2_keyinfo[i].flag & HA_FULLTEXT)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
+                            test(t1_keyinfo[i].flag & HA_FULLTEXT),
+                            test(t2_keyinfo[i].flag & HA_FULLTEXT)));
+       DBUG_RETURN(1);
+    }
+    if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
+      continue;
+    else if (t1_keyinfo[i].flag & HA_SPATIAL ||
+             t2_keyinfo[i].flag & HA_SPATIAL)
+    {
+       DBUG_PRINT("error", ("Key %d has different definition", i));
+       DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
+                            test(t1_keyinfo[i].flag & HA_SPATIAL),
+                            test(t2_keyinfo[i].flag & HA_SPATIAL)));
+       DBUG_RETURN(1);
+    }
     if (t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs ||
         t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg)
     {
@@ -419,7 +450,14 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
   {
     MARIA_COLUMNDEF *t1_rec= &t1_recinfo[i];
     MARIA_COLUMNDEF *t2_rec= &t2_recinfo[i];
-    if (t1_rec->type != t2_rec->type ||
+    /*
+      FIELD_SKIP_ZERO can be changed to FIELD_NORMAL in maria_create,
+      see NOTE1 in ma_create.c
+    */
+    if ((t1_rec->type != t2_rec->type &&
+         !(t1_rec->type == (int) FIELD_SKIP_ZERO &&
+           t1_rec->length == 1 &&
+           t2_rec->type == (int) FIELD_NORMAL)) ||
         t1_rec->length != t2_rec->length ||
         t1_rec->null_bit != t2_rec->null_bit)
     {
@@ -602,7 +640,7 @@ int ha_maria::dump(THD * thd, int fd)
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
   for (; bytes_to_read > 0;)
   {
-    uint bytes= my_read(data_fd, buf, block_size, MYF(MY_WME));
+    size_t bytes= my_read(data_fd, buf, block_size, MYF(MY_WME));
     if (bytes == MY_FILE_ERROR)
     {
       error= errno;
@@ -644,7 +682,8 @@ err:
 
 bool ha_maria::check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
-                                           uint count,
+                                           uint count, uint current,
+                                           uint *system_count,
                                            bool called_by_privileged_thread)
 {
   /*
@@ -653,10 +692,13 @@ bool ha_maria::check_if_locking_is_allowed(uint sql_command,
      we have to disallow write-locking of these tables with any other tables.
   */
   if (table->s->system_table &&
-      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE && count != 1)
+      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
+    (*system_count)++;
+
+  /* 'current' is an index, that's why '<=' below. */
+  if (*system_count > 0 && *system_count <= current)
   {
-    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table->s->db.str,
-             table->s->table_name.str);
+    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
     return FALSE;
   }
 
@@ -676,6 +718,9 @@ bool ha_maria::check_if_locking_is_allowed(uint sql_command,
 
 int ha_maria::open(const char *name, int mode, uint test_if_locked)
 {
+  MARIA_KEYDEF *keyinfo;
+  MARIA_COLUMNDEF *recinfo= 0;
+  uint recs;
   uint i;
 
 #ifdef NOT_USED
@@ -700,6 +745,36 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
+
+#ifdef ASK_MONTY
+  /*
+    This is a protection for the case of a frm and MAI containing incompatible
+    table definitions (as in BUG#25908). This was merged from MyISAM.
+    But it breaks maria.test and ps_maria.test ("incorrect key file") if the
+    table is BLOCK_RECORD (does it have to do with column reordering done in
+    ma_create.c ?).
+  */
+  if (!table->s->tmp_table) /* No need to perform a check for tmp table */
+  {
+    if ((my_errno= table2maria(table, &keyinfo, &recinfo, &recs)))
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("error", ("Failed to convert TABLE object to Maria "
+                           "key and column definition"));
+      goto err;
+      /* purecov: end */
+    }
+    if (maria_check_definition(keyinfo, recinfo, table->s->keys, recs,
+                               file->s->keyinfo, file->s->columndef,
+                               file->s->base.keys, file->s->base.fields, true))
+    {
+      /* purecov: begin inspected */
+      my_errno= HA_ERR_CRASHED;
+      goto err;
+      /* purecov: end */
+    }
+  }
+#endif
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -731,7 +806,18 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)plugin_decl(parser)->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  return (0);
+  my_errno= 0;
+  goto end;
+ err:
+  this->close();
+ end:
+  /*
+    Both recinfo and keydef are allocated by my_multi_malloc(), thus only
+    recinfo must be freed.
+  */
+  if (recinfo)
+    my_free((uchar*) recinfo, MYF(0));
+  return my_errno;
 }
 
 
@@ -745,7 +831,7 @@ int ha_maria::close(void)
 
 int ha_maria::write_row(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -1064,8 +1150,8 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
   param.sort_buffer_length= check_opt->sort_buffer_size;
   if ((error= repair(thd, param, 1)) && param.retry_repair)
   {
-    sql_print_warning("Warning: Optimize table got errno %d, retrying",
-                      my_errno);
+    sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
+                      my_errno, param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
     error= repair(thd, param, 1);
   }
@@ -1083,6 +1169,22 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   MARIA_SHARE *share= file->s;
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_maria::repair");
+
+  /*
+    Normally this method is entered with a properly opened table. If the
+    repair fails, it can be repeated with more elaborate options. Under
+    special circumstances it can happen that a repair fails so that it
+    closed the data file and cannot re-open it. In this case file->dfile
+    is set to -1. We must not try another repair without an open data
+    file. (Bug #25289)
+  */
+  if (file->dfile.file == -1)
+  {
+    sql_print_information("Retrying repair of: '%s' failed. "
+                          "Please try REPAIR EXTENDED or maria_chk",
+                          table->s->path.str);
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  }
 
   param.db_name= table->s->db.str;
   param.table_name= table->alias;
@@ -1222,7 +1324,7 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
   PAGECACHE *new_pagecache= check_opt->pagecache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_maria::assign_to_keycache");
 
@@ -1268,9 +1370,10 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   const char *errmsg;
-  ulonglong map= ~(ulonglong) 0;
+  ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
   my_bool ignore_leaves= table_list->ignore_leaves;
+  char buf[ERRMSGSIZE+20];
 
   DBUG_ENTER("ha_maria::preload_keys");
 
@@ -1298,7 +1401,6 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
       errmsg= "Failed to allocate buffer";
       break;
     default:
-      char buf[ERRMSGSIZE + 20];
       my_snprintf(buf, ERRMSGSIZE,
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
@@ -1427,13 +1529,13 @@ int ha_maria::enable_indexes(uint mode)
                      T_CREATE_MISSING_KEYS);
     param.myf_rw &= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length= thd->variables.maria_sort_buff_size;
-    param.stats_method= (enum_handler_stats_method) thd->variables.
-      maria_stats_method;
+    param.stats_method=
+      (enum_handler_stats_method) thd->variables.maria_stats_method;
     param.tmpdir= &mysql_tmpdir_list;
     if ((error= (repair(thd, param, 0) != HA_ADMIN_OK)) && param.retry_repair)
     {
-      sql_print_warning("Warning: Enabling keys got errno %d, retrying",
-                        my_errno);
+      sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
+                        my_errno, param.db_name, param.table_name);
       /* Repairing by sort failed. Now try standard repair method. */
       param.testflag &= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd, param, 0) != HA_ADMIN_OK);
@@ -1442,8 +1544,10 @@ int ha_maria::enable_indexes(uint mode)
          might have been set by the first repair. They can still be seen
          with SHOW WARNINGS then.
       */
+#ifndef EMBEDDED_LIBRARY
       if (!error)
         thd->clear_error();
+#endif /* EMBEDDED_LIBRARY */
     }
     info(HA_STATUS_CONST);
     thd->proc_info= save_proc_info;
@@ -1607,7 +1711,7 @@ bool ha_maria::is_crashed() const
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
-  statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   return maria_update(file, old_data, new_data);
@@ -1616,41 +1720,41 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
 
 
 int ha_maria::index_read(uchar * buf, const uchar * key,
-                         uint key_len, enum ha_rkey_function find_flag)
+                          key_part_map keypart_map,
+                         enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-                      &LOCK_status);
-  int error= maria_rkey(file, buf, active_index, key, key_len, find_flag);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error= maria_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
 
 int ha_maria::index_read_idx(uchar * buf, uint index, const uchar * key,
-                             uint key_len, enum ha_rkey_function find_flag)
+                              key_part_map keypart_map,
+                              enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-                      &LOCK_status);
-  int error= maria_rkey(file, buf, index, key, key_len, find_flag);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }
 
 
-int ha_maria::index_read_last(uchar * buf, const uchar * key, uint key_len)
+int ha_maria::index_read_last(uchar * buf, const uchar * key,
+                               key_part_map keypart_map)
 {
   DBUG_ENTER("ha_maria::index_read_last");
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-                      &LOCK_status);
-  int error= maria_rkey(file, buf, active_index, key, key_len,
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error= maria_rkey(file, buf, active_index, key, keypart_map,
                         HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
   DBUG_RETURN(error);
@@ -1660,8 +1764,7 @@ int ha_maria::index_read_last(uchar * buf, const uchar * key, uint key_len)
 int ha_maria::index_next(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error= maria_rnext(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1671,8 +1774,7 @@ int ha_maria::index_next(uchar * buf)
 int ha_maria::index_prev(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_prev_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error= maria_rprev(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1682,8 +1784,7 @@ int ha_maria::index_prev(uchar * buf)
 int ha_maria::index_first(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_first_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
   int error= maria_rfirst(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1693,8 +1794,7 @@ int ha_maria::index_first(uchar * buf)
 int ha_maria::index_last(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_last_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_last_count);
   int error= maria_rlast(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1706,8 +1806,7 @@ int ha_maria::index_next_same(uchar * buf,
                               uint length __attribute__ ((unused)))
 {
   DBUG_ASSERT(inited == INDEX);
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error= maria_rnext_same(file, buf);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1732,8 +1831,7 @@ int ha_maria::rnd_end()
 
 int ha_maria::rnd_next(uchar *buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error= maria_scan(file, buf);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -1748,8 +1846,7 @@ int ha_maria::restart_rnd_next(uchar *buf, uchar *pos)
 
 int ha_maria::rnd_pos(uchar * buf, uchar *pos)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error= maria_rrnd(file, buf, my_get_ptr(pos, ref_length));
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2111,7 +2208,8 @@ void ha_maria::get_auto_increment(ulonglong offset, ulonglong increment,
            table->key_info + table->s->next_number_index,
            table->s->next_number_key_offset);
   error= maria_rkey(file, table->record[1], (int) table->s->next_number_index,
-                    key, table->s->next_number_key_offset, HA_READ_PREFIX_LAST);
+                    key, make_prev_keypart_map(table->s->next_number_keypart),
+                    HA_READ_PREFIX_LAST);
   if (error)
     nr= 1;
   else

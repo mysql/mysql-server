@@ -442,6 +442,7 @@ struct st_maria_info
   enum ha_rkey_function last_key_func;	/* CONTAIN, OVERLAP, etc */
   uint save_lastkey_length;
   uint pack_key_length;			/* For MARIAMRG */
+  uint16 last_used_keyseg;              /* For MARIAMRG */
   int errkey;				/* Got last error on this key */
   int lock_type;			/* How database was locked */
   int tmp_lock_type;			/* When locked by readinfo */
@@ -749,7 +750,7 @@ extern my_off_t _ma_new(MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level);
 extern uint _ma_make_key(MARIA_HA *info, uint keynr, uchar *key,
                          const uchar *record, MARIA_RECORD_POS filepos);
 extern uint _ma_pack_key(MARIA_HA *info, uint keynr, uchar *key,
-                         const uchar *old, uint key_length,
+                         const uchar *old, key_part_map keypart_map,
                          HA_KEYSEG ** last_used_keyseg);
 extern int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS);
 extern int _ma_read_cache(IO_CACHE *info, uchar *buff, MARIA_RECORD_POS pos,
@@ -760,7 +761,7 @@ extern my_bool _ma_alloc_buffer(uchar **old_addr, size_t *old_size,
                                 size_t new_size);
 extern ulong _ma_rec_unpack(MARIA_HA *info, uchar *to, uchar *from,
                             ulong reclength);
-extern my_bool _ma_rec_check(MARIA_HA *info, const char *record,
+extern my_bool _ma_rec_check(MARIA_HA *info, const uchar *record,
                              uchar *packpos, ulong packed_length,
                              my_bool with_checkum, ha_checksum checksum);
 extern int _ma_write_part_record(MARIA_HA *info, my_off_t filepos,

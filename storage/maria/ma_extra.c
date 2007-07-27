@@ -379,11 +379,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       break;                                    /* Not supported */
     pthread_mutex_lock(&share->intern_lock);
     /*
-      Memory map the data file if it is not already mapped and if there
-      are no other threads using this table. intern_lock prevents other
-      threads from starting to use the table while we are mapping it.
+      Memory map the data file if it is not already mapped. It is safe
+      to memory map a file while other threads are using file I/O on it.
+      Assigning a new address to a function pointer is an atomic
+      operation. intern_lock prevents that two or more mappings are done
+      at the same time.
     */
-    if (!share->file_map && (share->tot_locks == 1))
+    if (!share->file_map)
     {
       if (_ma_dynmap_file(info, share->state.state.data_file_length))
       {

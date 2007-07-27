@@ -265,8 +265,8 @@ extern struct st_maria_info *maria_clone(struct st_maria_share *share, int mode)
 extern int maria_panic(enum ha_panic_function function);
 extern int maria_rfirst(struct st_maria_info *file, uchar *buf, int inx);
 extern int maria_rkey(struct st_maria_info *file, uchar *buf, int inx,
-		      const uchar *key,
-		      uint key_len, enum ha_rkey_function search_flag);
+		      const uchar *key, key_part_map keypart_map,
+                      enum ha_rkey_function search_flag);
 extern int maria_rlast(struct st_maria_info *file, uchar *buf, int inx);
 extern int maria_rnext(struct st_maria_info *file, uchar *buf, int inx);
 extern int maria_rnext_same(struct st_maria_info *info, uchar *buf);

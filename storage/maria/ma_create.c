@@ -239,6 +239,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       column--;
       if (column->type == (int) FIELD_SKIP_ZERO && column->length == 1)
       {
+        /*
+          NOTE1: here we change a field type FIELD_SKIP_ZERO ->
+          FIELD_NORMAL
+        */
 	column->type=(int) FIELD_NORMAL;
         column->empty_pos= 0;
         column->empty_bit= 0;
@@ -701,6 +705,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   pthread_mutex_lock(&THR_LOCK_maria);
 
+  /*
+    NOTE: For test_if_reopen() we need a real path name. Hence we need
+    MY_RETURN_REAL_PATH for every fn_format(filename, ...).
+  */
   if (ci->index_file_name)
   {
     char *iext= strrchr(ci->index_file_name, '.');
@@ -712,13 +720,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       if ((path= strrchr(ci->index_file_name, FN_LIBCHAR)))
         *path= '\0';
       fn_format(filename, name, ci->index_file_name, MARIA_NAME_IEXT,
-                MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
+                MY_REPLACE_DIR | MY_UNPACK_FILENAME |
+                MY_RETURN_REAL_PATH | MY_APPEND_EXT);
     }
     else
     {
       fn_format(filename, ci->index_file_name, "", MARIA_NAME_IEXT,
-                MY_UNPACK_FILENAME | (have_iext ? MY_REPLACE_EXT :
-                                      MY_APPEND_EXT));
+                MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
+                (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
     }
     fn_format(linkname, name, "", MARIA_NAME_IEXT,
               MY_UNPACK_FILENAME|MY_APPEND_EXT);
@@ -734,10 +743,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
   else
   {
+    char *iext= strrchr(name, '.');
+    int have_iext= iext && !strcmp(iext, MARIA_NAME_IEXT);
     fn_format(filename, name, "", MARIA_NAME_IEXT,
-              (MY_UNPACK_FILENAME |
-               (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
-                MY_APPEND_EXT);
+              MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
+              (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
     linkname_ptr= NullS;
     /*
       Replace the current file.
@@ -752,6 +762,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     A TRUNCATE command checks for the table in the cache only and could
     be fooled to believe, the table is not open.
     Pull the emergency brake in this situation. (Bug #8306)
+
+
+    NOTE: The filename is compared against unique_file_name of every
+    open table. Hence we need a real path here.
   */
   if (_ma_test_if_reopen(filename))
   {

@@ -887,7 +887,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
                   register const uchar *from)
 {
   uint		length,new_length,flag,bit,i;
-  char		*pos,*end,*startpos,*packpos;
+  uchar		*pos,*end,*startpos,*packpos;
   enum en_fieldtype type;
   reg3 MARIA_COLUMNDEF *column;
   MARIA_BLOB	*blob;
@@ -941,7 +941,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	pos= (uchar*) from; end= (uchar*) from + length;
 	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
-	  while (end > (char*) from && *(end-1) == ' ')
+	  while (end > from && *(end-1) == ' ')
 	    end--;
 	}
 	else
@@ -1007,8 +1007,8 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
     *packpos= (char) (uchar) flag;
   if (info->s->calc_checksum)
     *to++= (uchar) info->cur_row.checksum;
-  DBUG_PRINT("exit",("packed length: %d",(int) ((char*)to-startpos)));
-  DBUG_RETURN((uint) ((char*)to-startpos));
+  DBUG_PRINT("exit",("packed length: %d",(int) (to-startpos)));
+  DBUG_RETURN((uint) (to-startpos));
 } /* _ma_rec_pack */
 
 
@@ -1018,12 +1018,12 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
   Returns 0 if record is ok.
 */
 
-my_bool _ma_rec_check(MARIA_HA *info,const char *record, uchar *rec_buff,
+my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
                       ulong packed_length, my_bool with_checksum,
                       ha_checksum checksum)
 {
   uint		length,new_length,flag,bit,i;
-  char		*pos,*end,*packpos,*to;
+  uchar		*pos,*end,*packpos,*to;
   enum en_fieldtype type;
   reg3 MARIA_COLUMNDEF *column;
   DBUG_ENTER("_ma_rec_check");
@@ -1123,7 +1123,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const char *record, uchar *rec_buff,
     else
       to+= length;
   }
-  if (packed_length != (uint) (to - (char*) rec_buff) +
+  if (packed_length != (uint) (to - rec_buff) +
       test(info->s->calc_checksum) || (bit != 1 && (flag & ~(bit - 1))))
     goto err;
   if (with_checksum && ((uchar) checksum != (uchar) *to))

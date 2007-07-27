@@ -2522,10 +2522,8 @@ uchar *key_cache_read(KEY_CACHE *keycache,
   int error=0;
   uchar *start= buff;
   DBUG_ENTER("key_cache_read");
-  DBUG_PRINT("enter", ("fd: %u  pos: %lu  page: %lu  length: %u",
-                       (uint) file, (ulong) filepos,
-                       (ulong) (filepos / keycache->key_cache_block_size),
-                       length));
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
+               (uint) file, (ulong) filepos, length));
 
   if (keycache->key_cache_inited)
   {
@@ -2979,10 +2977,10 @@ int key_cache_write(KEY_CACHE *keycache,
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
-             ("fd: %u  pos: %lu  page: %lu  length: %u  block_length: %u",
-              (uint) file, (ulong) filepos,
-              (ulong) (filepos / keycache->key_cache_block_size),
-              length, block_length));
+             ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length:
+ %u",
+              (uint) file, (ulong) filepos, length, block_length,
+              keycache ? keycache->key_cache_block_size : 0));
 
   if (!dont_write)
   {

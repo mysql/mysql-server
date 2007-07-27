@@ -57,9 +57,9 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
 
     x->keys	 	= share->state.header.keys;
     x->check_time	= share->state.check_time;
-    x->mean_reclength	= info->state->records ?
-      (ulong) ((info->state->data_file_length-info->state->empty)/
-	       info->state->records) : (ulong) share->min_pack_length;
+    x->mean_reclength	= x->records ?
+      (ulong) ((x->data_file_length - x->delete_length) /x ->records) :
+      (ulong) share->min_pack_length;
   }
   if (flag & HA_STATUS_ERRKEY)
   {

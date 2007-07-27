@@ -258,8 +258,12 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, uchar *query,
       {
         info->update|= HA_STATE_AKTIV;
         ftparser_param->flags= MYSQL_FTFLAGS_NEED_COPY;
-        _ma_ft_parse(&wtree, info, keynr, record, ftparser_param,
-                     &wtree.mem_root);
+        if (unlikely(_ma_ft_parse(&wtree, info, keynr, record, ftparser_param,
+                                  &wtree.mem_root)))
+        {
+          delete_queue(&best);
+          goto err;
+        }
       }
     }
     delete_queue(&best);

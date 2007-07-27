@@ -3553,8 +3553,8 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
                            COMPRESSED_LSN_MAX_STORE_SIZE)) -
                          dst_ptr);
     parts->record_length-= (economy= lsns_len - part->length);
-    DBUG_PRINT("info", ("new length of LSNs: %u  economy: %d",
-                        part->length, economy));
+    DBUG_PRINT("info", ("new length of LSNs: %lu  economy: %d",
+                        (ulong)part->length, economy));
     parts->total_record_length-= economy;
     part->str= (char*)dst_ptr;
   }

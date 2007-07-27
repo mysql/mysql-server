@@ -266,13 +266,15 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   uint full_length= key_length + (nod_flag ? nod_flag :
                                   info->s->base.rec_reflength);
   int max_keys= (maria_data_on_page(page)-2) / (full_length);
+  DBUG_ENTER("maria_rtree_split_page");
+  DBUG_PRINT("rtree", ("splitting block"));
 
   n_dim = keyinfo->keysegs / 2;
 
   if (!(coord_buf= (double*) my_alloca(n_dim * 2 * sizeof(double) *
                                        (max_keys + 1 + 4) +
                                        sizeof(SplitStruct) * (max_keys + 1))))
-    return -1;
+    DBUG_RETURN(-1); /* purecov: inspected */
 
   task= (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
 
@@ -343,12 +345,18 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   else
     err_code= _ma_write_keypage(info, keyinfo, *new_page_offs,
                                 DFLT_INIT_HITS, new_page);
+  DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
   my_afree((uchar*)new_page);
 
 split_err:
+  /**
+     @todo the cast below is useless (coord_buf is uchar*); at the moment we
+     changed all "byte" to "uchar", some casts became useless and should be
+     removed.
+  */
   my_afree((uchar*) coord_buf);
-  return err_code;
+  DBUG_RETURN(err_code);
 }
 
 #endif /*HAVE_RTREE_KEYS*/

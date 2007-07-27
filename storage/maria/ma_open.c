@@ -392,7 +392,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     key_parts+=fulltext_keys*FT_SEGS;
     if (share->base.max_key_length > maria_max_key_length() ||
-        keys > MARIA_MAX_KEY || key_parts >= MARIA_MAX_KEY * HA_MAX_KEY_SEG)
+        keys > MARIA_MAX_KEY || key_parts > MARIA_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;
@@ -667,22 +667,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
-    if (open_flags & HA_OPEN_MMAP)
-    {
-      info.s= share;
-      if (_ma_dynmap_file(&info, share->state.state.data_file_length))
-      {
-        /* purecov: begin inspected */
-        /* Ignore if mmap fails. Use file I/O instead. */
-        DBUG_PRINT("warning", ("mmap failed: errno: %d", errno));
-        /* purecov: end */
-      }
-      else
-      {
-        share->file_read= _ma_mmap_pread;
-        share->file_write= _ma_mmap_pwrite;
-      }
-    }
     share->is_log_table= FALSE;
     if (open_flags & HA_OPEN_TMP_TABLE) 
       share->options|= HA_OPTION_TMP_TABLE;
@@ -721,6 +705,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
 #endif
+    /*
+      Memory mapping can only be requested after initializing intern_lock.
+    */
+    if (open_flags & HA_OPEN_MMAP)
+    {
+      info.s= share;
+      maria_extra(&info, HA_EXTRA_MMAP, 0);
+    }
   }
   else
   {
@@ -1022,10 +1014,10 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   }
 
   if (pWrite & 1)
-    DBUG_RETURN(my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
-			  MYF(MY_NABP | MY_THREADSAFE)));
-  DBUG_RETURN(my_write(file,  (char*) buff, (uint) (ptr-buff),
-		       MYF(MY_NABP)));
+    DBUG_RETURN(my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
+			  MYF(MY_NABP | MY_THREADSAFE)) != 0);
+  DBUG_RETURN(my_write(file, buff, (size_t) (ptr-buff),
+		       MYF(MY_NABP)) != 0);
 }
 
 
@@ -1089,10 +1081,10 @@ uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state, my_bool pRead)
     if (pRead)
     {
       if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
-	return (MY_FILE_ERROR);
+	return 1;
     }
     else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
-      return (MY_FILE_ERROR);
+      return 1;
     _ma_state_info_read(buff, state);
   }
   return 0;
@@ -1143,7 +1135,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   *ptr++= base->extra_alloc_procent;
   bzero(ptr,16);					ptr+= 16; /* extra */
   DBUG_ASSERT((ptr - buff) == MARIA_BASE_INFO_SIZE);
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1204,7 +1196,7 @@ uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef)
   mi_int2store(ptr,keydef->keylength);		ptr+= 2;
   mi_int2store(ptr,keydef->minlength);		ptr+= 2;
   mi_int2store(ptr,keydef->maxlength);		ptr+= 2;
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *_ma_keydef_read(char *ptr, MARIA_KEYDEF *keydef)
@@ -1247,7 +1239,7 @@ int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg)
   mi_int4store(ptr, pos);
   ptr+=4;
 
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1287,7 +1279,7 @@ uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *def)
   *ptr++=  (uchar) def->key;
   *ptr++ = (uchar) def->null_are_equal;
 
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *_ma_uniquedef_read(char *ptr, MARIA_UNIQUEDEF *def)
@@ -1315,7 +1307,7 @@ uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
   mi_int2store(ptr,columndef->empty_pos);	ptr+= 2;
   (*ptr++)= columndef->null_bit;
   (*ptr++)= columndef->empty_bit;
-  return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 char *_ma_columndef_read(char *ptr, MARIA_COLUMNDEF *columndef)
