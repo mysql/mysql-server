@@ -32,12 +32,6 @@ in_rpm=0
 ip_only=0
 windows=0
 
-case "$1" in
-  --no-defaults|--defaults-file=*|--defaults-extra-file=*)
-    defaults="$1"; shift
-    ;;
-esac
-
 usage()
 {
   cat <<EOF
@@ -112,6 +106,8 @@ parse_arguments()
       --verbose) verbose=1 ;; # Obsolete
       --rpm) in_rpm=1 ;;
       --help) usage ;;
+      --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+        defaults="$arg" ;;
 
       --windows)
 	# This is actually a "cross bootstrap" argument used when
@@ -139,20 +135,71 @@ parse_arguments()
   done
 }
 
-# Sanity check - make sure we can find my_print_defaults either in the binary
-# distribution or within the installed source compile.
-print_defaults="@bindir@/my_print_defaults"
-if ! test -x $print_defaults
-then
-  echo "FATAL ERROR: Could not find $print_defaults"
+# Try to find a specific file within --basedir which can either be a binary
+# release or installed source directory and return the path.
+find_in_basedir()
+{
+  case "$1" in
+    --dir)
+      return_dir=1; shift
+      ;;
+  esac
+
+  file=$1; shift
+
+  for dir in "$@"
+  do
+    if test -f "$basedir/$dir/$file"
+    then
+      if test -n "$return_dir"
+      then
+        echo "$basedir/$dir"
+      else
+        echo "$basedir/$dir/$file"
+      fi
+      break
+    fi
+  done
+}
+
+missing_in_basedir()
+{
+  echo "FATAL ERROR: Could not find $* inside --basedir"
   echo
-  echo "If you are using a binary release, you must run this script from"
-  echo "within the directory the archive extracted into.  If you compiled"
-  echo "MySQL yourself you must run 'make install' first."
-  exit 1
+  echo "When using --basedir you must point either into a MySQL binary"
+  echo "distribution directory or a compiled tree previously populated"
+  echo "by 'make install'"
+}
+
+# Ok, let's go.  We first need to parse arguments which are required by
+# my_print_defaults so that we can execute it first, then later re-parse
+# the command line to add any extra bits that we need.
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+# We can now find my_print_defaults, either in the supplied --basedir
+# location or in the installed area.
+if test -n "$basedir"
+then
+  print_defaults=`find_in_basedir my_print_defaults bin extra`
+  if ! test -x "$print_defaults"
+  then
+    missing_in_basedir my_print_defaults
+    exit 1
+  fi
+else
+  print_defaults="@bindir@/my_print_defaults"
+  if ! test -x "$print_defaults"
+  then
+    echo "FATAL ERROR: Could not find $print_defaults"
+    echo
+    echo "If you are using a binary release, you must run this script from"
+    echo "within the directory the archive extracted into.  If you compiled"
+    echo "MySQL yourself you must run 'make install' first."
+    exit 1
+  fi
 fi
 
-# Firstly, get arguments from the groups [mysqld] and [mysql_install_db]
+# Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
 parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
@@ -163,20 +210,24 @@ then
   basedir="@prefix@"
   bindir="@bindir@"
   mysqld="@libexecdir@/mysqld"
+  pkgdatadir="@pkgdatadir@"
 else
   bindir="$basedir/bin"
-  for dir in libexec sbin bin
-  do
-    if test -x "$basedir/$dir/mysqld"
-    then
-      mysqld="$basedir/$dir/mysqld"
-      break
-    fi
-  done
-  if test -z "$mysqld"
+  # We set up bootstrap-specific paths later, so skip this for --windows
+  if test "$windows" -eq 0
   then
-    echo "FATAL ERROR: Could not find mysqld inside supplied --basedir"
-    exit 1
+    pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
+    if test -z "$pkgdatadir"
+    then
+      missing_in_basedir fill_help_tables.sql
+      exit 1
+    fi
+    mysqld=`find_in_basedir mysqld libexec sbin bin`
+    if ! test -x "$mysqld"
+    then
+      missing_in_basedir mysqld
+      exit 1
+    fi
   fi
 fi
 
@@ -190,8 +241,6 @@ fi
 if test -n "$srcdir"
 then
   pkgdatadir="$srcdir/scripts"
-else
-  pkgdatadir="@pkgdatadir@"
 fi
 
 fill_help_tables="$pkgdatadir/fill_help_tables.sql"
