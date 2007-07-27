@@ -31,6 +31,7 @@ rpl_ndb_innodb2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb faile
 rpl_ndb_myisam2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushbuild; Also on Linux 64 bit.
+rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
 rpl_ndb_ctype_ucs2_def   : BUG#29562, BUG#29563 and BUG#29564
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
