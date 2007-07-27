@@ -37,12 +37,7 @@ EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
 GENSCRIPTS =		mysql-test-run-shell mysql-test-run install_test_db mtr
 PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
-test_DATA = 		std_data/client-key.pem \
-			std_data/client-cert.pem \
-			std_data/cacert.pem \
-			std_data/server-cert.pem \
-			std_data/server-key.pem
-CLEANFILES = 		$(GENSCRIPTS) $(test_DATA)
+CLEANFILES = 		$(GENSCRIPTS)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 
@@ -110,17 +105,6 @@ install-data-local:
 
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
-
-std_data/client-key.pem: $(top_srcdir)/SSL/$(@F)
-	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/client-cert.pem: $(top_srcdir)/SSL/$(@F)
-	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/cacert.pem: $(top_srcdir)/SSL/$(@F)
-	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-cert.pem: $(top_srcdir)/SSL/$(@F)
-	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-key.pem: $(top_srcdir)/SSL/$(@F)
-	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 
 # mtr - a shortcut for executing mysql-test-run.pl
 mtr:
