@@ -1,0 +1,34 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+ALTER TABLE t1 ADD c CHAR(19);
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
+INSERT INTO t1 values (1,"a");
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+INSERT INTO t1 values (2,"a",1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	a	NULL
+2	a	1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	1
+DROP TABLE t1;
