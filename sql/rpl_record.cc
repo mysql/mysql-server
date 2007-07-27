@@ -144,7 +144,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @param rli     Relay log info
    @param table   Table to unpack into
    @param colcnt  Number of columns to read from record
-   @param row     Packed row data
+   @param row_data
+                  Packed row data
    @param cols    Pointer to columns data to fill in
    @param row_end Pointer to variable that will hold the value of the
                   one-after-end position for the row
@@ -237,6 +238,28 @@ unpack_row(RELAY_LOG_INFO const *rli,
       null_mask <<= 1;
     }
     i++;
+  }
+
+  /*
+    throw away master's extra fields
+  */
+  uint max_cols= min(tabledef->size(), cols->n_bits);
+  for (; i < max_cols; i++)
+  {
+    if (bitmap_is_set(cols, i))
+    {
+      if ((null_mask & 0xFF) == 0)
+      {
+        DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+        null_mask= 1U;
+        null_bits= *null_ptr++;
+      }
+      DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
+
+      if (!((null_bits & null_mask) && tabledef->maybe_null(i)))
+        pack_ptr+= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+      null_mask <<= 1;
+    }
   }
 
   /*

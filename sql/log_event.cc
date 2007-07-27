@@ -7067,6 +7067,7 @@ copy_extra_record_fields(TABLE *table,
                          my_size_t master_reclength,
                          my_ptrdiff_t master_fields)
 {
+  DBUG_ENTER("copy_extra_record_fields(table, master_reclen, master_fields)");
   DBUG_PRINT("info", ("Copying to 0x%lx "
                       "from field %lu at offset %lu "
                       "to field %d at offset %lu",
@@ -7077,6 +7078,10 @@ copy_extra_record_fields(TABLE *table,
     Copying the extra fields of the slave that does not exist on
     master into record[0] (which are basically the default values).
   */
+
+  if (table->s->fields < (uint) master_fields)
+    DBUG_RETURN(0);
+
   DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
     bmove_align(table->record[0] + master_reclength,
@@ -7134,7 +7139,7 @@ copy_extra_record_fields(TABLE *table,
       }
     }
   }
-  return 0;                                     // All OK
+  DBUG_RETURN(0);                                     // All OK
 }
 
 #define DBUG_PRINT_BITSET(N,FRM,BS)                \
@@ -7723,12 +7728,6 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
-  /*
-    This assertion actually checks that there is at least as many
-    columns on the slave as on the master.
-  */
-  DBUG_ASSERT(table->s->fields >= m_width);
-
   error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                     &m_master_reclength, table->read_set, DELETE_ROWS_EVENT);
   /*
@@ -7897,12 +7896,6 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
-  /*
-    This assertion actually checks that there is at least as many
-    columns on the slave as on the master.
-  */
-  DBUG_ASSERT(table->s->fields >= m_width);
-
   /*
     We need to perform some juggling below since unpack_row() always
     unpacks into table->record[0]. For more information, see the

@@ -134,21 +134,6 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   TABLE_SHARE const *const tsh= table->s;
 
   /*
-    To get proper error reporting for all columns of the table, we
-    both check the width and iterate over all columns.
-  */
-  if (tsh->fields < size())
-  {
-    DBUG_ASSERT(tsh->db.str && tsh->table_name.str);
-    error= 1;
-    slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_WRONG_TABLE_DEF,
-                    "Table width mismatch - "
-                    "received %u columns, %s.%s has %u columns",
-                    (uint) size(), tsh->db.str, tsh->table_name.str,
-                    tsh->fields);
-  }
-
-  /*
     We now check for column type and size compatibility.
   */
   for (uint col= 0 ; col < cols_to_check ; ++col)
