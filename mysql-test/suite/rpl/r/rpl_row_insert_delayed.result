@@ -46,29 +46,17 @@ id	name
 USE test;
 DROP SCHEMA mysqlslap;
 use test;
-FLUSH LOGS;
-FLUSH LOGS;
 CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1;
-show binlog events in 'master-bin.000002' LIMIT 2,2;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	table_id: 23 (test.t1)
-x	x	x	x	x	table_id: 23 flags: STMT_END_F
 select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' LIMIT 2,2;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	table_id: 23 (test.t1)
-x	x	x	x	x	table_id: 23 flags: STMT_END_F
 select * from t1;
 a
 1
 drop table t1;
-FLUSH LOGS;
-FLUSH LOGS;
 End of 5.0 tests
 set @@global.binlog_format = @old_global_binlog_format;
