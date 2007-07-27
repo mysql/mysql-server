@@ -2174,7 +2174,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         */
         my_snprintf(query_buff, sizeof(query_buff),
                     "SHOW FIELDS FROM %s", result_table);
-        if (mysql_query_with_error_report(mysql, 0, query_buff))
+        if (switch_character_set_results(mysql, "binary") ||
+            mysql_query_with_error_report(mysql, &result, query_buff) ||
+            switch_character_set_results(mysql, default_charset))
         {
           /*
             View references invalid or privileged table/col/fun (err 1356),
@@ -2192,43 +2194,50 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
 
-        if ((result= mysql_store_result(mysql)))
+        if (mysql_num_rows(result))
         {
-          if (mysql_num_rows(result))
+          if (opt_drop)
           {
-            if (opt_drop)
-            {
             /*
-              We have already dropped any table of the same name
-              above, so here we just drop the view.
-             */
-
-              fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
-                      opt_quoted_table);
-              check_io(sql_file);
-            }
-
-            fprintf(sql_file, "/*!50001 CREATE TABLE %s (\n", result_table);
-            /*
-               Get first row, following loop will prepend comma - keeps
-               from having to know if the row being printed is last to
-               determine if there should be a _trailing_ comma.
+              We have already dropped any table of the same name above, so
+              here we just drop the view.
             */
-            row= mysql_fetch_row(result);
 
-            fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
-                    row[1]);
-
-            while((row= mysql_fetch_row(result)))
-            {
-              /* col name, col type */
-              fprintf(sql_file, ",\n  %s %s",
-                      quote_name(row[0], name_buff, 0), row[1]);
-            }
-            fprintf(sql_file, "\n) */;\n");
+            fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
+                    opt_quoted_table);
             check_io(sql_file);
           }
+
+          fprintf(sql_file,
+                  "SET @saved_cs_client     = @@character_set_client;\n"
+                  "SET character_set_client = utf8;\n"
+                  "/*!50001 CREATE TABLE %s (\n",
+                  result_table);
+
+          /*
+            Get first row, following loop will prepend comma - keeps from
+            having to know if the row being printed is last to determine if
+            there should be a _trailing_ comma.
+          */
+
+          row= mysql_fetch_row(result);
+
+          fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
+                  row[1]);
+
+          while((row= mysql_fetch_row(result)))
+          {
+            /* col name, col type */
+            fprintf(sql_file, ",\n  %s %s",
+                    quote_name(row[0], name_buff, 0), row[1]);
+          }
+          fprintf(sql_file,
+                  "\n) */;\n"
+                  "SET character_set_client = @saved_cs_client;\n");
+
+          check_io(sql_file);
         }
+
         mysql_free_result(result);
 
         if (path)
