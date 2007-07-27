@@ -549,6 +549,70 @@ show status like 'slow_queries';
 # (mysqld is started with --log-queries-not-using-indexes)
 select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
+
+create table t1 (a int);
+create trigger tr1 before insert on t1 for each row 
+begin
+end;
+create view v1 as select a from t1;
+create procedure p1()
+begin
+end;
+create function f1()
+returns int
+return 0;
+create event e1 on schedule every 1 year starts now()
+  ends date_add(now(), interval 5 hour) do
+begin
+end;
+
+--disable_result_log
+flush status;
+show databases;
+show tables;
+show events;
+show table status;
+show open tables;
+show plugins;
+show columns in t1;
+show slave hosts;
+show keys in t1;
+show column types;
+show table types;
+show storage engines;
+show authors;
+show contributors;
+show privileges;
+show count(*) warnings;
+show count(*) errors;
+show warnings;
+show status;
+show processlist;
+show variables;
+show charset;
+show collation;
+show grants;
+show create database test;
+show create table t1;
+show create view v1;
+show master status;
+show slave status;
+show create procedure p1;
+show create function f1;
+show create trigger tr1;
+show procedure status;
+show procedure code p1;
+show function code f1;
+show create event e1;
+--enable_result_log
+
+show status like 'slow_queries';
+
+drop view v1;
+drop table t1;
+drop procedure p1;
+drop function f1;
+drop event e1;
 #
 # BUG#10491: Server returns data as charset binary SHOW CREATE TABLE or SELECT
 # FROM I_S.
