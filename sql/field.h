@@ -1363,7 +1363,7 @@ public:
      @retval The length in the row plus the size of the data.
   */
   uint32 get_packed_size(const uchar *ptr)
-    {return packlength + get_length((uint)ptr);}
+    {return packlength + get_length((const char *)ptr);}
 
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
