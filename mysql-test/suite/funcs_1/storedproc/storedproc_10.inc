@@ -54,7 +54,7 @@ connect (user2_1, localhost, user_1, , db_storedproc);
 delimiter //;
 CREATE PROCEDURE sp31102 () SQL SECURITY INVOKER
 BEGIN
-   SELECT * FROM db_storedproc.t1 WHERE f4=-5000 LIMIT 1;
+   SELECT * FROM db_storedproc.t1 LIMIT 1;
 END//
 delimiter ;//
 
@@ -244,21 +244,21 @@ delimiter ;//
 
 CALL sp_ins_1();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+SELECT * FROM temp;
 
 CALL sp_ins_3();
 #FIXME: check is 1 correct here? I expect 3 for 3 inserted rows inside the procedure
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+SELECT * FROM temp;
 
 CALL sp_upd();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+SELECT * FROM temp;
 
 #FIXME: check is 3 correct here?  I expect 7 for 4 inserted and then 3 updated rows inside the procedure
 CALL sp_ins_upd();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+SELECT * FROM temp;
 
 # cleanup
 DROP PROCEDURE sp_ins_1;

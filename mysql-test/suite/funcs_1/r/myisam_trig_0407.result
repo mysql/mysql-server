@@ -93,18 +93,18 @@ Create trigger trg1 BEFORE INSERT on t1
 for each row set new.f1='Trigger 3.5.4.1';
 Use db_drop;
 Insert into t1 values ('Insert error 3.5.4.1');
-Select * from t1 order by f1;
+Select * from t1;
 f1
 Trigger 3.5.4.1
 drop trigger trg1;
 select trigger_schema, trigger_name, event_object_table
-from information_schema.triggers order by trigger_name;
+from information_schema.triggers;
 trigger_schema	trigger_name	event_object_table
 Insert into t1 values ('Insert no trigger 3.5.4.1');
-Select * from t1 order by f1;
+Select * from t1;
 f1
-Insert no trigger 3.5.4.1
 Trigger 3.5.4.1
+Insert no trigger 3.5.4.1
 drop trigger trg1;
 drop database if exists db_drop;
 revoke ALL PRIVILEGES, GRANT OPTION FROM 'test_general'@'localhost';
@@ -258,7 +258,7 @@ use dbtest_one;
 Insert into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
-Select * from dbtest_two.t2 order by f1;
+Select * from dbtest_two.t2;
 f1
 1st Insert 3.5.
 2nd Insert 3.5.
