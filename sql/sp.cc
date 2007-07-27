@@ -1067,7 +1067,7 @@ sp_show_status_routine(THD *thd, int type, const char *name_pattern)
   tables.db= (char*)"mysql";
   tables.table_name= tables.alias= (char*)"proc";
 
-  if (! (table= open_ltable(thd, &tables, TL_READ)))
+  if (! (table= open_ltable(thd, &tables, TL_READ, 0)))
   {
     res= SP_OPEN_TABLE_FAILED;
     goto done;

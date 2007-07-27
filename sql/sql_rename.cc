@@ -37,7 +37,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
-  int disable_logs= 0;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -79,12 +78,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
                               ren_table->table_name_length,
                               ren_table->table_name, 1)))
       {
-        /*
-          Log table encoutered we will need to disable and lock logs
-          for duration of rename.
-        */
-        disable_logs= TRUE;
-
         /*
           as we use log_table_rename as an array index, we need it to start
           with 0, while QUERY_LOG_SLOW == 1 and QUERY_LOG_GENERAL == 2.
@@ -135,12 +128,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
         my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
                  rename_log_table[1]);
       DBUG_RETURN(1);
-    }
-
-    if (disable_logs)
-    {
-      logger.lock();
-      logger.tmp_close_log_tables(thd);
     }
   }
 
@@ -200,13 +187,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   pthread_mutex_unlock(&LOCK_open);
 
 err:
-  /* enable logging back if needed */
-  if (disable_logs)
-  {
-    if (logger.reopen_log_tables())
-      error= TRUE;
-    logger.unlock();
-  }
   start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }
