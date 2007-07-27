@@ -48,7 +48,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Insert into vw11 (f122, f151) values ('Test 3.5.10.1/2/3', 2);
 	Insert into vw11 (f122, f151) values ('Not in View', 3);
 	select f121, f122, f151, f163
-		from tb3 where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+		from tb3 where f122 like 'Test 3.5.10.1/2/3%';
 	select f121, f122, f151, f163 from vw11;
 	select f121, f122, f151, f163
 		from tb3 where f122 like 'Not in View';
@@ -56,7 +56,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 #Section 3.5.10.2
 	Update vw11 set f163=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+		where f122 like 'Test 3.5.10.1/2/3%';
 	select f121, f122, f151, f163 from vw11;
 
 #Section 3.5.10.3
@@ -64,7 +64,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Select @test_var as 'before delete';
 	delete from vw11 where f151=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+		where f122 like 'Test 3.5.10.1/2/3%';
 	select f121, f122, f151, f163 from vw11;
 	Select @test_var as 'after delete';
 
@@ -98,7 +98,7 @@ let $message= Testcase 3.5.10.4:;
 	eval load data infile '$MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table tb_load;
 
 	select @counter as 'Rows Loaded After';
-	Select * from tb_load order by f1 limit 10;
+	Select * from tb_load limit 10;
 
 #Cleanup
 	--disable_warnings
@@ -233,7 +233,7 @@ let $message= Testcase y.y.y.2: Check for triggers starting triggers;
 #lock tables t1 write, t2_1 write, t2_2 write, t2_3 write, t2_4 write, t3 write;
 	insert into t1 values (1);
 #unlock tables;
-	select * from t3 order by f1;
+	select * from t3;
 
 #Cleanup
 	--disable_warnings
@@ -274,10 +274,10 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 	# OBN See bug 11896
 	--error 1442
 	insert into t1 values (1);
-	select * from t1 order by f1;
-	select * from t2 order by f2;
-	select * from t3 order by f3;
-	select * from t4 order by f4;
+	select * from t1;
+	select * from t2;
+	select * from t3;
+	select * from t4;
 
 #Cleanup
 	--disable_warnings
@@ -384,9 +384,9 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 	--error 1264
 	insert into t1 values (1);
 	commit;
-	select * from t1 order by f1;
-	select * from t2 order by f2;
-	select * from t3 order by f3;
+	select * from t1;
+	select * from t2;
+	select * from t3;
 #unlock tables;
 #Cleanup
 	--disable_warnings

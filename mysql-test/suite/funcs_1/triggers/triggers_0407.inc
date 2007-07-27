@@ -51,14 +51,14 @@ let $message= Testcase 3.5.4.1:;
 	connection con1_general;
 	Use db_drop;
 	Insert into t1 values ('Insert error 3.5.4.1');
-	Select * from t1 order by f1;
+	Select * from t1;
 	connection con1_super;
 	drop trigger trg1;
 	select trigger_schema, trigger_name, event_object_table
-		from information_schema.triggers order by trigger_name;
+		from information_schema.triggers;
 	connection con1_general;
 	Insert into t1 values ('Insert no trigger 3.5.4.1');
-	Select * from t1 order by f1;
+	Select * from t1;
 
 #Cleanup
 	--disable_warnings 
@@ -294,7 +294,7 @@ let $message= Testcase 3.5.5.4:;
 	Select * from t2;
 	use dbtest_one;
 	Insert into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
-	Select * from dbtest_two.t2 order by f1;
+	Select * from dbtest_two.t2;
 
 #Cleanup
 	connection con1_super;
@@ -535,7 +535,7 @@ let $message= Testcase 3.5.7.13/14:;
 	Create trigger trg9_1 BEFORE DELETE 
 		on tb3 for each row set @test_var=@test_var+1;
 
-	--error ER_NOT_SUPPORTED_YET
+	--error ER_NOT_SUPPORTED_YET 
 	Create trigger trg9_2 BEFORE DELETE 
 		on tb3 for each row set @test_var=@test_var+10;
 

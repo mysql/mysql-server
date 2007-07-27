@@ -3,16 +3,19 @@
 .                         IMPORTANT NOTICE:
 .                         -----------------
 .
-.  FIXME: The .result files are still NOT CHECKED for correctness!
+.  FIXME: The <engine>_storedproc.result files are still NOT CHECKED
+.         for correctness!
 .
 .  FIXME: Several tests are affected by known problems around DECIMAL
-.  FIXME: and NUMERIC that will be checked again after WL#2984 once
+.  FIXME: and NUMERIC that needs to be checked again after WL#2984
 .  FIXME: has been completed. Some of them are marked in the result.
 .
-. Currently (Dec 06, 2005) this .result file is checked OK for Linux
-. with 5.0.17-bk (ChangeSet@1.1975.1.2, 2005-12-05 18:33:48+01:00).
-. Using the available Windows version 5.0.16 there are differences
-. that can be ignored (e.g. WL#2984).
+.  This .result file has been checked OK with Linux 5.0.23-bk,
+.  ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+.
+. This file has been saved although it might contain failures / wrong
+. results to be able to detect _new_ differences in the behaviour.
+. Hopefully the remaining checks can be made soon.
 .
 --------------------------------------------------------------------------------
 	FIXME: There are subtests that are switched off due to known bugs:
@@ -96,21 +99,20 @@ USE db_storedproc;
 DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
 CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934 (f1 char(20) )
 SELECT * from t1 where f2 = f1;
+ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934' is too long
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934('aaaa');
-f1	f2	f3	f4	f5	f6
+ERROR 42000: PROCEDURE db_storedproc.sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934 does not exist
 DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
 CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 tinytext ) language sql deterministic sql security definer comment 'this is simple'
   BEGIN
 set @v1 = f1;
 SELECT @v1, @v1;
 END//
+ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
-@v1	@v1
-abc	abc
+ERROR 42000: PROCEDURE db_storedproc.sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde does not exist
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 binary ) language sql not deterministic sql security invoker comment 'this is simple'
   BEGIN
@@ -119,12 +121,12 @@ SELECT @v1;
 END//
 CALL sp1( 34 );
 @v1
-34
+3
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 blob ) language sql not deterministic sql security invoker comment 'this is simple'
   BEGIN
@@ -137,8 +139,6 @@ CALL sp1( 34 );
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 int )  language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
@@ -151,8 +151,6 @@ CALL sp1( 34 );
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: SP definition accepted with m>60 in DECIMAL(m,n)
@@ -161,13 +159,19 @@ BEGIN
 set @v1 = f1;
 SELECT @v1;
 END//
+ERROR 42000: Too big precision 256 specified for column ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
+Warnings:
+Note	1305	PROCEDURE sp1 does not exist
 CREATE PROCEDURE sp1( f1 decimal(66, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
 set @v1 = f1;
 SELECT @v1;
 END//
+ERROR 42000: Too big precision 66 specified for column ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
+Warnings:
+Note	1305	PROCEDURE sp1 does not exist
 CREATE PROCEDURE sp1( f1 decimal(60, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
 set @v1 = f1;
@@ -175,51 +179,56 @@ SELECT @v1;
 END//
 CALL sp1( 17976931340000 );
 @v1
-17976931340000
+17976931340000.000000000000000000000000000000
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
   BEGIN
 SELECT f1;
 END//
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 CALL sp1( "value1" );
 f1
 value1
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 set("value1", "value1") ) language sql not deterministic sql security invoker comment 'this is simple'
   BEGIN
 SELECT f1;
 END//
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in SET
 CALL sp1( "value1, value1" );
 f1
-value1, value1
+value1
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in SET
+Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
   BEGIN
 SELECT f1;
 END//
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 CALL sp1( "value1" );
 f1
 value1
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongname2348	PROCEDURE	root@localhost	modified	created	DEFINER	
-db_storedproc	sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcd	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 text ) language sql SELECT f1;
 CALL sp1( 'abc' );
@@ -269,7 +278,9 @@ SHOW PROCEDURE status like 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
+ERROR 42000: PROCEDURE db_storedproc.sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934 does not exist
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
+ERROR 42000: PROCEDURE db_storedproc.sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde does not exist
 DROP PROCEDURE sp1;
 
 Testcase 4.1.2:
@@ -333,11 +344,13 @@ CREATE FUNCTION fn1( f1 enum("value1", "value1") ) returns decimal(63, 30)  lang
   BEGIN
 return f1;
 END//
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 SELECT fn1( "value1" );
 fn1( "value1" )
-0.000000000000000000000000000000
+1.000000000000000000000000000000
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: 'value1'
+Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple
@@ -346,11 +359,14 @@ CREATE FUNCTION fn1( f1 set("value1", "value1") ) returns decimal(63, 30) langua
   BEGIN
 return f1;
 END//
+Warnings:
+Note	1291	Column '' has duplicated value 'value1' in SET
 SELECT fn1( "value1, value1" );
 fn1( "value1, value1" )
-0.000000000000000000000000000000
+1.000000000000000000000000000000
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: 'value1, value1'
+Note	1291	Column '' has duplicated value 'value1' in SET
+Warning	1265	Data truncated for column 'f1' at row 1
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple
@@ -441,7 +457,7 @@ CREATE PROCEDURE sp1 (f1 char(20) )
 SELECT * from t1 where f2 = f1;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure
-sp1		CREATE PROCEDURE `sp1`(f1 char(20) )
+sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
 SELECT * from t1 where f2 = f1
 DROP PROCEDURE sp1;
 
@@ -454,7 +470,7 @@ CREATE FUNCTION fn1 (s char(20)) returns char(50)
 return concat('hello, ', s, '!');
 show CREATE FUNCTION fn1;
 Function	sql_mode	Create Function
-fn1		CREATE FUNCTION `fn1`(s char(20)) RETURNS char(50)
+fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50)
 return concat('hello, ', s, '!')
 DROP FUNCTION fn1;
 
@@ -498,7 +514,7 @@ CREATE PROCEDURE sp7b (a char (20), out b char(20))
 SELECT f1 into b from t1 where t1.f2= a;
 CALL sp7b('xyz', @out_param);
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 SELECT @out_param;
 @out_param
 NULL
@@ -511,8 +527,8 @@ END//
 set @c=1;
 CALL sp7c('xyz', @out_param, @c);
 Warnings:
-Warning	1329	No data to FETCH
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
 SELECT @out_param;
 @out_param
 NULL
@@ -2565,12 +2581,12 @@ alter procedure sp1 sql security definer;
 alter function sp1 sql security definer;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure
-sp1		CREATE PROCEDURE `sp1`()
+sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
     COMMENT 'this is a procedure'
 set @x= 3
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function
-sp1		CREATE FUNCTION `sp1`() RETURNS int(11)
+sp1		CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
     COMMENT 'this is a function'
 return 4
 USE db_storedproc;
@@ -4587,6 +4603,9 @@ END begin_label//
 CALL sp1();
 @v1	@v2
 1	2
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
+Warning	1265	Data truncated for column 'y' at row 1
 DROP PROCEDURE sp1;
 
 Testcase 4.2.7:
@@ -4621,6 +4640,9 @@ declare y char;
 SELECT f1, f2 into x, y from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
+Warning	1265	Data truncated for column 'y' at row 1
 DROP PROCEDURE sp1;
 
 Testcase 4.2.9:
@@ -4703,9 +4725,9 @@ fetch cur1 into e;
 SELECT x, y, z, a, b, c, d, e;
 close cur1;
 END//
+ERROR 42000: Too big scale 255 specified for column ''. Maximum is 30.
 CALL sp6();
-x	y	z	a	b	c	d	e
-a	1	1.1	value1	1200000000000	mediumtext	2005-02-02 12:12:12	a`
+ERROR 42000: PROCEDURE db_storedproc.sp6 does not exist
 DROP PROCEDURE IF EXISTS sp6;
 CREATE PROCEDURE sp6( )
 BEGIN
@@ -4737,7 +4759,7 @@ BEGIN
 declare x char, integer default '0';
 SELECT x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' integer default '0';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'char, integer default '0';
 SELECT x;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp6;
@@ -4746,7 +4768,7 @@ BEGIN
 declare x1, x2 char, integer default '0', 1;
 SELECT x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' integer default '0', 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'char, integer default '0', 1;
 SELECT x;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp6;
@@ -5988,7 +6010,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+000	000	000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -5997,7 +6023,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1	1	1
+001	001	001
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6024,7 +6050,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+00000	00000	00000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6033,7 +6063,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1	1	1
+00001	00001	00001
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6060,7 +6090,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+00000000	00000000	00000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6069,7 +6103,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1	1	1
+00000001	00000001	00000001
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6096,7 +6130,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+0000000000	0000000000	0000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6105,7 +6143,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1	1	1
+0000000001	0000000001	0000000001
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6123,7 +6161,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+18446744073709551615	18446744073709551615	18446744073709551615
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6132,7 +6170,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--1	-1	-1
+00000000000000000000	00000000000000000000	00000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6141,7 +6183,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1	1	1
+00000000000000000001	00000000000000000001	00000000000000000001
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6150,7 +6192,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--34028234660123456789012345678901234567	-34028234660123456789012345678901234567	-34028234660123456789012345678901234567
+-9999999999	-9999999999	-9999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6161,7 +6207,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0	0	0
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6170,7 +6220,11 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
--34028234660123456789012345678901234567	-34028234660123456789012345678901234567	-34028234660123456789012345678901234567
+0000000000	0000000000	0000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value adjusted for column 'y' at row 1
+Warning	1264	Out of range value adjusted for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6181,7 +6235,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0000000000	0000000000	0000000000
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6192,7 +6250,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0	0	0
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6203,7 +6265,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0	0	0
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6214,7 +6280,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0000000000	0000000000	0000000000
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6225,7 +6295,11 @@ FIXME: Following test contains a known problem that will be checked again
 FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 CALL sp1();
 x	y	z
-0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351	0.00000000000000000000000000000000000001175494351
+0000000000	0000000000	0000000000
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+Note	1265	Data truncated for column 'z' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6252,7 +6326,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+00000001.175494351e-38	00000001.175494351e-38	00000001.175494351e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6261,7 +6335,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+00000001.175494351e-38	00000001.175494351e-38	00000001.175494351e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6270,7 +6344,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+1.17549e-38	1.17549e-38	1.17549e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6279,7 +6353,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+1.17549e-38	1.17549e-38	1.17549e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6288,7 +6362,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+01.17549e-38	01.17549e-38	01.17549e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6297,7 +6371,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-1.175494351e-38	1.175494351e-38	1.175494351e-38
+01.17549e-38	01.17549e-38	01.17549e-38
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -6333,7 +6407,7 @@ SELECT x, y, z;
 END//
 CALL sp1();
 x	y	z
-20050202122012	20050202122012	20050202122012
+2005-02-02 12:20:12	2005-02-02 12:20:12	2005-02-02 12:20:12
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -12384,10 +12458,13 @@ set @v2 = y;
 END//
 CALL sp1();
 x	y	@x
-NULL	abaa	3
+NULL	a	3
+Warnings:
+Warning	1265	Data truncated for column 'y' at row 3
+Warning	1265	Data truncated for column 'y' at row 1
 SELECT @v1, @v2;
 @v1	@v2
-4	a`
+4	a
 DROP PROCEDURE sp1;
 
 Testcase 4.2.28:
@@ -12454,7 +12531,7 @@ CALL sp1();
 @xx
 0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'asd'
+Warning	1264	Out of range value adjusted for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12481,9 +12558,11 @@ set xx = 'temp';
 set @xx = xx;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'xx' at row 1
 SELECT @xx;
 @xx
-temp
+t
 DROP PROCEDURE sp1;
 
 Testcase 4.2.31 - b:
@@ -12501,7 +12580,7 @@ CALL sp1();
 xx
 0
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'asd'
+Warning	1265	Data truncated for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12527,7 +12606,9 @@ SELECT xx;
 END//
 CALL sp1();
 xx
-asd
+0000-00-00 00:00:00
+Warnings:
+Warning	1264	Out of range value adjusted for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12571,7 +12652,7 @@ CALL sp1();
 xx
 0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'asd'
+Warning	1366	Incorrect integer value: 'asd' for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12602,6 +12683,8 @@ declare x char ascii;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12665,6 +12748,8 @@ declare x binary;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12672,6 +12757,8 @@ declare x tinyint;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12679,6 +12766,8 @@ declare x tinyint unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12686,6 +12775,8 @@ declare x tinyint zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12693,6 +12784,8 @@ declare x tinyint unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12700,6 +12793,8 @@ declare x smallint;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12707,6 +12802,8 @@ declare x smallint unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12714,6 +12811,8 @@ declare x smallint zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12721,6 +12820,8 @@ declare x smallint unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12728,6 +12829,8 @@ declare x mediumint;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12735,6 +12838,8 @@ declare x mediumint unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12742,6 +12847,8 @@ declare x mediumint zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12749,6 +12856,8 @@ declare x mediumint unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1366	Incorrect integer value: 'a`' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12756,6 +12865,8 @@ declare x int;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12763,6 +12874,8 @@ declare x int unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12770,6 +12883,8 @@ declare x int zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12777,6 +12892,8 @@ declare x int unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12784,6 +12901,8 @@ declare x bigint;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12791,6 +12910,8 @@ declare x bigint unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12798,6 +12919,8 @@ declare x bigint zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12805,6 +12928,8 @@ declare x bigint unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12813,7 +12938,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12822,7 +12947,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12831,7 +12956,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12840,7 +12965,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12849,7 +12974,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12858,7 +12983,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12867,7 +12992,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12876,7 +13001,7 @@ SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: 'a`                  a`                       !?x???a`                       x???' for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12884,6 +13009,8 @@ declare x real;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12891,6 +13018,8 @@ declare x real unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12898,6 +13027,8 @@ declare x real zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12905,6 +13036,8 @@ declare x real unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12912,6 +13045,8 @@ declare x float;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12919,6 +13054,8 @@ declare x float unsigned;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12926,6 +13063,8 @@ declare x float zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12933,6 +13072,8 @@ declare x float unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12940,6 +13081,8 @@ declare x date;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12947,6 +13090,8 @@ declare x time;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12954,6 +13099,8 @@ declare x datetime;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12961,6 +13108,8 @@ declare x timestamp;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12968,6 +13117,8 @@ declare x year;
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12975,6 +13126,8 @@ declare x year(3);
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12982,6 +13135,8 @@ declare x year(4);
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1264	Out of range value adjusted for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12989,6 +13144,8 @@ declare x enum("1enum", "2enum");
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -12996,6 +13153,8 @@ declare x set("1set", "2set");
 SELECT f1 into x from t2 limit 1;
 END//
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE sp1;
 
 Testcase 4.2.38:
@@ -13643,7 +13802,7 @@ fetch cur1 into newf1, newf2, newf4, newf3;
 END;
 END//
 CALL sp1();
-ERROR 02000: No data to FETCH
+ERROR 02000: No data - zero rows fetched, selected, or processed
 DROP PROCEDURE sp1;
 
 Testcase 4.2.65:
@@ -13669,7 +13828,7 @@ commit;
 END;
 END//
 CALL sp1();
-ERROR 02000: No data to FETCH
+ERROR 02000: No data - zero rows fetched, selected, or processed
 DROP PROCEDURE sp1;
 
 Testcase 4.2.66:
@@ -14926,7 +15085,7 @@ return f1;
 END//
 SELECT fn2(1.84e+19);
 fn2(1.84e+19)
-0
+-46744073709551616
 DROP FUNCTION IF EXISTS fn3;
 CREATE FUNCTION fn3( f1 bigint unsigned zerofill) returns bigint unsigned zerofill
 BEGIN
@@ -14945,6 +15104,8 @@ END//
 SELECT fn4(-9.22e+15);
 fn4(-9.22e+15)
 0
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn5;
 CREATE FUNCTION fn5( f1 decimal) returns decimal
 BEGIN
@@ -14972,6 +15133,10 @@ END//
 SELECT fn7(99999999999);
 fn7(99999999999)
 9999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn8;
 CREATE FUNCTION fn8( f1 decimal (0) unsigned zerofill) returns decimal (0) unsigned zerofill
 BEGIN
@@ -14980,7 +15145,9 @@ return f1;
 END//
 SELECT fn8(999999999);
 fn8(999999999)
-0999999999
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn9;
 CREATE FUNCTION fn9( f1 decimal (0) zerofill) returns decimal (0) zerofill
 BEGIN
@@ -14989,7 +15156,10 @@ return f1;
 END//
 SELECT fn9(-1.00e+09);
 fn9(-1.00e+09)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn10;
 CREATE FUNCTION fn10( f1 decimal (0, 0)) returns decimal (0, 0)
 BEGIN
@@ -15008,6 +15178,10 @@ END//
 SELECT fn11(99999999999);
 fn11(99999999999)
 9999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn12;
 CREATE FUNCTION fn12( f1 decimal (0, 0) unsigned zerofill) returns decimal (0, 0) unsigned zerofill
 BEGIN
@@ -15016,7 +15190,9 @@ return f1;
 END//
 SELECT fn12(999999999);
 fn12(999999999)
-0999999999
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn13;
 CREATE FUNCTION fn13( f1 decimal (0, 0) zerofill) returns decimal (0, 0) zerofill
 BEGIN
@@ -15025,7 +15201,10 @@ return f1;
 END//
 SELECT fn13(-1.00e+09);
 fn13(-1.00e+09)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn14;
 CREATE FUNCTION fn14( f1 decimal (63, 30)) returns decimal (63, 30)
 BEGIN
@@ -15061,7 +15240,10 @@ return f1;
 END//
 SELECT fn17(-1.00e+21);
 fn17(-1.00e+21)
-000000000000000000000000000000000.000000000000000000000000000000
+000000000000000000000000000000010.000000000000000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn18_d;
 CREATE FUNCTION fn18_d( f1 decimal (64)) returns decimal (64)
 BEGIN
@@ -15097,7 +15279,10 @@ return f1;
 END//
 SELECT fn21_d_z(1.00e+00);
 fn21_d_z(1.00e+00)
-0000000000000000000000000000000000000000000000000000000000000001
+0000000000000000000000000000000000000000000000000000000000000010
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn22;
 CREATE FUNCTION fn22( f1 decimal unsigned) returns decimal unsigned
 BEGIN
@@ -15106,7 +15291,10 @@ return f1;
 END//
 SELECT fn22(1.00e+00);
 fn22(1.00e+00)
-1
+10
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn23;
 CREATE FUNCTION fn23( f1 decimal unsigned zerofill) returns decimal unsigned zerofill
 BEGIN
@@ -15115,7 +15303,10 @@ return f1;
 END//
 SELECT fn23(1.00e+00);
 fn23(1.00e+00)
-0000000001
+0000000010
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn24;
 CREATE FUNCTION fn24( f1 decimal zerofill) returns decimal zerofill
 BEGIN
@@ -15124,7 +15315,10 @@ return f1;
 END//
 SELECT fn24(-1.00e+09);
 fn24(-1.00e+09)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn25;
 CREATE FUNCTION fn25( f1 double) returns double
 BEGIN
@@ -15142,7 +15336,9 @@ return f1;
 END//
 SELECT fn26(1.00e+00);
 fn26(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn27;
 CREATE FUNCTION fn27( f1 double unsigned zerofill) returns double unsigned zerofill
 BEGIN
@@ -15151,7 +15347,9 @@ return f1;
 END//
 SELECT fn27(1.00e+00);
 fn27(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn28;
 CREATE FUNCTION fn28( f1 double zerofill) returns double zerofill
 BEGIN
@@ -15160,7 +15358,9 @@ return f1;
 END//
 SELECT fn28(1.00e+00);
 fn28(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn29;
 CREATE FUNCTION fn29( f1 float) returns float
 BEGIN
@@ -15178,7 +15378,9 @@ return f1;
 END//
 SELECT fn30(1.00e+00);
 fn30(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn31;
 CREATE FUNCTION fn31( f1 float unsigned zerofill) returns float unsigned zerofill
 BEGIN
@@ -15187,7 +15389,9 @@ return f1;
 END//
 SELECT fn31(1.00e+00);
 fn31(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn32;
 CREATE FUNCTION fn32( f1 float zerofill) returns float zerofill
 BEGIN
@@ -15196,7 +15400,9 @@ return f1;
 END//
 SELECT fn32(1.00e+00);
 fn32(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn33;
 CREATE FUNCTION fn33( f1 float(0)) returns float(0)
 BEGIN
@@ -15214,7 +15420,9 @@ return f1;
 END//
 SELECT fn34(1.00e+00);
 fn34(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn35;
 CREATE FUNCTION fn35( f1 float(0) unsigned zerofill) returns float(0) unsigned zerofill
 BEGIN
@@ -15223,7 +15431,9 @@ return f1;
 END//
 SELECT fn35(1.00e+00);
 fn35(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn36;
 CREATE FUNCTION fn36( f1 float(0) zerofill) returns float(0) zerofill
 BEGIN
@@ -15232,7 +15442,9 @@ return f1;
 END//
 SELECT fn36(1.00e+00);
 fn36(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn37;
 CREATE FUNCTION fn37( f1 float(23)) returns float(23)
 BEGIN
@@ -15250,7 +15462,9 @@ return f1;
 END//
 SELECT fn38(1.00e+00);
 fn38(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn39;
 CREATE FUNCTION fn39( f1 float(23) unsigned zerofill) returns float(23) unsigned zerofill
 BEGIN
@@ -15259,7 +15473,9 @@ return f1;
 END//
 SELECT fn39(1.00e+00);
 fn39(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn40;
 CREATE FUNCTION fn40( f1 float(23) zerofill) returns float(23) zerofill
 BEGIN
@@ -15268,7 +15484,9 @@ return f1;
 END//
 SELECT fn40(1.00e+00);
 fn40(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn41;
 CREATE FUNCTION fn41( f1 float(24)) returns float(24)
 BEGIN
@@ -15286,7 +15504,9 @@ return f1;
 END//
 SELECT fn42(1.00e+00);
 fn42(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn43;
 CREATE FUNCTION fn43( f1 float(24) unsigned zerofill) returns float(24) unsigned zerofill
 BEGIN
@@ -15295,7 +15515,9 @@ return f1;
 END//
 SELECT fn43(1.00e+00);
 fn43(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn44;
 CREATE FUNCTION fn44( f1 float(24) zerofill) returns float(24) zerofill
 BEGIN
@@ -15304,7 +15526,9 @@ return f1;
 END//
 SELECT fn44(1.00e+00);
 fn44(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn45;
 CREATE FUNCTION fn45( f1 float(53)) returns float(53)
 BEGIN
@@ -15322,7 +15546,9 @@ return f1;
 END//
 SELECT fn46(1.00e+00);
 fn46(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn47;
 CREATE FUNCTION fn47( f1 float(53) unsigned zerofill) returns float(53) unsigned zerofill
 BEGIN
@@ -15331,7 +15557,9 @@ return f1;
 END//
 SELECT fn47(1.00e+00);
 fn47(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn48;
 CREATE FUNCTION fn48( f1 float(53) zerofill) returns float(53) zerofill
 BEGIN
@@ -15340,7 +15568,9 @@ return f1;
 END//
 SELECT fn48(1.00e+00);
 fn48(1.00e+00)
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn49;
 CREATE FUNCTION fn49( f1 int) returns int
 BEGIN
@@ -15349,7 +15579,10 @@ return f1;
 END//
 SELECT fn49(-2.15e+09);
 fn49(-2.15e+09)
--2147483648
+-2147483638
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn50;
 CREATE FUNCTION fn50( f1 int unsigned) returns int unsigned
 BEGIN
@@ -15385,7 +15618,9 @@ return f1;
 END//
 SELECT fn53(-8388600);
 fn53(-8388600)
--8388600
+-8388598
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn54;
 CREATE FUNCTION fn54( f1 mediumint unsigned) returns mediumint unsigned
 BEGIN
@@ -15412,7 +15647,11 @@ return f1;
 END//
 SELECT fn56(-8388601);
 fn56(-8388601)
-0
+16777215
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn57;
 CREATE FUNCTION fn57( f1 numeric) returns numeric
 BEGIN
@@ -15421,7 +15660,9 @@ return f1;
 END//
 SELECT fn57(-999999999);
 fn57(-999999999)
--999999999
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn58;
 CREATE FUNCTION fn58( f1 numeric (0)) returns numeric (0)
 BEGIN
@@ -15430,7 +15671,9 @@ return f1;
 END//
 SELECT fn58(-999999999);
 fn58(-999999999)
--999999999
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn59;
 CREATE FUNCTION fn59( f1 numeric (0) unsigned) returns numeric (0) unsigned
 BEGIN
@@ -15440,6 +15683,9 @@ END//
 SELECT fn59(9999999999);
 fn59(9999999999)
 9999999999
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn60;
 CREATE FUNCTION fn60( f1 numeric (0) unsigned zerofill) returns numeric (0) unsigned zerofill
 BEGIN
@@ -15448,7 +15694,9 @@ return f1;
 END//
 SELECT fn60(99999999);
 fn60(99999999)
-0099999999
+0100000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn61;
 CREATE FUNCTION fn61( f1 numeric (0) zerofill) returns numeric (0) zerofill
 BEGIN
@@ -15457,7 +15705,10 @@ return f1;
 END//
 SELECT fn61(-99999999);
 fn61(-99999999)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn62;
 CREATE FUNCTION fn62( f1 numeric (0, 0)) returns numeric (0, 0)
 BEGIN
@@ -15466,7 +15717,9 @@ return f1;
 END//
 SELECT fn62(-999999999);
 fn62(-999999999)
--999999999
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn63;
 CREATE FUNCTION fn63( f1 numeric (0, 0) unsigned) returns numeric (0, 0) unsigned
 BEGIN
@@ -15476,6 +15729,9 @@ END//
 SELECT fn63(9999999999);
 fn63(9999999999)
 9999999999
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn64;
 CREATE FUNCTION fn64( f1 numeric (0, 0) unsigned zerofill) returns numeric (0, 0) unsigned zerofill
 BEGIN
@@ -15484,7 +15740,9 @@ return f1;
 END//
 SELECT fn64(99999999);
 fn64(99999999)
-0099999999
+0100000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn65;
 CREATE FUNCTION fn65( f1 numeric (0, 0) zerofill) returns numeric (0, 0) zerofill
 BEGIN
@@ -15493,7 +15751,10 @@ return f1;
 END//
 SELECT fn65(-99999999);
 fn65(-99999999)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn66;
 CREATE FUNCTION fn66( f1 numeric (63, 30)) returns numeric (63, 30)
 BEGIN
@@ -15502,7 +15763,12 @@ return f1;
 END//
 SELECT fn66(-1e+36);
 fn66(-1e+36)
--999999999999999999999999999999999.999999999999999999999999999999
+-999999999999999999999999999999989.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn67;
 CREATE FUNCTION fn67( f1 numeric (63, 30) unsigned) returns numeric (63, 30) unsigned
 BEGIN
@@ -15512,6 +15778,10 @@ END//
 SELECT fn67(1e+36);
 fn67(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn68;
 CREATE FUNCTION fn68( f1 numeric (63, 30) unsigned zerofill) returns numeric (63, 30) unsigned zerofill
 BEGIN
@@ -15521,6 +15791,10 @@ END//
 SELECT fn68(1e+36);
 fn68(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn69;
 CREATE FUNCTION fn69( f1 numeric (63, 30) zerofill) returns numeric (63, 30) zerofill
 BEGIN
@@ -15529,7 +15803,10 @@ return f1;
 END//
 SELECT fn69(-1e+36);
 fn69(-1e+36)
-000000000000000000000000000000000.000000000000000000000000000000
+000000000000000000000000000000010.000000000000000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn70_n;
 CREATE FUNCTION fn70_n( f1 numeric (64)) returns numeric (64)
 BEGIN
@@ -15577,7 +15854,9 @@ return f1;
 END//
 SELECT fn74(999999999);
 fn74(999999999)
-999999999
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn75;
 CREATE FUNCTION fn75( f1 numeric unsigned zerofill) returns numeric unsigned zerofill
 BEGIN
@@ -15586,7 +15865,9 @@ return f1;
 END//
 SELECT fn75(999999999);
 fn75(999999999)
-0999999999
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn76;
 CREATE FUNCTION fn76( f1 numeric zerofill) returns numeric zerofill
 BEGIN
@@ -15595,7 +15876,10 @@ return f1;
 END//
 SELECT fn76(-999999999);
 fn76(-999999999)
-0000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn77;
 CREATE FUNCTION fn77( f1 real) returns real
 BEGIN
@@ -15613,7 +15897,9 @@ return f1;
 END//
 SELECT fn78(1.1);
 fn78(1.1)
-1.1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn79;
 CREATE FUNCTION fn79( f1 real unsigned zerofill) returns real unsigned zerofill
 BEGIN
@@ -15622,7 +15908,9 @@ return f1;
 END//
 SELECT fn79(1.1);
 fn79(1.1)
-1.1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn80;
 CREATE FUNCTION fn80( f1 real zerofill) returns real zerofill
 BEGIN
@@ -15631,7 +15919,9 @@ return f1;
 END//
 SELECT fn80(1.1);
 fn80(1.1)
-1.1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn81;
 CREATE FUNCTION fn81( f1 smallint) returns smallint
 BEGIN
@@ -15667,7 +15957,11 @@ return f1;
 END//
 SELECT fn84(-32601);
 fn84(-32601)
-0
+65535
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn85;
 CREATE FUNCTION fn85( f1 tinyint) returns tinyint
 BEGIN
@@ -15703,7 +15997,11 @@ return f1;
 END//
 SELECT fn88(-101);
 fn88(-101)
-0
+255
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn89;
 CREATE FUNCTION fn89( f1 enum('1enum', '2enum')) returns enum('1enum', '2enum')
 BEGIN
@@ -15759,7 +16057,7 @@ return f1;
 END//
 SELECT fn92( '23:59:59.999999');
 fn92( '23:59:59.999999')
-26:00:00
+25:59:59
 DROP FUNCTION IF EXISTS fn93;
 CREATE FUNCTION fn93( f1 datetime) returns datetime
 BEGIN
@@ -15768,7 +16066,7 @@ return f1;
 END//
 SELECT fn93('1997-12-31 23:59:59.999999');
 fn93('1997-12-31 23:59:59.999999')
-1998-01-02 01:01:01
+1998-01-02 01:01:00
 DROP FUNCTION IF EXISTS fn94;
 CREATE FUNCTION fn94( f1 char) returns char
 BEGIN
@@ -15778,6 +16076,8 @@ END//
 SELECT fn94( 'h');
 fn94( 'h')
 a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn95;
 CREATE FUNCTION fn95( f1 char ascii) returns char ascii
 BEGIN
@@ -15787,6 +16087,8 @@ END//
 SELECT fn95('h');
 fn95('h')
 a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn96;
 CREATE FUNCTION fn96( f1 char binary) returns char binary
 BEGIN
@@ -15796,6 +16098,8 @@ END//
 SELECT fn96( 'h');
 fn96( 'h')
 a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP FUNCTION IF EXISTS fn97;
 CREATE FUNCTION fn97( f1 longtext) returns longtext
 BEGIN
@@ -15917,7 +16221,7 @@ SELECT f1;
 END//
 CALL sp2(1.84e+19);
 f1
--9223372036854775808
+18400000000000000000
 DROP PROCEDURE IF EXISTS sp3;
 CREATE PROCEDURE sp3( f1 bigint unsigned zerofill)
 BEGIN
@@ -15926,7 +16230,7 @@ SELECT f1;
 END//
 CALL sp3(1.84e+17);
 f1
-184000000000000000
+00184000000000000000
 DROP PROCEDURE IF EXISTS sp4;
 CREATE PROCEDURE sp4( f1 bigint zerofill)
 BEGIN
@@ -15935,7 +16239,9 @@ SELECT f1;
 END//
 CALL sp4(-9.22e+15);
 f1
--9220000000000000
+00000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp5;
 CREATE PROCEDURE sp5( f1 decimal)
 BEGIN
@@ -15947,7 +16253,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: default (10) for DECIMAL not checked, decimal digits shown although not defined
 CALL sp5(-1.00e+09);
 f1
--1000000000.000000000
+-1000000000
 DROP PROCEDURE IF EXISTS sp6;
 CREATE PROCEDURE sp6( f1 decimal (0))
 BEGIN
@@ -15959,7 +16265,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp6(-1.00e+09);
 f1
--1000000000.000000000
+-1000000000
 DROP PROCEDURE IF EXISTS sp7;
 CREATE PROCEDURE sp7( f1 decimal (0) unsigned)
 BEGIN
@@ -15968,7 +16274,11 @@ SELECT f1;
 END//
 CALL sp7(99999999999);
 f1
-99999999999.000000000
+9999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp8;
 CREATE PROCEDURE sp8( f1 decimal (0) unsigned zerofill)
 BEGIN
@@ -15977,7 +16287,9 @@ SELECT f1;
 END//
 CALL sp8(999999999);
 f1
-999999999.000000000
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp9;
 CREATE PROCEDURE sp9( f1 decimal (0) zerofill)
 BEGIN
@@ -15989,7 +16301,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp9(-1.00e+09);
 f1
--1000000000.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp10;
 CREATE PROCEDURE sp10( f1 decimal (0, 0))
 BEGIN
@@ -16001,7 +16316,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp10(-1.00e+09);
 f1
--1000000000.000000000
+-1000000000
 DROP PROCEDURE IF EXISTS sp11;
 CREATE PROCEDURE sp11( f1 decimal (0, 0) unsigned)
 BEGIN
@@ -16013,7 +16328,11 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp11(99999999999);
 f1
-99999999999.000000000
+9999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp12;
 CREATE PROCEDURE sp12( f1 decimal (0, 0) unsigned zerofill)
 BEGIN
@@ -16025,7 +16344,9 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp12(999999999);
 f1
-999999999.000000000
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp13;
 CREATE PROCEDURE sp13( f1 decimal (0, 0) zerofill)
 BEGIN
@@ -16037,7 +16358,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp13(-1.00e+09);
 f1
--1000000000.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp14;
 CREATE PROCEDURE sp14( f1 decimal (63, 30))
 BEGIN
@@ -16049,7 +16373,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: wrong number of decimal digits shown
 CALL sp14(-1.00e+21);
 f1
--1000000000000000000000.000000000
+-1000000000000000000000.000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp15;
 CREATE PROCEDURE sp15( f1 decimal (63, 30) unsigned)
 BEGIN
@@ -16061,7 +16385,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: wrong number of decimal digits shown
 CALL sp15(1.00e+16);
 f1
-10000000000000000.000000000
+10000000000000000.000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp16;
 CREATE PROCEDURE sp16( f1 decimal (63, 30) unsigned zerofill)
 BEGIN
@@ -16073,7 +16397,7 @@ FIXME: after WL#2984 has been completed:
 FIXME: wrong number of decimal digits shown
 CALL sp16(1.00e+16);
 f1
-10000000000000000.000000000
+000000000000000010000000000000000.000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp17;
 CREATE PROCEDURE sp17( f1 decimal (63, 30) zerofill)
 BEGIN
@@ -16085,7 +16409,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: wrong number of decimal digits shown
 CALL sp17(-1.00e+21);
 f1
--1000000000000000000000.000000000
+000000000000000000000000000000010.000000000000000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp18_d;
 CREATE PROCEDURE sp18_d( f1 decimal (64))
 BEGIN
@@ -16094,7 +16421,7 @@ SELECT f1;
 END//
 CALL sp18_d( -1000000000000000000000000000000 );
 f1
--1000000000000000000000000000000.000000000
+-1000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp19_du;
 CREATE PROCEDURE sp19_du( f1 decimal (64) unsigned)
 BEGIN
@@ -16103,10 +16430,10 @@ SELECT f1;
 END//
 CALL sp19_du( 100000000000000000000 );
 f1
-100000000000000000000.000000000
+100000000000000000000
 CALL sp19_du( 1000000000000000000000000 );
 f1
-1000000000000000000000000.000000000
+1000000000000000000000000
 DROP PROCEDURE IF EXISTS sp20_duz;
 CREATE PROCEDURE sp20_duz( f1 decimal (64) unsigned zerofill)
 BEGIN
@@ -16118,10 +16445,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp20_duz( 100000000000000000000 );
 f1
-100000000000000000000.000000000
+0000000000000000000000000000000000000000000100000000000000000000
 CALL sp20_duz( 1000000000000000000000000 );
 f1
-1000000000000000000000000.000000000
+0000000000000000000000000000000000000001000000000000000000000000
 DROP PROCEDURE IF EXISTS sp21;
 CREATE PROCEDURE sp21( f1 decimal (64) zerofill)
 BEGIN
@@ -16133,7 +16460,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp21(1.00e+00);
 f1
-1.000000000
+0000000000000000000000000000000000000000000000000000000000000010
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp22;
 CREATE PROCEDURE sp22( f1 decimal unsigned)
 BEGIN
@@ -16145,7 +16475,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp22(1.00e+00);
 f1
-1.000000000
+10
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp23;
 CREATE PROCEDURE sp23( f1 decimal unsigned zerofill)
 BEGIN
@@ -16157,7 +16490,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp23(1.00e+00);
 f1
-1.000000000
+0000000010
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp24;
 CREATE PROCEDURE sp24( f1 decimal zerofill)
 BEGIN
@@ -16169,7 +16505,10 @@ FIXME: after WL#2984 has been completed:
 FIXME: decimal digits shown although not defined
 CALL sp24(-1.00e+09);
 f1
--1000000000.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp25;
 CREATE PROCEDURE sp25( f1 double)
 BEGIN
@@ -16187,7 +16526,9 @@ SELECT f1;
 END//
 CALL sp26(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp27;
 CREATE PROCEDURE sp27( f1 double unsigned zerofill)
 BEGIN
@@ -16196,7 +16537,9 @@ SELECT f1;
 END//
 CALL sp27(1.00e+00);
 f1
-1
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp28;
 CREATE PROCEDURE sp28( f1 double zerofill)
 BEGIN
@@ -16205,7 +16548,9 @@ SELECT f1;
 END//
 CALL sp28(1.00e+00);
 f1
-1
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp29;
 CREATE PROCEDURE sp29( f1 float)
 BEGIN
@@ -16223,7 +16568,9 @@ SELECT f1;
 END//
 CALL sp30(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp31;
 CREATE PROCEDURE sp31( f1 float unsigned zerofill)
 BEGIN
@@ -16232,7 +16579,9 @@ SELECT f1;
 END//
 CALL sp31(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp32;
 CREATE PROCEDURE sp32( f1 float zerofill)
 BEGIN
@@ -16241,7 +16590,9 @@ SELECT f1;
 END//
 CALL sp32(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp33;
 CREATE PROCEDURE sp33( f1 float(0))
 BEGIN
@@ -16259,7 +16610,9 @@ SELECT f1;
 END//
 CALL sp34(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp35;
 CREATE PROCEDURE sp35( f1 float(0) unsigned zerofill)
 BEGIN
@@ -16268,7 +16621,9 @@ SELECT f1;
 END//
 CALL sp35(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp36;
 CREATE PROCEDURE sp36( f1 float(0) zerofill)
 BEGIN
@@ -16277,7 +16632,9 @@ SELECT f1;
 END//
 CALL sp36(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp37;
 CREATE PROCEDURE sp37( f1 float(23))
 BEGIN
@@ -16295,7 +16652,9 @@ SELECT f1;
 END//
 CALL sp38(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp39;
 CREATE PROCEDURE sp39( f1 float(23) unsigned zerofill)
 BEGIN
@@ -16304,7 +16663,9 @@ SELECT f1;
 END//
 CALL sp39(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp40;
 CREATE PROCEDURE sp40( f1 float(23) zerofill)
 BEGIN
@@ -16313,7 +16674,9 @@ SELECT f1;
 END//
 CALL sp40(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp41;
 CREATE PROCEDURE sp41( f1 float(24))
 BEGIN
@@ -16331,7 +16694,9 @@ SELECT f1;
 END//
 CALL sp42(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp43;
 CREATE PROCEDURE sp43( f1 float(24) unsigned zerofill)
 BEGIN
@@ -16340,7 +16705,9 @@ SELECT f1;
 END//
 CALL sp43(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp44;
 CREATE PROCEDURE sp44( f1 float(24) zerofill)
 BEGIN
@@ -16349,7 +16716,9 @@ SELECT f1;
 END//
 CALL sp44(1.00e+00);
 f1
-1
+000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp45;
 CREATE PROCEDURE sp45( f1 float(53))
 BEGIN
@@ -16367,7 +16736,9 @@ SELECT f1;
 END//
 CALL sp46(1.00e+00);
 f1
-1
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp47;
 CREATE PROCEDURE sp47( f1 float(53) unsigned zerofill)
 BEGIN
@@ -16376,7 +16747,9 @@ SELECT f1;
 END//
 CALL sp47(1.00e+00);
 f1
-1
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp48;
 CREATE PROCEDURE sp48( f1 float(53) zerofill)
 BEGIN
@@ -16385,7 +16758,9 @@ SELECT f1;
 END//
 CALL sp48(1.00e+00);
 f1
-1
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp49;
 CREATE PROCEDURE sp49( f1 int)
 BEGIN
@@ -16394,7 +16769,10 @@ SELECT f1;
 END//
 CALL sp49(-2.15e+09);
 f1
--2150000000
+-2147483638
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp50;
 CREATE PROCEDURE sp50( f1 int unsigned)
 BEGIN
@@ -16421,7 +16799,7 @@ SELECT f1;
 END//
 CALL sp52(2.15e+08);
 f1
-215000000
+0215000000
 DROP PROCEDURE IF EXISTS sp53;
 CREATE PROCEDURE sp53( f1 mediumint)
 BEGIN
@@ -16430,7 +16808,9 @@ SELECT f1;
 END//
 CALL sp53(-8388600);
 f1
--8388600
+-8388598
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp54;
 CREATE PROCEDURE sp54( f1 mediumint unsigned)
 BEGIN
@@ -16457,7 +16837,11 @@ SELECT f1;
 END//
 CALL sp56(-8388601);
 f1
--8388602
+16777215
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp57;
 CREATE PROCEDURE sp57( f1 numeric)
 BEGIN
@@ -16466,7 +16850,9 @@ SELECT f1;
 END//
 CALL sp57(-999999999);
 f1
--999999999.000000000
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp58;
 CREATE PROCEDURE sp58( f1 numeric (0))
 BEGIN
@@ -16475,7 +16861,9 @@ SELECT f1;
 END//
 CALL sp58(-999999999);
 f1
--999999999.000000000
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp59;
 CREATE PROCEDURE sp59( f1 numeric (0) unsigned)
 BEGIN
@@ -16484,7 +16872,10 @@ SELECT f1;
 END//
 CALL sp59(9999999999);
 f1
-9999999999.000000000
+9999999999
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp60;
 CREATE PROCEDURE sp60( f1 numeric (0) unsigned zerofill)
 BEGIN
@@ -16493,7 +16884,9 @@ SELECT f1;
 END//
 CALL sp60(99999999);
 f1
-99999999.000000000
+0100000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp61;
 CREATE PROCEDURE sp61( f1 numeric (0) zerofill)
 BEGIN
@@ -16502,7 +16895,10 @@ SELECT f1;
 END//
 CALL sp61(-99999999);
 f1
--99999999.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp62;
 CREATE PROCEDURE sp62( f1 numeric (0, 0))
 BEGIN
@@ -16511,7 +16907,9 @@ SELECT f1;
 END//
 CALL sp62(-999999999);
 f1
--999999999.000000000
+-1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp63;
 CREATE PROCEDURE sp63( f1 numeric (0, 0) unsigned)
 BEGIN
@@ -16520,7 +16918,10 @@ SELECT f1;
 END//
 CALL sp63(9999999999);
 f1
-9999999999.000000000
+9999999999
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp64;
 CREATE PROCEDURE sp64( f1 numeric (0, 0) unsigned zerofill)
 BEGIN
@@ -16529,7 +16930,9 @@ SELECT f1;
 END//
 CALL sp64(99999999);
 f1
-99999999.000000000
+0100000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp65;
 CREATE PROCEDURE sp65( f1 numeric (0, 0) zerofill)
 BEGIN
@@ -16538,7 +16941,10 @@ SELECT f1;
 END//
 CALL sp65(-99999999);
 f1
--99999999.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp66_n;
 CREATE PROCEDURE sp66_n( f1 numeric (63, 30))
 BEGIN
@@ -16547,7 +16953,12 @@ SELECT f1;
 END//
 CALL sp66_n( -1000000000000000000000000000000000000 );
 f1
--1000000000000000000000000000000000000.000000000
+-999999999999999999999999999999989.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp67_nu;
 CREATE PROCEDURE sp67_nu( f1 numeric (63, 30) unsigned)
 BEGIN
@@ -16556,7 +16967,11 @@ SELECT f1;
 END//
 CALL sp67_nu( 1000000000000000000000000000000000000 );
 f1
-1000000000000000000000000000000000000.000000000
+999999999999999999999999999999999.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp68_nuz;
 CREATE PROCEDURE sp68_nuz( f1 numeric (63, 30) unsigned zerofill)
 BEGIN
@@ -16565,7 +16980,11 @@ SELECT f1;
 END//
 CALL sp68_nuz( 1000000000000000000000000000000000000 );
 f1
-1000000000000000000000000000000000000.000000000
+999999999999999999999999999999999.999999999999999999999999999999
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Note	1265	Data truncated for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp69_n_z;
 CREATE PROCEDURE sp69_n_z( f1 numeric (63, 30) zerofill)
 BEGIN
@@ -16574,7 +16993,10 @@ SELECT f1;
 END//
 CALL sp69_n_z( -1000000000000000000000000000000000000 );
 f1
--1000000000000000000000000000000000000.000000000
+000000000000000000000000000000010.000000000000000000000000000000
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp70_n;
 CREATE PROCEDURE sp70_n( f1 numeric (64))
 BEGIN
@@ -16583,7 +17005,7 @@ SELECT f1;
 END//
 CALL sp70_n( -10000000000000000000000000000000000000000 );
 f1
--10000000000000000000000000000000000000000.000000000
+-10000000000000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp71_nu;
 CREATE PROCEDURE sp71_nu( f1 numeric (64) unsigned)
 BEGIN
@@ -16592,7 +17014,7 @@ SELECT f1;
 END//
 CALL sp71_nu( 10000000000000000000000000000000000000000 );
 f1
-10000000000000000000000000000000000000000.000000000
+10000000000000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp72_nuz;
 CREATE PROCEDURE sp72_nuz( f1 numeric (64) unsigned zerofill)
 BEGIN
@@ -16601,7 +17023,7 @@ SELECT f1;
 END//
 CALL sp72_nuz( 10000000000000000000000000000000000000000 );
 f1
-10000000000000000000000000000000000000000.000000000
+0000000000000000000000010000000000000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp73_n_z;
 CREATE PROCEDURE sp73_n_z( f1 numeric (64) zerofill)
 BEGIN
@@ -16610,7 +17032,7 @@ SELECT f1;
 END//
 CALL sp73_n_z( 10000000000000000000000000000000000000000 );
 f1
-10000000000000000000000000000000000000000.000000000
+0000000000000000000000010000000000000000000000000000000000000000
 DROP PROCEDURE IF EXISTS sp74;
 CREATE PROCEDURE sp74( f1 numeric unsigned)
 BEGIN
@@ -16619,7 +17041,9 @@ SELECT f1;
 END//
 CALL sp74(999999999);
 f1
-999999999.000000000
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp75;
 CREATE PROCEDURE sp75( f1 numeric unsigned zerofill)
 BEGIN
@@ -16628,7 +17052,9 @@ SELECT f1;
 END//
 CALL sp75(999999999);
 f1
-999999999.000000000
+1000000000
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp76;
 CREATE PROCEDURE sp76( f1 numeric zerofill)
 BEGIN
@@ -16637,7 +17063,10 @@ SELECT f1;
 END//
 CALL sp76(-999999999);
 f1
--999999999.000000000
+0000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp77;
 CREATE PROCEDURE sp77( f1 real)
 BEGIN
@@ -16646,7 +17075,7 @@ SELECT f1;
 END//
 CALL sp77(1.1);
 f1
-1.10000
+1.1
 DROP PROCEDURE IF EXISTS sp78;
 CREATE PROCEDURE sp78( f1 real unsigned)
 BEGIN
@@ -16655,7 +17084,9 @@ SELECT f1;
 END//
 CALL sp78(1.1);
 f1
-1.10000
+10
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp79;
 CREATE PROCEDURE sp79( f1 real unsigned zerofill)
 BEGIN
@@ -16664,7 +17095,9 @@ SELECT f1;
 END//
 CALL sp79(1.1);
 f1
-1.10000
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp80;
 CREATE PROCEDURE sp80( f1 real zerofill)
 BEGIN
@@ -16673,7 +17106,9 @@ SELECT f1;
 END//
 CALL sp80(1.1);
 f1
-1.10000
+0000000000000000000010
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp81;
 CREATE PROCEDURE sp81( f1 smallint)
 BEGIN
@@ -16709,7 +17144,11 @@ SELECT f1;
 END//
 CALL sp84(-32601);
 f1
--32602
+65535
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp85;
 CREATE PROCEDURE sp85( f1 tinyint)
 BEGIN
@@ -16745,7 +17184,11 @@ SELECT f1;
 END//
 CALL sp88(-101);
 f1
--102
+255
+Warnings:
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
+Warning	1264	Out of range value adjusted for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp89;
 DROP PROCEDURE IF EXISTS sp90;
 DROP PROCEDURE IF EXISTS sp91;
@@ -16765,7 +17208,7 @@ SELECT f1;
 END//
 CALL sp92( '23:59:59.999999');
 f1
-26:00:00.999997
+25:59:59
 DROP PROCEDURE IF EXISTS sp93;
 CREATE PROCEDURE sp93( f1 datetime)
 BEGIN
@@ -16774,7 +17217,7 @@ SELECT f1;
 END//
 CALL sp93('1997-12-31 23:59:59.999999');
 f1
-1998-01-02 01:01:01.000001
+1998-01-02 01:01:00
 DROP PROCEDURE IF EXISTS sp94;
 CREATE PROCEDURE sp94( f1 char)
 BEGIN
@@ -16783,7 +17226,9 @@ SELECT f1;
 END//
 CALL sp94( 'h');
 f1
-ah
+a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp95;
 CREATE PROCEDURE sp95( f1 char ascii)
 BEGIN
@@ -16792,7 +17237,9 @@ SELECT f1;
 END//
 CALL sp95( 'h');
 f1
-ah
+a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp96;
 CREATE PROCEDURE sp96( f1 char binary)
 BEGIN
@@ -16801,7 +17248,9 @@ SELECT f1;
 END//
 CALL sp96( 'h');
 f1
-ah
+a
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 DROP PROCEDURE IF EXISTS sp97;
 CREATE PROCEDURE sp97( f1 longtext)
 BEGIN
@@ -16846,7 +17295,7 @@ SELECT f1;
 END//
 CALL sp101(51);
 f1
-61
+2061
 DROP PROCEDURE IF EXISTS sp102;
 CREATE PROCEDURE sp102( f1 year(4))
 BEGIN
@@ -16901,6 +17350,8 @@ END//
 CALL sp107(2.00e+13);
 f1
 returned
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
 USE db_storedproc;
 DROP DATABASE db1;
 DROP DATABASE IF EXISTS db1;
@@ -16937,9 +17388,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute01();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-61	61	71	61	61	71	2033	2033	2084	2033	2033	2084
+2061	2061	2071	2061	2061	2071	2033	2033	2084	2033	2033	2084
 var1	var2	var3	var4	var5	var6	var7	var8
-61	71	61	71	2033	2084	2033	2084
+2061	2071	2061	2071	2033	2084	2033	2084
 DROP PROCEDURE spexecute01;
 DROP PROCEDURE sp1;
 DROP PROCEDURE IF EXISTS sp2;
@@ -17010,9 +17461,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute03();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-ah	ah	aah	ah	ah	aah	helloworld	helloworld	NULL	helloworld	helloworld	hellohelloworld
+a	a	a	a	a	a	helloworld	helloworld	NULL	helloworld	helloworld	hellohelloworld
 var1	var2	var3	var4	var5	var6	var7	var8
-ah	aah	ah	aah	helloworld	NULL	helloworld	hellohelloworld
+a	a	a	a	helloworld	NULL	helloworld	hellohelloworld
 DROP PROCEDURE spexecute03;
 DROP PROCEDURE sp3;
 DROP PROCEDURE IF EXISTS sp4;
@@ -17155,7 +17606,7 @@ SELECT var7, var8;
 END//
 CALL spexecute07();
 var1	var2
-9223372036854775807	NULL
+18400000000000000000	NULL
 var3	var4
 -9220000000000000000	NULL
 var5	var6
@@ -17163,7 +17614,7 @@ var5	var6
 var7	var8
 -9220000000000000000	NULL
 f1	f2	f3
-9223372036854775807	9223372036854775807	NULL
+18400000000000000000	18400000000000000000	NULL
 f4	f5	f6
 -9220000000000000000	-9220000000000000000	NULL
 f7	f8	f9
@@ -17171,7 +17622,7 @@ f7	f8	f9
 f10	f11	f12
 -9220000000000000000	-9220000000000000000	NULL
 f1	f2	f3
--2	-2	-2
+18353255926290448384	18353255926290448384	18353255926290448384
 f4	f5	f6
 -9220000000000000000	6744073709551616	6744073709551616
 f7	f8	f9
@@ -17179,7 +17630,7 @@ f7	f8	f9
 f10	f11	f12
 -9220000000000000000	6744073709551616	6744073709551616
 var1	var2
--2	-2
+18353255926290448384	18353255926290448384
 var3	var4
 6744073709551616	6744073709551616
 var5	var6
@@ -17237,9 +17688,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute08();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-368000000000000000	368000000000000000	368000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+00368000000000000000	00368000000000000000	00368000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-368000000000000000	368000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+00368000000000000000	00368000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute08;
 DROP PROCEDURE sp8;
 DROP PROCEDURE IF EXISTS sp9;
@@ -17291,9 +17742,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute09();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--18440000000000000	-18440000000000000	-18439999999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+00000000000000000000	00000000000000000000	00000000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--18440000000000000	-18439999999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+00000000000000000000	00000000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute09;
 DROP PROCEDURE sp9;
 DROP PROCEDURE IF EXISTS sp10;
@@ -17337,9 +17788,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute10();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--1000000000.000000000	-1000000000.000000000	-999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-1000000000	-1000000000	-999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--1000000000.000000000	-999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-1000000000	-999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute10;
 DROP PROCEDURE sp10;
 DROP PROCEDURE IF EXISTS sp11;
@@ -17372,9 +17823,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute11();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1000000000.000000000	1000000000.000000000	1000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+1000000000	1000000000	1000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1000000000.000000000	1000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+1000000000	1000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute11;
 DROP PROCEDURE sp11;
 DROP PROCEDURE IF EXISTS sp12;
@@ -17407,9 +17858,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute12();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-99999999999.000000000	99999999999.000000000	100000000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+9999999999	9999999999	9999999999	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-99999999999.000000000	100000000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+9999999999	9999999999	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute12;
 DROP PROCEDURE sp12;
 DROP PROCEDURE IF EXISTS sp13;
@@ -17442,9 +17893,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute13();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--1000000000.000000000	-1000000000.000000000	-999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--1000000000.000000000	-999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute13;
 DROP PROCEDURE sp13;
 DROP PROCEDURE IF EXISTS sp14;
@@ -17477,9 +17928,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute14();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--1000000000000000000000.000000000	-1000000000000000000000.000000000	-999999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-1000000000000000000000.000000000000000000000000000000	-1000000000000000000000.000000000000000000000000000000	-999999999999999999990.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--1000000000000000000000.000000000	-999999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-1000000000000000000000.000000000000000000000000000000	-999999999999999999990.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute14;
 DROP PROCEDURE sp14;
 DROP PROCEDURE IF EXISTS sp15;
@@ -17545,9 +17996,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute16();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute16;
 DROP PROCEDURE sp16;
 DROP PROCEDURE IF EXISTS sp17;
@@ -17579,9 +18030,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute17();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute17;
 DROP PROCEDURE sp17;
 DROP PROCEDURE IF EXISTS sp18;
@@ -17613,9 +18064,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute18();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute18;
 DROP PROCEDURE sp18;
 DROP PROCEDURE IF EXISTS sp19;
@@ -17647,9 +18098,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute19();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute19;
 DROP PROCEDURE sp19;
 DROP PROCEDURE IF EXISTS sp20;
@@ -17681,9 +18132,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute20();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute20;
 DROP PROCEDURE sp20;
 DROP PROCEDURE IF EXISTS sp21;
@@ -17715,9 +18166,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute21();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute21;
 DROP PROCEDURE sp21;
 DROP PROCEDURE IF EXISTS sp22;
@@ -17783,9 +18234,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute23();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--999999999.000000000	-999999999.000000000	-999999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-1000000000	-1000000000	-999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--999999999.000000000	-999999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-1000000000	-999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute23;
 DROP PROCEDURE sp23;
 DROP PROCEDURE IF EXISTS sp24;
@@ -17817,9 +18268,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute24();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.10000	1.10000	11.10000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+1.1	1.1	11.1	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.10000	11.10000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+1.1	11.1	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute24;
 DROP PROCEDURE sp24;
 DROP PROCEDURE IF EXISTS sp25;
@@ -17851,9 +18302,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute25();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--65402	-65402	-65392	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-32758	-32758	-32748	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--65402	-65392	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-32758	-32748	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute25;
 DROP PROCEDURE sp25;
 DROP PROCEDURE IF EXISTS sp26;
@@ -17919,9 +18370,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute27();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-26:00:00.999997	26:00:00.999997	28:00:01.999995	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+25:59:59	25:59:59	27:59:59	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-26:00:00.999997	28:00:01.999995	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+25:59:59	27:59:59	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute27;
 DROP PROCEDURE sp27;
 DROP PROCEDURE IF EXISTS sp28;
@@ -17953,9 +18404,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute28();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1998-01-02 01:01:01.000001	1998-01-02 01:01:01.000001	1998-01-03 02:02:02.000003	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+1998-01-02 01:01:00	1998-01-02 01:01:00	1998-01-03 02:02:01	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1998-01-02 01:01:01.000001	1998-01-03 02:02:02.000003	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+1998-01-02 01:01:00	1998-01-03 02:02:01	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute28;
 DROP PROCEDURE sp28;
 DROP PROCEDURE IF EXISTS sp29;
@@ -17987,9 +18438,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute29();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute29;
 DROP PROCEDURE sp29;
 DROP PROCEDURE IF EXISTS sp30;
@@ -18021,9 +18472,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute30();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute30;
 DROP PROCEDURE sp30;
 DROP PROCEDURE IF EXISTS sp31;
@@ -18089,9 +18540,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute32();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute32;
 DROP PROCEDURE sp32;
 DROP PROCEDURE IF EXISTS sp33;
@@ -18123,9 +18574,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute33();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute33;
 DROP PROCEDURE sp33;
 DROP PROCEDURE IF EXISTS sp34;
@@ -18191,9 +18642,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute35();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute35;
 DROP PROCEDURE sp35;
 DROP PROCEDURE IF EXISTS sp36;
@@ -18225,9 +18676,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute36();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute36;
 DROP PROCEDURE sp36;
 DROP PROCEDURE IF EXISTS sp37;
@@ -18293,9 +18744,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute38();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute38;
 DROP PROCEDURE sp38;
 DROP PROCEDURE IF EXISTS sp39;
@@ -18327,9 +18778,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute39();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute39;
 DROP PROCEDURE sp39;
 DROP PROCEDURE IF EXISTS sp40;
@@ -18361,9 +18812,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute40();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.10000	1.10000	11.10000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.10000	11.10000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute40;
 DROP PROCEDURE sp40;
 DROP PROCEDURE IF EXISTS sp41;
@@ -18395,9 +18846,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute41();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.10000	1.10000	11.10000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.10000	11.10000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute41;
 DROP PROCEDURE sp41;
 DROP PROCEDURE IF EXISTS sp42;
@@ -18429,9 +18880,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute42();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.10000	1.10000	11.10000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.10000	11.10000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute42;
 DROP PROCEDURE sp42;
 DROP PROCEDURE IF EXISTS sp43;
@@ -18463,9 +18914,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute43();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--999999999.000000000	-999999999.000000000	-999999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-1000000000	-1000000000	-999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--999999999.000000000	-999999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-1000000000	-999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute43;
 DROP PROCEDURE sp43;
 DROP PROCEDURE IF EXISTS sp44;
@@ -18497,9 +18948,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute44();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-9999999999.000000000	9999999999.000000000	10000000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+9999999999	9999999999	9999999999	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-9999999999.000000000	10000000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+9999999999	9999999999	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute44;
 DROP PROCEDURE sp44;
 DROP PROCEDURE IF EXISTS sp45;
@@ -18531,9 +18982,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute45();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--99999999.000000000	-99999999.000000000	-99999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--99999999.000000000	-99999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute45;
 DROP PROCEDURE sp45;
 DROP PROCEDURE IF EXISTS sp46;
@@ -18565,9 +19016,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute46();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--999999999.000000000	-999999999.000000000	-999999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-1000000000	-1000000000	-999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--999999999.000000000	-999999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-1000000000	-999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute46;
 DROP PROCEDURE sp46;
 DROP PROCEDURE IF EXISTS sp47;
@@ -18599,9 +19050,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute47();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-9999999999.000000000	9999999999.000000000	10000000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+9999999999	9999999999	9999999999	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-9999999999.000000000	10000000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+9999999999	9999999999	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute47;
 DROP PROCEDURE sp47;
 DROP PROCEDURE IF EXISTS sp48;
@@ -18633,9 +19084,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute48();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--99999999.000000000	-99999999.000000000	-99999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--99999999.000000000	-99999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute48;
 DROP PROCEDURE sp48;
 DROP PROCEDURE IF EXISTS sp49;
@@ -18667,9 +19118,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute49();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--999999999.000000000	-999999999.000000000	-999999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--999999999.000000000	-999999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute49;
 DROP PROCEDURE sp49;
 DROP PROCEDURE IF EXISTS sp50;
@@ -18701,9 +19152,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute50();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-9999999999.000000000	9999999999.000000000	10000000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+9999999999	9999999999	9999999999	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-9999999999.000000000	10000000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+9999999999	9999999999	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute50;
 DROP PROCEDURE sp50;
 DROP PROCEDURE IF EXISTS sp51;
@@ -18735,9 +19186,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute51();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--99999999.000000000	-99999999.000000000	-99999989.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--99999999.000000000	-99999989.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute51;
 DROP PROCEDURE sp51;
 DROP PROCEDURE IF EXISTS sp52;
@@ -18769,9 +19220,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute52();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--100000000000000000000.000000000	-10000000000000000000000.000000000	-99999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-100000000000000000000.000000000000000000000000000000	-10000000000000000000000.000000000000000000000000000000	-99999999999999999990.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--10000000000000000000000.000000000	-99999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-10000000000000000000000.000000000000000000000000000000	-99999999999999999990.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute52;
 DROP PROCEDURE sp52;
 DROP PROCEDURE IF EXISTS sp53;
@@ -18803,9 +19254,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute53();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--100000000000000000000.000000000	-10000000000000000000000.000000000	-99999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-100000000000000000000	-10000000000000000000000	-99999999999999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--10000000000000000000000.000000000	-99999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-10000000000000000000000	-99999999999999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute53;
 DROP PROCEDURE sp53;
 DROP PROCEDURE IF EXISTS sp54;
@@ -18837,9 +19288,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute54();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+100000000000000000000	10000000000000000000000	100000000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10000000000000000000000	100000000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute54;
 DROP PROCEDURE sp54;
 DROP PROCEDURE IF EXISTS sp55;
@@ -18871,9 +19322,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute55();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--100000000000000000000.000000000	-10000000000000000000000.000000000	-99999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--10000000000000000000000.000000000	-99999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute55;
 DROP PROCEDURE sp55;
 DROP PROCEDURE IF EXISTS sp56;
@@ -18905,9 +19356,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute56();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-61	61	71	61	61	71	61	61	71	61	61	71
+2061	2061	2071	2061	2061	2071	2061	2061	2071	2061	2061	2071
 var1	var2	var3	var4	var5	var6	var7	var8
-61	71	61	71	61	71	61	71
+2061	2071	2061	2071	2061	2071	2061	2071
 DROP PROCEDURE spexecute56;
 DROP PROCEDURE sp56;
 DROP PROCEDURE IF EXISTS sp57;
@@ -19041,9 +19492,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute60();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-ah	ah	aah	ah	ah	aah	ah	ah	aah	ah	ah	aah
+a	a	a	a	a	a	a	a	a	a	a	a
 var1	var2	var3	var4	var5	var6	var7	var8
-ah	aah	ah	aah	ah	aah	ah	aah
+a	a	a	a	a	a	a	a
 DROP PROCEDURE spexecute60;
 DROP PROCEDURE sp60;
 DROP PROCEDURE IF EXISTS sp61;
@@ -19075,9 +19526,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute61();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-ah	ah	aah	ah	ah	aah	ah	ah	NULL	ah	ah	aah
+a	a	a	a	a	a	a	a	NULL	a	a	a
 var1	var2	var3	var4	var5	var6	var7	var8
-ah	aah	ah	aah	ah	NULL	ah	aah
+a	a	a	a	a	NULL	a	a
 DROP PROCEDURE spexecute61;
 DROP PROCEDURE sp61;
 DROP PROCEDURE IF EXISTS sp62;
@@ -19177,9 +19628,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute64();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1000000000.000000000	1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000000.000000000	1000000010.000000000
+1000000000	1000000000	1000000010	1000000000	1000000000	1000000010	1000000000	1000000000	1000000010	1000000000	1000000000	1000000010
 var1	var2	var3	var4	var5	var6	var7	var8
-1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000010.000000000	1000000000.000000000	1000000010.000000000
+1000000000	1000000010	1000000000	1000000010	1000000000	1000000010	1000000000	1000000010
 DROP PROCEDURE spexecute64;
 DROP PROCEDURE sp64;
 DROP PROCEDURE IF EXISTS sp65;
@@ -19211,9 +19662,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute65();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-999999999.000000000	999999999.000000000	1000000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+1000000000	1000000000	1000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-999999999.000000000	1000000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+1000000000	1000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute65;
 DROP PROCEDURE sp65;
 DROP PROCEDURE IF EXISTS sp66;
@@ -19245,9 +19696,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute66();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-10000000000000000.000000000	10000000000000000.000000000	10000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10000000000000000.000000000000000000000000000000	10000000000000000.000000000000000000000000000000	10000000000000010.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000.000000000	10000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10000000000000000.000000000000000000000000000000	10000000000000010.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute66;
 DROP PROCEDURE sp66;
 DROP PROCEDURE IF EXISTS sp67;
@@ -19279,9 +19730,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute67();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-10000000000000000.000000000	10000000000000000.000000000	10000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000000000010000000000000000.000000000000000000000000000000	000000000000000010000000000000000.000000000000000000000000000000	000000000000000010000000000000010.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000.000000000	10000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000000000010000000000000000.000000000000000000000000000000	000000000000000010000000000000010.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute67;
 DROP PROCEDURE sp67;
 DROP PROCEDURE IF EXISTS sp68;
@@ -19313,9 +19764,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute68();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--1000000000000000000000.000000000	-1000000000000000000000.000000000	-999999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000020.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--1000000000000000000000.000000000	-999999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000020.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute68;
 DROP PROCEDURE sp68;
 DROP PROCEDURE IF EXISTS sp69;
@@ -19347,9 +19798,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute69();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--100000000000000000000.000000000	-10000000000000000000000.000000000	-99999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-100000000000000000000	-10000000000000000000000	-99999999999999999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--10000000000000000000000.000000000	-99999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-10000000000000000000000	-99999999999999999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute69;
 DROP PROCEDURE sp69;
 DROP PROCEDURE IF EXISTS sp70;
@@ -19381,9 +19832,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute70();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+100000000000000000000	10000000000000000000000	100000000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10000000000000000000000	100000000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute70;
 DROP PROCEDURE sp70;
 DROP PROCEDURE IF EXISTS sp71;
@@ -19415,9 +19866,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute71();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000100000000000000000000	0000000000000000000000000000000000000000010000000000000000000000	0000000000000000000000000000000000000000000100000000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000010000000000000000000000	0000000000000000000000000000000000000000000100000000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute71;
 DROP PROCEDURE sp71;
 DROP PROCEDURE IF EXISTS sp72;
@@ -19449,9 +19900,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute72();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.000000000	1.000000000	11.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.000000000	11.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000000000000000000000010	0000000000000000000000000000000000000000000000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute72;
 DROP PROCEDURE sp72;
 DROP PROCEDURE IF EXISTS sp73;
@@ -19483,9 +19934,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute73();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.000000000	1.000000000	11.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+10	10	20	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.000000000	11.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10	20	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute73;
 DROP PROCEDURE sp73;
 DROP PROCEDURE IF EXISTS sp74;
@@ -19517,9 +19968,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute74();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1.000000000	1.000000000	11.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1.000000000	11.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute74;
 DROP PROCEDURE sp74;
 DROP PROCEDURE IF EXISTS sp75;
@@ -19551,9 +20002,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute75();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--1000000000.000000000	-1000000000.000000000	-999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000010	0000000010	0000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--1000000000.000000000	-999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000010	0000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute75;
 DROP PROCEDURE sp75;
 DROP PROCEDURE IF EXISTS sp76;
@@ -19585,9 +20036,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute76();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute76;
 DROP PROCEDURE sp76;
 DROP PROCEDURE IF EXISTS sp77;
@@ -19619,9 +20070,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute77();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute77;
 DROP PROCEDURE sp77;
 DROP PROCEDURE IF EXISTS sp78;
@@ -19653,9 +20104,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute78();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000010	000000000010	000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010	000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute78;
 DROP PROCEDURE sp78;
 DROP PROCEDURE IF EXISTS sp79;
@@ -19687,9 +20138,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute79();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-1	1	11	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000010	0000000000000000000020	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-1	11	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000010	0000000000000000000020	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute79;
 DROP PROCEDURE sp79;
 DROP PROCEDURE IF EXISTS sp80;
@@ -19721,9 +20172,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute80();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--2150000000	-2150000000	-2149999990	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-2147483638	-2147483638	-2147483628	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--2150000000	-2149999990	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-2147483638	-2147483628	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute80;
 DROP PROCEDURE sp80;
 DROP PROCEDURE IF EXISTS sp81;
@@ -19823,9 +20274,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute83();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-215000000	215000000	215000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0215000000	0215000000	0215000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-215000000	215000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0215000000	0215000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute83;
 DROP PROCEDURE sp83;
 DROP PROCEDURE IF EXISTS sp84;
@@ -19857,9 +20308,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute84();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--8388600	-8388600	-8388590	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+-8388598	-8388598	-8388588	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--8388600	-8388590	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+-8388598	-8388588	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute84;
 DROP PROCEDURE sp84;
 DROP PROCEDURE IF EXISTS sp85;
@@ -19925,9 +20376,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute86();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-16777210	16777210	16777220	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+16777210	16777210	16777215	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-16777210	16777220	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+16777210	16777215	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute86;
 DROP PROCEDURE sp86;
 DROP PROCEDURE IF EXISTS sp87;
@@ -19959,9 +20410,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute87();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--8388602	-8388602	-8388592	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+16777215	16777215	16777215	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--8388602	-8388592	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+16777215	16777215	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute87;
 DROP PROCEDURE sp87;
 DROP PROCEDURE IF EXISTS sp88;
@@ -19993,9 +20444,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute88();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-99999999.000000000	99999999.000000000	100000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0100000000	0100000000	0100000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-99999999.000000000	100000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0100000000	0100000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute88;
 DROP PROCEDURE sp88;
 DROP PROCEDURE IF EXISTS sp89;
@@ -20027,9 +20478,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute89();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-99999999.000000000	99999999.000000000	100000009.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0100000000	0100000000	0100000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-99999999.000000000	100000009.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0100000000	0100000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute89;
 DROP PROCEDURE sp89;
 DROP PROCEDURE IF EXISTS sp90;
@@ -20061,9 +20512,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute90();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+100000000000000000000.000000000000000000000000000000	10000000000000000000000.000000000000000000000000000000	100000000000000000010.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+10000000000000000000000.000000000000000000000000000000	100000000000000000010.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute90;
 DROP PROCEDURE sp90;
 DROP PROCEDURE IF EXISTS sp91;
@@ -20095,9 +20546,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute91();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000000100000000000000000000.000000000000000000000000000000	000000000010000000000000000000000.000000000000000000000000000000	000000000000100000000000000000010.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000010000000000000000000000.000000000000000000000000000000	000000000000100000000000000000010.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute91;
 DROP PROCEDURE sp91;
 DROP PROCEDURE IF EXISTS sp92;
@@ -20129,9 +20580,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute92();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--100000000000000000000.000000000	-10000000000000000000000.000000000	-99999999999999999990.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000020.000000000000000000000000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--10000000000000000000000.000000000	-99999999999999999990.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+000000000000000000000000000000010.000000000000000000000000000000	000000000000000000000000000000020.000000000000000000000000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute92;
 DROP PROCEDURE sp92;
 DROP PROCEDURE IF EXISTS sp93;
@@ -20163,9 +20614,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute93();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-100000000000000000000.000000000	10000000000000000000000.000000000	100000000000000000010.000000000	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000000100000000000000000000	0000000000000000000000000000000000000000010000000000000000000000	0000000000000000000000000000000000000000000100000000000000000010	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-10000000000000000000000.000000000	100000000000000000010.000000000	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+0000000000000000000000000000000000000000010000000000000000000000	0000000000000000000000000000000000000000000100000000000000000010	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute93;
 DROP PROCEDURE sp93;
 DROP PROCEDURE IF EXISTS sp94;
@@ -20231,9 +20682,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute95();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-65532	65532	65542	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+65532	65532	65535	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-65532	65542	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+65532	65535	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute95;
 DROP PROCEDURE sp95;
 DROP PROCEDURE IF EXISTS sp96;
@@ -20265,9 +20716,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute96();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-65532	65532	65542	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+65532	65532	65535	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-65532	65542	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+65532	65535	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute96;
 DROP PROCEDURE sp96;
 DROP PROCEDURE IF EXISTS sp97;
@@ -20299,9 +20750,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute97();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--32602	-32602	-32592	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+65535	65535	65535	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--32602	-32592	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+65535	65535	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute97;
 DROP PROCEDURE sp97;
 DROP PROCEDURE IF EXISTS sp98;
@@ -20367,9 +20818,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute99();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-252	252	262	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+252	252	255	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
-252	262	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+252	255	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute99;
 DROP PROCEDURE sp99;
 DROP PROCEDURE IF EXISTS sp100;
@@ -20435,9 +20886,9 @@ SELECT var1, var2, var3, var4, var5, var6, var7, var8;
 END//
 CALL spexecute101();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
--102	-102	-92	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
+255	255	255	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616	-9220000000000000000	6744073709551616	6744073709551616
 var1	var2	var3	var4	var5	var6	var7	var8
--102	-92	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
+255	255	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616	6744073709551616
 DROP PROCEDURE spexecute101;
 DROP PROCEDURE sp101;
 USE db_storedproc;
@@ -20463,7 +20914,7 @@ insert into temp_table values(a);
 END//
 show CREATE PROCEDURE sp2;
 Procedure	sql_mode	Create Procedure
-sp2	ALLOW_INVALID_DATES	CREATE PROCEDURE `sp2`()
+sp2	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp2`()
 BEGIN
 declare a datetime;
 set a = '2005-03-14 01:01:02';
@@ -20499,7 +20950,7 @@ SELECT not 1 between a and b;
 END//
 show CREATE PROCEDURE sp3;
 Procedure	sql_mode	Create Procedure
-sp3	HIGH_NOT_PRECEDENCE	CREATE PROCEDURE `sp3`()
+sp3	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp3`()
 BEGIN
 declare a int signed;
 declare b int unsigned;
@@ -20542,7 +20993,7 @@ show warnings;
 END//
 show CREATE PROCEDURE sp4;
 Procedure	sql_mode	Create Procedure
-sp4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,ERROR_FOR_DIVISION_BY_ZERO	CREATE PROCEDURE "sp4"()
+sp4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,ERROR_FOR_DIVISION_BY_ZERO	CREATE DEFINER="root"@"localhost" PROCEDURE "sp4"()
 BEGIN
 declare a int;
 declare b int;
@@ -20590,14 +21041,14 @@ set @y=@x;
 END//
 show CREATE PROCEDURE sp6a;
 Procedure	sql_mode	Create Procedure
-sp6a		CREATE PROCEDURE `sp6a`(i1 longtext, out i2 mediumint , inout i3 longblob, in i4 year, out i5 real)
+sp6a		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp6a`(i1 longtext, out i2 mediumint , inout i3 longblob, in i4 year, out i5 real)
 BEGIN
 set @x=i1;
 set @y=@x;
 END
 show CREATE PROCEDURE sp6b;
 Procedure	sql_mode	Create Procedure
-sp6b		CREATE PROCEDURE `sp6b`(out i1 longtext, out i2 mediumint , out i3 longblob, out i4 year, out i5 real)
+sp6b		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp6b`(out i1 longtext, out i2 mediumint , out i3 longblob, out i4 year, out i5 real)
     DETERMINISTIC
 BEGIN
 set @x=i1;
@@ -20605,7 +21056,7 @@ set @y=@x;
 END
 show CREATE PROCEDURE sp6c;
 Procedure	sql_mode	Create Procedure
-sp6c		CREATE PROCEDURE `sp6c`(inout i1 longtext, inout  i2 mediumint , inout i3 longblob, inout  i4 year, inout  i5 real)
+sp6c		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp6c`(inout i1 longtext, inout  i2 mediumint , inout i3 longblob, inout  i4 year, inout  i5 real)
     COMMENT 'this is a comment'
 BEGIN
 set @x=i1;
@@ -20791,7 +21242,7 @@ END//
 alter function fn1 sql security invoker;
 show  create  function  fn1;
 Function	sql_mode	Create Function
-fn1		CREATE FUNCTION `fn1`(x int) RETURNS int(11)
+fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
     SQL SECURITY INVOKER
 BEGIN
 return x;
@@ -20823,7 +21274,7 @@ END//
 alter procedure sp6 comment 'this is simple';
 show CREATE PROCEDURE sp6;
 Procedure	sql_mode	Create Procedure
-sp6		CREATE PROCEDURE `sp6`(i1 int , i2 int)
+sp6		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp6`(i1 int , i2 int)
     COMMENT 'this is simple'
 BEGIN
 set @x=i1;
