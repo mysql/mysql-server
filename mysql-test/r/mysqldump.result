@@ -3952,12 +3952,12 @@ CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS колонка1;
 CREATE VIEW mysqldump_test_db.v1 AS SELECT колонка1 FROM mysqldump_test_db.v2;
 set names latin1;
 
-# Dump mysqldump_test_db to /dev/shm/t1/var/tmp/bug30027.sql.
+# Dump mysqldump_test_db to bug30027.sql.
 
 # Drop mysqldump_test_db.
 DROP DATABASE mysqldump_test_db;
 
-# Restore mysqldump_test_db from /dev/shm/t1/var/tmp/bug30027.sql.
+# Restore mysqldump_test_db from bug30027.sql.
 
 # Check the view.
 set names utf8;

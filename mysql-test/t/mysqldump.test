@@ -1702,10 +1702,9 @@ CREATE VIEW mysqldump_test_db.v1 AS SELECT колонка1 FROM mysqldump_test_db.v2;
 set names latin1;
 
 --echo
---echo # Dump mysqldump_test_db to $MYSQLTEST_VARDIR/tmp/bug30027.sql.
+--echo # Dump mysqldump_test_db to bug30027.sql.
 
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=latin1 --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
-# --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
 
 --echo
 --echo # Drop mysqldump_test_db.
@@ -1713,7 +1712,7 @@ set names latin1;
 DROP DATABASE mysqldump_test_db;
 
 --echo
---echo # Restore mysqldump_test_db from $MYSQLTEST_VARDIR/tmp/bug30027.sql.
+--echo # Restore mysqldump_test_db from bug30027.sql.
 
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug30027.sql
 
