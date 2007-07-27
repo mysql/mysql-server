@@ -3658,6 +3658,8 @@ int handler::ha_write_row(uchar *buf)
   Write a record to the engine bypassing row-level binary logging.
   This method is used internally by the server for writing to
   performance schema tables, which are never replicated.
+  TODO: Merge this function with ha_write_row(), and provide a way
+  to disable the binlog there.
 */
 int handler::ha_write_row_no_binlog(uchar *buf)
 {

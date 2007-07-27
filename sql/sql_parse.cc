@@ -210,7 +210,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
