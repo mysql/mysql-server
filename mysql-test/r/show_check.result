@@ -1148,6 +1148,26 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+set names koi8r;
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+CREATE TABLE t1(колонка1 INT);
+
+---> Dumping mysqltest1 to show_check.mysqltest1.sql
+
+
+DROP DATABASE mysqltest1;
+
+
+---> Restoring mysqltest1...
+SHOW CREATE TABLE mysqltest1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `колонка1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP DATABASE mysqltest1;
+use test;
 flush status;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
