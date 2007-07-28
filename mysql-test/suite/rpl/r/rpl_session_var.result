@@ -47,7 +47,7 @@ CREATE TABLE t1 (
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM;
 INSERT INTO t1(data) VALUES(SESSION_USER());
-SELECT * FROM t1;
-id	data
-1	
+SELECT length(data) < 100 FROM t1;
+length(data) < 100
+1
 drop table t1;
