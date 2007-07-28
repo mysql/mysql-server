@@ -99,7 +99,7 @@ connection master;
 
 #connection slave;
    sync_slave_with_master;
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical show slave status;
    select * from t1 order by f3;
 
@@ -373,7 +373,7 @@ connection master;
    select * from t31;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical show slave status;
 
 #### Clean Up ####
