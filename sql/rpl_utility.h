@@ -122,8 +122,12 @@ public:
             These types store two bytes.
           */
           uint16 *x= (uint16 *)&field_metadata[index];
+#ifdef WORDS_BIGENDIAN
+          m_field_metadata[i]= sint2korr(x);
+#else
           m_field_metadata[i]= *x;
-          index= index + sizeof(short int);
+#endif
+          index= index + sizeof(short);
           break;
         }
         case MYSQL_TYPE_NEWDECIMAL:
