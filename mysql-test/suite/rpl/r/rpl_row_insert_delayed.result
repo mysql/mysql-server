@@ -45,4 +45,18 @@ id	name
 20	is Bond
 USE test;
 DROP SCHEMA mysqlslap;
+use test;
+CREATE TABLE t1(a int, UNIQUE(a));
+INSERT DELAYED IGNORE INTO t1 VALUES(1);
+INSERT DELAYED IGNORE INTO t1 VALUES(1);
+flush table t1;
+select * from t1;
+a
+1
+On slave
+select * from t1;
+a
+1
+drop table t1;
+End of 5.0 tests
 set @@global.binlog_format = @old_global_binlog_format;
