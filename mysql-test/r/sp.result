@@ -1,5 +1,9 @@
 use test;
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
 create table t1 (
 id   char(16) not null default '',
 data int not null
@@ -6175,5 +6179,72 @@ View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`
 DROP VIEW v1;
 DROP FUNCTION metered;
+DROP TABLE t1;
+SET @p1_p2_cnt= 2;
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+PREPARE s1 FROM 'SELECT c1 FROM v1';
+EXECUTE s1;
+c1
+EXECUTE s1;
+c1
+CREATE PROCEDURE p1(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+CALL p1(@p1_p2_cnt);
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE FUNCTION f1(loops INT UNSIGNED)
+RETURNS INT
+BEGIN
+DECLARE tmp INT;
+WHILE loops > 0 DO
+SELECT c1 INTO tmp FROM v1;
+SET loops = loops - 1;
+END WHILE;
+RETURN loops;
+END|
+CALL p1(2);
+c1
+c1
+CALL p2(2);
+c1
+c1
+c1
+c1
+c1
+c1
+SELECT f1(2);
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+PREPARE s1 FROM 'SELECT f1(2)';
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP VIEW v1;
 DROP TABLE t1;
 End of 5.0 tests

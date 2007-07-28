@@ -23,6 +23,10 @@ use test;
 #
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
@@ -7134,5 +7138,75 @@ DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
 
+#
+# Bug#29834: Accessing a view column by name in SP/PS causes a memory leak.
+#
+# This is leak test. Run with large number assigned to $execute_cnt,
+# $p1_cnt, $p2_cnt, @p1_p2_cnt, $f1_normal_cnt or $f1_prep_cnt variables.
+#
+
+let $execute_cnt= 2;
+let $p1_cnt= 2;
+let $p2_cnt= 2;
+SET @p1_p2_cnt= 2;
+let $f1_normal_cnt= 2;
+let $f1_prep_cnt= 2;
+
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+PREPARE s1 FROM 'SELECT c1 FROM v1';
+while ($execute_cnt)
+{
+  EXECUTE s1;
+  dec $execute_cnt;
+}
+
+DELIMITER |;
+
+CREATE PROCEDURE p1(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+  WHILE loops > 0 DO
+    SELECT c1 FROM v1;
+    SET loops = loops - 1;
+  END WHILE;
+END|
+
+CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+  WHILE loops > 0 DO
+    SELECT c1 FROM v1;
+    CALL p1(@p1_p2_cnt);
+    SET loops = loops - 1;
+  END WHILE;
+END|
+
+CREATE FUNCTION f1(loops INT UNSIGNED)
+  RETURNS INT
+BEGIN
+  DECLARE tmp INT;
+  WHILE loops > 0 DO
+    SELECT c1 INTO tmp FROM v1;
+    SET loops = loops - 1;
+  END WHILE;
+  RETURN loops;
+END|
+
+DELIMITER ;|
+
+eval CALL p1($p1_cnt);
+eval CALL p2($p2_cnt);
+
+eval SELECT f1($f1_normal_cnt);
+
+eval PREPARE s1 FROM 'SELECT f1($f1_prep_cnt)';
+EXECUTE s1;
+EXECUTE s1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
 
 --echo End of 5.0 tests
