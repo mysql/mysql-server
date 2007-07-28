@@ -6404,7 +6404,8 @@ const char *Field_string::unpack(char *to,
 {
   uint from_len= param_data & 0x00ff;                 // length.
   uint length= 0;
-  uint f_length= (from_len < field_length) ? from_len : field_length;
+  uint f_length;
+  f_length= (from_len < field_length) ? from_len : field_length;
   DBUG_ASSERT(f_length <= 255);
   length= (uint) *from++;
   bitmap_set_bit(table->write_set,field_index);
