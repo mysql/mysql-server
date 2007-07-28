@@ -767,7 +767,8 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
 
 
 /*
-  Replace thd->query{_length} with a string that one can write to the binlog.
+  Replace thd->query{_length} with a string that one can write to the binlog
+  or the query cache.
  
   SYNOPSIS
     subst_spvars()
@@ -779,7 +780,9 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   DESCRIPTION
 
   The binlog-suitable string is produced by replacing references to SP local 
-  variables with NAME_CONST('sp_var_name', value) calls.
+  variables with NAME_CONST('sp_var_name', value) calls. To make this string
+  suitable for the query cache this function allocates some additional space
+  for the query cache flags.
  
   RETURN
     FALSE  on success
@@ -792,80 +795,89 @@ static bool
 subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 {
   DBUG_ENTER("subst_spvars");
-  if (thd->prelocked_mode == NON_PRELOCKED && mysql_bin_log.is_open())
+
+  Dynamic_array<Item_splocal*> sp_vars_uses;
+  char *pbuf, *cur, buffer[512];
+  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
+  int prev_pos, res, buf_len;
+
+  /* Find all instances of Item_splocal used in this statement */
+  for (Item *item= instr->free_list; item; item= item->next)
   {
-    Dynamic_array<Item_splocal*> sp_vars_uses;
-    char *pbuf, *cur, buffer[512];
-    String qbuf(buffer, sizeof(buffer), &my_charset_bin);
-    int prev_pos, res;
-
-    /* Find all instances of Item_splocal used in this statement */
-    for (Item *item= instr->free_list; item; item= item->next)
+    if (item->is_splocal())
     {
-      if (item->is_splocal())
-      {
-        Item_splocal *item_spl= (Item_splocal*)item;
-        if (item_spl->pos_in_query)
-          sp_vars_uses.append(item_spl);
-      }
+      Item_splocal *item_spl= (Item_splocal*)item;
+      if (item_spl->pos_in_query)
+        sp_vars_uses.append(item_spl);
     }
-    if (!sp_vars_uses.elements())
-      DBUG_RETURN(FALSE);
-      
-    /* Sort SP var refs by their occurences in the query */
-    sp_vars_uses.sort(cmp_splocal_locations);
-
-    /* 
-      Construct a statement string where SP local var refs are replaced
-      with "NAME_CONST(name, value)"
-    */
-    qbuf.length(0);
-    cur= query_str->str;
-    prev_pos= res= 0;
-    for (Item_splocal **splocal= sp_vars_uses.front(); 
-         splocal < sp_vars_uses.back(); splocal++)
-    {
-      Item *val;
-
-      char str_buffer[STRING_BUFFER_USUAL_SIZE];
-      String str_value_holder(str_buffer, sizeof(str_buffer),
-                              &my_charset_latin1);
-      String *str_value;
-      
-      /* append the text between sp ref occurences */
-      res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
-      prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
-      
-      /* append the spvar substitute */
-      res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
-      res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
-      res|= qbuf.append(STRING_WITH_LEN("',"));
-      res|= (*splocal)->fix_fields(thd, (Item **) splocal);
-
-      if (res)
-        break;
-
-      val= (*splocal)->this_item();
-      DBUG_PRINT("info", ("print %p", val));
-      str_value= sp_get_item_value(thd, val, &str_value_holder);
-      if (str_value)
-        res|= qbuf.append(*str_value);
-      else
-        res|= qbuf.append(STRING_WITH_LEN("NULL"));
-      res|= qbuf.append(')');
-      if (res)
-        break;
-    }
-    res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-    if (res)
-      DBUG_RETURN(TRUE);
-
-    if (!(pbuf= thd->strmake(qbuf.ptr(), qbuf.length())))
-      DBUG_RETURN(TRUE);
-
-    thd->query= pbuf;
-    thd->query_length= qbuf.length();
   }
+  if (!sp_vars_uses.elements())
+    DBUG_RETURN(FALSE);
+    
+  /* Sort SP var refs by their occurences in the query */
+  sp_vars_uses.sort(cmp_splocal_locations);
+
+  /* 
+    Construct a statement string where SP local var refs are replaced
+    with "NAME_CONST(name, value)"
+  */
+  qbuf.length(0);
+  cur= query_str->str;
+  prev_pos= res= 0;
+  for (Item_splocal **splocal= sp_vars_uses.front(); 
+       splocal < sp_vars_uses.back(); splocal++)
+  {
+    Item *val;
+
+    char str_buffer[STRING_BUFFER_USUAL_SIZE];
+    String str_value_holder(str_buffer, sizeof(str_buffer),
+                            &my_charset_latin1);
+    String *str_value;
+    
+    /* append the text between sp ref occurences */
+    res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
+    prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
+    
+    /* append the spvar substitute */
+    res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
+    res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
+    res|= qbuf.append(STRING_WITH_LEN("',"));
+    res|= (*splocal)->fix_fields(thd, (Item **) splocal);
+
+    if (res)
+      break;
+
+    val= (*splocal)->this_item();
+    DBUG_PRINT("info", ("print %p", val));
+    str_value= sp_get_item_value(thd, val, &str_value_holder);
+    if (str_value)
+      res|= qbuf.append(*str_value);
+    else
+      res|= qbuf.append(STRING_WITH_LEN("NULL"));
+    res|= qbuf.append(')');
+    if (res)
+      break;
+  }
+  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
+  if (res)
+    DBUG_RETURN(TRUE);
+
+  /*
+    Allocate additional space at the end of the new query string for the
+    query_cache_send_result_to_client function.
+  */
+  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  if ((pbuf= alloc_root(thd->mem_root, buf_len)))
+  {
+    memcpy(pbuf, qbuf.ptr(), qbuf.length());
+    pbuf[qbuf.length()]= 0;
+  }
+  else
+    DBUG_RETURN(TRUE);
+
+  thd->query= pbuf;
+  thd->query_length= qbuf.length();
+
   DBUG_RETURN(FALSE);
 }
 
