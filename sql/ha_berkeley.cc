@@ -2646,7 +2646,11 @@ ha_rows ha_berkeley::estimate_rows_upper_bound()
 int ha_berkeley::cmp_ref(const byte *ref1, const byte *ref2)
 {
   if (hidden_primary_key)
-    return memcmp(ref1, ref2, BDB_HIDDEN_PRIMARY_KEY_LENGTH);
+  {
+    ulonglong a=uint5korr((char*) ref1);
+    ulonglong b=uint5korr((char*) ref2);
+    return  a < b ? -1 : (a > b ? 1 : 0);
+  }
 
   int result;
   Field *field;
