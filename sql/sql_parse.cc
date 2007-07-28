@@ -223,7 +223,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND;
@@ -235,10 +234,36 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_COLUMN_TYPES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROCESSLIST]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_GRANTS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
 
-  sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
-                                                CF_SHOW_TABLE_COMMAND);
+   sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
+                                               CF_SHOW_TABLE_COMMAND);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND);
 
@@ -1323,7 +1348,8 @@ void log_slow_statement(THD *thd)
 	thd->variables.long_query_time ||
 	((thd->server_status &
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-	 opt_log_queries_not_using_indexes))
+         opt_log_queries_not_using_indexes &&
+          !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND)))
     {
       thd->status_var.long_query_count++;
       slow_log_print(thd, thd->query, thd->query_length, start_of_query);
