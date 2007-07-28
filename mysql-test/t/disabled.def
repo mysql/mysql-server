@@ -44,3 +44,7 @@ rpl_ndb_ctype_ucs2_def   : BUG#29562, BUG#29563 and BUG#29564
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
 mysql_upgrade		 : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
+
+
+
+ndb_bug26793
