@@ -3428,7 +3428,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
-  Query_arena *arena, backup;  
+  Query_arena *arena= 0, backup;  
   
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
@@ -3437,14 +3437,14 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change)
+      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on
         the column reference. See create_view_field() for details.
       */
       Item *item= field_it.create_item(thd);
-      if (register_tree_change && arena)
+      if (arena)
         thd->restore_active_arena(arena, &backup);
       
       if (!item)
