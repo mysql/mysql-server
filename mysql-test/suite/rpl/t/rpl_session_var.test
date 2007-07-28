@@ -56,7 +56,7 @@ INSERT INTO t1(data) VALUES(SESSION_USER());
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM t1;
+SELECT length(data) < 100 FROM t1;
 connection master;
 drop table t1;
 save_master_pos;
