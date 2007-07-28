@@ -110,13 +110,19 @@ public:
           break;
         }
         case MYSQL_TYPE_BIT:
+        {
+          short int x= field_metadata[index++]; 
+          x = x + (field_metadata[index++] << 8U);
+          m_field_metadata[i]= x;
+          break;
+        }
         case MYSQL_TYPE_VARCHAR:
         {
           /*
             These types store two bytes.
           */
-          short int *x= (short int *)&field_metadata[index];
-          m_field_metadata[i]= sint2korr(x);
+          uint16 *x= (uint16 *)&field_metadata[index];
+          m_field_metadata[i]= *x;
           index= index + sizeof(short int);
           break;
         }
