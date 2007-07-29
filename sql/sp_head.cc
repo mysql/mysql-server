@@ -958,7 +958,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     query_cache_send_result_to_client function.
   */
   buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
-  if ((pbuf= alloc_root(thd->mem_root, buf_len)))
+  if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
