@@ -25,3 +25,4 @@ ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Do
 
 mysql_upgrade        : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
 federated_transactions   : Bug#29523 Transactions do not work
+ddl_i18n_koi8r           : Bug #30120 SP with local variables with non-ASCII names crashes server
