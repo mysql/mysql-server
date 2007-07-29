@@ -11,7 +11,6 @@
 ##############################################################################
 
 
-rpl_ndb_circular_simplex : BUG#27972 2007-04-20 mats Slave cannot start where it stopped
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
