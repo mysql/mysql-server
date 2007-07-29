@@ -345,6 +345,7 @@ public:
     memcpy(to,from,length);
     return to+length;
   }
+  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   virtual const uchar *unpack(uchar* to, const uchar *from)
   {
     uint length=pack_length();
@@ -628,6 +629,7 @@ public:
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
   uint is_equal(Create_field *new_field);
+  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
 };
 
 
@@ -1164,6 +1166,7 @@ public:
   void sort_string(uchar *buff,uint length);
   void sql_type(String &str) const;
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
+  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
@@ -1240,6 +1243,7 @@ public:
   uchar *pack_key(uchar *to, const uchar *from, uint max_length);
   uchar *pack_key_from_key_image(uchar* to, const uchar *from,
                                  uint max_length);
+  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
   const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
@@ -1295,6 +1299,9 @@ public:
                   l_char_length <= 16777215 ? 3 : 4;
     }
   }
+  Field_blob(uint32 packlength_arg)
+    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
+    packlength(packlength_arg) {}
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
@@ -1316,6 +1323,17 @@ public:
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->s->blob_ptr_size); }
+
+  /**
+     Return the packed length without the pointer size added. 
+
+     This is used to determine the size of the actual data in the row
+     buffer.
+
+     @retval The length of the raw data itself without the pointer.
+  */
+  uint32 pack_length_no_ptr() const
+  { return (uint32) (packlength); }
   uint32 sort_length() const;
   inline uint32 max_data_length() const
   {
@@ -1331,7 +1349,18 @@ public:
   {
     store_length(ptr, packlength, number);
   }
- 
+
+  /**
+     Return the packed length plus the length of the data. 
+
+     This is used to determine the size of the data plus the 
+     packed length portion in the row data.
+
+     @retval The length in the row plus the size of the data.
+  */
+  uint32 get_packed_size(const uchar *ptr)
+    {return packlength + get_length((const uchar *)ptr);}
+
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
   uint32 get_length(const uchar *ptr);
@@ -1379,6 +1408,7 @@ public:
   uchar *pack_key(uchar *to, const uchar *from, uint max_length);
   uchar *pack_key_from_key_image(uchar* to, const uchar *from,
                                  uint max_length);
+  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   const uchar *unpack(uchar *to, const uchar *from);
   const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
@@ -1554,6 +1584,7 @@ public:
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
   void sql_type(String &str) const;
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
+  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
   virtual void set_default();
 

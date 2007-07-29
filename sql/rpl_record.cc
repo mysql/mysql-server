@@ -17,6 +17,8 @@
 #include "rpl_rli.h"
 #include "rpl_record.h"
 #include "slave.h"                  // Need to pull in slave_print_msg
+#include "rpl_utility.h"
+#include "rpl_rli.h"
 
 /**
    Pack a record of data for a table into a format suitable for
@@ -143,7 +145,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @param rli     Relay log info
    @param table   Table to unpack into
    @param colcnt  Number of columns to read from record
-   @param row     Packed row data
+   @param row_data
+                  Packed row data
    @param cols    Pointer to columns data to fill in
    @param row_end Pointer to variable that will hold the value of the
                   one-after-end position for the row
@@ -191,7 +194,9 @@ unpack_row(RELAY_LOG_INFO const *rli,
   unsigned int null_mask= 1U;
   // The "current" null bits
   unsigned int null_bits= *null_ptr++;
-  for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
+  uint i= 0;
+  table_def *tabledef= ((RELAY_LOG_INFO*)rli)->get_tabledef(table);
+  for (field_ptr= begin_ptr ; field_ptr < end_ptr && *field_ptr ; ++field_ptr)
   {
     Field *const f= *field_ptr;
 
@@ -220,12 +225,40 @@ unpack_row(RELAY_LOG_INFO const *rli,
         f->set_notnull();
 
         /*
-          We only unpack the field if it was non-null
-        */
-        pack_ptr= f->unpack(f->ptr, pack_ptr);
+          We only unpack the field if it was non-null.
+          Use the master's size information if available else call
+          normal unpack operation.
+         */
+        if (tabledef && tabledef->field_metadata(i))
+          pack_ptr= f->unpack(f->ptr, pack_ptr, tabledef->field_metadata(i));
+        else
+          pack_ptr= f->unpack(f->ptr, pack_ptr);
       }
 
       bitmap_set_bit(rw_set, f->field_index);
+      null_mask <<= 1;
+    }
+    i++;
+  }
+
+  /*
+    throw away master's extra fields
+  */
+  uint max_cols= min(tabledef->size(), cols->n_bits);
+  for (; i < max_cols; i++)
+  {
+    if (bitmap_is_set(cols, i))
+    {
+      if ((null_mask & 0xFF) == 0)
+      {
+        DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+        null_mask= 1U;
+        null_bits= *null_ptr++;
+      }
+      DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
+
+      if (!((null_bits & null_mask) && tabledef->maybe_null(i)))
+        pack_ptr+= tabledef->calc_field_size(i, (uchar *) pack_ptr);
       null_mask <<= 1;
     }
   }
