@@ -6449,8 +6449,8 @@ int Table_map_log_event::save_field_metadata()
     }
     case MYSQL_TYPE_VARCHAR:
     {
-      short int *x= (short int *)&m_field_metadata[index];
-      int2store(x, m_table->s->field[i]->field_length);
+      char *ptr= (char *)&m_field_metadata[index];
+      int2store(ptr, m_table->s->field[i]->field_length);
       index= index + sizeof(short int);
       break;
     }
