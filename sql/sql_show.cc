@@ -3670,7 +3670,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       Item *item;
       Item_field *field;
       /*
-        chech that at least one coulmn in view is updatable
+        check that at least one column in view is updatable
       */
       while ((item= it++))
       {
@@ -3681,6 +3681,8 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           break;
         }
       }
+      if (updatable_view && !tables->view->can_be_merged())
+        updatable_view= 0;
     }
     if (updatable_view)
       table->field[5]->store(STRING_WITH_LEN("YES"), cs);
