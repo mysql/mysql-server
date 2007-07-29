@@ -6028,10 +6028,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
 #endif
-    const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
   }
-
-  DBUG_ASSERT(rli->tables_to_lock == NULL && rli->tables_to_lock_count == 0);
 
   TABLE* table= const_cast<RELAY_LOG_INFO*>(rli)->m_table_map.get_table(m_table_id);
 
@@ -6127,6 +6124,13 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       thd->options|= OPTION_KEEP_LOG;
     }
   }
+
+  /*
+    We need to delay this clear until the table def is no longer needed.
+    The table def is needed in unpack_row().
+  */
+  if (rli->tables_to_lock && get_flags(STMT_END_F))
+    const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -6378,6 +6382,163 @@ void Rows_log_event::print_helper(FILE *file,
 	Table_map_log_event member functions and support functions
 **************************************************************************/
 
+/**
+  * Calculate field metadata size based on the real_type of the field.
+  *
+  * @returns int Size of field metadata.
+  */
+#if !defined(MYSQL_CLIENT)
+const int Table_map_log_event::calc_field_metadata_size()
+{
+  DBUG_ENTER("Table_map_log_event::calc_field_metadata_size");
+  int size= 0;
+  for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
+  {
+    switch (m_table->s->field[i]->real_type()) {
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:
+    {
+      size++;                         // Store one byte here.
+      break; 
+    }
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_SET:
+    {
+      size= size + sizeof(short int); // Store short int here.
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  m_field_metadata_size= size;
+  DBUG_PRINT("info", ("Table_map_log_event: %d bytes in field metadata.",
+                       (int)m_field_metadata_size));
+  DBUG_RETURN(m_field_metadata_size);
+}
+#endif /* !defined(MYSQL_CLIENT) */
+
+/**
+  @page How replication of field metadata works.
+  
+  When a table map is created, the master first calls 
+  Table_map_log_event::get_field_metadata_size() which calculates how many 
+  values will be in the field metadata. Only those fields that require the 
+  extra data are added (see table above). The master then loops through all
+  of the fields in the table calling the method 
+  Table_map_log_event::get_field_metadata() which returns the values for the 
+  field that will be saved in the metadata and replicated to the slave. Once 
+  all fields have been processed, the table map is written to the binlog 
+  adding the size of the field metadata and the field metadata to the end of 
+  the body of the table map.
+  
+  When a table map is read on the slave, the field metadata is read from the 
+  table map and passed to the table_def class constructor which saves the 
+  field metadata from the table map into an array based on the type of the 
+  field. Field metadata values not present (those fields that do not use extra 
+  data) in the table map are initialized as zero (0). The array size is the 
+  same as the columns for the table on the slave.
+
+*/
+
+/**
+  Save the field metadata based on the real_type of the field.
+  The metadata saved depends on the type of the field. Some fields
+  store a single byte for pack_length() while others store two bytes
+  for field_length (max length).
+  
+  @retval 0 Ok.
+
+  TODO: We may want to consider changing the encoding of the information.
+  Currently, the code attempts to minimize the number of bytes written to 
+  the tablemap. There are at least two other alternatives; 1) using 
+  net_store_length() to store the data allowing it to choose the number of
+  bytes that are appropriate thereby making the code much easier to 
+  maintain (only 1 place to change the encoding), or 2) use a fixed number
+  of bytes for each field. The problem with option 1 is that net_store_length()
+  will use one byte if the value < 251, but 3 bytes if it is > 250. Thus,
+  for fields like CHAR which can be no larger than 255 characters, the method
+  will use 3 bytes when the value is > 250. Further, every value that is
+  encoded using 2 parts (e.g., pack_length, field_length) will be numerically
+  > 250 therefore will use 3 bytes for eah value. The problem with option 2
+  is less wasteful for space but does waste 1 byte for every field that does
+  not encode 2 parts. 
+*/
+#if !defined(MYSQL_CLIENT)
+int Table_map_log_event::save_field_metadata()
+{
+  DBUG_ENTER("Table_map_log_event::save_field_metadata");
+  int index= 0;
+  for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
+  {
+    switch (m_table->s->field[i]->real_type()) {
+    case MYSQL_TYPE_NEWDECIMAL:
+    {
+      m_field_metadata[index++]= 
+        (uchar)((Field_new_decimal *)m_table->s->field[i])->precision;
+      m_field_metadata[index++]= 
+        (uchar)((Field_new_decimal *)m_table->s->field[i])->decimals();
+      break;
+    }
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    {
+      m_field_metadata[index++]= 
+       (uchar)((Field_blob *)m_table->s->field[i])->pack_length_no_ptr();
+      break;
+    }
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:
+    {
+      m_field_metadata[index++]= (uchar)m_table->s->field[i]->pack_length();
+      break;
+    }
+    case MYSQL_TYPE_BIT:
+    { 
+      m_field_metadata[index++]= 
+        (uchar)((Field_bit *)m_table->s->field[i])->bit_len;
+      m_field_metadata[index++]= 
+        (uchar)((Field_bit *)m_table->s->field[i])->bytes_in_rec;
+      break;
+    }
+    case MYSQL_TYPE_VARCHAR:
+    {
+      char *ptr= (char *)&m_field_metadata[index];
+      int2store(ptr, m_table->s->field[i]->field_length);
+      index= index + sizeof(short int);
+      break;
+    }
+    case MYSQL_TYPE_STRING:
+    {
+      m_field_metadata[index++]= (uchar)m_table->s->field[i]->real_type();
+      m_field_metadata[index++]= m_table->s->field[i]->field_length;
+      break;
+    }
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    {
+      m_field_metadata[index++]= (uchar)m_table->s->field[i]->real_type();
+      m_field_metadata[index++]= m_table->s->field[i]->pack_length();
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  DBUG_RETURN(0);
+}
+#endif /* !defined(MYSQL_CLIENT) */
+
 /*
   Constructor used to build an event for writing to the binary log.
   Mats says tbl->s lives longer than this event so it's ok to copy pointers
@@ -6392,9 +6553,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
     m_tblnam(tbl->s->table_name.str),
     m_tbllen(tbl->s->table_name.length),
-    m_colcnt(tbl->s->fields), m_coltype(0),
-    m_table_id(tid),
-    m_flags(flags)
+    m_colcnt(tbl->s->fields), m_field_metadata(0),
+    m_table_id(tid), m_null_bits(0), m_flags(flags)
 {
   DBUG_ASSERT(m_table_id != ~0UL);
   /*
@@ -6413,6 +6573,16 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   m_data_size+= m_dblen + 2;	// Include length and terminating \0
   m_data_size+= m_tbllen + 2;	// Include length and terminating \0
   m_data_size+= 1 + m_colcnt;	// COLCNT and column types
+  m_field_metadata_size= calc_field_metadata_size();
+
+  /*
+    Now set the size of the data to the size of the field metadata array
+    plus one or two bytes for number of elements in the field metadata array.
+  */
+  if (m_field_metadata_size > 255)
+    m_data_size+= m_field_metadata_size + 2; 
+  else
+    m_data_size+= m_field_metadata_size + 1; 
 
   /* If malloc fails, catched in is_valid() */
   if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
@@ -6421,6 +6591,28 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
       m_coltype[i]= m_table->field[i]->type();
   }
+
+  /*
+    Calculate a bitmap for the results of maybe_null() for all columns.
+    The bitmap is used to determine when there is a column from the master
+    that is not on the slave and is null and thus not in the row data during
+    replication.
+  */
+  uint num_null_bytes= (m_table->s->fields + 7) / 8;
+  m_data_size+= num_null_bytes;
+  m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+                                 &m_null_bits, num_null_bytes,
+                                 &m_field_metadata, m_field_metadata_size,
+                                 NULL);
+  bzero(m_null_bits, num_null_bytes);
+  for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
+    if (m_table->field[i]->maybe_null())
+      m_null_bits[(i / 8)]+= 1 << (i % 8);
+
+  /*
+    Create an array for the field metadata and store it.
+  */
+  save_field_metadata();
 }
 #endif /* !defined(MYSQL_CLIENT) */
 
@@ -6436,8 +6628,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 #ifndef MYSQL_CLIENT
   m_table(NULL),
 #endif
-  m_memory(NULL)
+  m_memory(NULL),
+  m_field_metadata(0), m_field_metadata_size(0)
 {
+  unsigned int bytes_read= 0;
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
 
   uint8 common_header_len= description_event->common_header_len;
@@ -6508,6 +6702,22 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     strncpy(const_cast<char*>(m_dbnam), (const char*)ptr_dblen  + 1, m_dblen + 1);
     strncpy(const_cast<char*>(m_tblnam), (const char*)ptr_tbllen + 1, m_tbllen + 1);
     memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
+
+    ptr_after_colcnt= ptr_after_colcnt + m_colcnt;
+    bytes_read= ptr_after_colcnt - (uchar *)buf;
+    DBUG_PRINT("info", ("Bytes read: %d.\n", bytes_read));
+    if (bytes_read < event_len)
+    {
+      m_field_metadata_size= net_field_length(&ptr_after_colcnt);
+      uint num_null_bytes= (m_colcnt + 7) / 8;
+      m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+                                     &m_null_bits, num_null_bytes,
+                                     &m_field_metadata, m_field_metadata_size,
+                                     NULL);
+      memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
+      ptr_after_colcnt= (uchar*)ptr_after_colcnt + m_field_metadata_size;
+      memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
+    }
   }
 
   DBUG_VOID_RETURN;
@@ -6516,6 +6726,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
 Table_map_log_event::~Table_map_log_event()
 {
+  my_free(m_meta_memory, MYF(MY_ALLOW_ZERO_PTR));
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
 }
 
@@ -6646,7 +6857,8 @@ int Table_map_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       inside st_relay_log_info::clear_tables_to_lock() by calling the
       table_def destructor explicitly.
     */
-    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt);
+    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt, 
+         m_field_metadata, m_field_metadata_size, m_null_bits);
     table_list->m_tabledef_valid= TRUE;
 
     /*
@@ -6718,12 +6930,22 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   uchar *const cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
   DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
+  /*
+    Store the size of the field metadata.
+  */
+  uchar mbuf[sizeof(m_field_metadata_size)];
+  uchar *const mbuf_end= net_store_length(mbuf, 
+                                         (size_t) m_field_metadata_size);
+
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const uchar*)m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
           my_b_safe_write(file, (const uchar*)m_tblnam,  m_tbllen+1) ||
           my_b_safe_write(file, cbuf, (size_t) (cbuf_end - cbuf)) ||
-          my_b_safe_write(file, m_coltype, m_colcnt));
+          my_b_safe_write(file, m_coltype, m_colcnt) ||
+          my_b_safe_write(file, mbuf, (size_t) (mbuf_end - mbuf)) ||
+          my_b_safe_write(file, m_field_metadata, m_field_metadata_size),
+          my_b_safe_write(file, m_null_bits, (m_colcnt + 7) / 8));
  }
 #endif
 
@@ -6946,6 +7168,7 @@ copy_extra_record_fields(TABLE *table,
                          size_t master_reclength,
                          my_ptrdiff_t master_fields)
 {
+  DBUG_ENTER("copy_extra_record_fields(table, master_reclen, master_fields)");
   DBUG_PRINT("info", ("Copying to 0x%lx "
                       "from field %lu at offset %lu "
                       "to field %d at offset %lu",
@@ -6956,7 +7179,11 @@ copy_extra_record_fields(TABLE *table,
     Copying the extra fields of the slave that does not exist on
     master into record[0] (which are basically the default values).
   */
-  DBUG_ASSERT(master_reclength <= table->s->reclength);
+
+  if (table->s->fields < (uint) master_fields)
+    DBUG_RETURN(0);
+
+ DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
     bmove_align(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
@@ -7013,7 +7240,7 @@ copy_extra_record_fields(TABLE *table,
       }
     }
   }
-  return 0;                                     // All OK
+  DBUG_RETURN(0);                                     // All OK
 }
 
 #define DBUG_PRINT_BITSET(N,FRM,BS)                \
@@ -7603,12 +7830,6 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
                                           uchar const **const row_end)
 {
   DBUG_ASSERT(row_start && row_end);
-  /*
-    This assertion actually checks that there is at least as many
-    columns on the slave as on the master.
-  */
-  DBUG_ASSERT(table->s->fields >= m_width);
-
   if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                             &m_master_reclength, table->read_set, DELETE_ROWS_EVENT))
   {
@@ -7786,12 +8007,6 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
 {
   int error;
   DBUG_ASSERT(row_start && row_end);
-  /*
-    This assertion actually checks that there is at least as many
-    columns on the slave as on the master.
-  */
-  DBUG_ASSERT(table->s->fields >= m_width);
-
   /*
     We need to perform some juggling below since unpack_row() always
     unpacks into table->record[0]. For more information, see the

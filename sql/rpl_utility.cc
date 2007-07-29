@@ -16,17 +16,45 @@
 #include "rpl_utility.h"
 #include "rpl_rli.h"
 
-uint32
-field_length_from_packed(enum_field_types const field_type, 
-                         uchar const *const data)
+/*********************************************************************
+ *                   table_def member definitions                    *
+ *********************************************************************/
+
+/*
+  This function returns the field size in raw bytes based on the type
+  and the encoded field data from the master's raw data.
+*/
+uint32 table_def::calc_field_size(uint col, uchar *master_data)
 {
   uint32 length;
 
-  switch (field_type) {
-  case MYSQL_TYPE_DECIMAL:
+  switch (type(col)) {
   case MYSQL_TYPE_NEWDECIMAL:
-    length= ~(uint32) 0;
+    length= my_decimal_get_binary_size(m_field_metadata[col] >> 8, 
+             m_field_metadata[col] - ((m_field_metadata[col] >> 8) << 8));
     break;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    length= m_field_metadata[col];
+    break;
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_STRING:
+  {
+    if (((m_field_metadata[col] & 0xff00) == (MYSQL_TYPE_SET << 8)) ||
+        ((m_field_metadata[col] & 0xff00) == (MYSQL_TYPE_ENUM << 8)))
+      length= m_field_metadata[col] & 0x00ff;
+    else
+    {
+      length= m_field_metadata[col] & 0x00ff;
+      if (length > 255)
+        length= uint2korr(master_data) + 2;
+      else
+        length= (uint) *master_data + 1;
+    }
+    break;
+  }
   case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_TINY:
     length= 1;
@@ -45,12 +73,6 @@ field_length_from_packed(enum_field_types const field_type,
     length= 8;
     break;
 #endif
-  case MYSQL_TYPE_FLOAT:
-    length= sizeof(float);
-    break;
-  case MYSQL_TYPE_DOUBLE:
-    length= sizeof(double);
-    break;
   case MYSQL_TYPE_NULL:
     length= 0;
     break;
@@ -58,8 +80,6 @@ field_length_from_packed(enum_field_types const field_type,
     length= 3;
     break;
   case MYSQL_TYPE_DATE:
-    length= 4;
-    break;
   case MYSQL_TYPE_TIME:
     length= 3;
     break;
@@ -69,40 +89,32 @@ field_length_from_packed(enum_field_types const field_type,
   case MYSQL_TYPE_DATETIME:
     length= 8;
     break;
-    break;
   case MYSQL_TYPE_BIT:
-    length= ~(uint32) 0;
+  {
+    uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
+    uint from_bit_len= m_field_metadata[col] & 0x00ff;
+    length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
-  default:
-    /* This case should never be chosen */
-    DBUG_ASSERT(0);
-    /* If something goes awfully wrong, it's better to get a string than die */
-  case MYSQL_TYPE_STRING:
-    length= uint2korr(data);
-    break;
-
-  case MYSQL_TYPE_ENUM:
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_VAR_STRING:
+  }
   case MYSQL_TYPE_VARCHAR:
-    length= ~(uint32) 0;                               // NYI
+    length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
+    length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
-
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    length= ~(uint32) 0;                               // NYI
+  {
+    Field_blob fb(m_field_metadata[col]);
+    length= fb.get_packed_size(master_data);
     break;
   }
-
+  default:
+    length= -1;
+  }
   return length;
 }
-
-/*********************************************************************
- *                   table_def member definitions                    *
- *********************************************************************/
 
 /*
   Is the definition compatible with a table?
@@ -120,23 +132,6 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   RELAY_LOG_INFO const *rli= const_cast<RELAY_LOG_INFO*>(rli_arg);
 
   TABLE_SHARE const *const tsh= table->s;
-
-  /*
-    To get proper error reporting for all columns of the table, we
-    both check the width and iterate over all columns.
-  */
-  if (tsh->fields < size())
-  {
-    DBUG_ASSERT(tsh->db.str && tsh->table_name.str);
-    error= 1;
-    char buf[256];
-    my_snprintf(buf, sizeof(buf), "Table width mismatch - "
-                "received %u columns, %s.%s has %u columns",
-                (uint) size(), tsh->db.str, tsh->table_name.str,
-                tsh->fields);
-    rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
-                ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
-  }
 
   for (uint col= 0 ; col < cols_to_check ; ++col)
   {
