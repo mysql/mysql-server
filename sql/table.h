@@ -1148,7 +1148,6 @@ struct TABLE_LIST
   */
   bool process_index_hints(TABLE *table);
 
-  void set_trg_event_type(const st_lex *lex);
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
