@@ -2059,8 +2059,6 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 
 void st_lex::set_trg_event_type_for_tables()
 {
-  enum trg_event_type trg_event;
-
   uint8 new_trg_event_map= 0;
 
   /*
