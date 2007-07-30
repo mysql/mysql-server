@@ -72,6 +72,119 @@ DROP TABLE IF EXISTS  t1,t2,t3,t4,t31;
 
 
 connection master;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      f5 FLOAT DEFAULT '2.00')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0);
+
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi');
+
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1);
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT)
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT,
+                       f9 LONGBLOB)
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT,
+                       f9 LONGBLOB,
+                       f10 BIT(63))
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob', b'01010101010101');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
     eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
                       /* extra */
                        f5 FLOAT DEFAULT '2.00', 
