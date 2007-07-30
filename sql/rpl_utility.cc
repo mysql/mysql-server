@@ -48,8 +48,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
     else
     {
       length= m_field_metadata[col] & 0x00ff;
+      DBUG_ASSERT(length > 0);
       if (length > 255)
+      {
+        DBUG_ASSERT(uint2korr(master_data) > 0);
         length= uint2korr(master_data) + 2;
+      }
       else
         length= (uint) *master_data + 1;
     }
@@ -93,13 +97,17 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
   {
     uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
     uint from_bit_len= m_field_metadata[col] & 0x00ff;
+    DBUG_ASSERT(from_len >= 0 && from_bit_len >= 0 && from_bit_len <= 7);
     length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
   }
   case MYSQL_TYPE_VARCHAR:
+  {
     length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
+    DBUG_ASSERT(uint2korr(master_data) > 0);
     length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
+  }
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
@@ -113,6 +121,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
   default:
     length= -1;
   }
+  DBUG_ASSERT(length >= 0);
   return length;
 }
 
