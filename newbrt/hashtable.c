@@ -15,7 +15,7 @@ int toku_hashtable_create (HASHTABLE *h) {
     int i;
     if (tab==0) return -1;
     tab->n_keys=0;
-    tab->arraysize=128;
+    tab->arraysize=8;
     assert(sizeof(*tab->array)==sizeof(void*));
     tab->array = toku_calloc(tab->arraysize, sizeof(*tab->array));
     for (i=0; i<tab->arraysize; i++) tab->array[i]=0;
@@ -139,7 +139,7 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
     int i;
     int usei = random()%h->arraysize;
     for (i=0; i<h->arraysize; i++, usei++) {
-	if (usei>h->arraysize) usei=0;
+	if (usei>=h->arraysize) usei=0;
 	HASHELT he=h->array[usei];
 	if (he) {
 	    *key = he->key;

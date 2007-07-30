@@ -677,6 +677,11 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
      * good way to do it otherwise.  I want to loop over the elements of the hash table, deleting some as I
      * go.  The HASHTABLE_ITERATE macro will break if I delete something from the hash table. */
   
+    if (0) {
+	static int count=0;
+	count++;
+	printf("%s:%d pushing %d count=%d\n", __FILE__, __LINE__, childnum, count);
+    }
     {
 	bytevec key,val;
 	ITEMLEN keylen, vallen;

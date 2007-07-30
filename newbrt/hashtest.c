@@ -107,7 +107,31 @@ void test0 (void) {
     }
 }
 
+void test1(void) {
+    HASHTABLE table;
+    int i, r;
+    r = toku_hashtable_create(&table); assert(r==0);
+    for (i=0; i<100; i++) {
+	char keys[4][100], vals[4][100];
+	int j;
+	for (j=0; j<4; j++) {
+	    snprintf(keys[j], 100, "k%ld", random());
+	    snprintf(vals[j], 100, "v%d", j);
+	    toku_hash_insert(table, keys[j], strlen(keys[j])+1, vals[j], strlen(vals[j])+1);
+	}
+	for (j=0; j<4; j++) {
+	    bytevec key, val;
+	    ITEMLEN keylen, vallen;
+	    r = toku_hashtable_random_pick(table, &key, &keylen, &val, &vallen);
+	    assert(r==0);
+	    r = toku_hash_delete(table, key, keylen);
+	    assert(r==0);
+	}
+    }
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     test0();
+    test1();
     return 0;
 }
