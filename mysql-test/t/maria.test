@@ -57,6 +57,10 @@ delete from t1 where (a & 1);
 check table t1;
 repair table t1;
 check table t1;
+
+# FLUSH + REPAIR used to cause assertion failure in page cache
+flush table t1;
+repair table t1;
 drop table t1;
 
 #

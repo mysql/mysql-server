@@ -2865,7 +2865,9 @@ restart:
                            (pin == PAGECACHE_PIN)),
                       &page_st);
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
-                block->type == type || type == PAGECACHE_READ_UNKNOWN_PAGE);
+                block->type == type ||
+                type == PAGECACHE_READ_UNKNOWN_PAGE ||
+                block->type == PAGECACHE_READ_UNKNOWN_PAGE);
     if (type != PAGECACHE_READ_UNKNOWN_PAGE ||
         block->type == PAGECACHE_EMPTY_PAGE)
       block->type= type;
