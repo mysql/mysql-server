@@ -530,7 +530,6 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
 
   transactional_table= table->file->has_transactions();
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
@@ -641,7 +640,6 @@ int mysql_update(THD *thd,
             updated++;
           else
             error= 0;
-          thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -716,6 +714,10 @@ int mysql_update(THD *thd,
     thd->row_count++;
   }
   dup_key_found= 0;
+
+  if (!transactional_table && updated > 0)
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+
 
   /*
     todo bug#27571: to avoid asynchronization of `error' and
@@ -809,9 +811,10 @@ int mysql_update(THD *thd,
         error=1;				// Rollback update
       }
     }
-    if (!transactional_table)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(transactional_table || !updated || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
@@ -1176,7 +1179,6 @@ bool mysql_multi_update(THD *thd,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
@@ -1549,9 +1551,7 @@ multi_update::~multi_update()
   if (copy_field)
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
-  if (!trans_safe)  // todo: remove since redundant
-    thd->no_trans_update.all= TRUE;
-  DBUG_ASSERT(trans_safe || thd->no_trans_update.all);
+  DBUG_ASSERT(trans_safe || thd->transaction.all.modified_non_trans_table);
 }
 
 
@@ -1655,7 +1655,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
           else
           {
             trans_safe= 0;
-            thd->no_trans_update.stmt= TRUE;
+            thd->transaction.stmt.modified_non_trans_table= TRUE;
           }
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1718,7 +1718,6 @@ void multi_update::send_error(uint errcode,const char *err)
 
   /* Something already updated so we have to invalidate cache */
   query_cache_invalidate3(thd, update_tables, 1);
-
   /*
     If all tables that has been updated are trans safe then just do rollback.
     If not attempt to do remaining updates.
@@ -1731,7 +1730,7 @@ void multi_update::send_error(uint errcode,const char *err)
   }
   else
   { 
-    DBUG_ASSERT(thd->no_trans_update.stmt);
+    DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table);
     if (do_update && table_count > 1)
     {
       /* Add warning here */
@@ -1742,7 +1741,7 @@ void multi_update::send_error(uint errcode,const char *err)
       VOID(do_updates(0));
     }
   }
-  if (thd->no_trans_update.stmt)
+  if (thd->transaction.stmt.modified_non_trans_table)
   {
     /*
       The query has to binlog because there's a modified non-transactional table
@@ -1755,9 +1754,9 @@ void multi_update::send_error(uint errcode,const char *err)
                         transactional_tables, FALSE);
     }
     if (!trans_safe)
-      thd->no_trans_update.all= TRUE;
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.modified_non_trans_table);
   
   if (transactional_tables)
   {
@@ -1900,7 +1899,7 @@ int multi_update::do_updates(bool from_send_error)
       else
       {
         trans_safe= 0;				// Can't do safe rollback
-        thd->no_trans_update.stmt= TRUE;
+        thd->transaction.stmt.modified_non_trans_table= TRUE;
       }
     }
     (void) table->file->ha_rnd_end();
@@ -1934,7 +1933,7 @@ err2:
     else
     {
       trans_safe= 0;
-      thd->no_trans_update.stmt= TRUE;
+      thd->transaction.stmt.modified_non_trans_table= TRUE;
     }
   }
   DBUG_RETURN(1);
@@ -1961,7 +1960,6 @@ bool multi_update::send_eof()
   {
     query_cache_invalidate3(thd, update_tables, 1);
   }
-
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
@@ -1971,8 +1969,9 @@ bool multi_update::send_eof()
     either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
-  if (local_error == 0 || thd->no_trans_update.stmt)
+  DBUG_ASSERT(trans_safe || !updated || 
+              thd->transaction.stmt.modified_non_trans_table);
+  if (local_error == 0 || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -1988,8 +1987,8 @@ bool multi_update::send_eof()
 	local_error= 1;				// Rollback update
       }
     }
-    if (!trans_safe)
-     thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
 
   if (transactional_tables)
