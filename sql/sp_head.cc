@@ -337,13 +337,13 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_no_trans_update_stmt= thd->no_trans_update.stmt;
+  bool save_stmt_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->no_trans_update.stmt= FALSE;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -351,7 +351,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->no_trans_update.stmt= save_no_trans_update_stmt;
+  thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
   if (thd->net.report_error)
   {
@@ -2400,7 +2400,13 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
                                        bool open_tables, sp_instr* instr)
 {
   int res= 0;
-
+  /* 
+    The flag is saved at the entry to the following substatement.
+    It's reset further in the common code part.
+    It's merged with the saved parent's value at the exit of this func.
+  */
+  bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
   /*
@@ -2467,7 +2473,11 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   /* Update the state of the active arena. */
   thd->stmt_arena->state= Query_arena::EXECUTED;
 
-
+  /*
+    Merge here with the saved parent's values
+    what is needed from the substatement gained
+  */
+  thd->transaction.stmt.modified_non_trans_table |= parent_modified_non_trans_table;
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
