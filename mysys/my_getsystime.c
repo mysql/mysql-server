@@ -29,28 +29,17 @@ ulonglong my_getsystime()
   clock_gettime(CLOCK_REALTIME, &tp);
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
 #elif defined(__WIN__)
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-  static __int64 offset=0, freq;
   LARGE_INTEGER t_cnt;
-  if (!offset)
+  struct timeval tv;
+  if (query_performance_frequency)
   {
-    /* strictly speaking there should be a mutex to protect
-       initialization section. But my_getsystime() is called from
-       UUID() code, and UUID() calls are serialized with a mutex anyway
-    */
-    LARGE_INTEGER li;
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart=ft.dwLowDateTime;
-    li.HighPart=ft.dwHighDateTime;
-    offset=li.QuadPart-OFFSET_TO_EPOC;
-    QueryPerformanceFrequency(&li);
-    freq=li.QuadPart;
     QueryPerformanceCounter(&t_cnt);
-    offset-=t_cnt.QuadPart/freq*10000000+t_cnt.QuadPart%freq*10000000/freq;
+    return (t_cnt.QuadPart / query_performance_frequency * 10000000+
+            t_cnt.QuadPart % query_performance_frequency * 10000000/
+            query_performance_frequency+query_performance_offset);
   }
-  QueryPerformanceCounter(&t_cnt);
-  return t_cnt.QuadPart/freq*10000000+t_cnt.QuadPart%freq*10000000/freq+offset;
+  gettimeofday(&tv,NULL);
+  return (ulonglong)tv.tv_sec*10000000+(ulonglong)tv.tv_usec*10;
 #elif defined(__NETWARE__)
   NXTime_t tm;
   NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
@@ -62,3 +51,164 @@ ulonglong my_getsystime()
   return (ulonglong)tv.tv_sec*10000000+(ulonglong)tv.tv_usec*10;
 #endif
 }
+
+
+/*
+  Return current time
+
+  SYNOPSIS
+    my_time()
+    flags	If MY_WME is set, write error if time call fails
+
+*/
+
+#define DELTA_FOR_SECONDS LL(500000000)  /* Half a second */
+
+time_t my_time(myf flags __attribute__((unused)))
+{
+#ifdef HAVE_GETHRTIME
+  static hrtime_t prev_gethrtime= 0;
+  static time_t cur_time= 0;
+
+  hrtime_t cur_gethrtime;
+  pthread_mutex_lock(&THR_LOCK_time);
+  cur_gethrtime= gethrtime();
+  if ((prev_gethrtime - cur_gethrtime) > DELTA_FOR_SECONDS)
+  {
+    cur_time= time(0);
+    prev_gethrtime= cur_gethrtime;
+  }
+  pthread_mutex_unlock(&THR_LOCK_time);
+  return cur_time;
+#else
+  time_t t;
+  /* The following loop is here beacuse time() may fail on some systems */
+  while ((t= time(0)) == (time_t) -1)
+  {
+    if (flags & MY_WME)
+      fprintf(stderr, "%s: Warning: time() call failed\n", my_progname);
+  }
+  return t;
+#endif
+}
+
+
+/*
+  Return time in micro seconds
+
+  SYNOPSIS
+    my_micro_time()
+
+  NOTES
+    This function is to be used to measure performance in micro seconds.
+    As it's not defined whats the start time for the clock, this function
+    us only useful to measure time between two moments.
+
+    For windows platforms we need the frequency value of the CUP. This is
+    initalized in my_init.c through QueryPerformanceFrequency().
+
+    If Windows platform doesn't support QueryPerformanceFrequency() we will
+    obtain the time via GetClockCount, which only supports milliseconds.
+
+  RETURN
+    Value in microseconds from some undefined point in time
+*/
+
+ulonglong my_micro_time()
+{
+  ulonglong newtime;
+#if defined(__WIN__)
+  if (query_performance_frequency)
+  {
+    QueryPerformanceCounter(&newtime);
+    newtime/= (query_performance_frequency * 1000000);
+  }
+  else
+    newtime= (GetTickCount() * 1000; /* GetTickCount only returns milliseconds */
+#elif defined(HAVE_GETHRTIME)
+  return gethrtime()/1000;
+#else
+  struct timeval t;
+  /* The following loop is here because gettimeofday may fail on some systems */
+  while (gettimeofday(&t, NULL) != 0)
+  {}
+  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
+#endif  /* defined(__WIN__) */
+  return newtime;
+}
+
+
+/*
+  Return time in seconds and timer in microseconds
+
+  SYNOPSIS
+    my_micro_time_and_time()
+    time_arg		Will be set to seconds since epoch (00:00:00 UTC, January 1,
+    			1970)
+
+  NOTES
+    This function is to be useful when we need both the time and microtime.
+    For example in MySQL this is used to get the query time start of a query and
+    to measure the time of a query (for the slow query log)
+
+  IMPLEMENTATION
+    Same as my_micro_time()
+
+  RETURN
+    Value in microseconds from some undefined point in time
+*/
+
+ulonglong my_micro_time_and_time(time_t *time_arg)
+{
+  ulonglong newtime;
+#if defined(__WIN__)
+  if (query_performance_frequency)
+  {
+    QueryPerformanceCounter((LARGE_INTEGER *) &newtime);
+    newtime/= (query_performance_frequency * 1000000);
+  }
+  else
+    newtime= (GetTickCount() * 1000; /* GetTickCount only returns milliseconds */
+  (void) time(time_arg);
+#else
+  struct timeval t;
+  /* The following loop is here because gettimeofday may fail on some systems */
+  while (gettimeofday(&t, NULL) != 0)
+  {}
+  *time_arg= t.tv_sec;
+  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
+#endif  /* defined(__WIN__) */
+  return newtime;
+}
+
+
+/*
+  Returns current time
+
+  SYNOPSIS
+    my_time_possible_from_micro()
+    microtime		Value from very recent my_micro_time()
+
+  NOTES
+    This function returns the current time. The microtime argument is only used
+    if my_micro_time() uses a function that can safely be converted to the current
+    time.
+
+  RETURN
+    current time
+*/
+
+time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
+{
+#if defined(__WIN__)
+  time_t t;
+  while ((t= time(0)) == (time_t) -1)
+  {}
+  return t;
+#elif defined(HAVE_GETHRTIME)
+  return my_time(0);                            /* Cached time */
+#else
+  return (time_t) (microtime / 1000000);
+#endif  /* defined(__WIN__) */
+}
+
