@@ -854,6 +854,11 @@ static void brt_blackbox_test (void) {
     test3(1<<18, 1<<20, 0);
     test4(1<<18, 1<<20, 0);
 
+    // Once upon a time srandom(8) caused this test to fail.
+    srandom(8); test4(2048, 1<<15, 1);
+
+
+
 //    test3(1<<19, 1<<20, 0);
 //    test4(1<<19, 1<<20, 0);
 
