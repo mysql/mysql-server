@@ -821,6 +821,9 @@ int ha_rollback_trans(THD *thd, bool all)
     }
   }
 #endif /* USING_TRANSACTIONS */
+  if (all)
+    thd->transaction_rollback_request= FALSE;
+
   /*
     If a non-transactional table was updated, warn; don't warn if this is a
     slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -858,6 +861,8 @@ int ha_autocommit_or_rollback(THD *thd, int error)
       if (ha_commit_stmt(thd))
 	error=1;
     }
+    else if (thd->transaction_rollback_request && !thd->in_sub_stmt)
+      (void) ha_rollback(thd);
     else
       (void) ha_rollback_stmt(thd);
 
