@@ -198,7 +198,7 @@ public:
              const char *sql_text, uint sql_text_len);
   bool write(THD *thd, time_t current_time, time_t query_start_arg,
              const char *user_host, uint user_host_len,
-             longlong query_time, longlong lock_time, bool is_command,
+             ulonglong query_utime, ulonglong lock_utime, bool is_command,
              const char *sql_text, uint sql_text_len);
   bool open_slow_log(const char *log_name)
   {
@@ -393,8 +393,8 @@ public:
 
   virtual bool log_slow(THD *thd, time_t current_time,
                         time_t query_start_arg, const char *user_host,
-                        uint user_host_len, longlong query_time,
-                        longlong lock_time, bool is_command,
+                        uint user_host_len, ulonglong query_utime,
+                        ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len)= 0;
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args)= 0;
@@ -442,8 +442,8 @@ public:
 
   virtual bool log_slow(THD *thd, time_t current_time,
                         time_t query_start_arg, const char *user_host,
-                        uint user_host_len, longlong query_time,
-                        longlong lock_time, bool is_command,
+                        uint user_host_len, ulonglong query_utime,
+                        ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
@@ -479,8 +479,8 @@ public:
 
   virtual bool log_slow(THD *thd, time_t current_time,
                         time_t query_start_arg, const char *user_host,
-                        uint user_host_len, longlong query_time,
-                        longlong lock_time, bool is_command,
+                        uint user_host_len, ulonglong query_utime,
+                        ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
@@ -564,7 +564,7 @@ public:
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
   bool slow_log_print(THD *thd, const char *query, uint query_length,
-                      time_t query_start_arg);
+                      ulonglong current_utime);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
 

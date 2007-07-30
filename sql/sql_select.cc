@@ -15508,15 +15508,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Add "filtered" field to item_list. */
       if (join->thd->lex->describe & DESCRIBE_EXTENDED)
       {
-        Item_float *filtered;
-        float f; 
+        float f= 0.0; 
         if (examined_rows)
           f= (float) (100.0 * join->best_positions[i].records_read /
                       examined_rows);
-        else
-          f= 0.0;
-        item_list.push_back((filtered= new Item_float(f)));
-        filtered->decimals= 2;
+        item_list.push_back(new Item_float(f, 2));
       }
 
 

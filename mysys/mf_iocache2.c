@@ -246,7 +246,7 @@ size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length)
 
   for (;;)
   {
-    char *pos,*end;
+    uchar *pos, *end;
     if (length > max_length)
       length=max_length;
     for (pos=info->read_pos,end=pos+length ; pos < end ;)
@@ -323,7 +323,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 
     length= (size_t) (fmt - start);
     out_length+=length;
-    if (my_b_write(info, start, length))
+    if (my_b_write(info, (const uchar*) start, length))
       goto err;
 
     if (*fmt == '\0')				/* End of format */
@@ -378,14 +378,14 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       size_t length2 = strlen(par);
       /* TODO: implement minimum width and precision */
       out_length+= length2;
-      if (my_b_write(info, par, length2))
+      if (my_b_write(info, (uchar*) par, length2))
 	goto err;
     }
     else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
     {
       char *par = va_arg(args, char *);
       out_length+= precision;
-      if (my_b_write(info, par, precision))
+      if (my_b_write(info, (uchar*) par, precision))
         goto err;
     }
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
@@ -400,7 +400,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       else
 	length2= (size_t) (int10_to_str((long) (uint) iarg,buff,10)- buff);
       out_length+= length2;
-      if (my_b_write(info, buff, length2))
+      if (my_b_write(info, (uchar*) buff, length2))
 	goto err;
     }
     else if ((*fmt == 'l' && fmt[1] == 'd') || fmt[1] == 'u')
@@ -416,13 +416,13 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       else
 	length2= (size_t) (int10_to_str(iarg,buff,10)- buff);
       out_length+= length2;
-      if (my_b_write(info, buff, length2))
+      if (my_b_write(info, (uchar*) buff, length2))
 	goto err;
     }
     else
     {
       /* %% or unknown code */
-      if (my_b_write(info, backtrack, fmt-backtrack))
+      if (my_b_write(info, (uchar*) backtrack, (size_t) (fmt-backtrack)))
         goto err;
       out_length+= fmt-backtrack;
     }

@@ -2767,7 +2767,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
+    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %u: %s",
                 my_xml_error_lineno(&p) + 1,
                 my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));

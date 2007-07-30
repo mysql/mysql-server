@@ -232,7 +232,7 @@ static int wait_for_data(my_socket fd, uint timeout)
     implementations of select that don't adjust tv upon
     failure to reflect the time remaining
    */
-  start_time = time(NULL);
+  start_time= my_time(0);
   for (;;)
   {
     tv.tv_sec = (long) timeout;
@@ -246,7 +246,7 @@ static int wait_for_data(my_socket fd, uint timeout)
 #endif
     if (res == 0)					/* timeout */
       return -1;
-    now_time=time(NULL);
+    now_time= my_time(0);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
       return -1;

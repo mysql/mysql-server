@@ -250,8 +250,8 @@ static sys_var_bool_ptr
   sys_log_queries_not_using_indexes(&vars, "log_queries_not_using_indexes",
                                     &opt_log_queries_not_using_indexes);
 static sys_var_thd_ulong	sys_log_warnings(&vars, "log_warnings", &SV::log_warnings);
-static sys_var_thd_ulong	sys_long_query_time(&vars, "long_query_time",
-					     &SV::long_query_time);
+static sys_var_microseconds	sys_var_long_query_time(&vars, "long_query_time",
+                                                        &SV::long_query_time);
 static sys_var_thd_bool	sys_low_priority_updates(&vars, "low_priority_updates",
 						 &SV::low_priority_updates,
 						 fix_low_priority_updates);
@@ -315,6 +315,8 @@ static sys_var_thd_ulong	sys_max_tmp_tables(&vars, "max_tmp_tables",
 					   &SV::max_tmp_tables);
 static sys_var_long_ptr	sys_max_write_lock_count(&vars, "max_write_lock_count",
 						 &max_write_lock_count);
+static sys_var_thd_ulong       sys_min_examined_row_limit(&vars, "min_examined_row_limit",
+                                                          &SV::min_examined_row_limit);
 static sys_var_thd_ulong       sys_multi_range_count(&vars, "multi_range_count",
                                               &SV::multi_range_count);
 static sys_var_long_ptr	sys_myisam_data_pointer_size(&vars, "myisam_data_pointer_size",
@@ -1473,6 +1475,15 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_unlock(&LOCK_global_system_variables);
     return new Item_int(value);
   }
+  case SHOW_DOUBLE:
+  {
+    double value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(double*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    /* 6, as this is for now only used with microseconds */
+    return new Item_float(value, 6);
+  }
   case SHOW_HA_ROWS:
   {
     ha_rows value;
@@ -2531,6 +2542,60 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.lc_time_names= global_system_variables.lc_time_names;
 }
+
+/*
+  Handling of microseoncds given as seconds.part_seconds
+
+  NOTES
+    The argument to long query time is in seconds in decimal
+    which is converted to ulonglong integer holding microseconds for storage.
+    This is used for handling long_query_time
+*/
+
+bool sys_var_microseconds::update(THD *thd, set_var *var)
+{
+  double num= var->value->val_real();
+  longlong microseconds;
+  if (num > (double) option_limits->max_value)
+    num= (double) option_limits->max_value;
+  if (num < (double) option_limits->min_value)
+    num= (double) option_limits->min_value;
+  microseconds= (longlong) (num * 1000000.0 + 0.5);
+  if (var->type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    (global_system_variables.*offset)= microseconds;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= microseconds;
+  return 0;
+}
+
+
+void sys_var_microseconds::set_default(THD *thd, enum_var_type type)
+{
+  longlong microseconds= (longlong) (option_limits->def_value * 1000000.0);
+  if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.*offset= microseconds;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.*offset= microseconds;
+}
+
+
+uchar *sys_var_microseconds::value_ptr(THD *thd, enum_var_type type,
+                                          LEX_STRING *base)
+{
+  thd->tmp_double_value= (double) ((type == OPT_GLOBAL) ?
+                                   global_system_variables.*offset :
+                                   thd->variables.*offset) / 1000000.0;
+  return (uchar*) &thd->tmp_double_value;
+}
+
 
 /*
   Functions to update thd->options bits

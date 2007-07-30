@@ -1297,7 +1297,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
-  time_t start_of_query;
   DBUG_ENTER("log_slow_statement");
 
   /*
@@ -1308,25 +1307,24 @@ void log_slow_statement(THD *thd)
   if (unlikely(thd->in_sub_stmt))
     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
 
-  start_of_query= thd->start_time;
-  thd->end_time();				// Set start time
-
   /*
     Do not log administrative statements unless the appropriate option is
     set; do not log into slow log if reading from backup.
   */
   if (thd->enable_slow_log && !thd->user_time)
   {
-    thd->proc_info="logging slow query";
+    ulonglong end_utime_of_query= thd->current_utime();
 
-    if ((ulong) (thd->start_time - thd->time_after_lock) >
-	thd->variables.long_query_time ||
-	((thd->server_status &
-	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-	 opt_log_queries_not_using_indexes))
+    thd->proc_info="logging slow query";
+    if (((end_utime_of_query - thd->utime_after_lock) >
+         thd->variables.long_query_time ||
+         ((thd->server_status &
+           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+          opt_log_queries_not_using_indexes)) &&
+        thd->examined_row_count >= thd->variables.min_examined_row_limit)
     {
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query, thd->query_length, start_of_query);
+      slow_log_print(thd, thd->query, thd->query_length, end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
