@@ -36,6 +36,8 @@ int pma_delete (PMA, DBT *, DB*);
  * Don't modify the returned data.  Don't free it. */
 enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
 
+int pma_split(PMA old, PMA *newa, PMA *newb, PMA_CURSOR *cursors, int ncursors);
+
 /* Move the cursor to the beginning or the end or to a key */
 int pma_cursor (PMA, PMA_CURSOR *);
 int pma_cursor_free (PMA_CURSOR*);

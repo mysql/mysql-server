@@ -292,6 +292,34 @@ int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     return 0;
 }
 
+int pma_init_array(PMA pma, int n) {
+    int i;
+    int twor;
+
+    if (pma->pairs) {
+        toku_free(pma->pairs);
+        pma->pairs = 0;
+    }
+
+    /* find the smallest power of 2 >= n */
+    twor = 4;
+    while (twor < n)
+        twor *= 2;
+
+    pma->N = twor;
+    MALLOC_N(1+pma->N, pma->pairs);
+    pma->pairs[pma->N].key = (void *) 0xdeadbeef;
+
+    for (i=0; i<pma->N; i++) {
+        pma->pairs[i].key = 0;
+        pma->pairs[i].keylen = 0;
+        pma->pairs[i].val = 0;
+        pma->pairs[i].vallen = 0;
+    }
+    pmainternal_calculate_parameters(pma);
+    return 0;
+}
+
 
 int pma_cursor (PMA pma, PMA_CURSOR *cursp) {
     PMA_CURSOR MALLOC(curs);
@@ -537,4 +565,82 @@ void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), voi
 	      v);
 	}
     }
+}
+
+struct pair *pma_extract_pairs(PMA pma) {
+    int npairs;
+    struct pair *pairs;
+    int i;
+    int lastpair;
+
+    npairs = pma_n_entries(pma);
+    pairs = toku_malloc(npairs * sizeof (struct pair));
+    lastpair = 0;
+    for (i=0; i<pma_index_limit(pma); i++) {
+        if (pma->pairs[i].key != 0) {
+            pairs[lastpair] = pma->pairs[i];
+            pma->pairs[i].key = 0;
+            pma->pairs[i].val = 0;
+            lastpair += 1;
+        }
+    }
+    assert(lastpair == npairs);
+    return pairs;
+}
+
+int pma_split(PMA old, PMA *newa, PMA *newb, 
+        PMA_CURSOR *cursors, int ncursors) {
+    int error;
+    int npairs;
+    struct pair *pairs;
+    int sumlen;
+    int runlen;
+    int len;
+    int i;
+    int spliti;
+
+    assert(cursors == 0 && ncursors == 0);
+
+    /* create the new pma's */
+    error = pma_create(newa, old->compare_fun);
+    if (error != 0)
+        return error;
+    error = pma_create(newb, old->compare_fun);
+    if (error != 0) {
+        pma_free(newb);
+        return error;
+    }
+
+    /* extract the pairs */
+    npairs = pma_n_entries(old);
+    pairs = pma_extract_pairs(old);
+    old->n_pairs_present = 0;
+
+    /* split the pairs in half by length */
+    sumlen = 0;
+    for (i=0; i<npairs; i++)
+        sumlen += 4 + pairs[i].keylen + 4 + pairs[i].vallen;
+
+    runlen = 0;
+    for (i=0; i < npairs; i++) {
+        len = 4 + pairs[i].keylen + 4 + pairs[i].vallen;
+        if (runlen + len > sumlen/2)
+            break;
+        runlen += len;
+    }
+    spliti = i;
+
+    /* put the first 1/2 of pairs into newa */
+    pma_init_array(*newa, 2 * spliti);
+    distribute_data((*newa)->pairs, pma_index_limit(*newa), &pairs[0], spliti);
+    (*newa)->n_pairs_present = spliti;
+
+    /* put the second 1/2 of pairs into newb */
+    pma_init_array(*newb, 2 * (npairs-spliti));
+    distribute_data((*newb)->pairs, pma_index_limit(*newb), &pairs[spliti], npairs-spliti);
+    (*newb)->n_pairs_present = npairs-spliti;
+
+    toku_free(pairs);
+
+    return 0;
 }
