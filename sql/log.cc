@@ -409,7 +409,7 @@ bool Log_to_csv_event_handler::
   }
 
   /* log table entries are not replicated */
-  if (table->file->ha_write_row_no_binlog(table->record[0]))
+  if (table->file->ha_write_row(table->record[0]))
   {
     struct tm start;
     localtime_r(&event_time, &start);
@@ -612,7 +612,7 @@ bool Log_to_csv_event_handler::
     goto err;
 
   /* log table entries are not replicated */
-  if (table->file->ha_write_row_no_binlog(table->record[0]))
+  if (table->file->ha_write_row(table->record[0]))
   {
     struct tm start;
     localtime_r(&current_time, &start);
