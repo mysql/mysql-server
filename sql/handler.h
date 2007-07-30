@@ -1158,7 +1158,6 @@ public:
    */
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
-  int ha_write_row_no_binlog(uchar * buf);
   int ha_update_row(const uchar * old_data, uchar * new_data);
   int ha_delete_row(const uchar * buf);
 
