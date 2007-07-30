@@ -38,3 +38,5 @@ int pmainternal_printpairs (struct pair *pairs, int N);
 int pmainternal_make_space_at (PMA pma, int idx);
 int pmainternal_find (PMA pma, DBT *, DB*); // The DB is so the comparison fuction can be called.
 void print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */
+int pmainternal_init_array(PMA pma, int asksize);
+struct pair *pmainternal_extract_pairs(PMA pma);

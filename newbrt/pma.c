@@ -265,36 +265,30 @@ int pmainternal_count_region (struct pair *pairs, int lo, int hi) {
 
 int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     TAGMALLOC(PMA, result);
-    int i;
+    int error;
+
     if (result==0) return -1;
-    result->N = 4;
     result->n_pairs_present = 0;
-    MALLOC_N((1+result->N),result->pairs);
-    result->pairs[result->N].key = (void*)0xdeadbeef;
-    //printf("pairs=%p (size=%d)\n", result->pairs,result->N*sizeof(*result->pairs));
-    if (result->pairs==0) {
-	toku_free(result);
-	return -1;
-    }
-    for (i=0; i<result->N; i++) {
-	result->pairs[i].key = 0;
-	result->pairs[i].keylen = 0;
-	result->pairs[i].val = 0;
-	result->pairs[i].vallen = 0;
-    }
-    pmainternal_calculate_parameters(result);
+    result->pairs = 0;
     result->cursors_head = result->cursors_tail = 0;
     result->compare_fun = compare_fun;
     result->skey=0;
     result->sval = 0;
+
+    error = pmainternal_init_array(result, 4);
+    if (error) {
+        toku_free(result);
+        return -1;
+    }
+
     *pma = result;
     assert((unsigned long)result->pairs[result->N].key==0xdeadbeefL);
     return 0;
 }
 
-int pma_init_array(PMA pma, int n) {
+int pmainternal_init_array(PMA pma, int asksize) {
     int i;
-    int twor;
+    int n;
 
     if (pma->pairs) {
         toku_free(pma->pairs);
@@ -302,12 +296,14 @@ int pma_init_array(PMA pma, int n) {
     }
 
     /* find the smallest power of 2 >= n */
-    twor = 4;
-    while (twor < n)
-        twor *= 2;
+    n = 4;
+    while (n < asksize)
+        n *= 2;
 
-    pma->N = twor;
+    pma->N = n;
     MALLOC_N(1+pma->N, pma->pairs);
+    if (pma->pairs == 0)
+        return -1;
     pma->pairs[pma->N].key = (void *) 0xdeadbeef;
 
     for (i=0; i<pma->N; i++) {
@@ -319,7 +315,6 @@ int pma_init_array(PMA pma, int n) {
     pmainternal_calculate_parameters(pma);
     return 0;
 }
-
 
 int pma_cursor (PMA pma, PMA_CURSOR *cursp) {
     PMA_CURSOR MALLOC(curs);
@@ -567,7 +562,7 @@ void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), voi
     }
 }
 
-struct pair *pma_extract_pairs(PMA pma) {
+struct pair *pmainternal_extract_pairs(PMA pma) {
     int npairs;
     struct pair *pairs;
     int i;
@@ -613,10 +608,10 @@ int pma_split(PMA old, PMA *newa, PMA *newb,
 
     /* extract the pairs */
     npairs = pma_n_entries(old);
-    pairs = pma_extract_pairs(old);
+    pairs = pmainternal_extract_pairs(old);
     old->n_pairs_present = 0;
 
-    /* split the pairs in half by length */
+    /* split the pairs in half by length (TODO: combine sum with extract) */
     sumlen = 0;
     for (i=0; i<npairs; i++)
         sumlen += 4 + pairs[i].keylen + 4 + pairs[i].vallen;
@@ -630,13 +625,15 @@ int pma_split(PMA old, PMA *newa, PMA *newb,
     }
     spliti = i;
 
-    /* put the first 1/2 of pairs into newa */
-    pma_init_array(*newa, 2 * spliti);
+    /* put the first half of pairs into newa */
+    error = pmainternal_init_array(*newa, 2 * spliti);
+    assert(error == 0);
     distribute_data((*newa)->pairs, pma_index_limit(*newa), &pairs[0], spliti);
     (*newa)->n_pairs_present = spliti;
 
-    /* put the second 1/2 of pairs into newb */
-    pma_init_array(*newb, 2 * (npairs-spliti));
+    /* put the second half of pairs into newb */
+    error = pmainternal_init_array(*newb, 2 * (npairs-spliti));
+    assert(error == 0);
     distribute_data((*newb)->pairs, pma_index_limit(*newb), &pairs[spliti], npairs-spliti);
     (*newb)->n_pairs_present = npairs-spliti;
 
