@@ -54,6 +54,20 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
+#ifndef DBUG_OFF
+
+/* Wait until we get a 'mysql_kill' signal */
+
+static void wait_for_kill_signal(THD *thd)
+{
+  while (thd->killed == 0)
+    sleep(1);
+  // Reset signal and continue as if nothing happend
+  thd->killed= THD::NOT_KILLED;
+}
+#endif
+
+
 /*
   Translate a file name to a table name (WL #1324).
 
@@ -4111,6 +4125,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               RTFC_WAIT_OTHER_THREAD_FLAG |
                               RTFC_CHECK_KILLED_FLAG);
       thd->exit_cond(old_message);
+      DBUG_EXECUTE_IF("wait_in_mysql_admin_table", wait_for_kill_signal(thd););
       if (thd->killed)
 	goto err;
       /* Flush entries in the query cache involving this table. */
