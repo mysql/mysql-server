@@ -624,7 +624,6 @@ public:
 
   int ha_external_lock(THD *thd, int lock_type)
   {
-    int rc;
     DBUG_ENTER("ha_external_lock");
     locked= lock_type != F_UNLCK;
     DBUG_RETURN(external_lock(thd, lock_type));
