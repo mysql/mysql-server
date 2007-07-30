@@ -16,7 +16,7 @@ AM_CONFIG_HEADER(config.h)
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_MAJOR_VERSION=15
+SHARED_LIB_MAJOR_VERSION=16
 SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 NDB_SHARED_LIB_MAJOR_VERSION=3
 NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
@@ -1920,8 +1920,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
-  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
-  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  getpwuid getrlimit getrusage getwd index initgroups isnan \
+  localtime_r gethrtime gmtime_r \
+  locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
