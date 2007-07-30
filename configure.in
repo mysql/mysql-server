@@ -8,7 +8,7 @@ AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
 AM_INIT_AUTOMAKE(mysql, 5.0.48)
-AM_CONFIG_HEADER(config.h)
+AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
