@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 
 static void test_make_space_at (void) {
     PMA pma;
@@ -534,6 +535,89 @@ void test_pma_compare_fun (int wrong_endian_p) {
     r=pma_free(&pma); assert(r==0);
 }
 
+void test_pma_split(int n) {
+    PMA pmaa, pmab, pmac;
+    int error;
+    int i;
+
+    printf("test_pma_split:%d\n", n);
+
+    error = pma_create(&pmaa, default_compare_fun);
+    assert(error == 0);
+
+    /* insert some kv pairs */
+    for (i=0; i<n; i++) {
+        DBT dbtk, dbtv;
+        char k[5]; int v;
+
+        sprintf(k, "%4.4d", i);
+        fill_dbt(&dbtk, &k, strlen(k)+1);
+        v = i;
+        fill_dbt(&dbtv, &v, sizeof v);
+
+        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        assert(error == BRT_OK);
+    }
+
+    printf("a:"); print_pma(pmaa);
+
+    error = pma_split(pmaa, &pmab, &pmac, 0, 0);
+    assert(error == 0);
+
+    printf("a:"); print_pma(pmaa);
+    printf("b:"); print_pma(pmab);
+    printf("c:"); print_pma(pmac);
+
+    error = pma_free(&pmaa);
+    assert(error == 0);
+    error = pma_free(&pmab);
+    assert(error == 0);
+    error = pma_free(&pmac);
+    assert(error == 0);
+}
+
+void test_pma_split_varkey() {
+    char *keys[] = {
+        "this", "is", "a", "key", "this is a really really big key", "zz", 0 };
+    PMA pmaa, pmab, pmac;
+    int error;
+    int i;
+
+    printf("test_pma_split_varkey\n");
+
+    error = pma_create(&pmaa, default_compare_fun);
+    assert(error == 0);
+
+    /* insert some kv pairs */
+    for (i=0; keys[i]; i++) {
+        DBT dbtk, dbtv;
+        char v;
+
+        fill_dbt(&dbtk, keys[i], strlen(keys[i])+1);
+        v = i;
+        fill_dbt(&dbtv, &v, sizeof v);
+
+        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        assert(error == BRT_OK);
+    }
+
+    printf("a:"); print_pma(pmaa);
+
+    error = pma_split(pmaa, &pmab, &pmac, 0, 0);
+    assert(error == 0);
+
+    printf("a:"); print_pma(pmaa);
+    printf("b:"); print_pma(pmab);
+    printf("c:"); print_pma(pmac);
+
+    error = pma_free(&pmaa);
+    assert(error == 0);
+    error = pma_free(&pmab);
+    assert(error == 0);
+    error = pma_free(&pmac);
+    assert(error == 0);
+}
+
 void pma_tests (void) {
     memory_check=1;
     test_pma_compare_fun(0);      memory_check_all_free();
@@ -549,6 +633,12 @@ void pma_tests (void) {
     test_keycompare();            memory_check_all_free();
     test_pma_random_pick();       memory_check_all_free();
     test_pma_cursor();            memory_check_all_free();
+    test_pma_split(0);            memory_check_all_free();
+    test_pma_split(1);            memory_check_all_free();
+    test_pma_split(2);            memory_check_all_free();
+    test_pma_split(8);            memory_check_all_free();
+    test_pma_split(32);           memory_check_all_free();
+    test_pma_split_varkey();      memory_check_all_free();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
