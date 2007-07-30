@@ -7716,6 +7716,7 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
     DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_PERFORMANCE);
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
+    table->no_replicate= 1;
   }
 
   DBUG_RETURN(table);
