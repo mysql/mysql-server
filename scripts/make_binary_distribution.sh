@@ -274,7 +274,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
     rm -f $BASE/lib/*.la
 fi
 
-copyfileto $BASE/include config.h include/*
+copyfileto $BASE/include include/*
 
 rm -f $BASE/include/Makefile* $BASE/include/*.in $BASE/include/config-win.h
 if [ $BASE_SYSTEM != "netware" ] ; then
