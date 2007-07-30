@@ -123,7 +123,7 @@ public:
           */
           char *ptr= (char *)&field_metadata[index];
           m_field_metadata[i]= sint2korr(ptr);
-          index= index + sizeof(short int);
+          index= index + 2;
           break;
         }
         case MYSQL_TYPE_NEWDECIMAL:
@@ -238,7 +238,7 @@ public:
 private:
   ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
-  short int *m_field_metadata;
+  uint16 *m_field_metadata;
   uchar *m_null_bits;
   uchar *m_memory;
 };

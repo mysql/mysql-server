@@ -6412,7 +6412,7 @@ const int Table_map_log_event::calc_field_metadata_size()
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_SET:
     {
-      size= size + sizeof(short int); // Store short int here.
+      size= size + 2; // Store short int here.
       break;
     }
     default:
@@ -6515,7 +6515,7 @@ int Table_map_log_event::save_field_metadata()
     {
       char *ptr= (char *)&m_field_metadata[index];
       int2store(ptr, m_table->s->field[i]->field_length);
-      index= index + sizeof(short int);
+      index= index + 2;
       break;
     }
     case MYSQL_TYPE_STRING:
@@ -6709,6 +6709,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     if (bytes_read < event_len)
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
+      DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
       uint num_null_bytes= (m_colcnt + 7) / 8;
       m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
@@ -6934,8 +6935,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
     Store the size of the field metadata.
   */
   uchar mbuf[sizeof(m_field_metadata_size)];
-  uchar *const mbuf_end= net_store_length(mbuf, 
-                                         (size_t) m_field_metadata_size);
+  uchar *const mbuf_end= net_store_length(mbuf, m_field_metadata_size);
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const uchar*)m_dbnam,   m_dblen+1) ||
