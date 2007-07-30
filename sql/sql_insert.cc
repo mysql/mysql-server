@@ -733,7 +733,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->start_bulk_insert(values_list.elements);
 
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES)));
@@ -907,10 +906,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           if (mysql_bin_log.write(&qinfo) && transactional_table)
             error=1;
         }
-        if (!transactional_table && changed)
-          thd->no_trans_update.all= TRUE;
+        if (thd->transaction.stmt.modified_non_trans_table)
+          thd->transaction.all.modified_non_trans_table= TRUE;
       }
     }
+    DBUG_ASSERT(transactional_table || !changed || 
+                thd->transaction.stmt.modified_non_trans_table);
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
 
@@ -1311,7 +1312,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
     then both on update triggers will work instead. Similarly both on
     delete triggers will be invoked if we will delete conflicting records.
 
-    Sets thd->no_trans_update.stmt to TRUE if table which is updated didn't have
+    Sets thd->transaction.stmt.modified_non_trans_table to TRUE if table which is updated didn't have
     transactions.
 
   RETURN VALUE
@@ -1478,7 +1479,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->no_trans_update.stmt= TRUE;
+            thd->transaction.stmt.modified_non_trans_table= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1510,7 +1511,7 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->no_trans_update.stmt= TRUE;
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
   DBUG_RETURN(trg_error);
 
 err:
@@ -2790,7 +2791,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
@@ -2927,7 +2927,8 @@ void select_insert::send_error(uint errcode,const char *err)
 
 bool select_insert::send_eof()
 {
-  int error,error2;
+  int error, error2;
+  bool changed, transactional_table= table->file->has_transactions();
   DBUG_ENTER("select_insert::send_eof");
 
   error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
@@ -2939,12 +2940,14 @@ bool select_insert::send_eof()
     and ha_autocommit_or_rollback
   */
 
-  if (info.copied || info.deleted || info.updated)
+  if (changed= (info.copied || info.deleted || info.updated))
   {
     query_cache_invalidate3(thd, table, 1);
-    if (!(table->file->has_transactions() || table->s->tmp_table))
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(transactional_table || !changed || 
+              thd->transaction.stmt.modified_non_trans_table);
 
   if (last_insert_id)
     thd->insert_id(info.copied ? last_insert_id : 0);		// For binary log
@@ -2954,7 +2957,7 @@ bool select_insert::send_eof()
     if (!error)
       thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  table->file->has_transactions(), FALSE);
+			  transactional_table, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
@@ -2980,6 +2983,7 @@ bool select_insert::send_eof()
 
 void select_insert::abort()
 {
+  bool changed, transactional_table;
   DBUG_ENTER("select_insert::abort");
 
   if (!table)
@@ -2990,6 +2994,7 @@ void select_insert::abort()
     */
     DBUG_VOID_RETURN;
   }
+  transactional_table= table->file->has_transactions();
   if (!thd->prelocked_mode)
     table->file->end_bulk_insert();
   /*
@@ -2998,21 +3003,22 @@ void select_insert::abort()
     error while inserting into a MyISAM table) we must write to the binlog (and
     the error code will make the slave stop).
   */
-  if ((info.copied || info.deleted || info.updated) &&
-      !table->file->has_transactions())
+  if ((changed= info.copied || info.deleted || info.updated) &&
+      !transactional_table)
   {
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For binary log
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
+                            transactional_table, FALSE);
       mysql_bin_log.write(&qinfo);
     }
-    if (!table->s->tmp_table)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  if (info.copied || info.deleted || info.updated)
+  DBUG_ASSERT(transactional_table || !changed || thd->transaction.stmt.modified_non_trans_table);
+  if (changed)
   {
     query_cache_invalidate3(thd, table, 1);
   }
@@ -3259,7 +3265,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
