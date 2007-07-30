@@ -90,11 +90,12 @@ int main(int argc, char **argv)
   fprintf(stdout, "TRACE of the last maria_read_log\n");
   if (maria_apply_log(lsn, opt_display_and_apply, stdout))
     goto err;
-  fprintf(stdout, "SUCCESS\n");
+  fprintf(stdout, "%s: SUCCESS\n", my_progname);
 
   goto end;
 err:
   /* don't touch anything more, in case we hit a bug */
+  fprintf(stderr, "%s: FAILED\n", my_progname);
   exit(1);
 end:
   maria_end();

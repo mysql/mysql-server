@@ -349,8 +349,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   rc= 1;
 
   {
-    translog_size_t len= translog_read_record_header(first_lsn, &rec);
-    if (len == 0)
+    int len= translog_read_record_header(first_lsn, &rec);
+    if (len == RECHEADER_READ_ERROR)
     {
       fprintf(stderr, "translog_read_record_header failed (%d)\n", errno);
       translog_free_record_header(&rec);
@@ -383,14 +383,14 @@ int main(int argc __attribute__((unused)), char *argv[])
     for (i= 1;; i++)
     {
       len= translog_read_next_record_header(&scanner, &rec);
-      if (len == 0)
+      if (len == RECHEADER_READ_ERROR)
       {
         fprintf(stderr, "1-%d translog_read_next_record_header failed (%d)\n",
                 i, errno);
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == LSN_IMPOSSIBLE)
+      if (len == RECHEADER_READ_EOF)
       {
         if (i != ITERATIONS)
         {
@@ -464,13 +464,13 @@ int main(int argc __attribute__((unused)), char *argv[])
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
-      if (len == 0)
+      if (len == RECHEADER_READ_ERROR)
       {
         fprintf(stderr, "1-%d translog_read_next_record_header (var) "
                 "failed (%d)\n", i, errno);
         goto err;
       }
-      if (rec.lsn == LSN_IMPOSSIBLE)
+      if (len == RECHEADER_READ_EOF)
       {
         fprintf(stderr, "EOL met at the middle of iteration (first var) %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
@@ -490,7 +490,7 @@ int main(int argc __attribute__((unused)), char *argv[])
           fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE "
                   "data read(%d)"
                   "type %u (%d), strid %u (%d), len %lu, %lu + 7 (%d), "
-                  "hdr len: %u (%d), "
+                  "hdr len: %d (%d), "
                   "ref(%lu,0x%lx), lsn(%lu,0x%lx) (%d), content: %d\n",
                   i, (uint) rec.type,
                   rec.type !=LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE,
@@ -498,7 +498,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                   rec.short_trid != (i % 0xFFFF),
                   (ulong) rec.record_length, (ulong) rec_len,
                   rec.record_length != rec_len + LSN_STORE_SIZE,
-                  (uint) len,
+                  len,
                   len != 12,
                   (ulong) LSN_FILE_NO(ref), (ulong) LSN_OFFSET(ref),
                   (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn),
@@ -535,12 +535,12 @@ int main(int argc __attribute__((unused)), char *argv[])
         {
           fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
                   " data read(%d) "
-                  "type %u, strid %u, len %lu != %lu + 14, hdr len: %u, "
+                  "type %u, strid %u, len %lu != %lu + 14, hdr len: %d, "
                   "ref1(%lu,0x%lx), ref2(%lu,0x%lx), "
                   "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (ulong) rec.record_length, (ulong) rec_len,
-                  (uint) len,
+                  len,
                   (ulong) LSN_FILE_NO(ref1), (ulong) LSN_OFFSET(ref1),
                   (ulong) LSN_FILE_NO(ref2), (ulong) LSN_OFFSET(ref2),
                   (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
@@ -561,14 +561,14 @@ int main(int argc __attribute__((unused)), char *argv[])
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
-      if (len == 0)
+      if (len == RECHEADER_READ_ERROR)
       {
         fprintf(stderr, "1-%d translog_read_next_record_header failed (%d)\n",
                 i, errno);
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == LSN_IMPOSSIBLE)
+      if (len == RECHEADER_READ_EOF)
       {
         fprintf(stderr, "EOL met at the middle of iteration %u "
                 "instead of beginning of %u\n", i, ITERATIONS);
@@ -606,11 +606,11 @@ int main(int argc __attribute__((unused)), char *argv[])
       {
         fprintf(stderr, "Incorrect LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE "
                 "data read(%d) "
-                "type %u, strid %u, len %lu != %lu, hdr len: %u, "
+                "type %u, strid %u, len %lu != %lu, hdr len: %d, "
                 "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
                 (ulong) rec.record_length, (ulong) rec_len,
-                (uint) len,
+                len,
                 (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
         translog_free_record_header(&rec);
         goto err;

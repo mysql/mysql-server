@@ -363,7 +363,8 @@ int main(int argc __attribute__((unused)),
 
   {
     uint indeces[WRITERS];
-    uint index, len, stage;
+    uint index, stage;
+    int len;
     bzero(indeces, sizeof(uint) * WRITERS);
 
     bzero(indeces, sizeof(indeces));
@@ -377,14 +378,14 @@ int main(int argc __attribute__((unused)),
     {
       len= translog_read_next_record_header(&scanner, &rec);
 
-      if (len == 0)
+      if (len == RECHEADER_READ_ERROR)
       {
         fprintf(stderr, "1-%d translog_read_next_record_header failed (%d)\n",
                 i, errno);
         translog_free_record_header(&rec);
         goto err;
       }
-      if (rec.lsn == LSN_IMPOSSIBLE)
+      if (len == RECHEADER_READ_EOF)
       {
         if (i != WRITERS * ITERATIONS * 2)
         {
@@ -427,18 +428,18 @@ int main(int argc __attribute__((unused)),
             len != 9 ||
             rec.record_length != lens[rec.short_trid][index] ||
             cmp_translog_addr(lsns2[rec.short_trid][index], rec.lsn) != 0 ||
-            check_content(rec.header, len))
+            check_content(rec.header, (uint)len))
         {
           fprintf(stderr,
                   "Incorrect LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE "
                   "data read(%d) "
                   "thread: %d, iteration %d, stage %d\n"
-                  "type %u (%d), len %u, length %lu %lu (%d) "
+                  "type %u (%d), len %d, length %lu %lu (%d) "
                   "lsn(%lu,0x%lx) (%lu,0x%lx)\n",
                   i, (uint) rec.short_trid, index, stage,
                   (uint) rec.type, (rec.type !=
                                     LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE),
-                  (uint) len,
+                  len,
                   (ulong) rec.record_length, lens[rec.short_trid][index],
                   (rec.record_length != lens[rec.short_trid][index]),
                   (ulong) LSN_FILE_NO(rec.lsn),

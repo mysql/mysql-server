@@ -30,6 +30,9 @@
 #define TRANSLOG_FLAGS_NUM ((TRANSLOG_PAGE_CRC | TRANSLOG_SECTOR_PROTECTION | \
                            TRANSLOG_RECORD_CRC) + 1)
 
+#define RECHEADER_READ_ERROR -1
+#define RECHEADER_READ_EOF   -2
+
 /*
   Page size in transaction log
   It should be Power of 2 and multiple of DISK_DRIVE_SECTOR_SIZE
@@ -228,9 +231,7 @@ translog_write_record(LSN *lsn, enum translog_record_type type,
 
 extern void translog_destroy();
 
-extern translog_size_t translog_read_record_header(LSN lsn,
-						   TRANSLOG_HEADER_BUFFER
-						   *buff);
+extern int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff);
 
 extern void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff);
 
@@ -247,10 +248,8 @@ extern my_bool translog_init_scanner(LSN lsn,
 				     my_bool fixed_horizon,
 				     struct st_translog_scanner_data *scanner);
 
-extern translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
-							*scanner,
-							TRANSLOG_HEADER_BUFFER
-							*buff);
+extern int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
+                                            TRANSLOG_HEADER_BUFFER *buff);
 extern my_bool translog_lock();
 extern my_bool translog_unlock();
 extern void translog_lock_assert_owner();

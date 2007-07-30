@@ -373,19 +373,8 @@ static LOG_DESC INIT_LOGREC_REDO_RENAME_TABLE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
  "redo_rename_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
-/**
-   @todo LOG BUG
-   the "1" below is a hack to overcome a bug in the log handler where a 0-byte
-   header is considered a read failure:
-   translog_read_record() calls translog_init_reader_data() which calls
-   translog_read_record_header_scan() which calls
-   translog_read_record_header_from_buffer() which calls
-   translog_variable_length_header() which returns 0 (normal);
-   translog_init_reader_data() considers this 0 as a problem,
-   and thus translog_read_record() fails.
-*/
 static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 1, NULL, NULL, NULL, 0,
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
  "redo_drop_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ALL=
@@ -4437,25 +4426,23 @@ static uchar *translog_relative_LSN_decode(LSN base_lsn,
   return src;
 }
 
-/*
-  Get header of fixed/pseudo length record and call hook for it processing
+/**
+   @brief Get header of fixed/pseudo length record and call hook for
+   it processing
 
-  SYNOPSIS
-    translog_fixed_length_header()
-    page                 Pointer to the buffer with page where LSN chunk is
-                         placed
-    page_offset          Offset of the first chunk in the page
-    buff                 Buffer to be filled with header data
+   @param page            Pointer to the buffer with page where LSN chunk is
+                          placed
+   @param page_offset     Offset of the first chunk in the page
+   @param buff            Buffer to be filled with header data
 
-  RETURN
-    0  error
-    #  number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-       part of the header
+   @return Length of header or operation status
+     @retval #  number of bytes in TRANSLOG_HEADER_BUFFER::header where
+                stored decoded part of the header
 */
 
-translog_size_t translog_fixed_length_header(uchar *page,
-                                             translog_size_t page_offset,
-                                             TRANSLOG_HEADER_BUFFER *buff)
+static int translog_fixed_length_header(uchar *page,
+                                        translog_size_t page_offset,
+                                        TRANSLOG_HEADER_BUFFER *buff)
 {
   struct st_log_record_type_descriptor *desc=
     log_record_type_descriptor + buff->type;
@@ -4609,6 +4596,7 @@ my_bool translog_init_scanner(LSN lsn,
     1  End of the Log
     0  OK
 */
+
 static my_bool translog_scanner_eol(TRANSLOG_SCANNER_DATA *scanner)
 {
   DBUG_ENTER("translog_scanner_eol");
@@ -4652,6 +4640,7 @@ static my_bool translog_scanner_eol(TRANSLOG_SCANNER_DATA *scanner)
     1  End of the Page
     0  OK
 */
+
 static my_bool translog_scanner_eop(TRANSLOG_SCANNER_DATA *scanner)
 {
   DBUG_ENTER("translog_scanner_eop");
@@ -4672,6 +4661,7 @@ static my_bool translog_scanner_eop(TRANSLOG_SCANNER_DATA *scanner)
     1  End of the File
     0  OK
 */
+
 static my_bool translog_scanner_eof(TRANSLOG_SCANNER_DATA *scanner)
 {
   DBUG_ENTER("translog_scanner_eof");
@@ -4763,29 +4753,25 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
 }
 
 
-/*
-  Get header of variable length record and call hook for it processing
-
-  SYNOPSIS
-    translog_variable_length_header()
-    page                 Pointer to the buffer with page where LSN chunk is
-                         placed
-    page_offset          Offset of the first chunk in the page
-    buff                 Buffer to be filled with header data
-    scanner              If present should be moved to the header page if
+/**
+   @brief Get header of variable length record and call hook for it processing
+ 
+   @param page            Pointer to the buffer with page where LSN chunk is
+                          placed
+   @param page_offset     Offset of the first chunk in the page
+   @param buff            Buffer to be filled with header data
+   @param scanner         If present should be moved to the header page if
                          it differ from LSN page
-
-  RETURN
-    0  error
-    #  number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-       part of the header
+   @return Length of header or operation status
+     @retval RECHEADER_READ_ERROR  error
+     @retval #                     number of bytes in
+                                   TRANSLOG_HEADER_BUFFER::header where
+                                   stored decoded part of the header
 */
 
-translog_size_t translog_variable_length_header(uchar *page,
-                                                translog_size_t page_offset,
-                                                TRANSLOG_HEADER_BUFFER *buff,
-                                                TRANSLOG_SCANNER_DATA
-                                                *scanner)
+int translog_variable_length_header(uchar *page, translog_size_t page_offset,
+                                    TRANSLOG_HEADER_BUFFER *buff,
+                                    TRANSLOG_SCANNER_DATA *scanner)
 {
   struct st_log_record_type_descriptor *desc= (log_record_type_descriptor +
                                                buff->type);
@@ -4827,7 +4813,7 @@ translog_size_t translog_variable_length_header(uchar *page,
     if (!(buff->groups=
           (TRANSLOG_GROUP*) my_malloc(sizeof(TRANSLOG_GROUP) * grp_no,
                                       MYF(0))))
-      DBUG_RETURN(0);
+      DBUG_RETURN(RECHEADER_READ_ERROR);
     DBUG_PRINT("info", ("Groups: %u", (uint) grp_no));
     src+= (2 + 2);
     page_rest= TRANSLOG_PAGE_SIZE - (src - page);
@@ -4882,9 +4868,11 @@ translog_size_t translog_variable_length_header(uchar *page,
       {
         DBUG_PRINT("info", ("use internal scanner for header reading"));
         scanner= &internal_scanner;
-        translog_init_scanner(buff->lsn, 1, scanner);
+        if (translog_init_scanner(buff->lsn, 1, scanner))
+          DBUG_RETURN(RECHEADER_READ_ERROR);
       }
-      translog_get_next_chunk(scanner);
+      if (translog_get_next_chunk(scanner))
+        DBUG_RETURN(RECHEADER_READ_ERROR);
       page= scanner->page;
       page_offset= scanner->page_offset;
       src= page + page_offset + header_to_skip;
@@ -4938,24 +4926,27 @@ translog_size_t translog_variable_length_header(uchar *page,
 }
 
 
-/*
-  Read record header from the given buffer
+/**
+   @brief Read record header from the given buffer
 
-  SYNOPSIS
-    translog_read_record_header_from_buffer()
-    page                 page content buffer
-    page_offset          offset of the chunk in the page
-    buff                 destination buffer
-    scanner              If this is set the scanner will be moved to the
-                         record header page (differ from LSN page in case of
-                         multi-group records)
+   @param page            page content buffer
+   @param page_offset     offset of the chunk in the page
+   @param buff            destination buffer
+   @param scanner         If this is set the scanner will be moved to the
+                          record header page (differ from LSN page in case of
+                          multi-group records)
+
+   @return Length of header or operation status
+     @retval RECHEADER_READ_ERROR  error
+     @retval #                     number of bytes in
+                                   TRANSLOG_HEADER_BUFFER::header where 
+                                   stored decoded part of the header
 */
 
-translog_size_t
-translog_read_record_header_from_buffer(uchar *page,
-                                        uint16 page_offset,
-                                        TRANSLOG_HEADER_BUFFER *buff,
-                                        TRANSLOG_SCANNER_DATA *scanner)
+int translog_read_record_header_from_buffer(uchar *page,
+                                            uint16 page_offset,
+                                            TRANSLOG_HEADER_BUFFER *buff,
+                                            TRANSLOG_SCANNER_DATA *scanner)
 {
   translog_size_t res;
   DBUG_ENTER("translog_read_record_header_from_buffer");
@@ -4981,36 +4972,32 @@ translog_read_record_header_from_buffer(uchar *page,
     break;
   default:
     DBUG_ASSERT(0);
-    res= 0;
+    res= RECHEADER_READ_ERROR;
   }
   DBUG_RETURN(res);
 }
 
 
-/*
-  Read record header and some fixed part of a record (the part depend on
-  record type).
+/**
+   @brief Read record header and some fixed part of a record (the part depend
+   on record type).
+ 
+   @param lsn             log record serial number (address of the record)
+   @param buff            log record header buffer
+ 
+   @note Some type of record can be read completely by this call
+   @note "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
+   LSN can be translated to absolute one), some fields can be added (like
+   actual header length in the record if the header has variable length)
 
-  SYNOPSIS
-    translog_read_record_header()
-    lsn                  log record serial number (address of the record)
-    buff                 log record header buffer
-
-  NOTE
-    - Some type of record can be read completely by this call
-    - "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
-      LSN can be translated to absolute one), some fields can be added
-      (like actual header length in the record if the header has variable
-      length)
-
-  RETURN
-    0  error
-    #  number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-       part of the header
+   @return Length of header or operation status
+     @retval RECHEADER_READ_ERROR  error
+     @retval #                     number of bytes in
+                                   TRANSLOG_HEADER_BUFFER::header where
+                                   stored decoded part of the header
 */
 
-translog_size_t translog_read_record_header(LSN lsn,
-                                            TRANSLOG_HEADER_BUFFER *buff)
+int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
 {
   uchar buffer[TRANSLOG_PAGE_SIZE], *page;
   translog_size_t res, page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
@@ -5027,40 +5014,35 @@ translog_size_t translog_read_record_header(LSN lsn,
   data.was_recovered= 0;
   addr= lsn;
   addr-= page_offset; /* offset decreasing */
-  res= (!(page= translog_get_page(&data, buffer))) ? 0 :
+  res= (!(page= translog_get_page(&data, buffer))) ? RECHEADER_READ_ERROR :
     translog_read_record_header_from_buffer(page, page_offset, buff, 0);
   DBUG_RETURN(res);
 }
 
 
-/*
-  Read record header and some fixed part of a record (the part depend on
-  record type).
+/**
+   @brief Read record header and some fixed part of a record (the part depend
+   on record type).
+ 
+   @param scan            scanner position to read
+   @param buff            log record header buffer
+   @param move_scanner    request to move scanner to the header position
+ 
+   @note Some type of record can be read completely by this call
+   @note "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
+   LSN can be translated to absolute one), some fields can be added (like
+   actual header length in the record if the header has variable length)
 
-  SYNOPSIS
-    translog_read_record_header_scan()
-    scan                 scanner position to read
-    buff                 log record header buffer
-    move_scanner         request to move scanner to the header position
-
-  NOTE
-    - Some type of record can be read completely by this call
-    - "Decoded" header stored in TRANSLOG_HEADER_BUFFER::header (relative
-      LSN can be translated to absolute one), some fields can be added
-      (like actual header length in the record if the header has variable
-      length)
-
-  RETURN
-    0  error
-    #  number of bytes in TRANSLOG_HEADER_BUFFER::header where stored decoded
-       part of the header
+   @return Length of header or operation status
+     @retval RECHEADER_READ_ERROR  error
+     @retval #                     number of bytes in
+                                   TRANSLOG_HEADER_BUFFER::header where stored
+                                   decoded part of the header
 */
 
-translog_size_t
-translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
-                                 *scanner,
-                                 TRANSLOG_HEADER_BUFFER *buff,
-                                 my_bool move_scanner)
+int translog_read_record_header_scan(TRANSLOG_SCANNER_DATA *scanner,
+                                     TRANSLOG_HEADER_BUFFER *buff,
+                                     my_bool move_scanner)
 {
   translog_size_t res;
   DBUG_ENTER("translog_read_record_header_scan");
@@ -5086,35 +5068,26 @@ translog_read_record_header_scan(TRANSLOG_SCANNER_DATA
 }
 
 
-/*
-  Read record header and some fixed part of the next record (the part
-  depend on record type).
+/**
+   @brief Read record header and some fixed part of the next record (the part
+   depend on record type).
+ 
+   @param scanner         data for scanning if lsn is NULL scanner data
+                          will be used for continue scanning.
+                          The scanner can be NULL.
 
-  SYNOPSIS
-    translog_read_next_record_header()
-    scanner              data for scanning if lsn is NULL scanner data
-                         will be used for continue scanning.
-                         The scanner can be NULL.
-    buff                 log record header buffer
+   @param buff            log record header buffer
 
-  NOTE
-    - it is like translog_read_record_header, but read next record, so see
-      its NOTES.
-    - in case of end of the log buff->lsn will be set to
-      (LSN_IMPOSSIBLE)
-
-  RETURN
-    0                                    error
-    TRANSLOG_RECORD_HEADER_MAX_SIZE + 1  End of the log
-    #                                    number of bytes in
-                                         TRANSLOG_HEADER_BUFFER::header
-                                         where stored decoded
-                                         part of the header
+   @return Length of header or operation status
+     @retval RECHEADER_READ_ERROR  error
+     @retval RECHEADER_READ_EOF    EOF
+     @retval #                     number of bytes in
+                                   TRANSLOG_HEADER_BUFFER::header where
+                                   stored decoded part of the header
 */
 
-translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
-                                                 *scanner,
-                                                 TRANSLOG_HEADER_BUFFER *buff)
+int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
+                                     TRANSLOG_HEADER_BUFFER *buff)
 {
   uint8 chunk_type;
   translog_size_t res;
@@ -5136,7 +5109,7 @@ translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
   do
   {
     if (translog_get_next_chunk(scanner))
-      DBUG_RETURN(0);
+      DBUG_RETURN(RECHEADER_READ_ERROR);
     chunk_type= scanner->page[scanner->page_offset] & TRANSLOG_CHUNK_TYPE;
     DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
                         (uint) scanner->page[scanner->page_offset]));
@@ -5148,7 +5121,7 @@ translog_size_t translog_read_next_record_header(TRANSLOG_SCANNER_DATA
     /* Last record was read */
     buff->lsn= LSN_IMPOSSIBLE;
     /* Return 'end of log' marker */
-    res= TRANSLOG_RECORD_HEADER_MAX_SIZE + 1;
+    res= RECHEADER_READ_EOF;
   }
   else
     res= translog_read_record_header_scan(scanner, buff, 0);

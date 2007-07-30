@@ -194,13 +194,13 @@ int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file)
   struct st_translog_scanner_data scanner;
   uint i= 1;
 
-  translog_size_t len= translog_read_record_header(lsn, &rec);
+  int len= translog_read_record_header(lsn, &rec);
 
-  /** @todo translog_read_record_header() should be fixed for 0-byte headers */
-  if (len == 0) /* means error, but apparently EOF too */
+  /** @todo EOF should be detected */
+  if (len == RECHEADER_READ_ERROR)
   {
-    fprintf(tracef, "empty log\n");
-    goto end;
+    fprintf(tracef, "Cannot find a first record\n");
+    goto err;
   }
 
   if (translog_init_scanner(lsn, 1, &scanner))
@@ -246,7 +246,7 @@ int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file)
           TRANSLOG_HEADER_BUFFER rec2;
           len=
             translog_read_record_header(all_active_trans[sid].group_start_lsn, &rec2);
-          if (len == (TRANSLOG_RECORD_HEADER_MAX_SIZE + 1))
+          if (len < 0) /* EOF or error */
           {
             fprintf(tracef, "Cannot find record where it should be\n");
             goto err;
@@ -267,7 +267,7 @@ int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file)
                 goto err;
             }
             len= translog_read_next_record_header(&scanner2, &rec2);
-            if (len == (TRANSLOG_RECORD_HEADER_MAX_SIZE + 1))
+            if (len < 0) /* EOF or error */
             {
               fprintf(tracef, "Cannot find record where it should be\n");
               goto err;
@@ -294,9 +294,17 @@ int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file)
       }
     }
     len= translog_read_next_record_header(&scanner, &rec);
-    if (len == (TRANSLOG_RECORD_HEADER_MAX_SIZE + 1))
+    if (len < 0)
     {
-      fprintf(tracef, "EOF on the log\n");
+      switch (len)
+      {
+      case RECHEADER_READ_EOF:
+        fprintf(tracef, "EOF on the log\n");
+        break;
+      case RECHEADER_READ_ERROR:
+        fprintf(stderr, "Error reading log\n");
+        goto err;
+      }
       break;
     }
   }
