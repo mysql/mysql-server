@@ -107,7 +107,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -158,7 +158,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -199,7 +199,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -242,7 +242,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -285,7 +285,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -327,7 +327,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	9306
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
