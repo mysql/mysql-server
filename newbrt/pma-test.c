@@ -636,8 +636,9 @@ void pma_tests (void) {
     test_pma_split(0);            memory_check_all_free();
     test_pma_split(1);            memory_check_all_free();
     test_pma_split(2);            memory_check_all_free();
+    test_pma_split(4);            memory_check_all_free();
     test_pma_split(8);            memory_check_all_free();
-    test_pma_split(32);           memory_check_all_free();
+    test_pma_split(9);            memory_check_all_free();
     test_pma_split_varkey();      memory_check_all_free();
 }
 
