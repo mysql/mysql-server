@@ -302,8 +302,8 @@ then
   my_which logger > /dev/null 2>&1
   if [ $? -ne 0 ]
   then
-    log_error "--syslog requested, but no 'logger' program found."
-    want_syslog=0
+    log_error "--syslog requested, but no 'logger' program found.  Please ensure that 'logger' is in your PATH, or do not specify the --syslog option to mysqld_safe."
+    exit 1
   fi
 fi
 
