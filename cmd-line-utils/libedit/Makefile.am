@@ -5,8 +5,8 @@
 ASRC =			$(srcdir)/vi.c $(srcdir)/emacs.c $(srcdir)/common.c
 AHDR =			vi.h emacs.h common.h
 
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(srcdir)/../.. -I..
+# Make sure to include stuff from this directory first, to get right "config.h"
+INCLUDES =		-I. -I$(top_builddir)/include -I$(top_srcdir)/include
 
 noinst_LIBRARIES =	libedit.a
 
