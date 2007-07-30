@@ -120,7 +120,7 @@ bool end_active_trans(THD *thd)
       error=1;
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->no_trans_update.all= FALSE;
+  thd->transaction.all.modified_non_trans_table= FALSE;
   DBUG_RETURN(error);
 }
 
@@ -578,7 +578,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -596,7 +596,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     if (ha_rollback(thd))
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -1806,6 +1806,8 @@ mysql_execute_command(THD *thd)
 #endif
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
+  DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+  
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
     if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -3620,7 +3622,8 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if (((thd->options & OPTION_KEEP_LOG) || thd->no_trans_update.all) &&
+        if (((thd->options & OPTION_KEEP_LOG) || 
+             thd->transaction.all.modified_non_trans_table) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4200,8 +4203,8 @@ create_sp_error:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
-    thd->no_trans_update.all= FALSE;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -4295,7 +4298,7 @@ create_sp_error:
       break;
     }
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4326,7 +4329,7 @@ create_sp_error:
     else
       send_ok(thd);
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;

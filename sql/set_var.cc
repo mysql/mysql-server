@@ -2564,14 +2564,14 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     {
       /* We changed to auto_commit mode */
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-      thd->no_trans_update.all= FALSE;
+      thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->no_trans_update.all= FALSE;
+      thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }
