@@ -1096,37 +1096,46 @@ void LOGGER::init_general_log(uint general_log_printer)
 
 bool LOGGER::activate_log_handler(THD* thd, uint log_type)
 {
+  MYSQL_QUERY_LOG *file_log;
   bool res= FALSE;
   lock_exclusive();
   switch (log_type) {
   case QUERY_LOG_SLOW:
     if (!opt_slow_log)
     {
-      file_log_handler->get_mysql_slow_log()->
-        open_slow_log(sys_var_slow_log_path.value);
-      init_slow_log(log_output_options);
+      file_log= file_log_handler->get_mysql_slow_log();
+
+      file_log->open_slow_log(sys_var_slow_log_path.value);
       if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
+        file_log->close(0);
       }
       else
+      {
+        init_slow_log(log_output_options);
         opt_slow_log= TRUE;
+      }
     }
     break;
   case QUERY_LOG_GENERAL:
     if (!opt_log)
     {
-      file_log_handler->get_mysql_log()->
-        open_query_log(sys_var_general_log_path.value);
-      init_general_log(log_output_options);
+      file_log= file_log_handler->get_mysql_log();
+
+      file_log->open_query_log(sys_var_general_log_path.value);
       if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
+        file_log->close(0);
       }
       else
+      {
+        init_general_log(log_output_options);
         opt_log= TRUE;
+      }
     }
     break;
   default:
