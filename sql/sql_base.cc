@@ -1677,17 +1677,42 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
 }
 
 
-/*
-  Close temporary table and unlink from thd->temporary tables
+/**
+  Drop a temporary table.
+
+  Try to locate the table in the list of thd->temporary_tables.
+  If the table is found:
+   - if the table is in thd->locked_tables, unlock it and
+     remove it from the list of locked tables. Currently only transactional
+     temporary tables are present in the locked_tables list.
+   - Close the temporary table, remove its .FRM
+   - remove the table from the list of temporary tables
+
+  This function is used to drop user temporary tables, as well as
+  internal tables created in CREATE TEMPORARY TABLE ... SELECT
+  or ALTER TABLE. Even though part of the work done by this function
+  is redundant when the table is internal, as long as we
+  link both internal and user temporary tables into the same
+  thd->temporary_tables list, it's impossible to tell here whether
+  we're dealing with an internal or a user temporary table.
+
+  @retval TRUE   the table was not found in the list of temporary tables
+                 of this thread
+  @retval FALSE  the table was found and dropped successfully.
 */
 
-bool close_temporary_table(THD *thd, TABLE_LIST *table_list)
+bool close_temporary_table(THD *thd, const char *db, const char *table_name)
 {
   TABLE *table;
 
   if (!(table= find_temporary_table(thd, table_list)))
     return 1;
   close_temporary_table(thd, table, 1, 1);
+  /*
+    If LOCK TABLES list is not empty and contains this table,
+    unlock the table and remove the table from this list.
+  */
+  mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
   return 0;
 }
 
@@ -1833,7 +1858,7 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
 	!memcmp(list->s->table_cache_key.str, key, key_length))
     {
       if (unlock && thd->locked_tables)
-	mysql_lock_remove(thd, thd->locked_tables,list);
+        mysql_lock_remove(thd, thd->locked_tables, list, TRUE);
       VOID(hash_delete(&open_cache,(uchar*) list)); // Close table
     }
     else
@@ -1859,8 +1884,13 @@ void unlink_open_table(THD *thd, TABLE *find, bool unlock)
 
     @note This routine assumes that table to be closed is open only
           by calling thread so we needn't wait until other threads
-          will close the table. It also assumes that table to be
-          dropped is already unlocked.
+          will close the table. Also unless called under implicit or
+          explicit LOCK TABLES mode it assumes that table to be
+          dropped is already unlocked. In the former case it will
+          also remove lock on the table. But one should not rely on
+          this behaviour as it may change in future.
+          Currently, however, this function is never called for a
+          table that was locked with LOCK TABLES.
 */
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
@@ -2837,7 +2867,7 @@ void close_data_files_and_morph_locks(THD *thd, const char *db,
 	!strcmp(table->s->db.str, db))
     {
       if (thd->locked_tables)
-        mysql_lock_remove(thd, thd->locked_tables, table);
+        mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
       table->open_placeholder= 1;
       close_handle_and_leave_table_as_lock(table);
     }
@@ -2975,7 +3005,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
             instances of this table.
           */
           mysql_lock_abort(thd, table, TRUE);
-          mysql_lock_remove(thd, thd->locked_tables, table);
+          mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
           /*
             We want to protect the table from concurrent DDL operations
             (like RENAME TABLE) until we will re-open and re-lock it.
@@ -3120,7 +3150,7 @@ TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
-      mysql_lock_remove(thd, thd->locked_tables,table);
+      mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
       if (!found)
       {
         found= table;

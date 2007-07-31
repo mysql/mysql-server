@@ -992,6 +992,7 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
+  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
   /*
@@ -1022,11 +1023,13 @@ public:
     estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
-    ft_handler(0), inited(NONE), implicit_emptied(0),
+    ft_handler(0), inited(NONE),
+    locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
     {}
   virtual ~handler(void)
   {
+    DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1591,8 +1594,10 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
-  /*
-    NOTE that one can NOT rely on table->in_use in store_lock().  It may
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    @note that one can NOT rely on table->in_use in store_lock().  It may
     refer to a different thread if called from mysql_lock_abort_for_thread().
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
@@ -1722,6 +1727,29 @@ private:
     Row-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
+  */
+
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    Tells the storage engine that we intend to read or write data
+    from the table. This call is prefixed with a call to handler::store_lock()
+    and is invoked only for those handler instances that stored the lock.
+
+    Calls to rnd_init/index_init are prefixed with this call. When table
+    IO is complete, we call external_lock(F_UNLCK).
+    A storage engine writer should expect that each call to
+    ::external_lock(F_[RD|WR]LOCK is followed by a call to
+    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+
+    The name and signature originate from the first implementation
+    in MyISAM, which would call fcntl to set/clear an advisory
+    lock on the data file in this method.
+
+    @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
+
+    @return  non-0 in case of failure, 0 in case of success.
+    When lock_type is F_UNLCK, the return value is ignored.
   */
   virtual int external_lock(THD *thd __attribute__((unused)),
                             int lock_type __attribute__((unused)))
