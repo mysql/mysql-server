@@ -78,6 +78,7 @@ static void test_pma_find (void) {
     pma->N = N;
     for (i=0; i<N; i++) pma->pairs[i].key=0;
     assert(pma_index_limit(pma)==N);
+    pma->compare_fun = default_compare_fun;
     r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==0);
 
@@ -111,16 +112,18 @@ static void test_pma_find (void) {
 void test_smooth_region_N (int N) {
     struct pair pairs[N];
     char *strings[100];
-    char string[100];
+    char string[N];
     int i;
     int len;
     if (N<10) len=1;
     else if (N<100) len=2;
     else len=8;
+
     for (i=0; i<N; i++) {
 	snprintf(string, 10, "%0*d", len, i);
 	strings[i] = strdup(string);
     }
+
     assert(N<30);
     for (i=0; i<(1<<N)-1; i++) {
 	int insertat;
@@ -157,6 +160,9 @@ void test_smooth_region_N (int N) {
 		assert(cleari==0);
 	    }
 	}
+    }
+    for (i=0; i<N; i++) {
+	free(strings[i]);
     }
 }
 
