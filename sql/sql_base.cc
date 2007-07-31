@@ -1701,18 +1701,18 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   @retval FALSE  the table was found and dropped successfully.
 */
 
-bool close_temporary_table(THD *thd, const char *db, const char *table_name)
+bool close_temporary_table(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
 
   if (!(table= find_temporary_table(thd, table_list)))
     return 1;
-  close_temporary_table(thd, table, 1, 1);
   /*
     If LOCK TABLES list is not empty and contains this table,
     unlock the table and remove the table from this list.
   */
   mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
+  close_temporary_table(thd, table, 1, 1);
   return 0;
 }
 
