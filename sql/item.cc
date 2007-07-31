@@ -1082,9 +1082,9 @@ bool Item_sp_variable::is_null()
 Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
                            uint sp_var_idx,
                            enum_field_types sp_var_type,
-                           uint pos_in_q)
+                           uint pos_in_q, uint len_in_q)
   :Item_sp_variable(sp_var_name.str, sp_var_name.length),
-   m_var_idx(sp_var_idx), pos_in_query(pos_in_q)
+   m_var_idx(sp_var_idx), pos_in_query(pos_in_q), len_in_query(len_in_q)
 {
   maybe_null= TRUE;
 

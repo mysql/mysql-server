@@ -7365,6 +7365,27 @@ drop procedure sp_bug29050;
 drop table t1;
 
 #
+# Bug #30120 SP with local variables with non-ASCII names crashes server.
+#
+
+SET NAMES latin1;
+
+DELIMITER |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE бвд INT;
+  SELECT бвд;
+END|
+
+DELIMITER ;|
+
+CALL p1();
+
+SET NAMES default;
+DROP PROCEDURE p1;
+
+#
 # Bug#25411 (trigger code truncated)
 #
 

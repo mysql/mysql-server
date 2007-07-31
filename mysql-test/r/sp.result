@@ -6378,6 +6378,17 @@ Level	Code	Message
 use test;
 drop procedure sp_bug29050;
 drop table t1;
+SET NAMES latin1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE бвд INT;
+SELECT бвд;
+END|
+CALL p1();
+бвд
+NULL
+SET NAMES default;
+DROP PROCEDURE p1;
 drop procedure if exists proc_25411_a;
 drop procedure if exists proc_25411_b;
 drop procedure if exists proc_25411_c;
