@@ -598,8 +598,8 @@ bool st_select_lex_unit::exec()
         else
         {
           join->examined_rows= 0;
-          join->reinit();
-          saved_error= join->exec();
+          saved_error= join->reinit();
+          join->exec();
         }
       }
 
