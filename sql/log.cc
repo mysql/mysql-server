@@ -1833,6 +1833,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
 
+  DBUG_ASSERT(is_open());
   if (likely(is_open()))                       // Should always be true
   {
     uint length, group, carry, hdr_offs, val;
