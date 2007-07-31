@@ -18,7 +18,9 @@ void ybt_test0 (void) {
     assert(strcmp(t1.data, "foo")==0);
 
     ybt_set_value(&t1, "byebye", 7, &v0);      /* Use v0, not v1 */
-    assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
+    // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
+    // at the wrong place
+    //assert(strcmp(t0.data, "byebye")==0);     /* t0's data should be changed too, since it used v0 */
     assert(strcmp(t1.data, "byebye")==0);
 
     toku_free(v0); toku_free(v1);

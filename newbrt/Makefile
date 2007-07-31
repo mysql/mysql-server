@@ -3,12 +3,13 @@
 # OPTFLAGS = -O2
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror -fPIC
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
+DTOOL = valgrind
 
 default: bins
 BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 hashtest ybt-test
 bins: $(BINS)
 check: bins
-	./ybt-test
+	$(DTOOL) ./ybt-test
 	./pma-test
 	./cachetable-test
 	./brt-serialize-test
