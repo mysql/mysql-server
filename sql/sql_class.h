@@ -995,13 +995,25 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 class Open_tables_state
 {
 public:
-  /*
-    open_tables - list of regular tables in use by this thread
-    temporary_tables - list of temp tables in use by this thread
-    handler_tables - list of tables that were opened with HANDLER OPEN
-     and are still in use by this thread
+  /**
+    List of regular tables in use by this thread. Contains temporary and
+    base tables that were opened with @see open_tables().
   */
-  TABLE *open_tables, *temporary_tables, *handler_tables, *derived_tables;
+  TABLE *open_tables;
+  /**
+    List of temporary tables used by this thread. Contains user-level
+    temporary tables, created with CREATE TEMPORARY TABLE, and
+    internal temporary tables, created, e.g., to resolve a SELECT,
+    or for an intermediate table used in ALTER.
+    XXX Why are internal temporary tables added to this list?
+  */
+  TABLE *temporary_tables;
+  /**
+    List of tables that were opened with HANDLER OPEN and are
+    still in use by this thread.
+  */
+  TABLE *handler_tables;
+  TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before
