@@ -176,7 +176,7 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     assert(w.ndone<=w.size);
     {
 	ssize_t r=pwrite(fd, w.buf, w.ndone, off);
-	if (r<0) printf("r=%ld errno=%d\n", r, errno);
+	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert((size_t)r==w.ndone);
     }
 
