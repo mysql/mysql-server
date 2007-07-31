@@ -105,6 +105,9 @@ void test0 (void) {
 	}
 	verify_htable(htable, data_n, data, saw);
     }
+    toku_hashtable_free(&htable);
+    free(data);
+    free(saw);
 }
 
 void test1(void) {
@@ -128,6 +131,7 @@ void test1(void) {
 	    assert(r==0);
 	}
     }
+    toku_hashtable_free(&table);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
