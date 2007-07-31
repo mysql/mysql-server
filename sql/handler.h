@@ -992,6 +992,7 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
+  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
   /*
@@ -1022,11 +1023,13 @@ public:
     estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
-    ft_handler(0), inited(NONE), implicit_emptied(0),
+    ft_handler(0), inited(NONE),
+    locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
     {}
   virtual ~handler(void)
   {
+    DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1035,44 +1038,6 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /*
-    Check whether a handler allows to lock the table.
-
-    SYNOPSIS
-      check_if_locking_is_allowed()
-        thd     Handler of the thread, trying to lock the table
-        table   Table handler to check
-        count   Total number of tables to be locked
-        current Index of the current table in the list of the tables
-                to be locked.
-        system_count Pointer to the counter of system tables seen thus
-                     far.
-        called_by_privileged_thread TRUE if called from a logger THD
-                                    (general_log_thd or slow_log_thd)
-                                    or by a privileged thread, which
-                                    has the right to lock log tables.
-
-    DESCRIPTION
-      Check whether a handler allows to lock the table. For instance,
-      MyISAM does not allow to lock mysql.proc along with other tables.
-      This limitation stems from the fact that MyISAM does not support
-      row-level locking and we have to add this limitation to avoid
-      deadlocks.
-
-    RETURN
-      TRUE      Locking is allowed
-      FALSE     Locking is not allowed. The error was thrown.
-  */
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_privileged_thread)
-  {
-    return TRUE;
-  }
-  bool check_if_log_table_locking_is_allowed(uint sql_command,
-                                             ulong type, TABLE *table);
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -1629,8 +1594,10 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
-  /*
-    NOTE that one can NOT rely on table->in_use in store_lock().  It may
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    @note that one can NOT rely on table->in_use in store_lock().  It may
     refer to a different thread if called from mysql_lock_abort_for_thread().
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
@@ -1760,6 +1727,29 @@ private:
     Row-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
+  */
+
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    Tells the storage engine that we intend to read or write data
+    from the table. This call is prefixed with a call to handler::store_lock()
+    and is invoked only for those handler instances that stored the lock.
+
+    Calls to rnd_init/index_init are prefixed with this call. When table
+    IO is complete, we call external_lock(F_UNLCK).
+    A storage engine writer should expect that each call to
+    ::external_lock(F_[RD|WR]LOCK is followed by a call to
+    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+
+    The name and signature originate from the first implementation
+    in MyISAM, which would call fcntl to set/clear an advisory
+    lock on the data file in this method.
+
+    @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
+
+    @return  non-0 in case of failure, 0 in case of success.
+    When lock_type is F_UNLCK, the return value is ignored.
   */
   virtual int external_lock(THD *thd __attribute__((unused)),
                             int lock_type __attribute__((unused)))
