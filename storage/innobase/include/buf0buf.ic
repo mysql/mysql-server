@@ -28,7 +28,7 @@ buf_block_peek_if_too_old(
 	buf_block_t*	block)	/* in: block to make younger */
 {
 	return(buf_pool->freed_page_clock >= block->freed_page_clock
-	       + 1 + (buf_pool->curr_size / 1024));
+	       + 1 + (buf_pool->curr_size / 4));
 }
 
 /*************************************************************************
