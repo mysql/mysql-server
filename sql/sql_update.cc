@@ -1551,7 +1551,8 @@ multi_update::~multi_update()
   if (copy_field)
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
-  DBUG_ASSERT(trans_safe || thd->transaction.all.modified_non_trans_table);
+  DBUG_ASSERT(trans_safe || !updated || 
+              thd->transaction.all.modified_non_trans_table);
 }
 
 
