@@ -239,4 +239,32 @@ INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
 
 DROP TABLE t1;
 
+#
+# Bug #29717 INSERT INTO SELECT inserts values even if SELECT statement itself returns empty
+#
+
+CREATE TABLE t1 (
+    f1 int(10) unsigned NOT NULL auto_increment PRIMARY KEY,
+    f2 varchar(100) NOT NULL default ''
+);
+CREATE TABLE t2 (
+    f1 varchar(10) NOT NULL default '',
+    f2 char(3) NOT NULL default '',
+    PRIMARY KEY  (`f1`),
+    KEY `k1` (`f2`, `f1`)
+);
+
+INSERT INTO t1 values(NULL, '');
+INSERT INTO `t2` VALUES ('486878','WDT'),('486910','WDT');
+SELECT COUNT(*) FROM t1;
+
+SELECT min(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+
+INSERT INTO t1 (f2)
+  SELECT min(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1, t2;
+
 # End of 4.1 tests
