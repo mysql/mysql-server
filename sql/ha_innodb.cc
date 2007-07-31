@@ -465,7 +465,8 @@ convert_error_code_to_mysql(
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
 
-                mark_transaction_to_rollback(thd, row_rollback_on_timeout);
+                mark_transaction_to_rollback(thd,
+                                             (bool)row_rollback_on_timeout);
 
    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
