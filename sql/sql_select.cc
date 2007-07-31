@@ -1121,6 +1121,7 @@ JOIN::optimize()
     order=0;					// The output has only one row
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
+    group_optimized_away= 1;
   }
 
   calc_group_buffer(this, group_list);
@@ -11461,7 +11462,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!join->first_record || end_of_records ||
       (idx=test_if_group_changed(join->group_fields)) >= 0)
   {
-    if (join->first_record || (end_of_records && !join->group))
+    if (join->first_record || 
+        (end_of_records && !join->group && !join->group_optimized_away))
     {
       if (join->procedure)
 	join->procedure->end_group();
