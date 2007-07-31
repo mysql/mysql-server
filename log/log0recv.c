@@ -115,7 +115,7 @@ dulint	recv_max_page_lsn;
 Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == FALSE. */
 static
-void 
+void
 recv_init_crash_recovery(void);
 /*===========================*/
 
@@ -2450,7 +2450,7 @@ void
 recv_init_crash_recovery(void)
 /*==========================*/
 {
-	ut_a(!recv_needed_recovery); 
+	ut_a(!recv_needed_recovery);
 
 	recv_needed_recovery = TRUE;
 
@@ -2481,7 +2481,6 @@ recv_init_crash_recovery(void)
 			"InnoDB: buffer...\n");
 		trx_sys_doublewrite_init_or_restore_pages(TRUE);
 	}
-	
 }
 
 /************************************************************
@@ -2805,7 +2804,7 @@ recv_recovery_from_checkpoint_start(
 	recv_synchronize_groups(up_to_date_group);
 
 	if (!recv_needed_recovery) {
-		ut_a(ut_dulint_cmp(checkpoint_lsn, 
+		ut_a(ut_dulint_cmp(checkpoint_lsn,
 				   recv_sys->recovered_lsn) == 0);
 
 	} else {
