@@ -438,6 +438,11 @@ drop table if exists t1;
 CREATE TABLE txt1(a int);
 CREATE TABLE tyt2(a int);
 CREATE TABLE urkunde(a int);
+
+# make the output deterministic:
+# the order used in SHOW OPEN TABLES
+# is too much implementation dependent
+--disable_ps_protocol
 FLUSH TABLES;
 SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
 SHOW OPEN TABLES;
@@ -447,6 +452,8 @@ SHOW OPEN TABLES LIKE 't%';
 SHOW OPEN TABLES LIKE '%o%';
 FLUSH TABLES;
 SHOW OPEN TABLES;
+--enable_ps_protocol
+
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
@@ -552,6 +559,10 @@ show status like 'slow_queries';
 #
 # BUG#10491: Server returns data as charset binary SHOW CREATE TABLE or SELECT
 # FROM I_S.
+#
+
+#
+# Part 1: check that meta-data specifies not-binary character set.
 #
 
 # Ensure that all needed objects are dropped.
@@ -760,6 +771,59 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+
+#
+# Part 2: check that table with non-latin1 characters are dumped/restored
+# correctly.
+#
+
+# Ensure that all needed objects are dropped.
+
+set names koi8r;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+# Create objects.
+
+CREATE DATABASE mysqltest1;
+
+use mysqltest1;
+
+CREATE TABLE t1(колонка1 INT);
+
+# Check:
+#   - Dump mysqltest1;
+
+--echo
+--echo ---> Dumping mysqltest1 to show_check.mysqltest1.sql
+
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+
+#   - Clean mysqltest1;
+
+--echo
+--echo
+
+DROP DATABASE mysqltest1;
+
+#   - Restore mysqltest1;
+
+--echo
+--echo
+
+--echo ---> Restoring mysqltest1...
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+
+#   - Check definition of the table.
+
+SHOW CREATE TABLE mysqltest1.t1;
+
+# Cleanup.
+
+DROP DATABASE mysqltest1;
+use test;
 
 #
 # Bug #28808: log_queries_not_using_indexes variable dynamic change is ignored

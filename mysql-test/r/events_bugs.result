@@ -611,3 +611,10 @@ id	ev_nm	ev_cnt
 DROP TABLE event_log;
 SET GLOBAL event_scheduler = OFF;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler= ON;
+CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
+            DO BEGIN
+SELECT 1;
+END;|
+SET GLOBAL event_scheduler= OFF;
+DROP EVENT bug28641;

@@ -153,3 +153,25 @@ select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	#	1	Query	drop table t1
 TIMESTAMP	USER_HOST	#	1	Query	select * from mysql.general_log
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+FLUSH TABLES WITH READ LOCK;
+SET GLOBAL general_log = OFF;
+SET GLOBAL slow_query_log = OFF;
+UNLOCK TABLES;
+FLUSH TABLES WITH READ LOCK;
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+UNLOCK TABLES;
+SET GLOBAL READ_ONLY = ON;
+SET GLOBAL general_log = OFF;
+SET GLOBAL slow_query_log = OFF;
+SET GLOBAL READ_ONLY = OFF;
+SET GLOBAL READ_ONLY = ON;
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+SET GLOBAL READ_ONLY = OFF;
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;

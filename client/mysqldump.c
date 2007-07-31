@@ -2116,7 +2116,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       MYSQL_FIELD *field;
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
-      if (mysql_query_with_error_report(mysql, 0, buff))
+
+      if (switch_character_set_results(mysql, "binary") ||
+          mysql_query_with_error_report(mysql, &result, buff) ||
+          switch_character_set_results(mysql, default_charset))
         DBUG_RETURN(0);
 
       if (path)
@@ -2147,7 +2150,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         check_io(sql_file);
       }
 
-      result= mysql_store_result(mysql);
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
@@ -2174,7 +2176,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         */
         my_snprintf(query_buff, sizeof(query_buff),
                     "SHOW FIELDS FROM %s", result_table);
-        if (mysql_query_with_error_report(mysql, 0, query_buff))
+        if (switch_character_set_results(mysql, "binary") ||
+            mysql_query_with_error_report(mysql, &result, query_buff) ||
+            switch_character_set_results(mysql, default_charset))
         {
           /*
             View references invalid or privileged table/col/fun (err 1356),
@@ -2192,43 +2196,50 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
 
-        if ((result= mysql_store_result(mysql)))
+        if (mysql_num_rows(result))
         {
-          if (mysql_num_rows(result))
+          if (opt_drop)
           {
-            if (opt_drop)
-            {
             /*
-              We have already dropped any table of the same name
-              above, so here we just drop the view.
-             */
-
-              fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
-                      opt_quoted_table);
-              check_io(sql_file);
-            }
-
-            fprintf(sql_file, "/*!50001 CREATE TABLE %s (\n", result_table);
-            /*
-               Get first row, following loop will prepend comma - keeps
-               from having to know if the row being printed is last to
-               determine if there should be a _trailing_ comma.
+              We have already dropped any table of the same name above, so
+              here we just drop the view.
             */
-            row= mysql_fetch_row(result);
 
-            fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
-                    row[1]);
-
-            while((row= mysql_fetch_row(result)))
-            {
-              /* col name, col type */
-              fprintf(sql_file, ",\n  %s %s",
-                      quote_name(row[0], name_buff, 0), row[1]);
-            }
-            fprintf(sql_file, "\n) */;\n");
+            fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
+                    opt_quoted_table);
             check_io(sql_file);
           }
+
+          fprintf(sql_file,
+                  "SET @saved_cs_client     = @@character_set_client;\n"
+                  "SET character_set_client = utf8;\n"
+                  "/*!50001 CREATE TABLE %s (\n",
+                  result_table);
+
+          /*
+            Get first row, following loop will prepend comma - keeps from
+            having to know if the row being printed is last to determine if
+            there should be a _trailing_ comma.
+          */
+
+          row= mysql_fetch_row(result);
+
+          fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
+                  row[1]);
+
+          while((row= mysql_fetch_row(result)))
+          {
+            /* col name, col type */
+            fprintf(sql_file, ",\n  %s %s",
+                    quote_name(row[0], name_buff, 0), row[1]);
+          }
+          fprintf(sql_file,
+                  "\n) */;\n"
+                  "SET character_set_client = @saved_cs_client;\n");
+
+          check_io(sql_file);
         }
+
         mysql_free_result(result);
 
         if (path)
@@ -2239,7 +2250,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
 
       row= mysql_fetch_row(result);
-      fprintf(sql_file, "%s;\n", row[1]);
+
+      fprintf(sql_file,
+              "SET @saved_cs_client     = @@character_set_client;\n"
+              "SET character_set_client = utf8;\n"
+              "%s;\n"
+              "SET character_set_client = @saved_cs_client;\n",
+              row[1]);
+
       check_io(sql_file);
       mysql_free_result(result);
     }
@@ -3726,11 +3744,12 @@ static int dump_all_tables_in_db(char *database)
   {
     DYNAMIC_STRING query;
     init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
-    for (numrows= 0 ; (table= getTableName(1)) ; numrows++)
+    for (numrows= 0 ; (table= getTableName(1)) ; )
     {
       char *end= strmov(afterdot, table);
       if (include_table(hash_key,end - hash_key))
       {
+        numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
         dynstr_append_checked(&query, " READ /*!32311 LOCAL */,");
       }
@@ -3804,6 +3823,11 @@ static my_bool dump_all_views_in_db(char *database)
   char *table;
   uint numrows;
   char table_buff[NAME_LEN*2+3];
+  char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
+  char *afterdot;
+
+  afterdot= strmov(hash_key, database);
+  *afterdot++= '.';
 
   if (init_dumping(database, init_dumping_views))
     return 1;
@@ -3813,10 +3837,15 @@ static my_bool dump_all_views_in_db(char *database)
   {
     DYNAMIC_STRING query;
     init_dynamic_string_checked(&query, "LOCK TABLES ", 256, 1024);
-    for (numrows= 0 ; (table= getTableName(1)); numrows++)
+    for (numrows= 0 ; (table= getTableName(1)); )
     {
-      dynstr_append_checked(&query, quote_name(table, table_buff, 1));
-      dynstr_append_checked(&query, " READ /*!32311 LOCAL */,");
+      char *end= strmov(afterdot, table);
+      if (include_table(hash_key,end - hash_key))
+      {
+        numrows++;
+        dynstr_append_checked(&query, quote_name(table, table_buff, 1));
+        dynstr_append_checked(&query, " READ /*!32311 LOCAL */,");
+      }
     }
     if (numrows && mysql_real_query(mysql, query.str, query.length-1))
       DB_error(mysql, "when using LOCK TABLES");
@@ -3830,7 +3859,11 @@ static my_bool dump_all_views_in_db(char *database)
            /* We shall continue here, if --force was given */
   }
   while ((table= getTableName(0)))
-     get_view_structure(table, database);
+  {
+    char *end= strmov(afterdot, table);
+    if (include_table(hash_key, end - hash_key))
+      get_view_structure(table, database);
+  }
   if (opt_xml)
   {
     fputs("</database>\n", md_result_file);

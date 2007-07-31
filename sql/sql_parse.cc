@@ -197,8 +197,8 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
@@ -211,7 +211,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;  
+  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
@@ -250,6 +250,14 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT;
   sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
+
+  /*
+    The following admin table operations are allowed
+    on log tables.
+  */
+  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND;
 }
 
 
@@ -257,6 +265,17 @@ bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
+}
+
+/**
+  Check if a sql command is allowed to write to log tables.
+  @param command The SQL command
+  @return true if writing is allowed
+*/
+bool is_log_table_write_query(enum enum_sql_command command)
+{
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
@@ -493,7 +512,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
 
-  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT, 0)))
     DBUG_RETURN(1);
 
   if (check_one_table_access(thd, SELECT_ACL, table_list))
