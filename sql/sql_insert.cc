@@ -446,7 +446,6 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         client connection and the delayed thread.
     */
     if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
-        thd->slave_thread ||
         thd->variables.max_insert_delayed_threads == 0 ||
         thd->prelocked_mode ||
         thd->lex->uses_stored_routines())
@@ -454,6 +453,14 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
       *lock_type= TL_WRITE;
       return;
     }
+    if (thd->slave_thread)
+    {
+      /* Try concurrent insert */
+      *lock_type= (duplic == DUP_UPDATE || duplic == DUP_REPLACE) ?
+                  TL_WRITE : TL_WRITE_CONCURRENT_INSERT;
+      return;
+    }
+
     bool log_on= (thd->options & OPTION_BIN_LOG ||
                   ! (thd->security_ctx->master_access & SUPER_ACL));
     if (log_on && mysql_bin_log.is_open() && is_multi_insert)
