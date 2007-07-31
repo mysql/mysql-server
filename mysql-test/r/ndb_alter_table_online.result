@@ -2,8 +2,6 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
 INSERT INTO t1 values (1,1);
 ALTER TABLE t1 ADD c CHAR(19);
-Warnings:
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 a	b	c
