@@ -4533,17 +4533,16 @@ ha_innobase::position(
 /*********************************************************************
 If it's a DB_TOO_BIG_RECORD error then set a suitable message to
 return to the client.*/
-static
+inline
 void
 innodb_check_for_record_too_big_error(
 /*==================================*/
-	dict_table_t*	table,		/* in: table to check */
-	int		error)		/* in: error code to check */
+	ulint	comp,	/* in: ROW_FORMAT: nonzero=COMPACT, 0=REDUNDANT */
+	int	error)	/* in: error code to check */
 {
 	if (error == (int)DB_TOO_BIG_RECORD) {
-		ulint		max_row_size;
-
-		max_row_size = page_get_free_space_of_empty_noninline(table);
+		ulint	max_row_size
+			= page_get_free_space_of_empty_noninline(comp) / 2;
 
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
 	}
@@ -4657,9 +4656,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(table, error);
+	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4783,9 +4780,8 @@ create_index(
 	sure we don't create too long indexes. */
 	error = row_create_index_for_mysql(index, trx, field_lengths);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(index->table, error);
+	innodb_check_for_record_too_big_error(form->s->row_type
+					      != ROW_TYPE_REDUNDANT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4802,6 +4798,8 @@ int
 create_clustered_index_when_no_primary(
 /*===================================*/
 	trx_t*		trx,		/* in: InnoDB transaction handle */
+	ulint		comp,		/* in: ROW_FORMAT:
+					nonzero=COMPACT, 0=REDUNDANT */
 	const char*	table_name)	/* in: table name */
 {
 	dict_index_t*	index;
@@ -4810,13 +4808,11 @@ create_clustered_index_when_no_primary(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	index = dict_mem_index_create((char*) table_name,
-		(char*) "GEN_CLUST_INDEX", 0, DICT_CLUSTERED, 0);
+	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(index->table, error);
+	innodb_check_for_record_too_big_error(comp, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4947,8 +4943,9 @@ ha_innobase::create(
 		order the rows by their row id which is internally generated
 		by InnoDB */
 
-		error = create_clustered_index_when_no_primary(trx,
-							norm_name);
+		error = create_clustered_index_when_no_primary(
+			trx, form->s->row_type != ROW_TYPE_REDUNDANT,
+			norm_name);
 		if (error) {
 			goto cleanup;
 		}
@@ -5873,9 +5870,9 @@ ha_innobase::update_table_comment(
 	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
-	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
-		   (ulong) fsp_get_available_space_in_free_extents(
-					prebuilt->table->space));
+	fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+		fsp_get_available_space_in_free_extents(
+			prebuilt->table->space));
 
 	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);

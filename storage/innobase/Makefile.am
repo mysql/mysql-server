@@ -55,7 +55,9 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/ha0ha.ic include/hash0hash.h		\
 			include/hash0hash.ic include/ibuf0ibuf.h	\
 			include/ibuf0ibuf.ic include/ibuf0types.h	\
+			include/lock0iter.h				\
 			include/lock0lock.h include/lock0lock.ic	\
+			include/lock0priv.h include/lock0priv.ic	\
 			include/lock0types.h include/log0log.h		\
 			include/log0log.ic include/log0recv.h		\
 			include/log0recv.ic include/mach0data.h		\
@@ -129,7 +131,8 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			eval/eval0eval.c eval/eval0proc.c		\
 			fil/fil0fil.c fsp/fsp0fsp.c fut/fut0fut.c	\
 			fut/fut0lst.c ha/ha0ha.c ha/hash0hash.c		\
-			ibuf/ibuf0ibuf.c lock/lock0lock.c		\
+			ibuf/ibuf0ibuf.c lock/lock0iter.c		\
+			lock/lock0lock.c				\
 			log/log0log.c log/log0recv.c mach/mach0data.c	\
 			mem/mem0mem.c mem/mem0pool.c mtr/mtr0log.c	\
 			mtr/mtr0mtr.c os/os0file.c os/os0proc.c		\
