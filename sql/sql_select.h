@@ -277,6 +277,14 @@ public:
   SELECT_LEX_UNIT *unit;
   // select that processed
   SELECT_LEX *select_lex;
+  /* 
+    TRUE <=> optimizer must not mark any table as a constant table.
+    This is needed for subqueries in form "a IN (SELECT .. UNION SELECT ..):
+    when we optimize the select that reads the results of the union from a
+    temporary table, we must not mark the temp. table as constant because
+    the number of rows in it may vary from one subquery execution to another.
+  */
+  bool no_const_tables; 
   
   JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
   ROLLUP rollup;				// Used with rollup
@@ -397,6 +405,8 @@ public:
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
+
+    no_const_tables= FALSE;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
