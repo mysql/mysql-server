@@ -2417,7 +2417,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 
     if ((table->s->system || table->file->records <= 1) && ! s->dependent &&
 	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
-        !table->fulltext_searched)
+        !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
