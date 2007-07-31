@@ -121,8 +121,8 @@ public:
           /*
             These types store two bytes.
           */
-          uint16 *x= (uint16 *)&field_metadata[index];
-          m_field_metadata[i]= *x;
+          char *ptr= (char *)&field_metadata[index];
+          m_field_metadata[i]= sint2korr(ptr);
           index= index + sizeof(short int);
           break;
         }
