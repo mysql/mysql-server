@@ -321,6 +321,14 @@ public:
   ROLLUP rollup;				// Used with rollup
 
   bool select_distinct;				// Set if SELECT DISTINCT
+  /*
+    If we have the GROUP BY statement in the query,
+    but the group_list was emptied by optimizer, this
+    flag is TRUE.
+    It happens when fields in the GROUP BY are from
+    constant table
+  */
+  bool group_optimized_away;
 
   /*
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
@@ -429,6 +437,7 @@ public:
     zero_result_cause= 0;
     optimized= 0;
     cond_equal= 0;
+    group_optimized_away= 0;
 
     all_fields= fields_arg;
     fields_list= fields_arg;
