@@ -927,7 +927,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     
     /* append the text between sp ref occurences */
     res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
-    prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
+    prev_pos= (*splocal)->pos_in_query + (*splocal)->len_in_query;
     
     /* append the spvar substitute */
     res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));

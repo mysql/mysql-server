@@ -6378,6 +6378,17 @@ Level	Code	Message
 use test;
 drop procedure sp_bug29050;
 drop table t1;
+SET NAMES latin1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE бвд INT;
+SELECT бвд;
+END|
+CALL p1();
+бвд
+NULL
+SET NAMES default;
+DROP PROCEDURE p1;
 drop procedure if exists proc_25411_a;
 drop procedure if exists proc_25411_b;
 drop procedure if exists proc_25411_c;
@@ -6420,7 +6431,7 @@ select 1;
 select 3;
  select 4; 
 
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_25411_a();
 1
 1
@@ -6440,7 +6451,7 @@ proc_25411_b		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_b`(
 )
 begin
 select p1, p2;
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 select name, param_list, body from mysql.proc where name like "%25411%";
 name	param_list	body
 proc_25411_a		begin
@@ -6478,7 +6489,7 @@ select 1 ,2 ,3;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_25411_c();
 1	2	3
 1	2	3
@@ -6499,7 +6510,7 @@ select 1 /* testing */;
 show create procedure proc_26302;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_26302		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_26302`()
-select 1 /* testing */	utf8	utf8_general_ci	latin1_swedish_ci
+select 1 /* testing */	latin1	latin1_swedish_ci	latin1_swedish_ci
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
 where ROUTINE_NAME = "proc_26302";
 ROUTINE_NAME	ROUTINE_DEFINITION
