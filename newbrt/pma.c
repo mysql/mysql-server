@@ -504,9 +504,9 @@ int pma_free (PMA *pmap) {
 	}
     }
     toku_free(pma->pairs);
-    toku_free(pma);
     if (pma->skey) toku_free(pma->skey);
     if (pma->sval) toku_free(pma->sval);
+    toku_free(pma);
     *pmap=0;
     return 0;
 }
