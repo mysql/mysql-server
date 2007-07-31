@@ -2254,7 +2254,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   }
 
   /* open table */
-  if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
+  if (!(di->table=open_ltable(thd, &di->table_list, TL_WRITE_DELAYED, 0)))
   {
     thd->fatal_error();				// Abort waiting inserts
     goto err;

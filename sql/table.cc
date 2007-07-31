@@ -21,6 +21,18 @@
 #include <m_ctype.h>
 #include "my_md5.h"
 
+/* INFORMATION_SCHEMA name */
+LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
+
+/* MYSQL_SCHEMA name */
+LEX_STRING MYSQL_SCHEMA_NAME= {C_STRING_WITH_LEN("mysql")};
+
+/* GENERAL_LOG name */
+LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
+
+/* SLOW_LOG name */
+LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -31,6 +43,7 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+inline bool is_system_table_name(const char *name, uint length);
 
 /**************************************************************************
   Object_creation_ctx implementation.
@@ -192,6 +205,49 @@ char *fn_rext(char *name)
   return name + strlen(name);
 }
 
+TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
+{
+  DBUG_ASSERT(db != NULL);
+  DBUG_ASSERT(name != NULL);
+
+  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    INFORMATION_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    return TABLE_CATEGORY_INFORMATION;
+  }
+
+  if ((db->length == MYSQL_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    MYSQL_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    if (is_system_table_name(name->str, name->length))
+    {
+      return TABLE_CATEGORY_SYSTEM;
+    }
+
+    if ((name->length == GENERAL_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      GENERAL_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+
+    if ((name->length == SLOW_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      SLOW_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+  }
+
+  return TABLE_CATEGORY_USER;
+}
+
 
 /*
   Allocate a setup TABLE_SHARE structure
@@ -297,7 +353,8 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
 
   bzero((char*) share, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  share->tmp_table=  	         INTERNAL_TMP_TABLE;
+  share->table_category=         TABLE_CATEGORY_TEMPORARY;
+  share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
   share->db.length=		 strlen(key);
   share->table_cache_key.str=    (char*) key;
@@ -544,27 +601,10 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
-
-    if (share->db.length == 5 && !(lower_case_table_names ?
-        my_strcasecmp(system_charset_info, share->db.str, "mysql") :
-        strcmp(share->db.str, "mysql")))
-    {
-      /*
-        We can't mark all tables in 'mysql' database as system since we don't
-        allow to lock such tables for writing with any other tables (even with
-        other system tables) and some privilege tables need this.
-      */
-      share->system_table= is_system_table_name(share->table_name.str,
-                                                share->table_name.length);
-      if (!share->system_table)
-      {
-        share->log_table= check_if_log_table(share->db.length, share->db.str,
-                                             share->table_name.length,
-                                             share->table_name.str, 0);
-      }
-    }
     error_given= 1;
   }
+
+  share->table_category= get_table_category(& share->db, & share->table_name);
 
   if (!error)
     thd->status_var.opened_shares++;
@@ -2853,135 +2893,6 @@ void st_table::reset_item_list(List<Item> *item_list) const
     item_field->reset_field(*ptr);
   }
 }
-
-
-/**
-  Set the initial purpose of this TABLE_LIST object in the list of
-  used tables. We need to track this information on table-by-
-  table basis, since when this table becomes an element of the
-  pre-locked list, it's impossible to identify which SQL
-  sub-statement it has been originally used in.
-
-  E.g.:
-
-  User request:                 SELECT * FROM t1 WHERE f1();
-  FUNCTION f1():                DELETE FROM t2; RETURN 1;
-  BEFORE DELETE trigger on t2:  INSERT INTO t3 VALUES (old.a);
-
-  For this user request, the pre-locked list will contain t1, t2, t3
-  table elements, each needed for different DML.
-
-  This method is called immediately after parsing for tables
-  of the table list of the top-level select lex.
-
-  The trigger event map is updated to reflect INSERT, UPDATE, DELETE,
-  REPLACE, LOAD DATA, CREATE TABLE .. SELECT, CREATE TABLE ..
-  REPLACE SELECT statements, and additionally ON DUPLICATE KEY UPDATE
-  clause.
-*/
-
-void
-TABLE_LIST::set_trg_event_type(const st_lex *lex)
-{
-  enum trg_event_type trg_event;
-
-  /*
-    Some auxiliary operations
-    (e.g. GRANT processing) create TABLE_LIST instances outside
-    the parser. Additionally, some commands (e.g. OPTIMIZE) change
-    the lock type for a table only after parsing is done. Luckily,
-    these do not fire triggers and do not need to pre-load them.
-    For these TABLE_LISTs set_trg_event_type is never called, and
-    trg_event_map is always empty. That means that the pre-locking
-    algorithm will ignore triggers defined on these tables, if
-    any, and the execution will either fail with an assert in
-    sql_trigger.cc or with an error that a used table was not
-    pre-locked, in case of a production build.
-
-    TODO: this usage pattern creates unnecessary module dependencies
-    and should be rewritten to go through the parser.
-    Table list instances created outside the parser in most cases
-    refer to mysql.* system tables. It is not allowed to have
-    a trigger on a system table, but keeping track of
-    initialization provides extra safety in case this limitation
-    is circumvented.
-  */
-
-  /*
-    This is a fast check to filter out statements that do
-    not change data, or tables  on the right side, in case of
-    INSERT .. SELECT, CREATE TABLE .. SELECT and so on.
-    Here we also filter out OPTIMIZE statement and non-updateable
-    views, for which lock_type is TL_UNLOCK or TL_READ after
-    parsing.
-  */
-  if (static_cast<int>(lock_type) < static_cast<int>(TL_WRITE_ALLOW_WRITE))
-    return;
-
-  switch (lex->sql_command) {
-  /*
-    Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
-    clause, it will be handled later in this method.
-  */
-  case SQLCOM_INSERT:                           /* fall through */
-  case SQLCOM_INSERT_SELECT:
-  /*
-    LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
-    triggers.
-    If the statement also has REPLACE clause, it will be
-    handled later in this method.
-  */
-  case SQLCOM_LOAD:                             /* fall through */
-  /*
-    REPLACE is semantically equivalent to INSERT. In case
-    of a primary or unique key conflict, it deletes the old
-    record and inserts a new one. So we also may need to
-    fire ON DELETE triggers. This functionality is handled
-    later in this method.
-  */
-  case SQLCOM_REPLACE:                          /* fall through */
-  case SQLCOM_REPLACE_SELECT:
-  /*
-    CREATE TABLE ... SELECT defaults to INSERT if the table or
-    view already exists. REPLACE option of CREATE TABLE ...
-    REPLACE SELECT is handled later in this method.
-  */
-  case SQLCOM_CREATE_TABLE:
-    trg_event= TRG_EVENT_INSERT;
-    break;
-  /* Basic update and multi-update */
-  case SQLCOM_UPDATE:                           /* fall through */
-  case SQLCOM_UPDATE_MULTI:
-    trg_event= TRG_EVENT_UPDATE;
-    break;
-  /* Basic delete and multi-delete */
-  case SQLCOM_DELETE:                           /* fall through */
-  case SQLCOM_DELETE_MULTI:
-    trg_event= TRG_EVENT_DELETE;
-    break;
-  default:
-    /*
-      OK to return, since value of 'duplicates' is irrelevant
-      for non-updating commands.
-    */
-    return;
-  }
-  trg_event_map|= static_cast<uint8>(1 << static_cast<int>(trg_event));
-
-  switch (lex->duplicates) {
-  case DUP_UPDATE:
-    trg_event= TRG_EVENT_UPDATE;
-    break;
-  case DUP_REPLACE:
-    trg_event= TRG_EVENT_DELETE;
-    break;
-  case DUP_ERROR:
-  default:
-    return;
-  }
-  trg_event_map|= static_cast<uint8>(1 << static_cast<int>(trg_event));
-}
-
 
 /*
   calculate md5 of query
