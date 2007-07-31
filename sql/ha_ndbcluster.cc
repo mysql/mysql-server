@@ -10766,10 +10766,20 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     }
   }
 
+  /*
+    Temporary workaround until TUP is fixed.
+    If no var or dyn attr, use copying alter table.
+  */
+  bool any_var_dyn_attr=false;
+
   for (i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
+
+    if (col->getArrayType() != NdbDictionary::Column::ArrayTypeFixed ||
+        col->getDynamic())
+      any_var_dyn_attr=true;
 
     create_ndb_column(0, new_col, field, create_info);
     if (col->getStorageType() != new_col.getStorageType())
@@ -10799,6 +10809,12 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   if (table_changes != IS_EQUAL_YES)
   {
     DBUG_PRINT("info", ("table_changes != IS_EQUAL_YES"));
+    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+  }
+
+  if (alter_flags->is_set(HA_ADD_COLUMN) && !any_var_dyn_attr)
+  {
+    DBUG_PRINT("info", ("no var dyn attr"));
     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   }
 
