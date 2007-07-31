@@ -559,6 +559,10 @@ show status like 'slow_queries';
 # FROM I_S.
 #
 
+#
+# Part 1: check that meta-data specifies not-binary character set.
+#
+
 # Ensure that all needed objects are dropped.
 
 --disable_warnings
@@ -765,6 +769,59 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+
+#
+# Part 2: check that table with non-latin1 characters are dumped/restored
+# correctly.
+#
+
+# Ensure that all needed objects are dropped.
+
+set names koi8r;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+# Create objects.
+
+CREATE DATABASE mysqltest1;
+
+use mysqltest1;
+
+CREATE TABLE t1(колонка1 INT);
+
+# Check:
+#   - Dump mysqltest1;
+
+--echo
+--echo ---> Dumping mysqltest1 to show_check.mysqltest1.sql
+
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+
+#   - Clean mysqltest1;
+
+--echo
+--echo
+
+DROP DATABASE mysqltest1;
+
+#   - Restore mysqltest1;
+
+--echo
+--echo
+
+--echo ---> Restoring mysqltest1...
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
+
+#   - Check definition of the table.
+
+SHOW CREATE TABLE mysqltest1.t1;
+
+# Cleanup.
+
+DROP DATABASE mysqltest1;
+use test;
 
 #
 # Bug #28808: log_queries_not_using_indexes variable dynamic change is ignored
