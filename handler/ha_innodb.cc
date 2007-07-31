@@ -40,22 +40,7 @@ have disabled the InnoDB inlining in this file. */
 #include "ha_innodb.h"
 #include <mysql/plugin.h>
 
-#ifdef MYSQL_SERVER
-/* Define some macros until these functions are declared in <mysql/plugin.h>.
-Once these functions are defined by MySQL, we may consider
-removing -DMYSQL_SERVER from ../Makefile.am as well. */
-#define thd_charset(thd) (thd)->charset()
-#define thd_get_xid(thd,xid_) ((*xid_) = (thd)->transaction.xid_state.xid)
-#define thd_memdup(thd,str,len) (thd)->memdup(str, len)
-#define thd_killed(thd) (thd)->killed
-#define thd_slave_thread(thd) (thd)->slave_thread
-#define thd_query(thd) (&(thd)->query)
-#define thd_non_transactional_update(thd) ((thd)->no_trans_update.all)
-#define mysql_bin_log_file_name() mysql_bin_log.get_log_fname()
-#define mysql_bin_log_file_pos() mysql_bin_log.get_log_file()->pos_in_file
-/*#define mysql_tmpfile() fileno(tmpfile())/* BUGGY: leaks memory, Bug #3998 */
-#define mysql_query_cache_invalidate4(a,b,c,d) query_cache.invalidate(a,b,c,d)
-#else /* MYSQL_SERVER */
+#ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
@@ -87,30 +72,30 @@ typedef uchar mysql_byte;
 
 /* Include necessary InnoDB headers */
 extern "C" {
-#include "univ.i"
-#include "os0file.h"
-#include "os0thread.h"
-#include "srv0start.h"
-#include "srv0srv.h"
-#include "trx0roll.h"
-#include "trx0trx.h"
-#include "trx0sys.h"
-#include "mtr0mtr.h"
-#include "row0ins.h"
-#include "row0mysql.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "log0log.h"
-#include "lock0lock.h"
-#include "dict0crea.h"
-#include "btr0cur.h"
-#include "btr0btr.h"
-#include "fsp0fsp.h"
-#include "sync0sync.h"
-#include "fil0fil.h"
-#include "trx0xa.h"
-#include "thr0loc.h"
-#include "ha_prototypes.h"
+#include "../storage/innobase/include/univ.i"
+#include "../storage/innobase/include/os0file.h"
+#include "../storage/innobase/include/os0thread.h"
+#include "../storage/innobase/include/srv0start.h"
+#include "../storage/innobase/include/srv0srv.h"
+#include "../storage/innobase/include/trx0roll.h"
+#include "../storage/innobase/include/trx0trx.h"
+#include "../storage/innobase/include/trx0sys.h"
+#include "../storage/innobase/include/mtr0mtr.h"
+#include "../storage/innobase/include/row0ins.h"
+#include "../storage/innobase/include/row0mysql.h"
+#include "../storage/innobase/include/row0sel.h"
+#include "../storage/innobase/include/row0upd.h"
+#include "../storage/innobase/include/log0log.h"
+#include "../storage/innobase/include/lock0lock.h"
+#include "../storage/innobase/include/dict0crea.h"
+#include "../storage/innobase/include/btr0cur.h"
+#include "../storage/innobase/include/btr0btr.h"
+#include "../storage/innobase/include/fsp0fsp.h"
+#include "../storage/innobase/include/sync0sync.h"
+#include "../storage/innobase/include/fil0fil.h"
+#include "../storage/innobase/include/trx0xa.h"
+#include "../storage/innobase/include/thr0loc.h"
+#include "../storage/innobase/include/ha_prototypes.h"
 }
 
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
@@ -665,7 +650,7 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_TABLE_NOT_FOUND) {
 
-		return(HA_ERR_KEY_NOT_FOUND);
+		return(HA_ERR_NO_SUCH_TABLE);
 
 	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
@@ -893,7 +878,28 @@ innobase_mysql_tmpfile(void)
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
 {
-	return(mysql_tmpfile());
+	int	fd2 = -1;
+	File	fd = mysql_tmpfile("ib");
+	if (fd >= 0) {
+		/* Copy the file descriptor, so that the additional resources
+		allocated by create_temp_file() can be freed by invoking
+		my_close().
+
+		Because the file descriptor returned by this function
+		will be passed to fdopen(), it will be closed by invoking
+		fclose(), which in turn will invoke close() instead of
+		my_close(). */
+		fd2 = dup(fd);
+		if (fd2 < 0) {
+			DBUG_PRINT("error",("Got error %d on dup",fd2));
+			my_errno=errno;
+			my_error(EE_OUT_OF_FILERESOURCES,
+				 MYF(ME_BELL+ME_WAITTANG),
+				 "ib*", my_errno);
+		}
+		my_close(fd, MYF(MY_WME));
+	}
+	return(fd2);
 }
 
 /*************************************************************************
@@ -941,6 +947,8 @@ check_trx_exists(
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = THDVAR(thd, support_xa);
+
+		thd_to_trx(thd) = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -976,6 +984,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_CAN_SQL_HANDLER |
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
+		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
@@ -1683,7 +1692,6 @@ innobase_init(
 
 	DBUG_RETURN(FALSE);
 error:
-	innobase_hton->state = SHOW_OPTION_DISABLED;
 	DBUG_RETURN(TRUE);
 }
 
@@ -2298,6 +2306,21 @@ ha_innobase::get_row_type() const
 	}
 	ut_ad(0);
 	return(ROW_TYPE_NOT_USED);
+}
+
+
+
+/********************************************************************
+Get the table flags to use for the statement. */
+handler::Table_flags
+ha_innobase::table_flags() const
+{
+       /* Need to use tx_isolation here since table flags is (also)
+          called before prebuilt is inited. */
+        ulong const tx_isolation = thd_tx_isolation(current_thd);
+        if (tx_isolation <= ISO_READ_COMMITTED)
+                return int_table_flags;
+        return int_table_flags | HA_BINLOG_STMT_CAPABLE;
 }
 
 /********************************************************************
@@ -6105,8 +6128,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  while (tmp_buff[i] != '/')
 		  i++;
 	  tmp_buff+= i + 1;
-	  f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
-		  (uint) strlen(tmp_buff), 1);
+	  f_key_info.forein_id = thd_make_lex_string(thd, 0,
+		  tmp_buff, (uint) strlen(tmp_buff), 1);
 	  tmp_buff= foreign->referenced_table_name;
 
           /* Database name */
@@ -6118,22 +6141,23 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
           db_name[i]= 0;
           ulen= filename_to_tablename(db_name, uname, sizeof(uname));
-          f_key_info.referenced_db= make_lex_string(thd, 0, uname, ulen, 1);
+	  f_key_info.referenced_db = thd_make_lex_string(thd, 0,
+		  uname, ulen, 1);
 
           /* Table name */
 	  tmp_buff+= i + 1;
           ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
-          f_key_info.referenced_table= make_lex_string(thd, 0, uname,
-                                                       ulen, 1);
+	  f_key_info.referenced_table = thd_make_lex_string(thd, 0,
+		  uname, ulen, 1);
 
 	  for (i= 0;;) {
 		  tmp_buff= foreign->foreign_col_names[i];
-		  name= make_lex_string(thd, name, tmp_buff,
-			  (uint) strlen(tmp_buff), 1);
+		  name = thd_make_lex_string(thd, name,
+			  tmp_buff, (uint) strlen(tmp_buff), 1);
 		  f_key_info.foreign_fields.push_back(name);
 		  tmp_buff= foreign->referenced_col_names[i];
-		  name= make_lex_string(thd, name, tmp_buff,
-			  (uint) strlen(tmp_buff), 1);
+		  name = thd_make_lex_string(thd, name,
+			tmp_buff, (uint) strlen(tmp_buff), 1);
 		  f_key_info.referenced_fields.push_back(name);
 		  if (++i >= foreign->n_fields)
 			  break;
@@ -6160,8 +6184,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
             length=8;
             tmp_buff= "RESTRICT";
           }
-          f_key_info.delete_method= make_lex_string(thd, f_key_info.delete_method,
-                                                    tmp_buff, length, 1);
+	  f_key_info.delete_method = thd_make_lex_string(
+		  thd, f_key_info.delete_method, tmp_buff, length, 1);
  
  
           if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
@@ -6184,19 +6208,19 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
             length=8;
             tmp_buff= "RESTRICT";
           }
-          f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
-                                                    tmp_buff, length, 1);
+	  f_key_info.update_method = thd_make_lex_string(
+		  thd, f_key_info.update_method, tmp_buff, length, 1);
           if (foreign->referenced_index &&
               foreign->referenced_index->name)
           {
-            f_key_info.referenced_key_name= 
-              make_lex_string(thd, f_key_info.referenced_key_name,
-                              foreign->referenced_index->name,
-                              strlen(foreign->referenced_index->name), 1);
+	    f_key_info.referenced_key_name = thd_make_lex_string(
+		    thd, f_key_info.referenced_key_name,
+		    foreign->referenced_index->name,
+		    strlen(foreign->referenced_index->name), 1);
           }
 
 	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-		thd_memdup(thd, &f_key_info, sizeof f_key_info);
+		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
 	  f_key_list->push_back(pf_key_info);
 	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
   }
@@ -6459,6 +6483,29 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
+	/* Statement based binlogging does not work in isolation level
+	READ UNCOMMITTED and READ COMMITTED since the necessary
+	locks cannot be taken. In this case, we print an
+	informative error message and return with an error. */
+	if (lock_type == F_WRLCK)
+	{
+		ulong const binlog_format= thd_binlog_format(thd);
+		ulong const tx_isolation = thd_tx_isolation(current_thd);
+		if (tx_isolation <= ISO_READ_COMMITTED &&
+		    binlog_format == BINLOG_FORMAT_STMT)
+		{
+			char buf[256];
+			my_snprintf(buf, sizeof(buf),
+				    "Transaction level '%s' in"
+				    " InnoDB is not safe for binlog mode '%s'",
+				    tx_isolation_names[tx_isolation],
+				    binlog_format_names[binlog_format]);
+			my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
+			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+		}
+	}
+
+
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -6702,10 +6749,6 @@ innodb_show_status(
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
 	DBUG_ENTER("innodb_show_status");
-
-	if (hton->state != SHOW_OPTION_YES) {
-		DBUG_RETURN(FALSE);
-	}
 
 	trx = check_trx_exists(thd);
 
@@ -7685,7 +7728,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	thd_get_xid(thd, &trx->xid);
+	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
