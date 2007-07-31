@@ -463,10 +463,6 @@ insert into t2 select bug27417(2);
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	218		
-/* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
 3
@@ -478,10 +474,6 @@ delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	223		
-/* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 count(*)
 5
