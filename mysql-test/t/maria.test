@@ -431,6 +431,17 @@ update t1 set a='bbb' where a='aaa';
 select concat(a,'.') from t1;
 drop table t1;
 
+# test again but with dynamic format
+create table t1 ( a text not null, key a (a(20))) row_format=dynamic;
+insert into t1 values ('aaa   '),('aaa'),('aa');
+check table t1;
+repair table t1;
+select concat(a,'.') from t1 where a='aaa';
+select concat(a,'.') from t1 where binary a='aaa';
+update t1 set a='bbb' where a='aaa';
+select concat(a,'.') from t1;
+drop table t1;
+
 #
 # More space testing
 #
