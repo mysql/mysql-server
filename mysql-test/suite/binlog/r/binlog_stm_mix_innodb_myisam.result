@@ -380,12 +380,12 @@ select
 @a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
 1	1
 drop table t1, t2;
-create temporary table tt (a int unique);
+create table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	98		
+master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -398,8 +398,8 @@ count(*)
 2
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	507		
-show binlog events from 98;
+master-bin.000001	515		
+show binlog events from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
@@ -419,19 +419,19 @@ delete from tt where a=1;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	98		
+master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	581		
-show binlog events from 98;
+master-bin.000001	589		
+show binlog events from 106;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
@@ -446,7 +446,7 @@ select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
 2
-drop table ti;
+drop table ti,tt;
 drop function if exists bug27417;
 drop table if exists t1,t2;
 CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
@@ -462,10 +462,10 @@ insert into t2 values (bug27417(1));
 insert into t2 select bug27417(2);
 reset master;
 insert into t2 values (bug27417(2));
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	98		
+master-bin.000001	218		
 /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -480,7 +480,7 @@ count(*)
 2
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	195		
+master-bin.000001	223		
 /* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 count(*)

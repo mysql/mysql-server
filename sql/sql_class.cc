@@ -2573,7 +2573,7 @@ extern "C" int thd_slave_thread(const MYSQL_THD thd)
 
 extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
-  return(thd->no_trans_update.all);
+  return(thd->transaction.all.modified_non_trans_table);
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
