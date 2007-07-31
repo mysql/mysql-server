@@ -3188,7 +3188,7 @@ void select_insert::abort() {
                             table->file->has_transactions(), FALSE);
         if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
             !can_rollback_data())
-          thd->no_trans_update.all= TRUE;
+          thd->transaction.all.modified_non_trans_table= TRUE;
         query_cache_invalidate3(thd, table, 1);
       }
     }

@@ -5176,7 +5176,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     thd->options&= ~OPTION_KEEP_LOG;
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
