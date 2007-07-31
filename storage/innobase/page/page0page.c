@@ -209,6 +209,18 @@ page_set_max_trx_id(
 	}
 }
 
+/*****************************************************************
+Calculates free space if a page is emptied. */
+
+ulint
+page_get_free_space_of_empty_noninline(
+/*===================================*/
+			/* out: free space */
+	ulint	comp)	/* in: nonzero=compact page format */
+{
+	return(page_get_free_space_of_empty(comp));
+}
+
 /****************************************************************
 Allocates a block of memory from an index page. */
 
