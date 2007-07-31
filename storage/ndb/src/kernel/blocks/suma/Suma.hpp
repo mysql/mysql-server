@@ -491,6 +491,9 @@ public:
     void resetRestart(Signal* signal);
   } Restart;
 
+  // for LQH transporter overload check
+  const NodeBitmask& getSubscriberNodes() const { return c_subscriber_nodes; }
+
 private:
   friend class Restart;
   /**
