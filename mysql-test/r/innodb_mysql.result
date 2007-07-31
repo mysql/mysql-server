@@ -814,6 +814,34 @@ drop table if exists t1;
 create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
 drop table t1;
+
+Bug#24918 drop table and lock / inconsistent between 
+perm and temp tables
+
+Check transactional tables under LOCK TABLES
+
+drop table if exists t24918, t24918_tmp, t24918_trans, t24918_trans_tmp, 
+t24918_access;
+create table t24918_access (id int);
+create table t24918 (id int) engine=myisam;
+create temporary table t24918_tmp (id int) engine=myisam;
+create table t24918_trans (id int) engine=innodb;
+create temporary table t24918_trans_tmp (id int) engine=innodb;
+lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+drop table t24918;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+unlock tables;
+drop table t24918_access;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
