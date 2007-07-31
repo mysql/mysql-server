@@ -1054,9 +1054,18 @@ public:
     SP variable in query text.
   */
   uint pos_in_query;
+  /*
+    Byte length of SP variable name in the statement (see pos_in_query).
+    The value of this field may differ from the name_length value because
+    name_length contains byte length of UTF8-encoded item name, but
+    the query string (see sp_instr_stmt::m_query) is currently stored with
+    a charset from the SET NAMES statement.
+  */
+  uint len_in_query;
 
   Item_splocal(const LEX_STRING &sp_var_name, uint sp_var_idx,
-               enum_field_types sp_var_type, uint pos_in_q= 0);
+               enum_field_types sp_var_type,
+               uint pos_in_q= 0, uint len_in_q= 0);
 
   bool is_splocal() { return 1; } /* Needed for error checking */
 

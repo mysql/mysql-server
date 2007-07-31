@@ -9505,7 +9505,8 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
                                       lip->get_tok_start_prev() -
-                                      lex->sphead->m_tmp_query);
+                                      lex->sphead->m_tmp_query,
+                                      lip->get_tok_end() - lip->get_tok_start_prev());
 #ifndef DBUG_OFF
             if (splocal)
               splocal->m_sp= lex->sphead;
