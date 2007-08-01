@@ -112,7 +112,8 @@ CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
 
 int cachefile_flush (CACHEFILE cf);
 
-int cachefile_close (CACHEFILE cf) {
+int cachefile_close (CACHEFILE *cfp) {
+    CACHEFILE cf = *cfp;
     assert(cf->refcount>0);
     cf->refcount--;
     if (cf->refcount==0) {
@@ -121,8 +122,10 @@ int cachefile_close (CACHEFILE cf) {
 	r = close(cf->fd);
 	cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
 	toku_free(cf);
+	*cfp=0;
 	return r;
     } else {
+	*cfp=0;
 	return 0;
     }
 }
@@ -395,7 +398,8 @@ int cachefile_flush (CACHEFILE cf) {
 
 
 /* Require that it all be flushed. */
-int cachetable_close (CACHETABLE t) {
+int cachetable_close (CACHETABLE *tp) {
+    CACHETABLE t=*tp;
     int i;
     int r;
     if ((r=cachetable_flush(t))) return r;
@@ -404,6 +408,7 @@ int cachetable_close (CACHETABLE t) {
     }
     toku_free(t->table);
     toku_free(t);
+    *tp = 0;
     return 0;
 }
 

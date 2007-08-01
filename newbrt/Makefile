@@ -3,18 +3,21 @@
 # OPTFLAGS = -O2
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror -fPIC
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
-DTOOL = valgrind
+DTOOL = valgrind --quiet --error-exitcode=1
+
+# When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
+
 
 default: bins
 BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 hashtest ybt-test
 bins: $(BINS)
 check: bins
 	$(DTOOL) ./ybt-test
-	./pma-test
-	./cachetable-test
-	./brt-serialize-test
+	$(DTOOL) ./pma-test
+	$(DTOOL) ./cachetable-test
+	$(DTOOL) ./brt-serialize-test
 	./brt-test
-	./hashtest
+	$(DTOOL) ./hashtest
 #	./mdict-test
 
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
@@ -26,7 +29,7 @@ ybt.o: ybt.h brttypes.h
 ybt-test: ybt-test.o ybt.o memory.o
 cachetable.o: cachetable.h
 brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
-brt-test.o brt.o: brt.h hashtable.h pma.h brttypes.h
+brt-test.o brt.o: brt.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: pma.h yerror.h brt.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
 mdict.o: pma.h
@@ -38,7 +41,7 @@ header-io.o: brttypes.h brt-internal.h memory.h
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o
 
 cachetable-test.o: cachetable.h memory.h
 cachetable-test: cachetable.o memory.o cachetable-test.o

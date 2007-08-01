@@ -38,7 +38,8 @@
 extern long long n_items_malloced;
 
 /* Frees a node, including all the stuff in the hash table. */
-void brtnode_free (BRTNODE node) {
+void brtnode_free (BRTNODE *nodep) {
+    BRTNODE node=*nodep;
     int i;
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, node, node->mdicts[0]);
     if (node->height>0) {
@@ -55,6 +56,7 @@ void brtnode_free (BRTNODE node) {
 	    pma_free(&node->u.l.buffer);
     }
     toku_free(node);
+    *nodep=0;
 }
 
 void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnode_v, int write_me, int keep_me) {
@@ -71,7 +73,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnod
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
-	brtnode_free(brtnode);
+	brtnode_free(&brtnode);
     }
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
@@ -979,7 +981,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     t->compare_fun = compare_fun;
     t->skey = t->sval = 0;
     if (dbname) {
-	malloced_name = mystrdup(dbname);
+	malloced_name = toku_strdup(dbname);
 	if (malloced_name==0) {
 	    r = ENOMEM;
 	    if (0) { died0a: if(malloced_name) toku_free(malloced_name); }
@@ -989,7 +991,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
     t->database_name = malloced_name;
     r=cachetable_openf(&t->cf, cachetable, fname, O_RDWR | (is_create ? O_CREAT : 0), 0777);
     if (r!=0) {
-	if (0) { died1: cachefile_close(t->cf); }
+	if (0) { died1: cachefile_close(&t->cf); }
 	goto died0a;
     }
     assert(nodesize>0);
@@ -1010,9 +1012,9 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if (dbname) {
 		t->h->unnamed_root = -1;
 		t->h->n_named_roots = 1;
-		if ((MALLOC_N(1, t->h->names))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died3: toku_free(t->h->names); } goto died2; }
-		if ((MALLOC_N(1, t->h->roots))==0)           { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: toku_free(t->h->roots); } goto died3; }
-		if ((t->h->names[0] = mystrdup(dbname))==0)  { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: toku_free(t->h->names[0]); } goto died4; }
+		if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died3: toku_free(t->h->names); } goto died2; }
+		if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: toku_free(t->h->roots); } goto died3; }
+		if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: toku_free(t->h->names[0]); } goto died4; }
 		t->h->roots[0] = nodesize;
 	    } else {
 		t->h->unnamed_root = nodesize;
@@ -1036,7 +1038,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    t->h->n_named_roots++;
-	    if ((t->h->names[t->h->n_named_roots-1] = mystrdup(dbname)) == 0)                                 { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
+	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
 	    t->h->roots[t->h->n_named_roots-1] = malloc_diskblock_header_is_in_memory(t, t->h->nodesize);
 	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1]))!=0) goto died1;
@@ -1076,7 +1078,7 @@ int close_brt (BRT brt) {
     }
     assert(0==cachefile_count_pinned(brt->cf, 1));
     printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
-    if ((r = cachefile_close(brt->cf))!=0) return r;
+    if ((r = cachefile_close(&brt->cf))!=0) return r;
     if (brt->database_name) toku_free(brt->database_name);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }

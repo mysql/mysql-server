@@ -45,9 +45,9 @@ int cachetable_assert_all_unpinned (CACHETABLE);
 int cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
 
 //int cachetable_fsync_all (CACHETABLE); /* Flush everything to disk, but keep it in cache. */
-int cachetable_close (CACHETABLE); /* Flushes everything to disk, and destroys the cachetable. */
+int cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
 
-int cachefile_close (CACHEFILE);
+int cachefile_close (CACHEFILE*);
 //int cachefile_flush (CACHEFILE); /* Flush everything related to the VOID* to disk and free all memory.  Don't destroy the cachetable. */
 
 // Return on success (different from pread and pwrite)

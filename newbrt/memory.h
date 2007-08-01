@@ -13,7 +13,7 @@ void *toku_realloc(void *, long size);
 #define TAGMALLOC(t,v) t v = tagmalloc(sizeof(*v), TYP_ ## t);
 
 void *memdup (const void *v, unsigned int len);
-char *mystrdup (const char *s);
+char *toku_strdup (const char *s);
 
 void memory_check_all_free (void);
 void do_memory_check(void);

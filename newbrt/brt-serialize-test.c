@@ -7,18 +7,20 @@
 #include <string.h>
 
 void test_serialize(void) {
-//    struct brt source_brt;
-    struct brtnode sn,*dn; /* Source node, Dest node */
+    //    struct brt source_brt;
+    int nodesize = 1024;
+    struct brtnode sn, *dn;
     int fd = open("brt-serialize-test.brt", O_RDWR|O_CREAT, 0777);
     int r;
     assert(fd>=0);
 
-//    source_brt.fd=fd;
-    sn.nodesize = 1024;
+    //    source_brt.fd=fd;
+    char *hello_string;
+    sn.nodesize = nodesize;
     sn.thisnodename = sn.nodesize*20;
     sn.height = 1;
     sn.u.n.n_children = 2;
-    sn.u.n.childkeys[0]    = strdup("hello");
+    sn.u.n.childkeys[0]    = hello_string = toku_strdup("hello");
     sn.u.n.childkeylens[0] = 6;
     sn.u.n.totalchildkeylens = 6;
     sn.u.n.children[0] = sn.nodesize*30;
@@ -30,17 +32,19 @@ void test_serialize(void) {
     r = toku_hash_insert(sn.u.n.htables[1], "x", 2, "xval", 5); assert(r==0);
     sn.u.n.n_bytes_in_hashtables = 3*(KEY_VALUE_OVERHEAD+2+5);
 
+    deserialize_brtnode_from(fd, nodesize*20, &dn, nodesize);
+
     serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);
 
-    deserialize_brtnode_from(fd, sn.nodesize*20, &dn, sn.nodesize);
-    assert(dn->thisnodename==sn.nodesize*20);
+
+    assert(dn->thisnodename==nodesize*20);
     assert(dn->height == 1);
     assert(dn->u.n.n_children==2);
     assert(strcmp(dn->u.n.childkeys[0], "hello")==0);
     assert(dn->u.n.childkeylens[0]==6);
     assert(dn->u.n.totalchildkeylens==6);
-    assert(dn->u.n.children[0]==sn.nodesize*30);
-    assert(dn->u.n.children[1]==sn.nodesize*35);
+    assert(dn->u.n.children[0]==nodesize*30);
+    assert(dn->u.n.children[1]==nodesize*35);
     {
 	bytevec data; ITEMLEN datalen;
 	int r = toku_hash_find(dn->u.n.htables[0], "a", 2, &data, &datalen);
@@ -59,6 +63,11 @@ void test_serialize(void) {
 	assert(datalen==5);
 
     }
+    brtnode_free(&dn);
+
+    toku_free(hello_string);
+    toku_hashtable_free(&sn.u.n.htables[0]);
+    toku_hashtable_free(&sn.u.n.htables[1]);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

@@ -164,9 +164,9 @@ void test0 (void) {
     expectN(7);
     expectN(6);
     expectN(1);
-    r=cachefile_close(f);
+    r=cachefile_close(&f);
     assert(r==0);
-    r=cachetable_close(t);
+    r=cachetable_close(&t);
     assert(r==0);
     assert(expect_n_flushes==0);
     expect_f = 0; 
@@ -214,6 +214,9 @@ void test_nested_pin (void) {
     assert(r==0);
     r = cachetable_put(f, 2, &i1, flush_n, fetch_n, f2);
     assert(r==0); // now it is unpinned, we can put it.
+
+    r = cachefile_close(&f); assert(r==0);
+    r = cachetable_close(&t); assert(r==0);
     
 }
 
@@ -266,6 +269,10 @@ void test_multi_filehandles (void) {
     r = cachetable_maybe_get_and_pin(f1, 2, &v); assert(r==0);
     assert((unsigned long)v==125);
     
+    r = cachefile_close(&f1); assert(r==0);
+    r = cachefile_close(&f2); assert(r==0);
+    r = cachefile_close(&f3); assert(r==0);
+    r = cachetable_close(&t); assert(r==0);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
