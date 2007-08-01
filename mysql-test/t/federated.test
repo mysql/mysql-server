@@ -1631,5 +1631,19 @@ drop table federated.t1;
 connection slave;
 drop table federated.t1;
 
+--echo
+--echo Bug#18287 create federated table always times out, error 1159 ' '
+--echo
+--echo Test that self-references work
+--echo
+connection slave;
+create table federated.t1 (a int primary key);
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t2 (a int primary key)
+  ENGINE=FEDERATED
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+insert into federated.t1 (a) values (1);
+select * from federated.t2;
+drop table federated.t1, federated.t2;
 
 source include/federated_cleanup.inc;
