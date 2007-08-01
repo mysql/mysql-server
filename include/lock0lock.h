@@ -615,16 +615,16 @@ Prints info of a table lock. */
 void
 lock_table_print(
 /*=============*/
-	FILE*	file,	/* in: file where to print */
-	lock_t*	lock);	/* in: table type lock */
+	FILE*		file,	/* in: file where to print */
+	const lock_t*	lock);	/* in: table type lock */
 /*************************************************************************
 Prints info of a record lock. */
 
 void
 lock_rec_print(
 /*===========*/
-	FILE*	file,	/* in: file where to print */
-	lock_t*	lock);	/* in: record type lock */
+	FILE*		file,	/* in: file where to print */
+	const lock_t*	lock);	/* in: record type lock */
 /*************************************************************************
 Prints info of locks for all transactions. */
 

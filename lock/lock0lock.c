@@ -1360,18 +1360,18 @@ lock_rec_copy(
 /*************************************************************************
 Gets the previous record lock set on a record. */
 static
-lock_t*
+const lock_t*
 lock_rec_get_prev(
 /*==============*/
-			/* out: previous lock on the same record, NULL if
-			none exists */
-	lock_t*	in_lock,/* in: record lock */
-	ulint	heap_no)/* in: heap number of the record */
+				/* out: previous lock on the same
+				record, NULL if none exists */
+	const lock_t*	in_lock,/* in: record lock */
+	ulint		heap_no)/* in: heap number of the record */
 {
-	lock_t*	lock;
-	ulint	space;
-	ulint	page_no;
-	lock_t*	found_lock	= NULL;
+	const lock_t*	lock;
+	ulint		space;
+	ulint		page_no;
+	const lock_t*	found_lock	= NULL;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_type(in_lock) == LOCK_REC);
@@ -1394,7 +1394,7 @@ lock_rec_get_prev(
 			found_lock = lock;
 		}
 
-		lock = lock_rec_get_next_on_page(lock);
+		lock = lock_rec_get_next_on_page((lock_t*) lock);
 	}
 }
 
@@ -3439,7 +3439,7 @@ lock_deadlock_recursive(
 			ut_ad(lock_get_type(lock) == LOCK_REC);
 			ut_a(bit_no != ULINT_UNDEFINED);
 
-			lock = lock_rec_get_prev(lock, bit_no);
+			lock = (lock_t*) lock_rec_get_prev(lock, bit_no);
 		}
 
 		if (lock == NULL) {
@@ -4191,8 +4191,8 @@ Prints info of a table lock. */
 void
 lock_table_print(
 /*=============*/
-	FILE*	file,	/* in: file where to print */
-	lock_t*	lock)	/* in: table type lock */
+	FILE*		file,	/* in: file where to print */
+	const lock_t*	lock)	/* in: table type lock */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_a(lock_get_type(lock) == LOCK_TABLE);
@@ -4231,8 +4231,8 @@ Prints info of a record lock. */
 void
 lock_rec_print(
 /*===========*/
-	FILE*	file,	/* in: file where to print */
-	lock_t*	lock)	/* in: record type lock */
+	FILE*		file,	/* in: file where to print */
+	const lock_t*	lock)	/* in: record type lock */
 {
 	buf_block_t*	block;
 	ulint		space;
