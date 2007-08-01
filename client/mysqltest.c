@@ -31,7 +31,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.2"
+#define MTEST_VERSION "3.3"
 
 #include "client_priv.h"
 #include <mysql_version.h>
@@ -80,6 +80,7 @@ const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
@@ -100,6 +101,7 @@ static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 
 static uint start_lineno= 0; /* Start line of current command */
+static uint my_end_arg= 0;
 
 static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
@@ -807,12 +809,11 @@ void free_used_memory()
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg | MY_CHECK_ERROR);
 
   if (!silent)
   {
-    switch (exit_code)
-    {
+    switch (exit_code) {
     case 1:
       printf("not ok\n");
       break;
@@ -4482,6 +4483,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
@@ -4724,6 +4731,10 @@ int parse_args(int argc, char **argv)
     opt_db= *argv;
   if (tty_password)
     opt_pass= get_tty_password(NullS);          /* purify tested */
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   return 0;
 }

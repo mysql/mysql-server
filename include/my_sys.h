@@ -150,7 +150,7 @@ extern ulonglong sf_malloc_mem_limit;
 #else
 #define my_checkmalloc()
 #undef TERMINATE
-#define TERMINATE(A) {}
+#define TERMINATE(A,B) {}
 #define QUICK_SAFEMALLOC
 #define NORMAL_SAFEMALLOC
 extern void *my_malloc(size_t Size,myf MyFlags);
@@ -618,7 +618,7 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 #endif
 
 #ifndef TERMINATE
-extern void TERMINATE(FILE *file);
+extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);

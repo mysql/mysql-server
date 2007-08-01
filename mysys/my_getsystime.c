@@ -17,11 +17,13 @@
 /* thus to get the current time we should use the system function
    with the highest possible resolution */
 
+#include "mysys_priv.h"
+#include "my_static.h"
+
 #ifdef __NETWARE__
 #include <nks/time.h>
 #endif
 
-#include "mysys_priv.h"
 ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
@@ -30,7 +32,6 @@ ulonglong my_getsystime()
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
 #elif defined(__WIN__)
   LARGE_INTEGER t_cnt;
-  struct timeval tv;
   if (query_performance_frequency)
   {
     QueryPerformanceCounter(&t_cnt);
@@ -38,8 +39,7 @@ ulonglong my_getsystime()
             t_cnt.QuadPart % query_performance_frequency * 10000000/
             query_performance_frequency+query_performance_offset);
   }
-  gettimeofday(&tv,NULL);
-  return (ulonglong)tv.tv_sec*10000000+(ulonglong)tv.tv_usec*10;
+  return 0;
 #elif defined(__NETWARE__)
   NXTime_t tm;
   NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
@@ -62,26 +62,13 @@ ulonglong my_getsystime()
 
 */
 
-#define DELTA_FOR_SECONDS LL(500000000)  /* Half a second */
-
 time_t my_time(myf flags __attribute__((unused)))
 {
-#ifdef HAVE_GETHRTIME
-  static hrtime_t prev_gethrtime= 0;
-  static time_t cur_time= 0;
-
-  hrtime_t cur_gethrtime;
-  pthread_mutex_lock(&THR_LOCK_time);
-  cur_gethrtime= gethrtime();
-  if ((prev_gethrtime - cur_gethrtime) > DELTA_FOR_SECONDS)
-  {
-    cur_time= time(0);
-    prev_gethrtime= cur_gethrtime;
-  }
-  pthread_mutex_unlock(&THR_LOCK_time);
-  return cur_time;
-#else
   time_t t;
+#ifdef HAVE_GETHRTIME
+  (void) my_micro_time_and_time(&t);
+  return t;
+#else
   /* The following loop is here beacuse time() may fail on some systems */
   while ((t= time(0)) == (time_t) -1)
   {
@@ -120,11 +107,12 @@ ulonglong my_micro_time()
 #if defined(__WIN__)
   if (query_performance_frequency)
   {
-    QueryPerformanceCounter(&newtime);
+    QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
     newtime/= (query_performance_frequency * 1000000);
   }
   else
-    newtime= (GetTickCount() * 1000; /* GetTickCount only returns milliseconds */
+    newtime= (GetTickCount() * 1000); /* GetTickCount only returns milliseconds */
+  return newtime;
 #elif defined(HAVE_GETHRTIME)
   return gethrtime()/1000;
 #else
@@ -133,13 +121,13 @@ ulonglong my_micro_time()
   while (gettimeofday(&t, NULL) != 0)
   {}
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
-#endif  /* defined(__WIN__) */
   return newtime;
+#endif  /* defined(__WIN__) */
 }
 
 
 /*
-  Return time in seconds and timer in microseconds
+  Return time in seconds and timer in microseconds (not different start!)
 
   SYNOPSIS
     my_micro_time_and_time()
@@ -152,11 +140,15 @@ ulonglong my_micro_time()
     to measure the time of a query (for the slow query log)
 
   IMPLEMENTATION
-    Same as my_micro_time()
+    Value of time is as in time() call.
+    Value of microtime is same as my_micro_time(), which may be totally unrealated
+    to time()
 
   RETURN
     Value in microseconds from some undefined point in time
 */
+
+#define DELTA_FOR_SECONDS LL(500000000)  /* Half a second */
 
 ulonglong my_micro_time_and_time(time_t *time_arg)
 {
@@ -164,12 +156,32 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
 #if defined(__WIN__)
   if (query_performance_frequency)
   {
-    QueryPerformanceCounter((LARGE_INTEGER *) &newtime);
+    QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
     newtime/= (query_performance_frequency * 1000000);
   }
   else
-    newtime= (GetTickCount() * 1000; /* GetTickCount only returns milliseconds */
+    newtime= (GetTickCount() * 1000); /* GetTickCount only returns milliseconds */
   (void) time(time_arg);
+  return newtime;
+#elif defined(HAVE_GETHRTIME)
+  /*
+    Solaris has a very slow time() call. We optimize this by using the very fast
+    gethrtime() call and only calling time() every 1/2 second
+  */
+  static hrtime_t prev_gethrtime= 0;
+  static time_t cur_time= 0;
+  hrtime_t cur_gethrtime;
+
+  pthread_mutex_lock(&THR_LOCK_time);
+  cur_gethrtime= gethrtime();
+  if ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS)
+  {
+    cur_time= time(0);
+    prev_gethrtime= cur_gethrtime;
+  }
+  *time_arg= cur_time;
+  pthread_mutex_unlock(&THR_LOCK_time);
+  return cur_gethrtime/1000;
 #else
   struct timeval t;
   /* The following loop is here because gettimeofday may fail on some systems */
@@ -177,8 +189,8 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   {}
   *time_arg= t.tv_sec;
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
-#endif  /* defined(__WIN__) */
   return newtime;
+#endif  /* defined(__WIN__) */
 }
 
 
