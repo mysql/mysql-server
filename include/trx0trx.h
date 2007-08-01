@@ -379,9 +379,9 @@ considered heavier than ones that have not. */
 int
 trx_weight_cmp(
 /*===========*/
-			/* out: <0, 0 or >0; similar to strcmp(3) */
-	trx_t*	a,	/* in: the first transaction to be compared */
-	trx_t*	b);	/* in: the second transaction to be compared */
+				/* out: <0, 0 or >0; similar to strcmp(3) */
+	const trx_t*	a,	/* in: the first transaction to be compared */
+	const trx_t*	b);	/* in: the second transaction to be compared */
 
 /* Signal to a transaction */
 struct trx_sig_struct{
