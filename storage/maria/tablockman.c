@@ -663,11 +663,11 @@ void tablockman_print_tlo(TABLE_LOCK_OWNER *lo)
 
   printf("lo%d>", lo->loid);
   if ((lock= lo->waiting_lock))
-    printf(" (%s.0x%lx)", lock2str[lock->lock_type], (intptr)lock->table);
+    printf(" (%s.0x%lx)", lock2str[lock->lock_type], (ulong)lock->table);
   for (lock= lo->active_locks;
        lock && lock != lock->next_in_lo;
        lock= lock->next_in_lo)
-    printf(" %s.0x%lx", lock2str[lock->lock_type], (intptr)lock->table);
+    printf(" %s.0x%lx", lock2str[lock->lock_type], (ulong)lock->table);
   if (lock && lock == lock->next_in_lo)
     printf("!");
   printf("\n");

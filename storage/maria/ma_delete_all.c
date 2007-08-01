@@ -62,7 +62,7 @@ int maria_delete_all_rows(MARIA_HA *info)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DELETE_ALL,
-                                       info->trn, share, 0,
+                                       info->trn, info, 0,
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data) ||
                  translog_flush(lsn)))

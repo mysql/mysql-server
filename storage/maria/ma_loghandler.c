@@ -181,10 +181,10 @@ static MARIA_SHARE **id_to_share= NULL;
 static my_atomic_rwlock_t LOCK_id_to_share;
 
 static my_bool write_hook_for_redo(enum translog_record_type type,
-                                   TRN *trn, MARIA_SHARE *share, LSN *lsn,
+                                   TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                    struct st_translog_parts *parts);
 static my_bool write_hook_for_undo(enum translog_record_type type,
-                                   TRN *trn, MARIA_SHARE *share, LSN *lsn,
+                                   TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                    struct st_translog_parts *parts);
 
 /*
@@ -3049,7 +3049,7 @@ static translog_size_t translog_get_current_group_size()
 static my_bool
 translog_write_variable_record_1group(LSN *lsn,
                                       enum translog_record_type type,
-                                      MARIA_SHARE *share,
+                                      MARIA_HA *tbl_info,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3067,7 +3067,7 @@ translog_write_variable_record_1group(LSN *lsn,
 
   *lsn= horizon= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, share,
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, tbl_info,
                                                        lsn, parts))
   {
     translog_unlock();
@@ -3205,7 +3205,7 @@ translog_write_variable_record_1group(LSN *lsn,
 static my_bool
 translog_write_variable_record_1chunk(LSN *lsn,
                                       enum translog_record_type type,
-                                      MARIA_SHARE *share,
+                                      MARIA_HA *tbl_info,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3221,7 +3221,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, share,
+      (*log_record_type_descriptor[type].inwrite_hook)(type, trn, tbl_info,
                                                        lsn, parts))
   {
     translog_unlock();
@@ -3574,7 +3574,7 @@ static my_bool translog_relative_LSN_encode(struct st_translog_parts *parts,
 static my_bool
 translog_write_variable_record_mgroup(LSN *lsn,
                                       enum translog_record_type type,
-                                      MARIA_SHARE *share,
+                                      MARIA_HA *tbl_info,
                                       SHORT_TRANSACTION_ID short_trid,
                                       struct st_translog_parts *parts,
                                       struct st_translog_buffer
@@ -3917,7 +3917,8 @@ translog_write_variable_record_mgroup(LSN *lsn,
       first_chunk0= 0;
       *lsn= horizon;
       if (log_record_type_descriptor[type].inwrite_hook &&
-          (*log_record_type_descriptor[type].inwrite_hook) (type, trn, share,
+          (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
+                                                            tbl_info,
                                                             lsn, parts))
         goto err;
     }
@@ -4003,7 +4004,7 @@ err:
 
 static my_bool translog_write_variable_record(LSN *lsn,
                                               enum translog_record_type type,
-                                              MARIA_SHARE *share,
+                                              MARIA_HA *tbl_info,
                                               SHORT_TRANSACTION_ID short_trid,
                                               struct st_translog_parts *parts,
                                               TRN *trn)
@@ -4081,7 +4082,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
   if (page_rest >= parts->record_length + header_length1)
   {
     /* following function makes translog_unlock(); */
-    res= translog_write_variable_record_1chunk(lsn, type, share,
+    res= translog_write_variable_record_1chunk(lsn, type, tbl_info,
                                                short_trid,
                                                parts, buffer_to_flush,
                                                header_length1, trn);
@@ -4093,14 +4094,14 @@ static my_bool translog_write_variable_record(LSN *lsn,
   if (buffer_rest >= parts->record_length + header_length1 - page_rest)
   {
     /* following function makes translog_unlock(); */
-    res= translog_write_variable_record_1group(lsn, type, share,
+    res= translog_write_variable_record_1group(lsn, type, tbl_info,
                                                short_trid,
                                                parts, buffer_to_flush,
                                                header_length1, trn);
     DBUG_RETURN(res);
   }
   /* following function makes translog_unlock(); */
-  res= translog_write_variable_record_mgroup(lsn, type, share,
+  res= translog_write_variable_record_mgroup(lsn, type, tbl_info,
                                              short_trid,
                                              parts, buffer_to_flush,
                                              header_length1,
@@ -4128,7 +4129,7 @@ static my_bool translog_write_variable_record(LSN *lsn,
 
 static my_bool translog_write_fixed_record(LSN *lsn,
                                            enum translog_record_type type,
-                                           MARIA_SHARE *share,
+                                           MARIA_HA *tbl_info,
                                            SHORT_TRANSACTION_ID short_trid,
                                            struct st_translog_parts *parts,
                                            TRN *trn)
@@ -4181,7 +4182,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
 
   *lsn= log_descriptor.horizon;
   if (log_record_type_descriptor[type].inwrite_hook &&
-      (*log_record_type_descriptor[type].inwrite_hook) (type, trn, share,
+      (*log_record_type_descriptor[type].inwrite_hook) (type, trn, tbl_info,
                                                         lsn, parts))
   {
     rc= 1;
@@ -4247,16 +4248,16 @@ err:
    @param  type            the log record type
    @param  trn             Transaction structure pointer for hooks by
                            record log type, for short_id
-   @param  share           MARIA_SHARE of table or NULL
+   @param  tbl_info        MARIA_HA of table or NULL
    @param  rec_len         record length or 0 (count it)
    @param  part_no         number of parts or 0 (count it)
    @param  parts_data      zero ended (in case of number of parts is 0)
                            array of LEX_STRINGs (parts), first
                            TRANSLOG_INTERNAL_PARTS positions in the log
                            should be unused (need for loghandler)
-   @param  store_share_id  if share!=NULL then share's id will automatically
-                           be stored in the two first bytes pointed (so
-                           pointer is assumed to be !=NULL)
+   @param  store_share_id  if tbl_info!=NULL then share's id will
+                           automatically be stored in the two first bytes
+                           pointed (so pointer is assumed to be !=NULL)
    @return Operation status
      @retval 0      OK
      @retval 1      Error
@@ -4264,7 +4265,7 @@ err:
 
 my_bool translog_write_record(LSN *lsn,
                               enum translog_record_type type,
-                              TRN *trn, struct st_maria_share *share,
+                              TRN *trn, MARIA_HA *tbl_info,
                               translog_size_t rec_len,
                               uint part_no,
                               LEX_STRING *parts_data,
@@ -4278,8 +4279,9 @@ my_bool translog_write_record(LSN *lsn,
   DBUG_PRINT("enter", ("type: %u  ShortTrID: %u",
                        (uint) type, (uint)short_trid));
 
-  if (share)
+  if (tbl_info)
   {
+    MARIA_SHARE *share= tbl_info->s;
     if (!share->now_transactional)
     {
       DBUG_PRINT("info", ("It is not transactional table"));
@@ -4375,17 +4377,17 @@ my_bool translog_write_record(LSN *lsn,
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
              (*log_record_type_descriptor[type].prewrite_hook) (type, trn,
-                                                                share,
+                                                                tbl_info,
                                                                 &parts))))
   {
     switch (log_record_type_descriptor[type].class) {
     case LOGRECTYPE_VARIABLE_LENGTH:
-      rc= translog_write_variable_record(lsn, type, share,
+      rc= translog_write_variable_record(lsn, type, tbl_info,
                                          short_trid, &parts, trn);
       break;
     case LOGRECTYPE_PSEUDOFIXEDLENGTH:
     case LOGRECTYPE_FIXEDLENGTH:
-      rc= translog_write_fixed_record(lsn, type, share,
+      rc= translog_write_fixed_record(lsn, type, tbl_info,
                                       short_trid, &parts, trn);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
@@ -5619,7 +5621,7 @@ my_bool translog_flush(LSN lsn)
 
 static my_bool write_hook_for_redo(enum translog_record_type type
                                    __attribute__ ((unused)),
-                                   TRN *trn, MARIA_SHARE *share
+                                   TRN *trn, MARIA_HA *tbl_info
                                    __attribute__ ((unused)),
                                    LSN *lsn,
                                    struct st_translog_parts *parts
@@ -5657,7 +5659,7 @@ static my_bool write_hook_for_redo(enum translog_record_type type
 
 static my_bool write_hook_for_undo(enum translog_record_type type
                                    __attribute__ ((unused)),
-                                   TRN *trn, MARIA_SHARE *share
+                                   TRN *trn, MARIA_HA *tbl_info
                                      __attribute__ ((unused)),
                                    LSN *lsn,
                                    struct st_translog_parts *parts
@@ -5683,7 +5685,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
    open MARIA_SHAREs), give it one and record this assignment in the log
    (LOGREC_FILE_ID log record).
 
-   @param  share           table
+   @param  share       table
    @param  trn             calling transaction
 
    @return Operation status
@@ -5722,10 +5724,11 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
       my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
       i= 1; /* scan the whole array */
     } while (share->id == 0);
-    DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, i));
+    DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, share->id));
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     uchar log_data[FILEID_STORE_SIZE];
+    fileid_store(log_data, share->id);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
@@ -5740,12 +5743,12 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
     */
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
       strlen(share->open_file_name) + 1;
-    if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, share,
+    if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, NULL,
                                        sizeof(log_data) +
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  1].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data)))
+                                       log_array, NULL)))
       return 1;
   }
   pthread_mutex_unlock(&share->intern_lock);

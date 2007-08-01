@@ -5536,7 +5536,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     int4store(log_data + FILEID_STORE_SIZE, param->testflag);
     if (unlikely(translog_write_record(&share->state.create_rename_lsn,
                                        LOGREC_REDO_REPAIR_TABLE,
-                                       &dummy_transaction_object, share,
+                                       &dummy_transaction_object, info,
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
