@@ -69,7 +69,14 @@ ErrorData * flexHammerErrorData;
 #define MAXSTRLEN 16 
 #define MAXATTR 64
 #define MAXTABLES 64
-#define MAXTHREADS 256
+#define NDB_MAXTHREADS 256
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
 #define MAXATTRSIZE 100
 // Max number of retries if something fails
 #define MaxNoOfAttemptsC 10 
@@ -122,8 +129,8 @@ static int			tAttributeSize;
 static int			tNoOfOperations;
 static int			tNoOfRecords;
 static int			tNoOfLoops;
-static				ReadyType ThreadReady[MAXTHREADS];
-static				StartType ThreadStart[MAXTHREADS];
+static				ReadyType ThreadReady[NDB_MAXTHREADS];
+static				StartType ThreadStart[NDB_MAXTHREADS];
 static char			tableName[MAXTABLES][MAXSTRLEN];
 static char			attrName[MAXATTR][MAXSTRLEN];
 static int			theSimpleFlag = 0;
@@ -643,7 +650,7 @@ readArguments (int argc, const char** argv)
   while (argc > 1) {
     if (strcmp(argv[i], "-t") == 0) {
       tNoOfThreads = atoi(argv[i+1]);
-      if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS))
+      if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS))
 	return(1);
     }
     else if (strcmp(argv[i], "-o") == 0) {
