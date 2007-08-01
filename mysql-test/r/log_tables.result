@@ -415,6 +415,8 @@ use test//
 create procedure proc25422_truncate_slow (loops int)
 begin
 declare v1 int default 0;
+declare continue handler for sqlexception /* errors from truncate */
+begin end;
 while v1 < loops do
 truncate mysql.slow_log;
 set v1 = v1 + 1;
@@ -423,6 +425,8 @@ end//
 create procedure proc25422_truncate_general (loops int)
 begin
 declare v1 int default 0;
+declare continue handler for sqlexception /* errors from truncate */
+begin end;
 while v1 < loops do
 truncate mysql.general_log;
 set v1 = v1 + 1;
@@ -454,23 +458,24 @@ set global general_log = @old_log_state;
 set v1 = v1 + 1;
 end while;
 end//
+set @iterations=100;
 "Serial test (proc25422_truncate_slow)"
-call proc25422_truncate_slow(100);
+call proc25422_truncate_slow(@iterations);
 "Serial test (proc25422_truncate_general)"
-call proc25422_truncate_general(100);
+call proc25422_truncate_general(@iterations);
 "Serial test (proc25422_alter_slow)"
-call proc25422_alter_slow(100);
+call proc25422_alter_slow(@iterations);
 "Serial test (proc25422_alter_general)"
-call proc25422_alter_general(100);
+call proc25422_alter_general(@iterations);
 "Parallel test"
-call proc25422_truncate_slow(100);
-call proc25422_truncate_slow(100);
-call proc25422_truncate_general(100);
-call proc25422_truncate_general(100);
-call proc25422_alter_slow(100);
-call proc25422_alter_slow(100);
-call proc25422_alter_general(100);
-call proc25422_alter_general(100);
+call proc25422_truncate_slow(@iterations);
+call proc25422_truncate_slow(@iterations);
+call proc25422_truncate_general(@iterations);
+call proc25422_truncate_general(@iterations);
+call proc25422_alter_slow(@iterations);
+call proc25422_alter_slow(@iterations);
+call proc25422_alter_general(@iterations);
+call proc25422_alter_general(@iterations);
 drop procedure proc25422_truncate_slow;
 drop procedure proc25422_truncate_general;
 drop procedure proc25422_alter_slow;
