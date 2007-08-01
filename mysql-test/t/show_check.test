@@ -782,4 +782,9 @@ show variables like "log_queries_not_using_indexes";
 select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
 
+#
+# Bug #30088: Can't disable myisam-recover by a value of ""
+#
+show variables like 'myisam_recover_options';
+
 --echo End of 5.0 tests
