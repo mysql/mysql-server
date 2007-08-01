@@ -32,7 +32,10 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
+struct dict_index_struct;
 struct row_prebuilt_struct;
+
+typedef struct dict_index_struct dict_index_t;
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /* The class defining a handle to an Innodb table */
@@ -54,7 +57,7 @@ class ha_innobase: public handler
 	ulong		upd_and_key_val_buff_len;
 					/* the length of each of the previous
 					two buffers */
-	ulong		int_table_flags;
+	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
@@ -70,6 +73,11 @@ class ha_innobase: public handler
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
 	int innobase_read_and_init_auto_inc(longlong* ret);
+	ulong innobase_autoinc_lock();
+	ulong innobase_set_max_autoinc(ulonglong auto_inc);
+	ulong innobase_reset_autoinc(ulonglong auto_inc);
+	ulong innobase_get_auto_increment(ulonglong* value);
+	dict_index_t* innobase_get_index(uint keynr);
 
 	/* Init values for the class: */
  public:
@@ -84,7 +92,7 @@ class ha_innobase: public handler
 	const char* table_type() const { return("InnoDB");}
 	const char *index_type(uint key_number) { return "BTREE"; }
 	const char** bas_ext() const;
-	ulonglong table_flags() const { return int_table_flags; }
+	Table_flags table_flags() const;
 	ulong index_flags(uint idx, uint part, bool all_parts) const {
 		return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 		       | HA_READ_RANGE | HA_KEYREAD_ONLY);
@@ -190,6 +198,52 @@ class ha_innobase: public handler
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
 };
+
+/* Some accessor functions which the InnoDB plugin needs, but which
+can not be added to mysql/plugin.h as part of the public interface;
+the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
+
+#ifndef INNODB_COMPATIBILITY_HOOKS
+#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
+#endif
+
+extern "C" {
+struct charset_info_st *thd_charset(MYSQL_THD thd);
+char **thd_query(MYSQL_THD thd);
+
+/** Get the file name of the MySQL binlog.
+ * @return the name of the binlog file
+ */
+const char* mysql_bin_log_file_name(void);
+
+/** Get the current position of the MySQL binlog.
+ * @return byte offset from the beginning of the binlog
+ */
+ulonglong mysql_bin_log_file_pos(void);
+
+/**
+  Check if a user thread is a replication slave thread
+  @param thd  user thread
+  @retval 0 the user thread is not a replication slave thread
+  @retval 1 the user thread is a replication slave thread
+*/
+int thd_slave_thread(const MYSQL_THD thd);
+
+/**
+  Check if a user thread is running a non-transactional update
+  @param thd  user thread
+  @retval 0 the user thread is not running a non-transactional update
+  @retval 1 the user thread is running a non-transactional update
+*/
+int thd_non_transactional_update(const MYSQL_THD thd);
+
+/**
+  Get the user thread's binary logging format
+  @param thd  user thread
+  @return Value to be used as index into the binlog_format_names array
+*/
+int thd_binlog_format(const MYSQL_THD thd);
+}
 
 /*
   don't delete it - it may be re-enabled later
