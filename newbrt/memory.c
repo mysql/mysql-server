@@ -172,7 +172,7 @@ void *memdup (const void *v, unsigned int len) {
     memcpy(r,v,len);
     return r;
 }
-char *mystrdup (const char *s) {
+char *toku_strdup (const char *s) {
     return memdup(s, strlen(s)+1);
 }
 

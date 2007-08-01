@@ -80,6 +80,8 @@ void verify_counts(BRTNODE);
 int serialize_brt_header_to (int fd, struct brt_header *h);
 int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth);
 
+void brtnode_free (BRTNODE *node);
+
 //static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
 
 //int write_brt_header (int fd, struct brt_header *header);

@@ -30,7 +30,7 @@ static void test0 (void) {
     printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
     r = close_brt(t);     assert(r==0);
     printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);    assert(r==0);
-    r = cachetable_close(ct);
+    r = cachetable_close(&ct);
     assert(r==0);
     memory_check_all_free();
 }
@@ -56,7 +56,7 @@ static void test1 (void) {
 	assert(v.size==6);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(ct);      assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     printf("test1 ok\n");
 }
@@ -94,7 +94,7 @@ static void test2 (int memcheck) {
     }
     printf("%s:%d inserted\n", __FILE__, __LINE__);
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(ct);      assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     printf("test2 ok\n");
 }
@@ -121,7 +121,7 @@ static void test3 (int nodesize, int count, int memcheck) {
 	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(ct);      assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     gettimeofday(&t1, 0);
     {
@@ -152,7 +152,7 @@ static void test4 (int nodesize, int count, int memcheck) {
 	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
     }
     r = close_brt(t);              assert(r==0);
-    r = cachetable_close(ct);      assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
     memory_check_all_free();
     gettimeofday(&t1, 0);
     {
@@ -203,8 +203,8 @@ static void test5 (void) {
     }
     printf("\n");
     toku_free(values);
-    r = close_brt(t);        assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = close_brt(t);          assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -220,8 +220,8 @@ static void test_dump_empty_db (void) {
     r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
     assert(r==0);
     dump_brt(t);
-    r = close_brt(t);        assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = close_brt(t);          assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -256,7 +256,7 @@ static void test_multiple_files_of_size (int size) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 
     /* Now see if the data is all there. */
@@ -284,7 +284,7 @@ static void test_multiple_files_of_size (int size) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -312,7 +312,7 @@ static void test_named_db (void) {
     brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "day", 4), 0); assert(r==0);
 
     r = close_brt(t0); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 
     memory_check_all_free();
@@ -327,7 +327,7 @@ static void test_named_db (void) {
     }
     
     r = close_brt(t0); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
@@ -351,7 +351,7 @@ static void test_multiple_dbs (void) {
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -379,7 +379,7 @@ static void test_multiple_dbs (void) {
     
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
     printf("ok\n");
@@ -412,7 +412,7 @@ static void test_multiple_dbs_many (void) {
     for (i=0; i<MANYN; i++) {
 	r = close_brt(trees[i]); assert(r==0);
     }
-    r = cachetable_close(ct);    assert(r==0);
+    r = cachetable_close(&ct);    assert(r==0);
     memory_check_all_free();
 }
 
@@ -451,7 +451,7 @@ static void test_multiple_brts_one_db_one_file (void) {
     for (i=0; i<MANYN; i++) {
 	r=close_brt(trees[i]); assert(r==0);
     }
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
     printf(" ok\n");
 }
@@ -474,7 +474,7 @@ static void  test_read_what_was_written (void) {
     r = brt_create_cachetable(&ct, 0);       assert(r==0);
     r = open_brt(n, 0, 1, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
 
     memory_check_all_free();
 
@@ -486,7 +486,7 @@ static void  test_read_what_was_written (void) {
     brt_insert(brt, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
 
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     
     memory_check_all_free();
 
@@ -561,7 +561,7 @@ static void  test_read_what_was_written (void) {
 
     r = close_brt(brt); assert(r==0);
     printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     
     memory_check_all_free();
     
@@ -588,7 +588,7 @@ static void  test_read_what_was_written (void) {
     }
     
     r = close_brt(brt); assert(r==0);
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     
     memory_check_all_free();
 
@@ -627,7 +627,7 @@ void test_cursor_last_empty(void) {
     assert(r==DB_NOTFOUND);
     r = close_brt(brt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     memory_check_all_free();
 }
@@ -677,7 +677,7 @@ void test_cursor_next (void) {
 
     r = close_brt(brt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     memory_check_all_free();
     
@@ -805,7 +805,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
   
     r = close_brt(brt);
     }
-    r = cachetable_close(ct); assert(r==0);
+    r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();
 }
 
