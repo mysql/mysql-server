@@ -36,7 +36,7 @@ INCLUDES += -I$(top_srcdir)/storage/ndb/include/mgmapi \
 LDADD_LOC = $(noinst_LTLIBRARIES) \
 	    ../common/portlib/libportlib.la \
             @readline_link@ \
-            $(top_builddir)/ndb/src/libndbclient.la \
+            $(top_builddir)/storage/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a \
