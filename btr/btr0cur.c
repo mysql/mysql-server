@@ -3472,6 +3472,7 @@ btr_cur_mark_dtuple_inherited_extern(
 		}
 
 		data = dfield_get_data(dfield);
+		len = dfield_get_len(dfield);
 		data[len - BTR_EXTERN_FIELD_REF_SIZE + BTR_EXTERN_LEN]
 			|= BTR_EXTERN_INHERITED_FLAG;
 
