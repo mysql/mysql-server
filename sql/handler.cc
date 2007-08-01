@@ -1516,34 +1516,6 @@ THD *handler::ha_thd(void) const
 }
 
 
-bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
-                                                    ulong type, TABLE *table)
-{
-  /*
-    Deny locking of the log tables, which is incompatible with
-    concurrent insert. The routine is not called if the table is
-    being locked from a logger THD (general_log_thd or slow_log_thd)
-    or from a privileged thread (see log.cc for details)
-  */
-  if (table->s->log_table &&
-      sql_command != SQLCOM_TRUNCATE &&
-      sql_command != SQLCOM_ALTER_TABLE &&
-      !(sql_command == SQLCOM_FLUSH &&
-        type & REFRESH_LOG) &&
-      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
-  {
-    /*
-      The check  >= TL_READ_NO_INSERT denies all write locks
-      plus the only read lock (TL_READ_NO_INSERT itself)
-    */
-    table->reginfo.lock_type == TL_READ_NO_INSERT ?
-      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
-        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
-    return FALSE;
-  }
-  return TRUE;
-}
-
 /** @brief
   Open database-handler.
 
@@ -3686,6 +3658,7 @@ int handler::ha_write_row(uchar *buf)
     return error;
   return 0;
 }
+
 
 int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {

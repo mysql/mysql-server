@@ -1513,7 +1513,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       table->db_type= share->db_type();
 
     /* Disable drop of enabled log tables */
-    if (share && share->log_table &&
+    if (share && (share->table_category == TABLE_CATEGORY_PERFORMANCE) &&
         check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
@@ -3966,7 +3966,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Item *item;
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
-  int result_code, disable_logs= 0;
+  int result_code;
   DBUG_ENTER("mysql_admin_table");
 
   if (end_active_trans(thd))
@@ -4013,22 +4013,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       thd->no_warnings_for_error= no_warnings_for_error;
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
-
-      /*
-        If we want to perform an admin operation on the log table
-        (E.g. rename) and lock_type >= TL_READ_NO_INSERT disable
-        log tables
-      */
-
-      if (check_if_log_table(table->db_length, table->db,
-                             table->table_name_length,
-                             table->table_name, 1) &&
-          lock_type >= TL_READ_NO_INSERT)
-      {
-        disable_logs= 1;
-        logger.lock();
-        logger.tmp_close_log_tables(thd);
-      }
 
       open_and_lock_tables(thd, table);
       thd->no_warnings_for_error= 0;
@@ -4099,8 +4083,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /* Close all instances of the table to allow repair to rename files */
-    if (lock_type == TL_WRITE && table->table->s->version &&
-        !table->table->s->log_table)
+    if (lock_type == TL_WRITE && table->table->s->version)
     {
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
@@ -4258,7 +4241,7 @@ send_result_message:
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
-        if ((table->table= open_ltable(thd, table, lock_type)) &&
+        if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
             ((result_code= table->table->file->analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
       }
@@ -4324,10 +4307,9 @@ send_result_message:
     }
     if (table->table)
     {
-      /* in the below check we do not refresh the log tables */
       if (fatal_error)
         table->table->s->version=0;               // Force close of table
-      else if (open_for_modify && !table->table->s->log_table)
+      else if (open_for_modify)
       {
         if (table->table->s->tmp_table)
           table->table->file->info(HA_STATUS_CONST);
@@ -4350,24 +4332,11 @@ send_result_message:
   }
 
   send_eof(thd);
-  if (disable_logs)
-  {
-    if (logger.reopen_log_tables())
-      my_error(ER_CANT_ACTIVATE_LOG, MYF(0));
-    logger.unlock();
-  }
   DBUG_RETURN(FALSE);
 
  err:
   ha_autocommit_or_rollback(thd, 1);
   close_thread_tables(thd);			// Shouldn't be needed
-  /* enable logging back if needed */
-  if (disable_logs)
-  {
-    if (logger.reopen_log_tables())
-      my_error(ER_CANT_ACTIVATE_LOG, MYF(0));
-    logger.unlock();
-  }
   if (table)
     table->table=0;
   DBUG_RETURN(TRUE);
@@ -4812,7 +4781,7 @@ mysql_discard_or_import_tablespace(THD *thd,
    not complain when we lock the table
  */
   thd->tablespace_op= TRUE;
-  if (!(table=open_ltable(thd,table_list,TL_WRITE)))
+  if (!(table=open_ltable(thd, table_list, TL_WRITE, 0)))
   {
     thd->tablespace_op=FALSE;
     DBUG_RETURN(-1);
@@ -5728,7 +5697,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if (alter_info->flags & ALTER_PARTITION)
       {
-	my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+        my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
         DBUG_RETURN(TRUE);
       }
 #endif
@@ -5817,7 +5786,7 @@ view_err:
     start_waiting_global_read_lock(thd);
     DBUG_RETURN(error);
   }
-  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+  if (!(table=open_ltable(thd, table_list, TL_WRITE_ALLOW_READ, 0)))
     DBUG_RETURN(TRUE);
   table->use_all_columns();
 
@@ -6984,7 +6953,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
-    t= table->table= open_ltable(thd, table, TL_READ);
+    t= table->table= open_ltable(thd, table, TL_READ, 0);
     thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();

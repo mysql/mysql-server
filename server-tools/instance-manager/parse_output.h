@@ -17,11 +17,17 @@
 
 #include <my_global.h>
 
-#define GET_VALUE 1
-#define GET_LINE  2
+enum enum_option_type
+{
+  GET_VALUE = 1,
+  GET_LINE
+};
 
-int parse_output_and_get_value(const char *command, const char *word,
-                               char *result, size_t input_buffer_len,
-                               uint flag);
+bool parse_output_and_get_value(const char *command,
+                                const char *option_name_str,
+                                uint option_name_length,
+                                char *option_value_buf,
+                                size_t option_value_buf_size,
+                                enum_option_type option_type);
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_OUTPUT_H */
