@@ -1479,9 +1479,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
 				 bool suppress_use, THD::killed_state killed_status_arg)
   :Log_event(thd_arg,
-             ((thd_arg->tmp_table_used || thd_arg->thread_specific_used) ? 
-	        LOG_EVENT_THREAD_SPECIFIC_F : 0) |
-	      (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
+             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0) |
+               (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
 	     using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
@@ -2914,8 +2913,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       enum enum_duplicates handle_dup,
 			       bool ignore, bool using_trans)
   :Log_event(thd_arg,
-             (thd_arg->tmp_table_used || thd_arg->thread_specific_used) ?
-               LOG_EVENT_THREAD_SPECIFIC_F : 0,
+             thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
              using_trans),
    thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
