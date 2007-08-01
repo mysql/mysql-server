@@ -197,7 +197,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   db_length= col_access=0;
-  query_error= tmp_table_used= 0;
+  query_error= tmp_table_used= thread_specific_used= 0;
   next_insert_id=last_insert_id=0;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
