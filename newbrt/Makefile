@@ -1,5 +1,5 @@
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-# PROF_FLAGS = -pg
+PROF_FLAGS = -pg
 # OPTFLAGS = -O2
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror -fPIC
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
@@ -46,8 +46,10 @@ brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pm
 cachetable-test.o: cachetable.h memory.h
 cachetable-test: cachetable.o memory.o cachetable-test.o
 
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
+
 clean:
-	rm -rf *.o hashtest brt-test cachetable-test randbrt randdb4 *.bb *.bbg *.da
+	rm -rf *.o hashtest brt-test cachetable-test randbrt randdb4 benchmark-test *.bb *.bbg *.da
 
 randdb4: LOADLIBES=-ldb
 randbrt: brt.o hashtable.o cachetable.o memory.o brt-serialize.o
