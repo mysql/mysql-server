@@ -19,13 +19,14 @@
 ## 1.3 Applied patch provided by Martin Mokrejs <mmokrejs@natur.cuni.cz>
 ##     (General code cleanup, use the GRANT statement instead of updating
 ##     the privilege tables directly, added option to revoke privileges)
+## 1.4 Remove option 6 which attempted to erroneously grant global privileges
 
 #### TODO
 #
 # empty ... suggestions ... mail them to me ...
 
 
-$version="1.3";
+$version="1.4";
 
 use DBI;
 use Getopt::Long;
@@ -103,13 +104,9 @@ sub q1 { # first question ...
 		print "     existing database and host combination (user can do\n";
 		print "     SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,\n";
 		print "     LOCK TABLES,CREATE TEMPORARY TABLES)\n";
-    print "  6. Create/append database administrative privileges for an\n";
-		print "     existing database and host combination (user can do\n";
-		print "     SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,\n";
-		print "     CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS)\n";
-    print "  7. Create/append full privileges for an existing database\n";
+    print "  6. Create/append full privileges for an existing database\n";
 		print "     and host combination (user has FULL privilege)\n";
-    print "  8. Remove all privileges for for an existing database and\n";
+    print "  7. Remove all privileges for for an existing database and\n";
 		print "     host combination.\n";
     print "     (user will have all permission fields set to N)\n";
     print "  0. exit this program\n";
@@ -117,10 +114,10 @@ sub q1 { # first question ...
     while (<STDIN>) {
       $answer = $_;
       chomp($answer);
-      if ($answer =~ /^[12345678]$/) {
+      if ($answer =~ /^[1234567]$/) {
         if ($answer == 1) {
 	   setpwd();
-        } elsif ($answer =~ /^[2345678]$/) {
+        } elsif ($answer =~ /^[234567]$/) {
 	   addall($answer);
 	} else {
           print "Sorry, something went wrong. With such option number you should not get here.\n\n";
@@ -233,7 +230,7 @@ sub addall {
   }
   }
 
-  if ( ( !$todo ) or not ( $todo =~ m/^[2-8]$/ ) ) {
+  if ( ( !$todo ) or not ( $todo =~ m/^[2-7]$/ ) ) {
     print STDERR "Sorry, select option $todo isn't known inside the program .. See ya\n";
     quit();
   }
@@ -256,12 +253,9 @@ sub addall {
       # user privileges: SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES
       $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
     } elsif ($todo == 6) {
-       # admin privileges: GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS
-       $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
-    } elsif ($todo == 7) {
        # all privileges
        $sth = $dbh->do("GRANT ALL ON $db.* TO \'$user\'\@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
-    } elsif ($todo == 8) {
+    } elsif ($todo == 7) {
        # all privileges set to N
        $sth = $dbh->do("REVOKE ALL ON *.* FROM \'$user\'\@\'$host\'") || die $dbh->errstr;
     }
