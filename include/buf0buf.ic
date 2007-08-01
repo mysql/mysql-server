@@ -41,15 +41,15 @@ of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex. */
 UNIV_INLINE
 ibool
-buf_block_peek_if_too_old(
-/*======================*/
+buf_page_peek_if_too_old(
+/*=====================*/
 					/* out: TRUE if should be made
 					younger */
-	const buf_block_t*	block)	/* in: block to make younger */
+	const buf_page_t*	bpage)	/* in: block to make younger */
 {
 	return(buf_pool->freed_page_clock
-	       >= buf_block_get_freed_page_clock(block)
-	       + 1 + (buf_pool->curr_size / 1024));
+	       >= buf_page_get_freed_page_clock(bpage)
+	       + 1 + (buf_pool->curr_size / 4));
 }
 
 /*************************************************************************

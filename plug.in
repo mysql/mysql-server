@@ -3,7 +3,6 @@ MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
 MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
 MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
 MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(innobase, [handler/ha_innodb.cc])
 MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
   AC_SUBST(innodb_system_libs)
@@ -41,5 +40,4 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
            CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
   esac
   ])
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(innobase, [handler/ha_innodb.cc])
 

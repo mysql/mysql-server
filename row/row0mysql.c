@@ -3143,6 +3143,8 @@ next_rec:
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
+	/* MySQL calls ha_innobase::reset_auto_increment() which does
+	the same thing. */
 	dict_table_autoinc_initialize(table, 0);
 	dict_update_statistics(table);
 

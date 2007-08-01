@@ -382,11 +382,11 @@ of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex. */
 UNIV_INLINE
 ibool
-buf_block_peek_if_too_old(
-/*======================*/
+buf_page_peek_if_too_old(
+/*=====================*/
 					/* out: TRUE if should be made
 					younger */
-	const buf_block_t*	block);	/* in: block to make younger */
+	const buf_page_t*	bpage);	/* in: block to make younger */
 /************************************************************************
 Returns the current state of is_hashed of a page. FALSE if the page is
 not in the pool. NOTE that this operation does not fix the page in the

@@ -36,22 +36,7 @@
 #include "ha_innodb.h"
 #include <mysql/plugin.h>
 
-#ifdef MYSQL_SERVER
-/* Define some macros until these functions are declared in <mysql/plugin.h>.
-Once these functions are defined by MySQL, we may consider
-removing -DMYSQL_SERVER from ../Makefile.am as well. */
-#define thd_charset(thd) (thd)->charset()
-#define thd_get_xid(thd,xid_) ((*xid_) = (thd)->transaction.xid_state.xid)
-#define thd_memdup(thd,str,len) (thd)->memdup(str, len)
-#define thd_killed(thd) (thd)->killed
-#define thd_slave_thread(thd) (thd)->slave_thread
-#define thd_query(thd) (&(thd)->query)
-#define thd_non_transactional_update(thd) ((thd)->no_trans_update.all)
-#define mysql_bin_log_file_name() mysql_bin_log.get_log_fname()
-#define mysql_bin_log_file_pos() mysql_bin_log.get_log_file()->pos_in_file
-#define mysql_tmpfile() fileno(tmpfile())/* BUGGY: leaks memory, Bug #3998 */
-#define mysql_query_cache_invalidate4(a,b,c,d) query_cache.invalidate(a,b,c,d)
-#else /* MYSQL_SERVER */
+#ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
@@ -81,33 +66,33 @@ typedef uchar mysql_byte;
 
 /* Include necessary InnoDB headers */
 extern "C" {
-#include "univ.i"
-#include "buf0buddy.h"
-#include "os0file.h"
-#include "os0thread.h"
-#include "srv0start.h"
-#include "srv0srv.h"
-#include "trx0roll.h"
-#include "trx0trx.h"
-#include "trx0sys.h"
-#include "mtr0mtr.h"
-#include "row0ins.h"
-#include "row0mysql.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "log0log.h"
-#include "lock0lock.h"
-#include "dict0crea.h"
-#include "btr0cur.h"
-#include "btr0btr.h"
-#include "fsp0fsp.h"
-#include "sync0sync.h"
-#include "fil0fil.h"
-#include "trx0xa.h"
-#include "row0merge.h"
-#include "thr0loc.h"
-#include "dict0boot.h"
-#include "ha_prototypes.h"
+#include "../storage/innobase/include/univ.i"
+#include "../storage/innobase/include/buf0buddy.h"
+#include "../storage/innobase/include/os0file.h"
+#include "../storage/innobase/include/os0thread.h"
+#include "../storage/innobase/include/srv0start.h"
+#include "../storage/innobase/include/srv0srv.h"
+#include "../storage/innobase/include/trx0roll.h"
+#include "../storage/innobase/include/trx0trx.h"
+#include "../storage/innobase/include/trx0sys.h"
+#include "../storage/innobase/include/mtr0mtr.h"
+#include "../storage/innobase/include/row0ins.h"
+#include "../storage/innobase/include/row0mysql.h"
+#include "../storage/innobase/include/row0sel.h"
+#include "../storage/innobase/include/row0upd.h"
+#include "../storage/innobase/include/log0log.h"
+#include "../storage/innobase/include/lock0lock.h"
+#include "../storage/innobase/include/dict0crea.h"
+#include "../storage/innobase/include/btr0cur.h"
+#include "../storage/innobase/include/btr0btr.h"
+#include "../storage/innobase/include/fsp0fsp.h"
+#include "../storage/innobase/include/sync0sync.h"
+#include "../storage/innobase/include/fil0fil.h"
+#include "../storage/innobase/include/trx0xa.h"
+#include "../storage/innobase/include/row0merge.h"
+#include "../storage/innobase/include/thr0loc.h"
+#include "../storage/innobase/include/dict0boot.h"
+#include "../storage/innobase/include/ha_prototypes.h"
 }
 
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
@@ -670,7 +655,7 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_TABLE_NOT_FOUND) {
 
-		return(HA_ERR_KEY_NOT_FOUND);
+		return(HA_ERR_NO_SUCH_TABLE);
 
 	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
@@ -897,7 +882,28 @@ innobase_mysql_tmpfile(void)
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
 {
-	return(mysql_tmpfile());
+	int	fd2 = -1;
+	File	fd = mysql_tmpfile("ib");
+	if (fd >= 0) {
+		/* Copy the file descriptor, so that the additional resources
+		allocated by create_temp_file() can be freed by invoking
+		my_close().
+
+		Because the file descriptor returned by this function
+		will be passed to fdopen(), it will be closed by invoking
+		fclose(), which in turn will invoke close() instead of
+		my_close(). */
+		fd2 = dup(fd);
+		if (fd2 < 0) {
+			DBUG_PRINT("error",("Got error %d on dup",fd2));
+			my_errno=errno;
+			my_error(EE_OUT_OF_FILERESOURCES,
+				 MYF(ME_BELL+ME_WAITTANG),
+				 "ib*", my_errno);
+		}
+		my_close(fd, MYF(MY_WME));
+	}
+	return(fd2);
 }
 
 /*************************************************************************
@@ -980,6 +986,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_CAN_SQL_HANDLER |
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
+		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
@@ -1671,7 +1678,6 @@ innobase_init(
 
 	DBUG_RETURN(FALSE);
 error:
-	innobase_hton->state = SHOW_OPTION_DISABLED;
 	DBUG_RETURN(TRUE);
 }
 
@@ -1920,6 +1926,8 @@ retry:
 
 		trx_mark_sql_stat_end(trx);
 	}
+
+	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
 	if (trx->declared_to_be_inside_innodb) {
 		/* Release our possible ticket in the FIFO */
@@ -2299,6 +2307,21 @@ ha_innobase::get_row_type() const
 	}
 	ut_ad(0);
 	return(ROW_TYPE_NOT_USED);
+}
+
+
+
+/********************************************************************
+Get the table flags to use for the statement. */
+handler::Table_flags
+ha_innobase::table_flags() const
+{
+       /* Need to use tx_isolation here since table flags is (also)
+          called before prebuilt is inited. */
+        ulong const tx_isolation = thd_tx_isolation(current_thd);
+        if (tx_isolation <= ISO_READ_COMMITTED)
+                return int_table_flags;
+        return int_table_flags | HA_BINLOG_STMT_CAPABLE;
 }
 
 /********************************************************************
@@ -3329,6 +3352,93 @@ skip_field:
 }
 
 /************************************************************************
+This special handling is really to overcome the limitations of MySQL's
+binlogging. We need to eliminate the non-determinism that will arise in
+INSERT ... SELECT type of statements, since MySQL binlog only stores the
+min value of the autoinc interval. Once that is fixed we can get rid of
+the special lock handling.*/
+
+ulong
+ha_innobase::innobase_autoinc_lock(void)
+/*====================================*/
+					/* out: DB_SUCCESS if all OK else
+					error code */
+{
+	ulint		error = DB_SUCCESS;
+
+	if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+		dict_table_autoinc_lock(prebuilt->table);
+
+		/* We peek at the dict_table_t::auto_inc_lock to check if
+		another statement has locked it */
+		if (prebuilt->trx->auto_inc_lock != NULL) {
+			/* Release the mutex to avoid deadlocks */
+			dict_table_autoinc_unlock(prebuilt->table);
+
+			goto acquire_auto_inc_lock;
+		}
+	} else {
+acquire_auto_inc_lock:
+		error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+		if (error == DB_SUCCESS) {
+			dict_table_autoinc_lock(prebuilt->table);
+		}
+	}
+
+	return(ulong(error));
+}
+
+/************************************************************************
+Reset the autoinc value in the table.*/
+
+ulong
+ha_innobase::innobase_reset_autoinc(
+/*================================*/
+					/* out: DB_SUCCESS if all went well
+					else error code */
+	ulonglong	autoinc)	/* in: value to store */
+{
+	ulint		error;
+
+	error = innobase_autoinc_lock();
+
+	if (error == DB_SUCCESS) {
+
+		dict_table_autoinc_initialize(prebuilt->table, autoinc);
+
+		dict_table_autoinc_unlock(prebuilt->table);
+	}
+
+	return(ulong(error));
+}
+
+/************************************************************************
+Store the autoinc value in the table. The autoinc value is only set if
+it's greater than the existing autoinc value in the table.*/
+
+ulong
+ha_innobase::innobase_set_max_autoinc(
+/*==================================*/
+					/* out: DB_SUCCES if all went well
+					else error code */
+	ulonglong	auto_inc)	/* in: value to store */
+{
+	ulint		error;
+
+	error = innobase_autoinc_lock();
+
+	if (error == DB_SUCCESS) {
+
+		dict_table_autoinc_update(prebuilt->table, auto_inc);
+
+		dict_table_autoinc_unlock(prebuilt->table);
+	}
+
+	return(ulong(error));
+}
+
+/************************************************************************
 Stores a row in an InnoDB database, to the table specified in this
 handle. */
 
@@ -3338,9 +3448,7 @@ ha_innobase::write_row(
 				/* out: error code */
 	mysql_byte*	record)	/* in: a row in MySQL format */
 {
-	int		error;
-	longlong	auto_inc;
-	longlong	dummy;
+	int		error = 0;
 	ibool		auto_inc_used= FALSE;
 	ulint		sql_command;
 	trx_t*		trx = thd_to_trx(user_thd);
@@ -3439,62 +3547,20 @@ no_commit:
 
 	num_write_row++;
 
+	/* This is the case where the table has an auto-increment column */
 	if (table->next_number_field && record == table->record[0]) {
-		/* This is the case where the table has an
-		auto-increment column */
 
-		/* Initialize the auto-inc counter if it has not been
-		initialized yet */
-
-		if (0 == dict_table_autoinc_peek(prebuilt->table)) {
-
-			/* This call initializes the counter */
-			error = innobase_read_and_init_auto_inc(&dummy);
-
-			if (error) {
-				/* Deadlock or lock wait timeout */
-
-				goto func_exit;
-			}
-
-			/* We have to set sql_stat_start to TRUE because
-			the above call probably has called a select, and
-			has reset that flag; row_insert_for_mysql has to
-			know to set the IX intention lock on the table,
-			something it only does at the start of each
-			statement */
-
-			prebuilt->sql_stat_start = TRUE;
-		}
-
-		/* We have to use the transactional lock mechanism on the
-		auto-inc counter of the table to ensure that replication and
-		roll-forward of the binlog exactly imitates also the given
-		auto-inc values. The lock is released at each SQL statement's
-		end. This lock also prevents a race where two threads would
-		call ::get_auto_increment() simultaneously. */
-
-		error = row_lock_table_autoinc_for_mysql(prebuilt);
-
-		if (error != DB_SUCCESS) {
-			/* Deadlock or lock wait timeout */
-
-			error = convert_error_code_to_mysql(error, user_thd);
+		if ((error = update_auto_increment())) {
 
 			goto func_exit;
 		}
 
-		/* We must use the handler code to update the auto-increment
-		value to be sure that we increment it correctly. */
-
-		if ((error= update_auto_increment()))
-			goto func_exit;
-		auto_inc_used = 1;
-
+		auto_inc_used = TRUE;
 	}
 
 	if (prebuilt->mysql_template == NULL
-			|| prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+	    || prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+
 		/* Build the template used in converting quickly between
 		the two database formats */
 
@@ -3505,40 +3571,63 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
-	if (error == DB_SUCCESS && auto_inc_used) {
+	/* Handle duplicate key errors */
+	if (auto_inc_used) {
+		ulonglong	auto_inc;
 
-		/* Fetch the value that was set in the autoincrement field */
-
-		auto_inc = table->next_number_field->val_int();
-
-		if (auto_inc != 0) {
-			/* This call will update the counter according to the
-			value that was inserted in the table */
-
-			dict_table_autoinc_update(prebuilt->table, auto_inc);
+		/* Note the number of rows processed for this statement, used
+		by get_auto_increment() to determine the number of AUTO-INC
+		values to reserve. This is only useful for a mult-value INSERT
+		and is a statement level counter.*/
+		if (trx->n_autoinc_rows > 0) {
+			--trx->n_autoinc_rows;
 		}
-	}
 
-	/* A REPLACE command and LOAD DATA INFILE REPLACE handle a duplicate
-	key error themselves, and we must update the autoinc counter if we are
-	performing those statements. */
-
-	if (error == DB_DUPLICATE_KEY && auto_inc_used
-	    && (sql_command == SQLCOM_REPLACE
-		|| sql_command == SQLCOM_REPLACE_SELECT
-		|| (sql_command == SQLCOM_INSERT
-		    && ((trx->duplicates
-			 & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-			== TRX_DUP_IGNORE))
-		|| (sql_command == SQLCOM_LOAD
-		    && ((trx->duplicates
-			 & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
-			== (TRX_DUP_IGNORE | TRX_DUP_REPLACE))))) {
-
+		/* Get the value that MySQL attempted to store in the table.*/
 		auto_inc = table->next_number_field->val_int();
 
-		if (auto_inc != 0) {
-			dict_table_autoinc_update(prebuilt->table, auto_inc);
+		switch (error) {
+		case DB_DUPLICATE_KEY:
+
+			/* A REPLACE command and LOAD DATA INFILE REPLACE
+			handle a duplicate key error themselves, but we
+			must update the autoinc counter if we are performing
+			those statements. */
+
+			switch (sql_command) {
+			case SQLCOM_LOAD:
+				if ((trx->duplicates
+				    & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))) {
+
+					goto set_max_autoinc;
+				}
+				break;
+
+			case SQLCOM_REPLACE:
+			case SQLCOM_INSERT_SELECT:
+			case SQLCOM_REPLACE_SELECT:
+				goto set_max_autoinc;
+				break;
+
+			default:
+				break;
+			}
+
+			break;
+
+		case DB_SUCCESS:
+			/* If the actual value inserted is greater than
+			the upper limit of the interval, then we try and
+			update the table upper limit. Note: last_value
+			will be 0 if get_auto_increment() was not called.*/
+
+			if (auto_inc > prebuilt->last_value) {
+set_max_autoinc:
+				auto_inc += prebuilt->table->autoinc_increment;
+
+				innobase_set_max_autoinc(auto_inc);
+			}
+			break;
 		}
 	}
 
@@ -3546,8 +3635,6 @@ no_commit:
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
-	/* Tell InnoDB server that there might be work for
-	utility threads: */
 func_exit:
 	innobase_active_small();
 
@@ -3749,6 +3836,32 @@ ha_innobase::update_row(
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
+	/* We need to do some special AUTOINC handling for the following case:
+
+	INSERT INTO t (c1,c2) VALUES(x,y) ON DUPLICATE KEY UPDATE ...
+
+	We need to use the AUTOINC counter that was actually used by
+	MySQL in the UPDATE statement, which can be different from the
+	value used in the INSERT statement.*/
+
+	if (error == DB_SUCCESS
+	    && table->next_number_field
+	    && new_row == table->record[0]
+	    && thd_sql_command(user_thd) == SQLCOM_INSERT
+	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
+		== TRX_DUP_IGNORE)  {
+
+		longlong	auto_inc;
+
+		auto_inc = table->next_number_field->val_int();
+
+		if (auto_inc != 0) {
+			auto_inc += prebuilt->table->autoinc_increment;
+
+			innobase_set_max_autoinc(auto_inc);
+		}
+	}
+
 	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error, user_thd);
@@ -3777,6 +3890,19 @@ ha_innobase::delete_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	/* Only if the table has an AUTOINC column */
+	if (table->found_next_number_field && record == table->record[0]) {
+		ulonglong	dummy = 0;
+
+		error = innobase_get_auto_increment(&dummy);
+
+		if (error == DB_SUCCESS) {
+			dict_table_autoinc_unlock(prebuilt->table);
+		} else {
+			goto error_exit;
+		}
+	}
+
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
 	}
@@ -3791,6 +3917,7 @@ ha_innobase::delete_row(
 
 	innodb_srv_conc_exit_innodb(trx);
 
+error_exit:
 	error = convert_error_code_to_mysql(error, user_thd);
 
 	/* Tell the InnoDB server that there might be work for
@@ -4135,6 +4262,46 @@ ha_innobase::index_read_last(
 }
 
 /************************************************************************
+Get the index for a handle. Does not change active index.*/
+
+dict_index_t*
+ha_innobase::innobase_get_index(
+/*============================*/
+				/* out: NULL or index instance. */
+	uint		keynr)	/* in: use this index; MAX_KEY means always
+				clustered index, even if it was internally
+				generated by InnoDB */
+{
+	KEY*		key = 0;
+	dict_index_t*	index = 0;
+
+	DBUG_ENTER("innobase_get_index");
+	ha_statistic_increment(&SSV::ha_read_key_count);
+
+	ut_ad(user_thd == ha_thd());
+	ut_a(prebuilt->trx == thd_to_trx(user_thd));
+
+	if (keynr != MAX_KEY && table->s->keys > 0) {
+		key = table->key_info + keynr;
+
+		index = dict_table_get_index_on_name(prebuilt->table,
+						     key->name);
+	} else {
+		index = dict_table_get_first_index(prebuilt->table);
+	}
+
+	if (!index) {
+		sql_print_error(
+			"Innodb could not find key n:o %u with name %s "
+			"from dict cache for table %s",
+			keynr, key ? key->name : "NULL",
+			prebuilt->table->name);
+	}
+
+	DBUG_RETURN(index);
+}
+
+/************************************************************************
 Changes the active index of a handle. */
 
 int
@@ -4145,31 +4312,16 @@ ha_innobase::change_active_index(
 			index, even if it was internally generated by
 			InnoDB */
 {
-	KEY*		key = 0;
 	DBUG_ENTER("change_active_index");
-	ha_statistic_increment(&SSV::ha_read_key_count);
 
 	ut_ad(user_thd == ha_thd());
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 	active_index = keynr;
 
-	if (keynr != MAX_KEY && table->s->keys > 0) {
-		key = table->key_info + active_index;
-
-		prebuilt->index = dict_table_get_index_on_name(
-			prebuilt->table, key->name);
-	} else {
-		prebuilt->index = dict_table_get_first_index(prebuilt->table);
-	}
+	prebuilt->index = innobase_get_index(keynr);
 
 	if (!prebuilt->index) {
-		sql_print_error(
-			"Innodb could not find key n:o %u with name %s "
-			"from dict cache for table %s",
-			keynr, key ? key->name : "NULL",
-			prebuilt->table->name);
-
 		DBUG_RETURN(1);
 	}
 
@@ -5022,7 +5174,10 @@ ha_innobase::create(
 		maximum value in the column. */
 
 		auto_inc_value = create_info->auto_increment_value;
+
+		dict_table_autoinc_lock(innobase_table);
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+		dict_table_autoinc_unlock(innobase_table);
 	}
 
 	/* Tell the InnoDB server that there might be work for
@@ -5943,9 +6098,9 @@ ha_innobase::update_table_comment(
 	mutex_enter(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
-	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
-		   (ulong) fsp_get_available_space_in_free_extents(
-					prebuilt->table->space));
+	fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+		fsp_get_available_space_in_free_extents(
+			prebuilt->table->space));
 
 	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
@@ -6068,8 +6223,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 	  while (tmp_buff[i] != '/')
 		  i++;
 	  tmp_buff+= i + 1;
-	  f_key_info.forein_id= make_lex_string(thd, 0, tmp_buff,
-		  (uint) strlen(tmp_buff), 1);
+	  f_key_info.forein_id = thd_make_lex_string(thd, 0,
+		  tmp_buff, (uint) strlen(tmp_buff), 1);
 	  tmp_buff= foreign->referenced_table_name;
 
           /* Database name */
@@ -6081,22 +6236,23 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
           }
           db_name[i]= 0;
           ulen= filename_to_tablename(db_name, uname, sizeof(uname));
-          f_key_info.referenced_db= make_lex_string(thd, 0, uname, ulen, 1);
+	  f_key_info.referenced_db = thd_make_lex_string(thd, 0,
+		  uname, ulen, 1);
 
           /* Table name */
 	  tmp_buff+= i + 1;
           ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
-          f_key_info.referenced_table= make_lex_string(thd, 0, uname,
-                                                       ulen, 1);
+	  f_key_info.referenced_table = thd_make_lex_string(thd, 0,
+		  uname, ulen, 1);
 
 	  for (i= 0;;) {
 		  tmp_buff= foreign->foreign_col_names[i];
-		  name= make_lex_string(thd, name, tmp_buff,
-			  (uint) strlen(tmp_buff), 1);
+		  name = thd_make_lex_string(thd, name,
+			  tmp_buff, (uint) strlen(tmp_buff), 1);
 		  f_key_info.foreign_fields.push_back(name);
 		  tmp_buff= foreign->referenced_col_names[i];
-		  name= make_lex_string(thd, name, tmp_buff,
-			  (uint) strlen(tmp_buff), 1);
+		  name = thd_make_lex_string(thd, name,
+			tmp_buff, (uint) strlen(tmp_buff), 1);
 		  f_key_info.referenced_fields.push_back(name);
 		  if (++i >= foreign->n_fields)
 			  break;
@@ -6123,8 +6279,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
             length=8;
             tmp_buff= "RESTRICT";
           }
-          f_key_info.delete_method= make_lex_string(thd, f_key_info.delete_method,
-                                                    tmp_buff, length, 1);
+	  f_key_info.delete_method = thd_make_lex_string(
+		  thd, f_key_info.delete_method, tmp_buff, length, 1);
 
 
           if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
@@ -6147,19 +6303,19 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
             length=8;
             tmp_buff= "RESTRICT";
           }
-          f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
-                                                    tmp_buff, length, 1);
+	  f_key_info.update_method = thd_make_lex_string(
+		  thd, f_key_info.update_method, tmp_buff, length, 1);
           if (foreign->referenced_index &&
               foreign->referenced_index->name)
           {
-            f_key_info.referenced_key_name= 
-              make_lex_string(thd, f_key_info.referenced_key_name,
-                              foreign->referenced_index->name,
-                              strlen(foreign->referenced_index->name), 1);
+	    f_key_info.referenced_key_name = thd_make_lex_string(
+		    thd, f_key_info.referenced_key_name,
+		    foreign->referenced_index->name,
+		    strlen(foreign->referenced_index->name), 1);
           }
 
 	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-		thd_memdup(thd, &f_key_info, sizeof f_key_info);
+		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
 	  f_key_list->push_back(pf_key_info);
 	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
   }
@@ -6422,6 +6578,29 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
+	/* Statement based binlogging does not work in isolation level
+	READ UNCOMMITTED and READ COMMITTED since the necessary
+	locks cannot be taken. In this case, we print an
+	informative error message and return with an error. */
+	if (lock_type == F_WRLCK)
+	{
+		ulong const binlog_format= thd_binlog_format(thd);
+		ulong const tx_isolation = thd_tx_isolation(current_thd);
+		if (tx_isolation <= ISO_READ_COMMITTED &&
+		    binlog_format == BINLOG_FORMAT_STMT)
+		{
+			char buf[256];
+			my_snprintf(buf, sizeof(buf),
+				    "Transaction level '%s' in"
+				    " InnoDB is not safe for binlog mode '%s'",
+				    tx_isolation_names[tx_isolation],
+				    binlog_format_names[binlog_format]);
+			my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
+			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+		}
+	}
+
+
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -6665,10 +6844,6 @@ innodb_show_status(
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
 	DBUG_ENTER("innodb_show_status");
-
-	if (hton->state != SHOW_OPTION_YES) {
-		DBUG_RETURN(FALSE);
-	}
 
 	trx = check_trx_exists(thd);
 
@@ -7091,18 +7266,6 @@ ha_innobase::store_lock(
 		    && !thd_tablespace_op(thd)
 		    && sql_command != SQLCOM_TRUNCATE
 		    && sql_command != SQLCOM_OPTIMIZE
-
-#ifdef __WIN__
-		    /* For alter table on win32 for successful
-		    operation completion it is used TL_WRITE(=10) lock
-		    instead of TL_WRITE_ALLOW_READ(=6), however here
-		    in innodb handler TL_WRITE is lifted to
-		    TL_WRITE_ALLOW_WRITE, which causes race condition
-		    when several clients do alter table simultaneously
-		    (bug #17264). This fix avoids the problem. */
-		    && sql_command != SQLCOM_ALTER_TABLE
-#endif
-
 		    && sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
@@ -7141,15 +7304,15 @@ the value of the auto-inc counter. */
 int
 ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
-				/* out: 0 or error code: deadlock or lock wait
-				timeout */
-	longlong*	ret)	/* out: auto-inc value */
+						/* out: 0 or error code:
+						deadlock or lock wait timeout */
+        longlong*	value)			/* out: the autoinc value */
 {
 	longlong	auto_inc;
-	ulint		old_select_lock_type;
-	ibool		trx_was_not_started	= FALSE;
 	ibool		stmt_start;
-	int		error;
+	int		mysql_error = 0;
+	dict_table_t*	innodb_table = prebuilt->table;
+	ibool		trx_was_not_started	= FALSE;
 
 	ut_a(prebuilt);
 	ut_a(prebuilt->table);
@@ -7170,103 +7333,47 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
+	dict_table_autoinc_lock(prebuilt->table);
+
 	auto_inc = dict_table_autoinc_read(prebuilt->table);
 
-	if (auto_inc != 0) {
-		/* Already initialized */
-		*ret = auto_inc;
-
-		error = 0;
-
-		goto func_exit_early;
+	/* Was the AUTOINC counter reset during normal processing, if
+	so then we simply start count from 1. No need to go to the index.*/
+	if (auto_inc == 0 && innodb_table->autoinc_inited) {
+		++auto_inc;
+		dict_table_autoinc_initialize(innodb_table, auto_inc);
 	}
 
-	error = row_lock_table_autoinc_for_mysql(prebuilt);
+	if (auto_inc == 0) {
+		dict_index_t* index;
+		ulint error = DB_SUCCESS;
+		const char* autoinc_col_name;
 
-	if (error != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(error, user_thd);
+		ut_a(!innodb_table->autoinc_inited);
 
-		goto func_exit_early;
-	}
+		index = innobase_get_index(table->s->next_number_index);
 
-	/* Check again if someone has initialized the counter meanwhile */
-	auto_inc = dict_table_autoinc_read(prebuilt->table);
+		autoinc_col_name = table->found_next_number_field->field_name;
 
-	if (auto_inc != 0) {
-		*ret = auto_inc;
+		error = row_search_max_autoinc(
+			index, autoinc_col_name, &auto_inc);
 
-		error = 0;
-
-		goto func_exit_early;
-	}
-
-	(void) extra(HA_EXTRA_KEYREAD);
-	index_init(table->s->next_number_index, 1);
-
-	/* Starting from 5.0.9, we use a consistent read to read the auto-inc
-	column maximum value. This eliminates the spurious deadlocks caused
-	by the row X-lock that we previously used. Note the following flaw
-	in our algorithm: if some other user meanwhile UPDATEs the auto-inc
-	column, our consistent read will not return the largest value. We
-	accept this flaw, since the deadlocks were a bigger trouble. */
-
-	/* Fetch all the columns in the key */
-
-	prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
-
-	old_select_lock_type = prebuilt->select_lock_type;
-	prebuilt->select_lock_type = LOCK_NONE;
-
-	/* Eliminate an InnoDB error print that happens when we try to SELECT
-	from a table when no table has been locked in ::external_lock(). */
-	prebuilt->trx->n_mysql_tables_in_use++;
-
-	error = index_last(table->record[1]);
-
-	prebuilt->trx->n_mysql_tables_in_use--;
-	prebuilt->select_lock_type = old_select_lock_type;
-
-	if (error) {
-		if (error == HA_ERR_END_OF_FILE) {
-			/* The table was empty, initialize to 1 */
-			auto_inc = 1;
-
-			error = 0;
+		if (error == DB_SUCCESS) {
+			++auto_inc;
+			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			/* This should not happen in a consistent read */
-		  sql_print_error("Consistent read of auto-inc column "
-				  "returned %lu", (ulong) error);
-			auto_inc = -1;
+			fprintf(stderr, "  InnoDB error: Couldn't read the "
+				"max AUTOINC value from index (%s).\n",
+				index->name);
 
-			goto func_exit;
+			mysql_error = 1;
 		}
-	} else {
-		/* Initialize to max(col) + 1; we use
-		'found_next_number_field' below because MySQL in SHOW TABLE
-		STATUS does not seem to set 'next_number_field'. The comment
-		in table.h says that 'next_number_field' is set when it is
-		'active'.
-		Since 5.1 MySQL enforces that we announce fields which we will
-		read; as we only do a val_*() call, dbug_tmp_use_all_columns()
-		with read_set is sufficient. */
-
-		my_bitmap_map *old_map;
-		old_map= dbug_tmp_use_all_columns(table, table->read_set);
-		auto_inc = (longlong) table->found_next_number_field->
-				val_int_offset(table->s->rec_buff_length) + 1;
-		dbug_tmp_restore_column_map(table->read_set, old_map);
 	}
 
-	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+	*value = auto_inc;
 
-func_exit:
-	(void) extra(HA_EXTRA_NO_KEYREAD);
+	dict_table_autoinc_unlock(prebuilt->table);
 
-	index_end();
-
-	*ret = auto_inc;
-
-func_exit_early:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
 	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
@@ -7281,6 +7388,63 @@ func_exit_early:
 
 	prebuilt->sql_stat_start = stmt_start;
 
+	return(mysql_error);
+}
+
+/*******************************************************************************
+Read the next autoinc value, initialize the table if it's not initialized.
+On return if there is no error then the tables AUTOINC lock is locked.*/
+
+ulong
+ha_innobase::innobase_get_auto_increment(
+	ulonglong*	value)		/* out: autoinc value */
+{
+	ulint		error;
+
+	do {
+		error = innobase_autoinc_lock();
+
+		if (error == DB_SUCCESS) {
+			ib_longlong	autoinc;
+
+			/* Determine the first value of the interval */
+			autoinc = dict_table_autoinc_read(prebuilt->table);
+
+			/* We need to initialize the AUTO-INC value, for
+			that we release all locks.*/
+			if (autoinc <= 0) {
+				trx_t*		trx;
+
+				trx = prebuilt->trx;
+				dict_table_autoinc_unlock(prebuilt->table);
+
+				if (trx->auto_inc_lock) {
+					/* If we had reserved the AUTO-INC
+					lock in this SQL statement we release
+					it before retrying.*/
+					row_unlock_table_autoinc_for_mysql(trx);
+				}
+
+				/* Just to make sure */
+				ut_a(!trx->auto_inc_lock);
+
+				int	mysql_error;
+
+				mysql_error = innobase_read_and_init_auto_inc(
+					&autoinc);
+
+				if (!mysql_error) {
+					/* Should have read the proper value */
+					ut_a(autoinc > 0);
+				} else {
+					error = DB_ERROR;
+				}
+			} else {
+				*value = (ulonglong) autoinc;
+			}
+		}
+	} while (*value == 0 && error == DB_SUCCESS);
+
 	return(error);
 }
 
@@ -7292,37 +7456,87 @@ auto-inc counter in *first_value, and ULONGLONG_MAX in *nb_reserved_values (as
 we have a table-level lock). offset, increment, nb_desired_values are ignored.
 *first_value is set to -1 if error (deadlock or lock wait timeout)            */
 
-void ha_innobase::get_auto_increment(
+void
+ha_innobase::get_auto_increment(
 /*=================================*/
-        ulonglong offset,              /* in */
-        ulonglong increment,           /* in */
-        ulonglong nb_desired_values,   /* in */
-        ulonglong *first_value,        /* out */
-        ulonglong *nb_reserved_values) /* out */
+        ulonglong	offset,              /* in: */
+        ulonglong	increment,           /* in: table autoinc increment */
+        ulonglong	nb_desired_values,   /* in: number of values reqd */
+        ulonglong	*first_value,        /* out: the autoinc value */
+        ulonglong	*nb_reserved_values) /* out: count of reserved values */
 {
-	longlong	nr;
-	int		error;
+	ulint		error;
+	ulonglong	autoinc = 0;
 
 	/* Prepare prebuilt->trx in the table handle */
 	update_thd(ha_thd());
 
-	error = innobase_read_and_init_auto_inc(&nr);
+	error = innobase_get_auto_increment(&autoinc);
 
-	if (error) {
-		/* This should never happen in the current (5.0.6) code, since
-		we call this function only after the counter has been
-		initialized. */
+	if (error != DB_SUCCESS) {
+		/* This should never happen in the code > ver 5.0.6,
+		since we call this function only after the counter
+		has been initialized. */
 
 		ut_print_timestamp(stderr);
-		sql_print_error("Error %lu in ::get_auto_increment()",
-				(ulong) error);
-                *first_value= (~(ulonglong) 0);
+		sql_print_error("Error %lu in ::get_auto_increment()", error);
+
+		*first_value = (~(ulonglong) 0);
 		return;
 	}
 
-        *first_value= (ulonglong) nr;
-        /* table-level autoinc lock reserves up to +inf */
-        *nb_reserved_values= ULONGLONG_MAX;
+	/* This is a hack, since nb_desired_values seems to be accurate only
+	for the first call to get_auto_increment() for multi-row INSERT and
+	meaningless for other statements e.g, LOAD etc. Subsequent calls to
+	this method for the same statement results in different values which
+	don't make sense. Therefore we store the value the first time we are
+	called and count down from that as rows are written (see write_row()).
+
+	We make one exception, if the *first_value is precomputed by MySQL
+	we use that value. And set the number of reserved values to 1 if
+	this is the first time we were called for the SQL statement, this
+	will force MySQL to call us for the next value. If we are in the
+	middle of a multi-row insert we preserve the existing counter.*/
+	if (*first_value == 0) {
+
+		/* Called for the first time ? */
+		if (prebuilt->trx->n_autoinc_rows == 0) {
+
+			prebuilt->trx->n_autoinc_rows = nb_desired_values;
+
+			/* It's possible for nb_desired_values to be 0:
+			e.g., INSERT INTO T1(C) SELECT C FROM T2; */
+			if (nb_desired_values == 0) {
+
+				++prebuilt->trx->n_autoinc_rows;
+			}
+		}
+
+		*first_value = autoinc;
+
+	} else if (prebuilt->trx->n_autoinc_rows == 0) {
+
+		prebuilt->trx->n_autoinc_rows = 1;
+	}
+
+	ut_a(prebuilt->trx->n_autoinc_rows > 0);
+
+	*nb_reserved_values = prebuilt->trx->n_autoinc_rows;
+
+	/* Compute the last value in the interval */
+	prebuilt->last_value = *first_value + (*nb_reserved_values * increment);
+
+	ut_a(prebuilt->last_value >= *first_value);
+
+	/* Update the table autoinc variable */
+	dict_table_autoinc_update(prebuilt->table, prebuilt->last_value);
+
+	/* The increment to be used to increase the AUTOINC value, we use
+	this in write_row() and update_row() to increase the autoinc counter
+	for columns that are filled by the user.*/
+	prebuilt->table->autoinc_increment = increment;
+
+	dict_table_autoinc_unlock(prebuilt->table);
 }
 
 /* See comment in handler.h */
@@ -7343,7 +7557,7 @@ ha_innobase::reset_auto_increment(ulonglong value)
 		DBUG_RETURN(error);
 	}
 
-	dict_table_autoinc_initialize(prebuilt->table, value);
+	innobase_reset_autoinc(value);
 
 	DBUG_RETURN(0);
 }
@@ -7596,7 +7810,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	thd_get_xid(thd, &trx->xid);
+	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -7629,6 +7843,7 @@ innobase_xa_prepare(
 
 			row_unlock_table_autoinc_for_mysql(trx);
 		}
+
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
 		SQL statement */

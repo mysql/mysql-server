@@ -10,11 +10,17 @@
 
 SET storage_engine=InnoDB;
 
-# we do not really care about what gets output-ed, we are only
+# we do not really care about what gets printed, we are only
 # interested in getting the deadlock resolved according to our
 # expectations
 -- disable_query_log
 -- disable_result_log
+
+# we want to use "-- eval statement1; statement2" which does not work with
+# prepared statements. Because this test should not behave differently with
+# or without prepared statements we disable them so the test does not fail
+# if someone runs ./mysql-test-run.pl --ps-protocol
+-- disable_ps_protocol
 
 -- disable_warnings
 DROP TABLE IF EXISTS t1, t2, t3, t4, t5_nontrans;
