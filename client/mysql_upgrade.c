@@ -17,6 +17,8 @@
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 
+#define VER "1.1"
+
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -32,7 +34,8 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose;
+static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag;
+static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
@@ -56,6 +59,11 @@ static struct my_option my_long_options[]=
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibilty",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   (uchar**)&not_used, (uchar**)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd',
    "Not used by mysql_upgrade. Only for backward compatibilty",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -66,14 +74,14 @@ static struct my_option my_long_options[]=
   {"debug", '#', "Output debug log", (uchar* *) & default_dbug_option,
    (uchar* *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
+   (uchar**) &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (uchar**)&not_used, (uchar**)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
    (uchar**)&opt_force, (uchar**)&opt_force, 0,
@@ -138,7 +146,7 @@ static void die(const char *fmt, ...)
   va_end(args);
 
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg);
   exit(1);
 }
 
@@ -200,8 +208,9 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
-    printf("MySQL utility for upgrading database to MySQL version %s\n",
-           MYSQL_SERVER_VERSION);
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+           my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    puts("MySQL utility for upgrading databases to new MySQL versions\n");
     my_print_help(my_long_options);
     exit(0);
     break;
@@ -732,6 +741,10 @@ int main(int argc, char **argv)
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))
     die(NULL);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (tty_password)
   {
@@ -780,7 +793,7 @@ int main(int argc, char **argv)
   create_mysql_upgrade_info_file();
 
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg);
   exit(0);
 }
 

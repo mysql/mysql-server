@@ -24,7 +24,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.6"
+#define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -49,8 +49,8 @@ static char *add_load_option(char *ptr,const char *object,
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,
                 opt_low_priority= 0, tty_password= 0;
-static my_bool info_flag= 0;
-static uint opt_use_threads=0, opt_local_file=0;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static uint opt_use_threads=0, opt_local_file=0, my_end_arg= 0;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
@@ -87,8 +87,12 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", (uchar**) &opt_delete,
    (uchar**) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
@@ -254,6 +258,10 @@ static int get_options(int *argc, char ***argv)
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (enclosed && opt_enclosed)
   {
@@ -659,6 +667,6 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(argv_to_free);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
   return(exitcode);
 }
