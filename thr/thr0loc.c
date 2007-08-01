@@ -71,7 +71,7 @@ try_again:
 	local = NULL;
 
 	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
-		    local, os_thread_eq(local->id, id));
+		    thr_local_t*, local, os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 
@@ -195,7 +195,7 @@ thr_local_free(
 	/* Look for the local struct in the hash table */
 
 	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
-		    local, os_thread_eq(local->id, id));
+		    thr_local_t*, local, os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 

@@ -352,6 +352,44 @@ fil_write(
 					   byte_offset, len, buf, message));
 }
 
+/***********************************************************************
+Returns the table space by a given id, NULL if not found. */
+UNIV_INLINE
+fil_space_t*
+fil_space_get_by_id(
+/*================*/
+	ulint	id)	/* in: space id */
+{
+	fil_space_t*	space;
+
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	HASH_SEARCH(hash, fil_system->spaces, id,
+		    fil_space_t*, space, space->id == id);
+
+	return(space);
+}
+
+/***********************************************************************
+Returns the table space by a given name, NULL if not found. */
+UNIV_INLINE
+fil_space_t*
+fil_space_get_by_name(
+/*==================*/
+	const char*	name)	/* in: space name */
+{
+	fil_space_t*	space;
+	ulint		fold;
+
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	fold = ut_fold_string(name);
+
+	HASH_SEARCH(name_hash, fil_system->name_hash, fold,
+		    fil_space_t*, space, !strcmp(name, space->name));
+
+	return(space);
+}
 
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
@@ -371,7 +409,7 @@ fil_space_get_version(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space) {
 		version = space->tablespace_version;
@@ -400,7 +438,7 @@ fil_space_get_latch(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 
@@ -429,7 +467,7 @@ fil_space_get_type(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 
@@ -456,7 +494,7 @@ fil_space_get_ibuf_data(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	mutex_exit(&(system->mutex));
 
@@ -531,7 +569,7 @@ fil_node_create(
 	node->modification_counter = 0;
 	node->flush_counter = 0;
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (!space) {
 		ut_print_timestamp(stderr);
@@ -860,8 +898,8 @@ retry:
 		return;
 	}
 
-	HASH_SEARCH(hash, system->spaces, space_id, space,
-		    space->id == space_id);
+	space = fil_space_get_by_id(space_id);
+
 	if (space != NULL && space->stop_ios) {
 		/* We are going to do a rename file and want to stop new i/o's
 		for a while */
@@ -1005,7 +1043,7 @@ fil_space_truncate_start(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 
@@ -1049,8 +1087,8 @@ try_again:
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(name), space,
-		    0 == strcmp(name, space->name));
+	space = fil_space_get_by_name(name);
+
 	if (UNIV_LIKELY_NULL(space)) {
 		ulint	namesake_id;
 
@@ -1097,7 +1135,7 @@ try_again:
 		goto try_again;
 	}
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (UNIV_LIKELY_NULL(space)) {
 		fprintf(stderr,
@@ -1234,7 +1272,7 @@ fil_space_free(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (!space) {
 		ut_print_timestamp(stderr);
@@ -1250,8 +1288,7 @@ fil_space_free(
 
 	HASH_DELETE(fil_space_t, hash, system->spaces, id, space);
 
-	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(space->name),
-		    namespace, 0 == strcmp(space->name, namespace->name));
+	namespace = fil_space_get_by_name(space->name);
 	ut_a(namespace);
 	ut_a(space == namespace);
 
@@ -1307,7 +1344,7 @@ fil_get_space_for_id_low(
 
 	ut_ad(system);
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	return(space);
 }
@@ -1332,7 +1369,7 @@ fil_space_get_size(
 
 	fil_mutex_enter_and_prepare_for_io(id);
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		mutex_exit(&(system->mutex));
@@ -1386,7 +1423,7 @@ fil_space_get_zip_size(
 
 	fil_mutex_enter_and_prepare_for_io(id);
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		mutex_exit(&(system->mutex));
@@ -1793,7 +1830,7 @@ fil_inc_pending_ibuf_merges(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		fprintf(stderr,
@@ -1828,7 +1865,7 @@ fil_decr_pending_ibuf_merges(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		fprintf(stderr,
@@ -2126,7 +2163,7 @@ fil_delete_tablespace(
 stop_ibuf_merges:
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space != NULL) {
 		space->stop_ibuf_merges = TRUE;
@@ -2166,7 +2203,7 @@ stop_ibuf_merges:
 try_again:
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		ut_print_timestamp(stderr);
@@ -2311,8 +2348,7 @@ fil_rename_tablespace_in_mem(
 	fil_space_t*	space2;
 	const char*	old_name	= space->name;
 
-	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(old_name),
-		    space2, 0 == strcmp(old_name, space2->name));
+	space2 = fil_space_get_by_name(old_name);
 	if (space != space2) {
 		fputs("InnoDB: Error: cannot find ", stderr);
 		ut_print_filename(stderr, old_name);
@@ -2321,8 +2357,7 @@ fil_rename_tablespace_in_mem(
 		return(FALSE);
 	}
 
-	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(path),
-		    space2, 0 == strcmp(path, space2->name));
+	space2 = fil_space_get_by_name(path);
 	if (space2 != NULL) {
 		fputs("InnoDB: Error: ", stderr);
 		ut_print_filename(stderr, path);
@@ -2432,7 +2467,7 @@ retry:
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		fprintf(stderr,
@@ -3537,7 +3572,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL || space->is_being_deleted) {
 		mutex_exit(&(system->mutex));
@@ -3573,7 +3608,7 @@ fil_tablespace_exists_in_mem(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
 		mutex_exit(&(system->mutex));
@@ -3627,14 +3662,12 @@ fil_space_for_table_exists_in_mem(
 
 	/* Look if there is a space with the same id */
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	/* Look if there is a space with the same name; the name is the
 	directory path from the datadir to the file */
 
-	HASH_SEARCH(name_hash, system->name_hash,
-		    ut_fold_string(path), namespace,
-		    0 == strcmp(namespace->name, path));
+	namespace = fil_space_get_by_name(path);
 	if (space && space == namespace) {
 		/* Found */
 
@@ -3757,9 +3790,8 @@ fil_get_space_id_for_table(
 	/* Look if there is a space with the same name; the name is the
 	directory path to the file */
 
-	HASH_SEARCH(name_hash, system->name_hash,
-		    ut_fold_string(path), namespace,
-		    0 == strcmp(namespace->name, path));
+	namespace = fil_space_get_by_name(path);
+
 	if (namespace) {
 		id = namespace->id;
 	}
@@ -3803,8 +3835,7 @@ fil_extend_space_to_desired_size(
 
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
-	HASH_SEARCH(hash, system->spaces, space_id, space,
-		    space->id == space_id);
+	space = fil_space_get_by_id(space_id);
 	ut_a(space);
 
 	if (space->size >= size_after_extend) {
@@ -3991,7 +4022,7 @@ fil_space_reserve_free_extents(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 
@@ -4023,7 +4054,7 @@ fil_space_release_free_extents(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 	ut_a(space->n_reserved_extents >= n_reserved);
@@ -4050,7 +4081,7 @@ fil_space_get_n_reserved_extents(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+	space = fil_space_get_by_id(id);
 
 	ut_a(space);
 
@@ -4270,8 +4301,8 @@ fil_io(
 
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
-	HASH_SEARCH(hash, system->spaces, space_id, space,
-		    space->id == space_id);
+	space = fil_space_get_by_id(space_id);
+
 	if (!space) {
 		mutex_exit(&(system->mutex));
 
@@ -4481,8 +4512,8 @@ fil_flush(
 
 	mutex_enter(&(system->mutex));
 
-	HASH_SEARCH(hash, system->spaces, space_id, space,
-		    space->id == space_id);
+	space = fil_space_get_by_id(space_id);
+
 	if (!space || space->is_being_deleted) {
 		mutex_exit(&(system->mutex));
 
