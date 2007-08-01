@@ -46,9 +46,9 @@ cmp_dfield_dfield(
 	type = dfield_get_type(dfield1);
 
 	return(cmp_data_data(type->mtype, type->prtype,
-			     dfield_get_data(dfield1),
+			     (const byte*) dfield_get_data(dfield1),
 			     dfield_get_len(dfield1),
-			     dfield_get_data(dfield2),
+			     (const byte*) dfield_get_data(dfield2),
 			     dfield_get_len(dfield2)));
 }
 

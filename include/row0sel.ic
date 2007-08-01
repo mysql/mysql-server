@@ -51,7 +51,7 @@ open_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = (open_node_t*) thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_OPEN);
 
 	sel_node = node->cursor_def;
