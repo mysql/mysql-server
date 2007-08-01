@@ -1006,6 +1006,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 		if (0) { died2: toku_free(t->h); }
 		goto died1;
 	    }
+	    t->h->dirty=1;
 	    t->h->nodesize=nodesize;
 	    t->h->freelist=-1;
 	    t->h->unused_memory=2*nodesize;
@@ -1077,7 +1078,7 @@ int close_brt (BRT brt) {
 	if (r!=0) return r;
     }
     assert(0==cachefile_count_pinned(brt->cf, 1));
-    printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
+    //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
     if ((r = cachefile_close(&brt->cf))!=0) return r;
     if (brt->database_name) toku_free(brt->database_name);
     if (brt->skey) { toku_free(brt->skey); }
@@ -1171,7 +1172,6 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
-    DBT answer;
     BRTNODE node;
     int childnum;
     if (r!=0) {
@@ -1183,12 +1183,9 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     }
     node=node_v;
     if (node->height==0) {
-	r = pma_lookup(node->u.l.buffer, k, &answer, db);
+	r = pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
 	if (r!=0) goto died0;
-	if (r==0) {
-	    *v = answer;
-	}
 	r = cachetable_unpin(brt->cf, off, 0);
 	return r;
     }

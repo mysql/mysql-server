@@ -17,6 +17,7 @@
 
 typedef struct ctpair *PAIR;
 struct ctpair {
+    enum typ_tag tag;
     long long pinned;
     char     dirty;
     CACHEKEY key;
@@ -233,6 +234,8 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     lru_remove(t, remove_me);
     //printf("flush_callback(%lld,%p)\n", remove_me->key, remove_me->value);
     WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->dirty && write_me)); 
+    //printf("%s:%d TAG=%x p=%p\n", __FILE__, __LINE__, remove_me->tag, remove_me);
+    //printf("%s:%d dirty=%d\n", __FILE__, __LINE__, remove_me->dirty);
     remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->dirty && write_me, 0);
     t->n_in_table--;
     // Remove it from the hash chain.
@@ -272,34 +275,39 @@ int cachetable_put (CACHEFILE cachefile, CACHEKEY key, void*value,
 		    void*extraargs
 		    ) {
     int h = hashit(cachefile->cachetable, key);
-    PAIR p;
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
-    for (p=cachefile->cachetable->table[h]; p; p=p->hash_chain) {
-	if (p->key==key && p->cachefile==cachefile) {
-	    // Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
-	    // In practice, the functions better be the same.
-	    assert(p->flush_callback==flush_callback);
-	    assert(p->fetch_callback==fetch_callback);
-	    return -1; /* Already present. */
+    {
+	PAIR p;
+	for (p=cachefile->cachetable->table[h]; p; p=p->hash_chain) {
+	    if (p->key==key && p->cachefile==cachefile) {
+		// Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
+		// In practice, the functions better be the same.
+		assert(p->flush_callback==flush_callback);
+		assert(p->fetch_callback==fetch_callback);
+		return -1; /* Already present. */
+	    }
 	}
     }
     if (maybe_flush_some(cachefile->cachetable)) return -2;
     
-    MALLOC(p);
-    p->pinned=1;
-    p->dirty =1;
-    p->key = key;
-    p->value = value;
-    p->next = p->prev = 0;
-    p->cachefile = cachefile;
-    p->flush_callback = flush_callback;
-    p->fetch_callback = fetch_callback;
-    p->extraargs = extraargs;
-    lru_add_to_list(cachefile->cachetable, p);
-    p->hash_chain = cachefile->cachetable->table[h];
-    cachefile->cachetable->table[h] = p;
-    cachefile->cachetable->n_in_table++;
-    return 0;
+    {
+	TAGMALLOC(PAIR, p);
+	p->pinned=1;
+	p->dirty =1;
+	//printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
+	p->key = key;
+	p->value = value;
+	p->next = p->prev = 0;
+	p->cachefile = cachefile;
+	p->flush_callback = flush_callback;
+	p->fetch_callback = fetch_callback;
+	p->extraargs = extraargs;
+	lru_add_to_list(cachefile->cachetable, p);
+	p->hash_chain = cachefile->cachetable->table[h];
+	cachefile->cachetable->table[h] = p;
+	cachefile->cachetable->n_in_table++;
+	return 0;
+    }
 }
 
 int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
@@ -354,6 +362,7 @@ int cachetable_unpin (CACHEFILE cachefile, CACHEKEY key, int dirty) {
     int h = hashit(t,key);
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
+    //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
     for (p=t->table[h]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    assert(p->pinned>0);
