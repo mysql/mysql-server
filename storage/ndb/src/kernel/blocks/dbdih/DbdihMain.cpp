@@ -8572,8 +8572,9 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
 
       // random formula to report excessive duration
       bool report =
-        ERROR_INSERTED_CLEAR(7901) ||
-        ms_total > 3000 * (1 + cgcpDelay / 1000);
+        g.gcp_timer_limit != 0 ?
+          (ms_total > g.gcp_timer_limit) :
+          (ms_total > 3000 * (1 + cgcpDelay / 1000));
       if (report)
         infoEvent("GCP %u ms: total:%u commit:%u save:%u copygci:%u",
             coldgcp, ms_total, ms_commit, ms_save, ms_copygci);
@@ -14531,6 +14532,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     jam();
     crashSystemAtGcpStop(signal, true);
   }
+
+#ifdef GCP_TIMER_HACK
+  if (signal->theData[0] == 7901)
+    globalData.gcp_timer_limit = signal->theData[1];
+#endif
 }//Dbdih::execDUMP_STATE_ORD()
 
 void

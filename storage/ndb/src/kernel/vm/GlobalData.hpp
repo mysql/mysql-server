@@ -72,6 +72,9 @@ struct GlobalData {
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
     theRestartFlag = perform_start;
+#ifdef GCP_TIMER_HACK
+    gcp_timer_limit = 0;
+#endif
   }
   ~GlobalData(){}
   
@@ -97,6 +100,9 @@ public:
   MicroSecondTimer gcp_timer_save[2];
   // sysfile update (DIH)
   MicroSecondTimer gcp_timer_copygci[2];
+
+  // report threshold in ms, if 0 guessed, set with dump 7901 <limit>
+  Uint32 gcp_timer_limit;
 #endif
 };
 
