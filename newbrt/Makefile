@@ -16,7 +16,7 @@ check: bins
 	$(DTOOL) ./pma-test
 	$(DTOOL) ./cachetable-test
 	$(DTOOL) ./brt-serialize-test
-	./brt-test
+	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
 #	./mdict-test
 
