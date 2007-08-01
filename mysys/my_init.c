@@ -130,8 +130,9 @@ void my_end(int infoflag)
   */
   FILE *info_file= DBUG_FILE;
   my_bool print_info= (info_file != stderr);
-  /* We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
-     operational, so we cannot use DBUG_RETURN.
+  /*
+    We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+    operational, so we cannot use DBUG_RETURN.
   */
   DBUG_PRINT("info",("Shutting down"));
   if (!info_file)
@@ -185,7 +186,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
-    TERMINATE(stderr);		/* Give statistic on screen */
+    TERMINATE(stderr, 1);		/* Give statistic on screen */
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
@@ -196,6 +197,10 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtCheckMemory();
    _CrtDumpMemoryLeaks();
 #endif
+  }
+  else if (infoflag & MY_CHECK_ERROR)
+  {
+    TERMINATE(stderr, 0);		/* Print memory leaks on screen */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))

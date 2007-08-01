@@ -1655,7 +1655,7 @@ sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
     mtr_native_path($exe_mysqldump) .
-      " --no-defaults -uroot --debug-info " .
+      " --no-defaults -uroot --debug-check " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1908,7 +1908,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
     mtr_native_path($exe_mysqlcheck) .
-    " --no-defaults --debug-info -uroot " .
+    " --no-defaults --debug-check -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1960,7 +1960,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
     mtr_native_path($exe_mysqlimport) .
-    " -uroot --debug-info " .
+    " -uroot --debug-check " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1977,7 +1977,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
     mtr_native_path($exe_mysqlshow) .
-    " -uroot --debug-info " .
+    " -uroot --debug-check " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1993,7 +1993,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     mtr_native_path($exe_mysqlbinlog) .
-      " --no-defaults --disable-force-if-open --debug-info";
+      " --no-defaults --disable-force-if-open --debug-check";
   if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
@@ -2011,7 +2011,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysql=
     mtr_native_path($exe_mysql) .
-    " --no-defaults --debug-info --host=localhost  --user=root --password= " .
+    " --no-defaults --debug-check --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";

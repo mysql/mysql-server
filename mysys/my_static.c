@@ -18,11 +18,9 @@
   a shared library
 */
 
-#if !defined(stdin)
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "my_alarm.h"
-#endif
 
 my_bool timed_mutexes= 0;
 
