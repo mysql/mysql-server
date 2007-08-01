@@ -117,7 +117,7 @@ buf_page_get_state(
 					/* out: state */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
 {
-	enum buf_page_state	state = bpage->state;
+	enum buf_page_state	state = (enum buf_page_state) bpage->state;
 
 #ifdef UNIV_DEBUG
 	switch (state) {
@@ -279,7 +279,7 @@ buf_page_get_flush_type(
 					/* out: flush type */
 	const buf_page_t*	bpage)	/* in: buffer page */
 {
-	enum buf_flush	flush_type = bpage->flush_type;
+	enum buf_flush	flush_type = (enum buf_flush) bpage->flush_type;
 
 #ifdef UNIV_DEBUG
 	switch (flush_type) {
@@ -331,7 +331,7 @@ buf_page_get_io_fix(
 					/* out: io_fix state */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
 {
-	enum buf_io_fix	io_fix = bpage->io_fix;
+	enum buf_io_fix	io_fix = (enum buf_io_fix) bpage->io_fix;
 #ifdef UNIV_DEBUG
 	switch (io_fix) {
 	case BUF_IO_NONE:
@@ -646,7 +646,8 @@ buf_ptr_get_fsp_addr(
 	ulint*		space,	/* out: space id */
 	fil_addr_t*	addr)	/* out: page offset and byte offset */
 {
-	const page_t*	page = ut_align_down((void*) ptr, UNIV_PAGE_SIZE);
+	const page_t*	page = (const page_t*) ut_align_down((void*) ptr,
+							     UNIV_PAGE_SIZE);
 
 	*space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 	addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);
