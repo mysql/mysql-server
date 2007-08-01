@@ -1515,7 +1515,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
