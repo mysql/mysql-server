@@ -1656,7 +1656,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     on the table name.
   */
   pthread_mutex_unlock(&LOCK_open);
-  thd->tmp_table_used= tmp_table_deleted;
+  thd->thread_specific_used|= tmp_table_deleted;
   error= 0;
   if (wrong_tables.length())
   {
@@ -3408,7 +3408,7 @@ bool mysql_create_table_no_lock(THD *thd,
       (void) rm_temporary_table(create_info->db_type, path);
       goto unlock_and_end;
     }
-    thd->tmp_table_used= 1;
+    thd->thread_specific_used= TRUE;
   }
 
   /*

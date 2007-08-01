@@ -1405,7 +1405,6 @@ public:
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     tmp_table_used;
   
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
