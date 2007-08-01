@@ -25,11 +25,12 @@ upd_create(
 {
 	upd_t*	update;
 
-	update = mem_heap_alloc(heap, sizeof(upd_t));
+	update = (upd_t*) mem_heap_alloc(heap, sizeof(upd_t));
 
 	update->info_bits = 0;
 	update->n_fields = n;
-	update->fields = mem_heap_alloc(heap, sizeof(upd_field_t) * n);
+	update->fields = (upd_field_t*)
+		mem_heap_alloc(heap, sizeof(upd_field_t) * n);
 
 	return(update);
 }

@@ -142,7 +142,7 @@ que_node_list_add_last(
 	que_common_t*	cnode;
 	que_common_t*	cnode2;
 
-	cnode = node;
+	cnode = (que_common_t*) node;
 
 	cnode->brother = NULL;
 
@@ -151,10 +151,10 @@ que_node_list_add_last(
 		return(node);
 	}
 
-	cnode2 = node_list;
+	cnode2 = (que_common_t*) node_list;
 
 	while (cnode2->brother != NULL) {
-		cnode2 = cnode2->brother;
+		cnode2 = (que_common_t*) cnode2->brother;
 	}
 
 	cnode2->brother = node;
@@ -183,15 +183,15 @@ que_node_list_get_len(
 					/* out: length, for NULL list 0 */
 	que_node_t*	node_list)	/* in: node list, or NULL */
 {
-	que_common_t*	cnode;
-	ulint		len;
+	const que_common_t*	cnode;
+	ulint			len;
 
-	cnode = node_list;
+	cnode = (const que_common_t*) node_list;
 	len = 0;
 
 	while (cnode != NULL) {
 		len++;
-		cnode = cnode->brother;
+		cnode = (const que_common_t*) cnode->brother;
 	}
 
 	return(len);

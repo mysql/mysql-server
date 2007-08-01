@@ -237,7 +237,7 @@ trx_undo_page_get_prev_rec(
 	page_t*	undo_page;
 	ulint	start;
 
-	undo_page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	undo_page = (page_t*) ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	start = trx_undo_page_get_start(undo_page, page_no, offset);
 
@@ -265,7 +265,7 @@ trx_undo_page_get_next_rec(
 	ulint	end;
 	ulint	next;
 
-	undo_page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	undo_page = (page_t*) ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	end = trx_undo_page_get_end(undo_page, page_no, offset);
 

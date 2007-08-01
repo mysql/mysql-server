@@ -56,7 +56,7 @@ mtr_memo_push(
 
 	memo = &(mtr->memo);
 
-	slot = dyn_array_push(memo, sizeof(mtr_memo_slot_t));
+	slot = (mtr_memo_slot_t*) dyn_array_push(memo, sizeof *slot);
 
 	slot->object = object;
 	slot->type = type;
@@ -103,7 +103,7 @@ mtr_release_s_latch_at_savepoint(
 
 	ut_ad(dyn_array_get_data_size(memo) > savepoint);
 
-	slot = dyn_array_get_element(memo, savepoint);
+	slot = (mtr_memo_slot_t*) dyn_array_get_element(memo, savepoint);
 
 	ut_ad(slot->object == lock);
 	ut_ad(slot->type == MTR_MEMO_S_LOCK);

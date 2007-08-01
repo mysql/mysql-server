@@ -76,7 +76,8 @@ ha_chain_get_first(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold)	/* in: fold value determining the chain */
 {
-	return(hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
+	return((ha_node_t*)
+	       hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
 }
 
 /*****************************************************************

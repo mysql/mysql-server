@@ -321,8 +321,8 @@ log_reserve_and_write_fast(
 
 	ut_memcpy(log->buf + log->buf_free, str, len);
 
-	log_block_set_data_len(ut_align_down(log->buf + log->buf_free,
-					     OS_FILE_LOG_BLOCK_SIZE),
+	log_block_set_data_len((byte*) ut_align_down(log->buf + log->buf_free,
+						     OS_FILE_LOG_BLOCK_SIZE),
 			       data_len);
 #ifdef UNIV_LOG_DEBUG
 	log->old_buf_free = log->buf_free;
