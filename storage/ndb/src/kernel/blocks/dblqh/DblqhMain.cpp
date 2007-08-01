@@ -12104,6 +12104,10 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
+#ifdef GCP_TIMER_HACK
+  NdbTick_getMicroTimer(&globalData.gcp_timer_save[0]);
+#endif
+
   ccurrentGcprec = 0;
   gcpPtr.i = ccurrentGcprec;
   ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
@@ -12325,6 +12329,11 @@ Dblqh::execFSSYNCCONF(Signal* signal)
       return;
     }//if
   }//for
+
+#ifdef GCP_TIMER_HACK
+  NdbTick_getMicroTimer(&globalData.gcp_timer_save[1]);
+#endif
+
   GCPSaveConf * const saveConf = (GCPSaveConf *)&signal->theData[0];
   saveConf->dihPtr = localGcpPtr.p->gcpUserptr;
   saveConf->nodeId = getOwnNodeId();
