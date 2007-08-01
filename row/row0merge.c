@@ -858,9 +858,9 @@ row_merge_read_clustered_index(
 	/* Scan the clustered index. */
 	for (;;) {
 		const rec_t*	rec;
-		dtuple_t*	row;
+		dtuple_t*	row		= NULL;
 		row_ext_t*	ext;
-		ibool		has_next = TRUE;
+		ibool		has_next	= TRUE;
 
 		btr_pcur_move_to_next_on_page(&pcur, &mtr);
 
@@ -901,7 +901,7 @@ row_merge_read_clustered_index(
 			merge_file_t*		file	= &files[i];
 
 			if (UNIV_LIKELY
-			    (has_next && row_merge_buf_add(buf, row, ext))) {
+			    (row && row_merge_buf_add(buf, row, ext))) {
 				continue;
 			}
 
