@@ -460,6 +460,8 @@ use test//
 create procedure proc25422_truncate_slow (loops int)
 begin
   declare v1 int default 0;
+  declare continue handler for sqlexception /* errors from truncate */
+    begin end;
   while v1 < loops do
     truncate mysql.slow_log;
     set v1 = v1 + 1;
@@ -469,6 +471,8 @@ end//
 create procedure proc25422_truncate_general (loops int)
 begin
   declare v1 int default 0;
+  declare continue handler for sqlexception /* errors from truncate */
+    begin end;
   while v1 < loops do
     truncate mysql.general_log;
     set v1 = v1 + 1;
@@ -507,14 +511,16 @@ end//
 
 delimiter ;//
 
+set @iterations=100;
+
 --echo "Serial test (proc25422_truncate_slow)"
-call proc25422_truncate_slow(100);
+call proc25422_truncate_slow(@iterations);
 --echo "Serial test (proc25422_truncate_general)"
-call proc25422_truncate_general(100);
+call proc25422_truncate_general(@iterations);
 --echo "Serial test (proc25422_alter_slow)"
-call proc25422_alter_slow(100);
+call proc25422_alter_slow(@iterations);
 --echo "Serial test (proc25422_alter_general)"
-call proc25422_alter_general(100);
+call proc25422_alter_general(@iterations);
 
 --echo "Parallel test"
 
@@ -532,24 +538,24 @@ connect (addconroot7, localhost, root,,);
 connect (addconroot8, localhost, root,,);
 
 connection addconroot1;
-send call proc25422_truncate_slow(100);
+send call proc25422_truncate_slow(@iterations);
 connection addconroot2;
-send call proc25422_truncate_slow(100);
+send call proc25422_truncate_slow(@iterations);
 
 connection addconroot3;
-send call proc25422_truncate_general(100);
+send call proc25422_truncate_general(@iterations);
 connection addconroot4;
-send call proc25422_truncate_general(100);
+send call proc25422_truncate_general(@iterations);
 
 connection addconroot5;
-send call proc25422_alter_slow(100);
+send call proc25422_alter_slow(@iterations);
 connection addconroot6;
-send call proc25422_alter_slow(100);
+send call proc25422_alter_slow(@iterations);
 
 connection addconroot7;
-send call proc25422_alter_general(100);
+send call proc25422_alter_general(@iterations);
 connection addconroot8;
-send call proc25422_alter_general(100);
+send call proc25422_alter_general(@iterations);
 
 connection addconroot1;
 reap;
