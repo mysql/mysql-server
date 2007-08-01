@@ -1035,44 +1035,6 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /*
-    Check whether a handler allows to lock the table.
-
-    SYNOPSIS
-      check_if_locking_is_allowed()
-        thd     Handler of the thread, trying to lock the table
-        table   Table handler to check
-        count   Total number of tables to be locked
-        current Index of the current table in the list of the tables
-                to be locked.
-        system_count Pointer to the counter of system tables seen thus
-                     far.
-        called_by_privileged_thread TRUE if called from a logger THD
-                                    (general_log_thd or slow_log_thd)
-                                    or by a privileged thread, which
-                                    has the right to lock log tables.
-
-    DESCRIPTION
-      Check whether a handler allows to lock the table. For instance,
-      MyISAM does not allow to lock mysql.proc along with other tables.
-      This limitation stems from the fact that MyISAM does not support
-      row-level locking and we have to add this limitation to avoid
-      deadlocks.
-
-    RETURN
-      TRUE      Locking is allowed
-      FALSE     Locking is not allowed. The error was thrown.
-  */
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_privileged_thread)
-  {
-    return TRUE;
-  }
-  bool check_if_log_table_locking_is_allowed(uint sql_command,
-                                             ulong type, TABLE *table);
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();

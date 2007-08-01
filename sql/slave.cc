@@ -977,7 +977,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 
   thd->proc_info = "Opening master dump table";
   tables.lock_type = TL_WRITE;
-  if (!open_ltable(thd, &tables, TL_WRITE))
+  if (!open_ltable(thd, &tables, TL_WRITE, 0))
   {
     sql_print_error("create_table_from_dump: could not open created table");
     goto err;
