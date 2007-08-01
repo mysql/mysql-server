@@ -40,6 +40,8 @@
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
+/* Somehow this is not declared for plugins. */
+bool schema_table_store_record(THD *thd, TABLE *table);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
