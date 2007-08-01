@@ -64,6 +64,8 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/FsRef.hpp>
 
+#include "../suma/Suma.hpp"
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -3356,6 +3358,35 @@ void Dblqh::seizeTupkeybuf(Signal* signal)
   databufptr = regDatabufptr;
 }//Dblqh::seizeTupkeybuf()
 
+bool Dblqh::checkTransporterOverloaded(Signal* signal,
+                                       const NodeBitmask& all,
+                                       const LqhKeyReq* req)
+{
+  // nodes likely to be affected by this op
+  NodeBitmask mask;
+  // tc
+  Uint32 tc_node = refToNode(req->tcBlockref);
+  if (tc_node < MAX_NODES) // not worth to crash here
+    mask.set(tc_node);
+  const Uint8 op = LqhKeyReq::getOperation(req->requestInfo);
+  if (op == ZREAD || op == ZREAD_EX) {
+    // the receiver
+    Uint32 api_node = refToNode(req->variableData[0]);
+    if (api_node < MAX_NODES) // not worth to crash here
+      mask.set(api_node);
+  } else {
+    // next replica
+    Uint32 replica_node = LqhKeyReq::getNextReplicaNodeId(req->fragmentData);
+    if (replica_node < MAX_NODES) // could be ZNIL
+      mask.set(replica_node);
+    // event subscribers
+    const Suma* suma = (Suma*)globalData.getBlock(SUMA);
+    mask.bitOR(suma->getSubscriberNodes());
+  }
+  mask.bitAND(all);
+  return !mask.isclear();
+}
+
 /* ------------------------------------------------------------------------- */
 /* -------                TAKE CARE OF LQHKEYREQ                     ------- */
 /* LQHKEYREQ IS THE SIGNAL THAT STARTS ALL OPERATIONS IN THE LQH BLOCK       */
@@ -3368,6 +3399,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint8 tfragDistKey;
 
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
+
+  {
+    const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+    if (unlikely(!all.isclear()) &&
+        checkTransporterOverloaded(signal, all, lqhKeyReq) ||
+        ERROR_INSERTED_CLEAR(5047)) {
+      jam();
+      noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+      return;
+    }
+  }
 
   sig0 = lqhKeyReq->clientConnectPtr;
   if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED(5031)) {
