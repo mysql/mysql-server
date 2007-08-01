@@ -1095,7 +1095,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1542,1542
+--error ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;
