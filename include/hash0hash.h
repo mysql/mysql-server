@@ -151,12 +151,12 @@ Gets the next struct in a hash chain, NULL if none. */
 
 /************************************************************************
 Looks for a struct in a hash table. */
-#define HASH_SEARCH(NAME, TABLE, FOLD, DATA, TEST)\
+#define HASH_SEARCH(NAME, TABLE, FOLD, TYPE, DATA, TEST)\
 {\
 \
 	HASH_ASSERT_OWNED(TABLE, FOLD)\
 \
-	(DATA) = HASH_GET_FIRST(TABLE, hash_calc_hash(FOLD, TABLE));\
+	(DATA) = (TYPE) HASH_GET_FIRST(TABLE, hash_calc_hash(FOLD, TABLE));\
 	HASH_ASSERT_VALID(DATA);\
 \
 	while ((DATA) != NULL) {\
@@ -164,7 +164,7 @@ Looks for a struct in a hash table. */
 			break;\
 		} else {\
 			HASH_ASSERT_VALID(HASH_GET_NEXT(NAME, DATA));\
-			(DATA) = HASH_GET_NEXT(NAME, DATA);\
+			(DATA) = (TYPE) HASH_GET_NEXT(NAME, DATA);\
 		}\
 	}\
 }

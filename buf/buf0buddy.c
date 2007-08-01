@@ -178,7 +178,7 @@ buf_buddy_block_free(
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_a(!ut_align_offset(buf, UNIV_PAGE_SIZE));
 
-	HASH_SEARCH(hash, buf_pool->zip_hash, fold, bpage,
+	HASH_SEARCH(hash, buf_pool->zip_hash, fold, buf_page_t*, bpage,
 		    ((buf_block_t*) bpage)->frame == buf);
 	ut_a(bpage);
 	ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);
