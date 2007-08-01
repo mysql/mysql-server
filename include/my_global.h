@@ -804,6 +804,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define ulong_to_double(X) ((double) (ulong) (X))
 #define SET_STACK_SIZE(X)	/* Not needed on real machines */
 
+#ifndef STACK_DIRECTION
+#error "please add -DSTACK_DIRECTION=1 or -1 to your CPPFLAGS"
+#endif
+
 #if !defined(HAVE_STRTOK_R)
 #define strtok_r(A,B,C) strtok((A),(B))
 #endif
