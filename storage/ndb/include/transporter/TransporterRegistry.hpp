@@ -35,6 +35,8 @@
 
 #include <mgmapi/mgmapi.h>
 
+#include <NodeBitmask.hpp>
+
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
 // sending or receiving.
@@ -206,6 +208,13 @@ public:
    *   Get #free bytes in send buffer for <em>node</node>
    */
   Uint32 get_free_buffer(Uint32 node) const ;
+
+  /**
+   * Set or clear overloaded bit.
+   * Query if any overloaded bit is set.
+   */
+  void set_status_overloaded(Uint32 nodeId, bool val);
+  const NodeBitmask& get_status_overloaded() const;
   
   /**
    * prepareSend
@@ -303,6 +312,11 @@ private:
    */
   PerformState* performStates;
   IOState*      ioStates;
+
+  /**
+   * Overloaded bits, for fast check.
+   */
+  NodeBitmask m_status_overloaded;
  
   /**
    * Unpack signal data
@@ -338,5 +352,18 @@ private:
   int m_shm_own_pid;
   int m_transp_count;
 };
+
+inline void
+TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
+{
+  assert(nodeId < MAX_NODES);
+  m_status_overloaded.set(nodeId, val);
+}
+
+inline const NodeBitmask&
+TransporterRegistry::get_status_overloaded() const
+{
+  return m_status_overloaded;
+}
 
 #endif // Define of TransporterRegistry_H
