@@ -58,6 +58,16 @@ ibool		recv_needed_recovery = FALSE;
 
 ibool		recv_lsn_checks_on = FALSE;
 
+/* There are two conditions under which we scan the logs, the first
+is normal startup and the second is when we do a recovery from an
+archive.
+This flag is set if we are doing a scan from the last checkpoint during
+startup. If we find log entries that were written after the last checkpoint
+we know that the server was not cleanly shutdown. We must then initialize
+the crash recovery environment before attempting to store these entries in
+the log hash table. */
+ibool	recv_log_scan_is_startup_type = FALSE;
+
 /* If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -99,6 +109,16 @@ is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 
 ib_uint64_t	recv_max_page_lsn;
+
+/* prototypes */
+
+/***********************************************************
+Initialize crash recovery environment. Can be called iff
+recv_needed_recovery == FALSE. */
+static
+void
+recv_init_crash_recovery(void);
+/*===========================*/
 
 /************************************************************
 Creates the recovery system. */
@@ -2339,6 +2359,20 @@ recv_scan_log_recs(
 
 		if (scanned_lsn > recv_sys->scanned_lsn) {
 
+			/* We have found more entries. If this scan is
+ 			of startup type, we must initiate crash recovery
+			environment before parsing these log records. */
+
+			if (recv_log_scan_is_startup_type
+			    && !recv_needed_recovery) {
+
+				fprintf(stderr,
+					"InnoDB: Log scan progressed"
+					" past the checkpoint lsn %llu\n",
+					recv_sys->scanned_lsn);
+				recv_init_crash_recovery();
+			}
+
 			/* We were able to find more log data: add it to the
 			parsing buffer if parse_start_lsn is already
 			non-zero */
@@ -2458,6 +2492,47 @@ recv_group_scan_log_recs(
 			*group_scanned_lsn);
 	}
 #endif /* UNIV_DEBUG */
+}
+
+/***********************************************************
+Initialize crash recovery environment. Can be called iff
+recv_needed_recovery == FALSE. */
+static
+void
+recv_init_crash_recovery(void)
+/*==========================*/
+{
+	ut_a(!recv_needed_recovery);
+
+	recv_needed_recovery = TRUE;
+
+	ut_print_timestamp(stderr);
+
+	fprintf(stderr,
+		"  InnoDB: Database was not"
+		" shut down normally!\n"
+		"InnoDB: Starting crash recovery.\n");
+
+	fprintf(stderr,
+		"InnoDB: Reading tablespace information"
+		" from the .ibd files...\n");
+
+	fil_load_single_table_tablespaces();
+
+	/* If we are using the doublewrite method, we will
+	check if there are half-written pages in data files,
+	and restore them from the doublewrite buffer if
+	possible */
+
+	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+
+		fprintf(stderr,
+			"InnoDB: Restoring possible"
+			" half-written data pages from"
+			" the doublewrite\n"
+			"InnoDB: buffer...\n");
+		trx_sys_doublewrite_init_or_restore_pages(TRUE);
+	}
 }
 
 /************************************************************
@@ -2589,81 +2664,6 @@ recv_recovery_from_checkpoint_start(
 		recv_sys->recovered_lsn = checkpoint_lsn;
 
 		srv_start_lsn = checkpoint_lsn;
-
-		/* NOTE: we always do a 'recovery' at startup, but only if
-		there is something wrong we will print a message to the
-		user about recovery: */
-
-		if (checkpoint_lsn != max_flushed_lsn
-		    || checkpoint_lsn != min_flushed_lsn) {
-
-			if (checkpoint_lsn < max_flushed_lsn) {
-				fprintf(stderr,
-					"InnoDB: #########################"
-					"#################################\n"
-					"InnoDB:                          "
-					"WARNING!\n"
-					"InnoDB: The log sequence number"
-					" in ibdata files is higher\n"
-					"InnoDB: than the log sequence number"
-					" in the ib_logfiles! Are you sure\n"
-					"InnoDB: you are using the right"
-					" ib_logfiles to start up"
-					" the database?\n"
-					"InnoDB: Log sequence number in"
-					" ib_logfiles is %llu, log\n"
-					"InnoDB: sequence numbers stamped"
-					" to ibdata file headers are between\n"
-					"InnoDB: %llu and %llu.\n"
-					"InnoDB: #########################"
-					"#################################\n",
-					checkpoint_lsn,
-					min_flushed_lsn,
-					max_flushed_lsn);
-			}
-
-			recv_needed_recovery = TRUE;
-
-			ut_print_timestamp(stderr);
-
-			fprintf(stderr,
-				"  InnoDB: Database was not"
-				" shut down normally!\n"
-				"InnoDB: Starting crash recovery.\n");
-
-			fprintf(stderr,
-				"InnoDB: Reading tablespace information"
-				" from the .ibd files...\n");
-
-			fil_load_single_table_tablespaces();
-
-			/* If we are using the doublewrite method, we will
-			check if there are half-written pages in data files,
-			and restore them from the doublewrite buffer if
-			possible */
-
-			if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-
-				fprintf(stderr,
-					"InnoDB: Restoring possible"
-					" half-written data pages from"
-					" the doublewrite\n"
-					"InnoDB: buffer...\n");
-				trx_sys_doublewrite_init_or_restore_pages(
-					TRUE);
-			}
-
-			ut_print_timestamp(stderr);
-
-			fprintf(stderr,
-				"  InnoDB: Starting log scan"
-				" based on checkpoint at\n"
-				"InnoDB: log sequence number %llu.\n",
-				checkpoint_lsn);
-		} else {
-			/* Init the doublewrite buffer memory structure */
-			trx_sys_doublewrite_init_or_restore_pages(FALSE);
-		}
 	}
 
 	contiguous_lsn = ut_uint64_align_down(recv_sys->scanned_lsn,
@@ -2713,6 +2713,8 @@ recv_recovery_from_checkpoint_start(
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
+	/* Set the flag to publish that we are doing startup scan. */
+	recv_log_scan_is_startup_type = (type == LOG_CHECKPOINT);
 	while (group) {
 		old_scanned_lsn = recv_sys->scanned_lsn;
 
@@ -2732,6 +2734,57 @@ recv_recovery_from_checkpoint_start(
 		}
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
+	}
+
+	/* Done with startup scan. Clear the flag. */
+	recv_log_scan_is_startup_type = FALSE;
+	if (type == LOG_CHECKPOINT) {
+		/* NOTE: we always do a 'recovery' at startup, but only if
+		there is something wrong we will print a message to the
+		user about recovery: */
+
+		if (checkpoint_lsn != max_flushed_lsn
+		    || checkpoint_lsn != min_flushed_lsn) {
+
+			if (checkpoint_lsn < max_flushed_lsn) {
+				fprintf(stderr,
+					"InnoDB: #########################"
+					"#################################\n"
+					"InnoDB:                          "
+					"WARNING!\n"
+					"InnoDB: The log sequence number"
+					" in ibdata files is higher\n"
+					"InnoDB: than the log sequence number"
+					" in the ib_logfiles! Are you sure\n"
+					"InnoDB: you are using the right"
+					" ib_logfiles to start up"
+					" the database?\n"
+					"InnoDB: Log sequence number in"
+					" ib_logfiles is %llu, log\n"
+					"InnoDB: sequence numbers stamped"
+					" to ibdata file headers are between\n"
+					"InnoDB: %llu and %llu.\n"
+					"InnoDB: #########################"
+					"#################################\n",
+					checkpoint_lsn,
+					min_flushed_lsn,
+					max_flushed_lsn);
+			}
+
+			if (!recv_needed_recovery) {
+				fprintf(stderr,
+					"InnoDB: The log sequence number"
+					" in ibdata files does not match\n"
+					"InnoDB: the log sequence number"
+					" in the ib_logfiles!\n");
+				recv_init_crash_recovery();
+			}
+		}
+
+		if (!recv_needed_recovery) {
+			/* Init the doublewrite buffer memory structure */
+			trx_sys_doublewrite_init_or_restore_pages(FALSE);
+		}
 	}
 
 	/* We currently have only one log group */
@@ -2786,15 +2839,7 @@ recv_recovery_from_checkpoint_start(
 	recv_synchronize_groups(up_to_date_group);
 
 	if (!recv_needed_recovery) {
-		if (checkpoint_lsn != recv_sys->recovered_lsn) {
-			fprintf(stderr,
-				"InnoDB: Warning: we did not need to do"
-				" crash recovery, but log scan\n"
-				"InnoDB: progressed past the checkpoint"
-				" lsn %llu up to lsn %llu\n",
-				checkpoint_lsn,
-				recv_sys->recovered_lsn);
-		}
+		ut_a(checkpoint_lsn == recv_sys->recovered_lsn);
 	} else {
 		srv_start_lsn = recv_sys->recovered_lsn;
 	}

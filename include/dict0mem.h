@@ -433,6 +433,10 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
 				next inserted row */
+	ib_longlong	autoinc_increment;
+				/* The increment step of the auto increment
+				column. Value must be greater than or equal
+				to 1 */
 	/*----------------------*/
 	UT_LIST_BASE_NODE_T(row_prebuilt_t) prebuilts;
 				/* base node for the prebuilts defined

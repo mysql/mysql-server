@@ -895,7 +895,7 @@ btr_search_guess_on_hash(
 	btr_search_n_succ++;
 #endif
 	if (UNIV_LIKELY(!has_search_latch)
-	    && buf_block_peek_if_too_old(block)) {
+	    && buf_page_peek_if_too_old(&block->page)) {
 
 		buf_page_make_young(&block->page);
 	}

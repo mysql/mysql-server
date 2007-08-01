@@ -231,6 +231,8 @@ typedef longlong		ib_longlong;
 typedef ulonglong		ib_uint64_t;
 #endif
 
+typedef unsigned long long int	ullint;
+
 #ifndef __WIN__
 #if SIZEOF_LONG != SIZEOF_VOIDP
 #error "Error: InnoDB's ulint must be of the same size as void*"
