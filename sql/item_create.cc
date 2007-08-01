@@ -2861,6 +2861,7 @@ Item*
 Create_func_connection_id::create(THD *thd)
 {
   thd->lex->safe_to_cache_query= 0;
+  thd->thread_specific_used= TRUE;
   return new (thd->mem_root) Item_func_connection_id();
 }
 
