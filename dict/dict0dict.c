@@ -881,7 +881,8 @@ dict_table_add_to_cache(
 	/* Look for a table with the same name: error if such exists */
 	{
 		dict_table_t*	table2;
-		HASH_SEARCH(name_hash, dict_sys->table_hash, fold, table2,
+		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
+			    dict_table_t*, table2,
 			    (ut_strcmp(table2->name, table->name) == 0));
 		ut_a(table2 == NULL);
 	}
@@ -889,7 +890,8 @@ dict_table_add_to_cache(
 	/* Look for a table with the same id: error if such exists */
 	{
 		dict_table_t*	table2;
-		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, table2,
+		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold,
+			    dict_table_t*, table2,
 			    (ut_dulint_cmp(table2->id, table->id) == 0));
 		ut_a(table2 == NULL);
 	}
@@ -972,7 +974,8 @@ dict_table_rename_in_cache(
 	/* Look for a table with the same name: error if such exists */
 	{
 		dict_table_t*	table2;
-		HASH_SEARCH(name_hash, dict_sys->table_hash, fold, table2,
+		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
+			    dict_table_t*, table2,
 			    (ut_strcmp(table2->name, new_name) == 0));
 		if (table2) {
 			fprintf(stderr,
