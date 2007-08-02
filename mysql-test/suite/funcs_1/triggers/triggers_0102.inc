@@ -273,7 +273,7 @@ let $message= Testcase 3.5.1.8:;
 
 	# Can't create a trigger in a different database
 	use test;
-	--error 1435
+	--error 1146
 	CREATE TRIGGER trig_db.trg6_2 AFTER INSERT on tb3 
 		for each row set @ret_trg6_2 = 5;
 

@@ -20,6 +20,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
 			@thread_dirs@ pstack \
@@ -147,10 +148,6 @@ test-bt:
 	fi
         -cd mysql-test ; MTR_BUILD_THREAD=auto \
         @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
-
-# Re-enable the "rowlock" suite when bug#28685 is fixed
-#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-#	@PERL@ ./mysql-test-run.pl --force --comment=rowlock --suite=row_lock
 
 # Re-enable the "jp" suite when bug#28563 is fixed
 #	-cd mysql-test ; MTR_BUILD_THREAD=auto \
