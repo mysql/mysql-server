@@ -20,6 +20,7 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@readline_topdir@ sql-common scripts \
 			@thread_dirs@ pstack \
@@ -157,8 +158,6 @@ test-bt:
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
-	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=rowlock --suite=row_lock
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	  @PERL@ ./mysql-test-run.pl --comment=NIST+normal --force --suite=nist ; \
