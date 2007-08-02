@@ -7198,6 +7198,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       else if (in_use != thd)
       {
         DBUG_PRINT("info", ("Table was in use by other thread"));
+        /*
+          Mark that table is going to be deleted from cache. This will
+          force threads that are in mysql_lock_tables() (but not yet
+          in thr_multi_lock()) to abort it's locks, close all tables and retry
+        */
+        in_use->some_tables_deleted= 1;
         if (table->is_name_opened())
         {
           DBUG_PRINT("info", ("Found another active instance of the table"));
