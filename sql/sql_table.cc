@@ -256,8 +256,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       drop_locked_tables(thd, db, table->table_name);
       if (thd->killed)
       {
-        thd->no_warnings_for_error= 0;
-	DBUG_RETURN(-1);
+        error=-1;
+        goto err_with_placeholders;
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove form file and isam files */
@@ -338,6 +338,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
+err_with_placeholders:
   if (!drop_temporary)
     unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   thd->no_warnings_for_error= 0;
