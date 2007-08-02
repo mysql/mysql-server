@@ -5685,7 +5685,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
    open MARIA_SHAREs), give it one and record this assignment in the log
    (LOGREC_FILE_ID log record).
 
-   @param  share       table
+   @param  share           table
    @param  trn             calling transaction
 
    @return Operation status

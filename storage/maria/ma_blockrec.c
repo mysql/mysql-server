@@ -565,7 +565,7 @@ static my_bool check_if_zero(uchar *pos, uint length)
     We unpin pages in the reverse order as they where pinned; This may not
     be strictly necessary but may simplify things in the future.
 
-    info->s->rec_lsn contains the lsn for the first REDO
+    info->trn->rec_lsn contains the lsn for the first REDO
 
   RETURN
     0   ok

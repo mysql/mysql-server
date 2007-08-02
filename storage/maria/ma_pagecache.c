@@ -314,7 +314,8 @@ struct st_pagecache_block_link
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
-  LSN rec_lsn;            /**< LSN when first became dirty                   */
+  /** @brief LSN when first became dirty; LSN_MAX means "not yet set"        */
+  LSN rec_lsn;
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
 
@@ -1120,7 +1121,7 @@ static void link_to_file_list(PAGECACHE *pagecache,
   if (block->status & PCBLOCK_CHANGED)
   {
     block->status&= ~PCBLOCK_CHANGED;
-    block->rec_lsn= 0;
+    block->rec_lsn= LSN_MAX;
     pagecache->blocks_changed--;
     pagecache->global_blocks_changed--;
   }
@@ -1892,6 +1893,7 @@ restart:
         block->temperature= PCBLOCK_COLD;
         block->hits_left= init_hits_left;
         block->last_hit_time= 0;
+        block->rec_lsn= LSN_MAX;
         link_to_file_list(pagecache, block, file, 0);
         block->hash_link= hash_link;
         hash_link->block= block;
@@ -2537,8 +2539,12 @@ void pagecache_unlock(PAGECACHE *pagecache,
   {
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == 0)
+    if (block->rec_lsn == LSN_MAX)
       block->rec_lsn= first_REDO_LSN_for_page;
+    else
+      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
+                                    first_REDO_LSN_for_page) <= 0);
+
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -2695,8 +2701,11 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
     DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE_UNLOCK || 
                 lock == PAGECACHE_LOCK_READ_UNLOCK);
     DBUG_ASSERT(pin == PAGECACHE_UNPIN);
-    if (block->rec_lsn == 0)
+    if (block->rec_lsn == LSN_MAX)
       block->rec_lsn= first_REDO_LSN_for_page;
+    else
+      DBUG_ASSERT(cmp_translog_addr(block->rec_lsn,
+                                    first_REDO_LSN_for_page) <= 0);
   }
   if (lsn != LSN_IMPOSSIBLE)
     check_and_set_lsn(pagecache, lsn, block);
@@ -3377,7 +3386,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
 #ifndef DBUG_OFF
   block->type= PAGECACHE_EMPTY_PAGE;
 #endif
-  block->rec_lsn= 0;
+  block->rec_lsn= LSN_MAX;
   KEYCACHE_THREAD_TRACE("free block");
   KEYCACHE_DBUG_PRINT("free_block",
                       ("block is freed"));
@@ -3850,7 +3859,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   ulong stored_list_size= 0;
   uint file_hash;
   char *ptr;
-  LSN minimum_rec_lsn= ULONGLONG_MAX, maximum_rec_lsn= 0;
+  LSN minimum_rec_lsn= LSN_MAX, maximum_rec_lsn= 0;
   DBUG_ENTER("pagecache_collect_changed_blocks_with_LSN");
 
   DBUG_ASSERT(NULL == str->str);
@@ -3919,13 +3928,14 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       ptr+= 4;
       lsn_store(ptr, block->rec_lsn);
       ptr+= LSN_STORE_SIZE;
-      if (block->rec_lsn != LSN_IMPOSSIBLE)
+      if (block->rec_lsn != LSN_MAX)
       {
+        DBUG_ASSERT(LSN_VALID(block->rec_lsn));
         if (cmp_translog_addr(block->rec_lsn, minimum_rec_lsn) < 0)
           minimum_rec_lsn= block->rec_lsn;
         if (cmp_translog_addr(block->rec_lsn, maximum_rec_lsn) > 0)
           maximum_rec_lsn= block->rec_lsn;
-      } /* otherwise, some trn->rec_lsn should hold the info */
+      } /* otherwise, some trn->rec_lsn should hold the correct info */
     }
   }
 end:

@@ -81,4 +81,12 @@ typedef LSN LSN_WITH_FLAGS;
 #define FILENO_IMPOSSIBLE     0 /**< log file's numbering starts at 1 */
 #define LOG_OFFSET_IMPOSSIBLE 0 /**< log always has a header */
 #define LSN_IMPOSSIBLE        0
+
+/**
+   @brief the maximum valid LSN.
+   Unlike ULONGLONG_MAX, it can be safely used in comparison with valid LSNs
+   (ULONGLONG_MAX is too big for correctness of cmp_translog_address()).
+*/
+#define LSN_MAX (LSN)ULL(0x00FFFFFFFFFFFFFF)
+
 #endif
