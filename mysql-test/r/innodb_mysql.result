@@ -418,7 +418,7 @@ DROP TABLE t1,t2;
 create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
 character set utf8 collate utf8_general_ci;
 Warnings:
-Warning	1071	Specified key was too long; max key length is 765 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
 insert into t1 values('aaa');
 drop table t1;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
@@ -739,6 +739,34 @@ drop table if exists t1;
 create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
 drop table t1;
+
+Bug#24918 drop table and lock / inconsistent between 
+perm and temp tables
+
+Check transactional tables under LOCK TABLES
+
+drop table if exists t24918, t24918_tmp, t24918_trans, t24918_trans_tmp, 
+t24918_access;
+create table t24918_access (id int);
+create table t24918 (id int) engine=myisam;
+create temporary table t24918_tmp (id int) engine=myisam;
+create table t24918_trans (id int) engine=innodb;
+create temporary table t24918_trans_tmp (id int) engine=innodb;
+lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+drop table t24918;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+unlock tables;
+drop table t24918_access;
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
 INSERT INTO t1 SELECT a + 8, 2 FROM t1;
@@ -1007,4 +1035,16 @@ CALL p1();
 CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
+create table t1(a text) engine=innodb default charset=utf8;
+insert into t1 values('aaa');
+alter table t1 add index(a(1024));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  KEY `a` (`a`(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+drop table t1;
 End of 5.0 tests
