@@ -2583,6 +2583,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
   return (int) thd->variables.binlog_format;
 }
+
+extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
+{
+  mark_transaction_to_rollback(thd, all);
+}
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
