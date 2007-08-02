@@ -809,10 +809,9 @@ void free_used_memory()
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
-  my_end(my_end_arg | MY_CHECK_ERROR);
+  my_end(my_end_arg);
 
-  if (!silent)
-  {
+  if (!silent) {
     switch (exit_code) {
     case 1:
       printf("not ok\n");
@@ -1085,8 +1084,7 @@ void check_result(DYNAMIC_STRING* ds)
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
 
-  switch (dyn_string_cmp(ds, result_file_name))
-  {
+  switch (dyn_string_cmp(ds, result_file_name)) {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
@@ -1930,7 +1928,10 @@ void do_exec(struct st_command *command)
                       command->first_argument, ds_cmd.str));
 
   if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
+  {
+    dynstr_free(&ds_cmd);
     die("popen(\"%s\", \"r\") failed", command->first_argument);
+  }
 
   while (fgets(buf, sizeof(buf), res_file))
   {
@@ -1954,6 +1955,7 @@ void do_exec(struct st_command *command)
     {
       log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
+      dynstr_free(&ds_cmd);
       die("command \"%s\" failed", command->first_argument);
     }
 
@@ -1972,8 +1974,11 @@ void do_exec(struct st_command *command)
       }
     }
     if (!ok)
+    {
+      dynstr_free(&ds_cmd);
       die("command \"%s\" failed with wrong error: %d",
           command->first_argument, status);
+    }
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1981,6 +1986,7 @@ void do_exec(struct st_command *command)
     /* Error code we wanted was != 0, i.e. not an expected success */
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
+    dynstr_free(&ds_cmd);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
   }
@@ -4632,6 +4638,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
 #ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+    debug_check_flag= 1;
 #endif
     break;
   case 'r':
@@ -5388,11 +5395,8 @@ end:
   ds    - dynamic string which is used for output buffer
 
   NOTE
-  If there is an unexpected error this function will abort mysqltest
-  immediately.
-
-  RETURN VALUE
-  error - function will not return
+    If there is an unexpected error this function will abort mysqltest
+    immediately.
 */
 
 void handle_error(struct st_command *command,
