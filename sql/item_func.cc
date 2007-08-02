@@ -649,6 +649,7 @@ bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
 {
   if (Item_int_func::fix_fields(thd, ref))
     return TRUE;
+  thd->thread_specific_used= TRUE;
   value= thd->variables.pseudo_thread_id;
   return FALSE;
 }
