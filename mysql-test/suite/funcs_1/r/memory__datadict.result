@@ -6038,6 +6038,7 @@ INTO OUTFILE '../tmp/out.memory.db.file'
 WHERE schema_name LIKE 'db_%';
 CREATE USER user_3212@localhost;
 GRANT ALL ON db_datadict.* TO user_3212@localhost;
+GRANT FILE ON *.* TO user_3212@localhost;
 connect(localhost,user_3212,,db_datadict,MYSQL_PORT,MYSQL_SOCK);
 	
 user_3212@localhost	db_datadict
@@ -6046,7 +6047,7 @@ INTO OUTFILE '../tmp/out.memory.user.file'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
-ERROR 28000: Access denied for user 'user_3212'@'localhost' (using password: NO)
+ERROR 42S02: Table 'db_datadict.schemata' doesn't exist
 SELECT *
 FROM schemata LIMIT 0, 5;
 ERROR 42S02: Table 'db_datadict.schemata' doesn't exist

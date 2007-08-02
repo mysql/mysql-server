@@ -5061,7 +5061,11 @@ bool check_merge_table_access(THD *thd, char *db,
 
 #ifndef EMBEDDED_LIBRARY
 
-#define used_stack(A,B) (long)(A > B ? A - B : B - A)
+#if STACK_DIRECTION < 0
+#define used_stack(A,B) (long) (A - B)
+#else
+#define used_stack(A,B) (long) (B - A)
+#endif
 
 #ifndef DBUG_OFF
 long max_stack_used;
