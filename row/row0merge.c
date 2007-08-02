@@ -1440,7 +1440,8 @@ row_merge_create_temporary_table(
 	ulint		n_cols = dict_table_get_n_user_cols(table);
 	ulint		error;
 
-	ut_ad(table_name && table && error);
+	ut_ad(table_name);
+	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	error = row_undo_report_create_table_dict_operation(trx, table_name);
