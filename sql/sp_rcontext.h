@@ -125,7 +125,7 @@ class sp_rcontext : public Sql_alloc
 
   // Returns 1 if a handler was found, 0 otherwise.
   bool
-  find_handler(uint sql_errno,MYSQL_ERROR::enum_warning_level level);
+  find_handler(THD *thd, uint sql_errno,MYSQL_ERROR::enum_warning_level level);
 
   // If there is an error handler for this error, handle it and return TRUE.
   bool
@@ -236,6 +236,10 @@ private:
     during execution.
   */
   bool m_return_value_set;
+  /**
+    TRUE if the context is created for a sub-statement.
+  */
+  bool in_sub_stmt;
 
   sp_handler_t *m_handler;      // Visible handlers
   uint m_hcount;                // Stack pointer for m_handler

@@ -358,6 +358,7 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
+   transaction_rollback_request(0), is_fatal_sub_stmt_error(0),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0), binlog_flags(0UL),
    arg_of_last_insert_id_function(FALSE),
@@ -1303,7 +1304,7 @@ void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
   if (status && thd->spcont &&
-      thd->spcont->find_handler(thd->net.last_errno,
+      thd->spcont->find_handler(thd, thd->net.last_errno,
                                 MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     /*
@@ -2681,6 +2682,13 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
+  /*
+    If we've left sub-statement mode, reset the fatal error flag.
+    Otherwise keep the current value, to propagate it up the sub-statement
+    stack.
+  */
+  if (!in_sub_stmt)
+    is_fatal_sub_stmt_error= FALSE;
 
   if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
     !current_stmt_binlog_row_based)
@@ -2695,6 +2703,18 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 }
 
 
+/**
+  Mark transaction to rollback and mark error as fatal to a sub-statement.
+
+  @param  thd   Thread handle
+  @param  all   TRUE <=> rollback main transaction.
+*/
+
+void mark_transaction_to_rollback(THD *thd, bool all)
+{
+  thd->is_fatal_sub_stmt_error= TRUE;
+  thd->transaction_rollback_request= all;
+}
 /***************************************************************************
   Handling of XA id cacheing
 ***************************************************************************/
