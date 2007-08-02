@@ -6320,7 +6320,8 @@ The minimum value for this variable is 4096.",
     (uchar**) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
-   "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
+   "If an internal in-memory temporary table exceeds this size, MySQL will"
+   " automatically convert it to an on-disk MyISAM table.",
    (uchar**) &global_system_variables.tmp_table_size,
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
@@ -7626,10 +7627,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_MYISAM_RECOVER:
   {
-    if (!argument || !argument[0])
+    if (!argument)
     {
       myisam_recover_options=    HA_RECOVER_DEFAULT;
       myisam_recover_options_str= myisam_recover_typelib.type_names[0];
+    }
+    else if (!argument[0])
+    {
+      myisam_recover_options= HA_RECOVER_NONE;
+      myisam_recover_options_str= "OFF";
     }
     else
     {

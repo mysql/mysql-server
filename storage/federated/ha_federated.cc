@@ -449,6 +449,13 @@ int federated_db_init(void *p)
   federated_hton->create= federated_create_handler;
   federated_hton->flags= HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
 
+  /*
+    Support for transactions disabled until WL#2952 fixes it.
+	We do it like this to avoid "defined but not used" compiler warnings.
+  */
+  federated_hton->commit= 0;
+  federated_hton->rollback= 0;
+
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
@@ -530,102 +537,6 @@ static bool append_ident(String *string, const char *name, uint length,
 
 err:
   DBUG_RETURN(result);
-}
-
-
-/*
- Check (in create) whether the tables exists, and that it can be connected to
-
-  SYNOPSIS
-    check_foreign_data_source()
-      share               pointer to FEDERATED share
-      table_create_flag   tells us that ::create is the caller, 
-                          therefore, return CANT_CREATE_FEDERATED_TABLE
-
-  DESCRIPTION
-    This method first checks that the connection information that parse url
-    has populated into the share will be sufficient to connect to the foreign
-    table, and if so, does the foreign table exist.
-*/
-
-static int check_foreign_data_source(FEDERATED_SHARE *share,
-                                     bool table_create_flag)
-{
-  char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-  uint error_code;
-  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
-  MYSQL *mysql;
-  DBUG_ENTER("ha_federated::check_foreign_data_source");
-
-  /* Zero the length, otherwise the string will have misc chars */
-  query.length(0);
-
-  /* error out if we can't alloc memory for mysql_init(NULL) (per Georg) */
-  if (!(mysql= mysql_init(NULL)))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  /* check if we can connect */
-  if (!mysql_real_connect(mysql,
-                          share->hostname,
-                          share->username,
-                          share->password,
-                          share->database,
-                          share->port,
-                          share->socket, 0))
-  {
-    /*
-      we want the correct error message, but it to return
-      ER_CANT_CREATE_FEDERATED_TABLE if called by ::create
-    */
-    error_code= (table_create_flag ?
-                 ER_CANT_CREATE_FEDERATED_TABLE :
-                 ER_CONNECT_TO_FOREIGN_DATA_SOURCE);
-
-    my_sprintf(error_buffer,
-               (error_buffer,
-                "database: '%s'  username: '%s'  hostname: '%s'",
-                share->database, share->username, share->hostname));
-
-    my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), error_buffer);
-    goto error;
-  }
-  else
-  {
-    /*
-      Since we do not support transactions at this version, we can let the 
-      client API silently reconnect. For future versions, we will need more 
-      logic to deal with transactions
-    */
-    mysql->reconnect= 1;
-    /*
-      Note: I am not using INORMATION_SCHEMA because this needs to work with 
-      versions prior to 5.0
-      
-      if we can connect, then make sure the table exists 
-
-      the query will be: SELECT * FROM `tablename` WHERE 1=0
-    */
-    query.append(STRING_WITH_LEN("SELECT * FROM "));
-    append_ident(&query, share->table_name, share->table_name_length,
-                 ident_quote_char);
-    query.append(STRING_WITH_LEN(" WHERE 1=0"));
-
-    if (mysql_real_query(mysql, query.ptr(), query.length()))
-    {
-      error_code= table_create_flag ?
-        ER_CANT_CREATE_FEDERATED_TABLE : ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST;
-      my_sprintf(error_buffer, (error_buffer, "error: %d  '%s'",
-                                mysql_errno(mysql), mysql_error(mysql)));
-
-      my_error(error_code, MYF(0), error_buffer);
-      goto error;
-    }
-  }
-  error_code=0;
-
-error:
-    mysql_close(mysql);
-    DBUG_RETURN(error_code);
 }
 
 
@@ -1681,38 +1592,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock, &lock, NULL);
 
-  /* Connect to foreign database mysql_real_connect() */
-  mysql= mysql_init(0);
-
-  /*
-    BUG# 17044 Federated Storage Engine is not UTF8 clean
-    Add set names to whatever charset the table is at open
-    of table
-  */
-  /* this sets the csname like 'set names utf8' */
-  mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
-                this->table->s->table_charset->csname);
-
-  DBUG_PRINT("info", ("calling mysql_real_connect hostname %s user %s",
-			share->hostname, share->username));
-  if (!mysql || !mysql_real_connect(mysql,
-                                   share->hostname,
-                                   share->username,
-                                   share->password,
-                                   share->database,
-                                   share->port,
-                                   share->socket, 0))
-  {
-    free_share(share);
-    DBUG_RETURN(stash_remote_error());
-  }
-  /*
-    Since we do not support transactions at this version, we can let the client
-    API silently reconnect. For future versions, we will need more logic to
-    deal with transactions
-  */
-
-  mysql->reconnect= 1;
+  DBUG_ASSERT(mysql == NULL);
 
   ref_length= (table->s->primary_key != MAX_KEY ?
                table->key_info[table->s->primary_key].key_length :
@@ -1748,8 +1628,8 @@ int ha_federated::close(void)
     stored_result= 0;
   }
   /* Disconnect from mysql */
-  if (mysql)                                    // QQ is this really needed
-    mysql_close(mysql);
+  mysql_close(mysql);
+  mysql= NULL;
   retval= free_share(share);
   DBUG_RETURN(retval);
 
@@ -1981,7 +1861,7 @@ int ha_federated::write_row(uchar *buf)
     if (bulk_insert.length + values_string.length() + bulk_padding >
         mysql->net.max_packet_size && bulk_insert.length)
     {
-      error= mysql_real_query(mysql, bulk_insert.str, bulk_insert.length);
+      error= real_query(bulk_insert.str, bulk_insert.length);
       bulk_insert.length= 0;
     }
     else
@@ -2005,8 +1885,7 @@ int ha_federated::write_row(uchar *buf)
   }  
   else
   {
-    error= mysql_real_query(mysql, values_string.ptr(), 
-                            values_string.length());
+    error= real_query(values_string.ptr(), values_string.length());
   }
   
   if (error)
@@ -2018,7 +1897,12 @@ int ha_federated::write_row(uchar *buf)
     field, then store the last_insert_id() value from the foreign server
   */
   if (auto_increment_update_required)
+  {
     update_auto_increment();
+
+    /* mysql_insert() uses this for protocol return value */
+    table->next_number_field->store(stats.auto_increment_value, 1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -2049,6 +1933,13 @@ void ha_federated::start_bulk_insert(ha_rows rows)
   if (rows == 1)
     DBUG_VOID_RETURN;
 
+  /*
+    Make sure we have an open connection so that we know the 
+    maximum packet size.
+  */
+  if (!mysql && real_connect())
+    DBUG_VOID_RETURN;
+
   page_size= (uint) my_getpagesize();
 
   if (init_dynamic_string(&bulk_insert, NULL, page_size, page_size))
@@ -2077,7 +1968,7 @@ int ha_federated::end_bulk_insert()
   
   if (bulk_insert.str && bulk_insert.length)
   {
-    if (mysql_real_query(mysql, bulk_insert.str, bulk_insert.length))
+    if (real_query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();
     else
     if (table->next_number_field)
@@ -2103,8 +1994,9 @@ void ha_federated::update_auto_increment(void)
   THD *thd= current_thd;
   DBUG_ENTER("ha_federated::update_auto_increment");
 
+  ha_federated::info(HA_STATUS_AUTO);
   thd->first_successful_insert_id_in_cur_stmt= 
-    mysql->last_used_con->insert_id;
+    stats.auto_increment_value;
   DBUG_PRINT("info",("last_insert_id: %ld", (long) stats.auto_increment_value));
 
   DBUG_VOID_RETURN;
@@ -2123,7 +2015,7 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   append_ident(&query, share->table_name, share->table_name_length, 
                ident_quote_char);
 
-  if (mysql_real_query(mysql, query.ptr(), query.length()))
+  if (real_query(query.ptr(), query.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
@@ -2151,7 +2043,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
   if (check_opt->sql_flags & TT_USEFRM)
     query.append(STRING_WITH_LEN(" USE_FRM"));
 
-  if (mysql_real_query(mysql, query.ptr(), query.length()))
+  if (real_query(query.ptr(), query.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
@@ -2308,7 +2200,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
   if (!has_a_primary_key)
     update_string.append(STRING_WITH_LEN(" LIMIT 1"));
 
-  if (mysql_real_query(mysql, update_string.ptr(), update_string.length()))
+  if (real_query(update_string.ptr(), update_string.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
@@ -2381,7 +2273,7 @@ int ha_federated::delete_row(const uchar *buf)
   delete_string.append(STRING_WITH_LEN(" LIMIT 1"));
   DBUG_PRINT("info",
              ("Delete sql: %s", delete_string.c_ptr_quick()));
-  if (mysql_real_query(mysql, delete_string.ptr(), delete_string.length()))
+  if (real_query(delete_string.ptr(), delete_string.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
@@ -2489,7 +2381,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
                         NULL, 0, 0);
   sql_query.append(index_string);
 
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (real_query(sql_query.ptr(), sql_query.length()))
   {
     my_sprintf(error_buffer, (error_buffer, "error: %d '%s'",
                               mysql_errno(mysql), mysql_error(mysql)));
@@ -2555,7 +2447,7 @@ int ha_federated::read_range_first(const key_range *start_key,
     mysql_free_result(stored_result);
     stored_result= 0;
   }
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (real_query(sql_query.ptr(), sql_query.length()))
   {
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
@@ -2654,9 +2546,7 @@ int ha_federated::rnd_init(bool scan)
       stored_result= 0;
     }
 
-    if (mysql_real_query(mysql,
-                         share->select_query,
-                         strlen(share->select_query)))
+    if (real_query(share->select_query, strlen(share->select_query)))
       goto error;
 
     stored_result= mysql_store_result(mysql);
@@ -2873,8 +2763,7 @@ int ha_federated::info(uint flag)
     append_ident(&status_query_string, share->table_name,
                  share->table_name_length, value_quote_char);
 
-    if (mysql_real_query(mysql, status_query_string.ptr(),
-                         status_query_string.length()))
+    if (real_query(status_query_string.ptr(), status_query_string.length()))
       goto error;
 
     status_query_string.length(0);
@@ -2926,18 +2815,27 @@ int ha_federated::info(uint flag)
 
   }
 
-  if (result)
-    mysql_free_result(result);
+  if (flag & HA_STATUS_AUTO)
+    stats.auto_increment_value= mysql->last_used_con->insert_id;
+
+  mysql_free_result(result);
 
   DBUG_RETURN(0);
 
 error:
-  if (result)
-    mysql_free_result(result);
-
-  my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                            mysql_errno(mysql), mysql_error(mysql)));
-  my_error(error_code, MYF(0), error_buffer);
+  mysql_free_result(result);
+  if (mysql)
+  {
+    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
+                              mysql_errno(mysql), mysql_error(mysql)));
+    my_error(error_code, MYF(0), error_buffer);
+  }
+  else
+  if (remote_error_number != -1 /* error already reported */)
+  {
+    error_code= remote_error_number;
+    my_error(error_code, MYF(0), ER(error_code));
+  }
   DBUG_RETURN(error_code);
 }
 
@@ -3029,7 +2927,7 @@ int ha_federated::delete_all_rows()
   /*
     TRUNCATE won't return anything in mysql_affected_rows
   */
-  if (mysql_real_query(mysql, query.ptr(), query.length()))
+  if (real_query(query.ptr(), query.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
@@ -3119,17 +3017,120 @@ int ha_federated::create(const char *name, TABLE *table_arg,
   FEDERATED_SHARE tmp_share; // Only a temporary share, to test the url
   DBUG_ENTER("ha_federated::create");
 
-  if (!(retval= parse_url(thd->mem_root, &tmp_share, table_arg, 1)))
-    retval= check_foreign_data_source(&tmp_share, 1);
+  retval= parse_url(thd->mem_root, &tmp_share, table_arg, 1);
 
   DBUG_RETURN(retval);
 
 }
 
 
+int ha_federated::real_connect()
+{
+  char buffer[FEDERATED_QUERY_BUFFER_SIZE];
+  String sql_query(buffer, sizeof(buffer), &my_charset_bin);
+  DBUG_ENTER("ha_federated::real_connect");
+
+  /* 
+    Bug#25679
+    Ensure that we do not hold the LOCK_open mutex while attempting
+    to establish Federated connection to guard against a trivial
+    Denial of Service scenerio.
+  */
+  safe_mutex_assert_not_owner(&LOCK_open);
+
+  DBUG_ASSERT(mysql == NULL);
+
+  if (!(mysql= mysql_init(NULL)))
+  {
+    remote_error_number= HA_ERR_OUT_OF_MEM;
+    DBUG_RETURN(-1);
+  }
+
+  /*
+    BUG# 17044 Federated Storage Engine is not UTF8 clean
+    Add set names to whatever charset the table is at open
+    of table
+  */
+  /* this sets the csname like 'set names utf8' */
+  mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
+                this->table->s->table_charset->csname);
+
+  sql_query.length(0);
+
+  if (!mysql_real_connect(mysql,
+                          share->hostname,
+                          share->username,
+                          share->password,
+                          share->database,
+                          share->port,
+                          share->socket, 0))
+  {
+    stash_remote_error();
+    mysql_close(mysql);
+    mysql= NULL;
+    my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), remote_error_buf);
+    remote_error_number= -1;
+    DBUG_RETURN(-1);
+  }
+
+  /*
+    We have established a connection, lets try a simple dummy query just 
+    to check that the table and expected columns are present.
+  */
+  sql_query.append(share->select_query);
+  sql_query.append(STRING_WITH_LEN(" WHERE 1=0"));
+  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  {
+    sql_query.length(0);
+    sql_query.append("error: ");
+    sql_query.qs_append(mysql_errno(mysql));
+    sql_query.append("  '");
+    sql_query.append(mysql_error(mysql));
+    sql_query.append("'");
+    mysql_close(mysql);
+    mysql= NULL;
+    my_error(ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST, MYF(0), sql_query.ptr());
+    remote_error_number= -1;
+    DBUG_RETURN(-1);
+  }
+
+  /* Just throw away the result, no rows anyways but need to keep in sync */
+  mysql_free_result(mysql_store_result(mysql));
+
+  /*
+    Since we do not support transactions at this version, we can let the client
+    API silently reconnect. For future versions, we will need more logic to
+    deal with transactions
+  */
+
+  mysql->reconnect= 1;
+  DBUG_RETURN(0);
+}
+
+
+int ha_federated::real_query(const char *query, uint length)
+{
+  int rc= 0;
+  DBUG_ENTER("ha_federated::real_query");
+
+  if (!mysql && (rc= real_connect()))
+    goto end;
+
+  if (!query || !length)
+    goto end;
+
+  rc= mysql_real_query(mysql, query, length);
+  
+end:
+  DBUG_RETURN(rc);
+}
+
+
 int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
+  if (!mysql)
+    DBUG_RETURN(remote_error_number);
   remote_error_number= mysql_errno(mysql);
   strmake(remote_error_buf, mysql_error(mysql), sizeof(remote_error_buf)-1);
   if (remote_error_number == ER_DUP_ENTRY ||
@@ -3160,11 +3161,16 @@ bool ha_federated::get_error_message(int error, String* buf)
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
   DBUG_ENTER("ha_federated::external_lock");
 
+  /*
+    Support for transactions disabled until WL#2952 fixes it.
+  */
+#ifdef XXX_SUPERCEDED_BY_WL2952
   if (lock_type != F_UNLCK)
   {
+    ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
+
     DBUG_PRINT("info",("federated not lock F_UNLCK"));
     if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
     {
@@ -3216,7 +3222,8 @@ int ha_federated::external_lock(THD *thd, int lock_type)
       }
     }
   }
-  DBUG_RETURN(0);
+#endif /* XXX_SUPERCEDED_BY_WL2952 */
+  DBUG_RETURN(error);
 }
 
 

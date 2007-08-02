@@ -392,12 +392,20 @@ FROM t1
 WHERE a MOD 2 = 1;
 INSERT INTO t2 SELECT a+2 FROM tt2;
 ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 637;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	637	Query	#	717	use `test`; TRUNCATE TABLE t2
 #	717	Xid	#	744	COMMIT /* XID */
+#	738	Query	#	806	use `test`; BEGIN
+#	806	Table_map	#	845	table_id: # (test.t2)
+#	845	Write_rows	#	889	table_id: # flags: STMT_END_F
+#	889	Table_map	#	928	table_id: # (test.t2)
+#	928	Write_rows	#	967	table_id: # flags: STMT_END_F
+#	967	Query	#	1038	use `test`; ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;

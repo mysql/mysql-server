@@ -755,7 +755,7 @@ drop table t1,t2;
 create table t1(f1 varchar(800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci;
 Warnings:
-Warning	1071	Specified key was too long; max key length is 765 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
 insert into t1 values('aaa');
 drop table t1;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
@@ -813,6 +813,315 @@ drop table t1;
 drop table if exists t1;
 create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
+drop table t1;
+
+Bug#24918 drop table and lock / inconsistent between 
+perm and temp tables
+
+Check transactional tables under LOCK TABLES
+
+drop table if exists t24918, t24918_tmp, t24918_trans, t24918_trans_tmp, 
+t24918_access;
+create table t24918_access (id int);
+create table t24918 (id int) engine=myisam;
+create temporary table t24918_tmp (id int) engine=myisam;
+create table t24918_trans (id int) engine=innodb;
+create temporary table t24918_trans_tmp (id int) engine=innodb;
+lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+drop table t24918;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_trans_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+drop table t24918_tmp;
+select * from t24918_access;
+ERROR HY000: Table 't24918_access' was not locked with LOCK TABLES
+unlock tables;
+drop table t24918_access;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
+INSERT INTO t1 SELECT a + 8, 2 FROM t1;
+INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	const
+rows	16
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b=2 ORDER BY a;
+a	b
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t1
+type	range
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	NULL
+rows	16
+Extra	Using where; Using index; Using filesort
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+a	b
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+17	1
+18	1
+19	1
+20	1
+21	1
+22	1
+23	1
+24	1
+25	1
+26	1
+27	1
+28	1
+29	1
+30	1
+31	1
+32	1
+EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+id	1
+select_type	SIMPLE
+table	t1
+type	range
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	NULL
+rows	16
+Extra	Using where; Using index
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+a	b
+17	1
+18	1
+19	1
+20	1
+21	1
+22	1
+23	1
+24	1
+25	1
+26	1
+27	1
+28	1
+29	1
+30	1
+31	1
+32	1
+1	2
+2	2
+3	2
+4	2
+5	2
+6	2
+7	2
+8	2
+9	2
+10	2
+11	2
+12	2
+13	2
+14	2
+15	2
+16	2
+CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
+ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
+INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
+INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	5
+ref	const
+rows	8
+Extra	Using where; Using index; Using filesort
+SELECT * FROM t2 WHERE b=1 ORDER BY a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	bkey
+key	bkey
+key_len	10
+ref	const,const
+rows	8
+Extra	Using where; Using index
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+a	b	c
+1	1	1
+2	1	1
+3	1	1
+4	1	1
+5	1	1
+6	1	1
+7	1	1
+8	1	1
+9	1	1
+10	1	1
+11	1	1
+12	1	1
+13	1	1
+14	1	1
+15	1	1
+16	1	1
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT, PRIMARY KEY (a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a + 8  FROM t1;
+INSERT INTO t1 SELECT a + 16 FROM t1;
+CREATE PROCEDURE p1 ()
+BEGIN
+DECLARE i INT DEFAULT 50;
+DECLARE cnt INT;
+START TRANSACTION;
+ALTER TABLE t1 ENGINE=InnoDB;
+COMMIT;
+START TRANSACTION;
+WHILE (i > 0) DO
+SET i = i - 1;
+SELECT COUNT(*) INTO cnt FROM t1 LOCK IN SHARE MODE;
+END WHILE;
+COMMIT;
+END;|
+CALL p1();
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
+create table t1(a text) engine=innodb default charset=utf8;
+insert into t1 values('aaa');
+alter table t1 add index(a(1024));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  KEY `a` (`a`(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 End of 5.0 tests
 CREATE TABLE `t2` (

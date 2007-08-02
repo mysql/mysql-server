@@ -15,16 +15,34 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 
+/* number of system calls made during shared latching */
 ulint	rw_s_system_call_count	= 0;
+
+/* number of spin waits on rw-latches,
+resulted during shared (read) locks */
 ulint	rw_s_spin_wait_count	= 0;
+
+/* number of OS waits on rw-latches,
+resulted during shared (read) locks */
 ulint	rw_s_os_wait_count	= 0;
 
+/* number of unlocks (that unlock shared locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 ulint	rw_s_exit_count		= 0;
 
+/* number of system calls made during exclusive latching */
 ulint	rw_x_system_call_count	= 0;
+
+/* number of spin waits on rw-latches,
+resulted during exclusive (write) locks */
 ulint	rw_x_spin_wait_count	= 0;
+
+/* number of OS waits on rw-latches,
+resulted during exclusive (write) locks */
 ulint	rw_x_os_wait_count	= 0;
 
+/* number of unlocks (that unlock exclusive locks),
+set only when UNIV_SYNC_PERF_STAT is defined */
 ulint	rw_x_exit_count		= 0;
 
 /* The global list of rw-locks */
