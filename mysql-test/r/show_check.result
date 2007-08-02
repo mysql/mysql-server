@@ -787,13 +787,71 @@ show tables;
 Tables_in_test
 show status like 'slow_queries';
 Variable_name	Value
-Slow_queries	1
+Slow_queries	0
 select 1 from information_schema.tables limit 1;
 1
 1
 show status like 'slow_queries';
 Variable_name	Value
-Slow_queries	2
+Slow_queries	1
+create table t1 (a int);
+create trigger tr1 before insert on t1 for each row 
+begin
+end;
+create view v1 as select a from t1;
+create procedure p1()
+begin
+end;
+create function f1()
+returns int
+return 0;
+create event e1 on schedule every 1 year starts now()
+ends date_add(now(), interval 5 hour) do
+begin
+end;
+flush status;
+show databases;
+show tables;
+show events;
+show table status;
+show open tables;
+show plugins;
+show columns in t1;
+show slave hosts;
+show keys in t1;
+show column types;
+show table types;
+show storage engines;
+show authors;
+show contributors;
+show privileges;
+show count(*) warnings;
+show count(*) errors;
+show warnings;
+show status;
+show processlist;
+show variables;
+show charset;
+show collation;
+show grants;
+show create database test;
+show create table t1;
+show create view v1;
+show master status;
+show slave status;
+show create procedure p1;
+show create function f1;
+show create trigger tr1;
+show procedure status;
+show create event e1;
+show status like 'slow_queries';
+Variable_name	Value
+Slow_queries	0
+drop view v1;
+drop table t1;
+drop procedure p1;
+drop function f1;
+drop event e1;
 DROP DATABASE IF EXISTS mysqltest1;
 DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
@@ -1174,7 +1232,7 @@ select 1 from information_schema.tables limit 1;
 1
 show status like 'slow_queries';
 Variable_name	Value
-Slow_queries	2
+Slow_queries	1
 set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
@@ -1184,7 +1242,7 @@ select 1 from information_schema.tables limit 1;
 1
 show status like 'slow_queries';
 Variable_name	Value
-Slow_queries	2
+Slow_queries	1
 set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
 Variable_name	Value
@@ -1194,7 +1252,7 @@ select 1 from information_schema.tables limit 1;
 1
 show status like 'slow_queries';
 Variable_name	Value
-Slow_queries	4
+Slow_queries	2
 End of 5.0 tests
 SHOW AUTHORS;
 create database mysqltest;
@@ -1368,4 +1426,5 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
+SHOW TABLE TYPES;
 End of 5.1 tests

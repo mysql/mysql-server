@@ -1,5 +1,8 @@
 use test;
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
 drop function if exists f1;
 drop function if exists f2;
 create table t1 (
@@ -6283,6 +6286,73 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
+SET @p1_p2_cnt= 2;
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+PREPARE s1 FROM 'SELECT c1 FROM v1';
+EXECUTE s1;
+c1
+EXECUTE s1;
+c1
+CREATE PROCEDURE p1(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+CALL p1(@p1_p2_cnt);
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE FUNCTION f1(loops INT UNSIGNED)
+RETURNS INT
+BEGIN
+DECLARE tmp INT;
+WHILE loops > 0 DO
+SELECT c1 INTO tmp FROM v1;
+SET loops = loops - 1;
+END WHILE;
+RETURN loops;
+END|
+CALL p1(2);
+c1
+c1
+CALL p2(2);
+c1
+c1
+c1
+c1
+c1
+c1
+SELECT f1(2);
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+PREPARE s1 FROM 'SELECT f1(2)';
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
 drop database if exists mysqltest_db1;
 create database mysqltest_db1;
 create procedure mysqltest_db1.sp_bug28551() begin end;
@@ -6308,6 +6378,17 @@ Level	Code	Message
 use test;
 drop procedure sp_bug29050;
 drop table t1;
+SET NAMES latin1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE бвд INT;
+SELECT бвд;
+END|
+CALL p1();
+бвд
+NULL
+SET NAMES default;
+DROP PROCEDURE p1;
 drop procedure if exists proc_25411_a;
 drop procedure if exists proc_25411_b;
 drop procedure if exists proc_25411_c;
@@ -6350,7 +6431,7 @@ select 1;
 select 3;
  select 4; 
 
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_25411_a();
 1
 1
@@ -6370,7 +6451,7 @@ proc_25411_b		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_b`(
 )
 begin
 select p1, p2;
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 select name, param_list, body from mysql.proc where name like "%25411%";
 name	param_list	body
 proc_25411_a		begin
@@ -6408,7 +6489,7 @@ select 1 ,2 ,3;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
-end	utf8	utf8_general_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_25411_c();
 1	2	3
 1	2	3
@@ -6429,7 +6510,7 @@ select 1 /* testing */;
 show create procedure proc_26302;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_26302		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_26302`()
-select 1 /* testing */	utf8	utf8_general_ci	latin1_swedish_ci
+select 1 /* testing */	latin1	latin1_swedish_ci	latin1_swedish_ci
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
 where ROUTINE_NAME = "proc_26302";
 ROUTINE_NAME	ROUTINE_DEFINITION

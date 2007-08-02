@@ -860,7 +860,7 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-  if (is_real_trans && thd->no_trans_update.all &&
+  if (is_real_trans && thd->transaction.all.modified_non_trans_table &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,

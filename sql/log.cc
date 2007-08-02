@@ -1462,7 +1462,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     table. Such cases should be rare (updating a
     non-transactional table inside a transaction...)
   */
-  if (unlikely(thd->no_trans_update.all || (thd->options & OPTION_KEEP_LOG)))
+  if (unlikely(thd->transaction.all.modified_non_trans_table || 
+               (thd->options & OPTION_KEEP_LOG)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -1516,7 +1517,8 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->no_trans_update.all || (thd->options & OPTION_KEEP_LOG)))
+  if (unlikely(thd->transaction.all.modified_non_trans_table || 
+               (thd->options & OPTION_KEEP_LOG)))
   {
     int error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
@@ -3957,6 +3959,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
 
+  DBUG_ASSERT(is_open());
   if (likely(is_open()))                       // Should always be true
   {
     /*
