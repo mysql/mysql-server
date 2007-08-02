@@ -2473,7 +2473,7 @@ ha_innobase::open(
 		my_free(upd_buff, MYF(0));
 		my_errno = ENOENT;
 
-		dict_table_decrement_handle_count(ib_table);
+		dict_table_decrement_handle_count(ib_table, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -2574,7 +2574,7 @@ ha_innobase::close(void)
 		innobase_release_temporary_latches(ht, thd);
 	}
 
-	row_prebuilt_free(prebuilt);
+	row_prebuilt_free(prebuilt, FALSE);
 
 	my_free(upd_buff, MYF(0));
 	free_share(share);
@@ -5446,7 +5446,8 @@ innobase_rename_table(
 	trx_t*		trx,	/* in: transaction */
 	const char*	from,	/* in: old name of the table */
 	const char*	to,	/* in: new name of the table */
-	ibool		commit_flag) /* in: if TRUE then commit */
+	ibool		lock_and_commit)
+				/* in: TRUE=lock data dictionary and commit */
 {
 	int	error;
 	char*	norm_to;
@@ -5477,10 +5478,12 @@ innobase_rename_table(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	row_mysql_lock_data_dictionary(trx);
+	if (lock_and_commit) {
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	error = row_rename_table_for_mysql(
-		norm_from, norm_to, trx, commit_flag);
+		norm_from, norm_to, trx, lock_and_commit);
 
 	if (error != DB_SUCCESS) {
 		FILE* ef = dict_foreign_err_file;
@@ -5492,16 +5495,15 @@ innobase_rename_table(
 		fputs(" failed!\n", ef);
 	}
 
-	row_mysql_unlock_data_dictionary(trx);
+	if (lock_and_commit) {
+		row_mysql_unlock_data_dictionary(trx);
 
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
+		/* Flush the log to reduce probability that the .frm
+		files and the InnoDB data dictionary get out-of-sync
+		if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
-	log_buffer_flush_to_disk();
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
+		log_buffer_flush_to_disk();
+	}
 
 	my_free(norm_to, MYF(0));
 	my_free(norm_from, MYF(0));
@@ -8414,9 +8416,9 @@ err_exit:
 	Drop table etc. do this latching in row0mysql.c. */
 
 	row_mysql_lock_data_dictionary(trx);
+	dict_locked = TRUE;
 
 	num_created = 0;
-	dict_locked = TRUE;
 
 	/* Create the indexes in SYS_INDEXES and load into dictionary.*/
 
@@ -8438,48 +8440,47 @@ err_exit:
 		num_created++;
 	}
 
-	if (error == DB_SUCCESS) {
-		/* Raise version number of the table to track this table's
-		definition changes.*/
+	ut_ad(error == DB_SUCCESS);
 
-		indexed_table->version_number++;
+	/* Raise version number of the table to track this table's
+	definition changes. */
 
-		row_mysql_unlock_data_dictionary(trx);
-		dict_locked = FALSE;
+	indexed_table->version_number++;
 
-		mem_heap_empty(heap);
+	row_mysql_unlock_data_dictionary(trx);
+	dict_locked = FALSE;
 
-		ut_a(trx->n_active_thrs == 0);
-		ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	mem_heap_empty(heap);
 
-		error = row_lock_table_for_merge(trx, innodb_table, LOCK_X);
+	ut_a(trx->n_active_thrs == 0);
+	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+
+	error = row_lock_table_for_merge(trx, innodb_table, LOCK_X);
+
+	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
+
+		goto error_handling;
 	}
 
-	/* Acquire an exclusive table lock on the new table if a primary
-	key is to be built.*/
-	if (error == DB_SUCCESS && new_primary) {
-
+	if (UNIV_UNLIKELY(new_primary)) {
+		/* A primary key is to be built.  Acquire an exclusive
+		table lock also on the table that is being created. */
 		ut_ad(indexed_table != innodb_table);
 
 		error = row_lock_table_for_merge(trx, indexed_table, LOCK_X);
-	}
 
-	if (error == DB_SUCCESS) {
+		if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		/* Read clustered index of the table and build indexes
-		based on this information using temporary files and merge
-		sort.*/
-		error = row_merge_build_indexes(
-			trx, innodb_table, indexed_table, index,
-			num_of_idx);
-
-		if (error == DB_SUCCESS && new_primary) {
-			row_mysql_lock_data_dictionary(trx);
-			row_prebuilt_table_obsolete(innodb_table);
-			row_mysql_unlock_data_dictionary(trx);
+			goto error_handling;
 		}
 	}
 
+	/* Read the clustered index of the table and build indexes
+	based on this information using temporary files and merge sort. */
+	error = row_merge_build_indexes(trx, innodb_table, indexed_table,
+					index, num_of_idx);
+
+error_handling:
 #ifdef UNIV_DEBUG
 	/* TODO: At the moment we can't handle the following statement
 	in our debugging code below:
@@ -8491,27 +8492,26 @@ err_exit:
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
-error_handling:
-	if (dict_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
 
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 
 	switch (error) {
 	case DB_SUCCESS:
+		ut_ad(!dict_locked);
 		break;
 	case DB_DUPLICATE_KEY:
 		prebuilt->trx->error_info = NULL;
 		prebuilt->trx->error_key_num = trx->error_key_num;
 		/* fall through */
 	default:
-		row_merge_drop_indexes(
-			trx, indexed_table, index, num_created);
-		if (indexed_table != innodb_table) {
+		if (new_primary) {
 			row_merge_drop_table(trx, indexed_table);
+		} else {
+			row_merge_drop_indexes(trx, indexed_table,
+					       index, num_created);
 		}
+
 		goto func_exit;
 	}
 
@@ -8527,6 +8527,11 @@ error_handling:
 			heap, '2', innodb_table->name);
 
 		trx_start_if_not_started(trx);
+
+		row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
+
+		row_prebuilt_table_obsolete(innodb_table);
 
 		/* Write entry for UNDO */
 		error = row_undo_report_rename_table_dict_operation(
@@ -8555,24 +8560,26 @@ error_handling:
 			goto func_exit;
 		}
 
-		row_prebuilt_free(prebuilt);
+		row_prebuilt_free(prebuilt, TRUE);
 		prebuilt = row_create_prebuilt(indexed_table);
 
-		row_mysql_lock_data_dictionary(trx);
 		prebuilt->table->n_mysql_handles_opened++;
-		row_mysql_unlock_data_dictionary(trx);
 
 		/* Drop the old table if there are no open views
-		referring to it.  If there such views, we will drop
-		the table when we free the prebuilts and there are no
-		more references to it. */
+		referring to it.  If there are such views, we will
+		drop the table when we free the prebuilts and there
+		are no more references to it. */
 
 		error = row_merge_drop_table(trx, innodb_table);
 	}
 
 func_exit:
 	mem_heap_free(heap);
-	innobase_commit_low(trx);/* work around a bug in mysql_alter_table() */
+	innobase_commit_low(trx);
+
+	if (dict_locked) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();

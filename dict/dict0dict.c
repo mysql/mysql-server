@@ -309,15 +309,21 @@ Decrements the count of open MySQL handles to a table. */
 void
 dict_table_decrement_handle_count(
 /*==============================*/
-	dict_table_t*	table)	/* in: table */
+	dict_table_t*	table,		/* in: table */
+	ibool		dict_locked)	/* in: TRUE=data dictionary locked */
 {
-	mutex_enter(&(dict_sys->mutex));
+	if (!dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(table->n_mysql_handles_opened > 0);
 
 	table->n_mysql_handles_opened--;
 
-	mutex_exit(&(dict_sys->mutex));
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
 }
 
 /**************************************************************************
