@@ -16,17 +16,13 @@
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
-# Need to set USE_TLS, since mysys is linked into libmysql.dll and
-# libmysqld.dll, and __declspec(thread) approach to thread local storage does
-# not work properly in DLLs.
-# Currently, USE_TLS crashes in Debug builds, so until that is fixed Debug
-# .dlls cannot be loaded at runtime.
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DUSE_TLS")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DUSE_TLS")
-SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DUSE_TLS")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DUSE_TLS")
+# Only the server link with this library, the client libraries and the client
+# executables all link with recompiles of source found in the "mysys" directory.
+# So we only need to create one version of this library, with the "static"
+# Thread Local Storage model.
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys )
+
 ADD_LIBRARY(mysys array.c charset-def.c charset.c checksum.c default.c default_modify.c
 				errors.c hash.c list.c md5.c mf_brkhant.c mf_cache.c mf_dirname.c mf_fn_ext.c
 				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
