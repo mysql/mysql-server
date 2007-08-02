@@ -729,7 +729,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
-    debug_info_flag= 1;
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
@@ -2070,7 +2070,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
-
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -2472,6 +2471,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
         check_io(sql_file);
       }
+      mysql_free_result(result);
       if (!opt_xml)
       {
         if (keynr)
@@ -2813,7 +2813,7 @@ static void dump_table(char *table, char *db)
   /*
     The "table" could be a view.  If so, we don't do anything here.
   */
-  if (strcmp (table_type, "VIEW") == 0)
+  if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
   /* Check --no-data flag */
@@ -2903,6 +2903,7 @@ static void dump_table(char *table, char *db)
     if (mysql_real_query(mysql, query_string.str, query_string.length))
     {
       DB_error(mysql, "when executing 'SELECT INTO OUTFILE'");
+      dynstr_free(&query_string);
       DBUG_VOID_RETURN;
     }
   }
@@ -3257,8 +3258,8 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
     mysql_free_result(res);
-    dynstr_free(&query_string);
   }
+  dynstr_free(&query_string);
   DBUG_VOID_RETURN;
 
 err:
@@ -3379,6 +3380,7 @@ static int dump_tablespaces(char* ts_where)
   char extra_format[]= "UNDO_BUFFER_SIZE=";
   char *ubs;
   char *endsemi;
+  DBUG_ENTER("dump_tablespaces");
 
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT LOGFILE_GROUP_NAME,"
@@ -3410,6 +3412,7 @@ static int dump_tablespaces(char* ts_where)
   if (mysql_query(mysql, sqlbuf.str) ||
       !(tableres = mysql_store_result(mysql)))
   {
+    dynstr_free(&sqlbuf);
     if (mysql_errno(mysql) == ER_BAD_TABLE_ERROR ||
         mysql_errno(mysql) == ER_BAD_DB_ERROR ||
         mysql_errno(mysql) == ER_UNKNOWN_TABLE)
@@ -3418,12 +3421,12 @@ static int dump_tablespaces(char* ts_where)
               "\n--\n-- Not dumping tablespaces as no INFORMATION_SCHEMA.FILES"
               " table on this server\n--\n");
       check_io(md_result_file);
-      return 0;
+      DBUG_RETURN(0);
     }
 
-    my_printf_error(0, "Error: Couldn't dump tablespaces %s",
+    my_printf_error(0, "Error: '%s' when trying to dump tablespaces",
                     MYF(0), mysql_error(mysql));
-    return 1;
+    DBUG_RETURN(1);
   }
 
   buf[0]= 0;
@@ -3475,6 +3478,7 @@ static int dump_tablespaces(char* ts_where)
     }
   }
   dynstr_free(&sqlbuf);
+  mysql_free_result(tableres);
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT DISTINCT TABLESPACE_NAME,"
                       " FILE_NAME,"
@@ -3492,7 +3496,10 @@ static int dump_tablespaces(char* ts_where)
   dynstr_append_checked(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
 
   if (mysql_query_with_error_report(mysql, &tableres, sqlbuf.str))
-    return 1;
+  {
+    dynstr_free(&sqlbuf);
+    DBUG_RETURN(1);
+  }
 
   buf[0]= 0;
   while ((row= mysql_fetch_row(tableres)))
@@ -3538,8 +3545,9 @@ static int dump_tablespaces(char* ts_where)
     }
   }
 
+  mysql_free_result(tableres);
   dynstr_free(&sqlbuf);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int dump_all_databases()
@@ -3626,8 +3634,11 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
+
 int init_dumping_tables(char *qdatabase)
 {
+  DBUG_ENTER("init_dumping_tables");
+
   if (!opt_create_db)
   {
     char qbuf[256];
@@ -3660,10 +3671,10 @@ int init_dumping_tables(char *qdatabase)
       {
         fprintf(md_result_file,"\n%s;\n",row[1]);
       }
+      mysql_free_result(dbinfo);
     }
   }
-
-  return 0;
+  DBUG_RETURN(0);
 } /* init_dumping_tables */
 
 
@@ -3931,8 +3942,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     }
     else
     {
-       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
-       /* We shall countinue here, if --force was given */
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
+      maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
+      /* We shall countinue here, if --force was given */
     }
   }
   end= pos;
@@ -3941,14 +3957,25 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
+    {
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
       DB_error(mysql, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
+    }
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs)
   {
     if (mysql_refresh(mysql, REFRESH_LOG))
+    {
+      if (!ignore_errors)
+        free_root(&root, MYF(0));
       DB_error(mysql, "when doing refresh");
+    }
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
@@ -4511,6 +4538,9 @@ static my_bool get_view_structure(char *table, char* db)
     if (!(table_res= mysql_store_result(mysql)) ||
         !(row= mysql_fetch_row(table_res)))
     {
+      if (table_res)
+        mysql_free_result(table_res);
+      dynstr_free(&ds_view);
       DB_error(mysql, "when trying to save the result of SHOW CREATE TABLE in ds_view.");
       DBUG_RETURN(1);
     }

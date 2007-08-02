@@ -134,14 +134,14 @@ void my_end(int infoflag)
     We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
     operational, so we cannot use DBUG_RETURN.
   */
-  DBUG_PRINT("info",("Shutting down"));
+  DBUG_PRINT("info",("Shutting down: infoflag: %d  print_info: %d",
+                     infoflag, print_info));
   if (!info_file)
   {
     info_file= stderr;
     print_info= 0;
   }
 
-  DBUG_PRINT("info",("Shutting down: print_info: %d", print_info));
   if ((infoflag & MY_CHECK_ERROR) || print_info)
 
   {					/* Test if some file is left open */
@@ -186,7 +186,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
-    TERMINATE(stderr, 1);		/* Give statistic on screen */
+    TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
