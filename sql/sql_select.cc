@@ -10198,7 +10198,7 @@ static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
-                                  HA_OPEN_TMP_TABLE)))
+                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;
@@ -10436,8 +10436,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
-  (void) table->file->close();
-  (void) table->file->delete_table(table->s->table_name.str);
+  (void) table->file->close();                  // This deletes the table !
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
@@ -15535,15 +15534,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Add "filtered" field to item_list. */
       if (join->thd->lex->describe & DESCRIBE_EXTENDED)
       {
-        Item_float *filtered;
-        float f; 
+        float f= 0.0; 
         if (examined_rows)
           f= (float) (100.0 * join->best_positions[i].records_read /
                       examined_rows);
-        else
-          f= 0.0;
-        item_list.push_back((filtered= new Item_float(f)));
-        filtered->decimals= 2;
+        item_list.push_back(new Item_float(f, 2));
       }
 
 

@@ -130,17 +130,18 @@ void my_end(int infoflag)
   */
   FILE *info_file= DBUG_FILE;
   my_bool print_info= (info_file != stderr);
-  /* We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
-     operational, so we cannot use DBUG_RETURN.
+  /*
+    We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+    operational, so we cannot use DBUG_RETURN.
   */
-  DBUG_PRINT("info",("Shutting down"));
+  DBUG_PRINT("info",("Shutting down: infoflag: %d  print_info: %d",
+                     infoflag, print_info));
   if (!info_file)
   {
     info_file= stderr;
     print_info= 0;
   }
 
-  DBUG_PRINT("info",("Shutting down: print_info: %d", print_info));
   if ((infoflag & MY_CHECK_ERROR) || print_info)
 
   {					/* Test if some file is left open */
@@ -185,7 +186,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
-    TERMINATE(stderr);		/* Give statistic on screen */
+    TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
@@ -196,6 +197,10 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtCheckMemory();
    _CrtDumpMemoryLeaks();
 #endif
+  }
+  else if (infoflag & MY_CHECK_ERROR)
+  {
+    TERMINATE(stderr, 0);		/* Print memory leaks on screen */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
@@ -371,6 +376,28 @@ static void my_win_init(void)
 
   /* chiude la chiave */
   RegCloseKey(hSoftMysql) ;
+
+  /* The following is used by time functions */
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define MS 10000000
+  {
+    FILETIME ft;
+    LARGE_INTEGER li, t_cnt;
+    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency))
+      query_performance_frequency= 0;
+    else
+    {
+      GetSystemTimeAsFileTime(&ft);
+      li.LowPart=  ft.dwLowDateTime;
+      li.HighPart= ft.dwHighDateTime;
+      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+      QueryPerformanceCounter(&t_cnt);
+      query_performance_offset-= (t_cnt.QuadPart / query_performance_frequency * MS +
+                                  t_cnt.QuadPart % query_performance_frequency * MS /
+                                  query_performance_frequency);
+    }
+  }
   DBUG_VOID_RETURN ;
 }
 

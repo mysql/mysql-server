@@ -14,9 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include <tap.h>
 #include <my_sys.h>
 #include <my_atomic.h>
+#include <tap.h>
 
 int32 a32,b32,c32;
 my_atomic_rwlock_t rwl;
@@ -160,6 +160,7 @@ err:
 int main()
 {
   int err;
+  MY_INIT("my_atomic-t.c");
 
   diag("N CPUs: %d", my_getncpus());
   err= my_atomic_initialize();

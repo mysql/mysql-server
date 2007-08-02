@@ -18,11 +18,9 @@
   a shared library
 */
 
-#if !defined(stdin)
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "my_alarm.h"
-#endif
 
 my_bool timed_mutexes= 0;
 
@@ -92,6 +90,11 @@ int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
     my_message_no_curses;
 int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
+
+#ifdef __WIN__
+/* from my_getsystime.c */
+ulonglong query_performance_frequency, query_performance_offset;
+#endif
 
 	/* How to disable options */
 my_bool NEAR my_disable_locking=0;
