@@ -287,7 +287,7 @@ cp include/mysql.h \
 mkdir -p $DESTDIR/lib/opt
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
-   client/$TARGET/mysqlclient.lib \
+   libmysql/$TARGET/mysqlclient.lib \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
@@ -297,7 +297,7 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
   mkdir -p $DESTDIR/lib/debug
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
-     client/debug/mysqlclient.lib \
+     libmysql/debug/mysqlclient.lib \
      regex/debug/regex.lib \
      strings/debug/strings.lib \
      zlib/debug/zlib.lib $DESTDIR/lib/debug/
