@@ -668,7 +668,8 @@ Free a prebuilt struct for a MySQL table handle. */
 void
 row_prebuilt_free(
 /*==============*/
-	row_prebuilt_t*	prebuilt)	/* in, own: prebuilt struct */
+	row_prebuilt_t*	prebuilt,	/* in, own: prebuilt struct */
+	ibool		dict_locked)	/* in: TRUE=data dictionary locked */
 {
 	ulint	i;
 
@@ -742,7 +743,7 @@ row_prebuilt_free(
 		}
 	}
 
-	dict_table_decrement_handle_count(prebuilt->table);
+	dict_table_decrement_handle_count(prebuilt->table, dict_locked);
 
 	/* If there were references to this table when a primary index on
 	this table was created then we drop it here since there are no
