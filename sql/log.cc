@@ -320,11 +320,15 @@ bool Log_to_csv_event_handler::
   uint field_index;
   Silence_log_table_errors error_handler;
   Open_tables_state open_tables_backup;
-  Field_timestamp *field0;
   ulonglong save_thd_options;
-  bool save_query_start_used;
+  bool save_time_zone_used;
 
-  save_query_start_used= thd->query_start_used; // Because of field->set_time()
+  /*
+    CSV uses TIME_to_timestamp() internally if table needs to be repaired
+    which will set thd->time_zone_used
+  */
+  save_time_zone_used= thd->time_zone_used;
+
   save_thd_options= thd->options;
   thd->options&= ~OPTION_BIN_LOG;
 
@@ -376,8 +380,7 @@ bool Log_to_csv_event_handler::
 
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
 
-  field0= (Field_timestamp*) (table->field[0]);
-  field0->set_time();
+  ((Field_timestamp*) table->field[0])->store_timestamp(event_time);
 
   /* do a write */
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
@@ -387,7 +390,8 @@ bool Log_to_csv_event_handler::
       table->field[5]->store(sql_text, sql_text_len, client_cs))
     goto err;
 
-  /* mark tables as not null */
+
+  /* mark all fields as not null */
   table->field[1]->set_notnull();
   table->field[2]->set_notnull();
   table->field[3]->set_notnull();
@@ -426,7 +430,7 @@ err:
     close_performance_schema_table(thd, & open_tables_backup);
 
   thd->options= save_thd_options;
-  thd->query_start_used= save_query_start_used;
+  thd->time_zone_used= save_time_zone_used;
   return result;
 }
 
@@ -473,7 +477,14 @@ bool Log_to_csv_event_handler::
   bool need_rnd_end= FALSE;
   Open_tables_state open_tables_backup;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
+  bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
+
+  /*
+    CSV uses TIME_to_timestamp() internally if table needs to be repaired
+    which will set thd->time_zone_used
+  */
+  save_time_zone_used= thd->time_zone_used;
 
   bzero(& table_list, sizeof(TABLE_LIST));
   table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
@@ -505,12 +516,9 @@ bool Log_to_csv_event_handler::
   if (table->s->fields < 11)
     goto err;
 
-  /*
-    We do not set a value for table->field[0], as it will use
-    default value.
-  */
-
-  /* store the value */
+  /* store the time and user values */
+  DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
+  ((Field_timestamp*) table->field[0])->store_timestamp(current_time);
   if (table->field[1]->store(user_host, user_host_len, client_cs))
     goto err;
 
@@ -611,7 +619,7 @@ err:
   }
   if (need_close)
     close_performance_schema_table(thd, & open_tables_backup);
-
+  thd->time_zone_used= save_time_zone_used;
   DBUG_RETURN(result);
 }
 

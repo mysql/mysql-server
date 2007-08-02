@@ -1087,6 +1087,7 @@ static int check_master_version(MYSQL *mysql_arg,
     break;
   case '4':
     *description_event= new Format_description_log_event(3);
+    break;
   case '5':
     /*
       The server is soon going to send us its Format_description log
@@ -1310,9 +1311,15 @@ static void check_header(IO_CACHE* file,
   pos= my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
   if (my_b_read(file, header, sizeof(header)))
+  {
+    delete *description_event;
     die("Failed reading header;  Probably an empty file");
+  }
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
+  {
+    delete *description_event;
     die("File is not a binary log file");
+  }
 
   /*
     Imagine we are running with --start-position=1000. We still need
@@ -1333,9 +1340,12 @@ static void check_header(IO_CACHE* file,
     if (my_b_read(file, buf, sizeof(buf)))
     {
       if (file->error)
+      {
+        delete *description_event;
         die("\
 Could not read entry at offset %lu : Error in log format or read error",
             tmp_pos); 
+      }
       /*
         Otherwise this is just EOF : this log currently contains 0-2
         events.  Maybe it's going to be filled in the next
@@ -1371,13 +1381,19 @@ Could not read entry at offset %lu : Error in log format or read error",
         break;
       else if (buf[4] == FORMAT_DESCRIPTION_EVENT) /* This is 5.0 */
       {
+        Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!(*description_event= (Format_description_log_event*) 
+        if (!(new_description_event= (Format_description_log_event*) 
               Log_event::read_log_event(file, *description_event)))
           /* EOF can't be hit here normally, so it's a real error */
+        {
+          delete *description_event;
           die("Could not read a Format_description_log_event event \
 at offset %lu ; this could be a log format error or read error",
               tmp_pos); 
+        }
+        delete *description_event;
+        *description_event= new_description_event;
         DBUG_PRINT("info",("Setting description_event"));
       }
       else if (buf[4] == ROTATE_EVENT)
@@ -1386,8 +1402,11 @@ at offset %lu ; this could be a log format error or read error",
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(ev= Log_event::read_log_event(file, *description_event)))
           /* EOF can't be hit here normally, so it's a real error */
+        {
+          delete *description_event;
           die("Could not read a Rotate_log_event event at offset %lu ;"
               " this could be a log format error or read error", tmp_pos);
+        }
         delete ev;
       }
       else
@@ -1457,7 +1476,10 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   }
 
   if (!glob_description_event || !glob_description_event->is_valid())
+  {
+    delete glob_description_event;
     die("Invalid Format_description log event; could be out of memory");
+  }
 
   if (!start_position && my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE))
   {
