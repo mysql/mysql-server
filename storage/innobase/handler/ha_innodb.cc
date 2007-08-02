@@ -601,21 +601,17 @@ convert_error_code_to_mysql(
 		tell it also to MySQL so that MySQL knows to empty the
 		cached binlog for this transaction */
 
-		if (thd) {
-			ha_rollback(thd);
-		}
+                mark_transaction_to_rollback(thd, TRUE);
 
 		return(HA_ERR_LOCK_DEADLOCK);
-
 	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
 		/* Starting from 5.0.13, we let MySQL just roll back the
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
 
-		if (thd && row_rollback_on_timeout) {
-			ha_rollback(thd);
-		}
+                mark_transaction_to_rollback(thd,
+                                             (bool)row_rollback_on_timeout);
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -667,9 +663,7 @@ convert_error_code_to_mysql(
  		tell it also to MySQL so that MySQL knows to empty the
  		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+                mark_transaction_to_rollback(thd, TRUE);
 
     		return(HA_ERR_LOCK_TABLE_FULL);
 	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {

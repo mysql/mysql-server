@@ -1399,7 +1399,33 @@ public:
   bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
-  bool	     no_errors, password, is_fatal_error;
+  bool	     no_errors, password;
+  /**
+    Set to TRUE if execution of the current compound statement
+    can not continue. In particular, disables activation of
+    CONTINUE or EXIT handlers of stored routines.
+    Reset in the end of processing of the current user request, in
+    @see mysql_reset_thd_for_next_command().
+  */
+  bool is_fatal_error;
+  /**
+    Set by a storage engine to request the entire
+    transaction (that possibly spans multiple engines) to
+    rollback. Reset in ha_rollback.
+  */
+  bool       transaction_rollback_request;
+  /**
+    TRUE if we are in a sub-statement and the current error can
+    not be safely recovered until we left the sub-statement mode.
+    In particular, disables activation of CONTINUE and EXIT
+    handlers inside sub-statements. E.g. if it is a deadlock
+    error and requires a transaction-wide rollback, this flag is
+    raised (traditionally, MySQL first has to close all the reads
+    via @see handler::ha_index_or_rnd_end() and only then perform
+    the rollback).
+    Reset to FALSE when we leave the sub-statement mode.
+  */
+  bool       is_fatal_sub_stmt_error;
   bool	     query_start_used, rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
@@ -2438,6 +2464,8 @@ public:
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
+void mark_transaction_to_rollback(THD *thd, bool all);
+
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 #endif /* MYSQL_SERVER */
