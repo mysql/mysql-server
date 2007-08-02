@@ -13333,7 +13333,8 @@ static int
 join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 {
   reg1 uint i;
-  uint length,blobs,size;
+  uint length, blobs;
+  size_t size;
   CACHE_FIELD *copy,**blob_ptr;
   JOIN_CACHE  *cache;
   JOIN_TAB *join_tab;
@@ -13449,7 +13450,7 @@ store_record_in_cache(JOIN_CACHE *cache)
   length=cache->length;
   if (cache->blobs)
     length+=used_blob_length(cache->blob_ptr);
-  if ((last_record=(length+cache->length > (uint) (cache->end - pos))))
+  if ((last_record= (length + cache->length > (size_t) (cache->end - pos))))
     cache->ptr_record=cache->records;
 
   /*
@@ -13495,7 +13496,7 @@ store_record_in_cache(JOIN_CACHE *cache)
     }
   }
   cache->pos=pos;
-  return last_record || (uint) (cache->end -pos) < cache->length;
+  return last_record || (size_t) (cache->end - pos) < cache->length;
 }
 
 

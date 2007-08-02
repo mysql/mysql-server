@@ -2305,7 +2305,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 	}
 	table->query_id= thd->query_id;
 	table->clear_query_id= 1;
-	thd->tmp_table_used= 1;
+	thd->thread_specific_used= TRUE;
         DBUG_PRINT("info",("Using temporary table"));
         goto reset;
       }

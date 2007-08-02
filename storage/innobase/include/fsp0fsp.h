@@ -245,7 +245,7 @@ will be able to insert new data to the database without running out the
 tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents. */
 
-ulint
+ullint
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 			/* out: available space in kB */

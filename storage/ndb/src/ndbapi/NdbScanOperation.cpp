@@ -1202,7 +1202,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     Uint32 tupKeyLen = theTupKeyLen;
     union {
       Uint32 tempData[2000];
-      Uint64 __align;
+      Uint64 __my_align;
     };
     Uint64 *valPtr;
     if(remaining > totalLen && aligned && nobytes){
