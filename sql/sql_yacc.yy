@@ -8729,6 +8729,8 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
 	    WARN_DEPRECATED(yythd, "5.2", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
+              MYSQL_YYABORT;
 	  }
 	| opt_storage ENGINES_SYM
 	  {
@@ -9503,7 +9505,8 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
                                       lip->get_tok_start_prev() -
-                                      lex->sphead->m_tmp_query);
+                                      lex->sphead->m_tmp_query,
+                                      lip->get_tok_end() - lip->get_tok_start_prev());
 #ifndef DBUG_OFF
             if (splocal)
               splocal->m_sp= lex->sphead;

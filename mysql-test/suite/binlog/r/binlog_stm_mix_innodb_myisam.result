@@ -380,3 +380,108 @@ select
 @a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
 1	1
 drop table t1, t2;
+create table tt (a int unique);
+create table ti (a int) engine=innodb;
+reset master;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	106		
+begin;
+insert into ti values (1);
+insert into ti values (2) ;
+insert into tt select * from ti;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from tt /* 2 */;
+count(*)
+2
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	515		
+show binlog events from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2)
+master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+select count(*) from ti /* zero */;
+count(*)
+0
+insert into ti select * from tt;
+select * from ti /* that is what slave would miss - a bug */;
+a
+1
+2
+delete from ti;
+delete from tt where a=1;
+reset master;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	106		
+begin;
+insert into ti values (1);
+insert into ti values (2) /* to make the dup error in the following */;
+insert into tt select * from ti /* one affected and error */;
+ERROR 23000: Duplicate entry '2' for key 'a'
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	589		
+show binlog events from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2) /* to make the dup error in the following */
+master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti /* one affected and error */
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+select count(*) from ti /* zero */;
+count(*)
+0
+insert into ti select * from tt;
+select * from tt /* that is what otherwise slave missed - the bug */;
+a
+1
+2
+drop table ti,tt;
+drop function if exists bug27417;
+drop table if exists t1,t2;
+CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int NOT NULL auto_increment, PRIMARY KEY (a));
+create function bug27417(n int) 
+RETURNS int(11)
+begin
+insert into t1 values (null);
+return n;
+end|
+reset master;
+insert into t2 values (bug27417(1));
+insert into t2 select bug27417(2);
+reset master;
+insert into t2 values (bug27417(2));
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select count(*) from t1 /* must be 3 */;
+count(*)
+3
+reset master;
+select count(*) from t2;
+count(*)
+2
+delete from t2 where a=bug27417(3);
+select count(*) from t2 /* nothing got deleted */;
+count(*)
+2
+select count(*) from t1 /* must be 5 */;
+count(*)
+5
+delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+affected rows: 0
+select count(*) from t1 /* must be 7 */;
+count(*)
+7
+drop function bug27417;
+drop table t1,t2;
+end of tests
