@@ -5847,6 +5847,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
+  thd->thread_specific_used= FALSE;
   if (!thd->in_sub_stmt)
   {
     if (opt_bin_log)
