@@ -27,6 +27,10 @@
 #ifndef _mysql_h
 #define _mysql_h
 
+#ifdef _AIX           /* large-file support will break without this */
+#include <standards.h>
+#endif
+
 #ifdef __CYGWIN__     /* CYGWIN implements a UNIX API */
 #undef WIN
 #undef _WIN
