@@ -952,6 +952,17 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
+  inline void store_timestamp(my_time_t timestamp)
+  {
+#ifdef WORDS_BIGENDIAN
+    if (table && table->s->db_low_byte_first)
+    {
+      int4store(ptr,timestamp);
+    }
+    else
+#endif
+      longstore(ptr,(uint32) timestamp);
+  }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   timestamp_auto_set_type get_auto_set_type() const;

@@ -523,6 +523,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
+set global log_warnings=1;
 select @@session.insert_id;
 @@session.insert_id
 1
