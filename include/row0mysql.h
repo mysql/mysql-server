@@ -141,7 +141,8 @@ Free a prebuilt struct for a MySQL table handle. */
 void
 row_prebuilt_free(
 /*==============*/
-	row_prebuilt_t*	prebuilt);	/* in, own: prebuilt struct */
+	row_prebuilt_t*	prebuilt,	/* in, own: prebuilt struct */
+	ibool		dict_locked);	/* in: TRUE=data dictionary locked */
 /*************************************************************************
 Updates the transaction pointers in query graphs stored in the prebuilt
 struct. */

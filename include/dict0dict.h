@@ -68,7 +68,8 @@ Decrements the count of open MySQL handles to a table. */
 void
 dict_table_decrement_handle_count(
 /*==============================*/
-	dict_table_t*	table);	/* in: table */
+	dict_table_t*	table,		/* in: table */
+	ibool		dict_locked);	/* in: TRUE=data dictionary locked */
 /**************************************************************************
 Inits the data dictionary module. */
 
