@@ -273,7 +273,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
-  if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+  if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -523,7 +523,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     strxmov(definer, thd->lex->definer->user.str, "@",
             thd->lex->definer->host.str, NullS);
 
-    if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+    if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
       goto done;

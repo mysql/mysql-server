@@ -770,7 +770,6 @@ struct TABLE_LIST
   void reinit_before_use(THD *thd);
   Item_subselect *containing_subselect();
 
-  void set_trg_event_type(const st_lex *lex);
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);

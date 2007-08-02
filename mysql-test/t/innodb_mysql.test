@@ -756,6 +756,39 @@ create table t1 (a int) engine=innodb;
 alter table t1 alter a set default 1;
 drop table t1;
 
+
+--echo
+--echo Bug#24918 drop table and lock / inconsistent between 
+--echo perm and temp tables
+--echo
+--echo Check transactional tables under LOCK TABLES
+--echo
+--disable_warnings
+drop table if exists t24918, t24918_tmp, t24918_trans, t24918_trans_tmp, 
+t24918_access;
+--enable_warnings
+create table t24918_access (id int);
+create table t24918 (id int) engine=myisam;
+create temporary table t24918_tmp (id int) engine=myisam;
+create table t24918_trans (id int) engine=innodb;
+create temporary table t24918_trans_tmp (id int) engine=innodb;
+
+lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+drop table t24918;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_trans;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_trans_tmp;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_tmp;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+unlock tables;
+
+drop table t24918_access;
 #
 # Bug #28591: MySQL need not sort the records in case of ORDER BY
 # primary_key on InnoDB table
