@@ -2759,11 +2759,10 @@ bool reopen_table(TABLE *table)
     sql_print_error("Table %s had a open data handler in reopen_table",
 		    table->alias);
 #endif
+  bzero((char*) &table_list, sizeof(TABLE_LIST));
   table_list.db=         table->s->db.str;
   table_list.table_name= table->s->table_name.str;
   table_list.table=      table;
-  table_list.belong_to_view= 0;
-  table_list.next_local= 0;
 
   if (wait_for_locked_table_names(thd, &table_list))
     DBUG_RETURN(1);                             // Thread was killed
@@ -3295,15 +3294,19 @@ static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
   DBUG_ENTER("open_unireg_entry");
 
   safe_mutex_assert_owner(&LOCK_open);
-
 retry:
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length, 
-                                           OPEN_VIEW, &error)))
+                                           OPEN_VIEW |
+                                           table_list->i_s_requested_object,
+                                           &error)))
     DBUG_RETURN(1);
 
   if (share->is_view)
   {
+    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
+      goto err;
+
     /* Open view */
     error= (int) open_new_frm(thd, share, alias,
                               (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
@@ -3318,6 +3321,9 @@ retry:
     release_table_share(share, RELEASE_NORMAL);
     DBUG_RETURN((flags & OPEN_VIEW_NO_PARSE)? -1 : 0);
   }
+
+  if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+    goto err;
 
   while ((error= open_table_from_share(thd, share, alias,
                                        (uint) (HA_OPEN_KEYFILE |
