@@ -366,7 +366,7 @@ insert_server(THD *thd, FOREIGN_SERVER *server)
   tables.alias= tables.table_name= (char*) "servers";
 
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
     goto end;
 
   /* insert the server into the table */
@@ -588,7 +588,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   if ((error= delete_server_record_in_cache(server_options)))
     goto end;
 
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
   {
     error= my_errno;
     goto end;
@@ -705,7 +705,7 @@ int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   tables.db= (char*)"mysql";
   tables.alias= tables.table_name= (char*)"servers";
 
-  if (!(table= open_ltable(thd, &tables, TL_WRITE)))
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
   {
     error= my_errno;
     goto end;

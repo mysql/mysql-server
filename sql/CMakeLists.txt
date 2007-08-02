@@ -143,6 +143,10 @@ ADD_CUSTOM_COMMAND(
 )
 ADD_DEPENDENCIES(mysqld${MYSQLD_EXE_SUFFIX} gen_lex_hash)
 
+# Remove the auto-generated files as part of 'Clean Solution'
+SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
+                         "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
+
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings)
 TARGET_LINK_LIBRARIES(udf_example wsock32)
