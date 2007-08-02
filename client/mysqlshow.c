@@ -299,6 +299,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V':
