@@ -5567,7 +5567,7 @@ join_table:
           so that [INNER | CROSS] JOIN is properly nested as other
           left-associative joins.
         */
-        table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
+        table_ref normal_join table_ref %prec TABLE_REF_PRIORITY
           { MYSQL_YYABORT_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { MYSQL_YYABORT_UNLESS($1 && ($$=$3)); $3->straight=1; }

@@ -6,6 +6,7 @@
 *.bin
 *.vcproj.cmake
 cmake_install.cmake
+*.cdf
 *.core
 *.d
 *.da
