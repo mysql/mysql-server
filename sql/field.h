@@ -1344,7 +1344,11 @@ public:
 #ifndef WORDS_BIGENDIAN
   static
 #endif
-  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
+  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number, bool low_byte_first);
+  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
+  {
+    store_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
+  }
   inline void store_length(uint32 number)
   {
     store_length(ptr, packlength, number);
@@ -1358,12 +1362,14 @@ public:
 
      @retval The length in the row plus the size of the data.
   */
-  uint32 get_packed_size(const uchar *ptr)
-    {return packlength + get_length((const uchar *)ptr);}
+  uint32 get_packed_size(const uchar *ptr_arg, bool low_byte_first)
+    {return packlength + get_length(ptr_arg, low_byte_first);}
 
-  inline uint32 get_length(uint row_offset=0)
-  { return get_length(ptr+row_offset); }
-  uint32 get_length(const uchar *ptr);
+  inline uint32 get_length(uint row_offset= 0)
+  { return get_length(ptr+row_offset, table->s->db_low_byte_first); }
+  uint32 get_length(const uchar *ptr, bool low_byte_first);
+  uint32 get_length(const uchar *ptr_arg)
+  { return get_length(ptr_arg, table->s->db_low_byte_first); }
   void put_length(uchar *pos, uint32 length);
   inline void get_ptr(uchar **str)
     {
@@ -1395,7 +1401,8 @@ public:
   {
     uchar *tmp;
     get_ptr(&tmp);
-    if (value.copy((char*) tmp, get_length(),charset()))
+    uint32 len= get_length(0, table->s->db_low_byte_first);
+    if (value.copy((char*) tmp, len, charset()))
     {
       Field_blob::reset();
       return 1;
