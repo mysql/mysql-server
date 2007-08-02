@@ -7627,10 +7627,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_MYISAM_RECOVER:
   {
-    if (!argument || !argument[0])
+    if (!argument)
     {
       myisam_recover_options=    HA_RECOVER_DEFAULT;
       myisam_recover_options_str= myisam_recover_typelib.type_names[0];
+    }
+    else if (!argument[0])
+    {
+      myisam_recover_options= HA_RECOVER_NONE;
+      myisam_recover_options_str= "OFF";
     }
     else
     {
