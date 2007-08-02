@@ -514,6 +514,7 @@ mem_heap_block_free(
 	mem_erase_buf((byte*)block, len);
 
 #endif
+	UNIV_MEM_FREE(block, len);
 
 	if (init_block) {
 		/* Do not have to free: do nothing */

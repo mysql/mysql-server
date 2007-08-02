@@ -4059,25 +4059,3 @@ row_check_table_for_mysql(
 
 	return(ret);
 }
-
-/*************************************************************************
-Get the maximum row size. */
-
-ulint
-page_get_free_space_of_empty_noninline(
-/*===================================*/
-					/* out: The (approx) maximum size
-					of a row, this is a conservative
-					estimate, since the size can be
-					slightly larger depending upon
-					the ROW_FORMAT setting.*/
-	dict_table_t*	table)		/* in: table for which max record
-					size is required.*/
-{
-	ibool		compact;
-
-	compact = dict_table_is_comp(table);
-
-	return(page_get_free_space_of_empty(compact) / 2);
-}
-

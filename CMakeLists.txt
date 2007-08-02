@@ -149,21 +149,47 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
 
 IF(EMBED_MANIFESTS)
-    # Search for the Manifest tool.  CMake will first search it's defaults
-    # (CMAKE_FRAMEWORK_PATH, CMAKE_APPBUNDLE_PATH, CMAKE_PROGRAM_PATH and
-    # the system PATH) followed by the listed paths which are the current
-    # possible defaults and should be updated when necessary.  The custom
-    # manifests are designed to be compatible with all mt versions.
+    # Search for the tools (mt, makecat, signtool) necessary for embedding
+    # manifests and signing executables with the MySQL AB authenticode cert.
+    #
+    # CMake will first search it's defaults (CMAKE_FRAMEWORK_PATH, 
+    # CMAKE_APPBUNDLE_PATH, CMAKE_PROGRAM_PATH and the system PATH) followed 
+    # by the listed paths which are the current possible defaults and should be
+    # updated when necessary.  
+    # 
+    # The custom manifests are designed to be compatible with all mt versions.
+    # The MySQL AB Authenticode certificate is available only internally.  
+    # Others should store a single signing certificate in a local cryptographic
+    # service provider and alter the signtool command as necessary.
     FIND_PROGRAM(HAVE_MANIFEST_TOOL NAMES mt
                  PATHS
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/VC/bin"
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin"
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/SDK/v2.0/Bin")
+    FIND_PROGRAM(HAVE_CATALOG_TOOL NAMES makecat
+                 PATHS
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin")
+    FIND_PROGRAM(HAVE_SIGN_TOOL NAMES signtool
+                 PATHS
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin"
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/SDK/v2.0/Bin")
+
     IF(HAVE_MANIFEST_TOOL)
-        MESSAGE(STATUS "Found Mainfest Tool. Embedding custom manifests.")
+        MESSAGE(STATUS "Found Mainfest Tool.")
     ELSE(HAVE_MANIFEST_TOOL)
         MESSAGE(FATAL_ERROR "Manifest tool, mt.exe, can't be found.")
     ENDIF(HAVE_MANIFEST_TOOL)
+    IF(HAVE_CATALOG_TOOL)
+        MESSAGE(STATUS "Found Catalog Tool.")
+    ELSE(HAVE_CATALOG_TOOL)
+        MESSAGE(FATAL_ERROR "Catalog tool, makecat.exe, can't be found.")
+    ENDIF(HAVE_CATALOG_TOOL)
+    IF(HAVE_SIGN_TOOL)
+        MESSAGE(STATUS "Found Sign Tool. Embedding custom manifests and signing executables.")
+    ELSE(HAVE_SIGN_TOOL)
+        MESSAGE(FATAL_ERROR "Sign tool, signtool.exe, can't be found.")
+    ENDIF(HAVE_SIGN_TOOL)
+
     # Disable automatic manifest generation.
     STRING(REPLACE "/MANIFEST" "/MANIFEST:NO" CMAKE_EXE_LINKER_FLAGS 
     	   ${CMAKE_EXE_LINKER_FLAGS})
