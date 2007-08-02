@@ -29,7 +29,7 @@ enum find_files_result {
   FIND_FILES_DIR
 };
 
-find_files_result find_files(THD *thd, List<char> *files, const char *db,
+find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir);
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,

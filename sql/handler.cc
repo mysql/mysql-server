@@ -2834,7 +2834,7 @@ struct st_find_files_args
   const char *path;
   const char *wild;
   bool dir;
-  List<char> *files;
+  List<LEX_STRING> *files;
 };
 
 static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
@@ -2854,7 +2854,7 @@ static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
 
 int
 ha_find_files(THD *thd,const char *db,const char *path,
-	      const char *wild, bool dir, List<char> *files)
+	      const char *wild, bool dir, List<LEX_STRING> *files)
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
