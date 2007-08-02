@@ -1469,6 +1469,9 @@ public:
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
+  
+  /**  is set if some thread specific value(s) used in a statement. */
+  bool       thread_specific_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
