@@ -127,6 +127,8 @@ if [ -e $DESTDIR ] ; then
   usage
 fi
 
+trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+
 # ----------------------------------------------------------------------
 # Adjust target name if needed, release with debug info has another name
 # ----------------------------------------------------------------------
@@ -137,10 +139,8 @@ then
 fi
 
 # ----------------------------------------------------------------------
-# Copy executables, and client DLL (FIXME why?)
+# Copy executables, and client DLL
 # ----------------------------------------------------------------------
-
-trap 'echo "Clearning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
 
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
@@ -148,8 +148,7 @@ cp client/$TARGET/*.exe                                  $DESTDIR/bin/
 cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
 cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
 cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
-if [ x"$TARGET" != x"release" ]
-then
+if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
 fi
 cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
@@ -161,8 +160,7 @@ mv $DESTDIR/bin/comp_err.exe             $DESTDIR/bin/comp-err.exe
 
 cp sql/$TARGET/mysqld.exe                $DESTDIR/bin/mysqld$EXE_SUFFIX.exe
 cp sql/$TARGET/mysqld.map                $DESTDIR/bin/mysqld$EXE_SUFFIX.map
-if [ x"$TARGET" != x"release" ]
-then
+if [ x"$TARGET" != x"release" ] ; then
   cp sql/$TARGET/mysqld.pdb              $DESTDIR/bin/mysqld$EXE_SUFFIX.pdb
 fi
 
@@ -177,9 +175,8 @@ fi
 # Copy data directory, readme files etc
 # ----------------------------------------------------------------------
 
-# FIXME is there ever a data directory to copy?
 if [ -d win/data ] ; then
-  cp -pR win/data $DESTDIR/data
+  cp -pR win/data $DESTDIR/
 fi
 
 # FIXME maybe a flag to define "release build", or do the
@@ -230,45 +227,47 @@ if [ x"$PACK_EMBEDDED" = x"" -a \
 fi
 
 # ----------------------------------------------------------------------
-# FIXME test stuff that is useless garbage?
-# ----------------------------------------------------------------------
-
-mkdir -p $DESTDIR/examples/libmysqltest/release
-cp libmysql/mytest.c libmysql/myTest.vcproj libmysql/$TARGET/myTest.exe \
-   $DESTDIR/examples/libmysqltest/
-cp libmysql/$TARGET/myTest.exe $DESTDIR/examples/libmysqltest/release/
-
-if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/myTest.exe" -o \
-     x"$PACK_DEBUG" = x"yes" ] ; then
-  mkdir -p $DESTDIR/examples/libmysqltest/debug
-  cp libmysql/debug/myTest.exe $DESTDIR/examples/libmysqltest/debug/
-fi
-
-mkdir -p $DESTDIR/examples/tests
-cp tests/*.res tests/*.tst tests/*.pl tests/*.c $DESTDIR/examples/tests/
-
-mkdir -p $DESTDIR/examples/udf_example
-cp sql/udf_example.def sql/udf_example.vcproj sql/udf_example.c $DESTDIR/examples/udf_example/
-
-# ----------------------------------------------------------------------
-# FIXME why not copy it all in "include"?!
+# Note: Make sure to sync with include/Makefile.am and WiX installer
+# XML specifications
 # ----------------------------------------------------------------------
 
 mkdir -p $DESTDIR/include
-cp include/conf*.h \
-   include/mysql*.h \
-   include/errmsg.h \
-   include/my_alloc.h \
-   include/my_getopt.h \
-   include/my_sys.h \
+cp include/mysql.h \
+   include/mysql_com.h \
+   include/mysql_time.h \
    include/my_list.h \
-   include/my_pthread.h \
+   include/my_alloc.h \
+   include/typelib.h \
    include/my_dbug.h \
    include/m_string.h \
-   include/m_ctype.h \
+   include/my_sys.h \
+   include/my_xml.h \
+   include/mysql_embed.h \
+   include/my_pthread.h \
+   include/my_no_pthread.h \
+   include/decimal.h \
+   include/errmsg.h \
    include/my_global.h \
-   include/typelib.h $DESTDIR/include/
-cp libmysql/libmysql.def $DESTDIR/include/
+   include/my_net.h \
+   include/my_getopt.h \
+   include/sslopt-longopts.h \
+   include/my_dir.h \
+   include/sslopt-vars.h \
+   include/sslopt-case.h \
+   include/sql_common.h \
+   include/keycache.h \
+   include/m_ctype.h \
+   include/my_attribute.h \
+   include/mysqld_error.h \
+   include/sql_state.h \
+   include/mysqld_ername.h \
+   include/mysql_version.h \
+   include/config-win.h \
+   libmysql/libmysql.def \
+   $DESTDIR/include/
+
+mkdir -p $DESTDIR/include/mysql
+cp include/mysql/plugin.h $DESTDIR/include/mysql/
 
 # ----------------------------------------------------------------------
 # Client libraries, and other libraries
@@ -279,6 +278,7 @@ mkdir -p $DESTDIR/lib/opt
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
    libmysql/$TARGET/mysqlclient.lib \
+   mysys/$TARGET/mysys.lib \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
@@ -295,51 +295,20 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      zlib/debug/zlib.lib $DESTDIR/lib/debug/
 fi
 
-# FIXME sort this out...
-cp mysys/$TARGET/mysys.lib $DESTDIR/lib/opt/mysys_tls.lib
-
 # ----------------------------------------------------------------------
 # Copy the test directory
 # ----------------------------------------------------------------------
 
-mkdir -p $DESTDIR/mysql-test/include $DESTDIR/mysql-test/lib \
-         $DESTDIR/mysql-test/r $DESTDIR/mysql-test/std_data \
-         $DESTDIR/mysql-test/t $DESTDIR/mysql-test/suite
+mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
-cp mysql-test/install_test_db.sh $DESTDIR/mysql-test/install_test_db
-cp mysql-test/include/*.inc $DESTDIR/mysql-test/include/
-cp mysql-test/lib/*.pl $DESTDIR/mysql-test/lib/
-cp mysql-test/r/*.require $DESTDIR/mysql-test/r/
-# Need this trick, or we get "argument list too long".
-ABS_DST=`pwd`/$DESTDIR
-(cd mysql-test/r/ && cp *.result $ABS_DST/mysql-test/r/)
-cp mysql-test/std_data/Moscow_leap  $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/des_key_file $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.000001     $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.cnf        $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.dat        $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.frm        $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.pem        $DESTDIR/mysql-test/std_data/
-cp mysql-test/std_data/*.MY*        $DESTDIR/mysql-test/std_data/
-cp mysql-test/t/*.opt $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.sh $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.slave-mi $DESTDIR/mysql-test/t/ || /bin/true
-cp mysql-test/t/*.sql $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.def $DESTDIR/mysql-test/t/
-(cd mysql-test/t/ && cp *.test $ABS_DST/mysql-test/t/)
+cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
 
 # Note that this will not copy "extra" if a soft link
 if [ -d mysql-test/extra ] ; then
-  mkdir -p $DESTDIR/mysql-test/extra
+  mkdir $DESTDIR/mysql-test/extra
   cp -pR mysql-test/extra/* $DESTDIR/mysql-test/extra/
 fi
-
-# Copy all directories in mysql-test/suite/
-for i in `cd mysql-test/suite && ls`; do \
-    mkdir -p $DESTDIR/mysql-test/suite/$i; \
-    cp -R mysql-test/suite/$i $DESTDIR/mysql-test/suite/; \
-done
 
 # ----------------------------------------------------------------------
 # Copy what could be usable in the "scripts" directory. Currently
@@ -366,9 +335,17 @@ for i in `cd scripts && ls`; do \
 done
 
 cp -pR sql/share $DESTDIR/
+cp -pR sql-bench $DESTDIR/
+rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
 
 # The SQL initialisation code is really expected to be in "share"
 mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
+
+# ----------------------------------------------------------------------
+# Clean up from possibly copied SCCS directories
+# ----------------------------------------------------------------------
+
+rm -rf `find $DISTDIR -type d -name SCCS -print`
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE
