@@ -1138,4 +1138,7 @@ select 1 from information_schema.tables limit 1;
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	2
+show variables like 'myisam_recover_options';
+Variable_name	Value
+myisam_recover_options	OFF
 End of 5.0 tests
