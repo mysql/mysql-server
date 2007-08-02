@@ -341,6 +341,9 @@ cleanup:
   delete select;
   transactional_table= table->file->has_transactions();
 
+  if (!transactional_table && deleted > 0)
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+  
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || (deleted && !transactional_table))
   {
@@ -364,9 +367,10 @@ cleanup:
 	error=1;
       }
     }
-    if (!transactional_table)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
@@ -677,20 +681,22 @@ bool multi_delete::send_data(List<Item> &values)
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       table->status|= STATUS_DELETED;
       if (!(error=table->file->ha_delete_row(table->record[0])))
       {
-	deleted++;
+        deleted++;
+        if (!table->file->has_transactions())
+          thd->transaction.stmt.modified_non_trans_table= TRUE;
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
-	  DBUG_RETURN(1);
+          DBUG_RETURN(1);
       }
       else
       {
-	table->file->print_error(error,MYF(0));
-	DBUG_RETURN(1);
+        table->file->print_error(error,MYF(0));
+        DBUG_RETURN(1);
       }
     }
     else
@@ -740,6 +746,7 @@ void multi_delete::send_error(uint errcode,const char *err)
     error= 1;
     send_eof();
   }
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
 
@@ -768,6 +775,7 @@ int multi_delete::do_deletes()
   for (; table_being_deleted;
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
+    ha_rows last_deleted= deleted;
     TABLE *table = table_being_deleted->table;
     if (tempfiles[counter]->get(table))
     {
@@ -814,6 +822,8 @@ int multi_delete::do_deletes()
         table->file->print_error(local_error,MYF(0));
       }
     }
+    if (last_deleted != deleted && !table->file->has_transactions())
+      thd->transaction.stmt.modified_non_trans_table= TRUE;
     end_read_record(&info);
     if (thd->killed && !local_error)
       local_error= 1;
@@ -852,7 +862,6 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-
   if ((local_error == 0) || (deleted && normal_tables))
   {
     if (mysql_bin_log.is_open())
@@ -867,9 +876,11 @@ bool multi_delete::send_eof()
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }
-    if (!transactional_tables)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
     if (ha_autocommit_or_rollback(thd,local_error > 0))
