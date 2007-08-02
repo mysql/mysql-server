@@ -1829,4 +1829,28 @@ c1 + 0
 0
 2
 DROP TABLE t1,t2;
+CREATE TABLE t1(a enum('a','b','c','d'));
+INSERT INTO t1 VALUES (4),(1),(0),(3);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 3
+SELECT a FROM t1;
+a
+d
+a
+
+c
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT a FROM t1 WHERE a=0;
+a
+
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	1	const	1	Using index
+SELECT a FROM t1 WHERE a=0;
+a
+
+DROP TABLE t1;
 End of 5.1 tests

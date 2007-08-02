@@ -2053,21 +2053,15 @@ end:
 
 bool sys_var_log_state::update(THD *thd, set_var *var)
 {
-  bool res= 0;
+  bool res;
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
-    logger.deactivate_log_handler(thd, log_type);
-  else
   {
-    if ((res= logger.activate_log_handler(thd, log_type)))
-    {
-      my_error(ER_CANT_ACTIVATE_LOG, MYF(0),
-               log_type == QUERY_LOG_GENERAL ? "general" :
-               "slow query");
-      goto err;
-    }
+    logger.deactivate_log_handler(thd, log_type);
+    res= false;
   }
-err:
+  else
+    res= logger.activate_log_handler(thd, log_type);
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return res;
 }
@@ -2143,7 +2137,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
   }
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  logger.lock();
+  logger.lock_exclusive();
 
   if (file_log && log_state)
     file_log->close(0);
@@ -2206,7 +2200,7 @@ static void sys_default_slow_log_path(THD *thd, enum_var_type type)
 bool sys_var_log_output::update(THD *thd, set_var *var)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
-  logger.lock();
+  logger.lock_exclusive();
   logger.init_slow_log(var->save_result.ulong_value);
   logger.init_general_log(var->save_result.ulong_value);
   *value= var->save_result.ulong_value;
@@ -2219,7 +2213,7 @@ bool sys_var_log_output::update(THD *thd, set_var *var)
 void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
-  logger.lock();
+  logger.lock_exclusive();
   logger.init_slow_log(LOG_FILE);
   logger.init_general_log(LOG_FILE);
   *value= LOG_FILE;
@@ -2564,14 +2558,14 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     {
       /* We changed to auto_commit mode */
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-      thd->no_trans_update.all= FALSE;
+      thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;
     }
     else
     {
-      thd->no_trans_update.all= FALSE;
+      thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
   }

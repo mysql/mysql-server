@@ -59,6 +59,7 @@ public:
 
 extern Time_zone * my_tz_UTC;
 extern Time_zone * my_tz_SYSTEM;
+extern Time_zone * my_tz_OFFSET0;
 extern Time_zone * my_tz_find(THD *thd, const String *name);
 extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
 extern void        my_tz_free();
