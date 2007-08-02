@@ -323,19 +323,10 @@ bool Log_to_csv_event_handler::
   Field_timestamp *field0;
   ulonglong save_thd_options;
   bool save_query_start_used;
-  time_t save_start_time;
-  time_t save_time_after_lock;
-  time_t save_user_time;
-  bool save_time_zone_used;
 
+  save_query_start_used= thd->query_start_used; // Because of field->set_time()
   save_thd_options= thd->options;
   thd->options&= ~OPTION_BIN_LOG;
-
-  save_query_start_used= thd->query_start_used;
-  save_start_time= thd->start_time;
-  save_time_after_lock= thd->time_after_lock;
-  save_user_time= thd->user_time;
-  save_time_zone_used= thd->time_zone_used;
 
   bzero(& table_list, sizeof(TABLE_LIST));
   table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
@@ -346,12 +337,13 @@ bool Log_to_csv_event_handler::
   table_list.db= MYSQL_SCHEMA_NAME.str;
   table_list.db_length= MYSQL_SCHEMA_NAME.length;
 
-  table= open_performance_schema_table(thd, & table_list,
-                                       & open_tables_backup);
+  if (!(table= open_performance_schema_table(thd, & table_list,
+                                             & open_tables_backup)))
+    goto err;
+
   need_close= TRUE;
 
-  if (!table ||
-      table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 
@@ -434,12 +426,7 @@ err:
     close_performance_schema_table(thd, & open_tables_backup);
 
   thd->options= save_thd_options;
-
   thd->query_start_used= save_query_start_used;
-  thd->start_time= save_start_time;
-  thd->time_after_lock= save_time_after_lock;
-  thd->user_time= save_user_time;
-  thd->time_zone_used= save_time_zone_used;
   return result;
 }
 
@@ -485,11 +472,6 @@ bool Log_to_csv_event_handler::
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
   Open_tables_state open_tables_backup;
-  bool save_query_start_used;
-  time_t save_start_time;
-  time_t save_time_after_lock;
-  time_t save_user_time;
-  bool save_time_zone_used;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
@@ -502,18 +484,13 @@ bool Log_to_csv_event_handler::
   table_list.db= MYSQL_SCHEMA_NAME.str;
   table_list.db_length= MYSQL_SCHEMA_NAME.length;
 
-  save_query_start_used= thd->query_start_used;
-  save_start_time= thd->start_time;
-  save_time_after_lock= thd->time_after_lock;
-  save_user_time= thd->user_time;
-  save_time_zone_used= thd->time_zone_used;
+  if (!(table= open_performance_schema_table(thd, & table_list,
+                                             & open_tables_backup)))
+    goto err;
 
-  table= open_performance_schema_table(thd, & table_list,
-                                       & open_tables_backup);
   need_close= TRUE;
 
-  if (!table ||
-      table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 
@@ -635,11 +612,6 @@ err:
   if (need_close)
     close_performance_schema_table(thd, & open_tables_backup);
 
-  thd->query_start_used= save_query_start_used;
-  thd->start_time= save_start_time;
-  thd->time_after_lock= save_time_after_lock;
-  thd->user_time= save_user_time;
-  thd->time_zone_used= save_time_zone_used;
   DBUG_RETURN(result);
 }
 
