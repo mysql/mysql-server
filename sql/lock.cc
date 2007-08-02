@@ -326,7 +326,7 @@ retry:
     }
   }
 
-  thd->lock_time();
+  thd->set_time_after_lock();
   DBUG_RETURN (sql_lock);
 }
 

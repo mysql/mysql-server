@@ -65,11 +65,13 @@ static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
 static bool opt_base64_output= 0;
 static const char* database= 0;
-static my_bool force_opt= 0, short_form= 0, remote_opt= 0, info_flag;
+static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
+static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1;
 static ulonglong offset = 0;
 static const char* host = 0;
 static int port= 0;
+static uint my_end_arg;
 static const char* sock= 0;
 static const char* user = 0;
 static char* pass = 0;
@@ -727,8 +729,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
@@ -860,7 +866,7 @@ static void die(const char* fmt, ...)
   va_end(args);
   cleanup();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
+  my_end(my_end_arg | MY_DONT_FREE_DBUG);
   exit(1);
 }
 
@@ -868,7 +874,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 3.2 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }
 
@@ -984,7 +990,10 @@ static int parse_args(int *argc, char*** argv)
   load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
-
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
   return 0;
 }
 
@@ -1597,7 +1606,7 @@ int main(int argc, char** argv)
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
+  my_end(my_end_arg | MY_DONT_FREE_DBUG);
 
   if (file_not_closed_error)
   {

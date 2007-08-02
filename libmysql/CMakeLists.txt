@@ -63,7 +63,7 @@ ADD_LIBRARY(libmysql SHARED dll.c libmysql.def
                      ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
-                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c)
+                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/my_getsystime.c)
 ADD_DEPENDENCIES(libmysql dbug vio mysys strings GenError zlib yassl taocrypt)
 TARGET_LINK_LIBRARIES(libmysql mysys strings wsock32)
 

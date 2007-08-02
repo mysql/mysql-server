@@ -2222,7 +2222,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   /* Add thread to THD list so that's it's visible in 'show processlist' */
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  thd->end_time();
+  thd->set_current_time();
   threads.append(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
