@@ -895,6 +895,7 @@ hex(s2)
 select hex(convert(s1 using latin1)) from t1;
 hex(convert(s1 using latin1))
 7F
+drop table t1;
 create table t1 (a varchar(15) character set ascii not null, b int);
 insert into t1 values ('a',1);
 select concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
