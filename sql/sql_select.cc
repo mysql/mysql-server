@@ -1121,6 +1121,7 @@ JOIN::optimize()
     order=0;					// The output has only one row
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
+    group_optimized_away= 1;
   }
 
   calc_group_buffer(this, group_list);
@@ -2416,7 +2417,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 
     if ((table->s->system || table->file->records <= 1) && ! s->dependent &&
 	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
-        !table->fulltext_searched)
+        !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
@@ -11461,7 +11462,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!join->first_record || end_of_records ||
       (idx=test_if_group_changed(join->group_fields)) >= 0)
   {
-    if (join->first_record || (end_of_records && !join->group))
+    if (join->first_record || 
+        (end_of_records && !join->group && !join->group_optimized_away))
     {
       if (join->procedure)
 	join->procedure->end_group();
@@ -12033,7 +12035,6 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       */
       if (!on_primary_key &&
           (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-          table->s->db_type == DB_TYPE_INNODB &&
           table->s->primary_key != MAX_KEY)
       {
         on_primary_key= TRUE;

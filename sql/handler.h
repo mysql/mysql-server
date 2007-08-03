@@ -420,6 +420,35 @@ typedef struct st_thd_trans
   bool        no_2pc;
   /* storage engines that registered themselves for this transaction */
   handlerton *ht[MAX_HA];
+  /* 
+    The purpose of this flag is to keep track of non-transactional
+    tables that were modified in scope of:
+    - transaction, when the variable is a member of
+    THD::transaction.all
+    - top-level statement or sub-statement, when the variable is a
+    member of THD::transaction.stmt
+    This member has the following life cycle:
+    * stmt.modified_non_trans_table is used to keep track of
+    modified non-transactional tables of top-level statements. At
+    the end of the previous statement and at the beginning of the session,
+    it is reset to FALSE.  If such functions
+    as mysql_insert, mysql_update, mysql_delete etc modify a
+    non-transactional table, they set this flag to TRUE.  At the
+    end of the statement, the value of stmt.modified_non_trans_table 
+    is merged with all.modified_non_trans_table and gets reset.
+    * all.modified_non_trans_table is reset at the end of transaction
+    
+    * Since we do not have a dedicated context for execution of a
+    sub-statement, to keep track of non-transactional changes in a
+    sub-statement, we re-use stmt.modified_non_trans_table. 
+    At entrance into a sub-statement, a copy of the value of
+    stmt.modified_non_trans_table (containing the changes of the
+    outer statement) is saved on stack. Then 
+    stmt.modified_non_trans_table is reset to FALSE and the
+    substatement is executed. Then the new value is merged with the
+    saved value.
+  */
+  bool modified_non_trans_table;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -508,6 +537,29 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    Tells the storage engine that we intend to read or write data
+    from the table. This call is prefixed with a call to handler::store_lock()
+    and is invoked only for those handler instances that stored the lock.
+
+    Calls to rnd_init/index_init are prefixed with this call. When table
+    IO is complete, we call external_lock(F_UNLCK).
+    A storage engine writer should expect that each call to
+    ::external_lock(F_[RD|WR]LOCK is followed by a call to
+    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+
+    The name and signature originate from the first implementation
+    in MyISAM, which would call fcntl to set/clear an advisory
+    lock on the data file in this method.
+
+    @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
+
+    @return  non-0 in case of failure, 0 in case of success.
+    When lock_type is F_UNLCK, the return value is ignored.
+  */
+  virtual int external_lock(THD *thd, int lock_type) { return 0; }
 
 public:
   const handlerton *ht;                 /* storage engine of this handler */
@@ -548,6 +600,7 @@ public:
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
+  bool locked;
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
@@ -560,10 +613,11 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
+    raid_type(0), ft_handler(0), inited(NONE),
+    locked(FALSE), implicit_emptied(0),
     pushed_cond(NULL)
     {}
-  virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
+  virtual ~handler(void) { DBUG_ASSERT(locked == FALSE); /* TODO: DBUG_ASSERT(inited == NONE); */ }
   virtual handler *clone(MEM_ROOT *mem_root);
   int ha_open(const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
@@ -597,6 +651,12 @@ public:
 
   virtual const char *index_type(uint key_number) { DBUG_ASSERT(0); return "";}
 
+  int ha_external_lock(THD *thd, int lock_type)
+  {
+    DBUG_ENTER("ha_external_lock");
+    locked= lock_type != F_UNLCK;
+    DBUG_RETURN(external_lock(thd, lock_type));
+  }
   int ha_index_init(uint idx)
   {
     DBUG_ENTER("ha_index_init");
@@ -689,7 +749,6 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
   virtual int reset() { return extra(HA_EXTRA_RESET); }
-  virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
   /*
@@ -837,6 +896,9 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
+  /**
+    Is not invoked for non-transactional temporary tables.
+  */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;
