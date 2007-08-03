@@ -7181,7 +7181,10 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
+void Field_blob::store_length(uchar *i_ptr, 
+                              uint i_packlength, 
+                              uint32 i_number, 
+                              bool low_byte_first)
 {
   switch (i_packlength) {
   case 1:
@@ -7189,7 +7192,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
     break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (low_byte_first)
     {
       int2store(i_ptr,(unsigned short) i_number);
     }
@@ -7202,7 +7205,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
     break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (low_byte_first)
     {
       int4store(i_ptr,i_number);
     }
@@ -7213,7 +7216,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
 }
 
 
-uint32 Field_blob::get_length(const uchar *pos)
+uint32 Field_blob::get_length(const uchar *pos, bool low_byte_first)
 {
   switch (packlength) {
   case 1:
@@ -7222,7 +7225,7 @@ uint32 Field_blob::get_length(const uchar *pos)
     {
       uint16 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
 	tmp=sint2korr(pos);
       else
 #endif
@@ -7235,7 +7238,7 @@ uint32 Field_blob::get_length(const uchar *pos)
     {
       uint32 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
 	tmp=uint4korr(pos);
       else
 #endif
@@ -7740,7 +7743,7 @@ uchar *Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
 {
   uchar *save= ptr;
   ptr= (uchar*) from;
-  uint32 length=get_length();			// Length of from string
+  uint32 length=get_length();        // Length of from string
   uint local_char_length= ((field_charset->mbmaxlen > 1) ?
                            max_length/field_charset->mbmaxlen : max_length);
   if (length)
@@ -8085,8 +8088,11 @@ int Field_enum::store(longlong nr, bool unsigned_val)
   if ((ulonglong) nr > typelib->count || nr == 0)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
-    nr=0;
-    error=1;
+    if (nr != 0 || table->in_use->count_cuted_fields)
+    {
+      nr= 0;
+      error= 1;
+    }
   }
   store_type((ulonglong) (uint) nr);
   return error;

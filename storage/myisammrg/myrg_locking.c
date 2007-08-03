@@ -37,7 +37,15 @@ int myrg_lock_database(MYRG_INFO *info, int lock_type)
     (file->table)->owned_by_merge = TRUE;
 #endif
     if ((new_error=mi_lock_database(file->table,lock_type)))
+    {
       error=new_error;
+      if (lock_type != F_UNLCK)
+      {
+        while (--file >= info->open_tables)
+          mi_lock_database(file->table, F_UNLCK);
+        break;
+      }
+    }
   }
   return(error);
 }

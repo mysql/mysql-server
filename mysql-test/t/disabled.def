@@ -19,9 +19,9 @@ im_instance_conf         : Bug#20294 2007-05-30 alik      Instance manager tests
 im_life_cycle            : BUG#27851 Instance manager dies on ASSERT in ~Thread_registry() or from not being able to close a mysqld instance.
 im_instance_conf         : BUG#28743 Instance manager generates warnings in test suite
 im_utils                 : BUG#28743 Instance manager generates warnings in test suite
+
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
 
 mysql_upgrade        : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
-federated_innodb     : Bug#29522 failed assertion in binlog_close_connection()
-lowercase_table3     : Bug#29839 2007-07-17 ingo Cannot find table test/T1 from the internal data dictionary
+federated_transactions   : Bug#29523 Transactions do not work

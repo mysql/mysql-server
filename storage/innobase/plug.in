@@ -6,10 +6,6 @@ MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
 MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
   AC_SUBST(innodb_system_libs)
-  AC_PROG_CC
-  AC_PROG_RANLIB
-  AC_PROG_INSTALL
-  AC_PROG_LIBTOOL
   AC_CHECK_HEADERS(aio.h sched.h)
   AC_CHECK_SIZEOF(int, 4)
   AC_CHECK_SIZEOF(long, 4)
