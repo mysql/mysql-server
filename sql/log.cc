@@ -380,7 +380,8 @@ bool Log_to_csv_event_handler::
 
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
 
-  ((Field_timestamp*) table->field[0])->store_timestamp(event_time);
+  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
+                                                        event_time);
 
   /* do a write */
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
@@ -518,7 +519,8 @@ bool Log_to_csv_event_handler::
 
   /* store the time and user values */
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
-  ((Field_timestamp*) table->field[0])->store_timestamp(current_time);
+  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
+                                                        current_time);
   if (table->field[1]->store(user_host, user_host_len, client_cs))
     goto err;
 
