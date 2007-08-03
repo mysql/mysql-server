@@ -51,6 +51,9 @@ const char *VER= "14.13";
 /* Buffer to hold 'version' and 'version_comment' */
 #define MAX_SERVER_VERSION_LENGTH     128
 
+/* Array of options to pass to libemysqld */
+#define MAX_SERVER_ARGS               64
+
 void* sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -302,7 +305,10 @@ static COMMANDS commands[] = {
 };
 
 static const char *load_default_groups[]= { "mysql","client",0 };
-static const char *server_default_groups[]=
+
+static int         embedded_server_arg_count= 0;
+static char       *embedded_server_args[MAX_SERVER_ARGS];
+static const char *embedded_server_groups[]=
 { "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
@@ -347,15 +353,6 @@ static sig_handler handle_sigint(int sig);
 int main(int argc,char *argv[])
 {
   char buff[80];
-  char *defaults, *extra_defaults, *group_suffix;
-  char *emb_argv[4];
-  int emb_argc;
-
-  /* Get --defaults-xxx args for mysql_server_init() */
-  emb_argc= get_defaults_options(argc, argv, &defaults, &extra_defaults,
-                                 &group_suffix)+1;
-  memcpy((char*) emb_argv, (char*) argv, emb_argc * sizeof(*argv));
-  emb_argv[emb_argc]= 0;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -416,7 +413,8 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  if (mysql_server_init(emb_argc, emb_argv, (char**) server_default_groups))
+  if (mysql_server_init(embedded_server_arg_count, embedded_server_args, 
+                        (char**) embedded_server_groups))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -539,6 +537,8 @@ sig_handler mysql_end(int sig)
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  while (embedded_server_arg_count > 1)
+    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   mysql_server_end();
   free_defaults(defaults_argv);
   my_end(info_flag ? MY_CHECK_ERROR : 0);
@@ -761,6 +761,8 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol", (uchar**) &opt_secure_auth,
     (uchar**) &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (uchar**) &show_warnings, (uchar**) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
@@ -888,7 +890,29 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
-  break;
+  case OPT_SERVER_ARG:
+#ifdef EMBEDDED_LIBRARY
+    /*
+      When the embedded server is being tested, the client needs to be
+      able to pass command-line arguments to the embedded server so it can
+      locate the language files and data directory.
+    */
+    if (!embedded_server_arg_count)
+    {
+      embedded_server_arg_count= 1;
+      embedded_server_args[0]= (char*) "";
+    }
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
+    {
+        put_info("Can't use server argument", INFO_ERROR);
+        return 0;
+    }
+#else /*EMBEDDED_LIBRARY */
+    printf("WARNING: --server-arg option not supported in this configuration.\n");
+#endif
+    break;
   case 'A':
     opt_rehash= 0;
     break;

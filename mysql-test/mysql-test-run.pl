@@ -693,6 +693,37 @@ sub command_line_setup () {
 
   $glob_timers= mtr_init_timers();
 
+  # --------------------------------------------------------------------------
+  # Embedded server flag
+  # --------------------------------------------------------------------------
+  if ( $opt_embedded_server )
+  {
+    $glob_use_embedded_server= 1;
+    # Add the location for libmysqld.dll to the path.
+    if ( $glob_win32 )
+    {
+      my $lib_mysqld=
+        mtr_path_exists(vs_config_dirs('libmysqld',''));
+	  $lib_mysqld= $glob_cygwin_perl ? ":".`cygpath "$lib_mysqld"` 
+                                     : ";".$lib_mysqld;
+      chomp($lib_mysqld);
+      $ENV{'PATH'}="$ENV{'PATH'}".$lib_mysqld;
+    }
+
+    push(@glob_test_mode, "embedded");
+    $opt_skip_rpl= 1;              # We never run replication with embedded
+    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
+    $opt_skip_ssl= 1;              # Turn off use of SSL
+
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
+    if ( $opt_extern )
+    {
+      mtr_error("Can't use --extern with --embedded-server");
+    }
+  }
+
   #
   # Find the mysqld executable to be able to find the mysqld version
   # number as early as possible
