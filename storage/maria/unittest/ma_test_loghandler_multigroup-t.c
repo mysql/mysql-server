@@ -190,6 +190,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   trn->short_id= 0;
+  trn->first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
   if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             trn, NULL,
                             6, TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))

@@ -124,6 +124,7 @@ void writer(int num)
   uint i;
 
   trn.short_id= num;
+  trn.first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
   for (i= 0; i < ITERATIONS; i++)
   {
     uint len= get_len();
@@ -299,6 +300,7 @@ int main(int argc __attribute__((unused)),
 
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
+    dummy_transaction_object.first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
     if (translog_write_record(&first_lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &dummy_transaction_object, NULL, 6,
