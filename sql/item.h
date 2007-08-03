@@ -49,29 +49,50 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint repertoire;
   
+  void set_repertoire_from_charset(CHARSET_INFO *cs)
+  {
+    repertoire= cs->state & MY_CS_PUREASCII ?
+                MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+  }
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    repertoire= MY_REPERTOIRE_UNICODE30;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
   }
   void set(DTCollation &dt)
   { 
     collation= dt.collation;
     derivation= dt.derivation;
+    repertoire= dt.repertoire;
   }
   void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
+  void set(CHARSET_INFO *collation_arg,
+           Derivation derivation_arg,
+           uint repertoire_arg)
+  {
+    collation= collation_arg;
+    derivation= derivation_arg;
+    repertoire= repertoire_arg;
   }
   void set(CHARSET_INFO *collation_arg)
-  { collation= collation_arg; }
+  {
+    collation= collation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
   bool aggregate(DTCollation &dt, uint flags= 0);
@@ -1771,10 +1792,11 @@ class Item_string :public Item
 {
 public:
   Item_string(const char *str,uint length,
-  	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
@@ -1798,10 +1820,11 @@ public:
     fixed= 1;
   }
   Item_string(const char *name_par, const char *str, uint length,
-	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par, 0, cs);
     decimals=NOT_FIXED_DEC;
@@ -1816,6 +1839,12 @@ public:
   {
     str_value.copy(str_arg, length_arg, collation.collation);
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
+  void set_repertoire_from_value()
+  {
+    collation.repertoire= my_string_repertoire(str_value.charset(),
+                                               str_value.ptr(),
+                                               str_value.length());
   }
   enum Type type() const { return STRING_ITEM; }
   double val_real();
