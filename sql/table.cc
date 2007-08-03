@@ -1878,7 +1878,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 
-  outparam->no_replicate= test(outparam->file->ha_table_flags() &
+  outparam->no_replicate= outparam->file &&
+                          test(outparam->file->ha_table_flags() &
                                HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
