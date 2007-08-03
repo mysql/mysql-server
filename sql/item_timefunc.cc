@@ -1717,7 +1717,11 @@ void Item_func_date_format::fix_length_and_dec()
   Item *arg1= args[1]->this_item();
 
   decimals=0;
-  collation.set(thd->variables.collation_connection);
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= arg1->collation.repertoire;
+  if (!thd->variables.lc_time_names->is_ascii)
+    repertoire|= MY_REPERTOIRE_EXTENDED;
+  collation.set(cs, arg1->collation.derivation, repertoire);
   if (arg1->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
