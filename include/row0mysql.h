@@ -47,14 +47,16 @@ row_mysql_store_true_var_len(
 Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
 returns a pointer to the data. */
 
-byte*
+const byte*
 row_mysql_read_true_varchar(
 /*========================*/
-			/* out: pointer to the data, we skip the 1 or 2 bytes
-			at the start that are used to store the len */
-	ulint*	len,	/* out: variable-length field length */
-	byte*	field,	/* in: field in the MySQL format */
-	ulint	lenlen);/* in: storage length of len: either 1 or 2 bytes */
+				/* out: pointer to the data, we skip
+				the 1 or 2 bytes at the start that are
+				used to store the len */
+	ulint*		len,	/* out: variable-length field length */
+	const byte*	field,	/* in: field in the MySQL format */
+	ulint		lenlen);/* in: storage length of len: either 1
+				or 2 bytes */
 /***********************************************************************
 Stores a reference to a BLOB in the MySQL format. */
 
@@ -70,14 +72,15 @@ row_mysql_store_blob_ref(
 /***********************************************************************
 Reads a reference to a BLOB in the MySQL format. */
 
-byte*
+const byte*
 row_mysql_read_blob_ref(
 /*====================*/
-				/* out: pointer to BLOB data */
-	ulint*	len,		/* out: BLOB length */
-	byte*	ref,		/* in: BLOB reference in the MySQL format */
-	ulint	col_len);	/* in: BLOB reference length (not BLOB
-				length) */
+					/* out: pointer to BLOB data */
+	ulint*		len,		/* out: BLOB length */
+	const byte*	ref,		/* in: BLOB reference in the
+					MySQL format */
+	ulint		col_len);	/* in: BLOB reference length
+					(not BLOB length) */
 /******************************************************************
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
@@ -101,7 +104,7 @@ row_mysql_store_col_in_innobase_format(
 					format differs in a row and in a
 					key value: in a key value the length
 					is always stored in 2 bytes! */
-	byte*		mysql_data,	/* in: MySQL column value, not
+	const byte*	mysql_data,	/* in: MySQL column value, not
 					SQL NULL; NOTE that dfield may also
 					get a pointer to mysql_data,
 					therefore do not discard this as long
