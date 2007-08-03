@@ -83,7 +83,6 @@ require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_report.pl";
-require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
@@ -280,8 +279,6 @@ our $opt_wait_for_master;
 our $opt_wait_for_slave;
 
 our $opt_warnings;
-
-our $opt_udiff;
 
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
@@ -619,7 +616,6 @@ sub command_line_setup () {
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
-             'unified-diff|udiff'       => \$opt_udiff,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -3603,7 +3599,6 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'result_file'});
   print "\n";
   if ( $opt_force )
   {
@@ -4788,6 +4783,9 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
+  # Number of lines of resut to include in failure report
+  mtr_add_arg($args, "--tail-lines=20");
+
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
@@ -5199,7 +5197,6 @@ Misc options
   fast                  Don't try to clean up from earlier runs
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
-  unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
   suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)
