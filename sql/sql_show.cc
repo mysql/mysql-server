@@ -1672,11 +1672,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (mysys_var)
           pthread_mutex_unlock(&mysys_var->mutex);
 
-#ifdef EXTRA_DEBUG
-        thd_info->start_time= tmp->time_after_lock;
-#else
         thd_info->start_time= tmp->start_time;
-#endif
         thd_info->query=0;
         if (tmp->query)
         {
@@ -1695,7 +1691,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
-  time_t now= time(0);
+  time_t now= my_time(0);
   while ((thd_info=thread_infos.get()))
   {
     protocol->prepare_for_resend();
@@ -1725,7 +1721,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  time_t now= time(0);
+  time_t now= my_time(0);
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
@@ -2078,11 +2074,11 @@ static bool show_status_array(THD *thd, const char *wild,
         */
         switch (show_type) {
         case SHOW_DOUBLE_STATUS:
-        {
           value= ((char *) status_var + (ulong) value);
-          end= buff + sprintf(buff, "%f", *(double*) value);
+          /* fall through */
+        case SHOW_DOUBLE:
+          end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
           break;
-        }
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (ulong) value);
           /* fall through */
@@ -2092,6 +2088,7 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         case SHOW_LONGLONG_STATUS:
           value= ((char *) status_var + (ulonglong) value);
+          /* fall through */
         case SHOW_LONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);
           break;

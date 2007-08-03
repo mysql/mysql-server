@@ -456,7 +456,7 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		time(NULL);
+  when=		my_time(0);
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -2073,7 +2073,7 @@ int Query_log_event::do_apply_event(RELAY_LOG_INFO const *rli,
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
-
+      log_slow_statement(thd);
     }
     else
     {
@@ -4350,7 +4350,7 @@ int User_var_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     switch (type) {
     case REAL_RESULT:
       float8get(real_val, val);
-      it= new Item_float(real_val);
+      it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
@@ -6174,7 +6174,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       problem.  When WL#2975 is implemented, just remove the member
       st_relay_log_info::last_event_start_time and all its occurences.
     */
-    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= time(0);
+    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(0);

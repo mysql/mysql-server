@@ -43,7 +43,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.13";
+const char *VER= "14.14";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -129,7 +129,7 @@ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql;			/* The connection */
-static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
+static my_bool ignore_errors=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
 	       opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
 	       opt_compress=0, using_opt_local_infile=0,
@@ -139,9 +139,11 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0;
+static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
+static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -541,7 +543,7 @@ sig_handler mysql_end(int sig)
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
   free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
   exit(status.exit_status);
 }
 
@@ -611,8 +613,11 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
+   (uchar**) &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (uchar**) &current_db,
    (uchar**) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
@@ -927,7 +932,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
-    info_flag= 1;
+    debug_info_flag= 1;
     break;
   case 's':
     if (argument == disabled_my_option)
@@ -1021,6 +1026,10 @@ static int get_options(int argc, char **argv)
   }
   if (tty_password)
     opt_password= get_tty_password(NullS);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
   return(0);
 }
 
@@ -3288,7 +3297,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   connected=1;
 #ifndef EMBEDDED_LIBRARY
-  mysql.reconnect=info_flag ? 1 : 0; // We want to know if this happens
+  mysql.reconnect= debug_info_flag; // We want to know if this happens
 #else
   mysql.reconnect= 1;
 #endif

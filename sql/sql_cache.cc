@@ -862,6 +862,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
 
 ulong Query_cache::resize(ulong query_cache_size_arg)
 {
+  ulong new_query_cache_size;
   DBUG_ENTER("Query_cache::resize");
   DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
 			query_cache_size_arg));
@@ -876,17 +877,13 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   free_cache();
 
   query_cache_size= query_cache_size_arg;
-  ulong new_query_cache_size= init_cache();
+  new_query_cache_size= init_cache();
 
   STRUCT_LOCK(&structure_guard_mutex);
   m_cache_status= Query_cache::NO_FLUSH_IN_PROGRESS;
-  /*
-    Must not call check_integrity() with
-    m_cache_status != Query_cache::NO_FLUSH_IN_PROGRESS.
-    It would wait forever.
-  */
-  DBUG_EXECUTE("check_querycache",check_integrity(1););
   pthread_cond_signal(&COND_cache_status_changed);
+  if (new_query_cache_size)
+    DBUG_EXECUTE("check_querycache",check_integrity(1););
   STRUCT_UNLOCK(&structure_guard_mutex);
 
   DBUG_RETURN(new_query_cache_size);

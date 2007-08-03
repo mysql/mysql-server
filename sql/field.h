@@ -952,6 +952,17 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
+  inline void store_timestamp(my_time_t timestamp)
+  {
+#ifdef WORDS_BIGENDIAN
+    if (table && table->s->db_low_byte_first)
+    {
+      int4store(ptr,timestamp);
+    }
+    else
+#endif
+      longstore(ptr,(uint32) timestamp);
+  }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   timestamp_auto_set_type get_auto_set_type() const;
@@ -1394,6 +1405,8 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
   uint is_equal(Create_field *new_field);
+  inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
+  inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
 };
 
 
