@@ -2255,7 +2255,7 @@ ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
 void
 row_sel_convert_mysql_key_to_innobase(
 /*==================================*/
-	dtuple_t*	tuple,		/* in: tuple where to build;
+	dtuple_t*	tuple,		/* in/out: tuple where to build;
 					NOTE: we assume that the type info
 					in the tuple is already according
 					to index! */
@@ -2263,19 +2263,19 @@ row_sel_convert_mysql_key_to_innobase(
 					conversions */
 	ulint		buf_len,	/* in: buffer length */
 	dict_index_t*	index,		/* in: index of the key value */
-	byte*		key_ptr,	/* in: MySQL key value */
+	const byte*	key_ptr,	/* in: MySQL key value */
 	ulint		key_len,	/* in: MySQL key value length */
 	trx_t*		trx)		/* in: transaction */
 {
 	byte*		original_buf	= buf;
-	byte*		original_key_ptr = key_ptr;
+	const byte*	original_key_ptr = key_ptr;
 	dict_field_t*	field;
 	dfield_t*	dfield;
 	ulint		data_offset;
 	ulint		data_len;
 	ulint		data_field_len;
 	ibool		is_null;
-	byte*		key_end;
+	const byte*	key_end;
 	ulint		n_fields = 0;
 
 	/* For documentation of the key value storage format in MySQL, see

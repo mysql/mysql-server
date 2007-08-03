@@ -2936,13 +2936,13 @@ ha_innobase::store_key_val_for_row(
 
 		if (mysql_type == MYSQL_TYPE_VARCHAR) {
 						/* >= 5.0.3 true VARCHAR */
-			ulint	lenlen;
-			ulint	len;
-			byte*	data;
-			ulint	key_len;
-			ulint	true_len;
+			ulint		lenlen;
+			ulint		len;
+			const byte*	data;
+			ulint		key_len;
+			ulint		true_len;
 			CHARSET_INFO*	cs;
-			int	error=0;
+			int		error=0;
 
 			key_len = key_part->length;
 
@@ -3008,7 +3008,7 @@ ha_innobase::store_key_val_for_row(
 			ulint		true_len;
 			int		error=0;
 			ulint		blob_len;
-			byte*		blob_data;
+			const byte*	blob_data;
 
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
@@ -3668,9 +3668,9 @@ calc_row_difference(
 	ulint		o_len;
 	ulint		n_len;
 	ulint		col_pack_len;
-	byte*		new_mysql_row_col;
-	byte*		o_ptr;
-	byte*		n_ptr;
+	const byte*	new_mysql_row_col;
+	const byte*	o_ptr;
+	const byte*	n_ptr;
 	byte*		buf;
 	upd_field_t*	ufield;
 	ulint		col_type;
@@ -3688,8 +3688,8 @@ calc_row_difference(
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
 
-		o_ptr = (byte*) old_row + get_field_offset(table, field);
-		n_ptr = (byte*) new_row + get_field_offset(table, field);
+		o_ptr = (const byte*) old_row + get_field_offset(table, field);
+		n_ptr = (const byte*) new_row + get_field_offset(table, field);
 
 		/* Use new_mysql_row_col and col_pack_len save the values */
 
