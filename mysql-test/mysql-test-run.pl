@@ -2910,6 +2910,9 @@ sub initialize_servers () {
     }
   }
   check_running_as_root();
+
+  mtr_log_init("$opt_vardir/log/mysql-test-run.log");
+
 }
 
 sub mysql_install_db () {
@@ -3647,13 +3650,13 @@ sub report_failure_and_restart ($) {
 
     # Restore the snapshot of the installed test db
     restore_installed_db($tinfo->{'name'});
-    print "Resuming Tests\n\n";
+    mtr_report("Resuming Tests\n");
     return;
   }
 
   my $test_mode= join(" ", @::glob_test_mode) || "default";
-  print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
-  print "To continue, re-run with '--force'.\n";
+  mtr_report("Aborting: $tinfo->{'name'} failed in $test_mode mode. ");
+  mtr_report("To continue, re-run with '--force'.");
   if ( ! $glob_debugger and
        ! $opt_extern and
        ! $glob_use_embedded_server )
@@ -4112,11 +4115,11 @@ sub mysqld_start ($$$) {
 
 sub stop_all_servers () {
 
-  print  "Stopping All Servers\n";
+  mtr_report("Stopping All Servers");
 
   if ( ! $opt_skip_im )
   {
-    print  "Shutting-down Instance Manager\n";
+    mtr_report("Shutting-down Instance Manager");
     unless (mtr_im_stop($instance_manager, "stop_all_servers"))
     {
       mtr_error("Failed to stop Instance Manager.")
