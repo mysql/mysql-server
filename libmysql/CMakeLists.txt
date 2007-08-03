@@ -24,12 +24,42 @@ SET(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   -DSAFEMALLOC -DSAFE_MUTEX")
 # have been a problem anyway, they don't use thread local storage.
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/zlib 
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include 
                     ${CMAKE_SOURCE_DIR}/libmysql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/strings)
+
+# We include the source file listing instead of referencing the
+# libraries. At least with CMake 2.4 and Visual Studio 2005 a static
+# library created from other static libraries would not be complete,
+# i.e. the libraries listed in TARGET_LINK_LIBRARIES() were just
+# ignored.
+
+
+# Include and add the directory path
+SET(SOURCE_SUBLIBS TRUE)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/zlib/CMakeLists.txt)
+FOREACH(rpath ${ZLIB_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
+ENDFOREACH(rpath)
+
+# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
+# not set during configure time.
+INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
+FOREACH(rpath ${DBUG_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
+FOREACH(rpath ${TAOCRYPT_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/taocrypt/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/CMakeLists.txt)
+FOREACH(rpath ${YASSL_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
+ENDFOREACH(rpath)
 
 SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c 
                      ../strings/bmove_upp.c ../mysys/charset-def.c ../mysys/charset.c
@@ -66,7 +96,8 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
-                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c)
+                     ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c
+		     ${LIB_SOURCES})
 
 # Need to set USE_TLS for building the DLL, since __declspec(thread)
 # approach to thread local storage does not work properly in DLLs.
@@ -79,23 +110,20 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 # beond the documented API, and try access the Thread Local Storage.
 # The "_notls" means no Tls*() functions used, i.e. "static" TLS.
 
-ADD_LIBRARY(libmysql    SHARED dll.c libmysql.def ${CLIENT_SOURCES})
-ADD_LIBRARY(mysqlclient STATIC ${CLIENT_SOURCES})
+ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
+ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
 ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
 
 SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
 
-SET(CLIENT_LIB_DEPS yassl taocrypt zlib dbug GenError)
-SET(CLIENT_LIBS     yassl taocrypt zlib debug dbug)
+ADD_DEPENDENCIES(libmysql GenError)
+TARGET_LINK_LIBRARIES(libmysql wsock32)
 
-ADD_DEPENDENCIES(libmysql ${CLIENT_LIB_DEPS})
-TARGET_LINK_LIBRARIES(libmysql ${CLIENT_LIBS} wsock32)
+ADD_DEPENDENCIES(mysqlclient GenError)
+TARGET_LINK_LIBRARIES(mysqlclient)
 
-ADD_DEPENDENCIES(mysqlclient ${CLIENT_LIB_DEPS})
-TARGET_LINK_LIBRARIES(mysqlclient ${CLIENT_LIBS})
-
-ADD_DEPENDENCIES(mysqlclient_notls ${CLIENT_LIB_DEPS})
-TARGET_LINK_LIBRARIES(mysqlclient_notls ${CLIENT_LIBS})
+ADD_DEPENDENCIES(mysqlclient_notls GenError)
+TARGET_LINK_LIBRARIES(mysqlclient_notls)
 
 ADD_EXECUTABLE(myTest mytest.c)
 TARGET_LINK_LIBRARIES(myTest libmysql)

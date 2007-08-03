@@ -44,7 +44,6 @@ try
             case "WITH_EXAMPLE_STORAGE_ENGINE":
             case "WITH_FEDERATED_STORAGE_ENGINE":
             case "WITH_INNOBASE_STORAGE_ENGINE":
-            case "WITH_PARTITION_STORAGE_ENGINE":
             case "__NT__":
             case "DISABLE_GRANT_OPTIONS":
             case "EMBED_MANIFESTS":

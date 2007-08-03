@@ -84,7 +84,7 @@ ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 
 TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX}
-		      heap myisam myisammrg mysys yassl zlib dbug yassl 
+		      heap myisam myisammrg mysys yassl zlib debug dbug yassl 
                       taocrypt strings vio regex wsock32)
 
 IF(EMBED_MANIFESTS)
