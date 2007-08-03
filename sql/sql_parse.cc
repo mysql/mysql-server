@@ -5891,6 +5891,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   lex->nest_level++;
+  if (lex->nest_level > (int) MAX_SELECT_NESTING)
+  {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    DBUG_RETURN(1);
+  }
   select_lex->nest_level= lex->nest_level;
   /*
     Don't evaluate this subquery during statement prepare even if
