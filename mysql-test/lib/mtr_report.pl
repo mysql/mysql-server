@@ -19,6 +19,7 @@
 # same name.
 
 use strict;
+use warnings;
 
 sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
@@ -100,6 +101,7 @@ sub mtr_show_failed_diff ($) {
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
 
+  _mtr_log("$tinfo->{name}");
   printf "%-30s ", $tinfo->{'name'};
 }
 
@@ -109,15 +111,15 @@ sub mtr_report_test_skipped ($) {
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
   if ( $tinfo->{'disable'} )
   {
-    print "[ disabled ]  $tinfo->{'comment'}\n";
+    mtr_report("[ disabled ]  $tinfo->{'comment'}");
   }
   elsif ( $tinfo->{'comment'} )
   {
-    print "[ skipped ]   $tinfo->{'comment'}\n";
+    mtr_report("[ skipped ]   $tinfo->{'comment'}");
   }
   else
   {
-    print "[ skipped ]\n";
+    mtr_report("[ skipped ]");
   }
 }
 
@@ -149,7 +151,7 @@ sub mtr_report_test_passed ($) {
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
-  print "[ pass ]   $timer\n";
+  mtr_report("[ pass ]   $timer");
 }
 
 sub mtr_report_test_failed ($) {
@@ -158,17 +160,17 @@ sub mtr_report_test_failed ($) {
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   if ( defined $tinfo->{'timeout'} )
   {
-    print "[ fail ]  timeout\n";
+    mtr_report("[ fail ]  timeout");
     return;
   }
   else
   {
-    print "[ fail ]\n";
+    mtr_report("[ fail ]");
   }
 
   if ( $tinfo->{'comment'} )
   {
-    print "\nERROR: $tinfo->{'comment'}\n";
+    mtr_report("\nERROR: $tinfo->{'comment'}");
   }
   elsif ( -f $::path_timefile )
   {
@@ -178,7 +180,7 @@ sub mtr_report_test_failed ($) {
   }
   else
   {
-    print "\nUnexpected termination, probably when starting mysqld\n";
+    mtr_report("\nUnexpected termination, probably when starting mysqld");;
   }
 }
 
@@ -402,35 +404,66 @@ sub mtr_print_header () {
 
 ##############################################################################
 #
-#  Misc
+#  Log and reporting functions
 #
 ##############################################################################
 
+use IO::File;
+
+my $log_file_ref= undef;
+
+sub mtr_log_init ($) {
+  my ($filename)= @_;
+
+  mtr_error("Log is already open") if defined $log_file_ref;
+
+  $log_file_ref= IO::File->new($filename, "a") or
+    mtr_warning("Could not create logfile $filename: $!");
+}
+
+sub _mtr_log (@) {
+  print $log_file_ref join(" ", @_),"\n"
+    if defined $log_file_ref;
+}
+
 sub mtr_report (@) {
+  # Print message to screen and log
+  _mtr_log(@_);
   print join(" ", @_),"\n";
 }
 
 sub mtr_warning (@) {
+  # Print message to screen and log
+  _mtr_log("WARNING: ", @_);
   print STDERR "mysql-test-run: WARNING: ",join(" ", @_),"\n";
 }
 
 sub mtr_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR: ", @_);
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
   mtr_exit(1);
 }
 
 sub mtr_child_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR(child): ", @_);
   print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
   exit(1);
 }
 
 sub mtr_debug (@) {
+  # Only print if --script-debug is used
   if ( $::opt_script_debug )
   {
+    _mtr_log("###: ", @_);
     print STDERR "####: ",join(" ", @_),"\n";
   }
 }
+
 sub mtr_verbose (@) {
+  # Always print to log, print to screen only when --verbose is used
+  _mtr_log("> ",@_);
   if ( $::opt_verbose )
   {
     print STDERR "> ",join(" ", @_),"\n";
