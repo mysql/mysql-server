@@ -2535,6 +2535,10 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
                  LOOKUP_FIELD_VALUES *lookup_field_vals,
                  bool *with_i_schema)
 {
+  LEX_STRING *i_s_name_copy= 0;
+  i_s_name_copy= thd->make_lex_string(i_s_name_copy,
+                                      INFORMATION_SCHEMA_NAME.str,
+                                      INFORMATION_SCHEMA_NAME.length, TRUE);
   *with_i_schema= 0;
   if (lookup_field_vals->wild_db_value)
   {
@@ -2549,7 +2553,7 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
                            lookup_field_vals->db_value.str))
     {
       *with_i_schema= 1;
-      if (files->push_back(&INFORMATION_SCHEMA_NAME))
+      if (files->push_back(i_s_name_copy))
         return 1;
     }
     return (find_files(thd, files, NullS, mysql_data_home,
@@ -2567,7 +2571,7 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
                        lookup_field_vals->db_value.str))
     {
       *with_i_schema= 1;
-      if (files->push_back(&INFORMATION_SCHEMA_NAME))
+      if (files->push_back(i_s_name_copy))
         return 1;
       return 0;
     }
@@ -2580,7 +2584,7 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
     Create list of existing databases. It is used in case
     of select from information schema table
   */
-  if (files->push_back(&INFORMATION_SCHEMA_NAME))
+  if (files->push_back(i_s_name_copy))
     return 1;
   *with_i_schema= 1;
   return (find_files(thd, files, NullS,
