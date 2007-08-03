@@ -1024,7 +1024,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
     die("Failed to open file %s", filename);
-  while((len= my_read(fd, (byte*)&buff,
+  while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
     char *p= buff, *start= buff;
@@ -1264,10 +1264,10 @@ int compare_files2(File fd, const char* filename2)
     my_close(fd, MYF(0));
     die("Failed to open second file: %s", filename2);
   }
-  while((len= my_read(fd, (byte*)&buff,
+  while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
-    if ((len2= my_read(fd2, (byte*)&buff2,
+    if ((len2= my_read(fd2, (uchar*)&buff2,
                        sizeof(buff2), MYF(0))) < len)
     {
       /* File 2 was smaller */
@@ -1287,7 +1287,7 @@ int compare_files2(File fd, const char* filename2)
       break;
     }
   }
-  if (!error && my_read(fd2, (byte*)&buff2,
+  if (!error && my_read(fd2, (uchar*)&buff2,
                         sizeof(buff2), MYF(0)) > 0)
   {
     /* File 1 was smaller */
@@ -4797,7 +4797,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the resul to include in a failure report",
-   (gptr*) &opt_tail_lines, (gptr*) &opt_tail_lines, 0,
+   (uchar**) &opt_tail_lines, (uchar**) &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
