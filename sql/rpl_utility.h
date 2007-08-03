@@ -65,10 +65,14 @@ public:
       m_field_metadata(0), m_null_bits(0), m_memory(NULL)
   {
     m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
-                              &m_type, size,
-                              &m_field_metadata, size * sizeof(short),
-                              &m_null_bits, (m_size + 7) / 8,
-                              NULL);
+                                       &m_type, size,
+                                       &m_field_metadata,
+                                       size * sizeof(uint16),
+                                       &m_null_bits, (size + 7) / 8,
+                                       NULL);
+
+    bzero(m_field_metadata, size * sizeof(uint16));
+
     if (m_type)
       memcpy(m_type, types, size);
     else
