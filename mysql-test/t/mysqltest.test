@@ -1478,7 +1478,7 @@ drop table t1;
 --exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.out;
-remove_file $MYSQLTEST_VARDIR/tmp/bug11731.log;
+remove_file $MYSQLTEST_VARDIR/log/bug11731.log;
 remove_file $MYSQLTEST_VARDIR/tmp/bug11731.sql;
 
 #
