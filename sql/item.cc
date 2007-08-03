@@ -1296,6 +1296,25 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
 }
 
 
+static bool
+left_is_superset(DTCollation *left, DTCollation *right)
+{
+  /* Allow convert to Unicode */
+  if (left->collation->state & MY_CS_UNICODE &&
+      (left->derivation < right->derivation ||
+       (left->derivation == right->derivation &&
+        !(right->collation->state & MY_CS_UNICODE))))
+    return TRUE;
+  /* Allow convert from ASCII */
+  if (right->repertoire == MY_REPERTOIRE_ASCII &&
+      (left->derivation < right->derivation ||
+       (left->derivation == right->derivation &&
+        !(left->repertoire == MY_REPERTOIRE_ASCII))))
+    return TRUE;
+  /* Disallow conversion otherwise */
+  return FALSE;
+}
+
 /*
    Aggregate two collations together taking
    into account their coercibility (aka derivation):
@@ -1360,18 +1379,12 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
        ; // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             collation->state & MY_CS_UNICODE &&
-             (derivation < dt.derivation ||
-             (derivation == dt.derivation &&
-             !(dt.collation->state & MY_CS_UNICODE))))
+             left_is_superset(this, &dt))
     {
       // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             dt.collation->state & MY_CS_UNICODE &&
-             (dt.derivation < derivation ||
-              (dt.derivation == derivation &&
-             !(collation->state & MY_CS_UNICODE))))
+             left_is_superset(&dt, this))
     {
       set(dt);
     }
@@ -1390,7 +1403,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     else
     {
       // Cannot apply conversion
-      set(0, DERIVATION_NONE);
+      set(0, DERIVATION_NONE, 0);
       return 1;
     }
   }
@@ -1412,8 +1425,8 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     {
       if (derivation == DERIVATION_EXPLICIT)
       {
-	set(0, DERIVATION_NONE);
-	return 1;
+        set(0, DERIVATION_NONE, 0);
+        return 1;
       }
       if (collation->state & MY_CS_BINSORT)
         return 0;
@@ -1427,6 +1440,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
       set(bin, DERIVATION_NONE);
     }
   }
+  repertoire|= dt.repertoire;
   return 0;
 }
 
@@ -1566,12 +1580,16 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
   {
     Item* conv;
     uint32 dummy_offset;
-    if (!String::needs_conversion(0, coll.collation,
-                                  (*arg)->collation.collation,
+    if (!String::needs_conversion(0, (*arg)->collation.collation,
+                                  coll.collation,
                                   &dummy_offset))
       continue;
 
-    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
+        ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+
+    if (!conv)
     {
       if (nargs >=2 && nargs <= 3)
       {
