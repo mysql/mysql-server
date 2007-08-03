@@ -1224,7 +1224,7 @@ void show_diff(DYNAMIC_STRING* ds,
   else
   {
     /* Print diff directly to stdout */
-    fprintf(stderr, "%s", ds_tmp.str);
+    fprintf(stderr, "%s\n", ds_tmp.str);
   }
  
   dynstr_free(&ds_tmp);
