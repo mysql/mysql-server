@@ -614,8 +614,11 @@ row_undo_dictionary(
 
 	switch (dict_undo->op_type) {
 	case TRX_UNDO_INDEX_CREATE_REC:
-		row_merge_drop_index(dict_undo->data.index,
-				     dict_undo->data.index->table, trx);
+		if (dict_undo->data.index) {
+			row_merge_drop_index(dict_undo->data.index,
+					     dict_undo->data.index->table,
+					     trx);
+		}
 		break;
 
 	/* TODO: We are REDOing the DROP ? */
