@@ -1,4 +1,3 @@
-#include "pma-internal.h"
 #include "../include/ydb-constants.h"
 #include "memory.h"
 #include "key.h"
@@ -7,46 +6,57 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include "kv-pair.h"
+#include "pma-internal.h"
 
 static void test_make_space_at (void) {
     PMA pma;
-    int r=pma_create(&pma, default_compare_fun);
+    char *key;
+    int r;
+    struct kv_pair *key_A, *key_B;
+
+    key = "A";
+    key_A = kv_pair_malloc(key, strlen(key)+1, 0, 0);
+    key = "B";
+    key_B = kv_pair_malloc(key, strlen(key)+1, 0, 0);
+
+    r=pma_create(&pma, default_compare_fun);
     assert(r==0);
     assert(pma_n_entries(pma)==0);
     r=pmainternal_make_space_at(pma, 2);
     assert(pma_index_limit(pma)==4);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
     print_pma(pma);
 
-    pma->pairs[2].key="A";
+    pma->pairs[2] = key_A;
     pma->n_pairs_present++;
     r=pmainternal_make_space_at(pma,2);
     printf("Requested space at 2, got space at %d\n", r);
     print_pma(pma);    
-    assert(pma->pairs[r].key==0);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
+    assert(pma->pairs[r]==0);
+    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
 
     assert(pma_index_limit(pma)==4);
-    pma->pairs[0].key="A";
-    pma->pairs[1].key="B";
-    pma->pairs[2].key=0;
-    pma->pairs[3].key=0;
+    pma->pairs[0] = key_A;
+    pma->pairs[1] = key_B;
+    pma->pairs[2] = 0;
+    pma->pairs[3] = 0;
     pma->n_pairs_present=2;
     print_pma(pma);    
     r=pmainternal_make_space_at(pma,0);
     printf("Requested space at 0, got space at %d\n", r);
     print_pma(pma);
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL); // make sure it doesn't go off the end.
+    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL); // make sure it doesn't go off the end.
 
     assert(pma_index_limit(pma)==8);
-    pma->pairs[0].key = "A";
-    pma->pairs[1].key = 0;
-    pma->pairs[2].key = 0;
-    pma->pairs[3].key = 0;
-    pma->pairs[4].key = "B";
-    pma->pairs[5].key = 0;
-    pma->pairs[6].key = 0;
-    pma->pairs[7].key = 0;
+    pma->pairs[0] = key_A; 
+    pma->pairs[1] = 0;
+    pma->pairs[2] = 0;
+    pma->pairs[3] = 0;
+    pma->pairs[4] = key_B;
+    pma->pairs[5] = 0;
+    pma->pairs[6] = 0;
+    pma->pairs[7] = 0;
     pma->n_pairs_present=2;
     print_pma(pma);
     r=pmainternal_make_space_at(pma,5);
@@ -55,15 +65,16 @@ static void test_make_space_at (void) {
     {
 	int i;
 	for (i=0; i<pma_index_limit(pma); i++) {
-	    if (pma->pairs[i].key) {
+	    if (pma->pairs[i]) {
 		assert(i<r);
+            pma->pairs[i] = 0;
 	    }
-	    pma->pairs[i].key=0; // zero it so that we don't mess things up on free
-	    pma->pairs[i].val=0;
 	}
     }
     r=pma_free(&pma); assert(r==0);
     assert(pma==0);
+    kv_pair_free(key_A);
+    kv_pair_free(key_B);
 }
 
 static void test_pma_find (void) {
@@ -76,14 +87,13 @@ static void test_pma_find (void) {
     MALLOC_N(N,pma->pairs);
     // All that is needed to test pma_find is N and pairs.
     pma->N = N;
-    for (i=0; i<N; i++) pma->pairs[i].key=0;
+    for (i=0; i<N; i++) pma->pairs[i]=0;
     assert(pma_index_limit(pma)==N);
     pma->compare_fun = default_compare_fun;
     r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==0);
 
-    pma->pairs[5].key="hello";
-    pma->pairs[5].keylen=5;
+    pma->pairs[5] = kv_pair_malloc("hello", 5, 0, 0);
     assert(pma_index_limit(pma)==N);
     r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(pma_index_limit(pma)==N);
@@ -93,8 +103,7 @@ static void test_pma_find (void) {
     r=pmainternal_find(pma, fill_dbt(&k, "aaa", 3), 0);
     assert(r==0);
 
-    pma->pairs[N-1].key="there";
-    pma->pairs[N-1].keylen=5;
+    pma->pairs[N-1] = kv_pair_malloc("there", 5, 0, 0);
     r=pmainternal_find(pma, fill_dbt(&k, "hello", 5), 0);
     assert(r==5);
     r=pmainternal_find(pma, fill_dbt(&k, "there", 5), 0);
@@ -105,13 +114,17 @@ static void test_pma_find (void) {
     assert(r==6);
     r=pmainternal_find(pma, fill_dbt(&k, "zzz", 3), 0);
     assert(r==N);
+
+    for (i=0; i<N; i++)
+        if (pma->pairs[i])
+            kv_pair_free(pma->pairs[i]);
     toku_free(pma->pairs);
     toku_free(pma);
 }
 
 void test_smooth_region_N (int N) {
-    struct pair pairs[N];
-    char *strings[100];
+    struct kv_pair *pairs[N];
+    struct kv_pair *strings[N];
     char string[N];
     int i;
     int len;
@@ -121,7 +134,7 @@ void test_smooth_region_N (int N) {
 
     for (i=0; i<N; i++) {
 	snprintf(string, 10, "%0*d", len, i);
-	strings[i] = strdup(string);
+	strings[i] = kv_pair_malloc(string, len+1, 0, 0);
     }
 
     assert(N<30);
@@ -132,16 +145,16 @@ void test_smooth_region_N (int N) {
 	    int r;
 	    for (j=0; j<N; j++) {
 		if ((1<<j)&i) {
-		    pairs[j].key = strings[j];
+		    pairs[j] = strings[j];
 		} else {
-		    pairs[j].key = 0;
+		    pairs[j] = 0;
 		}
 	    }
 	    pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat);
 	    r = pmainternal_smooth_region(pairs, N, insertat);
 	    pmainternal_printpairs(pairs, N); printf(" at %d\n", r);
 	    assert(0<=r); assert(r<N);
-	    assert(pairs[r].key==0);
+	    assert(pairs[r]==0);
 	    /* Now verify that things are in the right place:
 	     *  everything before r should be smaller than keys[insertat].
 	     *  everything after is bigger.
@@ -149,8 +162,8 @@ void test_smooth_region_N (int N) {
 	    {
 		int cleari = i;
 		for (j=0; j<N; j++) {
-		    if (pairs[j].key) {
-			int whichkey = atoi(pairs[j].key);
+		    if (pairs[j]) {
+			int whichkey = atoi(pairs[j]->key);
 			assert(cleari&(1<<whichkey));
 			cleari &= ~(1<<whichkey);
 			if (whichkey<insertat) assert(j<r);
@@ -162,18 +175,32 @@ void test_smooth_region_N (int N) {
 	}
     }
     for (i=0; i<N; i++) {
-	free(strings[i]);
+	kv_pair_free(strings[i]);
     }
 }
 
-    
 void test_smooth_region6 (void) {
     enum {N=7};
-    struct pair pairs[N] = {{.key="A"},{.key="B"},{.key=0},{.key=0},{.key=0},{.key=0},{.key=0}};
+    struct kv_pair *pairs[N];
+    char *key;
+    int i;
+
+    for (i=0; i<N; i++)
+        pairs[i] = 0;
+    key = "A";
+    pairs[0] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
+    key = "B";
+    pairs[1] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
+
     int r = pmainternal_smooth_region(pairs, N, 2);
-    printf("{%s %s %s %s %s %s %s} %d\n",
-	   (char*)pairs[0].key, (char*)pairs[1].key, (char*)pairs[2].key, (char*)pairs[3].key, (char*)pairs[4].key, (char*)pairs[5].key, (char*)pairs[6].key,
-	   r);
+    printf("{ ");
+    for (i=0; i<N; i++)
+        printf("%s ", pairs[i] ? pairs[i]->key : "?");
+    printf("} %d\n", r);
+
+    for (i=0; i<7; i++)
+        if (pairs[i])
+            kv_pair_free(pairs[i]);
 }
     
 
@@ -191,19 +218,31 @@ static void test_calculate_parameters (void) {
 }
 
 static void test_count_region (void) {
-    struct pair pairs[4]={{.key=0},{.key=0},{.key=0},{.key=0}};
+    const int N = 4;
+    struct kv_pair *pairs[N];
+    int i;
+    char *key;
+    
+    for (i=0; i<N; i++)
+        pairs[i] = 0;
     assert(pmainternal_count_region(pairs,0,4)==0);
     assert(pmainternal_count_region(pairs,2,4)==0);
     assert(pmainternal_count_region(pairs,0,2)==0);
-    pairs[2].key="A";
+    key = "A";
+    pairs[2] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
     assert(pmainternal_count_region(pairs,0,4)==1);
     assert(pmainternal_count_region(pairs,2,4)==1);
     assert(pmainternal_count_region(pairs,0,2)==0);
     assert(pmainternal_count_region(pairs,2,2)==0);
     assert(pmainternal_count_region(pairs,2,3)==1);
-    pairs[3].key="B";
-    pairs[0].key="a";
+    key = "B";
+    pairs[3] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
+    key = "a";
+    pairs[0] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
     assert(pmainternal_count_region(pairs,0,4)==3);
+    for (i=0; i<N; i++)
+        if (pairs[i])
+            kv_pair_free(pairs[i]);
 }
 
 static void test_pma_random_pick (void) {
@@ -295,12 +334,12 @@ static void test_find_insert (void) {
     assert(r==BRT_OK);
     assert(keycompare(v.data,v.size,"bbbdata", 8)==0);
 
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
     
     r=pma_insert(pma, fill_dbt(&k, "00000", 6), fill_dbt(&v, "d0", 3), 0);
     assert(r==BRT_OK);
 
-    assert((unsigned long)pma->pairs[pma_index_limit(pma)].key==0xdeadbeefL);
+    assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
 
     r=pma_free(&pma); assert(r==0); assert(pma==0);
     pma_create(&pma, default_compare_fun); assert(pma!=0);
@@ -545,6 +584,7 @@ void test_pma_split(int n) {
     PMA pmaa, pmab, pmac;
     int error;
     int i;
+    int na, nb, nc;
 
     printf("test_pma_split:%d\n", n);
 
@@ -571,8 +611,14 @@ void test_pma_split(int n) {
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
+    na = pma_n_entries(pmaa);
     printf("b:"); print_pma(pmab);
+    nb = pma_n_entries(pmab);
     printf("c:"); print_pma(pmac);
+    nc = pma_n_entries(pmac);
+
+    assert(na == 0);
+    assert(nb + nc == n);
 
     error = pma_free(&pmaa);
     assert(error == 0);
@@ -588,6 +634,7 @@ void test_pma_split_varkey() {
     PMA pmaa, pmab, pmac;
     int error;
     int i;
+    int n, na, nb, nc;
 
     printf("test_pma_split_varkey\n");
 
@@ -606,6 +653,7 @@ void test_pma_split_varkey() {
         error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
         assert(error == BRT_OK);
     }
+    n = i;
 
     printf("a:"); print_pma(pmaa);
 
@@ -613,8 +661,14 @@ void test_pma_split_varkey() {
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
+    na = pma_n_entries(pmaa);
     printf("b:"); print_pma(pmab);
+    nb = pma_n_entries(pmab);
     printf("c:"); print_pma(pmac);
+    nc = pma_n_entries(pmac);
+
+    assert(na == 0);
+    assert(nb + nc == n);
 
     error = pma_free(&pmaa);
     assert(error == 0);

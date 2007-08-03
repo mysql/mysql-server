@@ -3,16 +3,17 @@
    Only the pointers are kept.
  */
 
-#include "pma-internal.h"
 #include "key.h"
 #include "memory.h"
 #include "myassert.h"
 #include "../include/ydb-constants.h"
 #include <stdio.h>
 #include <errno.h>
-
 /* Only needed for testing. */
 #include <string.h>
+
+#include "kv-pair.h"
+#include "pma-internal.h"
 
 
 int pma_n_entries (PMA pma) {
@@ -22,26 +23,44 @@ int pma_n_entries (PMA pma) {
 int pma_index_limit (PMA pma) {
     return pma->N;
 }
+
 int pmanode_valid (PMA pma, int i) {
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return pma->pairs[i].key!=0;
+    return pma->pairs[i] != 0;
 }
+
 bytevec pmanode_key (PMA pma, int i) {
+    struct kv_pair *pair;
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return pma->pairs[i].key;
+    pair = pma->pairs[i];
+    assert(pair);
+    return pair->key;
 }
+
 ITEMLEN pmanode_keylen (PMA pma, int i) {
+    struct kv_pair *pair;
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return pma->pairs[i].keylen;
+    pair = pma->pairs[i];
+    assert(pair);
+    return pair->keylen;
 }
+
 bytevec pmanode_val (PMA pma, int i) {
+    struct kv_pair *pair;
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return pma->pairs[i].val;
+    pair = pma->pairs[i];
+    assert(pair);
+    return pair->key + pair->keylen;
 }
+
 ITEMLEN pmanode_vallen (PMA pma, int i) {
+    struct kv_pair *pair;
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return pma->pairs[i].vallen;
+    pair = pma->pairs[i];
+    assert(pair);
+    return pair->vallen;
 }
+
 
 /* Could pick the same one every time if we wanted. */
 int pma_random_pick(PMA pma, bytevec *key, ITEMLEN *keylen, bytevec *val, ITEMLEN *vallen) {
@@ -49,7 +68,7 @@ int pma_random_pick(PMA pma, bytevec *key, ITEMLEN *keylen, bytevec *val, ITEMLE
     int i;
     /* For now a simple implementation where we simply start at the beginning and look. */
     for (i=0; i<pma_index_limit(pma); i++) {
-	if (pma->pairs[i].key) {
+	if (pma->pairs[i]) {
 	    *key = pmanode_key(pma,i);
 	    *keylen = pmanode_keylen(pma,i);
 	    *val = pmanode_val(pma,i);
@@ -100,10 +119,10 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
 	int mid;
 	// Scan forward looking for a non-null value.
 	for (mid=(lo+hi)/2; mid<hi; mid++) {
-	    if (pma->pairs[mid].key!=0) {
+	    if (pma->pairs[mid]!=0) {
 		// Found one.
 		DBT k2;
-		int cmp = pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[mid].key, pma->pairs[mid].keylen));
+		int cmp = pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[mid]->key, pma->pairs[mid]->keylen));
 		if (cmp==0) return mid;
 		else if (cmp<0) {
 		    /* key is smaller than the midpoint, so look in the low half. */
@@ -130,10 +149,10 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
     assert(lo==hi);
     assert(hi <= pma_index_limit(pma));
     /* If lo points at something, the something should not be smaller than key. */
-    if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo].key) {
+    if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
-	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo].key, pma->pairs[lo].keylen)));
+	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
     }
     return lo;
 }
@@ -142,17 +161,17 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
 //int max (int i, int j) { if (i<j) return j; else return i; }
 //double lg (int n) { return log((double)n)/log(2.0); }
 
-int pmainternal_printpairs (struct pair *pairs, int N) {
+int pmainternal_printpairs (struct kv_pair *pairs[], int N) {
     int count=0;
     int i;
     printf("{");
     for (i=0; i<N; i++) {
-	if (i!=0) printf(" ");
-	if (pairs[i].key) {
-	    printf("%s", (char*)pairs[i].key);
-	    count++;
-	}
-	else printf("_");
+        if (i!=0) printf(" ");
+        if (pairs[i]) {
+            printf("%s", (char*)pairs[i]->key);
+            count++;
+        }
+        else printf("_");
     }
     printf("}");
     return count;
@@ -167,15 +186,15 @@ void print_pma (PMA pma) {
 }
 
 /* Smooth the data, and return the location of the null. */
-int distribute_data (struct pair *destpairs, int   dcount,
-		     struct pair *sourcepairs, int scount) {
+int distribute_data (struct kv_pair *destpairs[], int   dcount,
+		     struct kv_pair *sourcepairs[], int scount) {
     assert(scount<=dcount);
     if (scount==0) {
 	return -1;
     }
     if (scount==1) {
-	*destpairs=*sourcepairs;
-	if (destpairs->key==0) return 0;
+	destpairs[0]=sourcepairs[0];
+	if (destpairs[0]==0) return 0;
 	else return -1;
     } else {
 	int r1 = distribute_data(destpairs, dcount/2,
@@ -191,31 +210,28 @@ int distribute_data (struct pair *destpairs, int   dcount,
 
 /* spread the non-empty pairs around.  There are n of them.  Create an empty slot just before the IDXth
    element, and return that slot's index in the smoothed array. */
-int pmainternal_smooth_region (struct pair *pairs, int n, int idx) {
+int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx) {
     int i;
     int n_present=0;
     for (i=0; i<n; i++) {
-	if (pairs[i].key) n_present++;
+	if (pairs[i]) n_present++;
     }
     n_present++; // Save one for the blank guy.
     {
-	struct pair *MALLOC_N(n_present,tmppairs);
+	struct kv_pair **MALLOC_N(n_present,tmppairs);
 	int n_saved=0;
 	int r;
 	for (i=0; i<n; i++) {
 	    if (i==idx) {
-		tmppairs[n_saved++].key = 0;
+		tmppairs[n_saved++] = 0;
 	    }
-	    if (pairs[i].key) {
+	    if (pairs[i]) {
 		tmppairs[n_saved++] = pairs[i];
 	    }
-	    pairs[i].key    = 0;
-	    pairs[i].keylen = 0;
-	    pairs[i].val    = 0;
-	    pairs[i].vallen = 0;
+        pairs[i] = 0;
 	}
 	if (idx==n) {
-	    tmppairs[n_saved++].key = 0;
+	    tmppairs[n_saved++] = 0;
 	}
 	//printf(" temp="); printpairs(tmppairs, n_saved);
 	assert(n_saved==n_present);
@@ -254,10 +270,10 @@ void pmainternal_calculate_parameters (PMA pma)
     pma->densitystep = 0.5/n_divisions;
 }
 
-int pmainternal_count_region (struct pair *pairs, int lo, int hi) {
+int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
     int n=0;
     while (lo<hi) {
-	if (pairs[lo].key) n++;
+	if (pairs[lo]) n++;
 	lo++;
     }
     return n;
@@ -282,7 +298,7 @@ int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     }
 
     *pma = result;
-    assert((unsigned long)result->pairs[result->N].key==0xdeadbeefL);
+    assert((unsigned long)result->pairs[result->N]==0xdeadbeefL);
     return 0;
 }
 
@@ -301,16 +317,13 @@ int pmainternal_init_array(PMA pma, int asksize) {
         n *= 2;
 
     pma->N = n;
-    MALLOC_N(1+pma->N, pma->pairs);
+    pma->pairs = toku_malloc((1 + pma->N) * sizeof (struct kv_pair *));
     if (pma->pairs == 0)
         return -1;
-    pma->pairs[pma->N].key = (void *) 0xdeadbeef;
+    pma->pairs[pma->N] = (void *) 0xdeadbeef;
 
     for (i=0; i<pma->N; i++) {
-        pma->pairs[i].key = 0;
-        pma->pairs[i].keylen = 0;
-        pma->pairs[i].val = 0;
-        pma->pairs[i].vallen = 0;
+        pma->pairs[i] = 0;
     }
     pmainternal_calculate_parameters(pma);
     return 0;
@@ -340,7 +353,7 @@ int pma_cursor_set_position_last (PMA_CURSOR c)
 {
     PMA pma = c->pma;
     c->position=pma->N-1;
-    while (c->pma->pairs[c->position].key==0) {
+    while (c->pma->pairs[c->position]==0) {
 	if (c->position>0) c->position--;
 	else return DB_NOTFOUND;
     }
@@ -351,7 +364,7 @@ int pma_cursor_set_position_first (PMA_CURSOR c)
 {
     PMA pma = c->pma;
     c->position=0;
-    while (c->pma->pairs[c->position].key==0) {
+    while (c->pma->pairs[c->position]==0) {
 	if (c->position+1<pma->N) c->position++;
 	else return DB_NOTFOUND;
     }
@@ -364,7 +377,7 @@ int pma_cursor_set_position_next (PMA_CURSOR c)
     int old_position=c->position;
     c->position++;
     while (c->position<pma->N) {
-	if (c->pma->pairs[c->position].key!=0) return 0;
+	if (c->pma->pairs[c->position]!=0) return 0;
 	c->position++;
     }
     c->position=old_position;
@@ -373,9 +386,10 @@ int pma_cursor_set_position_next (PMA_CURSOR c)
 
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
-    if (pma->pairs[c->position].key==0) return BRT_KEYEMPTY;
-    ybt_set_value(key, pma->pairs[c->position].key, pma->pairs[c->position].keylen, &c->skey);
-    ybt_set_value(val, pma->pairs[c->position].val, pma->pairs[c->position].vallen, &c->sval);
+    struct kv_pair *pair = pma->pairs[c->position];
+    if (pair==0) return BRT_KEYEMPTY;
+    ybt_set_value(key, pair->key, pair->keylen, &c->skey);
+    ybt_set_value(val, pair->key + pair->keylen, pair->vallen, &c->sval);
     return 0;
 }
 
@@ -452,9 +466,9 @@ int pmainternal_make_space_at (PMA pma, int idx) {
 		assert(size==pma_index_limit(pma));
 		size*=2;
 		//printf("realloc %p to %d\n", pma->pairs, size*sizeof(*pma->pairs));
-		pma->pairs = toku_realloc(pma->pairs, (1+size)*sizeof(*pma->pairs));
-		for (i=hi; i<size; i++) pma->pairs[i].key=0;
-		pma->pairs[size].key = (void*)0xdeadbeefL;
+		pma->pairs = toku_realloc(pma->pairs, (1+size)*sizeof(struct kv_pair *));
+		for (i=hi; i<size; i++) pma->pairs[i]=0;
+		pma->pairs[size] = (void*)0xdeadbeefL;
 		pma->N=size;
 		pmainternal_calculate_parameters(pma);
 		hi=size;
@@ -472,21 +486,18 @@ int pmainternal_make_space_at (PMA pma, int idx) {
     }
 }
 
-
 enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
     DBT k2;
+    struct kv_pair *pair;
     int l = pmainternal_find(pma, k, db);
     assert(0<=l ); assert(l<=pma_index_limit(pma));
     if (l==pma_index_limit(pma)) return DB_NOTFOUND;
-    if (pma->pairs[l].key!=0 && pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[l].key,pma->pairs[l].keylen))==0) {
-	return ybt_set_value(v, pma->pairs[l].val, pma->pairs[l].vallen, &pma->sval);
+    pair = pma->pairs[l];
+    if (pair!=0 && pma->compare_fun(db, k, fill_dbt(&k2, pair->key, pair->keylen))==0) {
+        return ybt_set_value(v, pair->key + pair->keylen, pair->vallen, &pma->sval);
     } else {
-	return DB_NOTFOUND;
+        return DB_NOTFOUND;
     }
-}
-
-void maybe_free (const void *p) {
-    if (p) toku_free((void*)p);
 }
 
 /* returns 0 if OK.
@@ -496,12 +507,10 @@ int pma_free (PMA *pmap) {
     PMA pma=*pmap;
     if (pma->cursors_head) return -1;
     for (i=0; i<pma_index_limit(pma); i++) {
-	if (pma->pairs[i].key) {
-	    maybe_free(pma->pairs[i].key);
-	    maybe_free(pma->pairs[i].val);
-	    pma->pairs[i].key=0;
-	    pma->pairs[i].val=0;
-	}
+        if (pma->pairs[i]) {
+            kv_pair_free(pma->pairs[i]);
+            pma->pairs[i] = 0;
+        }
     }
     toku_free(pma->pairs);
     if (pma->skey) toku_free(pma->skey);
@@ -514,37 +523,31 @@ int pma_free (PMA *pmap) {
 /* Copies keylen and datalen */ 
 int pma_insert (PMA pma, DBT *k, DBT *v, DB* db) {
     int idx = pmainternal_find(pma, k, db);
-    if (idx < pma_index_limit(pma) && pma->pairs[idx].key) {
-	DBT k2;
-	if (0==pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[idx].key, pma->pairs[idx].keylen))) {
-	    return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
-	}
+    if (idx < pma_index_limit(pma) && pma->pairs[idx]) {
+        DBT k2;
+        if (0==pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[idx]->key, pma->pairs[idx]->keylen))) {
+            return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
+        }
     }
-    if (pma->pairs[idx].key) {
-	idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
+    if (pma->pairs[idx]) {
+        idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
-    assert(!pma->pairs[idx].key);
-    pma->pairs[idx].key    = memdup(k->data, k->size);
-    pma->pairs[idx].keylen = k->size;
-    pma->pairs[idx].val    = memdup(v->data, v->size);
-    pma->pairs[idx].vallen = v->size;
+    assert(!pma->pairs[idx]);
+    pma->pairs[idx] = kv_pair_malloc(k->data, k->size, v->data, v->size);
+    assert(pma->pairs[idx]);
     pma->n_pairs_present++;
     return BRT_OK;
 }    
 
 int pma_delete (PMA pma, DBT *k, DB *db) {
     int l = pmainternal_find(pma, k, db);
-    if (pma->pairs[l].key==0) {
+    struct kv_pair *pair = pma->pairs[l];
+    if (pair==0) {
 	printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, l, DB_NOTFOUND);
 	return DB_NOTFOUND;
     }
-    assert(pma->pairs[l].val!=0);
-    toku_free((void*)pma->pairs[l].key);
-    toku_free((void*)pma->pairs[l].val);
-    pma->pairs[l].key = 0;
-    pma->pairs[l].val = 0;
-    pma->pairs[l].keylen = 0;
-    pma->pairs[l].vallen = 0;
+    kv_pair_free(pair);
+    pma->pairs[l] = 0;
     pma->n_pairs_present--;
     // Need to rebalance
 //    smooth_after_delete(pma,l);
@@ -554,28 +557,29 @@ int pma_delete (PMA pma, DBT *k, DB *db) {
 void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*v) {
     int i;
     for (i=0; i<pma_index_limit(pma); i++) {
-	if (pma->pairs[i].key) {
-	    f(pma->pairs[i].key, pma->pairs[i].keylen,
-	      pma->pairs[i].val, pma->pairs[i].vallen,
-	      v);
-	}
+        struct kv_pair *pair = pma->pairs[i];
+        if (pair) {
+            f(pair->key, pair->keylen,
+                pair->key + pair->keylen, pair->vallen, v);
+        }
     }
 }
 
-struct pair *pmainternal_extract_pairs(PMA pma) {
+struct kv_pair **pmainternal_extract_pairs(PMA pma, int lo, int hi) {
     int npairs;
-    struct pair *pairs;
+    struct kv_pair **pairs;
     int i;
     int lastpair;
 
     npairs = pma_n_entries(pma);
-    pairs = toku_malloc(npairs * sizeof (struct pair));
+    pairs = toku_malloc(npairs * sizeof (struct kv_pair *));
+    if (pairs == 0)
+        return 0;
     lastpair = 0;
-    for (i=0; i<pma_index_limit(pma); i++) {
-        if (pma->pairs[i].key != 0) {
+    for (i=lo; i<hi; i++) {
+        if (pma->pairs[i] != 0) {
             pairs[lastpair] = pma->pairs[i];
-            pma->pairs[i].key = 0;
-            pma->pairs[i].val = 0;
+            pma->pairs[i] = 0;
             lastpair += 1;
         }
     }
@@ -583,11 +587,12 @@ struct pair *pmainternal_extract_pairs(PMA pma) {
     return pairs;
 }
 
-int pma_split(PMA old, PMA *newa, PMA *newb, 
+int pma_split(PMA old, PMA *newap, PMA *newbp, 
         PMA_CURSOR *cursors, int ncursors) {
+    PMA newa, newb;
     int error;
     int npairs;
-    struct pair *pairs;
+    struct kv_pair **pairs;
     int sumlen;
     int runlen;
     int len;
@@ -597,28 +602,32 @@ int pma_split(PMA old, PMA *newa, PMA *newb,
     assert(cursors == 0 && ncursors == 0);
 
     /* create the new pma's */
-    error = pma_create(newa, old->compare_fun);
+    error = pma_create(newap, old->compare_fun);
     if (error != 0)
         return error;
-    error = pma_create(newb, old->compare_fun);
+    error = pma_create(newbp, old->compare_fun);
     if (error != 0) {
-        pma_free(newb);
+        pma_free(newap);
         return error;
     }
 
+    newa = *newap;
+    newb = *newbp;
+
     /* extract the pairs */
     npairs = pma_n_entries(old);
-    pairs = pmainternal_extract_pairs(old);
+    pairs = pmainternal_extract_pairs(old, 0, old->N);
+    assert(pairs);
     old->n_pairs_present = 0;
 
     /* split the pairs in half by length (TODO: combine sum with extract) */
     sumlen = 0;
     for (i=0; i<npairs; i++)
-        sumlen += 4 + pairs[i].keylen + 4 + pairs[i].vallen;
+        sumlen += 4 + kv_pair_keylen(pairs[i]) + 4 + kv_pair_vallen(pairs[i]);
 
     runlen = 0;
     for (i=0; i < npairs; i++) {
-        len = 4 + pairs[i].keylen + 4 + pairs[i].vallen;
+        len = 4 + kv_pair_keylen(pairs[i]) + 4 + kv_pair_vallen(pairs[i]);
         if (runlen + len > sumlen/2)
             break;
         runlen += len;
@@ -626,18 +635,19 @@ int pma_split(PMA old, PMA *newa, PMA *newb,
     spliti = i;
 
     /* put the first half of pairs into newa */
-    error = pmainternal_init_array(*newa, 2 * spliti);
+    error = pmainternal_init_array(newa, 2 * spliti);
     assert(error == 0);
-    distribute_data((*newa)->pairs, pma_index_limit(*newa), &pairs[0], spliti);
-    (*newa)->n_pairs_present = spliti;
+    distribute_data(newa->pairs, pma_index_limit(newa), &pairs[0], spliti);
+    newa->n_pairs_present = spliti;
 
     /* put the second half of pairs into newb */
-    error = pmainternal_init_array(*newb, 2 * (npairs-spliti));
+    error = pmainternal_init_array(newb, 2 * (npairs-spliti));
     assert(error == 0);
-    distribute_data((*newb)->pairs, pma_index_limit(*newb), &pairs[spliti], npairs-spliti);
-    (*newb)->n_pairs_present = npairs-spliti;
+    distribute_data(newb->pairs, pma_index_limit(newb), &pairs[spliti], npairs-spliti);
+    newb->n_pairs_present = npairs-spliti;
 
     toku_free(pairs);
 
     return 0;
 }
+
