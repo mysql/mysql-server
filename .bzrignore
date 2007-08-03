@@ -2882,6 +2882,7 @@ support-files/mysql-3.23.29-gamma.spec
 support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
+support-files/mysqld_multi.server
 support-files/ndb-config-2-node.ini
 tags
 test/ndbapi/bank/bankCreator
@@ -2947,6 +2948,7 @@ tests/.deps/thread_test.Po
 tests/.libs -prune
 tests/.libs/lt-mysql_client_test
 tests/.libs/mysql_client_test
+tests/bug25714
 tests/client_test
 tests/connect_test
 tests/mysql_client_test

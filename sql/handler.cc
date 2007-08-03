@@ -3467,8 +3467,7 @@ namespace {
     if (table->s->cached_row_logging_check == -1)
     {
       int const check(table->s->tmp_table == NO_TMP_TABLE &&
-                      binlog_filter->db_ok(table->s->db.str) &&
-                      !table->no_replicate);
+                      binlog_filter->db_ok(table->s->db.str));
       table->s->cached_row_logging_check= check;
     }
 
@@ -3476,9 +3475,9 @@ namespace {
                 table->s->cached_row_logging_check == 1);
 
     return (thd->current_stmt_binlog_row_based &&
+            table->s->cached_row_logging_check &&
             (thd->options & OPTION_BIN_LOG) &&
-            mysql_bin_log.is_open() &&
-            table->s->cached_row_logging_check);
+            mysql_bin_log.is_open());
   }
 }
 
@@ -3556,7 +3555,7 @@ namespace
                  const uchar *before_record,
                  const uchar *after_record)
   {
-    if (table->file->ha_table_flags() & HA_HAS_OWN_BINLOGGING)
+    if (table->no_replicate)
       return 0;
     bool error= 0;
     THD *const thd= table->in_use;
