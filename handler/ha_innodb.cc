@@ -8387,16 +8387,16 @@ err_exit:
 			heap, '1', innodb_table->name);
 
 		row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
 
 		/* Clone table and write UNDO log record */
 		indexed_table = row_merge_create_temporary_table(
 			new_table_name, innodb_table, trx);
 
-		row_mysql_unlock_data_dictionary(trx);
-
 		if (!indexed_table) {
 
 			error = trx->error_state;
+			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
 	} else if (!trx->dict_redo_list) {
@@ -8415,8 +8415,10 @@ err_exit:
 	or lock waits can happen in it during an index create operation.
 	Drop table etc. do this latching in row0mysql.c. */
 
-	row_mysql_lock_data_dictionary(trx);
-	dict_locked = TRUE;
+	if (UNIV_LIKELY(!dict_locked)) {
+	  	row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
+	}
 
 	num_created = 0;
 
