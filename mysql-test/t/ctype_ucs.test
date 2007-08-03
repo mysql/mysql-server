@@ -651,5 +651,4 @@ select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 drop table t1;
 
-
 --echo End of 5.0 tests
