@@ -307,3 +307,89 @@ my_bool my_parse_charset_xml(const char *buf, size_t len,
   my_xml_parser_free(&p);
   return rc;
 }
+
+
+/*
+  Check repertoire: detect pure ascii strings
+*/
+uint
+my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
+{
+  const char *strend= str + length;
+  if (cs->mbminlen == 1)
+  {
+    for ( ; str < strend; str++)
+    {
+      if (((uchar) *str) > 0x7F)
+        return MY_REPERTOIRE_UNICODE30;
+    }
+  }
+  else
+  {
+    my_wc_t wc;
+    int chlen;
+    for (; (chlen= cs->cset->mb_wc(cs, &wc, str, strend)) > 0; str+= chlen)
+    {
+      if (wc > 0x7F)
+        return MY_REPERTOIRE_UNICODE30;
+    }
+  }
+  return MY_REPERTOIRE_ASCII;
+}
+
+
+/*
+  Detect whether a character set is ASCII compatible.
+
+  Returns TRUE for:
+  
+  - all 8bit character sets whose Unicode mapping of 0x7B is '{'
+    (ignores swe7 which maps 0x7B to "LATIN LETTER A WITH DIAERESIS")
+  
+  - all multi-byte character sets having mbminlen == 1
+    (ignores ucs2 whose mbminlen is 2)
+  
+  TODO:
+  
+  When merging to 5.2, this function should be changed
+  to check a new flag MY_CS_NONASCII, 
+  
+     return (cs->flag & MY_CS_NONASCII) ? 0 : 1;
+  
+  This flag was previously added into 5.2 under terms
+  of WL#3759 "Optimize identifier conversion in client-server protocol"
+  especially to mark character sets not compatible with ASCII.
+  
+  We won't backport this flag to 5.0 or 5.1.
+  This function is Ok for 5.0 and 5.1, because we're not going
+  to introduce new tricky character sets between 5.0 and 5.2.
+*/
+my_bool
+my_charset_is_ascii_based(CHARSET_INFO *cs)
+{
+  return 
+    (cs->mbmaxlen == 1 && cs->tab_to_uni && cs->tab_to_uni['{'] == '{') ||
+    (cs->mbminlen == 1 && cs->mbmaxlen > 1);
+}
+
+
+/*
+  Detect if a character set is 8bit,
+  and it is pure ascii, i.e. doesn't have
+  characters outside U+0000..U+007F
+  This functions is shared between "conf_to_src"
+  and dynamic charsets loader in "mysqld".
+*/
+my_bool
+my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
+{
+  size_t code;
+  if (!cs->tab_to_uni)
+    return 0;
+  for (code= 0; code < 256; code++)
+  {
+    if (cs->tab_to_uni[code] > 0x7F)
+      return 0;
+  }
+  return 1;
+}

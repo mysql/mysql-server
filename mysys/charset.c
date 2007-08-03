@@ -277,6 +277,9 @@ static int add_collation(CHARSET_INFO *cs)
         if (sort_order && sort_order['A'] < sort_order['a'] &&
                           sort_order['a'] < sort_order['B'])
           all_charsets[cs->number]->state|= MY_CS_CSSORT; 
+
+        if (my_charset_is_8bit_pure_ascii(all_charsets[cs->number]))
+          all_charsets[cs->number]->state|= MY_CS_PUREASCII;
       }
     }
     else
