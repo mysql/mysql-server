@@ -944,6 +944,7 @@ trx_sys_init_at_db_start(void)
 		2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
+	trx_dummy_sess = sess_open();
 	trx_lists_init_at_db_start();
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
@@ -983,8 +984,6 @@ trx_sys_init_at_db_start(void)
 	UT_LIST_INIT(trx_sys->view_list);
 
 	trx_purge_sys_create();
-
-	trx_dummy_sess = sess_open();
 
 	mutex_exit(&kernel_mutex);
 
