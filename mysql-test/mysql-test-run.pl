@@ -307,7 +307,6 @@ our @data_dir_lst;
 our $used_binlog_format;
 our $used_default_engine;
 our $debug_compiled_binaries;
-our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
 
