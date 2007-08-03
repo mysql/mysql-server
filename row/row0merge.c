@@ -87,10 +87,14 @@ row_merge_buf_create_low(
 					/* out,own: sort buffer */
 	mem_heap_t*	heap,		/* in: heap where allocated */
 	dict_index_t*	index,		/* in: secondary index */
-	ulint		buf_size,	/* in: size of the buffer, in bytes */
-	ulint		max_tuples)	/* in: maximum number of data tuples */
+	ulint		max_tuples,	/* in: maximum number of data tuples */
+	ulint		buf_size)	/* in: size of the buffer, in bytes */
 {
 	row_merge_buf_t*	buf;
+
+	ut_ad(max_tuples > 0);
+	ut_ad(max_tuples <= sizeof(row_merge_block_t));
+	ut_ad(max_tuples < buf_size);
 
 	buf = mem_heap_calloc(heap, buf_size);
 	buf->heap = heap;
@@ -132,10 +136,11 @@ row_merge_buf_create(
 /**********************************************************
 Empty a sort buffer. */
 static
-void
+row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
-	row_merge_buf_t*	buf)	/* in/out: sort buffer */
+					/* out: sort buffer */
+	row_merge_buf_t*	buf)	/* in,own: sort buffer */
 {
 	ulint		buf_size;
 	ulint		max_tuples	= buf->max_tuples;
@@ -146,7 +151,7 @@ row_merge_buf_empty(
 
 	mem_heap_empty(heap);
 
-	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
+	return(row_merge_buf_create_low(heap, index, max_tuples, buf_size));
 }
 
 /**********************************************************
@@ -926,7 +931,7 @@ row_merge_read_clustered_index(
 				goto func_exit;
 			}
 
-			row_merge_buf_empty(buf);
+			merge_buf[i] = row_merge_buf_empty(buf);
 		}
 
 		mem_heap_empty(row_heap);
