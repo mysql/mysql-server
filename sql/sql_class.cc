@@ -173,6 +173,7 @@ THD::THD()
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
+   transaction_rollback_request(0), is_fatal_sub_stmt_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), last_insert_id_used_bin_log(0), insert_id_used(0),
    clear_next_insert_id(0), in_lock_tables(0), bootstrap(0),
@@ -197,7 +198,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   db_length= col_access=0;
-  query_error= tmp_table_used= 0;
+  query_error= tmp_table_used= thread_specific_used= 0;
   next_insert_id=last_insert_id=0;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
@@ -339,7 +340,7 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
-  no_trans_update.stmt= no_trans_update.all= FALSE;
+  transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -976,7 +977,7 @@ void select_send::abort()
 {
   DBUG_ENTER("select_send::abort");
   if (status && thd->spcont &&
-      thd->spcont->find_handler(thd->net.last_errno,
+      thd->spcont->find_handler(thd, thd->net.last_errno,
                                 MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     /*
@@ -2211,6 +2212,13 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
+  /*
+    If we've left sub-statement mode, reset the fatal error flag.
+    Otherwise keep the current value, to propagate it up the sub-statement
+    stack.
+  */
+  if (!in_sub_stmt)
+    is_fatal_sub_stmt_error= FALSE;
 
   if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command))
     mysql_bin_log.stop_union_events(this);
@@ -2224,6 +2232,18 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 }
 
 
+/**
+  Mark transaction to rollback and mark error as fatal to a sub-statement.
+
+  @param  thd   Thread handle
+  @param  all   TRUE <=> rollback main transaction.
+*/
+
+void mark_transaction_to_rollback(THD *thd, bool all)
+{
+  thd->is_fatal_sub_stmt_error= TRUE;
+  thd->transaction_rollback_request= all;
+}
 /***************************************************************************
   Handling of XA id cacheing
 ***************************************************************************/

@@ -1357,6 +1357,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			  length);
 	      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			   ER_TOO_LONG_KEY, warn_buff);
+              /* Align key length to multibyte char boundary */
+              length-= length % sql_field->charset->mbmaxlen;
 	    }
 	    else
 	    {
@@ -1387,8 +1389,6 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
       {
         length= file->max_key_part_length();
-        /* Align key length to multibyte char boundary */
-        length-= length % sql_field->charset->mbmaxlen;
 	if (key->type == Key::MULTIPLE)
 	{
 	  /* not a critical problem */
@@ -1397,6 +1397,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		      length);
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		       ER_TOO_LONG_KEY, warn_buff);
+          /* Align key length to multibyte char boundary */
+          length-= length % sql_field->charset->mbmaxlen;
 	}
 	else
 	{
@@ -3811,7 +3813,7 @@ view_err:
 	The following function call will free the new_table pointer,
 	in close_temporary_table(), so we can safely directly jump to err
       */
-      close_temporary_table(thd,new_db,tmp_name);
+      close_temporary_table(thd, new_db, tmp_name);
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -4084,14 +4086,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  if (to->file->external_lock(thd, F_WRLCK))
+  if (to->file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
                                          (MODE_STRICT_TRANS_TABLES |
                                           MODE_STRICT_ALL_TABLES));
@@ -4236,7 +4237,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
-  if (to->file->external_lock(thd,F_UNLCK))
+  if (to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
