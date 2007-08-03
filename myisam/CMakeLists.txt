@@ -30,16 +30,16 @@ ADD_LIBRARY(myisam ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c f
 				rt_split.c sort.c sp_key.c ft_eval.h myisamdef.h rt_index.h mi_rkey.c)
 
 ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(myisamchk myisamchk.c)
-TARGET_LINK_LIBRARIES(myisamchk myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(myisamchk myisam mysys debug dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(myisamlog myisamlog.c)
-TARGET_LINK_LIBRARIES(myisamlog myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(myisampack myisampack.c)
-TARGET_LINK_LIBRARIES(myisampack myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
 
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
