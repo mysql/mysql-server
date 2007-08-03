@@ -436,6 +436,8 @@ EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
 #
 # Extra delimiter
 #
@@ -786,6 +788,7 @@ echo $var3_var3;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/recursive.sql;" | $MYSQL_TEST 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/recursive.sql;
 
 # Source a file with error
 --exec echo "garbage ;" > $MYSQLTEST_VARDIR/tmp/error.sql
@@ -793,6 +796,7 @@ echo $var3_var3;
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/error.sql;" | $MYSQL_TEST 2>&1
 
+remove_file $MYSQLTEST_VARDIR/tmp/error.sql;
 
 # Test execution of source in a while loop
 --write_file $MYSQLTEST_VARDIR/tmp/sourced.inc
@@ -1171,6 +1175,8 @@ EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
 # ----------------------------------------------------------------------------
 # Test error messages returned from comments starting with a command
 # ----------------------------------------------------------------------------
@@ -1296,6 +1302,8 @@ EOF
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
 # connect when "disable_abort_on_error" caused "connection not found"
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --disable_abort_on_error
@@ -1399,13 +1407,19 @@ select "this will be executed";
 --exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
 --exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
---exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  2>&1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
+
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
+remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
+
 #
 # Test that a test file that does not generate any output fails.
 #
 --exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql  2>&1
+
+remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 
 #
 # Test that mysqltest fails when there are no queries executed
@@ -1436,6 +1450,7 @@ echo Failing multi statement query;
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11731.sql 2>&1
 drop table t1;
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should be non existent
@@ -1462,6 +1477,9 @@ drop table t1;
 # The .out file should exist
 --exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
+remove_file $MYSQLTEST_VARDIR/tmp/bug11731.out;
+remove_file $MYSQLTEST_VARDIR/tmp/bug11731.log;
+remove_file $MYSQLTEST_VARDIR/tmp/bug11731.sql;
 
 #
 # Bug#19890  	mysqltest: "query" command is broken
@@ -1607,18 +1625,47 @@ for diff_file command
 of mysqltest
 EOF
 
+--write_file $MYSQLTEST_VARDIR/tmp/diff4.tmp
+Some data
+for diff_file command
+of musqltest
+EOF
+
 # Compare equal files
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
 --diff_files $MYSQLTEST_VARDIR/tmp/diff2.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
 
-# Compare files that differ
---error 1
---diff_files $MYSQLTEST_VARDIR/tmp/diff3.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
---error 1
+# Write the below commands to a intermediary file and execute them with
+# mysqltest in --exec, since the output will vary depending on what "diff"
+# is available it is sent to /dev/null
+--write_file $MYSQLTEST_VARDIR/tmp/diff.test
+# Compare files that differ in size
+--error 2
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff3.tmp
+--error 2
+--diff_files $MYSQLTEST_VARDIR/tmp/diff3.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
+
+# Compare files that differ only in content
+--error 1
+--diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff4.tmp
+--error 1
+--diff_files $MYSQLTEST_VARDIR/tmp/diff4.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
+EOF
+
+# Execute the above diffs, and send their output to /dev/null - only
+# interesting to see that it returns correct error codes
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/diff.test > /dev/null 2>&1
+
 
 # Compare equal files, again...
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff2.tmp
+
+--remove_file $MYSQLTEST_VARDIR/tmp/diff1.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/diff2.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/diff3.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/diff4.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/diff.test
+
 
 # ----------------------------------------------------------------------------
 # test for file_exist
