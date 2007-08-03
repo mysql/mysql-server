@@ -1401,8 +1401,7 @@ public:
   {
     uchar *tmp;
     get_ptr(&tmp);
-    uint32 len= get_length(0, table->s->db_low_byte_first);
-    if (value.copy((char*) tmp, len, charset()))
+    if (value.copy((char*) tmp, get_length(), charset()))
     {
       Field_blob::reset();
       return 1;
