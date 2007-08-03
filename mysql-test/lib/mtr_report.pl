@@ -38,6 +38,9 @@ sub mtr_child_error (@);
 sub mtr_debug (@);
 sub mtr_verbose (@);
 
+my $tot_real_time= 0;
+
+
 
 ##############################################################################
 #
@@ -142,7 +145,7 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += ($timer/1000);
+    $tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
@@ -243,8 +246,10 @@ sub mtr_report_stats ($) {
 
   if ( $::opt_timer )
   {
-    print
-      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
+    use English;
+
+    mtr_report("Spent", sprintf("%.3f", $tot_real_time),"of",
+	       time - $BASETIME, "seconds executing testcases");
   }
 
   # ----------------------------------------------------------------------
