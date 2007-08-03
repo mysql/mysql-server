@@ -290,6 +290,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     }
     else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
     {
+      /*
+        Thread was killed or lock aborted. Let upper level close all
+        used tables and retry or give error.
+      */
       thd->locked=0;
       break;
     }
@@ -326,7 +330,7 @@ retry:
     }
   }
 
-  thd->lock_time();
+  thd->set_time_after_lock();
   DBUG_RETURN (sql_lock);
 }
 

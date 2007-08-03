@@ -135,7 +135,7 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
   {
     /* string have to be allocated already */
     LEX_STRING *val_s= (LEX_STRING *)(base + parameter->offset);
-    time_t tm= time(NULL);
+    time_t tm= my_time(0);
 
     get_date(val_s->str, GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
 	     tm);

@@ -154,17 +154,20 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 
   SYNOPSIS
     packfrm()
-    data                    Data reference to frm file data
+    data                    Data reference to frm file data.
     len                     Length of frm file data
     out:pack_data           Reference to the pointer to the packed frm data
     out:pack_len            Length of packed frm file data
+
+  NOTES
+    data is replaced with compressed content
 
   RETURN VALUES
     0                       Success
     >0                      Failure
 */
 
-int packfrm(const uchar *data, size_t len,
+int packfrm(uchar *data, size_t len,
             uchar **pack_data, size_t *pack_len)
 {
   int error;
@@ -178,8 +181,8 @@ int packfrm(const uchar *data, size_t len,
   if (my_compress((uchar*)data, &org_len, &comp_len))
     goto err;
 
-  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
-  DBUG_DUMP("compressed", (char*)data, org_len);
+  DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", (ulong) org_len, (ulong) comp_len));
+  DBUG_DUMP("compressed", data, org_len);
 
   error= 2;
   blob_len= BLOB_HEADER + org_len;
@@ -235,7 +238,7 @@ int unpackfrm(uchar **unpack_data, size_t *unpack_len,
    complen=     uint4korr(pack_data+8);
 
    DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
-                      ver, complen, orglen));
+                      ver, (ulong) complen, (ulong) orglen));
    DBUG_DUMP("blob->data", pack_data + BLOB_HEADER, complen);
 
    if (ver != 1)

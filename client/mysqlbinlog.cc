@@ -65,11 +65,13 @@ static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
 static bool opt_base64_output= 0;
 static const char* database= 0;
-static my_bool force_opt= 0, short_form= 0, remote_opt= 0, info_flag;
+static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
+static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1;
 static ulonglong offset = 0;
 static const char* host = 0;
 static int port= 0;
+static uint my_end_arg;
 static const char* sock= 0;
 static const char* user = 0;
 static char* pass = 0;
@@ -727,8 +729,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
@@ -860,7 +866,7 @@ static void die(const char* fmt, ...)
   va_end(args);
   cleanup();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
+  my_end(my_end_arg | MY_DONT_FREE_DBUG);
   exit(1);
 }
 
@@ -868,7 +874,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 3.2 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }
 
@@ -984,7 +990,10 @@ static int parse_args(int *argc, char*** argv)
   load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
-
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
   return 0;
 }
 
@@ -1078,6 +1087,7 @@ static int check_master_version(MYSQL *mysql_arg,
     break;
   case '4':
     *description_event= new Format_description_log_event(3);
+    break;
   case '5':
     /*
       The server is soon going to send us its Format_description log
@@ -1301,9 +1311,15 @@ static void check_header(IO_CACHE* file,
   pos= my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
   if (my_b_read(file, header, sizeof(header)))
+  {
+    delete *description_event;
     die("Failed reading header;  Probably an empty file");
+  }
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
+  {
+    delete *description_event;
     die("File is not a binary log file");
+  }
 
   /*
     Imagine we are running with --start-position=1000. We still need
@@ -1324,9 +1340,12 @@ static void check_header(IO_CACHE* file,
     if (my_b_read(file, buf, sizeof(buf)))
     {
       if (file->error)
+      {
+        delete *description_event;
         die("\
 Could not read entry at offset %lu : Error in log format or read error",
             tmp_pos); 
+      }
       /*
         Otherwise this is just EOF : this log currently contains 0-2
         events.  Maybe it's going to be filled in the next
@@ -1362,13 +1381,19 @@ Could not read entry at offset %lu : Error in log format or read error",
         break;
       else if (buf[4] == FORMAT_DESCRIPTION_EVENT) /* This is 5.0 */
       {
+        Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!(*description_event= (Format_description_log_event*) 
+        if (!(new_description_event= (Format_description_log_event*) 
               Log_event::read_log_event(file, *description_event)))
           /* EOF can't be hit here normally, so it's a real error */
+        {
+          delete *description_event;
           die("Could not read a Format_description_log_event event \
 at offset %lu ; this could be a log format error or read error",
               tmp_pos); 
+        }
+        delete *description_event;
+        *description_event= new_description_event;
         DBUG_PRINT("info",("Setting description_event"));
       }
       else if (buf[4] == ROTATE_EVENT)
@@ -1377,8 +1402,11 @@ at offset %lu ; this could be a log format error or read error",
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(ev= Log_event::read_log_event(file, *description_event)))
           /* EOF can't be hit here normally, so it's a real error */
+        {
+          delete *description_event;
           die("Could not read a Rotate_log_event event at offset %lu ;"
               " this could be a log format error or read error", tmp_pos);
+        }
         delete ev;
       }
       else
@@ -1448,7 +1476,10 @@ static int dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   }
 
   if (!glob_description_event || !glob_description_event->is_valid())
+  {
+    delete glob_description_event;
     die("Invalid Format_description log event; could be out of memory");
+  }
 
   if (!start_position && my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE))
   {
@@ -1597,7 +1628,7 @@ int main(int argc, char** argv)
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
-  my_end((info_flag ? MY_CHECK_ERROR : 0) | MY_DONT_FREE_DBUG);
+  my_end(my_end_arg | MY_DONT_FREE_DBUG);
 
   if (file_not_closed_error)
   {

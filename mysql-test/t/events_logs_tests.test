@@ -58,7 +58,7 @@ TRUNCATE mysql.slow_log;
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 --echo "Set new values"
 SET GLOBAL long_query_time=4;
-SET SESSION long_query_time=1;
+SET SESSION long_query_time=0.5;
 --echo "Check that logging is working"
 SELECT SLEEP(2);
 --replace_column 1 USER_HOST 2 SLEEPVAL

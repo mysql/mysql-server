@@ -36,7 +36,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.12"
+#define DUMP_VERSION "10.13"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -100,9 +100,9 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
+static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
-static my_bool insert_pat_inited= 0, info_flag;
 static DYNAMIC_STRING insert_pat;
 static char  *opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -116,7 +116,8 @@ static char compatible_mode_normal_str[255];
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
-static uint     opt_mysql_port= 0, opt_master_data;
+static uint opt_mysql_port= 0, opt_master_data;
+static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
@@ -242,8 +243,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (uchar**) &default_charset,
    (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -724,7 +729,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
-    info_flag= 1;
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
@@ -858,6 +863,10 @@ static int get_options(int *argc, char ***argv)
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
   *mysql_params->p_net_buffer_length= opt_net_buffer_length;
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (opt_delayed)
     opt_lock=0;                         /* Can't have lock with delayed */
@@ -1262,7 +1271,7 @@ static void free_resources()
     dynstr_free(&insert_pat);
   if (defaults_argv)
     free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
 }
 
 
@@ -2061,7 +2070,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
-
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -2481,6 +2489,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
         check_io(sql_file);
       }
+      mysql_free_result(result);
       if (!opt_xml)
       {
         if (keynr)
@@ -2822,7 +2831,7 @@ static void dump_table(char *table, char *db)
   /*
     The "table" could be a view.  If so, we don't do anything here.
   */
-  if (strcmp (table_type, "VIEW") == 0)
+  if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
   /* Check --no-data flag */
@@ -2912,6 +2921,7 @@ static void dump_table(char *table, char *db)
     if (mysql_real_query(mysql, query_string.str, query_string.length))
     {
       DB_error(mysql, "when executing 'SELECT INTO OUTFILE'");
+      dynstr_free(&query_string);
       DBUG_VOID_RETURN;
     }
   }
@@ -3266,8 +3276,8 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
     mysql_free_result(res);
-    dynstr_free(&query_string);
   }
+  dynstr_free(&query_string);
   DBUG_VOID_RETURN;
 
 err:
@@ -3388,6 +3398,7 @@ static int dump_tablespaces(char* ts_where)
   char extra_format[]= "UNDO_BUFFER_SIZE=";
   char *ubs;
   char *endsemi;
+  DBUG_ENTER("dump_tablespaces");
 
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT LOGFILE_GROUP_NAME,"
@@ -3419,6 +3430,7 @@ static int dump_tablespaces(char* ts_where)
   if (mysql_query(mysql, sqlbuf.str) ||
       !(tableres = mysql_store_result(mysql)))
   {
+    dynstr_free(&sqlbuf);
     if (mysql_errno(mysql) == ER_BAD_TABLE_ERROR ||
         mysql_errno(mysql) == ER_BAD_DB_ERROR ||
         mysql_errno(mysql) == ER_UNKNOWN_TABLE)
@@ -3427,12 +3439,12 @@ static int dump_tablespaces(char* ts_where)
               "\n--\n-- Not dumping tablespaces as no INFORMATION_SCHEMA.FILES"
               " table on this server\n--\n");
       check_io(md_result_file);
-      return 0;
+      DBUG_RETURN(0);
     }
 
-    my_printf_error(0, "Error: Couldn't dump tablespaces %s",
+    my_printf_error(0, "Error: '%s' when trying to dump tablespaces",
                     MYF(0), mysql_error(mysql));
-    return 1;
+    DBUG_RETURN(1);
   }
 
   buf[0]= 0;
@@ -3484,6 +3496,7 @@ static int dump_tablespaces(char* ts_where)
     }
   }
   dynstr_free(&sqlbuf);
+  mysql_free_result(tableres);
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT DISTINCT TABLESPACE_NAME,"
                       " FILE_NAME,"
@@ -3501,7 +3514,10 @@ static int dump_tablespaces(char* ts_where)
   dynstr_append_checked(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
 
   if (mysql_query_with_error_report(mysql, &tableres, sqlbuf.str))
-    return 1;
+  {
+    dynstr_free(&sqlbuf);
+    DBUG_RETURN(1);
+  }
 
   buf[0]= 0;
   while ((row= mysql_fetch_row(tableres)))
@@ -3547,8 +3563,9 @@ static int dump_tablespaces(char* ts_where)
     }
   }
 
+  mysql_free_result(tableres);
   dynstr_free(&sqlbuf);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int dump_all_databases()
@@ -3635,8 +3652,11 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
+
 int init_dumping_tables(char *qdatabase)
 {
+  DBUG_ENTER("init_dumping_tables");
+
   if (!opt_create_db)
   {
     char qbuf[256];
@@ -3669,10 +3689,10 @@ int init_dumping_tables(char *qdatabase)
       {
         fprintf(md_result_file,"\n%s;\n",row[1]);
       }
+      mysql_free_result(dbinfo);
     }
   }
-
-  return 0;
+  DBUG_RETURN(0);
 } /* init_dumping_tables */
 
 
@@ -3955,8 +3975,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     }
     else
     {
-       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
-       /* We shall countinue here, if --force was given */
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
+      maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
+      /* We shall countinue here, if --force was given */
     }
   }
   end= pos;
@@ -3965,14 +3990,25 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
+    {
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
       DB_error(mysql, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
+    }
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs)
   {
     if (mysql_refresh(mysql, REFRESH_LOG))
+    {
+      if (!ignore_errors)
+        free_root(&root, MYF(0));
       DB_error(mysql, "when doing refresh");
+    }
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
@@ -4536,6 +4572,9 @@ static my_bool get_view_structure(char *table, char* db)
     if (!(table_res= mysql_store_result(mysql)) ||
         !(row= mysql_fetch_row(table_res)))
     {
+      if (table_res)
+        mysql_free_result(table_res);
+      dynstr_free(&ds_view);
       DB_error(mysql, "when trying to save the result of SHOW CREATE TABLE in ds_view.");
       DBUG_RETURN(1);
     }

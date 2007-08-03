@@ -1314,24 +1314,20 @@ void close_temporary_tables(THD *thd)
 {
   TABLE *table;
   TABLE *next;
- /*
-   TODO: 5.1 maintains prev link in temporary_tables
-   double-linked list so we could fix it. But it is not necessary
-   at this time when the list is being destroyed
- */
   TABLE *prev_table;
   /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
+  LINT_INIT(next);
 
   if (!thd->temporary_tables)
     return;
 
   if (!mysql_bin_log.is_open() || thd->current_stmt_binlog_row_based)
   {
-    TABLE *next;
-    for (table= thd->temporary_tables; table; table= next)
+    TABLE *tmp_next;
+    for (table= thd->temporary_tables; table; table= tmp_next)
     {
-      next=table->next;
+      tmp_next= table->next;
       close_temporary(table, 1, 1);
     }
     thd->temporary_tables= 0;
@@ -1344,13 +1340,12 @@ void close_temporary_tables(THD *thd)
   char buf[256];
   String s_query= String(buf, sizeof(buf), system_charset_info);
   bool found_user_tables= FALSE;
-  LINT_INIT(next);
 
   memcpy(buf, stub, stub_len);
 
   /*
-     insertion sort of temp tables by pseudo_thread_id to build ordered list
-     of sublists of equal pseudo_thread_id
+    Insertion sort of temp tables by pseudo_thread_id to build ordered list
+    of sublists of equal pseudo_thread_id
   */
 
   for (prev_table= thd->temporary_tables, table= prev_table->next;
@@ -7203,6 +7198,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       else if (in_use != thd)
       {
         DBUG_PRINT("info", ("Table was in use by other thread"));
+        /*
+          Mark that table is going to be deleted from cache. This will
+          force threads that are in mysql_lock_tables() (but not yet
+          in thr_multi_lock()) to abort it's locks, close all tables and retry
+        */
+        in_use->some_tables_deleted= 1;
         if (table->is_name_opened())
         {
           DBUG_PRINT("info", ("Found another active instance of the table"));
@@ -7730,23 +7731,30 @@ TABLE *
 open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
                               Open_tables_state *backup)
 {
-  uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK
-              | MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY
-              | MYSQL_LOCK_PERF_SCHEMA );
-
+  uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
+                MYSQL_LOCK_IGNORE_FLUSH |
+                MYSQL_LOCK_PERF_SCHEMA);
+  TABLE *table;
+  /* Save value that is changed in mysql_lock_tables() */
+  ulonglong save_utime_after_lock= thd->utime_after_lock;
   DBUG_ENTER("open_performance_schema_table");
 
   thd->reset_n_backup_open_tables_state(backup);
 
-  TABLE *table= open_ltable(thd, one_table, one_table->lock_type, flags);
-  if (table)
+  if ((table= open_ltable(thd, one_table, one_table->lock_type, flags)))
   {
     DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_PERFORMANCE);
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
     table->no_replicate= 1;
+    /*
+      Don't set automatic timestamps as we may want to use time of logging,
+      not from query start
+    */
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
-
+  thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);
 }
 
