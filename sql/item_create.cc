@@ -70,7 +70,8 @@ Item *create_func_ceiling(Item* a)
 
 Item *create_func_connection_id(void)
 {
-  current_thd->lex->safe_to_cache_query= 0;
+  THD *thd= current_thd;
+  thd->lex->safe_to_cache_query= 0;
   return new Item_func_connection_id();
 }
 

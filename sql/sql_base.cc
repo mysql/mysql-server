@@ -1037,6 +1037,31 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   return 0;					// Not a temporary table
 }
 
+
+/**
+  Drop a temporary table.
+
+  Try to locate the table in the list of thd->temporary_tables.
+  If the table is found:
+   - if the table is in thd->locked_tables, unlock it and
+     remove it from the list of locked tables. Currently only transactional
+     temporary tables are present in the locked_tables list.
+   - Close the temporary table, remove its .FRM
+   - remove the table from the list of temporary tables
+
+  This function is used to drop user temporary tables, as well as
+  internal tables created in CREATE TEMPORARY TABLE ... SELECT
+  or ALTER TABLE. Even though part of the work done by this function
+  is redundant when the table is internal, as long as we
+  link both internal and user temporary tables into the same
+  thd->temporary_tables list, it's impossible to tell here whether
+  we're dealing with an internal or a user temporary table.
+
+  @retval TRUE   the table was not found in the list of temporary tables
+                 of this thread
+  @retval FALSE  the table was found and dropped successfully.
+*/
+
 bool close_temporary_table(THD *thd, const char *db, const char *table_name)
 {
   TABLE *table,**prev;
@@ -1045,6 +1070,11 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
     return 1;
   table= *prev;
   *prev= table->next;
+  /*
+    If LOCK TABLES list is not empty and contains this table,
+    unlock the table and remove the table from this list.
+  */
+  mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
   close_temporary(table, 1);
   if (thd->slave_thread)
     --slave_open_temp_tables;
@@ -1120,7 +1150,7 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 	!memcmp(list->s->table_cache_key, key, key_length))
     {
       if (thd->locked_tables)
-	mysql_lock_remove(thd, thd->locked_tables,list);
+        mysql_lock_remove(thd, thd->locked_tables, list, TRUE);
       VOID(hash_delete(&open_cache,(byte*) list)); // Close table
     }
     else
@@ -1151,6 +1181,8 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
           dropped is already unlocked. In the former case it will
           also remove lock on the table. But one should not rely on
           this behaviour as it may change in future.
+          Currently, however, this function is never called for a
+          table that was locked with LOCK TABLES.
 */
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
@@ -2099,7 +2131,7 @@ bool close_data_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name, table_name) &&
 	!strcmp(table->s->db, db))
     {
-      mysql_lock_remove(thd, thd->locked_tables,table);
+      mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
       table->file->close();
       table->db_stat=0;
     }
@@ -2239,7 +2271,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
             instances of this table.
           */
           mysql_lock_abort(thd, table);
-          mysql_lock_remove(thd, thd->locked_tables, table);
+          mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
           /*
             We want to protect the table from concurrent DDL operations
             (like RENAME TABLE) until we will re-open and re-lock it.
@@ -2343,7 +2375,7 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name, table_name) &&
 	!strcmp(table->s->db, db))
     {
-      mysql_lock_remove(thd, thd->locked_tables,table);
+      mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
       VOID(hash_delete(&open_cache,(byte*) table));
       found=1;
     }
@@ -3428,7 +3460,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
-  Query_arena *arena, backup;  
+  Query_arena *arena= 0, backup;  
   
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
@@ -3437,14 +3469,14 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change)
+      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on
         the column reference. See create_view_field() for details.
       */
       Item *item= field_it.create_item(thd);
-      if (register_tree_change && arena)
+      if (arena)
         thd->restore_active_arena(arena, &backup);
       
       if (!item)
