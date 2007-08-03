@@ -142,14 +142,16 @@ row_mysql_store_true_var_len(
 Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
 returns a pointer to the data. */
 
-byte*
+const byte*
 row_mysql_read_true_varchar(
 /*========================*/
-			/* out: pointer to the data, we skip the 1 or 2 bytes
-			at the start that are used to store the len */
-	ulint*	len,	/* out: variable-length field length */
-	byte*	field,	/* in: field in the MySQL format */
-	ulint	lenlen)	/* in: storage length of len: either 1 or 2 bytes */
+				/* out: pointer to the data, we skip
+				the 1 or 2 bytes at the start that are
+				used to store the len */
+	ulint*		len,	/* out: variable-length field length */
+	const byte*	field,	/* in: field in the MySQL format */
+	ulint		lenlen)	/* in: storage length of len: either 1
+				or 2 bytes */
 {
 	if (lenlen == 2) {
 		*len = mach_read_from_2_little_endian(field);
@@ -204,20 +206,21 @@ row_mysql_store_blob_ref(
 /***********************************************************************
 Reads a reference to a BLOB in the MySQL format. */
 
-byte*
+const byte*
 row_mysql_read_blob_ref(
 /*====================*/
-				/* out: pointer to BLOB data */
-	ulint*	len,		/* out: BLOB length */
-	byte*	ref,		/* in: BLOB reference in the MySQL format */
-	ulint	col_len)	/* in: BLOB reference length (not BLOB
-				length) */
+					/* out: pointer to BLOB data */
+	ulint*		len,		/* out: BLOB length */
+	const byte*	ref,		/* in: BLOB reference in the
+					MySQL format */
+	ulint		col_len)	/* in: BLOB reference length
+					(not BLOB length) */
 {
-	byte*	data;
+	const byte*	data;
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 
-	ut_memcpy(&data, ref + col_len - 8, sizeof(byte*));
+	ut_memcpy(&data, ref + col_len - 8, sizeof *data);
 
 	return(data);
 }
@@ -245,7 +248,7 @@ row_mysql_store_col_in_innobase_format(
 					format differs in a row and in a
 					key value: in a key value the length
 					is always stored in 2 bytes! */
-	byte*		mysql_data,	/* in: MySQL column value, not
+	const byte*	mysql_data,	/* in: MySQL column value, not
 					SQL NULL; NOTE that dfield may also
 					get a pointer to mysql_data,
 					therefore do not discard this as long
@@ -258,7 +261,7 @@ row_mysql_store_col_in_innobase_format(
 					VARCHAR then this is irrelevant */
 	ulint		comp)		/* in: nonzero=compact format */
 {
-	byte*		ptr	= mysql_data;
+	const byte*	ptr	= mysql_data;
 	const dtype_t*	dtype;
 	ulint		type;
 	ulint		lenlen;
@@ -272,11 +275,11 @@ row_mysql_store_col_in_innobase_format(
 		sign bit negated if the data is a signed integer. In MySQL,
 		integers are stored in a little-endian format. */
 
-		ptr = buf + col_len;
+		byte*	p = buf + col_len;
 
 		for (;;) {
-			ptr--;
-			*ptr = *mysql_data;
+			p--;
+			*p = *mysql_data;
 			if (ptr == buf) {
 				break;
 			}
@@ -285,10 +288,11 @@ row_mysql_store_col_in_innobase_format(
 
 		if (!(dtype->prtype & DATA_UNSIGNED)) {
 
-			*ptr = (byte) (*ptr ^ 128);
+			*p ^= 128;
 		}
 
 		buf += col_len;
+		ptr = p;
 	} else if ((type == DATA_VARCHAR
 		    || type == DATA_VARMYSQL
 		    || type == DATA_BINARY)) {
