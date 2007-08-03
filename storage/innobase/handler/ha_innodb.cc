@@ -601,9 +601,7 @@ convert_error_code_to_mysql(
 		tell it also to MySQL so that MySQL knows to empty the
 		cached binlog for this transaction */
 
-		if (thd) {
-			ha_rollback(thd);
-		}
+                thd_mark_transaction_to_rollback(thd, TRUE);
 
 		return(HA_ERR_LOCK_DEADLOCK);
 
@@ -613,9 +611,8 @@ convert_error_code_to_mysql(
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
 
-		if (thd && row_rollback_on_timeout) {
-			ha_rollback(thd);
-		}
+                thd_mark_transaction_to_rollback(thd,
+                                             (bool)row_rollback_on_timeout);
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -667,9 +664,7 @@ convert_error_code_to_mysql(
  		tell it also to MySQL so that MySQL knows to empty the
  		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+                thd_mark_transaction_to_rollback(thd, TRUE);
 
     		return(HA_ERR_LOCK_TABLE_FULL);
 	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
@@ -947,8 +942,6 @@ check_trx_exists(
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = THDVAR(thd, support_xa);
-
-		thd_to_trx(thd) = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -4533,17 +4526,16 @@ ha_innobase::position(
 /*********************************************************************
 If it's a DB_TOO_BIG_RECORD error then set a suitable message to
 return to the client.*/
-static
+inline
 void
 innodb_check_for_record_too_big_error(
 /*==================================*/
-	dict_table_t*	table,		/* in: table to check */
-	int		error)		/* in: error code to check */
+	ulint	comp,	/* in: ROW_FORMAT: nonzero=COMPACT, 0=REDUNDANT */
+	int	error)	/* in: error code to check */
 {
 	if (error == (int)DB_TOO_BIG_RECORD) {
-		ulint		max_row_size;
-
-		max_row_size = page_get_free_space_of_empty_noninline(table);
+		ulint	max_row_size
+			= page_get_free_space_of_empty_noninline(comp) / 2;
 
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
 	}
@@ -4657,9 +4649,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(table, error);
+	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4783,9 +4773,8 @@ create_index(
 	sure we don't create too long indexes. */
 	error = row_create_index_for_mysql(index, trx, field_lengths);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(index->table, error);
+	innodb_check_for_record_too_big_error(form->s->row_type
+					      != ROW_TYPE_REDUNDANT, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4802,6 +4791,8 @@ int
 create_clustered_index_when_no_primary(
 /*===================================*/
 	trx_t*		trx,		/* in: InnoDB transaction handle */
+	ulint		comp,		/* in: ROW_FORMAT:
+					nonzero=COMPACT, 0=REDUNDANT */
 	const char*	table_name)	/* in: table name */
 {
 	dict_index_t*	index;
@@ -4810,13 +4801,11 @@ create_clustered_index_when_no_primary(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	index = dict_mem_index_create((char*) table_name,
-		(char*) "GEN_CLUST_INDEX", 0, DICT_CLUSTERED, 0);
+	index = dict_mem_index_create(table_name, "GEN_CLUST_INDEX",
+				      0, DICT_CLUSTERED, 0);
 	error = row_create_index_for_mysql(index, trx, NULL);
 
-	/* We need access to the table and so we do the error checking
-	and set the error message here, before the error translation.*/
-	innodb_check_for_record_too_big_error(index->table, error);
+	innodb_check_for_record_too_big_error(comp, error);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4947,8 +4936,9 @@ ha_innobase::create(
 		order the rows by their row id which is internally generated
 		by InnoDB */
 
-		error = create_clustered_index_when_no_primary(trx,
-							norm_name);
+		error = create_clustered_index_when_no_primary(
+			trx, form->s->row_type != ROW_TYPE_REDUNDANT,
+			norm_name);
 		if (error) {
 			goto cleanup;
 		}
@@ -5873,9 +5863,9 @@ ha_innobase::update_table_comment(
 	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
-	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
-		   (ulong) fsp_get_available_space_in_free_extents(
-					prebuilt->table->space));
+	fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+		fsp_get_available_space_in_free_extents(
+			prebuilt->table->space));
 
 	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
@@ -7042,18 +7032,6 @@ ha_innobase::store_lock(
 		    && !thd_tablespace_op(thd)
 		    && sql_command != SQLCOM_TRUNCATE
 		    && sql_command != SQLCOM_OPTIMIZE
-
-#ifdef __WIN__
-		    /* For alter table on win32 for successful
-		    operation completion it is used TL_WRITE(=10) lock
-		    instead of TL_WRITE_ALLOW_READ(=6), however here
-		    in innodb handler TL_WRITE is lifted to
-		    TL_WRITE_ALLOW_WRITE, which causes race condition
-		    when several clients do alter table simultaneously
-		    (bug #17264). This fix avoids the problem. */
-		    && sql_command != SQLCOM_ALTER_TABLE
-#endif
-
 		    && sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;

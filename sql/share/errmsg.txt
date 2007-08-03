@@ -5936,8 +5936,8 @@ ER_WARN_DEPRECATED_SYNTAX_WITH_VER
 ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible"
         ger "Eine Log-Tabelle kann nicht schreibgesperrt werden. Es ist ohnehin nur Lesezugriff möglich"
-ER_CANT_READ_LOCK_LOG_TABLE
-        eng "You can't use usual read lock with log tables. Try READ LOCAL instead"
+ER_CANT_LOCK_LOG_TABLE
+        eng "You can't use locks with log tables."
         ger "Log-Tabellen können nicht mit normalen Lesesperren gesperrt werden. Verwenden Sie statt dessen READ LOCAL"
 ER_FOREIGN_DUPLICATE_KEY 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"

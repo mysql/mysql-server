@@ -1030,6 +1030,7 @@ select * from t2;
 c
 NULL
 1
+Two
 Three
 lock table t2 write, t3 read;
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
@@ -1046,6 +1047,7 @@ select * from t1;
 vc
 NULL
 1
+Two
 Three
 Four
 drop tables t1, t3;
@@ -1170,3 +1172,15 @@ SELECT * FROM t1;
 f1	f2	f3
 1	2	NULL
 DROP TABLE t1;
+create table t1 (c char(10) default "Two");
+lock table t1 write;
+insert into t1 values ();
+alter table t1 modify c char(10) default "Three";
+unlock tables;
+select * from t1;
+c
+Two
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

@@ -212,6 +212,7 @@ public:
     return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
                 WRITE_CACHE);
   }
+
 private:
   time_t last_time;
 };
@@ -398,7 +399,7 @@ public:
                         const char *sql_text, uint sql_text_len)= 0;
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args)= 0;
-  virtual bool log_general(time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -412,27 +413,7 @@ int check_if_log_table(uint db_len, const char *db, uint table_name_len,
 
 class Log_to_csv_event_handler: public Log_event_handler
 {
-  /*
-    We create artificial THD for each of the logs. This is to avoid
-    locking issues: we don't want locks on the log tables reside in the
-    THD's of the query. The reason is the locking order and duration.
-  */
-  THD *general_log_thd, *slow_log_thd;
-  /*
-    This is for the thread, which called tmp_close_log_tables. The thread
-    will be allowed to write-lock the log tables (as it explicitly disabled
-    logging). This is used for such operations as REPAIR, which require
-    exclusive lock on the log tables.
-    NOTE: there can be only one priviliged thread, as one should
-    lock logger with logger.lock() before calling tmp_close_log_tables().
-    So no other thread could get privileged status at the same time.
-  */
-  THD *privileged_thread;
   friend class LOGGER;
-  TABLE_LIST general_log, slow_log;
-
-private:
-  bool open_log_table(uint log_type);
 
 public:
   Log_to_csv_event_handler();
@@ -447,18 +428,13 @@ public:
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                            CHARSET_INFO *client_cs);
-  void tmp_close_log_tables(THD *thd);
-  void close_log_table(uint log_type, bool lock_in_use);
-  bool reopen_log_table(uint log_type);
-  THD* get_privileged_thread()
-  {
-    return privileged_thread;
-  }
+                           CHARSET_INFO *client_cs);
+
+  int activate_log(THD *thd, uint log_type);
 };
 
 
@@ -484,7 +460,7 @@ public:
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -499,7 +475,7 @@ public:
 /* Class which manages slow, general and error log event handlers */
 class LOGGER
 {
-  pthread_mutex_t LOCK_logger;
+  rw_lock_t LOCK_logger;
   /* flag to check whether logger mutex is initialized */
   uint inited;
 
@@ -519,21 +495,10 @@ public:
   LOGGER() : inited(0), table_log_handler(NULL),
              file_log_handler(NULL), is_log_tables_initialized(FALSE)
   {}
-  void lock() { (void) pthread_mutex_lock(&LOCK_logger); }
-  void unlock() { (void) pthread_mutex_unlock(&LOCK_logger); }
-  void tmp_close_log_tables(THD *thd);
-  bool is_log_table_enabled(uint log_table_type)
-  {
-    switch (log_table_type) {
-    case QUERY_LOG_SLOW:
-      return table_log_handler && table_log_handler->slow_log.table != 0;
-    case QUERY_LOG_GENERAL:
-      return table_log_handler && table_log_handler->general_log.table != 0;
-    default:
-      DBUG_ASSERT(0);
-      return FALSE;                             /* make compiler happy */
-    }
-  }
+  void lock_shared() { rw_rdlock(&LOCK_logger); }
+  void lock_exclusive() { rw_wrlock(&LOCK_logger); }
+  void unlock() { rw_unlock(&LOCK_logger); }
+  bool is_log_table_enabled(uint log_table_type);
   /*
     We want to initialize all log mutexes as soon as possible,
     but we cannot do it in constructor, as safe_mutex relies on
@@ -543,20 +508,6 @@ public:
   void init_base();
   void init_log_tables();
   bool flush_logs(THD *thd);
-  THD *get_general_log_thd()
-  {
-    if (table_log_handler)
-      return (THD *) table_log_handler->general_log_thd;
-    else
-      return NULL;
-  }
-  THD *get_slow_log_thd()
-  {
-    if (table_log_handler)
-      return (THD *) table_log_handler->slow_log_thd;
-    else
-      return NULL;
-  }
   /* Perform basic logger cleanup. this will leave e.g. error log open. */
   void cleanup_base();
   /* Free memory. Nothing could be logged after this function is called */
@@ -567,10 +518,6 @@ public:
                       time_t query_start_arg);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
-
-  void close_log_table(uint log_type, bool lock_in_use);
-  bool reopen_log_table(uint log_type);
-  bool reopen_log_tables();
 
   /* we use this function to setup all enabled log event handlers */
   int set_handlers(uint error_log_printer,
@@ -592,19 +539,6 @@ public:
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
     return NULL;
-  }
-  THD* get_privileged_thread()
-  {
-    if (table_log_handler)
-      return table_log_handler->get_privileged_thread();
-    else
-      return NULL;
-  }
-  bool is_privileged_thread(THD *thd)
-  {
-    return thd == get_general_log_thd() ||
-           thd == get_slow_log_thd() ||
-           thd == get_privileged_thread();
   }
 };
 

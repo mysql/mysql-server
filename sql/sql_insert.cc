@@ -549,6 +549,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   int error, res;
   bool transactional_table, joins_freed= FALSE;
   bool changed;
+  bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -712,7 +713,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->ha_start_bulk_insert(values_list.elements);
 
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES)));
@@ -832,14 +832,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     transactional_table= table->file->has_transactions();
 
-    if ((changed= (info.copied || info.deleted || info.updated)))
+    if ((changed= (info.copied || info.deleted || info.updated)) ||
+        was_insert_delayed)
     {
       /*
         Invalidate the table in the query cache if something changed.
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      query_cache_invalidate3(thd, table_list, 1);
+      if (changed)
+        query_cache_invalidate3(thd, table_list, 1);
       if (error <= 0 || !transactional_table)
       {
         if (mysql_bin_log.is_open())
@@ -880,10 +882,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
             error=1;
           }
         }
-        if (!transactional_table)
-          thd->no_trans_update.all= TRUE;
+        if (thd->transaction.stmt.modified_non_trans_table)
+          thd->transaction.all.modified_non_trans_table= TRUE;
       }
     }
+    DBUG_ASSERT(transactional_table || !changed || 
+                thd->transaction.stmt.modified_non_trans_table);
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
     
@@ -1293,7 +1297,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
     then both on update triggers will work instead. Similarly both on
     delete triggers will be invoked if we will delete conflicting records.
 
-    Sets thd->no_trans_update.stmt to TRUE if table which is updated didn't have
+    Sets thd->transaction.stmt.modified_non_trans_table to TRUE if table which is updated didn't have
     transactions.
 
   RETURN VALUE
@@ -1513,7 +1517,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->no_trans_update.stmt= TRUE;
+            thd->transaction.stmt.modified_non_trans_table= TRUE;
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1554,7 +1558,7 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->no_trans_update.stmt= TRUE;
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
   DBUG_RETURN(trg_error);
 
 err:
@@ -2254,7 +2258,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   }
 
   /* open table */
-  if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
+  if (!(di->table=open_ltable(thd, &di->table_list, TL_WRITE_DELAYED, 0)))
   {
     thd->fatal_error();				// Abort waiting inserts
     goto err;
@@ -2919,7 +2923,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
@@ -3068,6 +3071,7 @@ bool select_insert::send_eof()
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id;
+  bool changed;
   DBUG_ENTER("select_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
@@ -3076,24 +3080,18 @@ bool select_insert::send_eof()
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  if (info.copied || info.deleted || info.updated)
+  if (changed= (info.copied || info.deleted || info.updated))
   {
     /*
       We must invalidate the table in the query cache before binlog writing
       and ha_autocommit_or_rollback.
     */
     query_cache_invalidate3(thd, table, 1);
-    /*
-      Mark that we have done permanent changes if all of the below is true
-      - Table doesn't support transactions
-      - It's a normal (not temporary) table. (Changes to temporary tables
-        are not logged in RBR)
-      - We are using statement based replication
-    */
-    if (!trans_table &&
-        (!table->s->tmp_table || !thd->current_stmt_binlog_row_based))
-      thd->no_trans_update.all= TRUE;
-   }
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
+  }
+  DBUG_ASSERT(trans_table || !changed || 
+              thd->transaction.stmt.modified_non_trans_table);
 
   /*
     Write to binlog before commiting transaction.  No statement will
@@ -3190,7 +3188,7 @@ void select_insert::abort() {
                             table->file->has_transactions(), FALSE);
         if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
             !can_rollback_data())
-          thd->no_trans_update.all= TRUE;
+          thd->transaction.all.modified_non_trans_table= TRUE;
         query_cache_invalidate3(thd, table, 1);
       }
     }
@@ -3514,7 +3512,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

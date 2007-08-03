@@ -437,19 +437,23 @@ eval SELECT *
 # check also with a 'simple' user
 CREATE USER user_3212@localhost;
 GRANT ALL ON db_datadict.* TO user_3212@localhost;
+# OBN: The following line was added following the fix to bug 28181  
+#      where queries to information_schema will fail if exporting to 
+#      a file without having the FILE attribute
+GRANT FILE ON *.* TO user_3212@localhost;
+
 
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (u3212,localhost,user_3212,,db_datadict);
 --source suite/funcs_1/include/show_connection.inc
 
 # no db given --> db_datadict.schema does not exist
---error 1045
+--error 1146
 eval SELECT *
   INTO OUTFILE '../tmp/out.$ENGINE_TYPE.user.file'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
-# FIXME 3.2.1.2: why do we get different error numbers with and without OUTFILE ?
 --error 1146
 eval SELECT *
   FROM schemata LIMIT 0, 5;
@@ -460,8 +464,6 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# The above will fail with access error as long as 
-# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
 
 eval SELECT *
   FROM information_schema.schemata
@@ -469,14 +471,11 @@ eval SELECT *
 
 USE information_schema;
 
-# no db given --> db_datadict.schema does not exist
 eval SELECT *
   INTO OUTFILE '../tmp/out.$ENGINE_TYPE.user_2.file'
   FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
   LINES TERMINATED BY '\n'
   FROM schemata LIMIT 0, 5;
-# The above will fail with access error as long as 
-# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
 
 eval SELECT *
   FROM schemata LIMIT 0, 5;
@@ -487,8 +486,6 @@ eval SELECT *
   LINES TERMINATED BY '\n'
   FROM information_schema.schemata
   WHERE schema_name LIKE 'db_%';
-# The above will fail with access error as long as 
-# BUBG#28181 - a regression introduced in 5.0.42 is not fixed
 
 eval SELECT *
   FROM information_schema.schemata

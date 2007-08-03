@@ -406,7 +406,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
-  if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+  if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -695,7 +695,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     strxnmov(definer, sizeof(definer)-1, thd->lex->definer->user.str, "@",
             thd->lex->definer->host.str, NullS);
 
-    if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+    if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
       goto done;
@@ -1067,7 +1067,7 @@ sp_show_status_routine(THD *thd, int type, const char *name_pattern)
   tables.db= (char*)"mysql";
   tables.table_name= tables.alias= (char*)"proc";
 
-  if (! (table= open_ltable(thd, &tables, TL_READ)))
+  if (! (table= open_ltable(thd, &tables, TL_READ, 0)))
   {
     res= SP_OPEN_TABLE_FAILED;
     goto done;

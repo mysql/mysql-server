@@ -363,7 +363,11 @@ sub mtr_report_stats ($) {
 
                 # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
                 #             from the internal data dictionary
-                /Cannot find table test\/bug29807 from the internal data dictionary/
+                /Cannot find table test\/bug29807 from the internal data dictionary/ or
+
+                # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
+                #             from the internal data dictiona
+                /Cannot find table test\/BUG29839 from the internal data dictionary/
 	       )
             {
               next;                       # Skip these lines

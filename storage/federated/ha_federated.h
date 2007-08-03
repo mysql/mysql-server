@@ -113,6 +113,8 @@ private:
                                      uint key_len,
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
+  int real_query(const char *query, uint length);
+  int real_connect();
 public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_federated() {}
@@ -141,6 +143,7 @@ public:
             | HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_CAN_INDEX_BLOBS |
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_NO_PREFIX_CHAR_KEYS | HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
+            HA_NO_TRANSACTIONS /* until fixed by WL#2952 */ |
             HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY);
   }
   /*
@@ -162,6 +165,7 @@ public:
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_parts()     const { return MAX_REF_PARTS; }
   uint max_supported_key_length()    const { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return FEDERATED_MAX_KEY_LENGTH; }
   /*
     Called in test_quick_select to determine if indexes should be used.
     Normally, we need to know number of blocks . For federated we need to

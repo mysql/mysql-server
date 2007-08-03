@@ -229,6 +229,8 @@ mem_pool_create(
 
 		mem_area_set_size(area, ut_2_exp(i));
 		mem_area_set_free(area, TRUE);
+		UNIV_MEM_FREE(MEM_AREA_EXTRA_SIZE + (byte*) area,
+			      ut_2_exp(i) - MEM_AREA_EXTRA_SIZE);
 
 		UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area);
 
@@ -300,6 +302,7 @@ mem_pool_fill_free_list(
 	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
 
 	area2 = (mem_area_t*)(((byte*)area) + ut_2_exp(i));
+	UNIV_MEM_ALLOC(area2, MEM_AREA_EXTRA_SIZE);
 
 	mem_area_set_size(area2, ut_2_exp(i));
 	mem_area_set_free(area2, TRUE);
@@ -400,6 +403,8 @@ mem_area_alloc(
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
+	UNIV_MEM_ALLOC(MEM_AREA_EXTRA_SIZE + (byte*)area,
+		       ut_2_exp(n) - MEM_AREA_EXTRA_SIZE);
 
 	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area)));
 }
@@ -482,6 +487,7 @@ mem_area_free(
 	}
 
 	size = mem_area_get_size(area);
+	UNIV_MEM_FREE(ptr, size - MEM_AREA_EXTRA_SIZE);
 
 	if (size == 0) {
 		fprintf(stderr,

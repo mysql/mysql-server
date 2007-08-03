@@ -114,8 +114,43 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
   {
+#if 1
+    /*
+      BUG#29549: 
+      This is currently broken for NDB, which is using big-endian
+      order when packing length of BLOB. Once they have decided how to
+      fix the issue, we can enable the code below to make sure to
+      always read the length in little-endian order.
+    */
     Field_blob fb(m_field_metadata[col]);
-    length= fb.get_packed_size(master_data);
+    length= fb.get_packed_size(master_data, TRUE);
+#else
+    /*
+      Compute the length of the data. We cannot use get_length() here
+      since it is dependent on the specific table (and also checks the
+      packlength using the internal 'table' pointer) and replication
+      is using a fixed format for storing data in the binlog.
+    */
+    switch (m_field_metadata[col]) {
+    case 1:
+      length= *master_data;
+      break;
+    case 2:
+      length= sint2korr(master_data);
+      break;
+    case 3:
+      length= uint3korr(master_data);
+      break;
+    case 4:
+      length= uint4korr(master_data);
+      break;
+    default:
+      DBUG_ASSERT(0);		// Should not come here
+      break;
+    }
+
+    length+= m_field_metadata[col];
+#endif
     break;
   }
   default:
