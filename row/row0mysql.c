@@ -220,7 +220,7 @@ row_mysql_read_blob_ref(
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 
-	ut_memcpy(&data, ref + col_len - 8, sizeof *data);
+	memcpy(&data, ref + col_len - 8, sizeof data);
 
 	return(data);
 }
@@ -280,7 +280,7 @@ row_mysql_store_col_in_innobase_format(
 		for (;;) {
 			p--;
 			*p = *mysql_data;
-			if (ptr == buf) {
+			if (p == buf) {
 				break;
 			}
 			mysql_data++;
@@ -288,11 +288,11 @@ row_mysql_store_col_in_innobase_format(
 
 		if (!(dtype->prtype & DATA_UNSIGNED)) {
 
-			*p ^= 128;
+			*buf ^= 128;
 		}
 
+		ptr = buf;
 		buf += col_len;
-		ptr = p;
 	} else if ((type == DATA_VARCHAR
 		    || type == DATA_VARMYSQL
 		    || type == DATA_BINARY)) {
