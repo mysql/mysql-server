@@ -5,7 +5,8 @@
   To re-generate, run the following in the strings/ directory:
     ./conf_to_src ../sql/share/charsets/ > FILE
 */
-/* Copyright (C) 2000-2003 MySQL AB
+
+/* Copyright (C) 2000-2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6721,7 +6722,7 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ascii
 {
   11,0,0,
-  MY_CS_COMPILED|MY_CS_PRIMARY,
+  MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_PUREASCII,
   "ascii",                     /* cset name     */
   "ascii_general_ci",                     /* coll name     */
   "",                       /* comment       */
@@ -7810,7 +7811,7 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ascii
 {
   65,0,0,
-  MY_CS_COMPILED|MY_CS_BINSORT,
+  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PUREASCII,
   "ascii",                     /* cset name     */
   "ascii_bin",                     /* coll name     */
   "",                       /* comment       */
