@@ -4288,7 +4288,8 @@ char check_if_ignore_table(const char *table_name, char *table_type)
       If these two types, we do want to skip dumping the table
     */
     if (!opt_no_data &&
-        (!strcmp(table_type,"MRG_MyISAM") || !strcmp(table_type,"MRG_ISAM")))
+        (!my_strcasecmp(&my_charset_latin1, table_type, "MRG_MyISAM") ||
+         !strcmp(table_type,"MRG_ISAM")))
       result= IGNORE_DATA;
   }
   mysql_free_result(res);

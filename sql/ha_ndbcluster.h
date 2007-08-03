@@ -563,7 +563,7 @@ extern SHOW_VAR ndb_status_variables[];
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-                          const char *wild, bool dir, List<char> *files);
+                          const char *wild, bool dir, List<LEX_STRING> *files);
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
