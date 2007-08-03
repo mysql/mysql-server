@@ -63,6 +63,10 @@ TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient_notls wsock32)
 ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient_notls wsock32)
 
+ADD_EXECUTABLE(mysqlslap mysqlslap.c)
+SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
+
 ADD_EXECUTABLE(echo echo.c)
 
 IF(EMBED_MANIFESTS)
