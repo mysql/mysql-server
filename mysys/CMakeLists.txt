@@ -28,7 +28,7 @@ IF(EMBEDDED_ONLY)
   ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
 ENDIF(EMBEDDED_ONLY)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib ${CMAKE_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
 
 ADD_LIBRARY(mysys array.c charset-def.c charset.c checksum.c default.c default_modify.c
 				errors.c hash.c list.c md5.c mf_brkhant.c mf_cache.c mf_dirname.c mf_fn_ext.c
