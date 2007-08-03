@@ -2176,9 +2176,6 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 }
 
 
-/* INFORMATION_SCHEMA name */
-LEX_STRING INFORMATION_SCHEMA_NAME= { C_STRING_WITH_LEN("information_schema")};
-
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
@@ -3670,7 +3667,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       Item *item;
       Item_field *field;
       /*
-        chech that at least one coulmn in view is updatable
+        check that at least one column in view is updatable
       */
       while ((item= it++))
       {
@@ -3681,6 +3678,8 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           break;
         }
       }
+      if (updatable_view && !tables->view->can_be_merged())
+        updatable_view= 0;
     }
     if (updatable_view)
       table->field[5]->store(STRING_WITH_LEN("YES"), cs);

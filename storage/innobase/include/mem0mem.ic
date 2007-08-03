@@ -167,6 +167,8 @@ mem_heap_alloc(
 	mem_block_set_free(block, free + MEM_SPACE_NEEDED(n));
 
 #ifdef UNIV_MEM_DEBUG
+	UNIV_MEM_ALLOC(buf,
+		       n + MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE);
 
 	/* In the debug version write debugging info to the field */
 	mem_field_init((byte*)buf, n);
@@ -177,8 +179,10 @@ mem_heap_alloc(
 
 #endif
 #ifdef UNIV_SET_MEM_TO_ZERO
+	UNIV_MEM_ALLOC(buf, n);
 	memset(buf, '\0', n);
 #endif
+	UNIV_MEM_ALLOC(buf, n);
 	return(buf);
 }
 
@@ -369,6 +373,8 @@ mem_heap_free_top(
 	if ((heap != block) && (mem_block_get_free(block)
 				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
+	} else {
+		UNIV_MEM_FREE((byte*) block + mem_block_get_free(block), n);
 	}
 }
 

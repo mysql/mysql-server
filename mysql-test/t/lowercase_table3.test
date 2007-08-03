@@ -27,9 +27,9 @@ flush tables;
 # storing things in lower case.
 #
 
-CREATE TABLE t1 (a int) ENGINE=INNODB;
+CREATE TABLE bug29839 (a int) ENGINE=INNODB;
 --error 1146
-SELECT * from T1;
-drop table t1;
+SELECT * from BUG29839;
+drop table bug29839;
 
 # End of 4.1 tests

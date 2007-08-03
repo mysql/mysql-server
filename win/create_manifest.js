@@ -56,7 +56,7 @@ try
   manifest_xml+= "\t<assemblyIdentity name=\'" + app_name + "\'";
   manifest_xml+= " version=\'" + app_version + "\'"; 
   manifest_xml+= " processorArchitecture=\'" + app_arch + "\'";
-  // TOADD - Add publicKeyToken attribute once we have Authenticode key.
+  manifest_xml+= " publicKeyToken=\'02ad33b422233ae3\'";
   manifest_xml+= " type=\'win32\' />\r\n";
   // Identify the application security requirements.
   manifest_xml+= "\t<trustInfo xmlns=\'urn:schemas-microsoft-com:asm.v2\'>\r\n"; 
