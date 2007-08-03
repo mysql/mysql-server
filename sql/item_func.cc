@@ -3775,7 +3775,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
-    entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->collation.set(NULL, DERIVATION_IMPLICIT, 0);
     entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a

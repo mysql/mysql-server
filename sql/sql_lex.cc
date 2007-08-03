@@ -311,10 +311,12 @@ static char *get_text(Lex_input_stream *lip)
   uint found_escape=0;
   CHARSET_INFO *cs= lip->m_thd->charset();
 
+  lip->tok_bitmap= 0;
   sep= yyGetLast();			// String should end with this
   while (lip->ptr != lip->end_of_query)
   {
-    c = yyGet();
+    c= yyGet();
+    lip->tok_bitmap|= c;
 #ifdef USE_MB
     {
       int l;
@@ -605,6 +607,7 @@ int MYSQLlex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length= lip->yytoklen;
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(NCHAR_STRING);
 
     case MY_LEX_IDENT_OR_HEX:
@@ -926,6 +929,7 @@ int MYSQLlex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length=lip->yytoklen;
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(TEXT_STRING);
 
     case MY_LEX_COMMENT:			//  Comment
