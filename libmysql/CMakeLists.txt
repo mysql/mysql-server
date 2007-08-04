@@ -110,24 +110,24 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 # beond the documented API, and try access the Thread Local Storage.
 # The "_notls" means no Tls*() functions used, i.e. "static" TLS.
 
-ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
-ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
-
-SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
-
-ADD_DEPENDENCIES(libmysql GenError)
-TARGET_LINK_LIBRARIES(libmysql wsock32)
-
 ADD_DEPENDENCIES(mysqlclient GenError)
 TARGET_LINK_LIBRARIES(mysqlclient)
 
+ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(mysqlclient_notls GenError)
 TARGET_LINK_LIBRARIES(mysqlclient_notls)
 
-ADD_EXECUTABLE(myTest mytest.c)
-TARGET_LINK_LIBRARIES(myTest libmysql)
-
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
+IF(NOT EMBEDDED_ONLY)
+  ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
+  SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
+  ADD_DEPENDENCIES(libmysql GenError)
+  TARGET_LINK_LIBRARIES(libmysql wsock32)
+  
+  ADD_EXECUTABLE(myTest mytest.c)
+  TARGET_LINK_LIBRARIES(myTest libmysql)
+  
+  IF(EMBED_MANIFESTS)
+    MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
+  ENDIF(EMBED_MANIFESTS)
+ENDIF(NOT EMBEDDED_ONLY)
