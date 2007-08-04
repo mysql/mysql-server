@@ -857,7 +857,7 @@ key	PRIMARY
 key_len	4
 ref	NULL
 rows	32
-Extra	Using where; Using index
+Extra	Using where
 SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 a	b
 1	2
