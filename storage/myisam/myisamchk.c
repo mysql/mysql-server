@@ -329,7 +329,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
-   "Specifies how index statistics collection code should threat NULLs. "
+   "Specifies how index statistics collection code should treat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
    "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
    (uchar**) &myisam_stats_method_str, (uchar**) &myisam_stats_method_str, 0,
@@ -444,7 +444,7 @@ static void usage(void)
 		      MySQL faster.  You can check the calculated distribution\n\
 		      by using '--description --verbose table_name'.\n\
   --stats_method=name Specifies how index statistics collection code should\n\
-                      threat NULLs. Possible values of name are \"nulls_unequal\"\n\
+                      treat NULLs. Possible values of name are \"nulls_unequal\"\n\
                       (default for 4.1/5.0), \"nulls_equal\" (emulate 4.0), and \n\
                       \"nulls_ignored\".\n\
   -d, --description   Prints some information about table.\n\

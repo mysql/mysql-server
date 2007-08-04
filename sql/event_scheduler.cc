@@ -283,8 +283,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("Event_worker_thread::run");
-  DBUG_PRINT("info", ("Time is %ld, THD: 0x%lx",
-                      (long) time(NULL), (long) thd));
+  DBUG_PRINT("info", ("Time is %ld, THD: 0x%lx", (long) my_time(0), (long) thd));
 
   if (res)
     goto end;

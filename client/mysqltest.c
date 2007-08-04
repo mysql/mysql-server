@@ -31,7 +31,7 @@
   Holyfoot
 */
 
-#define MTEST_VERSION "3.2"
+#define MTEST_VERSION "3.3"
 
 #include "client_priv.h"
 #include <mysql_version.h>
@@ -80,6 +80,7 @@ const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
@@ -100,6 +101,7 @@ static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 
 static uint start_lineno= 0; /* Start line of current command */
+static uint my_end_arg= 0;
 
 static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
@@ -807,12 +809,10 @@ void free_used_memory()
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg);
 
-  if (!silent)
-  {
-    switch (exit_code)
-    {
+  if (!silent) {
+    switch (exit_code) {
     case 1:
       printf("not ok\n");
       break;
@@ -1084,8 +1084,7 @@ void check_result(DYNAMIC_STRING* ds)
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
 
-  switch (dyn_string_cmp(ds, result_file_name))
-  {
+  switch (dyn_string_cmp(ds, result_file_name)) {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
@@ -1929,7 +1928,10 @@ void do_exec(struct st_command *command)
                       command->first_argument, ds_cmd.str));
 
   if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
+  {
+    dynstr_free(&ds_cmd);
     die("popen(\"%s\", \"r\") failed", command->first_argument);
+  }
 
   while (fgets(buf, sizeof(buf), res_file))
   {
@@ -1953,6 +1955,7 @@ void do_exec(struct st_command *command)
     {
       log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
+      dynstr_free(&ds_cmd);
       die("command \"%s\" failed", command->first_argument);
     }
 
@@ -1971,8 +1974,11 @@ void do_exec(struct st_command *command)
       }
     }
     if (!ok)
+    {
+      dynstr_free(&ds_cmd);
       die("command \"%s\" failed with wrong error: %d",
           command->first_argument, status);
+    }
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1980,6 +1986,7 @@ void do_exec(struct st_command *command)
     /* Error code we wanted was != 0, i.e. not an expected success */
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
+    dynstr_free(&ds_cmd);
     die("command \"%s\" succeeded - should have failed with errno %d...",
         command->first_argument, command->expected_errors.err[0].code.errnum);
   }
@@ -4482,6 +4489,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
@@ -4625,6 +4638,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '#':
 #ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+    debug_check_flag= 1;
 #endif
     break;
   case 'r':
@@ -4724,6 +4738,10 @@ int parse_args(int argc, char **argv)
     opt_db= *argv;
   if (tty_password)
     opt_pass= get_tty_password(NullS);          /* purify tested */
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   return 0;
 }
@@ -5377,11 +5395,8 @@ end:
   ds    - dynamic string which is used for output buffer
 
   NOTE
-  If there is an unexpected error this function will abort mysqltest
-  immediately.
-
-  RETURN VALUE
-  error - function will not return
+    If there is an unexpected error this function will abort mysqltest
+    immediately.
 */
 
 void handle_error(struct st_command *command,

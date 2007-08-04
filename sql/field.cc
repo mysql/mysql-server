@@ -4578,15 +4578,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
   }
-
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
+  store_timestamp(tmp);
   return error;
 }
 
@@ -4646,18 +4638,9 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
                          WARN_DATA_TRUNCATED,
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,timestamp);
-  }
-  else
-#endif
-    longstore(ptr,(uint32) timestamp);
-
+  store_timestamp(timestamp);
   return error;
 }
-
 
 double Field_timestamp::val_real(void)
 {
@@ -4853,14 +4836,7 @@ void Field_timestamp::set_time()
   THD *thd= table ? table->in_use : current_thd;
   long tmp= (long) thd->query_start();
   set_notnull();
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
+  store_timestamp(tmp);
 }
 
 /****************************************************************************
@@ -9810,4 +9786,3 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                                  field_name);
   }
 }
-

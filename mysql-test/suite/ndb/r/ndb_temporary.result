@@ -9,7 +9,7 @@ SET SESSION storage_engine=NDBCLUSTER;
 create table t1 (a int key);
 select engine from information_schema.tables where table_name = 't1';
 engine
-NDBCLUSTER
+ndbcluster
 drop table t1;
 create temporary table t1 (a int key);
 show create table t1;
