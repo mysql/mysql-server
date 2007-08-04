@@ -268,7 +268,10 @@ set interactive_timeout=100;
 set join_buffer_size=100;
 set last_insert_id=1;
 set global local_infile=1;
-set long_query_time=100;
+set long_query_time=0.000001;
+select @@long_query_time;
+set long_query_time=100.000001;
+select @@long_query_time;
 set low_priority_updates=1;
 set max_allowed_packet=100;
 set global max_binlog_cache_size=100;
@@ -327,6 +330,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
+set global log_warnings=1;
 
 #
 # Bugs: #20392: INSERT_ID session variable has weird value

@@ -572,7 +572,15 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   {
     if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
         (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+    {
+      /* Open view only */
+      if (db_flags & OPEN_VIEW_ONLY)
+      {
+        error_given= 1;
+        goto err;
+      }
       table_type= 1;
+    }
     else
     {
       error= 6;                                 // Unkown .frm version
@@ -1612,9 +1620,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->keys_in_use_for_query.init();
 
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
-                                        share->db_type())))
-    goto err;
+  outparam->file= 0;
+  if (!(prgflag & OPEN_FRM_FILE_ONLY))
+  {
+    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+                                          share->db_type())))
+      goto err;
+  }
+  else
+  {
+    DBUG_ASSERT(!db_stat);
+  }
 
   error= 4;
   outparam->reginfo.lock_type= TL_UNLOCK;
@@ -1862,6 +1878,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 
+  outparam->no_replicate= outparam->file &&
+                          test(outparam->file->ha_table_flags() &
+                               HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);

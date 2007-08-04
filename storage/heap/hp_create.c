@@ -19,23 +19,27 @@ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
 static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 		       ulong max_records);
 
+/* Create a heap table */
+
 int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 		uint reclength, ulong max_records, ulong min_records,
-		HP_CREATE_INFO *create_info)
+		HP_CREATE_INFO *create_info, HP_SHARE **res)
 {
   uint i, j, key_segs, max_length, length;
-  HP_SHARE *share;
+  HP_SHARE *share= 0;
   HA_KEYSEG *keyseg;
-  
   DBUG_ENTER("heap_create");
-  pthread_mutex_lock(&THR_LOCK_heap);
 
-  if ((share= hp_find_named_heap(name)) && share->open_count == 0)
+  if (!create_info->internal_table)
   {
-    hp_free(share);
-    share= NULL;
-  }
-  
+    pthread_mutex_lock(&THR_LOCK_heap);
+    if ((share= hp_find_named_heap(name)) && share->open_count == 0)
+    {
+      hp_free(share);
+      share= 0;
+    }
+  }  
+
   if (!share)
   {
     HP_KEYDEF *keyinfo;
@@ -131,10 +135,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 				       keys*sizeof(HP_KEYDEF)+
 				       key_segs*sizeof(HA_KEYSEG),
 				       MYF(MY_ZEROFILL))))
-    {
-      pthread_mutex_unlock(&THR_LOCK_heap);
-      DBUG_RETURN(1);
-    }
+      goto err;
     share->keydef= (HP_KEYDEF*) (share + 1);
     share->key_stat_version= 1;
     keyseg= (HA_KEYSEG*) (share->keydef + keys);
@@ -189,19 +190,32 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     if (!(share->name= my_strdup(name,MYF(0))))
     {
       my_free((uchar*) share,MYF(0));
-      pthread_mutex_unlock(&THR_LOCK_heap);
-      DBUG_RETURN(1);
+      goto err;
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
 #endif
-    share->open_list.data= (void*) share;
-    heap_share_list= list_add(heap_share_list,&share->open_list);
+    if (!create_info->internal_table)
+    {
+      share->open_list.data= (void*) share;
+      heap_share_list= list_add(heap_share_list,&share->open_list);
+    }
+    else
+      share->delete_on_close= 1;
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  if (!create_info->internal_table)
+    pthread_mutex_unlock(&THR_LOCK_heap);
+
+  *res= share;
   DBUG_RETURN(0);
+
+err:
+  if (!create_info->internal_table)
+    pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_RETURN(1);
 } /* heap_create */
+
 
 static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 {
@@ -279,7 +293,8 @@ void heap_drop_table(HP_INFO *info)
 
 void hp_free(HP_SHARE *share)
 {
-  heap_share_list= list_delete(heap_share_list, &share->open_list);
+  if (share->open_list.data)                    /* If not internal table */
+    heap_share_list= list_delete(heap_share_list, &share->open_list);
   hp_clear(share);			/* Remove blocks from memory */
 #ifdef THREAD
   thr_lock_delete(&share->lock);

@@ -2769,7 +2769,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
     char buf[128];
     my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
                 my_xml_error_lineno(&p) + 1,
-                my_xml_error_pos(&p) + 1,
+                (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE,

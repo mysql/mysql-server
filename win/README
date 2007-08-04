@@ -65,6 +65,8 @@ The options right now are:
     EMBED_MANIFESTS                      Embed custom manifests into final exes, otherwise VS
                                          default will be used. (Note - This option should only be
                                          used by MySQL AB.)
+    EMBEDDED_ONLY                        Configure solution to produce libmysqld.dll 
+                                         default will be used.
                                 
 
 So the command line could look like:
@@ -98,3 +100,16 @@ may be necessary to clean the build tree to remove any stale objects.
 Please see this link: http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/
 At step 5 you only need to add the libraries advapi32.lib and user32.lib to
 the file "corewin_express.vsprops" in order to avoid link errors.
+
+3. Testing the Windows embedded library requires a two step process.  The extra
+step is necessary because the testsuite requires mysqld to run properly but both
+the embedded library and the mysqld executable cannot be built at the same time.
+Here's the process for building and testing the embedded library:
+
+  A. Follow steps 1 - 7 listed above to produce the Release configuration.
+  B. Perform step 5 from above again adding "--EMBEDDED-ONLY" to previously
+  supplied options.
+  C. Complete the build steps above to produce the Release configuration.  Make 
+  sure to Rebuild the solution so that all libraries are re-built.
+  D. Run the testsuite as usual.
+

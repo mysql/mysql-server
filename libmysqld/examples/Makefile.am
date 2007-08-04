@@ -19,6 +19,7 @@ client_sources  = $(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
 tests_sources   = $(mysql_client_test_embedded_SOURCES)
 BUILT_SOURCES   = link_sources
 CLEANFILES      = $(client_sources) $(tests_sources) $(BUILT_SOURCES)
+EXTRA_DIST      = CMakeLists.txt
 
 link_sources:
 	for f in $(client_sources); do \
