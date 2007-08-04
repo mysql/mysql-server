@@ -42,7 +42,7 @@ void get_date(register char * to, int flag, time_t date)
   struct tm tm_tmp;
 #endif
 
-   skr=date ? (time_t) date : time((time_t*) 0);
+   skr=date ? (time_t) date : my_time(0);
 #if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
    if (flag & GETDATE_GMT)
      localtime_r(&skr,&tm_tmp);

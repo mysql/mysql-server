@@ -1645,7 +1645,7 @@ err:
 void
 Event_queue_element::mark_last_executed(THD *thd)
 {
-  thd->end_time();
+  thd->set_current_time();
 
   last_executed= (my_time_t) thd->query_start();
   last_executed_changed= TRUE;

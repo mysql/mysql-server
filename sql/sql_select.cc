@@ -1625,6 +1625,10 @@ JOIN::exec()
     DBUG_VOID_RETURN;
   }
 
+  if ((this->select_lex->options & OPTION_SCHEMA_TABLE) &&
+      get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
+    DBUG_VOID_RETURN;
+
   if (select_options & SELECT_DESCRIBE)
   {
     /*
@@ -1669,13 +1673,6 @@ JOIN::exec()
     iteration must count from zero.
   */
   curr_join->examined_rows= 0;
-
-  if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
-      !thd->lex->describe &&
-      get_schema_tables_result(curr_join, PROCESSED_BY_JOIN_EXEC))
-  {
-    DBUG_VOID_RETURN;
-  }
 
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
@@ -10199,7 +10196,7 @@ static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
-                                  HA_OPEN_TMP_TABLE)))
+                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;
@@ -10437,8 +10434,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
-  (void) table->file->close();
-  (void) table->file->delete_table(table->s->table_name.str);
+  (void) table->file->close();                  // This deletes the table !
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
@@ -12929,7 +12925,6 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
   /* Fill schema tables with data before filesort if it's necessary */
   if ((join->select_lex->options & OPTION_SCHEMA_TABLE) &&
-      !thd->lex->describe &&
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
 
@@ -15382,6 +15377,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
+      TABLE_LIST *table_list= tab->table->pos_in_table_list;
       char buff[512]; 
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
@@ -15517,37 +15513,64 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-	item_list.push_back(item_null);
+        if (table_list->schema_table &&
+            table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE)
+        {
+          const char *tmp_buff;
+          int f_idx;
+          if (table_list->has_db_lookup_value)
+          {
+            f_idx= table_list->schema_table->idx_field1;
+            tmp_buff= table_list->schema_table->fields_info[f_idx].field_name;
+            tmp2.append(tmp_buff, strlen(tmp_buff), cs);
+          }          
+          if (table_list->has_table_lookup_value)
+          {
+            if (table_list->has_db_lookup_value)
+              tmp2.append(',');
+            f_idx= table_list->schema_table->idx_field2;
+            tmp_buff= table_list->schema_table->fields_info[f_idx].field_name;
+            tmp2.append(tmp_buff, strlen(tmp_buff), cs);
+          }
+          if (tmp2.length())
+            item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+          else
+            item_list.push_back(item_null);
+        }
+        else
+          item_list.push_back(item_null);
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
       
       /* Add "rows" field to item_list. */
-      ha_rows examined_rows;
-      if (tab->select && tab->select->quick)
-        examined_rows= tab->select->quick->records;
-      else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-        examined_rows= tab->table->file->records();
-      else
-        examined_rows=(ha_rows)join->best_positions[i].records_read; 
- 
-      item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
-                                       MY_INT64_NUM_DECIMAL_DIGITS));
-
-      /* Add "filtered" field to item_list. */
-      if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+      if (table_list->schema_table)
       {
-        Item_float *filtered;
-        float f; 
-        if (examined_rows)
-          f= (float) (100.0 * join->best_positions[i].records_read /
-                      examined_rows);
-        else
-          f= 0.0;
-        item_list.push_back((filtered= new Item_float(f)));
-        filtered->decimals= 2;
+        item_list.push_back(item_null);
       }
+      else
+      {
+        ha_rows examined_rows;
+        if (tab->select && tab->select->quick)
+          examined_rows= tab->select->quick->records;
+        else if (tab->type == JT_NEXT || tab->type == JT_ALL)
+          examined_rows= tab->table->file->records();
+        else
+          examined_rows=(ha_rows)join->best_positions[i].records_read; 
+ 
+        item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
+                                         MY_INT64_NUM_DECIMAL_DIGITS));
 
+        /* Add "filtered" field to item_list. */
+        if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+        {
+          float f= 0.0; 
+          if (examined_rows)
+            f= (float) (100.0 * join->best_positions[i].records_read /
+                        examined_rows);
+          item_list.push_back(new Item_float(f, 2));
+        }
+      }
 
       /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
@@ -15615,6 +15638,24 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
               extra.append(STRING_WITH_LEN("; Using where"));
           }
 	}
+        if (table_list->schema_table &&
+            table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE)
+        {
+          if (!table_list->table_open_method)
+            extra.append(STRING_WITH_LEN("; Skip_open_table"));
+          else if (table_list->table_open_method == OPEN_FRM_ONLY)
+            extra.append(STRING_WITH_LEN("; Open_frm_only"));
+          else
+            extra.append(STRING_WITH_LEN("; Open_full_table"));
+          if (table_list->has_db_lookup_value &&
+              table_list->has_table_lookup_value)
+            extra.append(STRING_WITH_LEN("; Scanned 0 databases"));
+          else if (table_list->has_db_lookup_value ||
+                   table_list->has_table_lookup_value)
+            extra.append(STRING_WITH_LEN("; Scanned 1 database"));
+          else
+            extra.append(STRING_WITH_LEN("; Scanned all databases"));
+        }
 	if (key_read)
         {
           if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)

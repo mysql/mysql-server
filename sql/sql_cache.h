@@ -142,6 +142,7 @@ struct Query_cache_query
   uint8 tbls_type;
   unsigned int last_pkt_nr;
 
+  Query_cache_query() {}                      /* Remove gcc warning */
   inline void init_n_lock();
   void unlock_n_destroy();
   inline ulonglong found_rows()		   { return limit_found_rows; }
