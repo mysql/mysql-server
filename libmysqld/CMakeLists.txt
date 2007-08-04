@@ -21,16 +21,20 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS(-DUSE_TLS -DMYSQL_SERVER)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-		    ${CMAKE_SOURCE_DIR}/libmysqld
-		    ${CMAKE_SOURCE_DIR}/libmysql
+                    ${CMAKE_SOURCE_DIR}/libmysqld
+                    ${CMAKE_SOURCE_DIR}/libmysql
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
                     ${CMAKE_SOURCE_DIR}/zlib 
 )
 
-SET_SOURCE_FILES_PROPERTIES(${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-                            ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
+SET_SOURCE_FILES_PROPERTIES(sql_yacc.cc
+                            sql_yacc.h
+                            message.h
+                            message.rc
+                            ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
+                            lex_hash.h 							
                             PROPERTIES GENERATED 1)
                             
 ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
@@ -76,9 +80,53 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/scheduler.cc
            ../vio/vio.c ../vio/viosocket.c ../vio/viossl.c
            ../vio/viosslfactories.c
-           ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-           ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h)
+           sql_yacc.cc
+           sql_yacc.h
+           message.h
+           message.rc
+           lex_hash.h)
 ADD_DEPENDENCIES(mysqldemb GenError)
+
+# Sql Parser custom command
+ADD_CUSTOM_COMMAND(
+	SOURCE ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy 
+	OUTPUT sql_yacc.cc
+	COMMAND bison.exe 
+	ARGS -y -p MYSQL --defines=sql_yacc.h
+	     --output=sql_yacc.cc ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy
+)
+
+ADD_CUSTOM_COMMAND(
+	OUTPUT sql_yacc.h
+	COMMAND echo
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
+)
+
+# Windows message file
+ADD_CUSTOM_COMMAND(
+	SOURCE ${CMAKE_SOURCE_DIR}/sql/message.mc
+	OUTPUT message.rc message.h
+	COMMAND mc
+	ARGS ${CMAKE_SOURCE_DIR}/sql/message.mc
+	DEPENDS ${CMAKE_SOURCE_DIR}/sql/message.mc
+)
+
+# Gen_lex_hash
+ADD_EXECUTABLE(gen_lex_hash ../sql/gen_lex_hash.cc)
+TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient wsock32)
+GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
+ADD_CUSTOM_COMMAND(
+	OUTPUT lex_hash.h
+	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
+	DEPENDS ${GEN_LEX_HASH_EXE}
+)
+
+# Remove the auto-generated files as part of 'Clean Solution'
+SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
+                         "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
+
+ADD_DEPENDENCIES(mysqldemb gen_lex_hash)
 
 # Seems we cannot make a library without at least one source file. So use a
 # dummy empty file
@@ -116,3 +164,6 @@ ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
 IF(WITH_BLACKHOLE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(libmysqld blackhole)
 ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
+IF(WITH_CSV_STORAGE_ENGINE)
+  TARGET_LINK_LIBRARIES(libmysqld csv)
+ENDIF(WITH_CSV_STORAGE_ENGINE)
