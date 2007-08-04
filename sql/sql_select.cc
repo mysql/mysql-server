@@ -12911,8 +12911,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           {
             tab->ref.key= -1;
             tab->ref.key_parts= 0;
-            if (tab->select)
-              tab->select->quick= 0;
+            if (select && select->quick)
+            {
+              delete select->quick;
+              select->quick= 0;
+            }
             if (select_limit < table_records) 
               tab->limit= select_limit;
           }
