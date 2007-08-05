@@ -957,6 +957,9 @@ public:
 
   /** Position of ';' in the stream, to delimit multiple queries. */
   const char* found_semicolon;
+  
+  /** Token character bitmaps, to detect 7bit strings. */
+  uchar tok_bitmap;
 
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;
@@ -994,6 +997,7 @@ typedef struct st_lex : public Query_tables_list
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset, *underscore_charset;
+  bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   /* Position (first character index) of SELECT of CREATE VIEW statement */
