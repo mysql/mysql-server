@@ -12596,7 +12596,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
-  QUICK_SELECT_I *save_quick;
+  QUICK_SELECT_I *save_quick= 0;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -12734,7 +12734,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     JOIN *join= tab->join;
     uint tablenr= tab - join->join_tab;
     ha_rows table_records= table->file->stats.records;
-    bool group= join->group && order == join->group_list; 
+    bool group= join->group && order == join->group_list;
+    LINT_INIT(best_key_parts);
+    LINT_INIT(best_key_direction);
+    LINT_INIT(best_records); 
 
     /* 
       filesort() and join cache are usually faster than reading in 
