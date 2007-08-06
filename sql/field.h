@@ -1432,7 +1432,7 @@ public:
   int cmp(const char *a, const char *b)
   { 
     DBUG_ASSERT(ptr == a);
-    return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+    return Field_bit::key_cmp((const byte *) b, bytes_in_rec+test(bit_len));
   }
   int key_cmp(const byte *a, const byte *b)
   { return cmp_binary((char *) a, (char *) b); }
