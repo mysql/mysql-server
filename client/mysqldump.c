@@ -1820,7 +1820,7 @@ static uint dump_events_for_db(char *db)
   MYSQL_ROW  row, event_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered;
+  int        db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2005,7 +2005,7 @@ static uint dump_routines_for_db(char *db)
   MYSQL_ROW  row, routine_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered;
+  int        db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2746,7 +2746,7 @@ static int dump_trigger(MYSQL_RES *show_create_trigger_rs,
 {
   FILE *sql_file= md_result_file;
   MYSQL_ROW row;
-  int db_cl_altered;
+  int db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_trigger");
 
