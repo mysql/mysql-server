@@ -1575,7 +1575,7 @@ public:
   int cmp(const uchar *a, const uchar *b)
   { 
     DBUG_ASSERT(ptr == a);
-    return Field_bit::key_cmp((const byte *) b, bytes_in_rec+test(bit_len));
+    return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
   }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
@@ -1587,7 +1587,7 @@ public:
   void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
   { get_key_image(buff, length, itRAW); }   
   void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
-  { Field_bit::store(buff, length, cs); }
+  { Field_bit::store((char *) buff, length, cs); }
   uint get_key_image(uchar *buff, uint length, imagetype type);
   void set_key_image(const uchar *buff, uint length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }
