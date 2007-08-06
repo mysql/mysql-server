@@ -2121,7 +2121,7 @@ static uint dump_routines_for_db(char *db)
 
             restore_sql_mode(sql_file, ";");
 
-            if (mysql_num_fields(routine_res) > 3)
+            if (mysql_num_fields(routine_res) >= 6)
             {
               restore_cs_variables(sql_file, ";");
 
@@ -2819,6 +2819,9 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   /* Get database collation. */
 
+  if (switch_character_set_results(mysql, "binary"))
+    DBUG_RETURN(TRUE);
+
   if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
     DBUG_RETURN(TRUE);
 
@@ -2830,9 +2833,6 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   if (mysql_query_with_error_report(mysql, &show_triggers_rs, query_buff))
     DBUG_RETURN(TRUE);
-
-  if (mysql_num_rows(show_triggers_rs))
-    fprintf(sql_file, "\n");
 
   /* Dump triggers. */
 
@@ -2870,10 +2870,10 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 
   }
 
-  if (mysql_num_rows(show_triggers_rs))
-    fprintf(sql_file, "\n");
-
   mysql_free_result(show_triggers_rs);
+
+  if (switch_character_set_results(mysql, default_charset))
+    DBUG_RETURN(TRUE);
 
   /*
     make sure to set back opt_compatible mode to
