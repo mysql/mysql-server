@@ -1777,40 +1777,22 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
-  if ((row = mysql_fetch_row(res)) && row[0])
+  if ((row= mysql_fetch_row(res)) && row[0])
   {
     /*
-      Concatenate all row results with tab in between to allow us to work
-      with results from many columns (for example from SHOW VARIABLES)
+      Concatenate all fields in the first row with tab in between
+      and assign that string to the $variable
     */
     DYNAMIC_STRING result;
     uint i;
     ulong *lengths;
-#ifdef NOT_YET
-    MYSQL_FIELD *fields= mysql_fetch_fields(res);
-#endif
 
-    init_dynamic_string(&result, "", 2048, 2048);
+    init_dynamic_string(&result, "", 512, 512);
     lengths= mysql_fetch_lengths(res);
-    for (i=0; i < mysql_num_fields(res); i++)
+    for (i= 0; i < mysql_num_fields(res); i++)
     {
-      if (row[0])
+      if (row[i])
       {
-#ifdef NOT_YET
-	/* Add to <var_name>_<col_name> */
-	uint j;
-	char var_col_name[MAX_VAR_NAME_LENGTH];
-	uint length= snprintf(var_col_name, MAX_VAR_NAME_LENGTH,
-			      "$%s_%s", var->name, fields[i].name);
-	/* Convert characters not allowed in variable names to '_' */
-	for (j= 1; j < length; j++)
-	{
-	  if (!my_isvar(charset_info,var_col_name[j]))
-            var_col_name[j]= '_';
-        }
-	var_set(var_col_name,  var_col_name + length,
-		row[i], row[i] + lengths[i]);
-#endif
         /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
       }
