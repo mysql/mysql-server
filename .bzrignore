@@ -1099,6 +1099,7 @@ libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
 libmysqld/key.cc
+libmysqld/lex_hash.h
 libmysqld/lib_sql.cpp
 libmysqld/libmysql.c
 libmysqld/link_sources
@@ -1107,6 +1108,8 @@ libmysqld/log.cc
 libmysqld/log_event.cc
 libmysqld/log_event_old.cc
 libmysqld/md5.c
+libmysqld/message.h
+libmysqld/message.rc
 libmysqld/mf_iocache.cc
 libmysqld/mini_client.cc
 libmysqld/my_decimal.cc

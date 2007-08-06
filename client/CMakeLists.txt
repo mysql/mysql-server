@@ -104,40 +104,43 @@ ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                         )
 
 ADD_DEPENDENCIES(mysqlclient GenError)
-ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
-LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
-TARGET_LINK_LIBRARIES(mysql mysqlclient mysys zlib dbug wsock32)
 
-ADD_EXECUTABLE(mysqltest mysqltest.c)
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys zlib dbug regex wsock32)
-
-ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient dbug zlib wsock32)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
-
-ADD_EXECUTABLE(mysqlshow mysqlshow.c)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc ../mysys/mf_tempdir.c ../mysys/my_new.cc
-                           ../mysys/my_bit.c ../mysys/my_bitmap.c ../mysys/my_vle.c
-                           ../mysys/base64.c)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug zlib wsock32)
-
-ADD_EXECUTABLE(mysqlslap mysqlslap.c)
-SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
+IF(NOT EMBEDDED_ONLY)
+  ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
+  LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
+  TARGET_LINK_LIBRARIES(mysql mysqlclient mysys zlib dbug wsock32)
+  
+  ADD_EXECUTABLE(mysqltest mysqltest.c)
+  TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys zlib dbug regex wsock32)
+  
+  ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
+  TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
+  TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysqlimport mysqlimport.c)
+  TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient dbug zlib wsock32)
+  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
+  
+  ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+  TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc ../mysys/mf_tempdir.c ../mysys/my_new.cc
+                             ../mysys/my_bit.c ../mysys/my_bitmap.c ../mysys/my_vle.c
+                             ../mysys/base64.c)
+  TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
+  TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug zlib wsock32)
+  
+  ADD_EXECUTABLE(mysqlslap mysqlslap.c)
+  SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+  TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
+ENDIF(NOT EMBEDDED_ONLY)
 
 ADD_EXECUTABLE(echo echo.c)
 
