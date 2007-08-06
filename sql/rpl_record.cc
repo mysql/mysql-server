@@ -250,13 +250,14 @@ unpack_row(RELAY_LOG_INFO const *rli,
           We only unpack the field if it was non-null.
           Use the master's size information if available else call
           normal unpack operation.
-         */
+        */
 #if 0
-         bool save= table->s->db_low_byte_first;
-         table->s->db_low_byte_first= TRUE;
+        bool save= table->s->db_low_byte_first;
+        table->s->db_low_byte_first= TRUE;
 #endif
-        if (tabledef && tabledef->field_metadata(i))
-          pack_ptr= f->unpack(f->ptr, pack_ptr, tabledef->field_metadata(i));
+        uint16 const metadata= tabledef->field_metadata(i);
+        if (tabledef && metadata)
+          pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
         else
           pack_ptr= f->unpack(f->ptr, pack_ptr);
 #if 0

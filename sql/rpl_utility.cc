@@ -97,7 +97,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
   {
     uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
     uint from_bit_len= m_field_metadata[col] & 0x00ff;
-    DBUG_ASSERT(from_bit_len >= 0 && from_bit_len <= 7);
+    DBUG_ASSERT(from_bit_len <= 7);
     length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
   }

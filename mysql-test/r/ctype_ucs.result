@@ -896,4 +896,30 @@ select hex(convert(s1 using latin1)) from t1;
 hex(convert(s1 using latin1))
 7F
 drop table t1;
+create table t1 (a varchar(15) character set ascii not null, b int);
+insert into t1 values ('a',1);
+select concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
+concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062))
+aa
+select concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
+concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062))
+ab
+select * from t1 where a=if(b<10,_ucs2 0x0061,_ucs2 0x0062);
+a	b
+a	1
+select * from t1 where a=if(b>10,_ucs2 0x0061,_ucs2 0x0062);
+a	b
+select concat(a,if(b<10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b<10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b>10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+drop table t1;
 End of 5.0 tests

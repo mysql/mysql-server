@@ -1435,6 +1435,9 @@ public:
   */
   const char *found_semicolon;
 
+  /** Token character bitmaps, to detect 7bit strings. */
+  uchar tok_bitmap;
+
   /** SQL_MODE = IGNORE_SPACE. */
   bool ignore_space;
 
@@ -1502,8 +1505,9 @@ typedef struct st_lex : public Query_tables_list
   /* maintain a list of used plugins for this LEX */
   DYNAMIC_ARRAY plugins;
   plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
-  
+
   CHARSET_INFO *charset;
+  bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
