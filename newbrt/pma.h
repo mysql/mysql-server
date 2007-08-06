@@ -36,7 +36,27 @@ int pma_delete (PMA, DBT *, DB*);
  * Don't modify the returned data.  Don't free it. */
 enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
 
-int pma_split(PMA old, PMA *newa, PMA *newb, PMA_CURSOR *cursors, int ncursors);
+/*
+ * split a pma into 2 pma's.  the new pma's are designated the
+ * left and right pma's.  the left and right pma's have roughly the same
+ * key and value space.
+ *
+ * old - the old pma
+ * newa - the new pma on the left
+ * newb - the new pma on the right
+ */
+int pma_split(PMA old, PMA *newa, PMA *newb);
+
+/*
+ * insert several key value pairs into an empty pma
+ *
+ * pma - the pma that the key value pairs will be inserted into.
+ *      must be empty with no cursors.
+ * keys - an array of pointers and lengths of the keys
+ * vals - an array of pointers and lengths of the values
+ * n_newpairs - the number of key value pairs
+ */
+int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs);
 
 /* Move the cursor to the beginning or the end or to a key */
 int pma_cursor (PMA, PMA_CURSOR *);
@@ -45,6 +65,7 @@ int pma_cursor_free (PMA_CURSOR*);
 int pma_cursor_set_position_last (PMA_CURSOR c);
 int pma_cursor_set_position_first (PMA_CURSOR c);
 int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
+int pma_cursor_set_position_prev (PMA_CURSOR c);
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val);
 
 /* Return PMA_NOTFOUND if the pma is empty. */
