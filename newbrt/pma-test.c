@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include "list.h"
 #include "kv-pair.h"
 #include "pma-internal.h"
 
@@ -151,7 +152,7 @@ void test_smooth_region_N (int N) {
 		}
 	    }
 	    pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat);
-	    r = pmainternal_smooth_region(pairs, N, insertat);
+	    r = pmainternal_smooth_region(pairs, N, insertat, 0, 0);
 	    pmainternal_printpairs(pairs, N); printf(" at %d\n", r);
 	    assert(0<=r); assert(r<N);
 	    assert(pairs[r]==0);
@@ -192,7 +193,7 @@ void test_smooth_region6 (void) {
     key = "B";
     pairs[1] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
 
-    int r = pmainternal_smooth_region(pairs, N, 2);
+    int r = pmainternal_smooth_region(pairs, N, 2, 0, 0);
     printf("{ ");
     for (i=0; i<N; i++)
         printf("%s ", pairs[i] ? pairs[i]->key : "?");
@@ -517,11 +518,101 @@ void test_pma_cursor_3 (void) {
 
 }
 
+void assert_cursor_val(PMA_CURSOR cursor, int v) {
+    DBT key, val;
+    int error;
+
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    error = pma_cget_current(cursor, &key, &val);
+    assert(error == 0);
+    assert( v == *(int *)val.data);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+/* make sure cursors are adjusted when the pma grows */
+void test_pma_cursor_4() {
+    int error;
+    PMA pma;
+    PMA_CURSOR cursora, cursorb, cursorc;
+    int i;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    for (i=1; i<=4; i += 1) {
+        DBT dbtk, dbtv;
+        char k[5]; int v;
+
+        sprintf(k, "%4.4d", i);
+        fill_dbt(&dbtk, &k, strlen(k)+1);
+        v = i;
+        fill_dbt(&dbtv, &v, sizeof v);
+
+        error = pma_insert(pma, &dbtk, &dbtv, 0); 
+        assert(error == BRT_OK);
+    }
+    assert(pma_n_entries(pma) == 4);
+    printf("a:"); print_pma(pma);
+
+    error = pma_cursor(pma, &cursora);
+    assert(error == 0);
+    error = pma_cursor_set_position_first(cursora);
+    assert(error == 0);
+    assert_cursor_val(cursora, 1);
+
+    error = pma_cursor(pma, &cursorb);
+    assert(error == 0);
+    error = pma_cursor_set_position_first(cursorb);
+    assert(error == 0);
+    assert_cursor_val(cursorb, 1);
+    error = pma_cursor_set_position_next(cursorb);
+    assert(error == 0);
+    assert_cursor_val(cursorb, 2);
+
+    error = pma_cursor(pma, &cursorc);
+    assert(error == 0);
+    error = pma_cursor_set_position_last(cursorc);
+    assert(error == 0);
+    assert_cursor_val(cursorc, 4);
+
+    for (i=5; i<=6; i += 1) {
+        DBT dbtk, dbtv;
+        char k[5]; int v;
+
+        sprintf(k, "%4.4d", i);
+        fill_dbt(&dbtk, &k, strlen(k)+1);
+        v = i;
+        fill_dbt(&dbtv, &v, sizeof v);
+
+        error = pma_insert(pma, &dbtk, &dbtv, 0); 
+        assert(error == BRT_OK);
+    }
+    assert(pma_n_entries(pma) == 6);
+    printf("a:"); print_pma(pma);
+
+    assert_cursor_val(cursora, 1);
+    assert_cursor_val(cursorb, 2);
+    assert_cursor_val(cursorc, 4);
+
+    error = pma_cursor_free(&cursora);
+    assert(error == 0);
+    error = pma_cursor_free(&cursorb);
+    assert(error == 0);
+    error = pma_cursor_free(&cursorc);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
 void test_pma_cursor (void) {
     test_pma_cursor_0();
     test_pma_cursor_1();
     test_pma_cursor_2();
     test_pma_cursor_3();
+    test_pma_cursor_4();
 }
 
 int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
@@ -580,13 +671,13 @@ void test_pma_compare_fun (int wrong_endian_p) {
     r=pma_free(&pma); assert(r==0);
 }
 
-void test_pma_split(int n) {
+void test_pma_split_n(int n) {
     PMA pmaa, pmab, pmac;
     int error;
     int i;
     int na, nb, nc;
 
-    printf("test_pma_split:%d\n", n);
+    printf("test_pma_split_n:%d\n", n);
 
     error = pma_create(&pmaa, default_compare_fun);
     assert(error == 0);
@@ -607,7 +698,7 @@ void test_pma_split(int n) {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, &pmab, &pmac, 0, 0);
+    error = pma_split(pmaa, &pmab, &pmac);
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
@@ -657,7 +748,7 @@ void test_pma_split_varkey() {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, &pmab, &pmac, 0, 0);
+    error = pma_split(pmaa, &pmab, &pmac);
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
@@ -678,8 +769,240 @@ void test_pma_split_varkey() {
     assert(error == 0);
 }
 
+void print_cursor(const char *str, PMA_CURSOR cursor) {
+    DBT key, val;
+    int error;
+
+    printf("cursor %s: ", str);
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    error = pma_cget_current(cursor, &key, &val);
+    assert(error == 0);
+    printf("%s ", (char*)key.data);
+    toku_free(key.data);
+    toku_free(val.data);
+    printf("\n");
+}
+
+void walk_cursor(const char *str, PMA_CURSOR cursor) {
+    DBT key, val;
+    int error;
+
+    printf("walk %s: ", str);
+    for (;;) {
+        init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        error = pma_cget_current(cursor, &key, &val);
+        assert(error == 0);
+        printf("%s ", (char*)key.data);
+        toku_free(key.data);
+        toku_free(val.data);
+
+        error = pma_cursor_set_position_next(cursor);
+        if (error != 0)
+            break;
+    }
+    printf("\n");
+}
+
+void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
+    DBT key, val;
+    int error;
+
+    printf("walk %s: ", str);
+    for (;;) {
+        init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        error = pma_cget_current(cursor, &key, &val);
+        assert(error == 0);
+        printf("%s ", (char*)key.data);
+        toku_free(key.data);
+        toku_free(val.data);
+
+        error = pma_cursor_set_position_prev(cursor);
+        if (error != 0)
+            break;
+    }
+    printf("\n");
+}
+
+void test_pma_split_cursor() {
+    PMA pmaa, pmab, pmac;
+    PMA_CURSOR cursora, cursorb, cursorc;
+    int error;
+    int i;
+    int na, nb, nc;
+
+    printf("test_pma_split_cursor\n");
+
+    error = pma_create(&pmaa, default_compare_fun);
+    assert(error == 0);
+
+    /* insert some kv pairs */
+    for (i=1; i<=16; i += 1) {
+        DBT dbtk, dbtv;
+        char k[5]; int v;
+
+        sprintf(k, "%4.4d", i);
+        fill_dbt(&dbtk, &k, strlen(k)+1);
+        v = i;
+        fill_dbt(&dbtv, &v, sizeof v);
+
+        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        assert(error == BRT_OK);
+    }
+    assert(pma_n_entries(pmaa) == 16);
+    printf("a:"); print_pma(pmaa);
+
+    error = pma_cursor(pmaa, &cursora);
+    assert(error == 0);
+    error = pma_cursor_set_position_first(cursora);
+    assert(error == 0);
+    // print_cursor("cursora", cursora);
+    assert_cursor_val(cursora, 1);
+
+    error = pma_cursor(pmaa, &cursorb);
+    assert(error == 0);
+    error = pma_cursor_set_position_first(cursorb);
+    assert(error == 0);
+    error = pma_cursor_set_position_next(cursorb);
+    assert(error == 0);
+    // print_cursor("cursorb", cursorb);
+    assert_cursor_val(cursorb, 2);
+
+    error = pma_cursor(pmaa, &cursorc);
+    assert(error == 0);
+    error = pma_cursor_set_position_last(cursorc);
+    assert(error == 0);
+    // print_cursor("cursorc", cursorc);
+    assert_cursor_val(cursorc, 16);
+
+    error = pma_split(pmaa, &pmab, &pmac);
+    assert(error == 0);
+
+    printf("a:"); print_pma(pmaa);
+    na = pma_n_entries(pmaa);
+    assert(na == 0);
+    printf("b:"); print_pma(pmab);
+    nb = pma_n_entries(pmab);
+    printf("c:"); print_pma(pmac);
+    nc = pma_n_entries(pmac);
+    assert(nb + nc == 16);
+
+    /* cursors open, should fail */
+    error = pma_free(&pmab);
+    assert(error != 0);
+
+    /* walk cursora */
+    assert_cursor_val(cursora, 1);
+    walk_cursor("cursora", cursora);
+
+    /* walk cursorb */
+    assert_cursor_val(cursorb, 2);
+    walk_cursor("cursorb", cursorb);
+
+    /* walk cursorc */
+    assert_cursor_val(cursorc, 16);
+    walk_cursor("cursorc", cursorc);
+    walk_cursor_reverse("cursorc reverse", cursorc);
+
+    error = pma_cursor_free(&cursora);
+    assert(error == 0);
+    error = pma_cursor_free(&cursorb);
+    assert(error == 0);
+    error = pma_cursor_free(&cursorc);
+    assert(error == 0);
+
+    error = pma_free(&pmaa);
+    assert(error == 0);
+    error = pma_free(&pmab);
+    assert(error == 0);
+    error = pma_free(&pmac);
+    assert(error == 0);
+}
+
+void test_pma_split() {
+    test_pma_split_n(0); memory_check_all_free();
+    test_pma_split_n(1); memory_check_all_free();
+    test_pma_split_n(2); memory_check_all_free();
+    test_pma_split_n(4); memory_check_all_free();
+    test_pma_split_n(8); memory_check_all_free();
+    test_pma_split_n(9);  memory_check_all_free();
+    test_pma_split_varkey(); memory_check_all_free();
+    test_pma_split_cursor(); memory_check_all_free();
+}
+
+void test_pma_bulk_insert_n(int n) {
+    PMA pma;
+    int error;
+    int i;
+    DBT *keys, *vals;
+
+    printf("test_pma_bulk_insert_n: %d\n", n);
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    /* init n kv pairs */
+    keys = toku_malloc(n * sizeof (DBT));
+    assert(keys);
+    vals = toku_malloc(n * sizeof (DBT));
+    assert(vals);
+
+    /* init n kv pairs */
+    for (i=0; i<n; i++) {
+        char kstring[5];
+        char *k; int klen;
+        int *v; int vlen;
+
+        sprintf(kstring, "%4.4d", i);
+        klen = strlen(kstring) + 1;
+        k = toku_malloc(klen);
+        assert(k);
+        strcpy(k, kstring);
+        fill_dbt(&keys[i], k, klen);
+
+        vlen = sizeof (int);
+        v = toku_malloc(vlen);
+        assert(v);
+        *v = i;
+        fill_dbt(&vals[i], v, vlen);
+    }
+
+    /* bulk insert n kv pairs */
+    error = pma_bulk_insert(pma, keys, vals, n);
+    assert(error == 0);
+
+    /* verify */
+    print_pma(pma);
+
+    /* cleanup */
+    for (i=0; i<n; i++) {
+        toku_free(keys[i].data);
+        toku_free(vals[i].data);
+    }
+
+    error = pma_free(&pma);
+    assert(error == 0);
+    
+    toku_free(keys);
+    toku_free(vals);
+}
+
+void test_pma_bulk_insert() {
+    test_pma_bulk_insert_n(0); memory_check_all_free();
+    test_pma_bulk_insert_n(1); memory_check_all_free();
+    test_pma_bulk_insert_n(2); memory_check_all_free();
+    test_pma_bulk_insert_n(3); memory_check_all_free();
+    test_pma_bulk_insert_n(4); memory_check_all_free();
+    test_pma_bulk_insert_n(5); memory_check_all_free();
+    test_pma_bulk_insert_n(8); memory_check_all_free();
+    test_pma_bulk_insert_n(32); memory_check_all_free();
+}
+
 void pma_tests (void) {
     memory_check=1;
+goto skip;
     test_pma_compare_fun(0);      memory_check_all_free();
     test_pma_compare_fun(1);      memory_check_all_free();
     test_pma_iterate();           
@@ -693,13 +1016,9 @@ void pma_tests (void) {
     test_keycompare();            memory_check_all_free();
     test_pma_random_pick();       memory_check_all_free();
     test_pma_cursor();            memory_check_all_free();
-    test_pma_split(0);            memory_check_all_free();
-    test_pma_split(1);            memory_check_all_free();
-    test_pma_split(2);            memory_check_all_free();
-    test_pma_split(4);            memory_check_all_free();
-    test_pma_split(8);            memory_check_all_free();
-    test_pma_split(9);            memory_check_all_free();
-    test_pma_split_varkey();      memory_check_all_free();
+    test_pma_split();             memory_check_all_free();
+skip:
+    test_pma_bulk_insert();       memory_check_all_free();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

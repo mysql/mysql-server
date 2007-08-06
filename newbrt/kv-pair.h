@@ -42,3 +42,8 @@ static inline void *kv_pair_val(struct kv_pair *pair) {
 static inline int kv_pair_vallen(struct kv_pair *pair) {
     return pair->vallen;
 }
+
+struct kv_pair_tag {
+    struct kv_pair *pair;
+    int oldtag, newtag;
+};

@@ -3,7 +3,7 @@
 struct pma_cursor {
     PMA pma;
     int position; /* -1 if the position is undefined. */
-    PMA_CURSOR next,prev;
+    struct list next;
     void *skey, *sval; /* used in dbts. */ 
 };
 
@@ -19,19 +19,20 @@ struct pma {
 			  *  Regions of size 32 are 80% full.  Regions of size 64 are 70% full.
 			  *  Regions of size 128 are 60% full.  Regions of size 256 are 50% full.
 			  *  The densitystep is 0.10. */
-    PMA_CURSOR cursors_head, cursors_tail;
+    struct list cursors;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     void *skey, *sval; /* used in dbts */
 };
 
 int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi);
 void pmainternal_calculate_parameters (PMA pma);
-int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx);
+int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base, PMA pma);
 int pmainternal_printpairs (struct kv_pair *pairs[], int N);
 int pmainternal_make_space_at (PMA pma, int idx);
 int pmainternal_find (PMA pma, DBT *, DB*); // The DB is so the comparison fuction can be called.
 void print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */
-int pmainternal_init_array(PMA pma, int asksize);
-struct kv_pair **pmainternal_extract_pairs(PMA pma, int lo, int hi);
+int pma_resize_array(PMA pma, int asksize);
+struct kv_pair_tag *pmainternal_extract_pairs(PMA pma, int lo, int hi);
 
 
+void pma_update_region(PMA pma, struct list *cursorset, struct kv_pair_tag *, int n);
