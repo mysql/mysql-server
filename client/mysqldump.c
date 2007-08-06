@@ -2072,11 +2072,12 @@ static uint dump_routines_for_db(char *db)
           }
           else if (strlen(row[2]))
           {
+            char *query_str;
             if (opt_drop)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
 
-            char *query_str= cover_definer_clause_in_sp(row[2], strlen(row[2]));
+            query_str= cover_definer_clause_in_sp(row[2], strlen(row[2]));
 
             if (mysql_num_fields(routine_res) >= 6)
             {
@@ -2705,10 +2706,10 @@ static void dump_trigger_old(MYSQL_RES *show_triggers_rs,
       accessing it.
     */
 
-    uint user_name_len;
+    size_t user_name_len;
     char user_name_str[USERNAME_LENGTH + 1];
     char quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
-    uint host_name_len;
+    size_t host_name_len;
     char host_name_str[HOSTNAME_LENGTH + 1];
     char quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
 
@@ -3893,7 +3894,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-my_bool include_table(uchar* hash_key, uint len)
+my_bool include_table(const char* hash_key, uint len)
 {
   return !hash_search(&ignore_table, (uchar*) hash_key, len);
 }
