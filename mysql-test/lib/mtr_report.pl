@@ -26,7 +26,6 @@ sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
 sub mtr_report_test_not_skipped_though_disabled($);
 
-sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
 sub mtr_print_line ();
 sub mtr_print_thick_line ();
@@ -44,55 +43,6 @@ sub mtr_verbose (@);
 #  
 #
 ##############################################################################
-
-# We can't use diff -u or diff -a as these are not portable
-
-sub mtr_show_failed_diff ($) {
-  my $result_file_name=  shift;
-
-  # The reject and log files have been dumped to
-  # to filenames based on the result_file's name
-  my $tname= basename($result_file_name);
-  $tname=~ s/\..*$//;
-
-  my $reject_file=  "r/$tname.reject";
-  my $result_file=  "r/$tname.result";
-  my $log_file=  "r/$tname.log";
-  my $eval_file=    "r/$tname.eval";
-
-  if ( $::opt_suite ne "main" )
-  {
-    $reject_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$reject_file";
-    $result_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$result_file";
-    $eval_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$eval_file";
-    $log_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$log_file";
-  }
-
-  if ( -f $eval_file )
-  {
-    $result_file=  $eval_file;
-  }
-
-  my $diffopts= $::opt_udiff ? "-u" : "-c";
-
-  if ( -f $reject_file )
-  {
-    print "Below are the diffs between actual and expected results:\n";
-    print "-------------------------------------------------------\n";
-    # FIXME check result code?!
-    mtr_run("diff",[$diffopts,$result_file,$reject_file], "", "", "", "");
-    print "-------------------------------------------------------\n";
-    print "Please follow the instructions outlined at\n";
-    print "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html\n";
-    print "to find the reason to this problem and how to report this.\n\n";
-  }
-
-  if ( -f $log_file )
-  {
-    print "Result from queries before failure can be found in $log_file\n";
-    # FIXME Maybe a tail -f -n 10 $log_file here
-  }
-}
 
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
@@ -165,16 +115,23 @@ sub mtr_report_test_failed ($) {
 
   if ( $tinfo->{'comment'} )
   {
+    # The test failure has been detected by mysql-test-run.pl
+    # when starting the servers or due to other error, the reason for
+    # failing the test is saved in "comment"
     print "\nERROR: $tinfo->{'comment'}\n";
   }
   elsif ( -f $::path_timefile )
   {
-    print "\nErrors are (from $::path_timefile) :\n";
+    # Test failure was detected by test tool and it's report
+    # about what failed has been saved to file. Display the report.
+    print "\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
-    print "\n(the last lines may be the most important ones)\n";
+    print "\n";
   }
   else
   {
+    # Neither this script or the test tool has recorded info
+    # about why the test has failed. Should be debugged.
     print "\nUnexpected termination, probably when starting mysqld\n";
   }
 }
