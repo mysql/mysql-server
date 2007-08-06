@@ -1002,7 +1002,6 @@ void test_pma_bulk_insert() {
 
 void pma_tests (void) {
     memory_check=1;
-goto skip;
     test_pma_compare_fun(0);      memory_check_all_free();
     test_pma_compare_fun(1);      memory_check_all_free();
     test_pma_iterate();           
@@ -1017,7 +1016,6 @@ goto skip;
     test_pma_random_pick();       memory_check_all_free();
     test_pma_cursor();            memory_check_all_free();
     test_pma_split();             memory_check_all_free();
-skip:
     test_pma_bulk_insert();       memory_check_all_free();
 }
 
