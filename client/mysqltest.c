@@ -1006,7 +1006,7 @@ void warning_msg(const char *fmt, ...)
 void log_msg(const char *fmt, ...)
 {
   va_list args;
-  char buff[512];
+  char buff[1024];
   size_t len;
   DBUG_ENTER("log_msg");
 
@@ -2269,7 +2269,7 @@ void do_exec(struct st_command *command)
 
     if (command->abort_on_error)
     {
-      log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
+      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       die("command \"%s\" failed", command->first_argument);
     }
