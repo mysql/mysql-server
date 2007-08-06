@@ -12,26 +12,30 @@ echo "MARIA RECOVERY TESTS - success is if exit code is 0"
 # identical to the saved original.
 # Does not test the index file as we don't have logging for it yet.
 
-rm -f maria_log*
-prog="$maria_path/ma_test1 $silent -M -T --skip-update"
-echo "TEST WITH $prog"
-$prog
-mv -f test1.MAD test1.MAD.good
-rm test1.MAI
-echo "applying log"
-$maria_path/maria_read_log -a > /dev/null
-cmp test1.MAD test1.MAD.good
-rm -f test1.*
-
-rm -f maria_log*
-prog="$maria_path/ma_test2 $silent -L -K -W -P -M -T -g"
-echo "TEST WITH $prog"
-$prog
-mv -f test2.MAD test2.MAD.good
-rm test2.MAI
-echo "applying log"
-$maria_path/maria_read_log -a > /dev/null
-cmp test2.MAD test2.MAD.good
-rm -f test2.*
+for prog in "$maria_path/ma_test1 $silent -M -T --skip-update -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -g -c"
+do
+  rm -f maria_log*
+  echo "TEST WITH $prog"
+  $prog
+  # derive table's name from program's name
+  table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
+  $maria_path/maria_chk -dvv $table > maria_chk_message.good.txt 2>&1
+  mv -f $table.MAD $table.MAD.good
+  rm $table.MAI
+  echo "applying log"
+  $maria_path/maria_read_log -a > maria_read_log_$table.txt
+  cmp $table.MAD $table.MAD.good
+  $maria_path/maria_chk -dvv $table > maria_chk_message.txt 2>&1
+# When "recovery of the table's state" is ready, we can test it like this:
+#  diff maria_chk_message.good.txt maria_chk_message.txt >maria_chk_diff.txt || true
+#  if [ -s maria_chk_diff.txt ]
+#      then
+#      echo "Differences in maria_chk -dvv, recovery not yet perfect !"
+#      echo "========DIFF START======="
+#      cat maria_chk_diff.txt
+#      echo "========DIFF END======="
+#  fi
+  rm -f $table.* maria_chk_*.txt maria_read_log_$table.txt
+done
 
 echo "ALL RECOVERY TESTS OK"

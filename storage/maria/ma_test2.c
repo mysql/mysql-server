@@ -719,10 +719,10 @@ int main(int argc, char *argv[])
       sprintf(key2,"%6d",k);
 
       min_key.key= key;
-      min_key.length= USE_WHOLE_KEY;
+      min_key.keypart_map= HA_WHOLE_KEY;
       min_key.flag= HA_READ_AFTER_KEY;
       max_key.key= key2;
-      max_key.length= USE_WHOLE_KEY;
+      max_key.keypart_map= HA_WHOLE_KEY;
       max_key.flag= HA_READ_BEFORE_KEY;
       range_records= maria_records_in_range(file, 0, &min_key, &max_key);
       records=0;

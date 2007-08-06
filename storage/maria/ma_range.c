@@ -137,8 +137,6 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const uchar *key,
   DBUG_PRINT("enter",("search_flag: %d",search_flag));
   DBUG_ASSERT(keypart_map);
 
-  if (key_len == 0)
-    key_len= USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
   key_len= _ma_pack_key(info, inx, key_buff, key, keypart_map,
 		       (HA_KEYSEG**) 0);
