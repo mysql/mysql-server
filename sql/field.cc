@@ -4462,6 +4462,7 @@ longlong Field_timestamp::val_int(void)
   MYSQL_TIME time_tmp;
   THD  *thd= table ? table->in_use : current_thd;
 
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4473,7 +4474,6 @@ longlong Field_timestamp::val_int(void)
     return(0);					/* purecov: inspected */
   
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, (my_time_t)temp);
-  thd->time_zone_used= 1;
   
   return time_tmp.year * LL(10000000000) + time_tmp.month * LL(100000000) +
          time_tmp.day * 1000000L + time_tmp.hour * 10000L +
@@ -4492,6 +4492,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4507,7 +4508,6 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   val_buffer->set_charset(&my_charset_bin);	// Safety
   
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,(my_time_t)temp);
-  thd->time_zone_used= 1;
 
   temp= time_tmp.year % 100;
   if (temp < YY_PART_YEAR - 1)
@@ -4557,6 +4557,7 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   long temp;
   THD *thd= table ? table->in_use : current_thd;
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4572,7 +4573,6 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   else
   {
     thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)temp);
-    thd->time_zone_used= 1;
   }
   return 0;
 }
