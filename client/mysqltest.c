@@ -499,11 +499,11 @@ void handle_no_error(struct st_command*);
 pthread_attr_t cn_thd_attrib;
 
 /*
-  send_one_query executes query in separate thread what is
+  send_one_query executes query in separate thread, which is
   necessary in embedded library to run 'send' in proper way.
   This implementation doesn't handle errors returned
   by mysql_send_query. It's technically possible, though
-  i don't see where it is needed.
+  I don't see where it is needed.
 */
 pthread_handler_t send_one_query(void *arg)
 {
