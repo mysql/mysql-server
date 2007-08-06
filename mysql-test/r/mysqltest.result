@@ -280,6 +280,18 @@ let $B = changed value of B;
 var2: content of variable 1
 var3: content of variable 1 content of variable 1
 length of var3 is longer than 0
+var1
+hi	1	hi there
+var2
+2
+var2 again
+2
+var3 two columns with same name
+1	2	3
+var4 from query that returns NULL
+var5 from query that returns no row
+failing query in let
+mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep

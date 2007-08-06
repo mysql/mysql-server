@@ -736,38 +736,40 @@ if (`select length("$var3") > 0`)
 # Test to assign let from query
 # let $<var_name>=`<query>`;
 # ----------------------------------------------------------------------------
---disable_parsing
 echo var1;
 let $var1= `select "hi" as "Col", 1 as "Column1", "hi there" as Col3`;
 echo $var1;
-echo $var1_Col;
-echo $var1_Column1;
-echo $var1_Col3;
 
 echo var2;
 let $var2= `select 2 as "Column num 2"`;
 echo $var2;
-echo $var2_Column num 2;
-echo $var2_Column;
 
 echo var2 again;
 let $var2= `select 2 as "Column num 2"`;
 echo $var2;
-echo $var2_Column num 2;
-echo $var2_Column_num_2;
-echo $var2_Column;
 
 echo var3 two columns with same name;
 let $var3= `select 1 as "Col", 2 as "Col", 3 as "var3"`;
 echo $var3;
-echo $var3_Col;
-echo $var3_Col;
-echo $var3_var3;
 
-#echo failing query in let;
-#--error 1
-#--exec echo "let $var2= `failing query;`" | $MYSQL_TEST 2>&1
---enable_parsing
+echo var4 from query that returns NULL;
+let $var4= `select NULL`;
+
+echo var5 from query that returns no row;
+let $var5= `SHOW VARIABLES LIKE "nonexisting_variable"`;
+
+echo failing query in let;
+--write_file $MYSQLTEST_VARDIR/tmp/let.sql
+let $var2= `failing query`;
+echo $var2;
+EOF
+
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/let.sql 2>&1
+
+remove_file $MYSQLTEST_VARDIR/tmp/let.sql;
+
+
 # ----------------------------------------------------------------------------
 # Test source command
 # ----------------------------------------------------------------------------
