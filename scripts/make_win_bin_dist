@@ -229,8 +229,8 @@ copy_embedded()
        x"$PACK_DEBUG" = x"yes" ] ; then
     mkdir -p $DESTDIR/Embedded/DLL/debug \
              $DESTDIR/Embedded/static/debug
-    cp libmysqld/debug/mysqlserver.lib   $DESTDIR/Embedded/DLL/debug/
-    cp libmysqld/debug/mysqlserver.pdb   $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/mysqlserver.lib   $DESTDIR/Embedded/static/debug/
+    cp libmysqld/debug/mysqlserver.pdb   $DESTDIR/Embedded/static/debug/
     cp libmysqld/debug/libmysqld.dll     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.exp     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.lib     $DESTDIR/Embedded/DLL/debug/
