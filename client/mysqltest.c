@@ -74,18 +74,12 @@
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
-                           enum {
-   RESULT_OK= 0,
-   RESULT_CONTENT_MISMATCH= 1,
-   RESULT_LENGTH_MISMATCH= 2
- };
-
 enum {
   OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
   OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
   OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
-  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR
+  OPT_MARK_PROGRESS, OPT_CHARSETS_DIR, OPT_LOG_DIR, OPT_TAIL_LINES
 };
 
 static int record= 0, opt_sleep= -1;
@@ -116,6 +110,9 @@ static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 
 static uint start_lineno= 0; /* Start line of current command */
+
+/* Number of lines of the result to include in failure report */
+static uint opt_tail_lines= 0;
 
 static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
@@ -455,7 +452,6 @@ void free_tmp_sh_file();
 void free_win_path_patterns();
 #endif
 
-static int eval_result = 0;
 
 /* For replace_column */
 static char *replace_column[MAX_COLUMNS];
@@ -881,6 +877,24 @@ void die(const char *fmt, ...)
   fprintf(stderr, "\n");
   fflush(stderr);
 
+  /* Show results from queries just before failure */
+  if (ds_res.length && opt_tail_lines)
+  {
+    int tail_lines= opt_tail_lines;
+    char* show_from= ds_res.str + ds_res.length - 1;
+    while(show_from > ds_res.str && tail_lines > 0 )
+    {
+      show_from--;
+      if (*show_from == '\n')
+        tail_lines--;
+    }
+    fprintf(stderr, "\nThe result from queries just before the failure was:\n");
+    if (show_from > ds_res.str)
+      fprintf(stderr, "< snip >");
+    fprintf(stderr, "%s", show_from);
+    fflush(stderr);
+  }
+
   /* Dump the result that has been accumulated so far to .log file */
   if (result_file_name && ds_res.length)
     dump_result_to_log_file(ds_res.str, ds_res.length);
@@ -1009,77 +1023,372 @@ void log_msg(const char *fmt, ...)
 
 
 /*
-  Compare content of the string ds to content of file fname
+  Read a file and append it to ds
+
+  SYNOPSIS
+  cat_file
+  ds - pointer to dynamic string where to add the files content
+  filename - name of the file to read
+
+*/
+
+void cat_file(DYNAMIC_STRING* ds, const char* filename)
+{
+  int fd;
+  uint len;
+  char buff[512];
+
+  if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open file %s", filename);
+  while((len= my_read(fd, (byte*)&buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    char *p= buff, *start= buff;
+    while (p < buff+len)
+    {
+      /* Convert cr/lf to lf */
+      if (*p == '\r' && *(p+1) && *(p+1)== '\n')
+      {
+        /* Add fake newline instead of cr and output the line */
+        *p= '\n';
+        p++; /* Step past the "fake" newline */
+        dynstr_append_mem(ds, start, p-start);
+        p++; /* Step past the "fake" newline */
+        start= p;
+      }
+      else
+        p++;
+    }
+    /* Output any chars that migh be left */
+    dynstr_append_mem(ds, start, p-start);
+  }
+  my_close(fd, MYF(0));
+}
+
+
+/*
+  Run the specified command with popen
+
+  SYNOPSIS
+  run_command
+  cmd - command to execute(should be properly quoted
+  ds_res- pointer to dynamic string where to store the result
+
+*/
+
+static int run_command(char* cmd,
+                       DYNAMIC_STRING *ds_res)
+{
+  char buf[512]= {0};
+  FILE *res_file;
+  int error;
+
+  if (!(res_file= popen(cmd, "r")))
+    die("popen(\"%s\", \"r\") failed", cmd);
+
+  while (fgets(buf, sizeof(buf), res_file))
+  {
+    DBUG_PRINT("info", ("buf: %s", buf));
+    if(ds_res)
+    {
+      /* Save the output of this command in the supplied string */
+      dynstr_append(ds_res, buf);
+    }
+    else
+    {
+      /* Print it directly on screen */
+      fprintf(stdout, "%s", buf);
+    }
+  }
+
+  error= pclose(res_file);
+  return WEXITSTATUS(error);
+}
+
+
+/*
+  Run the specified tool with variable number of arguments
+
+  SYNOPSIS
+  run_tool
+  tool_path - the name of the tool to run
+  ds_res - pointer to dynamic string where to store the result
+  ... - variable number of arguments that will be properly
+        quoted and appended after the tool's name
+
+*/
+
+static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...)
+{
+  int ret;
+  const char* arg;
+  va_list args;
+  DYNAMIC_STRING ds_cmdline;
+
+  DBUG_ENTER("run_tool");
+  DBUG_PRINT("enter", ("tool_path: %s", tool_path));
+
+  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN, FN_REFLEN))
+    die("Out of memory");
+
+  dynstr_append_os_quoted(&ds_cmdline, tool_path, NullS);
+  dynstr_append(&ds_cmdline, " ");
+
+  va_start(args, ds_res);
+
+  while ((arg= va_arg(args, char *)))
+  {
+    /* Options should be os quoted */
+    if (strncmp(arg, "--", 2) == 0)
+      dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
+    else
+      dynstr_append(&ds_cmdline, arg);
+    dynstr_append(&ds_cmdline, " ");
+  }
+
+  va_end(args);
+
+#ifdef __WIN__
+  dynstr_append(&ds_cmdline, "\"");
+#endif
+
+  DBUG_PRINT("info", ("Running: %s", ds_cmdline.str));
+  ret= run_command(ds_cmdline.str, ds_res);
+  DBUG_PRINT("exit", ("ret: %d", ret));
+  dynstr_free(&ds_cmdline);
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  Show the diff of two files using the systems builtin diff
+  command. If no such diff command exist, just dump the content
+  of the two files and inform about how to get "diff"
+
+  SYNOPSIS
+  show_diff
+  ds - pointer to dynamic string where to add the diff(may be NULL)
+  filename1 - name of first file
+  filename2 - name of second file
+
+*/
+
+void show_diff(DYNAMIC_STRING* ds,
+               const char* filename1, const char* filename2)
+{
+
+  DYNAMIC_STRING ds_tmp;
+
+  if (init_dynamic_string(&ds_tmp, "", 256, 256))
+    die("Out of memory");
+
+  /* First try with unified diff */
+  if (run_tool("diff",
+               &ds_tmp, /* Get output from diff in ds_tmp */
+               "-u",
+               filename1,
+               filename2,
+               "2>&1",
+               NULL) > 1) /* Most "diff" tools return >1 if error */
+  {
+    dynstr_set(&ds_tmp, "");
+
+    /* Fallback to context diff with "diff -c" */
+    if (run_tool("diff",
+                 &ds_tmp, /* Get output from diff in ds_tmp */
+                 "-c",
+                 filename1,
+                 filename2,
+                 "2>&1",
+                 NULL) > 1) /* Most "diff" tools return >1 if error */
+    {
+      /*
+        Fallback to dump both files to result file and inform
+        about installing "diff"
+      */
+      dynstr_set(&ds_tmp, "");
+
+      dynstr_append(&ds_tmp,
+"\n"
+"The two files differ but it was not possible to execute 'diff' in\n"
+"order to show only the difference, tried both 'diff -u' or 'diff -c'.\n"
+"Instead the whole content of the two files was shown for you to diff manually. ;)\n\n"
+"To get a better report you should install 'diff' on your system, which you\n"
+"for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
+#ifdef __WIN__
+"or http://gnuwin32.sourceforge.net/packages/diffutils.htm\n"
+#endif
+"\n");
+
+      dynstr_append(&ds_tmp, " --- ");
+      dynstr_append(&ds_tmp, filename1);
+      dynstr_append(&ds_tmp, " >>>\n");
+      cat_file(&ds_tmp, filename1);
+      dynstr_append(&ds_tmp, "<<<\n --- ");
+      dynstr_append(&ds_tmp, filename1);
+      dynstr_append(&ds_tmp, " >>>\n");
+      cat_file(&ds_tmp, filename2);
+      dynstr_append(&ds_tmp, "<<<<\n");
+    }
+  }
+
+  if (ds)
+  {
+    /* Add the diff to output */
+    dynstr_append_mem(ds, ds_tmp.str, ds_tmp.length);
+  }
+  else
+  {
+    /* Print diff directly to stdout */
+    fprintf(stderr, "%s", ds_tmp.str);
+  }
+ 
+  dynstr_free(&ds_tmp);
+
+}
+
+
+enum compare_files_result_enum {
+   RESULT_OK= 0,
+   RESULT_CONTENT_MISMATCH= 1,
+   RESULT_LENGTH_MISMATCH= 2
+};
+
+/*
+  Compare two files, given a fd to the first file and
+  name of the second file
+
+  SYNOPSIS
+  compare_files2
+  fd - Open file descriptor of the first file
+  filename2 - Name of second file
+
+  RETURN VALUES
+  According to the values in "compare_files_result_enum"
+
+*/
+
+int compare_files2(File fd, const char* filename2)
+{
+  int error= RESULT_OK;
+  File fd2;
+  uint len, len2;
+  char buff[512], buff2[512];
+
+  if ((fd2= my_open(filename2, O_RDONLY, MYF(0))) < 0)
+  {
+    my_close(fd, MYF(0));
+    die("Failed to open second file: %s", filename2);
+  }
+  while((len= my_read(fd, (byte*)&buff,
+                      sizeof(buff), MYF(0))) > 0)
+  {
+    if ((len2= my_read(fd2, (byte*)&buff2,
+                       sizeof(buff2), MYF(0))) < len)
+    {
+      /* File 2 was smaller */
+      error= RESULT_LENGTH_MISMATCH;
+      break;
+    }
+    if (len2 > len)
+    {
+      /* File 1 was smaller */
+      error= RESULT_LENGTH_MISMATCH;
+      break;
+    }
+    if ((memcmp(buff, buff2, len)))
+    {
+      /* Content of this part differed */
+      error= RESULT_CONTENT_MISMATCH;
+      break;
+    }
+  }
+  if (!error && my_read(fd2, (byte*)&buff2,
+                        sizeof(buff2), MYF(0)) > 0)
+  {
+    /* File 1 was smaller */
+    error= RESULT_LENGTH_MISMATCH;
+  }
+
+  my_close(fd2, MYF(0));
+
+  return error;
+}
+
+
+/*
+  Compare two files, given their filenames
+
+  SYNOPSIS
+  compare_files
+  filename1 - Name of first file
+  filename2 - Name of second file
+
+  RETURN VALUES
+  See 'compare_files2'
+
+*/
+
+int compare_files(const char* filename1, const char* filename2)
+{
+  File fd;
+  int error;
+
+  if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
+    die("Failed to open first file: %s", filename1);
+
+  error= compare_files2(fd, filename2);
+
+  my_close(fd, MYF(0));
+
+  return error;
+}
+
+
+/*
+  Compare content of the string in ds to content of file fname
+
+  SYNOPSIS
+  dyn_string_cmp
+  ds - Dynamic string containing the string o be compared
+  fname - Name of file to compare with
+
+  RETURN VALUES
+  See 'compare_files2'
 */
 
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 {
-  MY_STAT stat_info;
-  char *tmp, *res_ptr;
-  char eval_file[FN_REFLEN];
-  int res;
-  uint res_len;
-  int fd;
-  DYNAMIC_STRING res_ds;
+  int error;
+  File fd;
+  char ds_temp_file_path[FN_REFLEN];
+
   DBUG_ENTER("dyn_string_cmp");
+  DBUG_PRINT("enter", ("fname: %s", fname));
 
-  if (!test_if_hard_path(fname))
-  {
-    strxmov(eval_file, opt_basedir, fname, NullS);
-    fn_format(eval_file, eval_file, "", "", MY_UNPACK_FILENAME);
-  }
-  else
-    fn_format(eval_file, fname, "", "", MY_UNPACK_FILENAME);
+  if ((fd= create_temp_file(ds_temp_file_path, NULL,
+                            "tmp", O_CREAT | O_SHARE | O_RDWR,
+                            MYF(MY_WME))) < 0)
+    die("Failed to create temporary file for ds");
 
-  if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
-    die(NullS);
-  if (!eval_result && (uint) stat_info.st_size != ds->length)
+  /* Write ds to temporary file and set file pos to beginning*/
+  if (my_write(fd, ds->str, ds->length,
+               MYF(MY_FNABP | MY_WME)) ||
+      my_seek(fd, 0, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
   {
-    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %lu",
-		       ds->length, (ulong) stat_info.st_size));
-    DBUG_PRINT("info",("result: '%s'", ds->str));
-    DBUG_RETURN(RESULT_LENGTH_MISMATCH);
-  }
-  if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
-    die("Out of memory");
-
-  if ((fd = my_open(eval_file, O_RDONLY, MYF(MY_WME))) < 0)
-    die("Failed to open file %s", eval_file);
-  if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
-    die("Failed to read from file %s, errno: %d", eval_file, errno);
-  tmp[stat_info.st_size] = 0;
-  init_dynamic_string(&res_ds, "", stat_info.st_size+256, 256);
-  if (eval_result)
-  {
-    do_eval(&res_ds, tmp, tmp + stat_info.st_size, FALSE);
-    res_ptr= res_ds.str;
-    res_len= res_ds.length;
-    if (res_len != ds->length)
-    {
-      res= RESULT_LENGTH_MISMATCH;
-      goto err;
-    }
-  }
-  else
-  {
-    res_ptr = tmp;
-    res_len = stat_info.st_size;
+    my_close(fd, MYF(0));
+    /* Remove the temporary file */
+    my_delete(ds_temp_file_path, MYF(0));
+    die("Failed to write to '%s'", ds_temp_file_path);
   }
 
-  res= (memcmp(res_ptr, ds->str, res_len)) ?
-    RESULT_CONTENT_MISMATCH : RESULT_OK;
+  error= compare_files2(fd, fname);
 
-err:
-  if (res && eval_result)
-    str_to_file(fn_format(eval_file, fname, "", ".eval",
-                          MY_REPLACE_EXT),
-                res_ptr, res_len);
+  my_close(fd, MYF(0));
+  /* Remove the temporary file */
+  my_delete(ds_temp_file_path, MYF(0));
 
-  dynstr_free(&res_ds);
-  my_free((gptr) tmp, MYF(0));
-  my_close(fd, MYF(MY_WME));
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(error);
 }
 
 
@@ -1097,21 +1406,34 @@ err:
 
 void check_result(DYNAMIC_STRING* ds)
 {
+  const char* mess= "Result content mismatch\n";
+
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
+  DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
   switch (dyn_string_cmp(ds, result_file_name))
   {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
-    dump_result_to_reject_file(ds->str, ds->length);
-    die("Result length mismatch");
-    break;
+    mess= "Result length mismatch\n";
+    /* Fallthrough */
   case RESULT_CONTENT_MISMATCH:
-    dump_result_to_reject_file(ds->str, ds->length);
-    die("Result content mismatch");
+  {
+    /* Result mismatched, dump results to .reject file and then show the diff */
+    char reject_file[FN_REFLEN];
+    fn_format(reject_file, result_file_name, "", ".reject",
+              MY_REPLACE_EXT);
+    DBUG_PRINT("enter", ("reject_file_name: %s", reject_file));
+    str_to_file(reject_file, ds->str, ds->length);
+
+    dynstr_set(ds, NULL); /* Don't create a .log file */
+
+    show_diff(NULL, result_file_name, reject_file);
+    die(mess);
     break;
+  }
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
   }
@@ -1126,7 +1448,7 @@ void check_result(DYNAMIC_STRING* ds)
   indicating that test is not supported
 
   SYNOPSIS
-  check_result
+  check_require
   ds - content to be checked
   fname - name of file to check against
 
@@ -1530,7 +1852,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 
 void var_set_query_get_value(struct st_command *command, VAR *var)
 {
-  ulong row_no;
+  long row_no;
   int col_no= -1;
   MYSQL_RES* res;
   MYSQL* mysql= &cur_con->mysql;
@@ -1602,7 +1924,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   {
     /* Get the value */
     MYSQL_ROW row;
-    ulong rows= 0;
+    long rows= 0;
     const char* value= "No such row";
 
     while ((row= mysql_fetch_row(res)))
@@ -2438,9 +2760,6 @@ void do_append_file(struct st_command *command)
 
 void do_cat_file(struct st_command *command)
 {
-  int fd;
-  uint len;
-  char buff[512];
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to read from"
@@ -2455,35 +2774,11 @@ void do_cat_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Reading from, file: %s", ds_filename.str));
 
-  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open file %s", ds_filename.str);
-  while((len= my_read(fd, (byte*)&buff,
-                      sizeof(buff), MYF(0))) > 0)
-  {
-    char *p= buff, *start= buff;
-    while (p < buff+len)
-    {
-      /* Convert cr/lf to lf */
-      if (*p == '\r' && *(p+1) && *(p+1)== '\n')
-      {
-        /* Add fake newline instead of cr and output the line */
-        *p= '\n';
-        p++; /* Step past the "fake" newline */
-        dynstr_append_mem(&ds_res, start, p-start);
-        p++; /* Step past the "fake" newline */
-        start= p;
-      }
-      else
-        p++;
-    }
-    /* Output any chars that migh be left */
-    dynstr_append_mem(&ds_res, start, p-start);
-  }
-  my_close(fd, MYF(0));
+  cat_file(&ds_res, ds_filename.str);
+
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
-
 
 
 /*
@@ -2501,9 +2796,6 @@ void do_cat_file(struct st_command *command)
 void do_diff_files(struct st_command *command)
 {
   int error= 0;
-  int fd, fd2;
-  uint len, len2;
-  char buff[512], buff2[512];
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_filename2;
   const struct command_arg diff_file_args[] = {
@@ -2518,39 +2810,14 @@ void do_diff_files(struct st_command *command)
                      sizeof(diff_file_args)/sizeof(struct command_arg),
                      ' ');
 
-  if ((fd= my_open(ds_filename.str, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open first file %s", ds_filename.str);
-  if ((fd2= my_open(ds_filename2.str, O_RDONLY, MYF(0))) < 0)
+  if ((error= compare_files(ds_filename.str, ds_filename2.str)))
   {
-    my_close(fd, MYF(0));
-    die("Failed to open second file %s", ds_filename2.str);
-  }
-  while((len= my_read(fd, (byte*)&buff,
-                      sizeof(buff), MYF(0))) > 0)
-  {
-    if ((len2= my_read(fd2, (byte*)&buff2,
-                       sizeof(buff2), MYF(0))) != len)
-    {
-      /* File 2 was smaller */
-      error= 1;
-      break;
-    }
-    if ((memcmp(buff, buff2, len)))
-    {
-      /* Content of this part differed */
-      error= 1;
-      break;
-    }
-  }
-  if (my_read(fd2, (byte*)&buff2,
-              sizeof(buff2), MYF(0)) > 0)
-  {
-    /* File 1 was smaller */
-    error= 1;
+    /* Compare of the two files failed, append them to output
+       so the failure can be analyzed
+    */
+    show_diff(&ds_res, ds_filename.str, ds_filename2.str);
   }
 
-  my_close(fd, MYF(0));
-  my_close(fd2, MYF(0));
   dynstr_free(&ds_filename);
   dynstr_free(&ds_filename2);
   handle_command_error(command, error);
@@ -4408,7 +4675,7 @@ void check_eol_junk(const char *eol)
   terminated by new line '\n' regardless how many "delimiter" it contain.
 */
 
-#define MAX_QUERY (256*1024) /* 256K -- a test in sp-big is >128K */
+#define MAX_QUERY (256*1024*2) /* 256K -- a test in sp-big is >128K */
 static char read_command_buf[MAX_QUERY];
 
 int read_command(struct st_command** command_ptr)
@@ -4542,6 +4809,10 @@ static struct my_option my_long_options[] =
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
    (gptr*) &sp_protocol, (gptr*) &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tail-lines", OPT_TAIL_LINES,
+   "Number of lines of the resul to include in a failure report",
+   (gptr*) &opt_tail_lines, (gptr*) &opt_tail_lines, 0,
+   GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4793,14 +5064,6 @@ void str_to_file(const char *fname, char *str, int size)
 }
 
 
-void dump_result_to_reject_file(char *buf, int size)
-{
-  char reject_file[FN_REFLEN];
-  str_to_file(fn_format(reject_file, result_file_name, "", ".reject",
-                        MY_REPLACE_EXT),
-              buf, size);
-}
-
 void dump_result_to_log_file(char *buf, int size)
 {
   char log_file[FN_REFLEN];
@@ -4808,6 +5071,8 @@ void dump_result_to_log_file(char *buf, int size)
                         *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
                         MY_REPLACE_EXT),
               buf, size);
+  fprintf(stderr, "\nMore results from queries before failure can be found in %s\n",
+          log_file);
 }
 
 void dump_progress(void)
@@ -5792,7 +6057,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
 
-  /* Scan for warning before sendign to server */
+  /* Scan for warning before sending to server */
   scan_command_for_warnings(command);
 
   /*
@@ -6424,7 +6689,7 @@ int main(int argc, char **argv)
         break;
       case Q_LET: do_let(command); break;
       case Q_EVAL_RESULT:
-        eval_result = 1; break;
+        die("'eval_result' command  is deprecated");
       case Q_EVAL:
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
