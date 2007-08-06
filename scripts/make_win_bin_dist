@@ -219,16 +219,22 @@ copy_embedded()
            $DESTDIR/include
   cp libmysqld/libmysqld.def           $DESTDIR/include/
   cp libmysqld/$TARGET/mysqlserver.lib $DESTDIR/Embedded/static/release/
+  cp libmysqld/$TARGET/mysqlserver.pdb $DESTDIR/Embedded/static/release/
   cp libmysqld/$TARGET/libmysqld.dll   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.exp   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.lib   $DESTDIR/Embedded/DLL/release/
+  cp libmysqld/$TARGET/libmysqld.pdb   $DESTDIR/Embedded/DLL/release/
 
   if [ x"$PACK_DEBUG" = x"" -a -f "libmysqld/debug/libmysqld.lib" -o \
        x"$PACK_DEBUG" = x"yes" ] ; then
-    mkdir -p $DESTDIR/Embedded/DLL/debug
+    mkdir -p $DESTDIR/Embedded/DLL/debug \
+             $DESTDIR/Embedded/static/debug
+    cp libmysqld/debug/mysqlserver.lib   $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/mysqlserver.pdb   $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.dll     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.exp     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.lib     $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/libmysqld.pdb     $DESTDIR/Embedded/DLL/debug/
   fi
 }
 
