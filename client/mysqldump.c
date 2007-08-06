@@ -2803,7 +2803,6 @@ static int dump_trigger(MYSQL_RES *show_create_trigger_rs,
 
 static int dump_triggers_for_table(char *table_name, char *db_name)
 {
-  FILE       *sql_file= md_result_file;
   char       name_buff[NAME_LEN*4+3];
   char       query_buff[QUERY_LENGTH];
   uint       old_opt_compatible_mode= opt_compatible_mode;
