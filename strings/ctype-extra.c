@@ -6837,7 +6837,7 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ascii
 {
   11,0,0,
-  MY_CS_COMPILED|MY_CS_PRIMARY,
+  MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_PUREASCII,
   "ascii",                     /* cset name     */
   "ascii_general_ci",                     /* coll name     */
   "",                       /* comment       */
@@ -7926,7 +7926,7 @@ CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_ascii
 {
   65,0,0,
-  MY_CS_COMPILED|MY_CS_BINSORT,
+  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PUREASCII,
   "ascii",                     /* cset name     */
   "ascii_bin",                     /* coll name     */
   "",                       /* comment       */
