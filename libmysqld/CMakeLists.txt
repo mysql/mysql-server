@@ -18,7 +18,11 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 # Need to set USE_TLS, since __declspec(thread) approach to thread local
 # storage does not work properly in DLLs.
-ADD_DEFINITIONS(-DUSE_TLS -DMYSQL_SERVER)
+IF(WIN32)
+  ADD_DEFINITIONS(-DUSE_TLS)
+ENDIF(WIN32)
+
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/libmysqld
@@ -26,18 +30,124 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-                    ${CMAKE_SOURCE_DIR}/zlib 
-)
+                    ${CMAKE_SOURCE_DIR}/zlib)
 
-SET_SOURCE_FILES_PROPERTIES(sql_yacc.cc
-                            sql_yacc.h
-                            message.h
-                            message.rc
-                            ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
-                            lex_hash.h 							
-                            PROPERTIES GENERATED 1)
+SET(GEN_SOURCES     ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+                    ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+                    ${CMAKE_SOURCE_DIR}/sql/message.h
+                    ${CMAKE_SOURCE_DIR}/sql/message.rc
+                    ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
+                    ${CMAKE_SOURCE_DIR}/sql/lex_hash.h)
+
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+
+# Include and add the directory path
+SET(SOURCE_SUBLIBS TRUE)
+SET(LIB_SOURCES "")
+
+INCLUDE(${CMAKE_SOURCE_DIR}/zlib/CMakeLists.txt)
+FOREACH(rpath ${ZLIB_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
+ENDFOREACH(rpath)
+
+# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
+# not set during configure time.
+INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
+FOREACH(rpath ${DBUG_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
+FOREACH(rpath ${TAOCRYPT_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/taocrypt/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/CMakeLists.txt)
+FOREACH(rpath ${YASSL_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
+FOREACH(rpath ${STRINGS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
+FOREACH(rpath ${REGEX_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
+FOREACH(rpath ${MYSYS_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
+FOREACH(rpath ${VIO_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../vio/${rpath})
+ENDFOREACH(rpath)
+
+# Engines
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/heap/CMakeLists.txt)
+FOREACH(rpath ${HEAP_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/heap/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisam/CMakeLists.txt)
+FOREACH(rpath ${MYISAM_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisam/${rpath})
+ENDFOREACH(rpath)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/myisammrg/CMakeLists.txt)
+FOREACH(rpath ${MYISAMMRG_SOURCES})
+  SET(LIB_SOURCES ${LIB_SOURCES} ../storage/myisammrg/${rpath})
+ENDFOREACH(rpath)
+
+IF(WITH_ARCHIVE_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/archive/CMakeLists.txt)
+  FOREACH(rpath ${ARCHIVE_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/archive/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
+
+IF(WITH_BLACKHOLE_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/blackhole/CMakeLists.txt)
+  FOREACH(rpath ${BLACKHOLE_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/blackhole/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
+
+IF(WITH_EXAMPLE_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/example/CMakeLists.txt)
+  FOREACH(rpath ${EXAMPLE_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/example/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
+
+IF(WITH_FEDERATED_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/federated/CMakeLists.txt)
+  FOREACH(rpath ${FEDERATED_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/federated/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
+
+IF(WITH_INNOBASE_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/CMakeLists.txt)
+  FOREACH(rpath ${INNOBASE_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/innobase/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
+
+IF(WITH_CSV_STORAGE_ENGINE)
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/csv/CMakeLists.txt)
+  FOREACH(rpath ${CSV_SOURCES})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../storage/csv/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_CSV_STORAGE_ENGINE)
+
+SET(SOURCE_SUBLIBS FALSE)
                             
-ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
+SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
@@ -69,101 +179,30 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
            ../sql/sql_parse.cc ../sql/sql_partition.cc ../sql/sql_plugin.cc 
            ../sql/sql_prepare.cc ../sql/sql_rename.cc ../sql/sql_repl.cc 
-           ../sql/sql_select.cc ../sql/sql_servers.cc ../sql/sql_builtin.cc 
+           ../sql/sql_select.cc ../sql/sql_servers.cc
            ../sql/sql_show.cc ../sql/sql_state.c ../sql/sql_string.cc
            ../sql/sql_tablespace.cc ../sql/sql_table.cc ../sql/sql_test.cc
            ../sql/sql_trigger.cc ../sql/sql_udf.cc ../sql/sql_union.cc
            ../sql/sql_update.cc ../sql/sql_view.cc 
            ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
-           ../sql/partition_info.cc ../sql/sql_locale.cc ../sql/sql_connect.cc 
+           ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc
-           ../vio/vio.c ../vio/viosocket.c ../vio/viossl.c
-           ../vio/viosslfactories.c
-           sql_yacc.cc
-           sql_yacc.h
-           message.h
-           message.rc
-           lex_hash.h)
-ADD_DEPENDENCIES(mysqldemb GenError)
-
-# Sql Parser custom command
-ADD_CUSTOM_COMMAND(
-	SOURCE ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy 
-	OUTPUT sql_yacc.cc
-	COMMAND bison.exe 
-	ARGS -y -p MYSQL --defines=sql_yacc.h
-	     --output=sql_yacc.cc ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy
-)
-
-ADD_CUSTOM_COMMAND(
-	OUTPUT sql_yacc.h
-	COMMAND echo
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-)
-
-# Windows message file
-ADD_CUSTOM_COMMAND(
-	SOURCE ${CMAKE_SOURCE_DIR}/sql/message.mc
-	OUTPUT message.rc message.h
-	COMMAND mc
-	ARGS ${CMAKE_SOURCE_DIR}/sql/message.mc
-	DEPENDS ${CMAKE_SOURCE_DIR}/sql/message.mc
-)
-
-# Gen_lex_hash
-ADD_EXECUTABLE(gen_lex_hash ../sql/gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient wsock32)
-GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
-ADD_CUSTOM_COMMAND(
-	OUTPUT lex_hash.h
-	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
-	DEPENDS ${GEN_LEX_HASH_EXE}
-)
-
-# Remove the auto-generated files as part of 'Clean Solution'
-SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 
-                         "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
-
-ADD_DEPENDENCIES(mysqldemb gen_lex_hash)
+           ${GEN_SOURCES}
+           ${LIB_SOURCES})
 
 # Seems we cannot make a library without at least one source file. So use a
 # dummy empty file
 FILE(WRITE cmake_dummy.c " ")
 
-ADD_LIBRARY(mysqlserver cmake_dummy.c)
-TARGET_LINK_LIBRARIES(mysqlserver wsock32)
-ADD_DEPENDENCIES(mysqlserver mysqldemb heap myisam myisammrg dbug mysys zlib strings mysqldemb regex
-                 yassl taocrypt vio)
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(mysqlserver archive)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(mysqlserver example)
-ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqlserver blackhole)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-IF(WITH_CSV_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqlserver csv)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
-IF(WITH_FEDERATED_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(mysqlserver federated)
-ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-IF(WITH_INNOBASE_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(mysqlserver innobase)
-ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
+# Tried use the correct ${GEN_SOURCES} as dependency, worked on Unix
+# but not on Windows and Visual Studio generators. Likely because they
+# are no real targets from the Visual Studio project files view. Added
+# custom targets to "sql/CMakeLists.txt" and reference them here.
+ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
+ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
+TARGET_LINK_LIBRARIES(mysqlserver)
 
 ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
-TARGET_LINK_LIBRARIES(libmysqld wsock32)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
-IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(libmysqld archive)
-ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
-IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(libmysqld blackhole)
-ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
-IF(WITH_CSV_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(libmysqld csv)
-ENDIF(WITH_CSV_STORAGE_ENGINE)
+TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)

@@ -23,14 +23,9 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 # Exception is the embedded server that needs this library compiled with
 # dynamic TLS, i.e. define USE_TLS
 
-IF(EMBEDDED_ONLY)
-  ADD_DEFINITIONS(-DUSE_TLS)
-  ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
-ENDIF(EMBEDDED_ONLY)
-
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
 
-ADD_LIBRARY(mysys array.c charset-def.c charset.c checksum.c default.c default_modify.c
+SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_modify.c
 				errors.c hash.c list.c md5.c mf_brkhant.c mf_cache.c mf_dirname.c mf_fn_ext.c
 				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
 				mf_keycaches.c mf_loadpath.c mf_pack.c mf_path.c mf_qsort.c mf_qsort2.c
@@ -47,3 +42,7 @@ ADD_LIBRARY(mysys array.c charset-def.c charset.c checksum.c default.c default_m
 				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c)
+
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(mysys ${MYSYS_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)

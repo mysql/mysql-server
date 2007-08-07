@@ -20,5 +20,9 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(archive azio.c ha_archive.cc ha_archive.h)
-TARGET_LINK_LIBRARIES(archive zlib mysys dbug strings)
+
+SET(ARCHIVE_SOURCES  azio.c ha_archive.cc ha_archive.h)
+
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(archive ${ARCHIVE_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)
