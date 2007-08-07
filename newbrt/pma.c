@@ -221,11 +221,15 @@ int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base
     }
     n_present++; // Save one for the blank guy.
     {
-	struct kv_pair_tag *tmppairs;
+//#define USE_MALLOC_IN_SMOOTH
+#ifdef USE_MALLOC_IN_SMOOTH
+	struct kv_pair_tag *MALLOC_N(n_present, tmppairs);
+#else
+	struct kv_pair_tag tmppairs[n_present];
+#endif
 	int n_saved=0;
 	int r;
 
-        tmppairs = toku_malloc(n_present * sizeof (struct kv_pair_tag));
 	for (i=0; i<n; i++) {
 	    if (i==idx) {
 		tmppairs[n_saved++].pair = 0;
@@ -256,7 +260,9 @@ int pmainternal_smooth_region (struct kv_pair *pairs[], int n, int idx, int base
                 list_push(&pma->cursors, list);
             }
         }
+#ifdef USE_MALLOC_IN_SMOOTH
 	toku_free(tmppairs);
+#endif
 	return r;
     }
 }
