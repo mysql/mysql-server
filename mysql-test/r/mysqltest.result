@@ -521,6 +521,7 @@ drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
 Some data
 for cat_file command
 of mysqltest
@@ -531,7 +532,7 @@ mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'mode' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
-mysqltest: At line 1: Missing required argument 'file' to command 'chmod'
+mysqltest: At line 1: Missing required argument 'filename' to command 'chmod'
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 mysqltest: At line 1: You must write a 4 digit octal number for mode
 hello
