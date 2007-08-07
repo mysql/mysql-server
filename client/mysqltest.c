@@ -235,7 +235,7 @@ struct st_connection
 #endif /*EMBEDDED_LIBRARY*/
 };
 struct st_connection connections[128];
-struct st_connection* cur_con, *next_con, *connections_end;
+struct st_connection* cur_con= NULL, *next_con, *connections_end;
 
 /*
   List of commands in mysqltest
@@ -499,11 +499,11 @@ void handle_no_error(struct st_command*);
 pthread_attr_t cn_thd_attrib;
 
 /*
-  send_one_query executes query in separate thread what is
+  send_one_query executes query in separate thread, which is
   necessary in embedded library to run 'send' in proper way.
   This implementation doesn't handle errors returned
   by mysql_send_query. It's technically possible, though
-  i don't see where it is needed.
+  I don't see where it is needed.
 */
 pthread_handler_t send_one_query(void *arg)
 {
@@ -600,6 +600,77 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       break;
     }
   }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Show any warnings just before the error. Since the last error
+  is added to the warning stack, only print @@warning_count-1 warnings.
+
+  NOTE! This function should be safe to call when an error
+  has occured and this any further errors will be ignored(although logged)
+
+  SYNOPSIS
+  show_warnings_before_error
+  mysql - connection to use
+
+*/
+
+static void show_warnings_before_error(MYSQL* mysql)
+{
+  MYSQL_RES* res;
+  const char* query= "SHOW WARNINGS";
+  DBUG_ENTER("show_warnings_before_error");
+
+  if (!mysql)
+    DBUG_VOID_RETURN;
+
+  if (mysql_query(mysql, query))
+  {
+    log_msg("Error running query '%s': %d %s",
+            query, mysql_errno(mysql), mysql_error(mysql));
+    DBUG_VOID_RETURN;
+  }
+
+  if ((res= mysql_store_result(mysql)) == NULL)
+  {
+    /* No result set returned */
+    DBUG_VOID_RETURN;
+  }
+
+  if (mysql_num_rows(res) <= 1)
+  {
+    /* Don't display the last row, it's "last error" */
+  }
+  else
+  {
+    MYSQL_ROW row;
+    unsigned int row_num= 0;
+    unsigned int num_fields= mysql_num_fields(res);
+
+    fprintf(stderr, "\nWarnings from just before the error:\n");
+    while ((row= mysql_fetch_row(res)))
+    {
+      unsigned int i;
+      unsigned long *lengths= mysql_fetch_lengths(res);
+
+      if (++row_num >= mysql_num_rows(res))
+      {
+        /* Don't display the last row, it's "last error" */
+        break;
+      }
+
+      for(i= 0; i < num_fields; i++)
+      {
+        fprintf(stderr, "%.*s ", lengths[i],
+                row[i] ? row[i] : "NULL");
+      }
+      fprintf(stderr, "\n");
+    }
+  }
+  mysql_free_result(res);
+
   DBUG_VOID_RETURN;
 }
 
@@ -903,6 +974,13 @@ void die(const char *fmt, ...)
   if (result_file_name && ds_warning_messages.length)
     dump_warning_messages();
 
+  /*
+    Help debugging by displaying any warnings that might have
+    been produced prior to the error
+  */
+  if (cur_con)
+    show_warnings_before_error(&cur_con->mysql);
+
   cleanup_and_exit(1);
 }
 
@@ -1006,11 +1084,10 @@ void warning_msg(const char *fmt, ...)
 void log_msg(const char *fmt, ...)
 {
   va_list args;
-  char buff[512];
+  char buff[1024];
   size_t len;
   DBUG_ENTER("log_msg");
 
-  memset(buff, 0, sizeof(buff));
   va_start(args, fmt);
   len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
   va_end(args);
@@ -1777,40 +1854,22 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     die("Query '%s' didn't return a result set", ds_query.str);
   dynstr_free(&ds_query);
 
-  if ((row = mysql_fetch_row(res)) && row[0])
+  if ((row= mysql_fetch_row(res)) && row[0])
   {
     /*
-      Concatenate all row results with tab in between to allow us to work
-      with results from many columns (for example from SHOW VARIABLES)
+      Concatenate all fields in the first row with tab in between
+      and assign that string to the $variable
     */
     DYNAMIC_STRING result;
     uint i;
     ulong *lengths;
-#ifdef NOT_YET
-    MYSQL_FIELD *fields= mysql_fetch_fields(res);
-#endif
 
-    init_dynamic_string(&result, "", 2048, 2048);
+    init_dynamic_string(&result, "", 512, 512);
     lengths= mysql_fetch_lengths(res);
-    for (i=0; i < mysql_num_fields(res); i++)
+    for (i= 0; i < mysql_num_fields(res); i++)
     {
-      if (row[0])
+      if (row[i])
       {
-#ifdef NOT_YET
-	/* Add to <var_name>_<col_name> */
-	uint j;
-	char var_col_name[MAX_VAR_NAME_LENGTH];
-	uint length= snprintf(var_col_name, MAX_VAR_NAME_LENGTH,
-			      "$%s_%s", var->name, fields[i].name);
-	/* Convert characters not allowed in variable names to '_' */
-	for (j= 1; j < length; j++)
-	{
-	  if (!my_isvar(charset_info,var_col_name[j]))
-            var_col_name[j]= '_';
-        }
-	var_set(var_col_name,  var_col_name + length,
-		row[i], row[i] + lengths[i]);
-#endif
         /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
       }
@@ -2287,7 +2346,7 @@ void do_exec(struct st_command *command)
 
     if (command->abort_on_error)
     {
-      log_msg("exec of '%s failed, error: %d, status: %d, errno: %d",
+      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       die("command \"%s\" failed", command->first_argument);
     }
@@ -4068,7 +4127,7 @@ void do_connect(struct st_command *command)
   mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
@@ -6495,7 +6554,6 @@ int main(int argc, char **argv)
   connections_end= connections +
     (sizeof(connections)/sizeof(struct st_connection)) - 1;
   next_con= connections + 1;
-  cur_con= connections;
 
 #ifdef EMBEDDED_LIBRARY
   /* set appropriate stack for the 'query' threads */
@@ -6571,6 +6629,7 @@ int main(int argc, char **argv)
   if (cursor_protocol_enabled)
     ps_protocol_enabled= 1;
 
+  cur_con= connections;
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   if (opt_compress)
