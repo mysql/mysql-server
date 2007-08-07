@@ -9,7 +9,7 @@ DTOOL = valgrind --quiet --error-exitcode=1
 
 
 default: bins
-BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 hashtest ybt-test
+BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 hashtest ybt-test benchmark-test
 bins: $(BINS)
 check: bins
 	$(DTOOL) ./ybt-test
