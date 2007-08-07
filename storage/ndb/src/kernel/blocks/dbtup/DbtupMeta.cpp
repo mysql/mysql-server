@@ -731,6 +731,12 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
    */
   Uint32 charsetIndex= regTabPtr->noOfCharsets;
   Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits;
+  if (dyn_nullbits == 0)
+  {
+    jam();
+    dyn_nullbits = DYN_BM_LEN_BITS;
+  }
+
   Uint32 noDynFix= regTabPtr->m_attributes[MM].m_no_of_dyn_fix;
   Uint32 noDynVar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
   Uint32 noDynamic= regTabPtr->m_attributes[MM].m_no_of_dynamic;
