@@ -456,7 +456,11 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		my_time(0);
+  /*
+    We can't call my_time() here as this would cause a call before
+    my_init() is called
+  */
+  when=		0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -687,6 +691,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
+  /* Set time of we this isn't a query */
+  if (!when)
+    when= current_thd->start_time;
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
     FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
