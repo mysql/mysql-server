@@ -885,31 +885,31 @@ CREATE TABLE t1 (f1 BIGINT);
 INSERT INTO t1 VALUES(1);
 CREATE VIEW test.v1 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 f1
 1
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW test.v1
 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 f1
 1
 CREATE OR REPLACE VIEW test.v1 AS SELECT * FROM tb2 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `f59`,`tb2`.`f60` AS `f60`,`tb2`.`f61` AS `f61`,`tb2`.`f62` AS `f62`,`tb2`.`f63` AS `f63`,`tb2`.`f64` AS `f64`,`tb2`.`f65` AS `f65`,`tb2`.`f66` AS `f66`,`tb2`.`f67` AS `f67`,`tb2`.`f68` AS `f68`,`tb2`.`f69` AS `f69`,`tb2`.`f70` AS `f70`,`tb2`.`f71` AS `f71`,`tb2`.`f72` AS `f72`,`tb2`.`f73` AS `f73`,`tb2`.`f74` AS `f74`,`tb2`.`f75` AS `f75`,`tb2`.`f76` AS `f76`,`tb2`.`f77` AS `f77`,`tb2`.`f78` AS `f78`,`tb2`.`f79` AS `f79`,`tb2`.`f80` AS `f80`,`tb2`.`f81` AS `f81`,`tb2`.`f82` AS `f82`,`tb2`.`f83` AS `f83`,`tb2`.`f84` AS `f84`,`tb2`.`f85` AS `f85`,`tb2`.`f86` AS `f86`,`tb2`.`f87` AS `f87`,`tb2`.`f88` AS `f88`,`tb2`.`f89` AS `f89`,`tb2`.`f90` AS `f90`,`tb2`.`f91` AS `f91`,`tb2`.`f92` AS `f92`,`tb2`.`f93` AS `f93`,`tb2`.`f94` AS `f94`,`tb2`.`f95` AS `f95`,`tb2`.`f96` AS `f96`,`tb2`.`f97` AS `f97`,`tb2`.`f98` AS `f98`,`tb2`.`f99` AS `f99`,`tb2`.`f100` AS `f100`,`tb2`.`f101` AS `f101`,`tb2`.`f102` AS `f102`,`tb2`.`f103` AS `f103`,`tb2`.`f104` AS `f104`,`tb2`.`f105` AS `f105`,`tb2`.`f106` AS `f106`,`tb2`.`f107` AS `f107`,`tb2`.`f108` AS `f108`,`tb2`.`f109` AS `f109`,`tb2`.`f110` AS `f110`,`tb2`.`f111` AS `f111`,`tb2`.`f112` AS `f112`,`tb2`.`f113` AS `f113`,`tb2`.`f114` AS `f114`,`tb2`.`f115` AS `f115`,`tb2`.`f116` AS `f116`,`tb2`.`f117` AS `f117` from `tb2` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `f59`,`tb2`.`f60` AS `f60`,`tb2`.`f61` AS `f61`,`tb2`.`f62` AS `f62`,`tb2`.`f63` AS `f63`,`tb2`.`f64` AS `f64`,`tb2`.`f65` AS `f65`,`tb2`.`f66` AS `f66`,`tb2`.`f67` AS `f67`,`tb2`.`f68` AS `f68`,`tb2`.`f69` AS `f69`,`tb2`.`f70` AS `f70`,`tb2`.`f71` AS `f71`,`tb2`.`f72` AS `f72`,`tb2`.`f73` AS `f73`,`tb2`.`f74` AS `f74`,`tb2`.`f75` AS `f75`,`tb2`.`f76` AS `f76`,`tb2`.`f77` AS `f77`,`tb2`.`f78` AS `f78`,`tb2`.`f79` AS `f79`,`tb2`.`f80` AS `f80`,`tb2`.`f81` AS `f81`,`tb2`.`f82` AS `f82`,`tb2`.`f83` AS `f83`,`tb2`.`f84` AS `f84`,`tb2`.`f85` AS `f85`,`tb2`.`f86` AS `f86`,`tb2`.`f87` AS `f87`,`tb2`.`f88` AS `f88`,`tb2`.`f89` AS `f89`,`tb2`.`f90` AS `f90`,`tb2`.`f91` AS `f91`,`tb2`.`f92` AS `f92`,`tb2`.`f93` AS `f93`,`tb2`.`f94` AS `f94`,`tb2`.`f95` AS `f95`,`tb2`.`f96` AS `f96`,`tb2`.`f97` AS `f97`,`tb2`.`f98` AS `f98`,`tb2`.`f99` AS `f99`,`tb2`.`f100` AS `f100`,`tb2`.`f101` AS `f101`,`tb2`.`f102` AS `f102`,`tb2`.`f103` AS `f103`,`tb2`.`f104` AS `f104`,`tb2`.`f105` AS `f105`,`tb2`.`f106` AS `f106`,`tb2`.`f107` AS `f107`,`tb2`.`f108` AS `f108`,`tb2`.`f109` AS `f109`,`tb2`.`f110` AS `f110`,`tb2`.`f111` AS `f111`,`tb2`.`f112` AS `f112`,`tb2`.`f113` AS `f113`,`tb2`.`f114` AS `f114`,`tb2`.`f115` AS `f115`,`tb2`.`f116` AS `f116`,`tb2`.`f117` AS `f117` from `tb2` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1 ;
 f59	f60	f61	f62	f63	f64	f65	f66	f67	f68	f69	f70	f71	f72	f73	f74	f75	f76	f77	f78	f79	f80	f81	f82	f83	f84	f85	f86	f87	f88	f89	f90	f91	f92	f93	f94	f95	f96	f97	f98	f99	f100	f101	f102	f103	f104	f105	f106	f107	f108	f109	f110	f111	f112	f113	f114	f115	f116	f117
 1	1	0000000001	0000000000000000000000000000000000000000000000000000000000000001	0000000001	0000000000000000000000000000000000000000000000000000000000000001	-5	0.000000000000000000000000000000	1	0.000000000000000000000000000000	0000000001	000000000000000000000000000000000.000000000000000000000000000000	0000000001	000000000000000000000000000000000.000000000000000000000000000000	-1.17549435e-38	1.175494352e-38	00000001.175494352e-38	00000001.175494352e-38	-1.17549435e-38	1.175494352e-38	00000001.175494352e-38	00000001.175494352e-38	-1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549e-38	1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549435e-38	1.17549e-38	1.175494352e-38	01.17549e-38	00000001.175494352e-38	01.17549e-38	00000001.175494352e-38	1000-01-01	838:59:58	1970-01-02 00:00:01	1970-01-02 00:00:01	1902	1902	1902	2enum	2set	                                �      �       @       @	             $@      $@	                                �      �       @       @	                                   $@              $@      $@              $@                         @      @      @      @      @      @      @      @      @      @	                                   $@              $@      $@              $@                         @      @      @      @      @      @      @      @      @      @	                       	                                �      �       @       @	                                   $@              $@      $@              $@                         @      @      @      @      @      @      @      @      @      @
 2	2	0000000002	0000000000000000000000000000000000000000000000000000000000000002	0000000002	0000000000000000000000000000000000000000000000000000000000000002	-4	1.100000000000000000000000000000	2	1.100000000000000000000000000000	0000000002	000000000000000000000000000000001.100000000000000000000000000000	0000000002	000000000000000000000000000000001.100000000000000000000000000000	-1.175494349e-38	1.175494353e-38	00000001.175494353e-38	00000001.175494353e-38	-1.175494349e-38	1.175494353e-38	00000001.175494353e-38	00000001.175494353e-38	-1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549e-38	1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.175494349e-38	1.17549e-38	1.175494353e-38	01.17549e-38	00000001.175494353e-38	01.17549e-38	00000001.175494353e-38	1000-01-02	838:59:57	1970-01-03 00:00:02	1970-01-03 00:00:02	1903	1903	1903	1enum	1set,2set	                �      �       @       @      @      @	             4@      4@	                �      �       @       @      @      @	                   �      �      4@      �      4@      4@      �      4@      �      �         @      @       @      @       @       @      @       @      @      @	                   �      �      4@      �      4@      4@      �      4@      �      �         @      @       @      @       @       @      @       @      @      @	             �      �	                �      �       @       @      @      @	                   �      �      4@      �      4@      4@      �      4@      �      �         @      @       @      @       @       @      @       @      @      @
 CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2 limit 10,100;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `F59` from `tb2` limit 10,100
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `F59` from `tb2` limit 10,100	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 F59
 76710
@@ -987,38 +987,38 @@ CREATE TABLE t1 (f1 NUMERIC(15,3));
 INSERT INTO t1 VALUES(8.8);
 CREATE VIEW v1 AS SELECT * FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 As my_column FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `my_column` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `my_column` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 my_column
 8.800
 CREATE OR REPLACE VIEW v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 column1	column2
 8.800	8.800
 CREATE OR REPLACE VIEW test.v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM test.t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 column1	column2
 8.800	8.800
@@ -1948,7 +1948,7 @@ f1	f2
 2	two
 4	four
 INSERT INTO v1 VALUES(2,'two');
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 INSERT INTO v1 VALUES(3,'three');
 affected rows: 1
 INSERT INTO v1 VALUES(6,'six');
@@ -1967,7 +1967,7 @@ f1	f2
 3	three
 4	four
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 UPDATE v1 SET f2 = 'number' WHERE f1 = 3;
 affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
@@ -2014,12 +2014,12 @@ DROP VIEW  IF EXISTS test.v1;
 CREATE TABLE t1 (f1 ENUM('A', 'B', 'C') NOT NULL, f2 INTEGER)
 ENGINE = myisam;
 INSERT INTO t1 VALUES ('A', 1);
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, f2;
 f1	f2
 A	1
 CREATE VIEW  v1 AS SELECT * FROM t1 WHERE f2 BETWEEN 1 AND 2
 WITH CASCADED CHECK OPTION ;
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 f1	f2
 A	1
 UPDATE v1 SET f2 = 2 WHERE f2 = 1;
@@ -2027,7 +2027,7 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
 INSERT INTO v1 VALUES('B',2);
 affected rows: 1
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 f1	f2
 A	2
 B	2
@@ -2035,7 +2035,7 @@ UPDATE v1 SET f2 = 4;
 ERROR HY000: CHECK OPTION failed 'test.v1'
 INSERT INTO v1 VALUES('B',3);
 ERROR HY000: CHECK OPTION failed 'test.v1'
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, f2;
 f1	f2
 A	2
 B	2
@@ -10272,8 +10272,8 @@ CREATE VIEW test3.v30 AS SELECT * FROM test3.v29;
 CREATE VIEW test3.v31 AS SELECT * FROM test3.v30;
 CREATE VIEW test3.v32 AS SELECT * FROM test3.v31;
 SHOW CREATE VIEW test3.v32;
-View	Create View
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`
+View	Create View	character_set_client	collation_connection
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	latin1	latin1_swedish_ci
 SELECT * FROM test3.v32;
 f1
 1.000
@@ -10282,8 +10282,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 DROP VIEW test3.v0;
 SHOW CREATE VIEW test3.v32;
-View	Create View
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`
+View	Create View	character_set_client	collation_connection
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test3.v32' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM test3.v32;
@@ -10393,8 +10393,8 @@ FROM test2.t1 tab1 NATURAL JOIN test1.v18 tab2;
 CREATE OR REPLACE VIEW test1.v20 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v19 tab2;
 SHOW CREATE VIEW test1.v20;
-View	Create View
-v20	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v20` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v19` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))
+View	Create View	character_set_client	collation_connection
+v20	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v20` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v19` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	latin1	latin1_swedish_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v20;
 f1	f2
@@ -10409,8 +10409,8 @@ CAST(f2 AS CHAR) AS f2 FROM test1.v20;
 CREATE VIEW test1.v21 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v20 tab2;
 SHOW CREATE VIEW test1.v21;
-View	Create View
-v21	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v21` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v20` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))
+View	Create View	character_set_client	collation_connection
+v21	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v21` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v20` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	latin1	latin1_swedish_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v21;
 f1	f2
@@ -10576,7 +10576,7 @@ f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 1
+ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
@@ -10645,7 +10645,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 INSERT INTO v1 SET f2 = 'ABC';
 INSERT INTO v1 SET f2 = 'ABC';
-ERROR 23000: Duplicate entry '0' for key 1
+ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 SELECT * from t1;
 f1	f2	f3	f4
 0	ABC	NULL	NULL
@@ -10980,11 +10980,11 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(5)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11004,12 +11004,12 @@ f4x	char(5)	YES		NULL
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4x	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
 0	NULL	ABC	t1 1
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER TABLE t1 CHANGE COLUMN f4x f4 CHAR(5);
 ALTER TABLE t1 CHANGE COLUMN f4 f4 CHAR(10);
@@ -11027,14 +11027,14 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(10)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
 0	NULL	ABC	t1 1
 2	NULL	<-- 10 -->	t1 2
 2	NULL	<-- 10 -->	v1 2
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11063,7 +11063,7 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	char(8)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11072,7 +11072,7 @@ f1	f2	f4	report
 2	NULL	<-- 10 -	v1 2
 3	NULL	<-- 10 -	t1 3
 3	NULL	<-- 10 -	v1 3
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11096,7 +11096,7 @@ f1	bigint(20)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11107,7 +11107,7 @@ f1	f2	f4	report
 3	NULL	<-- 10 -	v1 3
 4	NULL	<------ 20 -------->	t1 4
 4	NULL	<------ 20 -------->	v1 4
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11135,7 +11135,7 @@ f1	varchar(30)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11148,7 +11148,7 @@ f1	f2	f4	report
 4	NULL	<------ 20 -------->	v1 4
 <------------- 30 ----------->	NULL	<------ 20 -------->	t1 5
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11172,7 +11172,7 @@ f4	varchar(20)	YES		NULL
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f4	report
 -1	ABC	t1 0
 -1	ABC	v1 0
@@ -11186,7 +11186,7 @@ f1	f4	report
 <------------- 30 ----------->	<------ 20 -------->	t1 5
 <------------- 30 ----------->	<------ 20 -------->	v1 5
 ABC	<------ 20 -------->	t1 6
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER TABLE t1 ADD COLUMN f2 DATE DEFAULT NULL;
 INSERT INTO t1 SET f1 = 'ABC', f2 = '1500-12-04',
@@ -11205,7 +11205,7 @@ f1	varchar(30)	YES		NULL
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f4	report	f2
 -1	ABC	t1 0	NULL
 -1	ABC	v1 0	NULL
@@ -11221,7 +11221,7 @@ f1	f4	report	f2
 ABC	<------ 20 -------->	t1 6	NULL
 ABC	<------ 20 -------->	t1 7	1500-12-04
 ABC	<------ 20 -------->	v1 7	1500-12-04
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11255,7 +11255,7 @@ f1	varchar(30)	YES		NULL
 f2	float	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f4	report	f2
 -1	ABC	t1 0	NULL
 -1	ABC	v1 0	NULL
@@ -11270,10 +11270,10 @@ f1	f4	report	f2
 <------------- 30 ----------->	<------ 20 -------->	v1 5	NULL
 ABC	<------ 20 -------->	t1 6	NULL
 ABC	<------ 20 -------->	t1 7	NULL
-ABC	<------ 20 -------->	v1 7	NULL
 ABC	<------ 20 -------->	t1 8	-0.00033
+ABC	<------ 20 -------->	v1 7	NULL
 ABC	<------ 20 -------->	v1 8	-0.00033
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11288,8 +11288,8 @@ f1	f2	f4	report
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
 ABC	NULL	<------ 20 -------->	t1 6
 ABC	NULL	<------ 20 -------->	t1 7
-ABC	NULL	<------ 20 -------->	v1 7
 ABC	-0.00033	<------ 20 -------->	t1 8
+ABC	NULL	<------ 20 -------->	v1 7
 ABC	-0.00033	<------ 20 -------->	v1 8
 ALTER TABLE t1 ADD COLUMN f3 NUMERIC(7,2);
 INSERT INTO t1 SET f1 = 'ABC', f2 = -3.3E-4,
@@ -11312,7 +11312,7 @@ f1	varchar(30)	YES		NULL
 f2	float	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, report;
 f1	f4	report	f2	f3
 -1	ABC	t1 0	NULL	NULL
 -1	ABC	v1 0	NULL	NULL
@@ -11327,12 +11327,12 @@ f1	f4	report	f2	f3
 <------------- 30 ----------->	<------ 20 -------->	v1 5	NULL	NULL
 ABC	<------ 20 -------->	t1 6	NULL	NULL
 ABC	<------ 20 -------->	t1 7	NULL	NULL
-ABC	<------ 20 -------->	v1 7	NULL	NULL
 ABC	<------ 20 -------->	t1 8	-0.00033	NULL
-ABC	<------ 20 -------->	v1 8	-0.00033	NULL
 ABC	<------ 20 -------->	t1 9	-0.00033	-2.20
+ABC	<------ 20 -------->	v1 7	NULL	NULL
+ABC	<------ 20 -------->	v1 8	-0.00033	NULL
 ABC	<------ 20 -------->	v1 9a	-0.00033	NULL
-SELECT * FROM v1;
+SELECT * FROM v1 order by f1, report;
 f1	f2	f4	report
 -1	NULL	ABC	t1 0
 -1	NULL	ABC	v1 0
@@ -11347,10 +11347,10 @@ f1	f2	f4	report
 <------------- 30 ----------->	NULL	<------ 20 -------->	v1 5
 ABC	NULL	<------ 20 -------->	t1 6
 ABC	NULL	<------ 20 -------->	t1 7
-ABC	NULL	<------ 20 -------->	v1 7
 ABC	-0.00033	<------ 20 -------->	t1 8
-ABC	-0.00033	<------ 20 -------->	v1 8
 ABC	-0.00033	<------ 20 -------->	t1 9
+ABC	NULL	<------ 20 -------->	v1 7
+ABC	-0.00033	<------ 20 -------->	v1 8
 ABC	-0.00033	<------ 20 -------->	v1 9a
 DROP TABLE t1;
 DROP VIEW  v1;
@@ -11365,10 +11365,10 @@ DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, f2;
 f1	f2
 ABC	3
-SELECT * FROM v1;
+SELECT * FROM v1 order by 2;
 f1	my_sqrt
 ABC	1.7320508075689
 ALTER TABLE t1 CHANGE COLUMN f2 f2 VARCHAR(30);
@@ -11381,21 +11381,21 @@ DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM t1;
+SELECT * FROM t1 order by f1, f2;
 f1	f2
 ABC	3
 ABC	DEF
-SELECT * FROM v1;
+SELECT * FROM v1 order by 2;
 f1	my_sqrt
-ABC	1.7320508075689
 ABC	0
+ABC	1.7320508075689
 SELECT SQRT('DEF');
 SQRT('DEF')
 0
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 CREATE VIEW v2 AS SELECT SQRT('DEF');
-SELECT * FROM v2;
+SELECT * FROM v2 order by 1;
 SQRT('DEF')
 0
 Warnings:
@@ -11405,27 +11405,27 @@ DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
 my_sqrt	double	YES		NULL	
-SELECT * FROM v2;
+SELECT * FROM v2 order by 2;
 f1	my_sqrt
+ABC	0
 ABC	1.7320508075689
-ABC	0
 CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 f1	my_sqrt
-ABC	1.73205080756888
 ABC	0
+ABC	1.73205080756888
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 f1	my_sqrt
-ABC	1.73205080756888
 ABC	0
+ABC	1.73205080756888
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
-SELECT * FROM t2;
+SELECT * FROM t2 order by 2;
 f1	my_sqrt
-ABC	1.73205080756888
 ABC	0
+ABC	1.73205080756888
 DROP TABLE t1;
 DROP TABLE t2;
 DROP VIEW  v1;
