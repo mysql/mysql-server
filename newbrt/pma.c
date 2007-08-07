@@ -304,10 +304,8 @@ int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
 }
 
 int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
-    struct pma *result;
     int error;
-
-    result = toku_malloc(sizeof (struct pma));
+    TAGMALLOC(PMA, result);
     if (result==0) return -1;
     result->n_pairs_present = 0;
     result->pairs = 0;
