@@ -2525,8 +2525,8 @@ void do_copy_file(struct st_command *command)
   command	command handle
 
   DESCRIPTION
-  chmod <octal> <file>
-  Change file permission of <file>
+  chmod_file <octal> <file_name>
+  Change file permission of <file_name>
 
 */
 
@@ -2536,8 +2536,8 @@ void do_chmod_file(struct st_command *command)
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
-    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file",
-    "file", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
+    "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file(octal) ex. 0660",
+    "filename", ARG_STRING, TRUE, &ds_file, "Filename of file to modify"
   };
   DBUG_ENTER("do_chmod_file");
 
@@ -2671,6 +2671,12 @@ void do_write_file_command(struct st_command *command, my_bool append)
   if (ds_delimiter.length == 0)
     dynstr_set(&ds_delimiter, "EOF");
 
+  if (!append && access(ds_filename.str, F_OK) == 0)
+  {
+    /* The file should not be overwritten */
+    die("File already exist: '%s'", ds_filename.str);
+  }
+
   init_dynamic_string(&ds_content, "", 1024, 1024);
   read_until_delimiter(&ds_content, &ds_delimiter);
   DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
@@ -2703,7 +2709,7 @@ void do_write_file_command(struct st_command *command, my_bool append)
   Write everything between the "write_file" command and 'delimiter'
   to "file_name"
 
-  NOTE! Overwrites existing file
+  NOTE! Will fail if <file_name> exists
 
   Default <delimiter> is EOF
 

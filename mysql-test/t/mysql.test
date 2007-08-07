@@ -241,18 +241,21 @@ DELIMITER /
 SELECT 1/
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 # This should give an error...
 --write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
 DELIMITER \
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 # As should this...
 --write_file $MYSQLTEST_VARDIR/tmp/bug21412.sql
 DELIMITER \\
 EOF
 --exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 
 #
 # Some coverage of not normally used parts
