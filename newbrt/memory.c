@@ -134,9 +134,14 @@ void *toku_calloc(long nmemb, long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p\n", __FILE__, __LINE__, r);  }
     return r;
 }
+#define MALLOC_SIZE_COUNTING_LIMIT 256
+int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];
+int other_malloc_count=0;
 void *toku_malloc(long size) {
     void * r;
     errno=0;
+    if (size<MALLOC_SIZE_COUNTING_LIMIT) malloc_counts[size]++;
+    else other_malloc_count++;
     r=actual_malloc(size);
     //printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
     note_did_malloc(r, size);
@@ -191,4 +196,13 @@ void print_malloced_items (void) {
     for (i=0; i<n_items_malloced; i++) {
 	printf(" %p size=%ld\n", items[i], sizes[i]);
     }
+}
+
+void malloc_report (void) {
+    int i;
+    printf("malloc report:\n");
+    for (i=0; i<MALLOC_SIZE_COUNTING_LIMIT; i++) {
+	if (malloc_counts[i]) printf("%d: %d\n", i, malloc_counts[i]);
+    }
+    printf("Other: %d\n", other_malloc_count);
 }

@@ -22,3 +22,4 @@ extern int memory_check; // Set to nonzero to get a (much) slower version of mal
 
 int get_n_items_malloced(void);
 void print_malloced_items(void);
+void malloc_report (void);

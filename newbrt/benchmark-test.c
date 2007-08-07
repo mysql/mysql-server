@@ -1,6 +1,7 @@
 /* Insert a bunch of stuff */
 #include "brt.h"
 #include "key.h"
+#include "memory.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -96,6 +97,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     gettimeofday(&t3,0);
     printf("Shutdown %.6fs\n", tdiff(&t3, &t2));
     printf("Total time %.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    malloc_report();
     return 0;
 }
 
