@@ -235,7 +235,7 @@ struct st_connection
 #endif /*EMBEDDED_LIBRARY*/
 };
 struct st_connection connections[128];
-struct st_connection* cur_con, *next_con, *connections_end;
+struct st_connection* cur_con= NULL, *next_con, *connections_end;
 
 /*
   List of commands in mysqltest
@@ -604,6 +604,77 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 }
 
 
+/*
+  Show any warnings just before the error. Since the last error
+  is added to the warning stack, only print @@warning_count-1 warnings.
+
+  NOTE! This function should be safe to call when an error
+  has occured and this any further errors will be ignored(although logged)
+
+  SYNOPSIS
+  show_warnings_before_error
+  mysql - connection to use
+
+*/
+
+static void show_warnings_before_error(MYSQL* mysql)
+{
+  MYSQL_RES* res;
+  const char* query= "SHOW WARNINGS";
+  DBUG_ENTER("show_warnings_before_error");
+
+  if (!mysql)
+    DBUG_VOID_RETURN;
+
+  if (mysql_query(mysql, query))
+  {
+    log_msg("Error running query '%s': %d %s",
+            query, mysql_errno(mysql), mysql_error(mysql));
+    DBUG_VOID_RETURN;
+  }
+
+  if ((res= mysql_store_result(mysql)) == NULL)
+  {
+    /* No result set returned */
+    DBUG_VOID_RETURN;
+  }
+
+  if (mysql_num_rows(res) <= 1)
+  {
+    /* Don't display the last row, it's "last error" */
+  }
+  else
+  {
+    MYSQL_ROW row;
+    unsigned int row_num= 0;
+    unsigned int num_fields= mysql_num_fields(res);
+
+    fprintf(stderr, "\nWarnings from just before the error:\n");
+    while ((row= mysql_fetch_row(res)))
+    {
+      unsigned int i;
+      unsigned long *lengths= mysql_fetch_lengths(res);
+
+      if (++row_num >= mysql_num_rows(res))
+      {
+        /* Don't display the last row, it's "last error" */
+        break;
+      }
+
+      for(i= 0; i < num_fields; i++)
+      {
+        fprintf(stderr, "%.*s ", lengths[i],
+                row[i] ? row[i] : "NULL");
+      }
+      fprintf(stderr, "\n");
+    }
+  }
+  mysql_free_result(res);
+
+  DBUG_VOID_RETURN;
+}
+
+
 enum arg_type
 {
   ARG_STRING,
@@ -903,6 +974,13 @@ void die(const char *fmt, ...)
   if (result_file_name && ds_warning_messages.length)
     dump_warning_messages();
 
+  /*
+    Help debugging by displaying any warnings that might have
+    been produced prior to the error
+  */
+  if (cur_con)
+    show_warnings_before_error(&cur_con->mysql);
+
   cleanup_and_exit(1);
 }
 
@@ -1010,7 +1088,6 @@ void log_msg(const char *fmt, ...)
   size_t len;
   DBUG_ENTER("log_msg");
 
-  memset(buff, 0, sizeof(buff));
   va_start(args, fmt);
   len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
   va_end(args);
@@ -4044,7 +4121,7 @@ void do_connect(struct st_command *command)
   mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
 #ifdef HAVE_OPENSSL
@@ -6471,7 +6548,6 @@ int main(int argc, char **argv)
   connections_end= connections +
     (sizeof(connections)/sizeof(struct st_connection)) - 1;
   next_con= connections + 1;
-  cur_con= connections;
 
 #ifdef EMBEDDED_LIBRARY
   /* set appropriate stack for the 'query' threads */
@@ -6547,6 +6623,7 @@ int main(int argc, char **argv)
   if (cursor_protocol_enabled)
     ps_protocol_enabled= 1;
 
+  cur_con= connections;
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   if (opt_compress)
