@@ -20,7 +20,7 @@ EOF
 --replace_regex /.*mysqladmin.*: unknown/mysqladmin: unknown/
 --error 7
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
-
+remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 
 # When mysqladmin finds "loose-database" in .cnf file it shall print
 # a warning and continue
@@ -32,3 +32,4 @@ EOF
 --replace_regex /Warning: .*mysqladmin.*: unknown/Warning: mysqladmin: unknown/
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
 
+remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
