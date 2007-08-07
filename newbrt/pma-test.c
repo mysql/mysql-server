@@ -1021,5 +1021,6 @@ void pma_tests (void) {
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     pma_tests();
+    malloc_cleanup();
     return 0;
 }
