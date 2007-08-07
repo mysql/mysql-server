@@ -19,4 +19,9 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(csv ha_tina.cc ha_tina.h transparent_file.cc transparent_file.h)
+
+SET(CSV_SOURCES  ha_tina.cc ha_tina.h transparent_file.cc transparent_file.h)
+
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(csv ${CSV_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)
