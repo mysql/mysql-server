@@ -366,6 +366,7 @@ show status;
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 #
 # Missing delimiter until eof
@@ -377,6 +378,7 @@ sleep 7
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 #
 # Missing delimiter until "disable_query_log"
@@ -391,6 +393,7 @@ disable_query_log;
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 #
 # Missing delimiter until "disable_query_log"
@@ -406,6 +409,7 @@ disable_query_log;
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 #
 # Missing delimiter until eof
@@ -422,6 +426,7 @@ disconnect default
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 #
 # Missing delimiter until eof
@@ -1160,6 +1165,7 @@ echo hej;
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 while (0)
@@ -1167,6 +1173,7 @@ while (0)
 EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 while (0){
@@ -1268,6 +1275,7 @@ while ($i)
 }
 EOF
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Repeat connect/disconnect
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
@@ -1282,6 +1290,7 @@ EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Select disconnected connection
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
@@ -1292,6 +1301,7 @@ EOF
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Connection name already used
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
@@ -1568,6 +1578,12 @@ write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp END_DELIMITER;
 Content for test_file1 contains EOF
 END_DELIMITER
 file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+# write to already exisiting file
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec echo "write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;" | $MYSQL_TEST 2>&1
+
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
 # ----------------------------------------------------------------------------
@@ -1589,6 +1605,8 @@ append_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 Appended text on nonexisting file
 EOF
 
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
 # ----------------------------------------------------------------------------
 # test for cat_file
 # ----------------------------------------------------------------------------
@@ -1599,6 +1617,7 @@ for cat_file command
 of mysqltest
 EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
@@ -1719,6 +1738,7 @@ chmod 0000 $MYSQLTEST_VARDIR/tmp/file1.tmp;
 #EOF
 
 chmod 0777 $MYSQLTEST_VARDIR/tmp/file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file1.tmp;
 --write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
 test2
 EOF
