@@ -279,6 +279,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test0();
     test_nested_pin();
     test_multi_filehandles ();
+    malloc_cleanup();
     printf("ok\n");
     return 0;
 }

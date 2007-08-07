@@ -2,9 +2,10 @@
 
 /* errno is set to 0 or a value to indicate problems. */
 void *toku_calloc(long nmemb, long size);
-void *toku_malloc(long size);
+void *toku_malloc(unsigned long size);
 void *tagmalloc(unsigned long size, int typ);
 void toku_free(void*);
+void toku_free_n(void*, unsigned long size);
 void *toku_realloc(void *, long size);
 
 #define MALLOC(v) v = toku_malloc(sizeof(*v))
@@ -23,3 +24,4 @@ extern int memory_check; // Set to nonzero to get a (much) slower version of mal
 int get_n_items_malloced(void);
 void print_malloced_items(void);
 void malloc_report (void);
+void malloc_cleanup (void);

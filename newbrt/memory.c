@@ -134,14 +134,26 @@ void *toku_calloc(long nmemb, long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p\n", __FILE__, __LINE__, r);  }
     return r;
 }
+#define FREELIST_LIMIT 33
+void *freelist[FREELIST_LIMIT];
+
 #define MALLOC_SIZE_COUNTING_LIMIT 256
 int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];
 int other_malloc_count=0;
-void *toku_malloc(long size) {
+void *toku_malloc(unsigned long size) {
     void * r;
     errno=0;
     if (size<MALLOC_SIZE_COUNTING_LIMIT) malloc_counts[size]++;
     else other_malloc_count++;
+
+    if (size>=sizeof(void*) && size<FREELIST_LIMIT) {
+	if (freelist[size]) {
+	    r = freelist[size];
+	    freelist[size] = *(void**)r;
+	    note_did_malloc(r, size);
+	    return r;
+	}
+    }
     r=actual_malloc(size);
     //printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
     note_did_malloc(r, size);
@@ -170,6 +182,18 @@ void toku_free(void* p) {
     //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
     note_did_free(p);
     actual_free(p);
+}
+
+void toku_free_n(void* p, unsigned long size) {
+    //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
+    note_did_free(p);
+    if (size>=sizeof(void*) && size<FREELIST_LIMIT) {
+	//printf("freelist[%lu] ||= %p\n", size, p);
+	*(void**)p = freelist[size];
+	freelist[size]=p;
+    } else {
+	actual_free(p);
+    }
 }
 
 void *memdup (const void *v, unsigned int len) {
@@ -205,4 +229,15 @@ void malloc_report (void) {
 	if (malloc_counts[i]) printf("%d: %d\n", i, malloc_counts[i]);
     }
     printf("Other: %d\n", other_malloc_count);
+}
+
+void malloc_cleanup (void) {
+    int i;
+    for (i=0; i<FREELIST_LIMIT; i++) {
+	void *p;
+	while ((p = freelist[i])) {
+	    freelist[i] = *(void**)p;
+	    actual_free(p);
+	}
+    }
 }
