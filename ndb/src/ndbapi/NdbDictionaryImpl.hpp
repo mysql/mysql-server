@@ -262,7 +262,8 @@ public:
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
-			    bool fullyQualifiedNames);
+			    bool fullyQualifiedNames,
+			    bool hostByteOrder = true);
   
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
