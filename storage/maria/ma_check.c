@@ -3753,7 +3753,15 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       }
       else
       {
-        /* Scan on clean table */
+        /*
+          Scan on clean table.
+          It requires a reliable data_file_length so we set it.
+        */
+        my_off_t dfile_len= my_seek(info->dfile.file, 0, SEEK_END,
+                                    MYF(MY_WME));
+        if (dfile_len == MY_FILEPOS_ERROR)
+          DBUG_RETURN(my_errno);
+        info->state->data_file_length= dfile_len;
         flag= _ma_scan_block_record(info, sort_param->record,
                                     info->cur_row.nextpos, 1);
       }

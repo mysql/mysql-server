@@ -837,6 +837,7 @@ static my_bool allocate_tail(MARIA_FILE_BITMAP *bitmap, uint size,
     if (bitmap->used_size == bitmap->total_size)
       DBUG_RETURN(1);
     /* Allocate data at end of bitmap */
+    best_data= end;
     bitmap->used_size+= 6;
     best_pos= best_bits= 0;
   }

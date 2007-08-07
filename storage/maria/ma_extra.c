@@ -17,6 +17,7 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#include "ma_blockrec.h"
 
 static void maria_extra_keyflag(MARIA_HA *info,
                                 enum ha_extra_function function);
@@ -279,6 +280,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       Don't we wait for all instances to be closed before dropping the table?
       Do we ever do something useful here?
       BUG?
+      FLUSH_IGNORE_CHANGED: we are also throwing away unique index blocks?
+      Does ENABLE KEYS rebuild them too?
     */
     if (flush_pagecache_blocks(share->pagecache, &share->kfile,
                                FLUSH_IGNORE_CHANGED))
@@ -487,4 +490,61 @@ int _ma_sync_table_files(const MARIA_HA *info)
 {
   return (my_sync(info->dfile.file, MYF(0)) ||
           my_sync(info->s->kfile.file, MYF(0)));
+}
+
+
+/**
+   @brief flushes the data and/or index file of a table
+
+   This is useful when one wants to read a table using OS syscalls (like
+   my_copy()) and first wants to be sure that MySQL-level caches go down to
+   the OS so that OS syscalls can see all data. It can flush rec_cache,
+   bitmap, pagecache of data file, pagecache of index file.
+
+   @param  info                table
+   @param  flush_data_or_index one or two of these flags:
+                               MARIA_FLUSH_DATA, MARIA_FLUSH_INDEX
+   @param  flush_type_for_data
+   @param  flush_type_for_index
+
+   @note does not sync files (@see _ma_sync_table_files()).
+   @note Progressively this function will be used in all places where we flush
+   the index but not the data file (probable bugs).
+
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
+*/
+
+int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
+                          enum flush_type flush_type_for_data,
+                          enum flush_type flush_type_for_index)
+{
+  MARIA_SHARE *share= info->s;
+  /* flush data file first because it's more critical */
+  if (flush_data_or_index & MARIA_FLUSH_DATA)
+  {
+    if (info->opt_flag & WRITE_CACHE_USED)
+    {
+      if (end_io_cache(&info->rec_cache))
+        goto err;
+      info->opt_flag&= ~WRITE_CACHE_USED;
+    }
+    if (share->data_file_type == BLOCK_RECORD)
+    {
+      if(_ma_flush_bitmap(share) ||
+         flush_pagecache_blocks(share->pagecache, &info->dfile,
+                                flush_type_for_data))
+        goto err;
+    }
+  }
+  if ((flush_data_or_index & MARIA_FLUSH_INDEX) &&
+      flush_pagecache_blocks(share->pagecache, &share->kfile,
+                             flush_type_for_index))
+    goto err;
+  return 0;
+err:
+  maria_print_error(info->s, HA_ERR_CRASHED);
+  maria_mark_crashed(info);
+  return 1;
 }

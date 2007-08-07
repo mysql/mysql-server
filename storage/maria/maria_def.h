@@ -902,6 +902,11 @@ MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
 
 C_MODE_START
+#define MARIA_FLUSH_DATA  1
+#define MARIA_FLUSH_INDEX 2
+int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
+                          enum flush_type flush_type_for_data,
+                          enum flush_type flush_type_for_index);
 /* Functions needed by _ma_check (are overrided in MySQL) */
 volatile int *_ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));

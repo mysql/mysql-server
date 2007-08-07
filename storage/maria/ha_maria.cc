@@ -1063,6 +1063,13 @@ int ha_maria::backup(THD * thd, HA_CHECK_OPT *check_opt)
   }
 
   strxmov(src_path, table->s->normalized_path.str, MARIA_NAME_DEXT, NullS);
+  if (_ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
+                            FLUSH_KEEP))
+  {
+    error= HA_ADMIN_FAILED;
+    errmsg= "Failed in flush (Error %d)";
+    goto err;
+  }
   if (my_copy(src_path, dst_path,
               MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {

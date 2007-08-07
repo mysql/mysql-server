@@ -1045,15 +1045,28 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       log record
       - data file must be created after log record, so that "missing log
       record" implies "unusable table").
+      When we wrote the state, we hadn't called ma_initialize_data_file(), so
+      the data_file_length is 0!
       Thus, we below create a 8192-byte data file, but its recorded size is 0,
       so next time we read the bitmap (a maria_write() for example) we'll
       overwrite the bitmap we just created below.
-      It's not very efficient. Though there is no bug.
+      It's not very efficient.
+      It also makes maria_chk_size() print
+      Size of datafile is: 8192       Should be: 0
+      on a freshly created table (run "check.test" with a Maria table).
+
       Why do we absolutely want to create a 8192-byte page for a freshly
       created, empty table? Why don't we leave the data file empty?
+      Removing the call below at least removes the maria_chk_size() issue.
+
+      Monty wrote on IRC, about a size of 0:
+      "This basically ok;  The first block is a bitmap that may or may not
+      exists", but later he asked that the first block always exists.???
     */
+#ifdef ASK_MONTY
     if (_ma_initialize_data_file(&share, dfile))
       goto err;
+#endif
   }
 
 	/* Enlarge files */
