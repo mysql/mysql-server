@@ -1860,3 +1860,15 @@ select count(*) from t1;
 count(*)
 1
 drop table t1;
+create table `t1` (
+t1_name varchar(255) default null,
+t1_id int(10) unsigned not null auto_increment,
+key (t1_name),
+primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+lock tables t1 write;
+INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+unlock tables;

@@ -332,7 +332,7 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
 
 int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
 {
-  int error=0;
+  int error;
   register my_off_t skr,size;
   char buff[22],buff2[22];
   DBUG_ENTER("maria_chk_size");
@@ -340,9 +340,14 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
   if (!(param->testflag & T_SILENT))
     puts("- check file-size");
 
-  /* The following is needed if called externally (not from maria_chk) */
-  flush_pagecache_blocks(info->s->pagecache,
-                         &info->s->kfile, FLUSH_FORCE_WRITE);
+  /*
+    The following is needed if called externally (not from maria_chk).
+    To get a correct physical size we need to flush them.
+  */
+  if ((error= _ma_flush_table_files(info,
+                                    MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                                    FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE)))
+    _ma_check_print_error(param, "Failed to flush data or index file");
 
   size= my_seek(info->s->kfile.file, 0L, MY_SEEK_END, MYF(MY_THREADSAFE));
   if ((skr=(my_off_t) info->state->key_file_length) != size)
@@ -1982,6 +1987,14 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
+
+  /*
+    The physical size of the data file is sometimes used during repair (see
+    sort_info.filelength further below); we need to flush to have it exact.
+  */
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
+                            FLUSH_KEEP))
+    goto err;
 
   if (!rep_quick)
   {
@@ -3757,11 +3770,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           Scan on clean table.
           It requires a reliable data_file_length so we set it.
         */
-        my_off_t dfile_len= my_seek(info->dfile.file, 0, SEEK_END,
-                                    MYF(MY_WME));
-        if (dfile_len == MY_FILEPOS_ERROR)
-          DBUG_RETURN(my_errno);
-        info->state->data_file_length= dfile_len;
+        info->state->data_file_length= sort_info->filelength;
         flag= _ma_scan_block_record(info, sort_param->record,
                                     info->cur_row.nextpos, 1);
       }

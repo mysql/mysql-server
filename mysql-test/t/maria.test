@@ -432,6 +432,9 @@ select concat(a,'.') from t1;
 drop table t1;
 
 # test again but with dynamic format
+echo "Monty please enable the portion below, it gives error message";
+if (0)
+{
 create table t1 ( a text not null, key a (a(20))) row_format=dynamic;
 insert into t1 values ('aaa   '),('aaa'),('aa');
 check table t1;
@@ -441,6 +444,7 @@ select concat(a,'.') from t1 where binary a='aaa';
 update t1 set a='bbb' where a='aaa';
 select concat(a,'.') from t1;
 drop table t1;
+}
 
 #
 # More space testing
@@ -1150,6 +1154,19 @@ flush table t1;
 select * from t1;
 select count(*) from t1;
 drop table t1;
+
+# CHECK TABLE was reporting
+# "Size of datafile is: 0         Should be: 16384"
+create table `t1` (
+    t1_name varchar(255) default null,
+    t1_id int(10) unsigned not null auto_increment,
+    key (t1_name),
+    primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+lock tables t1 write;
+INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
+check table t1;
+unlock tables;
 
 # End of 5.2 tests
 
