@@ -484,6 +484,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
+  enum ha_build_method build_method;
 }
 
 %{
@@ -492,10 +493,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there is 292 shift/reduce conflict. We should not introduce
+  Currently there is 286 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
-%expect 292
+%expect 286
 
 /*
    Comments for TOKENS.
@@ -847,7 +848,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
 %token  ONLINE_SYM
-%token  ONLY_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIONS_SYM
@@ -1219,6 +1219,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	get_select_lex
 
 %type <boolfunc2creator> comp_op
+
+%type <build_method> build_method
 
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
@@ -1602,12 +1604,13 @@ create:
                                 $5->table.str);
           }
         }
-	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
-	  table_ident build_method
+	| CREATE build_method opt_unique_or_fulltext INDEX_SYM ident key_alg 
+          ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7,
+            lex->alter_info.build_method= $2;
+	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
 							NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
@@ -1619,12 +1622,12 @@ create:
 	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
+	    if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
+	    lex->key_list.push_back(new Key($3, $5.str, &lex->key_create_info, 0,
 					   lex->col_list));
 	    lex->col_list.empty();
 	  }
@@ -5152,7 +5155,7 @@ string_list:
 */
 
 alter:
-	ALTER opt_ignore TABLE_SYM table_ident
+	ALTER build_method opt_ignore TABLE_SYM table_ident
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
@@ -5160,7 +5163,7 @@ alter:
           lex->name.length= 0;
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->duplicates= DUP_ERROR; 
-	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
 	  lex->create_list.empty();
@@ -5177,9 +5180,10 @@ alter:
 	  lex->alter_info.reset();
 	  lex->alter_info.flags= 0;
           lex->no_write_to_binlog= 0;
-          lex->create_info.default_storage_media= HA_SM_DEFAULT;	
+          lex->create_info.default_storage_media= HA_SM_DEFAULT;
+          lex->alter_info.build_method= $2;	
 	}
-	alter_commands build_method
+	alter_commands
 	{}
 	| ALTER DATABASE ident_or_empty
           {
@@ -5436,23 +5440,15 @@ alter_commands:
 build_method:
         /* empty */
           {
-            Lex->alter_info.build_method= BUILD_METHOD_DEFAULT;
-          }
-        | ONLINE_SYM ONLY_SYM
-          {
-            Lex->alter_info.build_method= BUILD_METHOD_ONLINE;
+            $$= HA_BUILD_DEFAULT;
           }
         | ONLINE_SYM
           {
-            Lex->alter_info.build_method= BUILD_METHOD_ONLINE;
-          }
-        | OFFLINE_SYM ONLY_SYM
-          {
-            Lex->alter_info.build_method= BUILD_METHOD_OFFLINE;
+            $$= HA_BUILD_ONLINE;
           }
         | OFFLINE_SYM
           {
-            Lex->alter_info.build_method= BUILD_METHOD_OFFLINE;
+            $$= HA_BUILD_OFFLINE;
           }
         ;
 
@@ -8240,14 +8236,15 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX_SYM ident ON table_ident build_method {}
+	| DROP build_method INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
+             lex->alter_info.build_method= $2;
 	     lex->alter_info.drop_list.empty();
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-                                                                $3.str));
-	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+                                                                $4.str));
+	     if (!lex->current_select->add_table_to_list(lex->thd, $6, NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	  }
@@ -10095,7 +10092,6 @@ keyword_sp:
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
         | ONLINE_SYM            {}
-        | ONLY_SYM              {}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PARTITIONING_SYM	{}

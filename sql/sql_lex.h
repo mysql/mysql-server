@@ -835,10 +835,6 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 30)
 #define ALTER_FOREIGN_KEY         (1L << 31)
 
-enum enum_build_method { BUILD_METHOD_DEFAULT, 
-                         BUILD_METHOD_ONLINE,
-                         BUILD_METHOD_OFFLINE };
-
 typedef struct st_alter_info
 {
   List<Alter_drop>            drop_list;
@@ -848,7 +844,7 @@ typedef struct st_alter_info
   enum tablespace_op_type     tablespace_op;
   List<char>                  partition_names;
   uint                        no_parts;
-  enum enum_build_method      build_method;
+  enum ha_build_method        build_method;
 
   st_alter_info(){clear();}
   void clear()
@@ -857,7 +853,7 @@ typedef struct st_alter_info
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
-    build_method= BUILD_METHOD_DEFAULT;
+    build_method= HA_BUILD_DEFAULT;
   }
   void reset(){drop_list.empty();alter_list.empty();clear();}
 } ALTER_INFO;
