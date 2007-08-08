@@ -20,3 +20,18 @@ then
  exit 1
 fi
 
+# detect if C/C++ files have new trailing white space
+trailingblank=`echo $BK_FILE | egrep '\.(c|.h)'`
+if [ -n "$trailingblank" ]
+then
+    trailingblank=`bk diffs $BK_FILE | grep '^> .*[[:space:]]$'`
+    if [ -n "$trailingblank" ]
+        then
+        echo "bk diffs $BK_FILE | grep '^> .*[[:space:]]$'"
+        echo "reported white space at end of some added/modified lines"
+        echo ""
+        echo "Checkin FAILED!"
+        echo "Fix the problem and retry."
+        exit 1
+    fi
+fi

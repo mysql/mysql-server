@@ -2752,6 +2752,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
+                            FLUSH_KEEP))
+    goto err;
+
   if (!(sort_info.key_block=
 	alloc_key_blocks(param,
 			 (uint) param->sort_key_blocks,
@@ -3172,6 +3176,10 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
+
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
+                            FLUSH_KEEP))
+    goto err;
 
   /*
     Quick repair (not touching data file, rebuilding indexes):
