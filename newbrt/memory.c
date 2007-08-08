@@ -134,7 +134,7 @@ void *toku_calloc(long nmemb, long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p\n", __FILE__, __LINE__, r);  }
     return r;
 }
-#define FREELIST_LIMIT 33
+#define FREELIST_LIMIT (64+1)
 void *freelist[FREELIST_LIMIT];
 
 #define MALLOC_SIZE_COUNTING_LIMIT 256
