@@ -1670,7 +1670,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->type=field->type();
   tmp_field->flags= field->table->maybe_null ? 
     (field->flags & ~NOT_NULL_FLAG) : field->flags;
-  tmp_field->decimals= 0;
+  tmp_field->decimals= field->decimals();
 }
 
 /**********************************************/
