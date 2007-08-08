@@ -1564,6 +1564,7 @@ write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 Content for test_file1
 EOF
 file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
 write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp END_DELIMITER;
