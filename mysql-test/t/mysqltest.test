@@ -969,7 +969,7 @@ if (!$counter)
   echo Counter is not 0, (counter=10);
 }
 let $counter=0;
-if ($counter)
+if($counter)
 {
   echo Counter is greater than 0, (counter=0);
 }
