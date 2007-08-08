@@ -24,7 +24,6 @@ Created 13/06/2005 Jan Lindstrom
 /* This structure holds index field definitions */
 
 struct merge_index_field_struct {
-	ulint	col_type;	/* Column type */
 	ulint	prefix_len;	/* Prefix len */
 	char*	field_name;	/* Field name */
 };
