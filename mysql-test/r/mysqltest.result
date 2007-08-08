@@ -533,6 +533,7 @@ drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+Content for test_file1
 mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
 Some data
 for cat_file command
