@@ -8053,8 +8053,6 @@ innobase_create_index_field_def(
 
 	col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
 
-	index_field->col_type = col_type;
-
 	if (DATA_BLOB == col_type
 	    || (key_part->length < field->pack_length()
 		&& field->type() != MYSQL_TYPE_VARCHAR)
@@ -8137,7 +8135,6 @@ innobase_copy_index_field_def(
 	DBUG_ASSERT(field != NULL);
 	DBUG_ASSERT(index_field != NULL);
 
-	index_field->col_type = (field->col->prtype & 0xFFUL);
 	index_field->field_name = mem_heap_strdup(heap, field->name);
 	index_field->prefix_len = field->prefix_len;
 
