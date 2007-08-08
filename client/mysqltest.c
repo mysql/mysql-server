@@ -4820,9 +4820,13 @@ int read_command(struct st_command** command_ptr)
   if (!(command->query_buf= command->query= my_strdup(p, MYF(MY_WME))))
     die("Out of memory");
 
-  /* Calculate first word and first argument */
-  for (p= command->query; *p && !my_isspace(charset_info, *p) ; p++) ;
+  /* Calculate first word length(the command), terminated by space or ( */
+  p= command->query;
+  while (*p && !my_isspace(charset_info, *p) && *p != '(')
+    p++;
   command->first_word_len= (uint) (p - command->query);
+  DBUG_PRINT("info", ("first_word: %.*s",
+                      command->first_word_len, command->query));
 
   /* Skip spaces between command and first argument */
   while (*p && my_isspace(charset_info, *p))
