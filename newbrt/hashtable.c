@@ -122,9 +122,9 @@ int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
 	assert(*prev_ptr==he);
 	*prev_ptr = he->next;
 	//printf("Freeing %s %s\n", he->key, he->val);
-	toku_free(he->key);
-	toku_free(he->val);
-	toku_free(he);
+	toku_free_n(he->key, he->keylen);
+	toku_free_n(he->val, he->vallen);
+	toku_free_n(he, sizeof(*he));
 	tab->n_keys--;
 
 	if ((tab->n_keys * 4 < tab->arraysize) && tab->arraysize>4) {
@@ -199,9 +199,9 @@ static void hasheltlist_free (HASHELT elt) {
     if (elt==0) return;
     else {
 	hasheltlist_free(elt->next);
-	toku_free(elt->key);
-	toku_free(elt->val);
-	toku_free(elt);
+	toku_free_n(elt->key, elt->keylen);
+	toku_free_n(elt->val, elt->vallen);
+	toku_free_n(elt, sizeof(*elt));
     }
 }
 
@@ -211,7 +211,7 @@ void toku_hashtable_free(HASHTABLE *tab) {
     toku_hashtable_clear(*tab);
     //printf("%s:%d free %p\n", __FILE__, __LINE__, tab);n
     toku_free((*tab)->array);
-    toku_free(*tab);
+    toku_free_n(*tab, sizeof(**tab));
     *tab=0;
 }
 
