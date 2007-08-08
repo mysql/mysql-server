@@ -2046,8 +2046,14 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
           goto err;
       }
       _ma_reset_status(sort_info.new_info);
+#ifdef ASK_MONTY /* cf maria_create() */
+      /*
+        without this call, a REPAIR on an empty table leaves the data file of
+        size 0, which sounds reasonable.
+      */
       if (_ma_initialize_data_file(sort_info.new_info->s, new_file))
         goto err;
+#endif
       block_record= 1;
     }
   }
