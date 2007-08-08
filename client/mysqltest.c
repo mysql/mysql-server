@@ -663,7 +663,7 @@ static void show_warnings_before_error(MYSQL* mysql)
 
       for(i= 0; i < num_fields; i++)
       {
-        fprintf(stderr, "%.*s ", lengths[i],
+        fprintf(stderr, "%.*s ", (int)lengths[i],
                 row[i] ? row[i] : "NULL");
       }
       fprintf(stderr, "\n");
