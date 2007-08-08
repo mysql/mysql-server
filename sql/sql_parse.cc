@@ -2266,7 +2266,7 @@ end_with_restore_list:
     thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
-    res= mysql_create_index(thd, first_table, lex->key_list);
+    res= mysql_create_index(thd, first_table, lex->key_list, &lex->alter_info);
     break;
 
 #ifdef HAVE_REPLICATION
@@ -6553,11 +6553,11 @@ Item * all_any_subquery_creator(Item *left_expr,
   One should normally create all indexes with CREATE TABLE or ALTER TABLE.
 */
 
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
+bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys, 
+                        ALTER_INFO *alter_info)
 {
   List<create_field> fields;
-  ALTER_INFO alter_info;
-  alter_info.flags= ALTER_ADD_INDEX;
+  alter_info->flags= ALTER_ADD_INDEX;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
@@ -6567,7 +6567,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-                                0, &alter_info, 1));
+                                0, alter_info, 1));
 }
 
 
