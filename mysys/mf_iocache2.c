@@ -415,6 +415,7 @@ process_flags:
       if (*fmt == 'd')
 	length2= (size_t) (int10_to_str((long) iarg,buff, -10) - buff);
       else
+        length2= (uint) (int10_to_str((long) (uint) iarg,buff,10)- buff);
 
       /* minimum width padding */
       if (minimum_width > length2) 
