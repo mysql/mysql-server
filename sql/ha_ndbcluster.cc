@@ -229,14 +229,12 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
     */
   case HA_ERR_NO_SUCH_TABLE:
   case HA_ERR_KEY_NOT_FOUND:
-  case HA_ERR_FOUND_DUPP_KEY:
     return error;
 
     /* Mapping missing, go with the ndb error code*/
   case -1:
     error= ndberr->code;
     break;
-
     /* Mapping exists, go with the mapped code */
   default:
     break;
@@ -248,7 +246,6 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
     - Used by replication to see if the error was temporary
   */
   if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr->code, ndberr->message, "NDB");
   else
