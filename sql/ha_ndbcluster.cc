@@ -5583,14 +5583,7 @@ static int create_ndb_column(THD *thd,
   case(COLUMN_FORMAT_TYPE_DEFAULT):
   default:
     if (create_info->row_type == ROW_TYPE_DEFAULT)
-    {
-      if (default_format == COLUMN_FORMAT_TYPE_DEFAULT)
-      {
-        dynamic= field_type_forces_var_part(field->type());
-      }
-      else
-        dynamic= default_format;
-    }
+      dynamic= default_format;
     else
       dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
     break;
@@ -5618,12 +5611,12 @@ static int create_ndb_column(THD *thd,
 
   switch (create_info->row_type) {
   case ROW_TYPE_FIXED:
-    if (thd && field_type_forces_var_part(field->type()))
+    if (thd && (dynamic || field_type_forces_var_part(field->type())))
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "Row format FIXED incompatible with "
-                          "variable sized attribute %s",
+                          "dynamic attribute %s",
                           field->field_name);
     }
     break;
@@ -10644,7 +10637,9 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_DROP_INDEX |
     HA_ADD_UNIQUE_INDEX |
     HA_DROP_UNIQUE_INDEX |
-    HA_ADD_COLUMN;
+    HA_ADD_COLUMN |
+    HA_COLUMN_STORAGE |
+    HA_COLUMN_FORMAT;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,

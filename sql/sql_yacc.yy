@@ -492,10 +492,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there is 287 shift/reduce conflict. We should not introduce
+  Currently there is 292 shift/reduce conflict. We should not introduce
   new conflicts any more.
 */
-%expect 286
+%expect 292
 
 /*
    Comments for TOKENS.
@@ -840,11 +840,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUM
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
+%token  OFFLINE_SYM
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
+%token  ONLINE_SYM
+%token  ONLY_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIONS_SYM
@@ -1600,7 +1603,7 @@ create:
           }
         }
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
-	  table_ident
+	  table_ident build_method
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
@@ -4810,7 +4813,11 @@ attribute:
             Lex->alter_info.flags|= ALTER_COLUMN_FORMAT;
           }
 	| not NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+	| DEFAULT now_or_signed_literal 
+          { 
+            Lex->default_value=$2; 
+            Lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
+          }
 	| ON UPDATE_SYM NOW_SYM optional_braces 
           { Lex->on_update_value= new Item_func_now_local(); }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
@@ -5172,7 +5179,7 @@ alter:
           lex->no_write_to_binlog= 0;
           lex->create_info.default_storage_media= HA_SM_DEFAULT;	
 	}
-	alter_commands
+	alter_commands build_method
 	{}
 	| ALTER DATABASE ident_or_empty
           {
@@ -5426,6 +5433,29 @@ alter_commands:
         | reorg_partition_rule
         ;
 
+build_method:
+        /* empty */
+          {
+            Lex->alter_info.build_method= BUILD_METHOD_DEFAULT;
+          }
+        | ONLINE_SYM ONLY_SYM
+          {
+            Lex->alter_info.build_method= BUILD_METHOD_ONLINE;
+          }
+        | ONLINE_SYM
+          {
+            Lex->alter_info.build_method= BUILD_METHOD_ONLINE;
+          }
+        | OFFLINE_SYM ONLY_SYM
+          {
+            Lex->alter_info.build_method= BUILD_METHOD_OFFLINE;
+          }
+        | OFFLINE_SYM
+          {
+            Lex->alter_info.build_method= BUILD_METHOD_OFFLINE;
+          }
+        ;
+
 remove_partitioning:
         REMOVE_SYM PARTITIONING_SYM
         {
@@ -5619,14 +5649,14 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,$6));
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+	    lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,
                                                                   (Item*) 0));
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+	    lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
 	  }
 	| RENAME opt_to table_ident
 	  {
@@ -8210,7 +8240,7 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX_SYM ident ON table_ident {}
+	| DROP INDEX_SYM ident ON table_ident build_method {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
@@ -10059,10 +10089,13 @@ keyword_sp:
 	| NODEGROUP_SYM         {}
 	| NONE_SYM		{}
 	| NVARCHAR_SYM		{}
+	| OFFLINE_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
+        | ONLINE_SYM            {}
+        | ONLY_SYM              {}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PARTITIONING_SYM	{}

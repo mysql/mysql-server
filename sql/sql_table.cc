@@ -5044,14 +5044,13 @@ void setup_alter_table_flags(ALTER_INFO* alter_info,
   if (ALTER_RENAME & flags)
     *alter_flags|= HA_RENAME_TABLE;
   if (ALTER_CHANGE_COLUMN & flags)
-  {
-    if (ALTER_CHANGE_COLUMN_DEFAULT & flags)
-      *alter_flags|= HA_ALTER_COLUMN_DEFAULT_VALUE;
-    if (ALTER_COLUMN_STORAGE & flags)
-      *alter_flags|= HA_ALTER_COLUMN_STORAGE;
-    if (ALTER_COLUMN_FORMAT & flags)
-      *alter_flags|= HA_ALTER_COLUMN_FORMAT;
-  }
+    *alter_flags|= HA_CHANGE_COLUMN;
+  if (ALTER_COLUMN_DEFAULT & flags)
+    *alter_flags|= HA_COLUMN_DEFAULT_VALUE;
+  if (ALTER_COLUMN_STORAGE & flags)
+    *alter_flags|= HA_COLUMN_STORAGE;
+  if (ALTER_COLUMN_FORMAT & flags)
+    *alter_flags|= HA_COLUMN_FORMAT;
   if (ALTER_COLUMN_ORDER & flags)
     *alter_flags|= HA_ALTER_COLUMN_ORDER;
   if (ALTER_STORAGE & flags)
@@ -5753,7 +5752,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   HA_CREATE_INFO *create_info;
   frm_type_enum frm_type;
   HA_ALTER_FLAGS alter_table_flags;
-  uint table_changes= IS_EQUAL_YES, need_copy_table= 0;
+  uint table_changes= IS_EQUAL_YES;
   bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
@@ -5761,7 +5760,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #endif
   List<create_field> prepared_create_list, prepared_create_list2;
   List<Key>          prepared_key_list, prepared_key_list2;;
-  bool need_lock= TRUE;
+  bool need_copy_table= TRUE, need_lock= TRUE;
   uint db_options= 0;
   bool committed= 0;
   HA_ALTER_INFO alter_table_info;
@@ -6480,7 +6479,7 @@ view_err:
       || partition_changed
 #endif
      )
-    need_copy_table= 1;
+    need_copy_table= TRUE;
   else
   {
     /* Try to optimize ALTER TABLE. Allocate result buffers. */
@@ -6523,31 +6522,38 @@ view_err:
         If no table rename,
         check if table can be altered on-line
       */
-      if (!(altered_table= create_altered_table(thd,
-                                                table,
-                                                new_db,
-                                                create_info,
-                                                prepared_create_list2,
-                                                prepared_key_list2,
-                                                !strcmp(db, new_db))))
-        goto err;
-      switch(table->file->check_if_supported_alter(altered_table,
-                                                   create_info,
-                                                   &alter_table_flags,
-                                                   table_changes)) {
-      case(HA_ALTER_NOT_SUPPORTED):
-        need_copy_table= TRUE;
-        break;
-      case(HA_ALTER_SUPPORTED_WAIT_LOCK):
-        need_lock= TRUE;
-      case(HA_ALTER_SUPPORTED_NO_LOCK):
-        need_copy_table= FALSE;
-        break;
-      case(HA_ALTER_ERROR):
-      default:
-        goto err;
+      if (alter_info->build_method != BUILD_METHOD_OFFLINE)
+      {
+        if (!(altered_table= create_altered_table(thd,
+                                                  table,
+                                                  new_db,
+                                                  create_info,
+                                                  prepared_create_list2,
+                                                  prepared_key_list2,
+                                                  !strcmp(db, new_db))))
+          goto err;
+        switch(table->file->check_if_supported_alter(altered_table,
+                                                     create_info,
+                                                     &alter_table_flags,
+                                                     table_changes)) {
+        case(HA_ALTER_NOT_SUPPORTED):
+          if (alter_info->build_method == BUILD_METHOD_ONLINE)
+          {
+            my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+            goto err;
+          }
+          need_copy_table= TRUE;
+          break;
+        case(HA_ALTER_SUPPORTED_WAIT_LOCK):
+          need_lock= TRUE;
+        case(HA_ALTER_SUPPORTED_NO_LOCK):
+          need_copy_table= FALSE;
+          break;
+        case(HA_ALTER_ERROR):
+        default:
+          goto err;
+        }
       }
-
 #ifndef DBUG_OFF
       {
         char dbug_string[HA_MAX_ALTER_FLAGS+1];

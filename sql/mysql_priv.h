@@ -997,7 +997,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
 bool mysql_rename_table(handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
+bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys,
+                        ALTER_INFO *alter_info);
 bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
