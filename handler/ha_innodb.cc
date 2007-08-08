@@ -8376,7 +8376,7 @@ err_exit:
 
 		if (!indexed_table) {
 
-			error = trx->error_state;
+			error = convert_error_code_to_mysql(trx->error_state);
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
