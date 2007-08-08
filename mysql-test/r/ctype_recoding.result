@@ -187,6 +187,14 @@ select * from t1 where a=_latin1'вася';
 ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
 drop table t1;
 set names latin1;
+set names ascii;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a');
+select * from t1 where a='a';
+a
+a
+drop table t1;
+set names latin1;
 create table t1 (a char(10) character set utf8 collate utf8_bin);
 insert into t1 values ('       xxx');
 select * from t1 where a=lpad('xxx',10,' ');
