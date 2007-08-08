@@ -298,6 +298,28 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    goto died1;
 	}
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
+#define BRT_USE_PMA_BULK_INSERT 1
+#if BRT_USE_PMA_BULK_INSERT
+{
+        DBT keys[n_in_buf], vals[n_in_buf];
+        int r;
+
+	for (i=0; i<n_in_buf; i++) {
+	    bytevec key; ITEMLEN keylen; 
+	    bytevec val; ITEMLEN vallen;
+	    verify_counts(result);
+	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
+            fill_dbt(&keys[i], key, keylen);
+	    rbuf_bytes(&rc, &val, &vallen);
+            fill_dbt(&vals[i], val, vallen);
+	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
+        }
+        if (n_in_buf > 0) {
+            r = pma_bulk_insert(result->u.l.buffer, keys, vals, n_in_buf);
+            if (r!=0) goto died_21;
+        }
+}
+#else
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
@@ -311,6 +333,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD;
 	}
+#endif
     }
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);
     toku_free(rc.buf);
