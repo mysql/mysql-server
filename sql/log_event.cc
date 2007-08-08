@@ -691,9 +691,19 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
-  /* Set time of we this isn't a query */
+  /*
+    Set time of when to when the query started. Since this function is
+    called from init_server_components() as well, it might be that the
+    current thread is not defined. In that case, we take the current
+    time instead.  It is safe to call my_time() here since the first
+    time this line is reached is through the init_server_components()
+    call, which is after the my_init() call in the main() function (or
+    it's replacement, for some platforms).
+  */
+  THD *thd= current_thd;
   if (!when)
-    when= current_thd->start_time;
+    when= thd ? thd->start_time : my_time(0);
+
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
     FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
