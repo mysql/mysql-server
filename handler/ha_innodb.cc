@@ -7907,7 +7907,7 @@ innobase_check_index_keys(
 {
 	Field*		field;
 	ulint		key_num;
-	int		error = DB_SUCCESS;
+	int		error = 0;
 	ibool		is_unsigned;
 
 	ut_ad(table && innodb_table && trx && key_info && num_of_keys);
@@ -8341,11 +8341,11 @@ ha_innobase::add_index(
 	error = innobase_check_index_keys(
 		table, innodb_table, trx, key_info, num_of_keys);
 
-	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
+	if (UNIV_UNLIKELY(error)) {
 err_exit:
 		mem_heap_free(heap);
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
-		DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
+		DBUG_RETURN(error);
 	}
 
 	/* Create table containing all indexes to be built in this
