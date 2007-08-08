@@ -753,6 +753,15 @@ void check_command_args(struct st_command *command,
           command->first_word_len, command->query);
 
   }
+  /* Check for too many arguments passed */
+  ptr= command->last_argument;
+  while(ptr <= command->end)
+  {
+    if (*ptr && *ptr != ' ')
+      die("Extra argument '%s' passed to '%.*s'",
+          ptr, command->first_word_len, command->query);
+    ptr++;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2691,7 +2700,21 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
     c= my_getc(cur_file->file);
 
     if (c == '\n')
+    {
       cur_file->lineno++;
+
+      /* Skip newline from the same line as the command */
+      if (start_lineno == (cur_file->lineno - 1))
+        continue;
+    }
+    else if (start_lineno == cur_file->lineno)
+    {
+      /*
+        No characters except \n are allowed on
+        the same line as the command
+      */
+      die("Trailing characters found after command");
+    }
 
     if (feof(cur_file->file))
       die("End of file encountered before '%s' delimiter was found",
