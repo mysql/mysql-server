@@ -138,8 +138,9 @@ void *toku_calloc(long nmemb, long size) {
 void *freelist[FREELIST_LIMIT];
 
 #define MALLOC_SIZE_COUNTING_LIMIT 256
-int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];
-int other_malloc_count=0;
+int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT]; // We rely on static variables being initialized to 0.
+int fresh_malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];  // We rely on static variables being initialized to 0.
+int other_malloc_count=0, fresh_other_malloc_count=0;
 void *toku_malloc(unsigned long size) {
     void * r;
     errno=0;
@@ -154,6 +155,8 @@ void *toku_malloc(unsigned long size) {
 	    return r;
 	}
     }
+    if (size<MALLOC_SIZE_COUNTING_LIMIT) fresh_malloc_counts[size]++;
+    else fresh_other_malloc_count++;
     r=actual_malloc(size);
     //printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
     note_did_malloc(r, size);
@@ -226,9 +229,9 @@ void malloc_report (void) {
     int i;
     printf("malloc report:\n");
     for (i=0; i<MALLOC_SIZE_COUNTING_LIMIT; i++) {
-	if (malloc_counts[i]) printf("%d: %d\n", i, malloc_counts[i]);
+	if (malloc_counts[i] || fresh_malloc_counts[i]) printf("%d: %d (%d fresh)\n", i, malloc_counts[i], fresh_malloc_counts[i]);
     }
-    printf("Other: %d\n", other_malloc_count);
+    printf("Other: %d (%d fresh)\n", other_malloc_count, fresh_other_malloc_count);
 }
 
 void malloc_cleanup (void) {
