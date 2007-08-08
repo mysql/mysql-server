@@ -28,7 +28,7 @@ connection con1;
 set session long_query_time=1;
 select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
-select * from mysql.slow_log;
+select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 connection default;
 
 set global slow_query_log= ON;
@@ -36,7 +36,7 @@ connection con1;
 set session long_query_time=1;
 select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
-select * from mysql.slow_log;
+select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 connection default;
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
