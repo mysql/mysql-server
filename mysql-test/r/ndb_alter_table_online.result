@@ -60,8 +60,8 @@ INSERT INTO t1 values (1,1);
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables;
-ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17 ONLINE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17 ONLINE'
+ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17'
 ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -78,8 +78,8 @@ INSERT INTO t1 values (1,1);
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables;
-ALTER TABLE t1 ADD c CHAR(19) NOT NULL ONLINE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD c CHAR(19) NOT NULL ONLINE'
+ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL'
 ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -96,8 +96,8 @@ INSERT INTO t1 values (1,1);
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables;
-ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED ONLINE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED ONLINE'
+ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED'
 ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -141,8 +141,8 @@ PRIMARY KEY (auto)
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables;
-alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL ONLINE;
-ERROR 42000: This version of MySQL doesn't yet support 'alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL ONLINE'
+alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL'
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';

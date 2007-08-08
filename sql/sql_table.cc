@@ -6522,7 +6522,7 @@ view_err:
         If no table rename,
         check if table can be altered on-line
       */
-      if (alter_info->build_method != BUILD_METHOD_OFFLINE)
+      if (alter_info->build_method != HA_BUILD_OFFLINE)
       {
         if (!(altered_table= create_altered_table(thd,
                                                   table,
@@ -6537,7 +6537,7 @@ view_err:
                                                      &alter_table_flags,
                                                      table_changes)) {
         case(HA_ALTER_NOT_SUPPORTED):
-          if (alter_info->build_method == BUILD_METHOD_ONLINE)
+          if (alter_info->build_method == HA_BUILD_ONLINE)
           {
             my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
             goto err;

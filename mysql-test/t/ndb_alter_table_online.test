@@ -102,7 +102,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 
 --error ER_NOT_SUPPORTED_YET
-ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17 ONLINE;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
 ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
 
 --disable_warnings
@@ -130,7 +130,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 
 --error ER_NOT_SUPPORTED_YET
-ALTER TABLE t1 ADD c CHAR(19) NOT NULL ONLINE;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
 ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
 
 --disable_warnings
@@ -158,7 +158,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 
 --error ER_NOT_SUPPORTED_YET
-ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED ONLINE;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
 ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
 
 --disable_warnings
@@ -215,7 +215,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 
 --error ER_NOT_SUPPORTED_YET
-alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL ONLINE;
+alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 --disable_warnings
 --exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
