@@ -137,7 +137,7 @@ void *toku_calloc(long nmemb, long size) {
 #define FREELIST_LIMIT (64+1)
 void *freelist[FREELIST_LIMIT];
 
-#define MALLOC_SIZE_COUNTING_LIMIT 256
+#define MALLOC_SIZE_COUNTING_LIMIT 512
 int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT]; // We rely on static variables being initialized to 0.
 int fresh_malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];  // We rely on static variables being initialized to 0.
 int other_malloc_count=0, fresh_other_malloc_count=0;
