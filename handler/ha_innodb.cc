@@ -583,27 +583,24 @@ convert_error_code_to_mysql(
 	int	error,	/* in: InnoDB error code */
 	THD*	thd)	/* in: user thread handle or NULL */
 {
-	if (error == DB_SUCCESS) {
-
+	switch (error) {
+	case DB_SUCCESS:
 		return(0);
 
-	} else if (error == (int) DB_DUPLICATE_KEY) {
-
-		return(HA_ERR_FOUND_DUPP_KEY);
-
-	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
-
-		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
-
-	} else if (error == (int) DB_RECORD_NOT_FOUND) {
-
-		return(HA_ERR_NO_ACTIVE_RECORD);
-
-	} else if (error == (int) DB_ERROR) {
-
+	case DB_ERROR:
+	default:
 		return(-1); /* unspecified error */
 
-	} else if (error == (int) DB_DEADLOCK) {
+	case DB_DUPLICATE_KEY:
+		return(HA_ERR_FOUND_DUPP_KEY);
+
+	case DB_FOREIGN_DUPLICATE_KEY:
+		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
+
+	case DB_RECORD_NOT_FOUND:
+		return(HA_ERR_NO_ACTIVE_RECORD);
+
+	case DB_DEADLOCK:
 		/* Since we rolled back the whole transaction, we must
 		tell it also to MySQL so that MySQL knows to empty the
 		cached binlog for this transaction */
@@ -614,8 +611,7 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_LOCK_DEADLOCK);
 
-	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
-
+	case DB_LOCK_WAIT_TIMEOUT:
 		/* Starting from 5.0.13, we let MySQL just roll back the
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
@@ -626,50 +622,41 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
-	} else if (error == (int) DB_NO_REFERENCED_ROW) {
-
+	case DB_NO_REFERENCED_ROW:
 		return(HA_ERR_NO_REFERENCED_ROW);
 
-	} else if (error == (int) DB_ROW_IS_REFERENCED) {
-
+	case DB_ROW_IS_REFERENCED:
 		return(HA_ERR_ROW_IS_REFERENCED);
 
-	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
-
+	case DB_CANNOT_ADD_CONSTRAINT:
 		return(HA_ERR_CANNOT_ADD_FOREIGN);
 
-	} else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
+	case DB_CANNOT_DROP_CONSTRAINT:
 
 		return(HA_ERR_ROW_IS_REFERENCED); /* TODO: This is a bit
 						misleading, a new MySQL error
 						code should be introduced */
-	} else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
+	case DB_COL_APPEARS_TWICE_IN_INDEX:
+	case DB_CORRUPTION:
 		return(HA_ERR_CRASHED);
 
-	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
-
+	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	} else if (error == (int) DB_TABLE_IS_BEING_USED) {
-
+	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
-	} else if (error == (int) DB_TABLE_NOT_FOUND) {
-
+	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	} else if (error == (int) DB_TOO_BIG_RECORD) {
-
+	case DB_TOO_BIG_RECORD:
 		return(HA_ERR_TO_BIG_ROW);
 
-	} else if (error == (int) DB_CORRUPTION) {
-
-		return(HA_ERR_CRASHED);
-	} else if (error == (int) DB_NO_SAVEPOINT) {
-
+	case DB_NO_SAVEPOINT:
 		return(HA_ERR_NO_SAVEPOINT);
-	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+
+	case DB_LOCK_TABLE_FULL:
 		/* Since we rolled back the whole transaction, we must
 		tell it also to MySQL so that MySQL knows to empty the
 		cached binlog for this transaction */
@@ -679,11 +666,11 @@ convert_error_code_to_mysql(
 		}
 
 		return(HA_ERR_LOCK_TABLE_FULL);
-	} else if (error == (int) DB_CANNOT_DROP_FOREIGN_INDEX) {
 
+	case DB_CANNOT_DROP_FOREIGN_INDEX:
 		return(HA_ERR_DROP_INDEX_FK);
-	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
 
+	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* Once MySQL add the appropriate code to errmsg.txt then
 		we can get rid of this #ifdef. NOTE: The code checked by
 		the #ifdef is the suggested name for the error condition
@@ -695,9 +682,6 @@ convert_error_code_to_mysql(
 #else
 		return(HA_ERR_RECORD_FILE_FULL);
 #endif
-
-	} else {
-		return(-1);			// Unknown error
 	}
 }
 
