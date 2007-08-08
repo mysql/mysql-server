@@ -737,6 +737,15 @@ void check_command_args(struct st_command *command,
           command->first_word_len, command->query);
 
   }
+  /* Check for too many arguments passed */
+  ptr= command->last_argument;
+  while(ptr <= command->end)
+  {
+    if (*ptr && *ptr != ' ')
+      die("Extra argument '%s' passed to '%.*s'",
+          ptr, command->first_word_len, command->query);
+    ptr++;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2677,7 +2686,21 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
     c= my_getc(cur_file->file);
 
     if (c == '\n')
+    {
       cur_file->lineno++;
+
+      /* Skip newline from the same line as the command */
+      if (start_lineno == (cur_file->lineno - 1))
+        continue;
+    }
+    else if (start_lineno == cur_file->lineno)
+    {
+      /*
+        No characters except \n are allowed on
+        the same line as the command
+      */
+      die("Trailing characters found after command");
+    }
 
     if (feof(cur_file->file))
       die("End of file encountered before '%s' delimiter was found",
@@ -2939,8 +2962,10 @@ void do_send_quit(struct st_command *command)
 void do_perl(struct st_command *command)
 {
   int error;
-  char buf[FN_REFLEN];
+  File fd;
   FILE *res_file;
+  char buf[FN_REFLEN];
+  char temp_file_path[FN_REFLEN];
   static DYNAMIC_STRING ds_script;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg perl_args[] = {
@@ -2963,14 +2988,17 @@ void do_perl(struct st_command *command)
 
   DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
 
-  /* Format a name for a tmp .pl file that is unique for this process */
-  my_snprintf(buf, sizeof(buf), "%s/tmp/tmp_%d.pl",
-              getenv("MYSQLTEST_VARDIR"), getpid());
-  str_to_file(buf, ds_script.str, ds_script.length);
+  /* Create temporary file name */
+  if ((fd= create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
+                            "tmp", O_CREAT | O_SHARE | O_RDWR,
+                            MYF(MY_WME))) < 0)
+    die("Failed to create temporary file for perl command");
+  my_close(fd, MYF(0));
 
-  /* Format the perl <filename> command */
-  my_snprintf(buf, sizeof(buf), "perl %s/tmp/tmp_%d.pl",
-              getenv("MYSQLTEST_VARDIR"), getpid());
+  str_to_file(temp_file_path, ds_script.str, ds_script.length);
+
+  /* Format the "perl <filename>" command */
+  my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
 
   if (!(res_file= popen(buf, "r")) && command->abort_on_error)
     die("popen(\"%s\", \"r\") failed", buf);
@@ -2988,6 +3016,10 @@ void do_perl(struct st_command *command)
     }
   }
   error= pclose(res_file);
+
+  /* Remove the temporary file */
+  my_delete(temp_file_path, MYF(0));
+
   handle_command_error(command, WEXITSTATUS(error));
   dynstr_free(&ds_script);
   dynstr_free(&ds_delimiter);
