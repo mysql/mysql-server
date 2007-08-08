@@ -2390,7 +2390,7 @@ mysql_declare_plugin(maria)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,
-  "Maria",
+  "MARIA",
   "MySQL AB",
   "Traditional transactional MySQL tables",
   PLUGIN_LICENSE_GPL,

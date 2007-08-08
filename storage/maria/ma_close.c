@@ -78,7 +78,7 @@ int maria_close(register MARIA_HA *info)
         File must be synced as it is going out of the maria_open_list and so
         becoming unknown to Checkpoint.
       */
-      if (my_sync(share->kfile.file, MYF(MY_WME)))
+      if (share->now_transactional && my_sync(share->kfile.file, MYF(MY_WME)))
         error= my_errno;
       /*
         If we are crashed, we can safely flush the current state as it will

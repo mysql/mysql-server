@@ -2221,8 +2221,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
       my_close(new_file, MYF(MY_WME));
-    my_close(info->dfile.file, MYF(MY_WME));
-    info->dfile.file= new_file= -1;
+    new_file= -1;
+    change_data_file_descriptor(info, -1);
     if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
                                 DATA_TMP_EXT,
                                 (param->testflag & T_BACKUP_DATA ?
@@ -5354,7 +5354,7 @@ static void restore_data_file_type(MARIA_SHARE *share)
 
 static void change_data_file_descriptor(MARIA_HA *info, File new_file)
 {
-  my_close(info->dfile.file, MYF(0));
+  my_close(info->dfile.file, MYF(MY_WME));
   info->dfile.file= info->s->bitmap.file.file= new_file;
 }
 
