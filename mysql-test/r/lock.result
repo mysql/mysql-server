@@ -96,4 +96,74 @@ ERROR HY000: You can't combine write-locking of system tables with other tables 
 LOCK TABLES mysql.time_zone READ, mysql.proc WRITE;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
 DROP TABLE t1;
+
+Bug#5719 impossible to lock VIEW
+
+Just covering existing behaviour with tests. 
+Consistency has not been found here.
+
+drop view if exists v_bug5719;
+drop table if exists t1, t2, t3;
+create table t1 (a int);
+create temporary table t2 (a int);
+create table t3 (a int);
+create view v_bug5719 as select 1;
+lock table v_bug5719 write;
+select * from t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+
+Allowed to select from a temporary talbe under LOCK TABLES
+
+select * from t2;
+a
+select * from t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+select * from v_bug5719;
+1
+1
+drop view v_bug5719;
+
+sic: did not left LOCK TABLES mode automatically
+
+select * from t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+unlock tables;
+create view v_bug5719 as select * from t1;
+lock tables v_bug5719 write;
+select * from v_bug5719;
+a
+
+Allowed to use an underlying table under LOCK TABLES <view>
+
+select * from t1;
+a
+
+Allowed to select from a temporary table under LOCK TABLES
+
+select * from t2;
+a
+select * from t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+drop table t1;
+
+sic: left LOCK TABLES mode
+
+select * from t3;
+a
+select * from v_bug5719;
+ERROR HY000: View 'test.v_bug5719' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+unlock tables;
+drop view v_bug5719;
+
+When limitation to use temporary tables in views is removed, please
+add a test that shows what happens under LOCK TABLES when a view
+references a temporary table, is locked, and the underlying table
+is dropped.
+
+create view v_bug5719 as select * from t2;
+ERROR HY000: View's SELECT refers to a temporary table 't2'
+
+Cleanup.
+
+drop table t2, t3;
 End of 5.1 tests.
