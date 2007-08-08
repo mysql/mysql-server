@@ -540,18 +540,19 @@ UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
 /*=======================*/
-				/* out: number of user-defined (e.g., not
-				ROW_ID) columns of a table */
-	dict_table_t*	table);	/* in: table */
+					/* out: number of user-defined
+					(e.g., not ROW_ID)
+					columns of a table */
+	const dict_table_t*	table);	/* in: table */
 /************************************************************************
 Gets the number of system columns in a table in the dictionary cache. */
 UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-				/* out: number of system (e.g.,
-				ROW_ID) columns of a table */
-	dict_table_t*	table);	/* in: table */
+					/* out: number of system (e.g.,
+					ROW_ID) columns of a table */
+	const dict_table_t*	table);	/* in: table */
 /************************************************************************
 Gets the number of all columns (also system) in a table in the dictionary
 cache. */
@@ -559,8 +560,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_cols(
 /*==================*/
-				/* out: number of columns of a table */
-	dict_table_t*	table);	/* in: table */
+					/* out: number of columns of a table */
+	const dict_table_t*	table);	/* in: table */
 #ifdef UNIV_DEBUG
 /************************************************************************
 Gets the nth column of a table. */
