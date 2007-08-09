@@ -69,7 +69,8 @@
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR
+  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR,
+  OPT_GLOBAL_SUBST
 };
 
 static int record= 0, opt_sleep= -1;
@@ -105,6 +106,9 @@ static char delimiter[MAX_DELIMITER_LENGTH]= ";";
 static uint delimiter_length= 1;
 
 static char TMPDIR[FN_REFLEN];
+static char global_subst_from[200];
+static char global_subst_to[200];
+static char *global_subst= NULL;
 
 /* Block stack */
 enum block_cmd {
@@ -788,6 +792,7 @@ void free_used_memory()
   my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   free_re();
+  my_free(global_subst, MYF(MY_ALLOW_ZERO_PTR));
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
@@ -1088,6 +1093,40 @@ void check_result(DYNAMIC_STRING* ds)
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
     dump_result_to_reject_file(ds->str, ds->length);
+    if (global_subst)
+    {
+      /**
+         @todo MARIA_HACK
+         This serves for when a test is run with --default-storage-engine=X
+         where X is not MyISAM: tests using SHOW CREATE TABLE will always fail
+         because SHOW CREATE TABLE prints X instead of MyISAM. With
+         --global-subst=X,MyISAM , such trivial differences are eliminated and
+         test may be reported as passing.
+         --global-subst is only a quick way to run a lot of existing tests
+         with Maria and find bugs; it is not good enough for reaching the main
+         trees when Maria is merged into them. It relies on hard-coded path of
+         "replace", on existence of "cmp". It's just horrible but it works for
+         devs using a bk tree in a GNU-based system, which is what we have in
+         the team.
+         --global-subst should be removed.
+      */
+      char reject_file[FN_REFLEN];
+      char sys_com[50 + FN_REFLEN];
+      fn_format(reject_file, result_file_name, "", ".reject",
+                MY_REPLACE_EXT);
+      sprintf(sys_com, "../extra/replace %s %s -- %s >/dev/null",
+              global_subst_from, global_subst_to, reject_file);
+      if (system(sys_com))
+        die("replace failed");
+      sprintf(sys_com, "cmp %s %s >/dev/null",
+              reject_file, result_file_name);
+      if (!system(sys_com))
+      {
+        /* test is ok in fact */
+        my_delete(reject_file, MYF(0));
+        break;
+      }
+    }
     die("Result length mismatch");
     break;
   case RESULT_CONTENT_MISMATCH:
@@ -4430,6 +4469,11 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"global-subst", OPT_GLOBAL_SUBST, "argument should be 'X,Y' ;"
+   " substitute string X with another Y accross the whole test's current"
+   " result before comparing with expected result file",
+   (uchar**) &global_subst, (uchar**) &global_subst, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
@@ -4672,6 +4716,16 @@ int parse_args(int argc, char **argv)
     opt_db= *argv;
   if (tty_password)
     opt_pass= get_tty_password(NullS);          /* purify tested */
+
+  if (global_subst != NULL)
+  {
+    char *comma= strstr(global_subst, ",");
+    if (comma == NULL)
+      die("wrong --global-subst, must be X,Y");
+    memcpy(global_subst_from, global_subst, (comma-global_subst));
+    global_subst_from[comma-global_subst]= 0;
+    memcpy(global_subst_to, comma+1, strlen(comma));
+  }
 
   return 0;
 }

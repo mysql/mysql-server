@@ -2047,9 +2047,10 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       }
       _ma_reset_status(sort_info.new_info);
 #ifdef ASK_MONTY /* cf maria_create() */
-      /*
-        without this call, a REPAIR on an empty table leaves the data file of
-        size 0, which sounds reasonable.
+      /**
+         @todo ASK_MONTY
+         without this call, a REPAIR on an empty table leaves the data file of
+         size 0, which sounds reasonable.
       */
       if (_ma_initialize_data_file(sort_info.new_info->s, new_file))
         goto err;
@@ -2272,20 +2273,19 @@ err:
 		  llstr(sort_param.start_recpos,llbuff));
     if (sort_info.new_info && sort_info.new_info != sort_info.info)
     {
-#ifdef ASK_MONTY
-      /*
-        grepping for "dfile.file="
-        shows several places (ma_check.c, ma_panic.c, ma_extra.c) where we
-        modify dfile.file without modifying share->bitmap.file.file; those
-        sound like bugs because the two variables are normally copies of each
-        other in BLOCK_RECORD (and in other record formats it does not hurt to
-        change the unused share->bitmap.file.file).
-        It does matter, because if we close dfile.file, set dfile.file to -1,
-        but leave bitmap.file.file to its positive value, maria_close() will
-        close a file which it is not allowed to (maybe even a file in another
-        engine or mysqld!).
+      /**
+         @todo ASK_MONTY
+         grepping for "dfile.file="
+         shows several places (ma_check.c, ma_panic.c, ma_extra.c) where we
+         modify dfile.file without modifying share->bitmap.file.file; those
+         sound like bugs because the two variables are normally copies of each
+         other in BLOCK_RECORD (and in other record formats it does not hurt
+         to change the unused share->bitmap.file.file).
+         It does matter, because if we close dfile.file, set dfile.file to -1,
+         but leave bitmap.file.file to its positive value, maria_close() will
+         close a file which it is not allowed to (maybe even a file in another
+         engine or mysqld!).
       */
-#endif
       sort_info.new_info->dfile.file= -1;
       maria_close(sort_info.new_info);
     }

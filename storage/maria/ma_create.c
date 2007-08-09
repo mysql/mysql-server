@@ -1041,7 +1041,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       goto err;
     errpos=3;
 
-    /*
+    /**
+       @todo ASK_MONTY
       QQ: this sets data_file_length from 0 to 8192, but we wrote the state
       already to the index file (because:
       - log record is built from index header so state must be written before

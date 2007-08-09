@@ -746,7 +746,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
 
-  /*
+  /**
+     @todo ASK_MONTY
     This is a protection for the case of a frm and MAI containing incompatible
     table definitions (as in BUG#25908). This was merged from MyISAM.
     But it breaks maria.test and ps_maria.test ("incorrect key file") if the
@@ -2160,7 +2161,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
 #ifdef ASK_MONTY
-  /*
+  /**
+     @todo ASK_MONTY
     Where "transactional" in the frm and in the engine can go out of sync.
     Don't we want to do, after the setting, this test:
     if (!create_info.transactional &&

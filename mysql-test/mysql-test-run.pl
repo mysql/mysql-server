@@ -167,6 +167,7 @@ our $opt_small_bench= 0;
 our $opt_big_test= 0;
 
 our @opt_extra_mysqld_opt;
+our @opt_extra_mysqltest_opt;
 
 our $opt_compress;
 our $opt_ssl;
@@ -557,6 +558,9 @@ sub command_line_setup () {
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
+
+             # Extra options used when starting mysqld
+             'mysqltest=s'                 => \@opt_extra_mysqltest_opt,
 
              # Run test on running server
              'extern'                   => \$opt_extern,
@@ -4792,6 +4796,11 @@ sub run_mysqltest ($) {
   elsif ( $opt_ssl_supported )
   {
     mtr_add_arg($args, "--skip-ssl");
+  }
+
+  foreach my $arg ( @opt_extra_mysqltest_opt )
+  {
+    mtr_add_arg($args, "%s", $arg);
   }
 
   # ----------------------------------------------------------------------

@@ -2425,9 +2425,10 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->row_type= share->row_type;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
-  /*
-    See hack in mysql_truncate(); when this is properly fixed, the if() below
-    can be removed, the assignment can always be made.
+  /**
+     @todo MARIA_HACK
+     See hack in mysql_truncate(); when this is properly fixed, the if() below
+     can be removed, the assignment can always be made.
   */
   if (create_info->transactional == HA_CHOICE_UNDEF)
     create_info->transactional= share->transactional;
