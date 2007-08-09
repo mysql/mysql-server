@@ -456,7 +456,11 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		my_time(0);
+  /*
+    We can't call my_time() here as this would cause a call before
+    my_init() is called
+  */
+  when=		0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -686,6 +690,19 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 
     log_pos= my_b_safe_tell(file)+data_written;
   }
+
+  /*
+    Set time of when to when the query started. Since this function is
+    called from init_server_components() as well, it might be that the
+    current thread is not defined. In that case, we take the current
+    time instead.  It is safe to call my_time() here since the first
+    time this line is reached is through the init_server_components()
+    call, which is after the my_init() call in the main() function (or
+    it's replacement, for some platforms).
+  */
+  THD *thd= current_thd;
+  if (!when)
+    when= thd ? thd->start_time : my_time(0);
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
