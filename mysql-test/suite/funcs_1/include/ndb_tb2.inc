@@ -55,7 +55,7 @@ f106 year(3) not null default 2000,
 f107 year(4) not null default 2000, 
 f108 enum("1enum","2enum") not null default "1enum", 
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) engine = ndb;
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval load data infile '$MYSQL_TEST_DIR/suite/funcs_1/data/ndb_tb2.txt' into table tb2 ;
