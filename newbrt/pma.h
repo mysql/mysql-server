@@ -37,23 +37,27 @@ int pma_delete (PMA, DBT *, DB*);
 enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);
 
 /*
- * split a pma into 2 pma's.  the new pma's are designated the
- * left and right pma's.  the left and right pma's have roughly the same
- * key and value space.
+ * The kv pairs in the original pma are split into 2 equal sized sets
+ * and moved to the leftpma and rightpma.  The size is determined by
+ * the sum of the keys and values. the left and right pma's must be
+ * empty.
  *
- * old - the old pma
- * newa - the new pma on the left
- * newb - the new pma on the right
+ * origpma - the pma to be split
+ * leftpma - the pma assigned keys <= pivot key
+ * rightpma - the pma assigned keys > pivot key
  */
-int pma_split(PMA old, PMA *newa, PMA *newb);
+int pma_split(PMA origpma, unsigned int *origpma_size,
+    PMA leftpma, unsigned int *leftpma_size,
+    PMA rightpma, unsigned int *rightpma_size);
 
 /*
- * insert several key value pairs into an empty pma
+ * Insert several key value pairs into an empty pma.  The keys are
+ * assumed to be sorted.
  *
  * pma - the pma that the key value pairs will be inserted into.
  *      must be empty with no cursors.
- * keys - an array of pointers and lengths of the keys
- * vals - an array of pointers and lengths of the values
+ * keys - an array of keys
+ * vals - an array of values
  * n_newpairs - the number of key value pairs
  */
 int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs);
@@ -67,6 +71,11 @@ int pma_cursor_set_position_first (PMA_CURSOR c);
 int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
 int pma_cursor_set_position_prev (PMA_CURSOR c);
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val);
+
+/*
+ * Get the last key and value in the pma
+ */
+int pma_get_last(PMA pma, DBT *key, DBT *val);
 
 /* Return PMA_NOTFOUND if the pma is empty. */
 #if 0

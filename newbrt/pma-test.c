@@ -538,6 +538,7 @@ void test_pma_cursor_4() {
     PMA_CURSOR cursora, cursorb, cursorc;
     int i;
 
+    printf("test_pma_cursor_4\n");
     error = pma_create(&pma, default_compare_fun);
     assert(error == 0);
 
@@ -577,7 +578,7 @@ void test_pma_cursor_4() {
     assert(error == 0);
     assert_cursor_val(cursorc, 4);
 
-    for (i=5; i<=6; i += 1) {
+    for (i=5; i<=8; i += 1) {
         DBT dbtk, dbtv;
         char k[5]; int v;
 
@@ -589,7 +590,7 @@ void test_pma_cursor_4() {
         error = pma_insert(pma, &dbtk, &dbtv, 0); 
         assert(error == BRT_OK);
     }
-    assert(pma_n_entries(pma) == 6);
+    assert(pma_n_entries(pma) == 8);
     printf("a:"); print_pma(pma);
 
     assert_cursor_val(cursora, 1);
@@ -681,6 +682,10 @@ void test_pma_split_n(int n) {
 
     error = pma_create(&pmaa, default_compare_fun);
     assert(error == 0);
+    error = pma_create(&pmab, default_compare_fun);
+    assert(error == 0);
+    error = pma_create(&pmac, default_compare_fun);
+    assert(error == 0);
 
     /* insert some kv pairs */
     for (i=0; i<n; i++) {
@@ -698,7 +703,7 @@ void test_pma_split_n(int n) {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, &pmab, &pmac);
+    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
@@ -731,6 +736,10 @@ void test_pma_split_varkey() {
 
     error = pma_create(&pmaa, default_compare_fun);
     assert(error == 0);
+    error = pma_create(&pmab, default_compare_fun);
+    assert(error == 0);
+    error = pma_create(&pmac, default_compare_fun);
+    assert(error == 0);
 
     /* insert some kv pairs */
     for (i=0; keys[i]; i++) {
@@ -748,7 +757,7 @@ void test_pma_split_varkey() {
 
     printf("a:"); print_pma(pmaa);
 
-    error = pma_split(pmaa, &pmab, &pmac);
+    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
@@ -837,6 +846,10 @@ void test_pma_split_cursor() {
 
     error = pma_create(&pmaa, default_compare_fun);
     assert(error == 0);
+    error = pma_create(&pmab, default_compare_fun);
+    assert(error == 0);
+    error = pma_create(&pmac, default_compare_fun);
+    assert(error == 0);
 
     /* insert some kv pairs */
     for (i=1; i<=16; i += 1) {
@@ -877,7 +890,7 @@ void test_pma_split_cursor() {
     // print_cursor("cursorc", cursorc);
     assert_cursor_val(cursorc, 16);
 
-    error = pma_split(pmaa, &pmab, &pmac);
+    error = pma_split(pmaa, 0, pmab, 0, pmac, 0);
     assert(error == 0);
 
     printf("a:"); print_pma(pmaa);
@@ -975,6 +988,7 @@ void test_pma_bulk_insert_n(int n) {
 
     /* verify */
     print_pma(pma);
+    assert(n == pma_n_entries(pma));
 
     /* cleanup */
     for (i=0; i<n; i++) {

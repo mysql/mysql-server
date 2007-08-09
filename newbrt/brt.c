@@ -263,13 +263,15 @@ void delete_node (BRT t, BRTNODE node) {
     cachetable_remove(t->cf, node->thisnodename, 0); /* Don't write it back to disk. */
 }
 
-
+#define USE_PMA_SPLIT 1
+#if ! USE_PMA_SPLIT
 static void insert_to_buffer_in_leaf (BRTNODE node, DBT *k, DBT *v, DB *db) {
     unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + k->size + v->size;
     int r = pma_insert(node->u.l.buffer, k, v, db);
     assert(r==0);
     node->u.l.n_bytes_in_buffer += n_bytes_added;
 }
+#endif
 
 static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v) {
     unsigned int n_bytes_added = KEY_VALUE_OVERHEAD + k->size + v->size;
@@ -282,7 +284,6 @@ static int insert_to_hash_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v
 
 
 int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, void *app_private, DB *db) {
-    int did_split=0;
     BRTNODE A,B;
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
@@ -296,6 +297,25 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
+#if USE_PMA_SPLIT
+{
+    int r;
+
+    r = pma_split(node->u.l.buffer, &node->u.l.n_bytes_in_buffer,
+        A->u.l.buffer, &A->u.l.n_bytes_in_buffer, 
+        B->u.l.buffer, &B->u.l.n_bytes_in_buffer);
+    assert(r == 0);
+
+    r = pma_get_last(A->u.l.buffer, splitk, 0); 
+    assert(r == 0);
+
+    /* unused */
+    app_private = app_private;
+    db = db;
+}
+#else
+{
+    int did_split = 0;
     PMA_ITERATE(node->u.l.buffer, key, keylen, val, vallen,
 		({
 		    DBT k,v;
@@ -309,12 +329,14 @@ int brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 			insert_to_buffer_in_leaf(B, fill_dbt_ap(&k, key, keylen, app_private), fill_dbt(&v, val, vallen), db);
 		    }
 		}));
+    assert(did_split==1);
+}
+#endif
     assert(node->height>0 || node->u.l.buffer!=0);
     /* Remove it from the cache table, and free its storage. */
     //printf("%s:%d old pma = %p\n", __FILE__, __LINE__, node->u.l.buffer);
     delete_node(t, node);
 
-    assert(did_split==1);
     *nodea = A;
     *nodeb = B;
     assert(serialize_brtnode_size(A)<A->nodesize);
