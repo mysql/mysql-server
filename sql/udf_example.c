@@ -1115,15 +1115,15 @@ my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   }
   if (args->args[0] == 0)
   {
-    initid->ptr= "Not constant";
+    initid->ptr= (char*)"Not constant";
   }
   else if(strlen(args->args[0]) == args->lengths[0])
   {
-    initid->ptr= "Correct length";
+    initid->ptr= (char*)"Correct length";
   }
   else
   {
-    initid->ptr= "Wrong length";
+    initid->ptr= (char*)"Wrong length";
   }
   initid->max_length = 100;
   return 0;
