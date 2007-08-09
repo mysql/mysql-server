@@ -2952,49 +2952,70 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
                                       LEX_STRING *table_name,
                                       enum enum_schema_tables schema_table_idx)
 {
-  TABLE_SHARE share;
+  TABLE_SHARE *share;
   TABLE tbl;
   TABLE_LIST table_list;
-  char path[FN_REFLEN];
-  uint res;
+  uint res= 0;
+  int error;
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
+
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   bzero((char*) &tbl, sizeof(TABLE));
-  (void) build_table_filename(path, sizeof(path), db_name->str,
-                              table_name->str, "", 0);
-  init_tmp_table_share(&share, "", 0, "", path);
-  if (!(res= open_table_def(thd, &share, OPEN_VIEW)))
+
+  table_list.table_name= table_name->str;
+  table_list.db= db_name->str;
+  key_length= create_table_def_key(thd, key, &table_list, 0);
+  pthread_mutex_lock(&LOCK_open);
+  share= get_table_share(thd, &table_list, key,
+                         key_length, OPEN_VIEW, &error);
+  if (!share)
   {
-    share.tmp_table= NO_TMP_TABLE;
-    tbl.s= &share;
-    table_list.table= &tbl;
-    if (schema_table->i_s_requested_object & OPEN_TABLE_FROM_SHARE)
+    res= 0;
+    goto err;
+  }
+ 
+  if (share->is_view)
+  {
+    if (schema_table->i_s_requested_object & OPEN_TABLE_ONLY)
     {
-      if (share.is_view ||
-          open_table_from_share(thd, &share, table_name->str, 0,
-                                (READ_KEYINFO | COMPUTE_TYPES |
-                                 EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                                thd->open_options, &tbl, FALSE))
-      {
-        share.tmp_table= INTERNAL_TMP_TABLE;
-        free_table_share(&share);
-        return (share.is_view && 
-                !(schema_table->i_s_requested_object & 
-                  ~(OPEN_TABLE_FROM_SHARE|OPTIMIZE_I_S_TABLE)));
-      }
+      /* skip view processing */
+      res= 0;
+      goto err1;
     }
-    table_list.view= (st_lex*) share.is_view;
-    res= schema_table->process_table(thd, &table_list, table,
-                                     res, db_name, table_name);
-    share.tmp_table= INTERNAL_TMP_TABLE;
-    if (schema_table->i_s_requested_object & OPEN_TABLE_FROM_SHARE)
-      closefrm(&tbl, true);
-    else
-      free_table_share(&share);
+    else if (schema_table->i_s_requested_object & OPEN_VIEW_FULL)
+    {
+      /*
+        tell get_all_tables() to fall back to 
+        open_normal_and_derived_tables()
+      */
+      res= 1;
+      goto err1;
+    }
   }
 
-  if (res)
-    thd->clear_error();
-  return 0;
+  if (share->is_view ||
+      !open_table_from_share(thd, share, table_name->str, 0,
+                             (READ_KEYINFO | COMPUTE_TYPES |
+                              EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
+                             thd->open_options, &tbl, FALSE))
+  {
+    tbl.s= share;
+    table_list.table= &tbl;
+    table_list.view= (st_lex*) share->is_view;
+    res= schema_table->process_table(thd, &table_list, table,
+                                     res, db_name, table_name);
+    closefrm(&tbl, true);
+    goto err;
+  }
+
+err1:
+  release_table_share(share, RELEASE_NORMAL);
+
+err:
+  pthread_mutex_unlock(&LOCK_open);
+  thd->clear_error();
+  return res;
 }
 
 
@@ -6398,7 +6419,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1, 0, 0},
   {"COLUMNS", columns_fields_info, create_schema_table, 
    get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2, 0,
-   OPEN_TABLE_FROM_SHARE|OPTIMIZE_I_S_TABLE},
+   OPTIMIZE_I_S_TABLE|OPEN_VIEW_FULL},
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
@@ -6437,7 +6458,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_variables, make_old_format, 0, -1, -1, 0, 0},
   {"STATISTICS", stat_fields_info, create_schema_table, 
    get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0,
-   OPEN_TABLE_ONLY|OPEN_TABLE_FROM_SHARE|OPTIMIZE_I_S_TABLE},
+   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
   {"STATUS", variables_fields_info, create_schema_table, fill_status, 
    make_old_format, 0, -1, -1, 1, 0},
   {"TABLES", tables_fields_info, create_schema_table, 
