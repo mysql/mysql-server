@@ -3054,7 +3054,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_schema_tables schema_table_idx;
   List<LEX_STRING> db_names;
   List_iterator_fast<LEX_STRING> it(db_names);
-  COND *partial_cond;
+  COND *partial_cond= 0;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
@@ -3093,19 +3093,34 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
-  if (lookup_field_vals.db_value.length &&
-      !lookup_field_vals.wild_db_value &&
-      lookup_field_vals.table_value.length &&
-      !lookup_field_vals.wild_table_value)
-    partial_cond= 0; 
-  else
-    partial_cond= make_cond_for_info_schema(cond, tables);
 
-  if (lookup_field_vals.db_value.length && !lookup_field_vals.wild_db_value)
+  if (!lookup_field_vals.wild_db_value && !lookup_field_vals.wild_table_value)
+  {
+    /* 
+      if lookup value is empty string then
+      it's impossible table name or db name
+    */
+    if (lookup_field_vals.db_value.str &&
+        !lookup_field_vals.db_value.str[0] ||
+        lookup_field_vals.table_value.str &&
+        !lookup_field_vals.table_value.str[0])
+    {
+      error= 0;
+      goto err;
+    }
+  }
+
+  if (lookup_field_vals.db_value.length &&
+      !lookup_field_vals.wild_db_value)
     tables->has_db_lookup_value= TRUE;
   if (lookup_field_vals.table_value.length &&
       !lookup_field_vals.wild_table_value) 
     tables->has_table_lookup_value= TRUE;
+
+  if (tables->has_db_lookup_value && tables->has_table_lookup_value)
+    partial_cond= 0;
+  else
+    partial_cond= make_cond_for_info_schema(cond, tables);
 
   tables->table_open_method= table_open_method=
     get_table_open_method(tables, schema_table, schema_table_idx);
@@ -3271,7 +3286,7 @@ bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
 }
 
 
-int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   /*
     TODO: fill_schema_shemata() is called when new client is connected.
@@ -3296,6 +3311,23 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   if (make_db_list(thd, &db_names, &lookup_field_vals,
                    &with_i_schema))
     DBUG_RETURN(1);
+
+  /*
+    If we have lookup db value we should check that the database exists
+  */
+  if(lookup_field_vals.db_value.str && !lookup_field_vals.wild_db_value)
+  {
+    char path[FN_REFLEN+16];
+    uint path_len;
+    MY_STAT stat_info;
+    if (!lookup_field_vals.db_value.str[0])
+      DBUG_RETURN(0);
+    path_len= build_table_filename(path, sizeof(path),
+                                   lookup_field_vals.db_value.str, "", "", 0);
+    path[path_len-1]= 0;
+    if (!my_stat(path,&stat_info,MYF(0)))
+      DBUG_RETURN(0);
+  }
 
   List_iterator_fast<LEX_STRING> it(db_names);
   while ((db_name=it++))
@@ -6449,7 +6481,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"ROUTINES", proc_fields_info, create_schema_table, 
    fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,
-   fill_schema_shemata, make_schemata_old_format, 0, 1, -1, 0, 0},
+   fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
   {"SESSION_STATUS", variables_fields_info, create_schema_table,
