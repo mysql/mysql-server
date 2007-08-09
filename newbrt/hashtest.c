@@ -119,7 +119,7 @@ void test1(void) {
 	char keys[4][100], vals[4][100];
 	int j;
 	for (j=0; j<4; j++) {
-	    snprintf(keys[j], 100, "k%ld", random());
+	    snprintf(keys[j], 100, "k%ld", (long)(random()));
 	    snprintf(vals[j], 100, "v%d", j);
 	    toku_hash_insert(table, keys[j], strlen(keys[j])+1, vals[j], strlen(vals[j])+1);
 	}
