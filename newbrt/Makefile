@@ -1,9 +1,20 @@
+# On cygwin do:
+#   make CYGWIN=cygwin check
+
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
 OPTFLAGS = -O2
-CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror -fPIC
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
+
+ifeq ($(CYGWIN),cygwin)
+else
+FPICFLAGS = -fPIC
+# valgrind is not present on cygwin
 DTOOL = valgrind --quiet --error-exitcode=1
+endif
+
+CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS)
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
+
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
