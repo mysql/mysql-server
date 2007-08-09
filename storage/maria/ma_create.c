@@ -289,7 +289,10 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   /* Calculate min possible row length for rows-in-block */
   extra_header_size= MAX_FIXED_HEADER_SIZE;
   if (ci->transactional)
+  {
     extra_header_size= TRANS_MAX_FIXED_HEADER_SIZE;
+    DBUG_PRINT("info",("creating a transactional table"));
+  }
   share.base.min_row_length= (extra_header_size + share.base.null_bytes +
                               pack_bytes);
   if (!ci->data_file_length && ci->max_rows)

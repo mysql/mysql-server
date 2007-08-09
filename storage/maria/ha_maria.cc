@@ -2159,6 +2159,17 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
+#ifdef ASK_MONTY
+  /*
+    Where "transactional" in the frm and in the engine can go out of sync.
+    Don't we want to do, after the setting, this test:
+    if (!create_info.transactional &&
+        ha_create_info->transactional == HA_CHOICE_YES)
+      error;
+      ?
+    Why fool the user?
+  */
+#endif
   create_info.transactional= (row_type == BLOCK_RECORD &&
                               ha_create_info->transactional != HA_CHOICE_NO);
 

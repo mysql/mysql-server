@@ -1335,8 +1335,9 @@ char *_ma_columndef_read(char *ptr, MARIA_COLUMNDEF *columndef)
 int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
                       File file_to_dup __attribute__((unused)))
 {
-  info->dfile.file= my_open(share->data_file_name, share->mode | O_SHARE,
-                            MYF(MY_WME));
+  info->dfile.file= share->bitmap.file.file=
+    my_open(share->data_file_name, share->mode | O_SHARE,
+            MYF(MY_WME));
   return info->dfile.file >= 0 ? 0 : 1;
 }
 
