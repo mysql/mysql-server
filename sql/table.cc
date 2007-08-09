@@ -1750,7 +1750,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->partition_info_len)
+  if (share->partition_info_len && outparam->file)
   {
   /*
     In this execution we must avoid calling thd->change_item_tree since

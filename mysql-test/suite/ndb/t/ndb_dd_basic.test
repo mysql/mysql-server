@@ -14,6 +14,12 @@
 
 -- source include/have_ndb.inc
 
+#
+# Bug#30322 Server crashes on selecting from i_s.columns when cluster is running -regression
+#
+--replace_column 1 #
+select count(*) from information_schema.columns;
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
