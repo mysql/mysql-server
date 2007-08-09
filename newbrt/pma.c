@@ -16,6 +16,8 @@
 #include "kv-pair.h"
 #include "pma-internal.h"
 
+/* TODO get this from a include file */
+#define KEY_VALUE_OVERHEAD 8
 
 int pma_n_entries (PMA pma) {
     return pma->n_pairs_present;
@@ -616,7 +618,7 @@ void pma_update_region(PMA pma, struct list *cursor_set, struct kv_pair_tag *pai
     }
 }
 
-struct kv_pair_tag *pmainternal_extract_pairs(PMA pma, int lo, int hi) {
+struct kv_pair_tag *pma_extract_pairs(PMA pma, int lo, int hi) {
     int npairs;
     struct kv_pair_tag *pairs;
     int i;
@@ -639,94 +641,109 @@ struct kv_pair_tag *pmainternal_extract_pairs(PMA pma, int lo, int hi) {
     return pairs;
 }
 
-int pma_split(PMA old, PMA *newap, PMA *newbp) {
-    PMA newa, newb;
+int pma_split(PMA origpma, unsigned int *origpma_size, 
+    PMA leftpma, unsigned int *leftpma_size,
+    PMA rightpma, unsigned int *rightpma_size) {
     int error;
     int npairs;
     struct kv_pair_tag *pairs;
     int sumlen;
     int runlen;
-    int len;
     int i;
+    int n;
     int spliti;
     struct list cursors;
 
-    /* create the new pma's */
-    error = pma_create(newap, old->compare_fun);
-    if (error != 0)
-        return error;
-    error = pma_create(newbp, old->compare_fun);
-    if (error != 0) {
-        pma_free(newap);
-        return error;
-    }
-
-    newa = *newap;
-    newb = *newbp;
-
     /* extract the pairs */
-    npairs = pma_n_entries(old);
-    pairs = pmainternal_extract_pairs(old, 0, old->N);
-    assert(pairs);
-    old->n_pairs_present = 0;
+    npairs = pma_n_entries(origpma);
+    if (npairs == 0)
+        return 0;
+    assert(pma_n_entries(leftpma) == 0);
+    assert(pma_n_entries(rightpma) == 0);
 
-    /* split the pairs in half by length (TODO: combine sum with extract) */
+    /* TODO move pairs to the stack */
+    pairs = pma_extract_pairs(origpma, 0, origpma->N);
+    assert(pairs);
+    origpma->n_pairs_present = 0;
+
+    /* debug check the kv length sum */
     sumlen = 0;
     for (i=0; i<npairs; i++)
-        sumlen += 4 + kv_pair_keylen(pairs[i].pair) + 4 + kv_pair_vallen(pairs[i].pair);
+        sumlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + KEY_VALUE_OVERHEAD;
+
+    if (origpma_size)
+        assert(*(int *)origpma_size == sumlen);
 
     runlen = 0;
-    for (i=0; i < npairs; i++) {
-        len = 4 + kv_pair_keylen(pairs[i].pair) + 4 + kv_pair_vallen(pairs[i].pair);
-        if (runlen + len > sumlen/2)
+    for (i=0; i<npairs;) {
+        runlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + KEY_VALUE_OVERHEAD;
+        i++;
+        if (2*runlen >= sumlen)
             break;
-        runlen += len;
     }
     spliti = i;
+    if (leftpma_size) 
+        *leftpma_size = runlen;
+    if (rightpma_size)
+        *rightpma_size = sumlen - runlen;
 
-    /* set the cursor set to be all of the cursors from the old pma */
+    /* set the cursor set to be all of the cursors from the original pma */
     list_init(&cursors);
-    if (!list_empty(&old->cursors))
-        list_move(&cursors, &old->cursors);
+    if (!list_empty(&origpma->cursors))
+        list_move(&cursors, &origpma->cursors);
 
-    /* put the first half of pairs into newa */
-    error = pma_resize_array(newa, 2 * spliti);
+    /* put the first half of pairs into the left pma */
+    n = spliti;
+    error = pma_resize_array(leftpma, n + n/4);
     assert(error == 0);
-    distribute_data(newa->pairs, pma_index_limit(newa), &pairs[0], spliti, newa);
-    pma_update_region(newa, &cursors, &pairs[0], spliti);
-    newa->n_pairs_present = spliti;
+    distribute_data(leftpma->pairs, pma_index_limit(leftpma), &pairs[0], n, leftpma);
+    pma_update_region(leftpma, &cursors, &pairs[0], spliti);
+    leftpma->n_pairs_present = spliti;
 
-    /* put the second half of pairs into newb */
-    error = pma_resize_array(newb, 2 * (npairs-spliti));
+    /* put the second half of pairs into the right pma */
+    n = npairs - spliti;
+    error = pma_resize_array(rightpma, n + n/4);
     assert(error == 0);
-    distribute_data(newb->pairs, pma_index_limit(newb), &pairs[spliti], npairs-spliti, newb);
-    pma_update_region(newb, &cursors, &pairs[spliti], npairs-spliti);
-    newb->n_pairs_present = npairs-spliti;
+    distribute_data(rightpma->pairs, pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
+    pma_update_region(rightpma, &cursors, &pairs[spliti], n);
+    rightpma->n_pairs_present = n;
 
     toku_free(pairs);
 
-    /* bind the remaining cursors to pma b */
+    /* bind the remaining cursors to the left pma*/
     while (!list_empty(&cursors)) {
         struct list *list = list_head(&cursors);
         list_remove(list);
-        list_push(&newa->cursors, list);
+        list_push(&leftpma->cursors, list);
     }
 
     return 0;
 }
 
-int pma_bulk_insert_pairs(PMA pma, struct kv_pair_tag *newpairs, int n_newpairs) {
-    int error;
+int pma_get_last(PMA pma, DBT *key, DBT *val) {
+    int position;
+    struct kv_pair *pair;
+    void *v; int vlen;
 
-    if (!list_empty(&pma->cursors))
-        return -1;
-    if (pma_n_entries(pma) > 0)
-        return -2;
-    error = pma_resize_array(pma, 2 * n_newpairs);
-    if (error)
-        return error;
-    distribute_data(pma->pairs, pma_index_limit(pma), newpairs, n_newpairs, pma);
-    pma->n_pairs_present = n_newpairs;
+    position = pma->N - 1;
+    while ((pair = pma->pairs[position]) == 0) {
+        if (position > 0)
+            position--;
+        else
+            return DB_NOTFOUND;
+    }
+
+    if (key) {
+        v = kv_pair_key(pair);
+        vlen = kv_pair_keylen(pair);
+        fill_dbt(key, memdup(v, vlen), vlen);
+    }
+
+    if (val) {
+        v = kv_pair_val(pair);
+        vlen = kv_pair_vallen(pair);
+        fill_dbt(val, memdup(v, vlen), vlen);
+    }
 
     return 0;
 }
@@ -738,16 +755,23 @@ void __pma_bulk_cleanup(struct kv_pair_tag *pairs, int n) {
         if (pairs[i].pair)
             kv_pair_free(pairs[i].pair);
 }
-    
 
 int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs) {
     struct kv_pair_tag *newpairs;
     int i;
     int error;
 
+    if (n_newpairs == 0)
+        return 0;
+    if (!list_empty(&pma->cursors))
+        return -1;
+    if (pma_n_entries(pma) > 0)
+        return -2;
+
+    /* TODO put newpairs on the stack */
     newpairs = toku_malloc(n_newpairs * sizeof (struct kv_pair_tag));
     if (newpairs == 0) {
-        error = -1; return error;
+        error = -3; return error;
     }
 
     for (i=0; i<n_newpairs; i++) {
@@ -756,15 +780,20 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs) {
         if (newpairs[i].pair == 0) {
             __pma_bulk_cleanup(newpairs, i);
             toku_free(newpairs);
-            error = -2; return error;
+            error = -4; return error;
         }
     }
 
-    error = pma_bulk_insert_pairs(pma, newpairs, n_newpairs);
-    if (error)
+    error = pma_resize_array(pma, n_newpairs + n_newpairs/4);
+    if (error) {
         __pma_bulk_cleanup(newpairs, n_newpairs);
+        toku_free(newpairs);
+        error = -5; return error;
+    }
+    distribute_data(pma->pairs, pma_index_limit(pma), newpairs, n_newpairs, pma);
+    pma->n_pairs_present = n_newpairs;
 
     toku_free(newpairs);
 
-    return error;
+    return 0;
 }
