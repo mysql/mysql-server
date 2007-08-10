@@ -2049,7 +2049,6 @@ public:
 
   virtual int get_data_size() { return m_data_size; } 
 #ifndef MYSQL_CLIENT
-  virtual const int calc_field_metadata_size();
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
@@ -2090,7 +2089,7 @@ private:
 
   uchar          *m_field_metadata;        // buffer for field metadata
   /*
-    The size of field metadata buffer set by calling calc_field_metadata_size()
+    The size of field metadata buffer set by calling save_field_metadata()
   */
   ulong          m_field_metadata_size;   
   uchar         *m_null_bits;
