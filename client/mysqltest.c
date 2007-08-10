@@ -173,6 +173,10 @@ static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
 
+static int replace(DYNAMIC_STRING *ds_str,
+                   const char *search_str, ulong search_len,
+                   const char *replace_str, ulong replace_len);
+
 DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
@@ -792,7 +796,6 @@ void free_used_memory()
   my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   free_re();
-  my_free(global_subst, MYF(MY_ALLOW_ZERO_PTR));
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
@@ -1084,49 +1087,40 @@ err:
 
 void check_result(DYNAMIC_STRING* ds)
 {
+  int res;
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
 
-  switch (dyn_string_cmp(ds, result_file_name))
+  res= dyn_string_cmp(ds, result_file_name);
+  if (global_subst && res != RESULT_OK)
+  {
+    /**
+       @todo MARIA_HACK
+       This serves for when a test is run with --default-storage-engine=X
+       where X is not MyISAM: tests using SHOW CREATE TABLE will always fail
+       because SHOW CREATE TABLE prints X instead of MyISAM. With
+       --global-subst=X,MyISAM , such trivial differences are eliminated and
+       test may be reported as passing.
+       --global-subst is only a quick way to run a lot of existing tests
+       with Maria and find bugs; it is not good enough for reaching the main
+       trees when Maria is merged into them.
+         --global-subst should be removed.
+    */
+    uint global_subst_from_len= strlen(global_subst_from);
+    uint global_subst_to_len=  strlen(global_subst_to);
+    while (replace(ds,
+                   global_subst_from, global_subst_from_len,
+                   global_subst_to,   global_subst_to_len) == 0)
+      /* do nothing */ ;
+    /* let's compare again to see if it is ok now */
+    res= dyn_string_cmp(ds, result_file_name);
+  }
+  switch(res)
   {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
     dump_result_to_reject_file(ds->str, ds->length);
-    if (global_subst)
-    {
-      /**
-         @todo MARIA_HACK
-         This serves for when a test is run with --default-storage-engine=X
-         where X is not MyISAM: tests using SHOW CREATE TABLE will always fail
-         because SHOW CREATE TABLE prints X instead of MyISAM. With
-         --global-subst=X,MyISAM , such trivial differences are eliminated and
-         test may be reported as passing.
-         --global-subst is only a quick way to run a lot of existing tests
-         with Maria and find bugs; it is not good enough for reaching the main
-         trees when Maria is merged into them. It relies on hard-coded path of
-         "replace", on existence of "cmp". It's just horrible but it works for
-         devs using a bk tree in a GNU-based system, which is what we have in
-         the team.
-         --global-subst should be removed.
-      */
-      char reject_file[FN_REFLEN];
-      char sys_com[50 + FN_REFLEN];
-      fn_format(reject_file, result_file_name, "", ".reject",
-                MY_REPLACE_EXT);
-      sprintf(sys_com, "../extra/replace %s %s -- %s >/dev/null",
-              global_subst_from, global_subst_to, reject_file);
-      if (system(sys_com))
-        die("replace failed");
-      sprintf(sys_com, "cmp %s %s >/dev/null",
-              reject_file, result_file_name);
-      if (!system(sys_com))
-      {
-        /* test is ok in fact */
-        my_delete(reject_file, MYF(0));
-        break;
-      }
-    }
     die("Result length mismatch");
     break;
   case RESULT_CONTENT_MISMATCH:
