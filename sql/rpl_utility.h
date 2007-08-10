@@ -61,7 +61,7 @@ public:
    */
   table_def(field_type *types, ulong size, uchar *field_metadata, 
       int metadata_size, uchar *null_bitmap)
-    : m_size(size), m_type(0),
+    : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
       m_field_metadata(0), m_null_bits(0), m_memory(NULL)
   {
     m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
@@ -190,7 +190,7 @@ public:
   uint16 field_metadata(uint index) const
   {
     DBUG_ASSERT(index < m_size);
-    if (m_field_metadata)
+    if (m_field_metadata_size)
       return m_field_metadata[index];
     else
       return 0;
@@ -239,6 +239,7 @@ private:
   ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
   uint16 *m_field_metadata;
+  uint m_field_metadata_size;
   uchar *m_null_bits;
   uchar *m_memory;
 };
