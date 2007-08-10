@@ -86,7 +86,7 @@ a	b
 19	Testing
 explain select a from t3 order by a desc limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	NULL	a	4	NULL	1131	Using index
+1	SIMPLE	t3	index	NULL	a	4	NULL	10	Using index
 select a from t3 order by a desc limit 10;
 a
 699
