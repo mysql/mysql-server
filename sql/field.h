@@ -151,6 +151,24 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
+  virtual int compatible_field_size(uint field_metadata);
+  virtual uint pack_length_from_metadata(uint field_metadata)
+  { return field_metadata; }
+  /*
+    This method is used to return the size of the data in a row-based
+    replication row record. The default implementation of returning 0 is
+    designed to allow fields that do not use metadata to return TRUE (1)
+    from compatible_field_size() which uses this function in the comparison.
+    The default value for field metadata for fields that do not have 
+    metadata is 0. Thus, 0 == 0 means the fields are compatible in size.
+
+    Note: While most classes that override this method return pack_length(),
+    the classes Field_string, Field_varstring, and Field_blob return 
+    field_length + 1, field_length, and pack_length_no_ptr() respectfully.
+  */
+  virtual uint row_pack_length() { return 0; }
+  virtual int save_field_metadata(uchar *first_byte)
+  { return do_save_field_metadata(first_byte); }
 
   /*
     data_length() return the "real size" of the data in memory.
@@ -463,6 +481,19 @@ private:
       overridden by subclasses.
    */
   virtual size_t do_last_null_byte() const;
+
+/**
+   Retrieve the field metadata for fields.
+
+   This default implementation returns 0 and saves 0 in the metadata_ptr
+   value.
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns 0 no bytes written.
+*/
+  virtual int do_save_field_metadata(uchar *metadata_ptr)
+  { return 0; }
 };
 
 
@@ -589,6 +620,8 @@ public:
 
 /* New decimal/numeric field which use fixed point arithmetic */
 class Field_new_decimal :public Field_num {
+private:
+  int do_save_field_metadata(uchar *first_byte);
 public:
   /* The maximum number of decimal digits can be stored */
   uint precision;
@@ -628,6 +661,9 @@ public:
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
+  uint pack_length_from_metadata(uint field_metadata);
+  uint row_pack_length() { return pack_length(); }
+  int compatible_field_size(uint field_metadata);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
 };
@@ -834,7 +870,10 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
+  uint row_pack_length() { return pack_length(); }
   void sql_type(String &str) const;
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -871,7 +910,10 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
+  uint row_pack_length() { return pack_length(); }
   void sql_type(String &str) const;
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1168,6 +1210,9 @@ public:
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
   virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
+  uint pack_length_from_metadata(uint field_metadata)
+  { return (field_metadata & 0x00ff); }
+  uint row_pack_length() { return (field_length + 1); }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
@@ -1179,6 +1224,8 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   virtual uint get_key_image(uchar *buff,uint length, imagetype type);
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1214,6 +1261,7 @@ public:
 
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
   enum ha_base_keytype key_type() const;
+  uint row_pack_length() { return field_length; }
   bool zero_pack() const { return 0; }
   int  reset(void) { bzero(ptr,field_length+length_bytes); return 0; }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
@@ -1265,6 +1313,8 @@ public:
                        uint new_null_bit);
   uint is_equal(Create_field *new_field);
   void hash(ulong *nr, ulong *nr2);
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1330,10 +1380,11 @@ public:
      This is used to determine the size of the actual data in the row
      buffer.
 
-     @retval The length of the raw data itself without the pointer.
+     @returns The length of the raw data itself without the pointer.
   */
   uint32 pack_length_no_ptr() const
   { return (uint32) (packlength); }
+  uint row_pack_length() { return pack_length_no_ptr(); }
   uint32 sort_length() const;
   inline uint32 max_data_length() const
   {
@@ -1356,7 +1407,7 @@ public:
      This is used to determine the size of the data plus the 
      packed length portion in the row data.
 
-     @retval The length in the row plus the size of the data.
+     @returns The length in the row plus the size of the data.
   */
   uint32 get_packed_size(const uchar *ptr)
     {return packlength + get_length((const uchar *)ptr);}
@@ -1424,6 +1475,8 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
   uint is_equal(Create_field *new_field);
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1493,12 +1546,17 @@ public:
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_ENUM; }
+  uint pack_length_from_metadata(uint field_metadata)
+  { return (field_metadata & 0x00ff); }
+  uint row_pack_length() { return pack_length(); }
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
   /* enum and set are sorted as integers */
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
+private:
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
@@ -1519,6 +1577,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr) { return Field_set::store((longlong) nr, FALSE); }
   int  store(longlong nr, bool unsigned_val);
+
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;
@@ -1582,6 +1641,10 @@ public:
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
+  uint pack_length_from_metadata(uint field_metadata);
+  uint row_pack_length()
+  { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
+  int compatible_field_size(uint field_metadata);
   void sql_type(String &str) const;
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
@@ -1612,6 +1675,7 @@ public:
 
 private:
   virtual size_t do_last_null_byte() const;
+  int do_save_field_metadata(uchar *first_byte);
 };
 
 
