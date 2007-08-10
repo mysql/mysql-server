@@ -8067,8 +8067,10 @@ innobase_create_index_def(
 	mem_heap_t*		heap)		/* in: heap where memory
 						is allocated */
 {
-	ulint			len;
-	ulint			n_fields = key->key_parts;
+	ulint	i;
+	ulint	len;
+	ulint	n_fields = key->key_parts;
+	char*	index_name;
 
 	DBUG_ENTER("innobase_create_index_def");
 
@@ -8077,17 +8079,15 @@ innobase_create_index_def(
 
 	index->ind_type = 0;
 	index->n_fields = n_fields;
-	len = strlen(key->name) + 2;
-	index->name = (char *)mem_heap_alloc(heap, len);
-
-	--len;
+	len = strlen(key->name) + 1;
+	index->name = index_name = (char*) mem_heap_alloc(heap,
+							  len + !new_primary);
 
 	if (UNIV_LIKELY(!new_primary)) {
-		*index->name = TEMP_TABLE_PREFIX;
-		memcpy(index->name + 1, key->name, len);
-	} else {
-		memcpy(index->name, key->name, len);
+		*index_name++ = TEMP_TABLE_PREFIX;
 	}
+
+	memcpy(index_name, key->name, len);
 
 	if (key->flags & HA_NOSAME) {
 		index->ind_type |= DICT_UNIQUE;
@@ -8097,7 +8097,7 @@ innobase_create_index_def(
 		index->ind_type |= DICT_CLUSTERED;
 	}
 
-	for (ulint i = 0; i < n_fields; i++) {
+	for (i = 0; i < n_fields; i++) {
 		innobase_create_index_field_def(&key->key_part[i], heap,
 						&index->fields[i]);
 	}
@@ -8112,14 +8112,13 @@ void
 innobase_copy_index_field_def(
 /*==========================*/
 	const dict_field_t*	field,		/* in: definition to copy */
-	mem_heap_t*		heap,		/* in: memory heap */
 	merge_index_field_t*	index_field)	/* out: copied definition */
 {
 	DBUG_ENTER("innobase_copy_index_field_def");
 	DBUG_ASSERT(field != NULL);
 	DBUG_ASSERT(index_field != NULL);
 
-	index_field->field_name = mem_heap_strdup(heap, field->name);
+	index_field->field_name = field->name;
 	index_field->prefix_len = field->prefix_len;
 
 	DBUG_VOID_RETURN;
@@ -8131,7 +8130,7 @@ static
 void
 innobase_copy_index_def(
 /*====================*/
-	dict_index_t*		index,	/* in: index definition to copy */
+	const dict_index_t*	index,	/* in: index definition to copy */
 	merge_index_def_t*	new_index,/* out: Index definition */
 	mem_heap_t*		heap)	/* in: heap where allocated */
 {
@@ -8139,27 +8138,24 @@ innobase_copy_index_def(
 	ulint	i;
 
 	DBUG_ENTER("innobase_copy_index_def");
+	DBUG_ASSERT(!dict_index_is_clust(index));
 
-	if (!dict_index_is_clust(index)) {
-		/* Note that from the secondary index we take only
-		those fields that user defined to be in the index.
-		In the internal representation more colums were
-		added and those colums are not copied.*/
+	/* Note that from the secondary index we take only
+	those fields that user defined to be in the index.
+	In the internal representation more colums were
+	added and those colums are not copied .*/
 
-		n_fields = index->n_user_defined_cols;
-	} else {
-		n_fields = index->n_fields;
-	}
+	n_fields = index->n_user_defined_cols;
 
 	new_index->fields = (merge_index_field_t*) mem_heap_alloc(
 		heap, n_fields * sizeof *new_index->fields);
 
 	new_index->ind_type = index->type;
 	new_index->n_fields = n_fields;
-	new_index->name = mem_heap_strdup(heap, index->name);
+	new_index->name = index->name;
 
 	for (i = 0; i < n_fields; i++) {
-		innobase_copy_index_field_def(&index->fields[i], heap,
+		innobase_copy_index_field_def(&index->fields[i],
 					      &new_index->fields[i]);
 	}
 
@@ -8218,30 +8214,25 @@ innobase_create_key_def(
 		dict_index_t*   index;
 
 		/* Create the PRIMARY key index definition */
-		innobase_create_index_def(key_info, new_primary,
-					  indexdef++, heap);
+		innobase_create_index_def(key_info, TRUE, indexdef++, heap);
 
 		row_mysql_lock_data_dictionary(trx);
 
 		/* Skip the clustered index */
 
+		i = 1;
 		index = dict_table_get_next_index(
 			dict_table_get_first_index(table));
 
-		/* Copy the definitions of old secondary indexes */
+		/* Copy the definitions of secondary indexes */
 
 		while (index) {
-
-			ut_a(!dict_index_is_clust(index));
 
 			innobase_copy_index_def(index, indexdef++, heap);
 			index = dict_table_get_next_index(index);
 		}
 
 		row_mysql_unlock_data_dictionary(trx);
-
-		/* Skip the primary key */
-		i = 1;
 	}
 
 	/* Create definitions for added secondary indexes. */
@@ -8376,7 +8367,8 @@ err_exit:
 
 		if (!indexed_table) {
 
-			error = convert_error_code_to_mysql(trx->error_state);
+			error = convert_error_code_to_mysql(trx->error_state,
+							    user_thd);
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
