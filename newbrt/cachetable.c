@@ -57,7 +57,7 @@ int create_cachetable (CACHETABLE *result, int n_entries) {
     int i;
     t->n_in_table = 0;
     t->table_size = n_entries;
-    t->table = toku_calloc(t->table_size, sizeof(struct ctpair));
+    MALLOC_N(t->table_size, t->table);
     assert(t->table);
     t->head = t->tail = 0;
     for (i=0; i<t->table_size; i++) {
