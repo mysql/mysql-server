@@ -6,8 +6,9 @@ typedef struct tokulogger *TOKULOGGER;
 struct tokulogger {
     enum typ_tag tag;
     char *directory;
-    FILE *f;
-    int next_log_file_number;
+    int fd;
+    int n_in_file;
+    long long next_log_file_number;
     char buf[LOGGER_BUF_SIZE];
     int  n_in_buf;
 };
