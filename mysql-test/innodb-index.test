@@ -270,10 +270,14 @@ drop table t1;
 create table t1(a int, b blob, c text, d text not null) engine=innodb default charset = utf8;
 insert into t1 values (22,repeat('jejdkrun87',220),repeat('jejdkrun87',440),'jejdkrun87');
 insert into t1 values (44,repeat('adfd72nh9k',440),repeat('adfd72nh9k',880),'adfd72nh9k');
+insert into t1 values (null,null,null,'null');
 
 select count(*) from t1 where a=44;
 select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
 select a,length(b),length(c),d from t1;
+--error ER_PRIMARY_CANT_HAVE_NULL
+alter table t1 add primary key (a), add key (b(20));
+delete from t1 where d='null';
 alter table t1 add primary key (a), add key (b(20));
 select count(*) from t1 where a=44;
 select a,b=repeat(d,10*a),c=repeat(d,20*a) from t1;
