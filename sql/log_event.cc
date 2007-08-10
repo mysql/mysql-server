@@ -6383,63 +6383,18 @@ void Rows_log_event::print_helper(FILE *file,
 **************************************************************************/
 
 /**
-  * Calculate field metadata size based on the real_type of the field.
-  *
-  * @returns int Size of field metadata.
-  */
-#if !defined(MYSQL_CLIENT)
-const int Table_map_log_event::calc_field_metadata_size()
-{
-  DBUG_ENTER("Table_map_log_event::calc_field_metadata_size");
-  int size= 0;
-  for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
-  {
-    switch (m_table->s->field[i]->real_type()) {
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_FLOAT:
-    {
-      size++;                         // Store one byte here.
-      break; 
-    }
-    case MYSQL_TYPE_BIT:
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_SET:
-    {
-      size= size + 2; // Store short int here.
-      break;
-    }
-    default:
-      break;
-    }
-  }
-  m_field_metadata_size= size;
-  DBUG_PRINT("info", ("Table_map_log_event: %d bytes in field metadata.",
-                       (int)m_field_metadata_size));
-  DBUG_RETURN(m_field_metadata_size);
-}
-#endif /* !defined(MYSQL_CLIENT) */
-
-/**
   @page How replication of field metadata works.
   
   When a table map is created, the master first calls 
-  Table_map_log_event::get_field_metadata_size() which calculates how many 
+  Table_map_log_event::save_field_metadata() which calculates how many 
   values will be in the field metadata. Only those fields that require the 
-  extra data are added (see table above). The master then loops through all
-  of the fields in the table calling the method 
-  Table_map_log_event::get_field_metadata() which returns the values for the 
-  field that will be saved in the metadata and replicated to the slave. Once 
-  all fields have been processed, the table map is written to the binlog 
-  adding the size of the field metadata and the field metadata to the end of 
-  the body of the table map.
-  
+  extra data are added. The method also loops through all of the fields in 
+  the table calling the method Field::save_field_metadata() which returns the
+  values for the field that will be saved in the metadata and replicated to
+  the slave. Once all fields have been processed, the table map is written to
+  the binlog adding the size of the field metadata and the field metadata to
+  the end of the body of the table map.
+
   When a table map is read on the slave, the field metadata is read from the 
   table map and passed to the table_def class constructor which saves the 
   field metadata from the table map into an array based on the type of the 
@@ -6478,64 +6433,8 @@ int Table_map_log_event::save_field_metadata()
   DBUG_ENTER("Table_map_log_event::save_field_metadata");
   int index= 0;
   for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
-  {
-    switch (m_table->s->field[i]->real_type()) {
-    case MYSQL_TYPE_NEWDECIMAL:
-    {
-      m_field_metadata[index++]= 
-        (uchar)((Field_new_decimal *)m_table->s->field[i])->precision;
-      m_field_metadata[index++]= 
-        (uchar)((Field_new_decimal *)m_table->s->field[i])->decimals();
-      break;
-    }
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    {
-      m_field_metadata[index++]= 
-       (uchar)((Field_blob *)m_table->s->field[i])->pack_length_no_ptr();
-      break;
-    }
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_FLOAT:
-    {
-      m_field_metadata[index++]= (uchar)m_table->s->field[i]->pack_length();
-      break;
-    }
-    case MYSQL_TYPE_BIT:
-    { 
-      m_field_metadata[index++]= 
-        (uchar)((Field_bit *)m_table->s->field[i])->bit_len;
-      m_field_metadata[index++]= 
-        (uchar)((Field_bit *)m_table->s->field[i])->bytes_in_rec;
-      break;
-    }
-    case MYSQL_TYPE_VARCHAR:
-    {
-      char *ptr= (char *)&m_field_metadata[index];
-      int2store(ptr, m_table->s->field[i]->field_length);
-      index= index + 2;
-      break;
-    }
-    case MYSQL_TYPE_STRING:
-    {
-      m_field_metadata[index++]= (uchar)m_table->s->field[i]->real_type();
-      m_field_metadata[index++]= m_table->s->field[i]->field_length;
-      break;
-    }
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    {
-      m_field_metadata[index++]= (uchar)m_table->s->field[i]->real_type();
-      m_field_metadata[index++]= m_table->s->field[i]->pack_length();
-      break;
-    }
-    default:
-      break;
-    }
-  }
-  DBUG_RETURN(0);
+    index+= m_table->s->field[i]->save_field_metadata(&m_field_metadata[index]);
+  DBUG_RETURN(index);
 }
 #endif /* !defined(MYSQL_CLIENT) */
 
@@ -6573,16 +6472,6 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   m_data_size+= m_dblen + 2;	// Include length and terminating \0
   m_data_size+= m_tbllen + 2;	// Include length and terminating \0
   m_data_size+= 1 + m_colcnt;	// COLCNT and column types
-  m_field_metadata_size= calc_field_metadata_size();
-
-  /*
-    Now set the size of the data to the size of the field metadata array
-    plus one or two bytes for number of elements in the field metadata array.
-  */
-  if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 2; 
-  else
-    m_data_size+= m_field_metadata_size + 1; 
 
   /* If malloc fails, catched in is_valid() */
   if ((m_memory= (uchar*) my_malloc(m_colcnt, MYF(MY_WME))))
@@ -6602,17 +6491,31 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   m_data_size+= num_null_bytes;
   m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                  &m_null_bits, num_null_bytes,
-                                 &m_field_metadata, m_field_metadata_size,
+                                 &m_field_metadata, (m_colcnt * 2),
                                  NULL);
+
+  bzero(m_field_metadata, (m_colcnt * 2));
+
+  /*
+    Create an array for the field metadata and store it.
+  */
+  m_field_metadata_size= save_field_metadata();
+  DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
+
+  /*
+    Now set the size of the data to the size of the field metadata array
+    plus one or two bytes for number of elements in the field metadata array.
+  */
+  if (m_field_metadata_size > 255)
+    m_data_size+= m_field_metadata_size + 2; 
+  else
+    m_data_size+= m_field_metadata_size + 1; 
+
   bzero(m_null_bits, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
 
-  /*
-    Create an array for the field metadata and store it.
-  */
-  save_field_metadata();
 }
 #endif /* !defined(MYSQL_CLIENT) */
 

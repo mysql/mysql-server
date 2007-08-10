@@ -156,6 +156,25 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
       rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
                   ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
     }
+    /*
+      Check the slave's field size against that of the master.
+    */
+    if (!error && 
+        !table->field[col]->compatible_field_size(field_metadata(col)))
+    {
+      error= 1;
+      char buf[256];
+      my_snprintf(buf, sizeof(buf), "Column %d size mismatch - "
+                  "master has size %d, %s.%s on slave has size %d."
+                  " Master's column size should be <= the slave's "
+                  "column size.", col,
+                  table->field[col]->pack_length_from_metadata(
+                                       m_field_metadata[col]),
+                  tsh->db.str, tsh->table_name.str, 
+                  table->field[col]->row_pack_length());
+      rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
+                  ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
+    }
   }
 
   return error;
