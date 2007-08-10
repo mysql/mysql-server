@@ -69,6 +69,8 @@ Created 5/24/1996 Heikki Tuuri
 #define	DB_CANNOT_DROP_FOREIGN_INDEX 48 /* we cannot drop an index because
 					it is needed on foreign key
 					constraint */
+#define DB_PRIMARY_KEY_IS_NULL	49	/* a column in the PRIMARY KEY
+					was found to be NULL */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000
