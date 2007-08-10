@@ -64,16 +64,20 @@ row_merge_drop_indexes(
 	ulint		num_created);	/* in: number of elements in index[] */
 
 /*************************************************************************
-Create a temporary table using a definition of the old table. You must
-lock data dictionary before calling this function. */
+Create a temporary table for creating a primary key, using the definition
+of an existing table. */
 
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
-					/* out: table, or NULL on error */
-	const char*	table_name,	/* in: new table name */
-	dict_table_t*	table,		/* in: old table definition */
-	trx_t*		trx);		/* in/out: trx (sets error_state) */
+						/* out: table,
+						or NULL on error */
+	const char*		table_name,	/* in: new table name */
+	const merge_index_def_t*index_def,	/* in: the index definition
+						of the primary key */
+	const dict_table_t*	table,		/* in: old table definition */
+	trx_t*			trx);		/* in/out: transaction
+						(sets error_state) */
 /*************************************************************************
 Rename the indexes in the dictionary. */
 

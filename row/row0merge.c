@@ -810,14 +810,18 @@ row_merge_cmp(
 
 /************************************************************************
 Reads clustered index of the table and create temporary files
-containing index entries for indexes to be built. */
+containing the index entries for the indexes to be built. */
 static
 ulint
 row_merge_read_clustered_index(
 /*===========================*/
 					/* out: DB_SUCCESS or error */
 	trx_t*			trx,	/* in: transaction */
-	dict_table_t*		table,	/* in: table where index is created */
+	dict_table_t*		old_table,/* in: table where rows are
+					read from */
+	dict_table_t*		new_table,/* in: table where indexes are
+					created; identical to old_table
+					unless creating a PRIMARY KEY */
 	dict_index_t**		index,	/* in: indexes to be created */
 	merge_file_t*		files,	/* in: temporary files */
 	ulint			n_index,/* in: number of indexes to create */
@@ -832,11 +836,15 @@ row_merge_read_clustered_index(
 	mtr_t			mtr;		/* Mini transaction */
 	ulint			err = DB_SUCCESS;/* Return code */
 	ulint			i;
+	ulint			n_nonnull = 0;	/* number of columns
+						changed to NOT NULL */
+	ulint*			nonnull = NULL;	/* NOT NULL columns */
 
 	trx->op_info = "reading clustered index";
 
 	ut_ad(trx);
-	ut_ad(table);
+	ut_ad(old_table);
+	ut_ad(new_table);
 	ut_ad(index);
 	ut_ad(files);
 
@@ -853,10 +861,43 @@ row_merge_read_clustered_index(
 	/* Find the clustered index and create a persistent cursor
 	based on that. */
 
-	clust_index = dict_table_get_first_index(table);
+	clust_index = dict_table_get_first_index(old_table);
 
 	btr_pcur_open_at_index_side(
 		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+	if (UNIV_UNLIKELY(old_table != new_table)) {
+		ulint	n_cols = dict_table_get_n_cols(old_table);
+
+		/* A primary key will be created.  Identify the
+		columns that were flagged NOT NULL in the new table,
+		so that we can quickly check that the records in the
+		(old) clustered index do not violate the added NOT
+		NULL constraints. */
+
+		ut_a(n_cols == dict_table_get_n_cols(new_table));
+
+		nonnull = mem_alloc(n_cols * sizeof *nonnull);
+
+		for (i = 0; i < n_cols; i++) {
+			if (dict_table_get_nth_col(old_table, i)->prtype
+			    & DATA_NOT_NULL) {
+
+				continue;
+			}
+
+			if (dict_table_get_nth_col(new_table, i)->prtype
+			    & DATA_NOT_NULL) {
+
+				nonnull[n_nonnull++] = i;
+			}
+		}
+
+		if (!n_nonnull) {
+			mem_free(nonnull);
+			nonnull = NULL;
+		}
+	}
 
 	row_heap = mem_heap_create(UNIV_PAGE_SIZE);
 
@@ -885,21 +926,39 @@ row_merge_read_clustered_index(
 			rec = btr_pcur_get_rec(&pcur);
 
 			/* Skip delete marked records. */
-			if (rec_get_deleted_flag(rec,
-						 dict_table_is_comp(table))) {
+			if (rec_get_deleted_flag(
+				    rec, dict_table_is_comp(old_table))) {
 				continue;
 			}
 
 			srv_n_rows_inserted++;
 
-			/* Build row based on clustered index */
+			/* Build a row based on the clustered index. */
 
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					rec, NULL, &ext, row_heap);
 
-			/* Build all entries for all the indexes to be created
-			in a single scan of the clustered index. */
+			if (UNIV_LIKELY_NULL(nonnull)) {
+				for (i = 0; i < n_nonnull; i++) {
+					dfield_t*	field
+						= &row->fields[nonnull[i]];
+
+					ut_a(!(field->type.prtype
+					       & DATA_NOT_NULL));
+
+					if (dfield_is_null(field)) {
+						trx->error_key_num = 0;
+						err = DB_PRIMARY_KEY_IS_NULL;
+						goto func_exit;
+					}
+
+					field->type.prtype |= DATA_NOT_NULL;
+				}
+			}
 		}
+
+		/* Build all entries for all the indexes to be created
+		in a single scan of the clustered index. */
 
 		for (i = 0; i < n_index; i++) {
 			row_merge_buf_t*	buf	= merge_buf[i];
@@ -918,6 +977,7 @@ row_merge_read_clustered_index(
 			if (buf->n_tuples
 			    && row_merge_buf_sort(buf)
 			    && dict_index_is_unique(buf->index)) {
+				trx->error_key_num = i;
 				err = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
@@ -945,6 +1005,10 @@ func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
+
+	if (UNIV_LIKELY_NULL(nonnull)) {
+		mem_free(nonnull);
+	}
 
 	for (i = 0; i < n_index; i++) {
 		row_merge_buf_free(merge_buf[i]);
@@ -1429,16 +1493,56 @@ row_merge_file_destroy(
 }
 
 /*************************************************************************
-Create a temporary table using a definition of the old table. You must
-lock data dictionary before calling this function. */
+Determine the precise type of a column that is added to a tem
+if a column must be constrained NOT NULL. */
+UNIV_INLINE
+ulint
+row_merge_col_prtype(
+/*=================*/
+						/* out: col->prtype, possibly
+						ORed with DATA_NOT_NULL */
+	const dict_col_t*	col,		/* in: column */
+	const char*		col_name,	/* in: name of the column */
+	const merge_index_def_t*index_def)	/* in: the index definition
+						of the primary key */
+{
+	ulint	prtype = col->prtype;
+	ulint	i;
+
+	ut_ad(index_def->ind_type & DICT_CLUSTERED);
+
+	if (prtype & DATA_NOT_NULL) {
+
+		return(prtype);
+	}
+
+	/* All columns that are included
+	in the PRIMARY KEY must be NOT NULL. */
+
+	for (i = 0; i < index_def->n_fields; i++) {
+		if (!strcmp(col_name, index_def->fields[i].field_name)) {
+			return(prtype | DATA_NOT_NULL);
+		}
+	}
+
+	return(prtype);
+}
+
+/*************************************************************************
+Create a temporary table for creating a primary key, using the definition
+of an existing table. */
 
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
-					/* out: table, or NULL on error */
-	const char*	table_name,	/* in: new table name */
-	dict_table_t*	table,		/* in: old table definition */
-	trx_t*		trx)		/* in/out: trx (sets error_state) */
+						/* out: table,
+						or NULL on error */
+	const char*		table_name,	/* in: new table name */
+	const merge_index_def_t*index_def,	/* in: the index definition
+						of the primary key */
+	const dict_table_t*	table,		/* in: old table definition */
+	trx_t*			trx)		/* in/out: transaction
+						(sets error_state) */
 {
 	ulint		i;
 	dict_table_t*	new_table = NULL;
@@ -1446,6 +1550,7 @@ row_merge_create_temporary_table(
 	ulint		error;
 
 	ut_ad(table_name);
+	ut_ad(index_def);
 	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1461,13 +1566,15 @@ row_merge_create_temporary_table(
 
 		for (i = 0; i < n_cols; i++) {
 			const dict_col_t*	col;
+			const char*		col_name;
 
 			col = dict_table_get_nth_col(table, i);
+			col_name = dict_table_get_col_name(table, i);
 
 			dict_mem_table_add_col(
-				new_table, heap,
-				dict_table_get_col_name(table, i),
-				col->mtype, col->prtype, col->len);
+				new_table, heap, col_name, col->mtype,
+				row_merge_col_prtype(col, col_name, index_def),
+				col->len);
 		}
 
 		error = row_create_table_for_mysql(new_table, trx);
@@ -1737,7 +1844,8 @@ row_merge_build_indexes(
 	secondary index entries for merge sort */
 
 	error = row_merge_read_clustered_index(
-		trx, old_table, indexes, merge_files, n_indexes, block);
+		trx, old_table, new_table, indexes,
+		merge_files, n_indexes, block);
 
 	if (error != DB_SUCCESS) {
 
