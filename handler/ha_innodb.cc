@@ -670,6 +670,9 @@ convert_error_code_to_mysql(
 	case DB_CANNOT_DROP_FOREIGN_INDEX:
 		return(HA_ERR_DROP_INDEX_FK);
 
+	case DB_PRIMARY_KEY_IS_NULL:
+		return(ER_PRIMARY_CANT_HAVE_NULL);
+
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* Once MySQL add the appropriate code to errmsg.txt then
 		we can get rid of this #ifdef. NOTE: The code checked by
@@ -8363,7 +8366,7 @@ err_exit:
 
 		/* Clone table and write UNDO log record */
 		indexed_table = row_merge_create_temporary_table(
-			new_table_name, innodb_table, trx);
+			new_table_name, index_defs, innodb_table, trx);
 
 		if (!indexed_table) {
 
@@ -8475,6 +8478,7 @@ error_handling:
 	case DB_SUCCESS:
 		ut_ad(!dict_locked);
 		break;
+	case DB_PRIMARY_KEY_IS_NULL:
 	case DB_DUPLICATE_KEY:
 		prebuilt->trx->error_info = NULL;
 		prebuilt->trx->error_key_num = trx->error_key_num;
@@ -8558,6 +8562,12 @@ func_exit:
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
+
+	switch (error) {
+	case DB_PRIMARY_KEY_IS_NULL:
+		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
+		break;
+	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 }
