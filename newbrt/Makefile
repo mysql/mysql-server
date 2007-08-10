@@ -51,6 +51,7 @@ brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-intern
 header-io.o: brttypes.h brt-internal.h memory.h
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
+log-test: log.o memory.o
 
 brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o
 
