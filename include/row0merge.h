@@ -24,8 +24,8 @@ Created 13/06/2005 Jan Lindstrom
 /* This structure holds index field definitions */
 
 struct merge_index_field_struct {
-	ulint	prefix_len;	/* Prefix len */
-	char*	field_name;	/* Field name */
+	ulint		prefix_len;	/* Prefix len */
+	const char*	field_name;	/* Field name */
 };
 
 typedef struct merge_index_field_struct merge_index_field_t;
@@ -33,10 +33,11 @@ typedef struct merge_index_field_struct merge_index_field_t;
 /* This structure holds index definitions */
 
 struct merge_index_def_struct {
-	ulint	n_fields;		/* Number of fields in index */
-	ulint	ind_type;		/* 0, DICT_UNIQUE or DICT_CLUSTERED */
-	char*	name;			/* Index name */
-	merge_index_field_t* fields;	/* Field definitions */
+	const char*		name;		/* Index name */
+	ulint			ind_type;	/* 0, DICT_UNIQUE,
+						or DICT_CLUSTERED */
+	ulint			n_fields;	/* Number of fields in index */
+	merge_index_field_t*	fields;		/* Field definitions */
 };
 
 typedef struct merge_index_def_struct merge_index_def_t;
@@ -125,12 +126,11 @@ row_merge_build_indexes(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	old_table,	/* in: Table where rows are
+	dict_table_t*	old_table,	/* in: table where rows are
 					read from */
-	dict_table_t*	new_table,	/* in: Table where indexes are
-					created. Note that old_table ==
-					new_table if we are creating a
-					secondary keys. */
+	dict_table_t*	new_table,	/* in: table where indexes are
+					created; identical to old_table
+					unless creating a PRIMARY KEY */
 	dict_index_t**	indexes,	/* in: indexes to be created */
 	ulint		n_indexes);	/* in: size of indexes[] */
 #endif /* row0merge.h */

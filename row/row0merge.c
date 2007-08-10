@@ -1665,10 +1665,9 @@ row_merge_drop_table(
 		dict_locked = TRUE;
 	}
 
-	ut_a(table->to_be_dropped);
 	ut_a(*table->name == TEMP_TABLE_PREFIX);
 
-	/* Drop the table immediately iff it is not references by MySQL */
+	/* Drop the table immediately if it is not referenced by MySQL */
 	if (table->n_mysql_handles_opened == 0) {
 		/* Copy table->name, because table will have been
 		freed when row_drop_table_for_mysql_no_commit()
@@ -1697,12 +1696,11 @@ row_merge_build_indexes(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	old_table,	/* in: Table where rows are
+	dict_table_t*	old_table,	/* in: table where rows are
 					read from */
-	dict_table_t*	new_table,	/* in: Table where indexes are
-					created. Note that old_table ==
-					new_table if we are creating a
-					secondary keys. */
+	dict_table_t*	new_table,	/* in: table where indexes are
+					created; identical to old_table
+					unless creating a PRIMARY KEY */
 	dict_index_t**	indexes,	/* in: indexes to be created */
 	ulint		n_indexes)	/* in: size of indexes[] */
 {
