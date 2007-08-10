@@ -1,0 +1,168 @@
+##################################################################
+# rpl_colSize                                                    #
+#                                                                #
+# This test is designed to test the changes included in WL#3228. #
+# The changes include the ability to replicate with the master   #
+# having columns that are smaller (shorter) than the slave.      #
+##################################################################
+
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+--echo **** Testing WL#3228 changes. ****
+--echo *** Create "wider" table on slave ***
+sync_slave_with_master;
+
+#
+# Check each column type to verify error 1532 fires (BUG#22086)
+# This check covers only those fields that require additional
+# metadata from the master to be replicated to the slave. These
+# field types are:
+#   MYSQL_TYPE_NEWDECIMAL:
+#   MYSQL_TYPE_FLOAT:
+#   MYSQL_TYPE_BIT:
+#   MYSQL_TYPE_SET:
+#   MYSQL_TYPE_STRING:
+#   MYSQL_TYPE_ENUM:
+#   MYSQL_TYPE_VARCHAR:
+#   MYSQL_TYPE_BLOB:
+
+#
+# Test: Checking MYSQL_TYPE_NEWDECIMAL fields
+#
+--echo Checking MYSQL_TYPE_NEWDECIMAL fields
+let $test_table_master = CREATE TABLE t1 (a DECIMAL(20, 10));
+let $test_table_slave = CREATE TABLE t1 (a DECIMAL(5,2));
+let $test_insert = INSERT INTO t1 VALUES (901251.90125);
+source include/test_fieldsize.inc;
+
+let $test_table_master = CREATE TABLE t1 (a DECIMAL(27, 18));
+let $test_table_slave = CREATE TABLE t1 (a DECIMAL(27, 9));
+let $test_insert = INSERT INTO t1 VALUES (901251.90125);
+source include/test_fieldsize.inc;
+
+let $test_table_master = CREATE TABLE t1 (a NUMERIC(20, 10));
+let $test_table_slave = CREATE TABLE t1 (a NUMERIC(5,2));
+let $test_insert = INSERT INTO t1 VALUES (901251.90125);
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_FLOAT fields
+#
+--echo Checking MYSQL_TYPE_FLOAT fields
+let $test_table_master = CREATE TABLE t1 (a FLOAT(47));
+let $test_table_slave = CREATE TABLE t1 (a FLOAT(20));
+let $test_insert = INSERT INTO t1 VALUES (901251.90125);
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_BIT fields
+#
+--echo Checking MYSQL_TYPE_BIT fields
+let $test_table_master = CREATE TABLE t1 (a BIT(64));
+let $test_table_slave = CREATE TABLE t1 (a BIT(5));
+let $test_insert = INSERT INTO t1 VALUES (B'10101');
+source include/test_fieldsize.inc;
+
+let $test_table_master = CREATE TABLE t1 (a BIT(12));
+let $test_table_slave = CREATE TABLE t1 (a BIT(11));
+let $test_insert = INSERT INTO t1 VALUES (B'10101');
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_SET fields
+#
+--echo Checking MYSQL_TYPE_SET fields
+let $test_table_master = CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
+let $test_table_slave = CREATE TABLE t1 (a SET('4'));
+let $test_insert = INSERT INTO t1 VALUES ('4');
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_STRING fields
+#
+--echo Checking MYSQL_TYPE_STRING fields
+let $test_table_master = CREATE TABLE t1 (a CHAR(20));
+let $test_table_slave = CREATE TABLE t1 (a CHAR(10));
+let $test_insert = INSERT INTO t1 VALUES ('This is a test.');
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_ENUM fields
+#
+--echo Checking MYSQL_TYPE_ENUM fields
+let $test_table_master = CREATE TABLE t1 (a ENUM(
+            '01','02','03','04','05','06','07','08','09',
+            '11','12','13','14','15','16','17','18','19',
+            '21','22','23','24','25','26','27','28','29',
+            '31','32','33','34','35','36','37','38','39',
+            '41','42','43','44','45','46','47','48','49',
+            '51','52','53','54','55','56','57','58','59',
+            '61','62','63','64','65','66','67','68','69',
+            '71','72','73','74','75','76','77','78','79',
+            '81','82','83','84','85','86','87','88','89',
+            '91','92','93','94','95','96','97','98','99',
+            '101','102','103','104','105','106','107','108','109',
+            '111','112','113','114','115','116','117','118','119',
+            '121','122','123','124','125','126','127','128','129',
+            '131','132','133','134','135','136','137','138','139',
+            '141','142','143','144','145','146','147','148','149',
+            '151','152','153','154','155','156','157','158','159',
+            '161','162','163','164','165','166','167','168','169',
+            '171','172','173','174','175','176','177','178','179',
+            '181','182','183','184','185','186','187','188','189',
+            '191','192','193','194','195','196','197','198','199',
+            '201','202','203','204','205','206','207','208','209',
+            '211','212','213','214','215','216','217','218','219',
+            '221','222','223','224','225','226','227','228','229',
+            '231','232','233','234','235','236','237','238','239',
+            '241','242','243','244','245','246','247','248','249',
+            '251','252','253','254','255','256','257','258','259',
+            '261','262','263','264','265','266','267','268','269',
+            '271','272','273','274','275','276','277','278','279',
+            '281','282','283','284','285','286','287','288','289',
+            '291','292','293','294','295','296','297','298','299'
+            ));
+let $test_table_slave = CREATE TABLE t1 (a ENUM('44','54'));
+let $test_insert = INSERT INTO t1 VALUES ('44');
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_VARCHAR fields
+#
+--echo Checking MYSQL_TYPE_VARCHAR fields
+let $test_table_master = CREATE TABLE t1 (a VARCHAR(2000));
+let $test_table_slave = CREATE TABLE t1 (a VARCHAR(100));
+let $test_insert = INSERT INTO t1 VALUES ('This is a test.');
+source include/test_fieldsize.inc;
+
+let $test_table_master = CREATE TABLE t1 (a VARCHAR(200));
+let $test_table_slave = CREATE TABLE t1 (a VARCHAR(10));
+let $test_insert = INSERT INTO t1 VALUES ('This is a test.');
+source include/test_fieldsize.inc;
+
+let $test_table_master = CREATE TABLE t1 (a VARCHAR(2000));
+let $test_table_slave = CREATE TABLE t1 (a VARCHAR(1000));
+let $test_insert = INSERT INTO t1 VALUES ('This is a test.');
+source include/test_fieldsize.inc;
+
+#
+# Test: Checking MYSQL_TYPE_BLOB fields
+#
+--echo Checking MYSQL_TYPE_BLOB fields
+let $test_table_master = CREATE TABLE t1 (a LONGBLOB);
+let $test_table_slave = CREATE TABLE t1 (a TINYBLOB);
+let $test_insert = INSERT INTO t1 VALUES ('This is a test.');
+source include/test_fieldsize.inc;
+
+--echo *** Cleanup  ***
+connection master;
+DROP TABLE IF EXISTS t1;
+sync_slave_with_master;
+# END 5.1 Test Case
+
