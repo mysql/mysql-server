@@ -8418,7 +8418,7 @@ err_exit:
 		num_created++;
 	}
 
-	ut_ad(error == DB_SUCCESS);
+	ut_ad(!error);
 
 	/* Raise version number of the table to track this table's
 	definition changes. */
