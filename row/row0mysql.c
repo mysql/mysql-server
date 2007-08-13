@@ -1783,7 +1783,7 @@ index on it (on row id). */
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
-	dict_table_t*	table)
+	const dict_table_t*	table)
 {
 	const dict_index_t*	clust_index;
 
@@ -1799,10 +1799,10 @@ to take into account if we generated a default clustered index for the table */
 ulint
 row_get_mysql_key_number_for_index(
 /*===============================*/
-	dict_index_t*	index)
+	const dict_index_t*	index)
 {
-	dict_index_t*	ind;
-	ulint		i;
+	const dict_index_t*	ind;
+	ulint			i;
 
 	ut_a(index);
 

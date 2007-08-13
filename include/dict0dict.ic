@@ -139,19 +139,20 @@ dict_col_get_clust_pos(
 	return(ULINT_UNDEFINED);
 }
 
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_first_index(
 /*=======================*/
-				/* out: index, NULL if none exists */
-	dict_table_t*	table)	/* in: table */
+					/* out: index, NULL if none exists */
+	const dict_table_t*	table)	/* in: table */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(UT_LIST_GET_FIRST(table->indexes));
+	return(UT_LIST_GET_FIRST(((dict_table_t*) table)->indexes));
 }
 
 /************************************************************************
@@ -160,14 +161,15 @@ UNIV_INLINE
 dict_index_t*
 dict_table_get_next_index(
 /*======================*/
-				/* out: index, NULL if none left */
-	dict_index_t*	index)	/* in: index */
+					/* out: index, NULL if none left */
+	const dict_index_t*	index)	/* in: index */
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UT_LIST_GET_NEXT(indexes, index));
+	return(UT_LIST_GET_NEXT(indexes, (dict_index_t*) index));
 }
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Check whether the index is the clustered index. */
