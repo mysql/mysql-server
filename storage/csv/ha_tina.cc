@@ -68,6 +68,10 @@ static int free_share(TINA_SHARE *share);
 static int read_meta_file(File meta_file, ha_rows *rows);
 static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 
+extern "C" void tina_get_status(void* param, int concurrent_insert);
+extern "C" void tina_update_status(void* param);
+extern "C" my_bool tina_check_status(void* param);
+
 /* Stuff for shares */
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;

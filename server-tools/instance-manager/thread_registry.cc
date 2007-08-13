@@ -27,7 +27,9 @@
 
 enum { THREAD_KICK_OFF_SIGNAL= SIGUSR2 };
 
-static void handle_signal(int __attribute__((unused)) sig_no)
+extern "C" void handle_signal(int);
+
+void handle_signal(int __attribute__((unused)) sig_no)
 {
 }
 #endif

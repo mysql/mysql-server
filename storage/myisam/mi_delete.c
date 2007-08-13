@@ -78,7 +78,7 @@ int mi_delete(MI_INFO *info,const uchar *record)
       info->s->keyinfo[i].version++;
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_mi_ft_del(info,i,(char*) old_key,record,info->lastpos))
+        if (_mi_ft_del(info,i, old_key,record,info->lastpos))
           goto err;
       }
       else
@@ -250,7 +250,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       if (info->ft1_to_ft2)
       {
         /* we're in ft1->ft2 conversion mode. Saving key data */
-        insert_dynamic(info->ft1_to_ft2, (char*) (lastkey+off));
+        insert_dynamic(info->ft1_to_ft2, (lastkey+off));
       }
       else
       {
@@ -806,7 +806,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	if (next_length > prev_length)
 	{
 	  /* We have to copy data from the current key to the next key */
-	  bmove_upp((char*) keypos,(char*) (lastkey+next_length),
+	  bmove_upp(keypos, (lastkey+next_length),
 		    (next_length-prev_length));
 	  keypos-=(next_length-prev_length)+prev_pack_length;
 	  store_key_length(keypos,prev_length);
@@ -853,7 +853,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	  if (next_length >= prev_length)
 	  {		/* Key after is based on deleted key */
 	    uint pack_length,tmp;
-	    bmove_upp((char*) keypos,(char*) (lastkey+next_length),
+	    bmove_upp(keypos, (lastkey+next_length),
 		      tmp=(next_length-prev_length));
 	    rest_length+=tmp;
 	    pack_length= prev_length ? get_pack_length(rest_length): 0;

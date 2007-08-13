@@ -570,13 +570,13 @@ String *Item_nodeset_func_rootelement::val_nodeset(String *nodeset)
 
 String * Item_nodeset_func_union::val_nodeset(String *nodeset)
 {
-  uint numnodes= pxml->length() / sizeof(MY_XML_NODE);
+  uint num_nodes= pxml->length() / sizeof(MY_XML_NODE);
   String set0, *s0= args[0]->val_nodeset(&set0);
   String set1, *s1= args[1]->val_nodeset(&set1);
   String both_str;
-  both_str.alloc(numnodes);
+  both_str.alloc(num_nodes);
   char *both= (char*) both_str.ptr();
-  bzero((void*)both, numnodes);
+  bzero((void*)both, num_nodes);
   MY_XPATH_FLT *flt;
 
   fltbeg= (MY_XPATH_FLT*) s0->ptr();
@@ -590,7 +590,7 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
     both[flt->num]= 1;
 
   nodeset->length(0);
-  for (uint i= 0, pos= 0; i < numnodes; i++)
+  for (uint i= 0, pos= 0; i < num_nodes; i++)
   {
     if (both[i])
      ((XPathFilter*)nodeset)->append_element(i, pos++);
@@ -2656,7 +2656,9 @@ static uint xml_parent_tag(MY_XML_NODE *items, uint nitems, uint level)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
+extern "C" int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2687,7 +2689,9 @@ static int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
+extern "C" int xml_value(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2717,7 +2721,9 @@ static int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
+extern "C" int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   DBUG_ASSERT(data->level > 0);
