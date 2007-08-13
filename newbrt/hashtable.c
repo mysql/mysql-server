@@ -31,7 +31,7 @@ static void hash_find_internal (HASHTABLE tab, unsigned int hash, const unsigned
     HASHELT he;
     HASHELT *prev = &tab->array[h];
     for (he=*prev; he; prev=&he->next, he=*prev) {
-	if (keylen==he->keylen && memcmp(key, he->key, keylen)==0) {
+	if (keylen==he->keylen && memcmp(key, he->keyval, keylen)==0) {
 	    *prev_ptr = prev;
 	    *hashelt = he;
 	    return;
@@ -47,7 +47,7 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     if (he==0) {
 	return -1;
     } else {
-	*data = he->val;
+	*data = &he->keyval[he->keylen];
 	*datalen = he->vallen;
 	return 0;
     }
@@ -90,11 +90,13 @@ int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void
     }
     {
 	/* Otherwise the key is not already present, so we need to add it. */
-	HASHELT MALLOC(he);
-	he->key = memdup(key, keylen);
+	HASHELT he=toku_malloc(sizeof(*he)+keylen+vallen);
+	assert(he); // ?????
 	he->keylen = keylen;
-	he->val = memdup(val, vallen);
 	he->vallen = vallen;
+	memmove(&he->keyval[0], key, keylen);
+	memmove(&he->keyval[keylen], val, vallen);
+
 	he->hash = hk;
 	he->next = tab->array[h];
 	tab->array[h]=he;
@@ -116,9 +118,7 @@ int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
 	assert(*prev_ptr==he);
 	*prev_ptr = he->next;
 	//printf("Freeing %s %s\n", he->key, he->val);
-	toku_free_n(he->key, he->keylen);
-	toku_free_n(he->val, he->vallen);
-	toku_free_n(he, sizeof(*he));
+	toku_free_n(he, sizeof(*he)+he->keylen+he->vallen);
 	tab->n_keys--;
 
 	if ((tab->n_keys * 4 < tab->arraysize) && tab->arraysize>4) {
@@ -136,9 +136,9 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
 	if (usei>=h->arraysize) usei=0;
 	HASHELT he=h->array[usei];
 	if (he) {
-	    *key = he->key;
+	    *key = &he->keyval[0];
 	    *keylen = he->keylen;
-	    *data = he->val;
+	    *data = &he->keyval[he->keylen];
 	    *datalen = he->vallen;
 	    return 0;
 	}
@@ -193,9 +193,7 @@ static void hasheltlist_free (HASHELT elt) {
     if (elt==0) return;
     else {
 	hasheltlist_free(elt->next);
-	toku_free_n(elt->key, elt->keylen);
-	toku_free_n(elt->val, elt->vallen);
-	toku_free_n(elt, sizeof(*elt));
+	toku_free_n(elt, sizeof(*elt)+elt->keylen+elt->vallen);
     }
 }
 

@@ -29,10 +29,11 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
 
 typedef struct hashelt *HASHELT;
 struct hashelt {
-    char *key; ITEMLEN keylen;  /* key is NULL for empty elements */
-    char *val; ITEMLEN vallen;
+    ITEMLEN keylen;  
+    ITEMLEN vallen;
     unsigned int hash;
     HASHELT next;
+    char keyval[]; /* the first KEYLEN bytes are the key.  The next bytes are the value. */
 };
 
 struct hashtable {
@@ -50,9 +51,9 @@ void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,
   for (hi_counter=0; hi_counter<table->arraysize; hi_counter++) {            \
     HASHELT hi_he;                                                           \
     for (hi_he=table->array[hi_counter]; hi_he; hi_he=hi_he->next) {         \
-      const char *keyvar     = hi_he->key;                                   \
+      const char *keyvar     = &hi_he->keyval[0];                            \
       ITEMLEN     keylenvar  = hi_he->keylen;                                \
-      const char *datavar    = hi_he->val;                                   \
+      const char *datavar    = &hi_he->keyval[hi_he->keylen];                \
       ITEMLEN     datalenvar = hi_he->vallen;                                \
       body;                                                                  \
   }}})
