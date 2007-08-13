@@ -24,3 +24,4 @@ EXPORTS
   is_const
   is_const_init
   check_const_len
+  check_const_len_init
