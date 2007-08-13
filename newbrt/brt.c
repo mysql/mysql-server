@@ -798,7 +798,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
-#define INSERT_ALL_ALL_ONCE
+#define INSERT_ALL_AT_ONCE
 
 static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
