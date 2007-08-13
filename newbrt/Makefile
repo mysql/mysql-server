@@ -39,26 +39,27 @@ pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h  ../include
 ybt.o: ybt.h brttypes.h
 ybt-test: ybt-test.o ybt.o memory.o
 cachetable.o: cachetable.h hashfun.h
-brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o
 brt-test.o brt.o: brt.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: pma.h yerror.h brt.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
 mdict.o: pma.h
 hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/ydb-constants.h hashfun.h
 memory.o: memory.h
-hashtest: hashtable.o memory.o
+primes.o: primes.h
+hashtest: hashtable.o memory.o primes.o
 brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h
 header-io.o: brttypes.h brt-internal.h memory.h
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
 log-test: log.o memory.o
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o
 
 cachetable-test.o: cachetable.h memory.h
 cachetable-test: cachetable.o memory.o cachetable-test.o
 
-benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o
 
 clean:
 	rm -rf *.o hashtest brt-test cachetable-test randbrt randdb4 benchmark-test *.bb *.bbg *.da

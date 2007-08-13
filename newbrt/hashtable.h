@@ -36,8 +36,9 @@ struct hashelt {
 };
 
 struct hashtable {
-    int n_keys;
-    int arraysize;
+    unsigned int n_keys;
+    unsigned int arraysize;
+    unsigned int primeidx;
     HASHELT *array;
 };
 
@@ -45,10 +46,10 @@ struct hashtable {
 void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,void*), void*);
 // If you don't want to use something, do something like use "key __attribute__((__unused__))" for keyvar.
 #define HASHTABLE_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) ({ \
-  int hi_counter;                                                            \
+  unsigned int hi_counter;                                                   \
   for (hi_counter=0; hi_counter<table->arraysize; hi_counter++) {            \
     HASHELT hi_he;                                                           \
-    for (hi_he=table->array[hi_counter]; hi_he; hi_he=hi_he->next) {           \
+    for (hi_he=table->array[hi_counter]; hi_he; hi_he=hi_he->next) {         \
       const char *keyvar     = hi_he->key;                                   \
       ITEMLEN     keylenvar  = hi_he->keylen;                                \
       const char *datavar    = hi_he->val;                                   \

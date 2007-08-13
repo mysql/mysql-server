@@ -1,6 +1,7 @@
 #include "key.h"
 #include "hashtable.h"
 #include "memory.h"
+#include "primes.h"
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -136,6 +137,7 @@ void test1(void) {
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+    test_primes();
     test0();
     test1();
     malloc_cleanup();
