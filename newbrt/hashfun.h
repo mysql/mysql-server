@@ -5,6 +5,9 @@ static inline unsigned int hash_key (const unsigned char *key, unsigned long key
     unsigned int hash=0;
     for (i=0; i<keylen; i++, key++) {
 	hash *= 16777619;
+	// GCC 4.1.2 -O2 and -O3 translates the following shifts back into the multiply shown on the line above here.
+	// So much for optimizing this multiplication...
+	//hash += (hash<<1) + (hash<<4) + (hash<<7) + (hash<<8) + (hash<<24);
 	hash ^= *key;
     }
     return hash;
