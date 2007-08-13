@@ -293,7 +293,7 @@ var5 from query that returns no row
 failing query in let
 mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
-mysqltest: At line 1: Could not open file ./non_existingFile
+mysqltest: At line 1: Could not open file './non_existingFile'
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 
@@ -352,6 +352,8 @@ here is the sourced script
 In loop
 here is the sourced script
 here is the sourced script
+"hello"
+"hello"
 mysqltest: At line 1: Missing argument to sleep
 mysqltest: At line 1: Missing argument to real_sleep
 mysqltest: At line 1: Invalid argument to sleep "abc"
@@ -538,7 +540,7 @@ mysqltest: At line 1: File already exist: 'MYSQLTEST_VARDIR/tmp/test_file1.tmp'
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: Failed to open file non_existing_file
+mysqltest: At line 1: Failed to open file 'non_existing_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
