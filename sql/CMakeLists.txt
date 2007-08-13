@@ -51,7 +51,7 @@ ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
                filesort.cc gstream.cc ha_blackhole.cc 
                ha_archive.cc ha_heap.cc ha_myisam.cc ha_myisammrg.cc
-               ha_innodb.cc ha_federated.cc ha_berkeley.cc ha_blackhole.cc
+               ha_innodb.cc ha_federated.cc ha_berkeley.cc
                handler.cc hash_filo.cc hash_filo.h 
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -84,7 +84,7 @@ ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 
 TARGET_LINK_LIBRARIES(mysqld${MYSQLD_EXE_SUFFIX}
-		      heap myisam myisammrg mysys yassl zlib dbug yassl 
+		      heap myisam myisammrg mysys yassl zlib debug dbug yassl 
                       taocrypt strings vio regex wsock32)
 
 IF(EMBED_MANIFESTS)
@@ -128,8 +128,9 @@ ADD_CUSTOM_COMMAND(
 	DEPENDS ${PROJECT_SOURCE_DIR}/sql/message.mc)
 
 # Gen_lex_hash
+# About "mysqlclient_notls", see note in "client/CMakeLists.txt"
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient wsock32)
+TARGET_LINK_LIBRARIES(gen_lex_hash mysqlclient_notls wsock32)
 GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
 ADD_CUSTOM_COMMAND(
 	OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h

@@ -37,7 +37,6 @@ From the root of your bk clone, execute the command:  win\configure <options>.
 The options right now are
 
     WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
-    WITH_PARTITION_STORAGE_ENGINE
     WITH_ARCHIVE_STORAGE_ENGINE
     WITH_BERKELEY_STORAGE_ENGINE
     WITH_BLACKHOLE_STORAGE_ENGINE
@@ -57,7 +56,7 @@ The options right now are
 
 So the command line could look like:
 
-win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
+win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_ARCHIVE_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-my-suffix
 
 Step 5
 ------
