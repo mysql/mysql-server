@@ -1758,9 +1758,15 @@ int ha_ndbcluster::unique_index_read(const byte *key,
 
   if (execute_no_commit_ie(this,trans,false) != 0) 
   {
-    table->status= STATUS_NOT_FOUND;
-    DBUG_RETURN(ndb_err(trans));
+    int err= ndb_err(trans);
+    if(err==HA_ERR_KEY_NOT_FOUND)
+      table->status= STATUS_NOT_FOUND;
+    else
+      table->status= STATUS_GARBAGE;
+
+    DBUG_RETURN(err);
   }
+
   // The value have now been fetched from NDB
   unpack_record(buf);
   table->status= 0;
