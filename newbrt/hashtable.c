@@ -23,6 +23,19 @@ int toku_hashtable_create (HASHTABLE *h) {
     return 0;
 }
 
+// FNV Hash: From an idea sent by Glenn Fowler and Phong Vo to the IEEE POSIX 1003.2 committee.  Landon Curt Noll improved it.
+// See: http://isthe.com/chongo/tech/comp/fnv/
+static unsigned int hash_key (const char *key, ITEMLEN keylen) {
+    ITEMLEN i;
+    unsigned int hash=0;
+    for (i=0; i<keylen; i++, key++) {
+	hash *= 16777619;
+	hash ^= *(unsigned char*)key;
+    }
+    return hash;
+}
+
+#if 0
 static unsigned int hash_key (const char *key, ITEMLEN keylen) {
     /* From Sedgewick.  There are probably better hash functions. */
     unsigned int b    = 378551;
@@ -35,6 +48,7 @@ static unsigned int hash_key (const char *key, ITEMLEN keylen) {
     }
     return hash;
 }
+#endif
 
 static void hash_find_internal (HASHTABLE tab, const char *key, ITEMLEN keylen, HASHELT *hashelt, HASHELT **prev_ptr) {
     unsigned int h = hash_key (key, keylen) % tab->arraysize;
