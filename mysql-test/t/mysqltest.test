@@ -854,6 +854,19 @@ while ($num)
 
 --remove_file $MYSQLTEST_VARDIR/tmp/sourced.inc
 
+--write_file $MYSQLTEST_VARDIR/tmp/sourced.inc
+echo "hello";
+EOF
+
+let $x= sourced;
+source $MYSQLTEST_VARDIR/tmp/$x.inc;
+
+let $x= $MYSQLTEST_VARDIR;
+source $x/tmp/sourced.inc;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/sourced.inc
+
+
 # ----------------------------------------------------------------------------
 # Test sleep command
 # ----------------------------------------------------------------------------
@@ -1422,7 +1435,7 @@ select "this will be executed";
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
-remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
+remove_file $MYSQLTEST_VARDIR/log/zero_length_file.reject;
 
 #
 # Test that a test file that does not generate any output fails.
