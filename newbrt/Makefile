@@ -38,13 +38,13 @@ pma-test: pma.o memory.o key.o ybt.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h  ../include/ydb-constants.h
 ybt.o: ybt.h brttypes.h
 ybt-test: ybt-test.o ybt.o memory.o
-cachetable.o: cachetable.h
+cachetable.o: cachetable.h hashfun.h
 brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o
 brt-test.o brt.o: brt.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: pma.h yerror.h brt.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
 mdict.o: pma.h
-hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/ydb-constants.h
+hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/ydb-constants.h hashfun.h
 memory.o: memory.h
 hashtest: hashtable.o memory.o
 brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h

@@ -31,6 +31,7 @@ typedef struct hashelt *HASHELT;
 struct hashelt {
     char *key; ITEMLEN keylen;  /* key is NULL for empty elements */
     char *val; ITEMLEN vallen;
+    unsigned int hash;
     HASHELT next;
 };
 
