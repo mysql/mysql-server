@@ -3165,9 +3165,7 @@ btr_estimate_number_of_different_key_vals(
 
 	n_cols = dict_index_get_n_unique(index);
 
-	n_diff = mem_alloc((n_cols + 1) * sizeof(ib_longlong));
-
-	memset(n_diff, 0, (n_cols + 1) * sizeof(ib_longlong));
+	n_diff = mem_calloc((n_cols + 1) * sizeof(ib_longlong));
 
 	/* We sample some pages in the index to get an estimate */
 
