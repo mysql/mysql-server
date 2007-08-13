@@ -43,7 +43,7 @@ static int reclength=39;
 
 
 static int calc_check(uchar *buf,uint length);
-static void make_record(char *record, uint n1, uint n2, uint n3,
+static void make_record(uchar *record, uint n1, uint n2, uint n3,
 			const char *mark, uint count);
 
 /* Main program */
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
   int error;
   ulong pos;
   unsigned long key_check;
-  char record[128],record2[128],record3[128],key[10];
+  uchar record[128],record2[128],record3[128],key[10];
   const char *filename,*filename2;
   HP_INFO *file,*file2;
   HP_SHARE *tmp_share;
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
   signal(SIGINT,endprog);
 
   printf("- Writing records:s\n");
-  strmov(record,"          ..... key");
+  strmov((char*) record,"          ..... key");
 
   for (i=0 ; i < recant ; i++)
   {
@@ -179,10 +179,10 @@ int main(int argc, char *argv[])
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
     {
-      sprintf(key,"%6d",j);
+      sprintf((char*) key,"%6d",j);
       if (heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT))
       {
-	printf("can't find key1: \"%s\"\n",key);
+	printf("can't find key1: \"%s\"\n",(char*) key);
 	goto err;
       }
 #ifdef NOT_USED
@@ -192,13 +192,13 @@ int main(int argc, char *argv[])
 #endif
       if (heap_delete(file,record))
       {
-	printf("error: %d; can't delete record: \"%s\"\n", my_errno,record);
+	printf("error: %d; can't delete record: \"%s\"\n", my_errno,(char*) record);
 	goto err;
       }
       opt_delete++;
-      key1[atoi(record+keyinfo[0].seg[0].start)]--;
-      key3[atoi(record+keyinfo[2].seg[0].start)]=0;
-      key_check-=atoi(record);
+      key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+      key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
+      key_check-=atoi((char*) record);
       if (testflag == 2 && heap_check_heap(file,0))
       {
 	puts("Heap keys crashed");
@@ -239,10 +239,10 @@ int main(int argc, char *argv[])
       for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
       if (!key1[j])
 	continue;
-      sprintf(key,"%6d",j);
+      sprintf((char*) key,"%6d",j);
       if (heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT))
       {
-	printf("can't find key1: \"%s\"\n",key);
+	printf("can't find key1: \"%s\"\n",(char*) key);
 	goto err;
       }
     }
@@ -251,19 +251,20 @@ int main(int argc, char *argv[])
       if (my_errno != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
       {
 	printf("error: %d; can't update:\nFrom: \"%s\"\nTo:   \"%s\"\n",
-	       my_errno,record,record2);
+	       my_errno,(char*) record, (char*) record2);
 	goto err;
       }
       if (verbose)
-	printf("Double key when tried to update:\nFrom: \"%s\"\nTo:   \"%s\"\n",record,record2);
+	printf("Double key when tried to update:\nFrom: \"%s\"\nTo:   \"%s\"\n",
+               (char*) record, (char*) record2);
     }
     else
     {
-      key1[atoi(record+keyinfo[0].seg[0].start)]--;
-      key3[atoi(record+keyinfo[2].seg[0].start)]=0;
+      key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+      key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
       key1[n1]++; key3[n3]=1;
       update++;
-      key_check=key_check-atoi(record)+n1;
+      key_check=key_check-atoi((char*) record)+n1;
     }
     if (testflag == 3 && heap_check_heap(file,0))
     {
@@ -281,7 +282,7 @@ int main(int argc, char *argv[])
   for (i=999, dupp_keys=found_key=0 ; i>0 ; i--)
   {
     if (key1[i] > dupp_keys) { dupp_keys=key1[i]; found_key=i; }
-    sprintf(key,"%6d",found_key);
+    sprintf((char*) key,"%6d",found_key);
   }
 
   if (dupp_keys > 3)
@@ -294,9 +295,9 @@ int main(int argc, char *argv[])
       goto err;
     if (heap_rnext(file,record3)) goto err;
     if (heap_delete(file,record3)) goto err;
-    key_check-=atoi(record3);
-    key1[atoi(record+keyinfo[0].seg[0].start)]--;
-    key3[atoi(record+keyinfo[2].seg[0].start)]=0;
+    key_check-=atoi((char*) record3);
+    key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+    key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
     opt_delete++;
     ant=2;
     while ((error=heap_rnext(file,record3)) == 0 ||
@@ -321,16 +322,16 @@ int main(int argc, char *argv[])
 
     if (heap_rlast(file,record3,0)) goto err;
     if (heap_delete(file,record3)) goto err;
-    key_check-=atoi(record3);
-    key1[atoi(record+keyinfo[0].seg[0].start)]--;
-    key3[atoi(record+keyinfo[2].seg[0].start)]=0;
+    key_check-=atoi((char*) record3);
+    key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+    key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
     opt_delete++;
     if (heap_rprev(file,record3) || heap_rprev(file,record3))
       goto err;
     if (heap_delete(file,record3)) goto err;
-    key_check-=atoi(record3);
-    key1[atoi(record+keyinfo[0].seg[0].start)]--;
-    key3[atoi(record+keyinfo[2].seg[0].start)]=0;
+    key_check-=atoi((char*) record3);
+    key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+    key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
     opt_delete++;
     ant=3;
     while ((error=heap_rprev(file,record3)) == 0 ||
@@ -365,10 +366,10 @@ int main(int argc, char *argv[])
   if (error)
     goto err;
   if (heap_delete(file,record3)) goto err;
-  key_check-=atoi(record3);
+  key_check-=atoi((char*) record3);
   opt_delete++;
-  key1[atoi(record+keyinfo[0].seg[0].start)]--;
-  key3[atoi(record+keyinfo[2].seg[0].start)]=0;
+  key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
+  key3[atoi((char*) record+keyinfo[2].seg[0].start)]=0;
   ant=0;
   while ((error=heap_scan(file,record3)) == 0 ||
 	 error == HA_ERR_RECORD_DELETED)
@@ -510,7 +511,7 @@ int main(int argc, char *argv[])
   for (i=999, dupp_keys=found_key=0 ; i>0 ; i--)
   {
     if (key1[i] > dupp_keys) { dupp_keys=key1[i]; found_key=i; }
-    sprintf(key,"%6d",found_key);
+    sprintf((char*) key,"%6d",found_key);
   }
   printf("- Read through all keys with first-next-last-prev\n");
   ant=0;
@@ -577,7 +578,7 @@ int main(int argc, char *argv[])
     {
       if (heap_write(file2,record))
 	goto err;
-      key_check-=atoi(record);
+      key_check-=atoi((char*) record);
       write_count++;
       if (heap_delete(file,record))
 	goto err;
@@ -684,11 +685,11 @@ static int calc_check(uchar *buf, uint length)
   return check;
 }
 
-static void make_record(char *record, uint n1, uint n2, uint n3,
+static void make_record(uchar *record, uint n1, uint n2, uint n3,
 			const char *mark, uint count)
 {
   bfill(record,reclength,' ');
-  sprintf(record,"%6d:%4d:%8d:%3.3s: %4d",
+  sprintf((char*) record,"%6d:%4d:%8d:%3.3s: %4d",
 	  n1,n2,n3,mark,count);
   record[37]='A';				/* Store A in null key */
   record[38]=1;					/* set as null */

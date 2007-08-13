@@ -99,23 +99,23 @@ uchar *net_store_length(uchar *packet, ulonglong length)
   if (length < (ulonglong) LL(251))
   {
     *packet=(uchar) length;
-    return (char*) packet+1;
+    return packet+1;
   }
   /* 251 is reserved for NULL */
   if (length < (ulonglong) LL(65536))
   {
     *packet++=252;
     int2store(packet,(uint) length);
-    return (char*) packet+2;
+    return packet+2;
   }
   if (length < (ulonglong) LL(16777216))
   {
     *packet++=253;
     int3store(packet,(ulong) length);
-    return (char*) packet+3;
+    return packet+3;
   }
   *packet++=254;
   int8store(packet,length);
-  return (char*) packet+8;
+  return packet+8;
 }
 

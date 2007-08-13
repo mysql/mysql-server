@@ -59,8 +59,10 @@ typedef struct my_dblock_st
   lock_db key.
 */
 
-static uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
-                              my_bool not_used __attribute__((unused)))
+extern "C" uchar* lock_db_get_key(my_dblock_t *, size_t *, my_bool not_used);
+
+uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
+                       my_bool not_used __attribute__((unused)))
 {
   *length= ptr->name_length;
   return (uchar*) ptr->name;
@@ -71,7 +73,9 @@ static uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
   Free lock_db hash element.
 */
 
-static void lock_db_free_element(void *ptr)
+extern "C" void lock_db_free_element(void *ptr);
+
+void lock_db_free_element(void *ptr)
 {
   my_free(ptr, MYF(0));
 }
@@ -155,8 +159,11 @@ typedef struct my_dbopt_st
   Function we use in the creation of our hash to get key.
 */
 
-static uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+extern "C" uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
+                                    my_bool not_used);
+
+uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
+                         my_bool not_used __attribute__((unused)))
 {
   *length= opt->name_length;
   return (uchar*) opt->name;
@@ -182,7 +189,9 @@ static inline void write_to_binlog(THD *thd, char *query, uint q_len,
   Function to free dboptions hash element
 */
 
-static void free_dbopt(void *dbopt)
+extern "C" void free_dbopt(void *dbopt);
+
+void free_dbopt(void *dbopt)
 {
   my_free((uchar*) dbopt, MYF(0));
 }

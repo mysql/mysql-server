@@ -1855,7 +1855,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
   Uint32 RstackPtr= 0;
   union {
     Uint32 TregMemBuffer[32];
-    Uint64 Tdummy[16];
+    Uint64 align[16];
   };
   Uint32 TstackMemBuffer[32];
 

@@ -456,7 +456,11 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		my_time(0);
+  /*
+    We can't call my_time() here as this would cause a call before
+    my_init() is called
+  */
+  when=		0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -637,6 +641,7 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 {
   uchar header[LOG_EVENT_HEADER_LEN];
+  ulong now;
   DBUG_ENTER("Log_event::write_header");
 
   /* Store number of bytes that will be written by this event */
@@ -687,6 +692,14 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
+  /* Set time of we this isn't a query */
+  if (!(now= (ulong) when))
+  {
+    THD *thd= current_thd;
+    /* thd will only be 0 here at time of log creation */
+    now= thd ? thd->start_time : my_time(0);
+  }
+
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
     FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
@@ -694,7 +707,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     because we read them before knowing the format).
   */
 
-  int4store(header, (ulong) when);              // timestamp
+  int4store(header, now);              // timestamp
   header[EVENT_TYPE_OFFSET]= get_type_code();
   int4store(header+ SERVER_ID_OFFSET, server_id);
   int4store(header+ EVENT_LEN_OFFSET, data_written);
@@ -7095,7 +7108,7 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error? error : local_error;
 }
 
-int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
+int Write_rows_log_event::do_prepare_row(THD *thd_arg, RELAY_LOG_INFO const *rli,
                                          TABLE *table,
                                          uchar const *const row_start,
                                          uchar const **const row_end)
@@ -7106,7 +7119,7 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                             &m_master_reclength, table->write_set, WRITE_ROWS_EVENT))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
   bitmap_copy(table->read_set, table->write_set);
@@ -7370,10 +7383,10 @@ replace_record(THD *thd, TABLE *table,
       }
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum, 0);
-      error= table->file->index_read_idx(table->record[1], keynum,
-                                         (const uchar*)key.get(),
-                                         HA_WHOLE_KEY,
-                                         HA_READ_KEY_EXACT);
+      error= table->file->index_read_idx_map(table->record[1], keynum,
+                                             (const uchar*)key.get(),
+                                             HA_WHOLE_KEY,
+                                             HA_READ_KEY_EXACT);
       if (error)
       {
         table->file->print_error(error, MYF(0));
@@ -7624,8 +7637,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read(table->record[1], key, HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT)))
+    if ((error= table->file->index_read_map(table->record[1], key, HA_WHOLE_KEY,
+                                            HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
@@ -7825,7 +7838,7 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error;
 }
 
-int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
+int Delete_rows_log_event::do_prepare_row(THD *thd_arg, RELAY_LOG_INFO const *rli,
                                           TABLE *table,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
@@ -7834,7 +7847,7 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                             &m_master_reclength, table->read_set, DELETE_ROWS_EVENT))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 
@@ -8001,7 +8014,7 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error;
 }
 
-int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
+int Update_rows_log_event::do_prepare_row(THD *thd_arg, RELAY_LOG_INFO const *rli,
                                           TABLE *table,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
@@ -8018,7 +8031,7 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   if ((error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                          &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT)))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 
@@ -8028,7 +8041,7 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO const *rli,
   if ((error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
                          &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT)))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 

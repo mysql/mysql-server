@@ -3913,9 +3913,9 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-my_bool include_table(const char* hash_key, uint len)
+my_bool include_table(const uchar *hash_key, size_t len)
 {
-  return !hash_search(&ignore_table, (uchar*) hash_key, len);
+  return !hash_search(&ignore_table, hash_key, len);
 }
 
 
@@ -3943,7 +3943,7 @@ static int dump_all_tables_in_db(char *database)
     for (numrows= 0 ; (table= getTableName(1)) ; )
     {
       char *end= strmov(afterdot, table);
-      if (include_table(hash_key,end - hash_key))
+      if (include_table((uchar*) hash_key,end - hash_key))
       {
         numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
@@ -3964,7 +3964,7 @@ static int dump_all_tables_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= strmov(afterdot, table);
-    if (include_table(hash_key, end - hash_key))
+    if (include_table((uchar*) hash_key, end - hash_key))
     {
       dump_table(table,database);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
@@ -4043,7 +4043,7 @@ static my_bool dump_all_views_in_db(char *database)
     for (numrows= 0 ; (table= getTableName(1)); )
     {
       char *end= strmov(afterdot, table);
-      if (include_table(hash_key,end - hash_key))
+      if (include_table((uchar*) hash_key,end - hash_key))
       {
         numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
@@ -4064,7 +4064,7 @@ static my_bool dump_all_views_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= strmov(afterdot, table);
-    if (include_table(hash_key, end - hash_key))
+    if (include_table((uchar*) hash_key, end - hash_key))
       get_view_structure(table, database);
   }
   if (opt_xml)

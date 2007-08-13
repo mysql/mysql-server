@@ -79,11 +79,12 @@ public:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
-                 enum ha_rkey_function find_flag);
-  int index_read_last(uchar *buf, const uchar *key, key_part_map keypart_map);
-  int index_read_idx(uchar * buf, uint index, const uchar * key,
-                     key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int index_read_map(uchar * buf, const uchar * key, key_part_map keypart_map,
+                     enum ha_rkey_function find_flag);
+  int index_read_last_map(uchar *buf, const uchar *key, key_part_map keypart_map);
+  int index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag);
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);
