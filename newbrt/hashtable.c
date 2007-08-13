@@ -53,7 +53,10 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     }
 }
 
-int toku_hash_rehash_everything (HASHTABLE tab, unsigned int newarraysize) {
+int toku_hash_rehash_everything (HASHTABLE tab, unsigned int primeindexdelta) {
+    int newprimeindex = primeindexdelta+tab->primeidx;
+    assert(newprimeindex>=0);
+    unsigned int newarraysize = get_prime(newprimeindex);
     HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
     unsigned int i;
     assert(newarray!=0);
@@ -102,7 +105,7 @@ int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void
 	tab->array[h]=he;
 	tab->n_keys++;
 	if (tab->n_keys > tab->arraysize) {
-	    return toku_hash_rehash_everything(tab, tab->arraysize*2);
+	    return toku_hash_rehash_everything(tab, +1);
 	}
 	return BRT_OK;
     }
@@ -121,8 +124,8 @@ int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
 	toku_free_n(he, sizeof(*he)+he->keylen+he->vallen);
 	tab->n_keys--;
 
-	if ((tab->n_keys * 4 < tab->arraysize) && tab->arraysize>4) {
-	    return toku_hash_rehash_everything(tab, tab->arraysize/2);
+	if ((tab->n_keys * 4 < tab->arraysize) && tab->primeidx>0) {
+	    return toku_hash_rehash_everything(tab, -1);
 	}
 	return BRT_OK;
     }
