@@ -8297,7 +8297,6 @@ ha_innobase::add_index(
 	ulint		num_created;
 	ibool		dict_locked = FALSE;
 	ulint		new_primary;
-	ibool		new_unique  = FALSE;
 	ulint		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
@@ -8408,11 +8407,6 @@ err_exit:
 		if (!index[i]) {
 			error = trx->error_state;
 			goto error_handling;
-		}
-
-		if (index_defs[i].ind_type & DICT_UNIQUE) {
-
-			new_unique = TRUE;
 		}
 
 		num_created++;
