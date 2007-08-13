@@ -151,12 +151,14 @@ int pmainternal_find (PMA pma, DBT *k, DB *db) {
     assert(0<=lo);
     assert(lo==hi);
     assert(hi <= pma_index_limit(pma));
+#if 0
     /* If lo points at something, the something should not be smaller than key. */
     if (lo>0 && lo < pma_index_limit(pma) && pma->pairs[lo]) {
 	//printf("lo=%d\n", lo);
 	DBT k2;
 	assert(0 >= pma->compare_fun(db, k, fill_dbt(&k2, pma->pairs[lo]->key, pma->pairs[lo]->keylen)));
     }
+#endif
     return lo;
 }
 
