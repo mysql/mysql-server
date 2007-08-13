@@ -47,8 +47,9 @@ void insert (long long v) {
 
 void serial_insert_from (long long from) {
     long long i;
+printf("insert from %lld\n", from*SERIAL_SPACING);
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
-	insert(from+i*SERIAL_SPACING);
+	insert((from+i)*SERIAL_SPACING);
     }
 }
 
@@ -58,6 +59,7 @@ long long llrandom (void) {
 
 void random_insert_below (long long below) {
     long long i;
+printf("ramdom insert below %lld\n", below);
     for (i=0; i<ITEMS_TO_INSERT_PER_ITERATION; i++) {
 	insert(llrandom()%below);
     }
@@ -77,7 +79,7 @@ void biginsert (long long n_elements) {
 	printf("serial %.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
 	fflush(stdout);
 	gettimeofday(&t1,0);
-	random_insert_below(i+BOUND_INCREASE_PER_ITERATION);
+	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
 	printf("random %.6fs %8.0f/s\n", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
     }
