@@ -27,3 +27,74 @@ ALTER TABLE t1 ADD c INT;
 INSERT INTO t1 values (2,1,1);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+#
+# basic concurent online alter test
+#
+connection server1;
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+
+connection server2;
+begin;
+update t1 set b = 0 where a = 1;
+update t1 set b = 1 where a = 2;
+delete from t1      where a = 3;
+
+insert into t1 values (5,5);
+insert into t1 values (6,6);
+update t1 set b = 0 where a = 6;
+
+connection server1;
+ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+
+connection server2;
+update t1 set b = 0 where a = 2;
+update t1 set b = 0 where a = 4;
+update t1 set b = 0 where a = 5;
+insert into t1 values (7,0,null,null,null);
+insert into t1 values (8,0,'8','8','8');
+commit;
+
+connection server1;
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1;
+
+connection server1;
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+insert into t1 values (2,2);
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+
+connection server2;
+begin;
+update t1 set b = 0 where a = 1;
+update t1 set b = 1 where a = 2;
+delete from t1      where a = 3;
+
+insert into t1 values (5,5);
+insert into t1 values (6,6);
+update t1 set b = 0 where a = 6;
+
+connection server1;
+ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+
+connection server2;
+update t1 set b = 0 where a = 2;
+update t1 set b = 0 where a = 4;
+update t1 set b = 0 where a = 5;
+insert into t1 values (7,0,null,null,null);
+insert into t1 values (8,0,'8','8','8');
+rollback;
+
+connection server1;
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1;

@@ -10770,7 +10770,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     Temporary workaround until TUP is fixed.
     If no var or dyn attr, use copying alter table.
   */
-  bool any_var_dyn_attr=false;
+  bool any_var_dyn_attr= tab->getForceVarPart();
 
   for (i= 0; i < table->s->fields; i++)
   {
