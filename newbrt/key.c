@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <string.h>
 
+#if 0
 int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) {
     const unsigned char *key1 = key1b;
     const unsigned char *key2 = key2b;
@@ -18,8 +19,9 @@ int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) 
     return 0;
 }
 
+#else
 #if 0
-int oldkeycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
     } else if (key1len<key2len) {
@@ -30,6 +32,21 @@ int oldkeycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len)
 	return -keycompare(key2,key2len,key1,key1len);
     }
 }
+#else
+int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+    if (key1len==key2len) {
+	return memcmp(key1,key2,key1len);
+    } else if (key1len<key2len) {
+	int r = memcmp(key1,key2,key1len);
+	if (r<=0) return -1; /* If the keys are the same up to 1's length, then return -1, since key1 is shorter than key2. */
+	else return 1;
+    } else {
+	int r = memcmp(key1,key2,key2len);
+	if (r>=0) return 1; /* If the keys are the same up to 2's length, then return 1 since key1 is longer than key2 */
+	else return -1;
+    }
+}
+#endif
 #endif
 
 void test_keycompare (void) {
