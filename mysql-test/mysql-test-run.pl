@@ -708,6 +708,7 @@ sub command_line_setup () {
   if (!$opt_extern)
   {
     $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
+                                       vs_config_dirs('sql', 'mysqld-debug'),
 				       "$glob_basedir/sql/mysqld",
 				       "$path_client_bindir/mysqld-max-nt",
 				       "$path_client_bindir/mysqld-max",
@@ -2436,6 +2437,7 @@ sub vs_config_dirs ($$) {
   }
 
   return ("$glob_basedir/$path_part/release/$exe",
+          "$glob_basedir/$path_part/relwithdebinfo/$exe",
           "$glob_basedir/$path_part/debug/$exe");
 }
 
