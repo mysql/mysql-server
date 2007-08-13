@@ -488,7 +488,7 @@ row_drop_database_for_mysql(
 /*************************************************************************
 Renames a table for MySQL. */
 
-int
+ulint
 row_rename_table_for_mysql(
 /*=======================*/
 					/* out: error code or DB_SUCCESS */

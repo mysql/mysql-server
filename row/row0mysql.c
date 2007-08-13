@@ -3747,7 +3747,7 @@ row_delete_constraint(
 /*************************************************************************
 Renames a table for MySQL. */
 
-int
+ulint
 row_rename_table_for_mysql(
 /*=======================*/
 					/* out: error code or DB_SUCCESS */
@@ -3757,7 +3757,7 @@ row_rename_table_for_mysql(
 	ibool		commit)		/* in: if TRUE then commit trx */
 {
 	dict_table_t*	table;
-	ulint		err;
+	ulint		err			= DB_ERROR;
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
@@ -3777,8 +3777,7 @@ row_rename_table_for_mysql(
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
 
-		trx_commit_for_mysql(trx);
-		return(DB_ERROR);
+		goto funct_exit;
 	} else if (row_mysql_is_system_table(new_name)) {
 
 		fprintf(stderr,
@@ -3788,8 +3787,7 @@ row_rename_table_for_mysql(
 			" of the MyISAM type!\n",
 			new_name);
 
-		trx_commit_for_mysql(trx);
-		return(DB_ERROR);
+		goto funct_exit;
 	}
 
 	trx->op_info = "renaming table";
@@ -4080,7 +4078,7 @@ funct_exit:
 
 	trx->op_info = "";
 
-	return((int) err);
+	return(err);
 }
 
 /*************************************************************************
