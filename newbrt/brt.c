@@ -957,7 +957,7 @@ static int brtnode_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 }
 
 //enum {n_nodes_in_cache =64};
-enum {n_nodes_in_cache =128};
+enum {n_nodes_in_cache =127};
 
 int brt_create_cachetable (CACHETABLE *ct, int cachelines) {
     if (cachelines==0) cachelines=n_nodes_in_cache;
