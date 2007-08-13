@@ -383,6 +383,9 @@ static inline my_bool have_specific_lock(THR_LOCK_DATA *data,
 }
 
 
+static void wake_up_waiters(THR_LOCK *lock);
+
+
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               my_bool in_wait_list)
@@ -444,8 +447,13 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
       else
 	wait->last=data->prev;
       data->type= TL_UNLOCK;                    /* No lock */
+      check_locks(data->lock, "killed or timed out wait_for_lock", 1);
+      wake_up_waiters(data->lock);
     }
-    check_locks(data->lock,"failed wait_for_lock",0);
+    else
+    {
+      check_locks(data->lock, "aborted wait_for_lock", 0);
+    }
   }
   else
   {
@@ -771,6 +779,26 @@ void thr_unlock(THR_LOCK_DATA *data)
     lock->read_no_write_count--;
   data->type=TL_UNLOCK;				/* Mark unlocked */
   check_locks(lock,"after releasing lock",1);
+  wake_up_waiters(lock);
+  pthread_mutex_unlock(&lock->mutex);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  @brief  Wake up all threads which pending requests for the lock
+          can be satisfied.
+
+  @param  lock  Lock for which threads should be woken up
+
+*/
+
+static void wake_up_waiters(THR_LOCK *lock)
+{
+  THR_LOCK_DATA *data;
+  enum thr_lock_type lock_type;
+
+  DBUG_ENTER("wake_up_waiters");
 
   if (!lock->write.data)			/* If no active write locks */
   {
@@ -820,11 +848,7 @@ void thr_unlock(THR_LOCK_DATA *data)
 	  data=lock->write_wait.data;		/* Free this too */
 	}
 	if (data->type >= TL_WRITE_LOW_PRIORITY)
-	{
-	  check_locks(lock,"giving write lock",0);
-	  pthread_mutex_unlock(&lock->mutex);
-	  DBUG_VOID_RETURN;
-	}
+          goto end;
 	/* Release possible read locks together with the write lock */
       }
       if (lock->read_wait.data)
@@ -879,8 +903,7 @@ void thr_unlock(THR_LOCK_DATA *data)
       free_all_read_locks(lock,0);
   }
 end:
-  check_locks(lock,"thr_unlock",0);
-  pthread_mutex_unlock(&lock->mutex);
+  check_locks(lock, "after waking up waiters", 0);
   DBUG_VOID_RETURN;
 }
 
@@ -1094,6 +1117,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
 	lock->write_wait.last= data->prev;
     }
   }
+  wake_up_waiters(lock);
   pthread_mutex_unlock(&lock->mutex);
   DBUG_RETURN(found);
 }
