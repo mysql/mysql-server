@@ -578,6 +578,7 @@ int pma_delete (PMA pma, DBT *k, DB *db) {
 int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
 			   int *replaced_v_size /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
 			   ) {
+    //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     int idx = pmainternal_find(pma, k, db);
     struct kv_pair *pair;
     if (idx < pma_index_limit(pma) && (pair=pma->pairs[idx])) {
@@ -592,6 +593,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
         idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
     assert(!pma->pairs[idx]);
+    //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     pma->pairs[idx] = kv_pair_malloc(k->data, k->size, v->data, v->size);
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
