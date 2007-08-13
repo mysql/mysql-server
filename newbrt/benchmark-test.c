@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <errno.h>
 
 const char fname[]="sinsert.brt";
 
@@ -67,36 +68,48 @@ double tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec-b->tv_sec)+1e-6*(a->tv_usec-b->tv_usec);
 }
 
-void biginsert (long long n_elements) {
+void biginsert (long long n_elements, struct timeval *starttime) {
     long i;
     struct timeval t1,t2;
-    for (i=0; i<n_elements; i+=ITEMS_TO_INSERT_PER_ITERATION) {
+    int iteration;
+    for (i=0, iteration=0; i<n_elements; i+=ITEMS_TO_INSERT_PER_ITERATION, iteration++) {
 	gettimeofday(&t1,0);
 	serial_insert_from(i);
 	gettimeofday(&t2,0);
-	printf("serial %.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	printf("serial %.7fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
 	fflush(stdout);
 	gettimeofday(&t1,0);
 	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	printf("random %.6fs %8.0f/s\n", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	printf("random %.7fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	printf("cumulative %.7fs %9.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
     }
 }
 
 
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int main (int argc, char *argv[]) {
     struct timeval t1,t2,t3;
-    long long total_n_items = 1LL<<22; // 1LL<<16
+    long long total_n_items;
+    if (argc==2) {
+	char *end;
+	errno=0;
+	total_n_items = ITEMS_TO_INSERT_PER_ITERATION * strtol(argv[1], &end, 10);
+	assert(errno==0);
+	assert(*end==0);
+	assert(end!=argv[1]);
+    } else {
+	total_n_items = 1LL<<22; // 1LL<<16
+    }
     printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
     setup();
     gettimeofday(&t1,0);
-    biginsert(total_n_items);
+    biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
     shutdown();
     gettimeofday(&t3,0);
-    printf("Shutdown %.6fs\n", tdiff(&t3, &t2));
-    printf("Total time %.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    printf("Shutdown %.7fs\n", tdiff(&t3, &t2));
+    printf("Total time %.7fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
     malloc_report();
     malloc_cleanup();
     return 0;
