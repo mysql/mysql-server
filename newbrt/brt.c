@@ -798,7 +798,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
-#define INSERT_ALL_AT_ONCE
+//#define INSERT_ALL_AT_ONCE
 
 static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
@@ -810,7 +810,7 @@ static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     enum pma_errors pma_status = pma_insert_or_replace(node->u.l.buffer, k, init_dbt(&v2), db, &replaced_v_size);
     assert(pma_status==BRT_OK);
     if (replaced_v_size>=0) {
-	node->u.l.n_bytes_in_buffer += v.size - replaced_v_size;
+	node->u.l.n_bytes_in_buffer += v->size - replaced_v_size;
     } else {
 	node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
     }
