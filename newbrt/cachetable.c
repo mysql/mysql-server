@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <string.h>
+#include "hashfun.h"
 
 //#define TRACE_CACHETABLE
 #ifdef TRACE_CACHETABLE
@@ -164,27 +165,14 @@ int cachefile_count_pinned (CACHEFILE cf, int print_them) {
     return n_pinned;
 }
 
-static unsigned int hash_key (const char *key, int keylen) {
-    /* From Sedgewick.  There are probably better hash functions. */
-    unsigned int b    = 378551;
-    unsigned int a    = 63689;
-    unsigned int hash = 0;
-    int i;
-    for (i = 0; i < keylen; i++ ) {
-	hash = hash * a + key[i];
-	a *= b;
-    }
-    return hash;
-}
-
 unsigned int ct_hash_longlong (unsigned long long l) {
-    unsigned int r = hash_key((char*)&l, 8);
+    unsigned int r = hash_key((unsigned char*)&l, 8);
     printf("%lld --> %d --> %d\n", l, r, r%64);
     return  r;
 }
 
 static unsigned int hashit (CACHETABLE t, CACHEKEY key) {
-    return hash_key((char*)&key, sizeof(key))%t->table_size;
+    return hash_key((unsigned char*)&key, sizeof(key))%t->table_size;
 }
 
 
