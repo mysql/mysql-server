@@ -141,7 +141,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                                    PAGECACHE_PIN_LEFT_UNPINNED,
                                    PAGECACHE_WRITE_DELAY, 0,
-                                   offset, sizeof(buff)));
+                                   offset, sizeof(buff), 0, 0));
 } /* _ma_dispose */
 
 

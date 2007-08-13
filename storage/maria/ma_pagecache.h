@@ -190,7 +190,11 @@ extern uchar *pagecache_valid_read(PAGECACHE *pagecache,
                                   uchar* validator_data);
 
 #define  pagecache_write(P,F,N,L,B,T,O,I,M,K) \
-   pagecache_write_part(P,F,N,L,B,T,O,I,M,K,0,(P)->block_size)
+   pagecache_write_part(P,F,N,L,B,T,O,I,M,K,0,(P)->block_size,0,0)
+
+#define  pagecache_inject(P,F,N,L,B,T,O,I,K,V,D) \
+   pagecache_write_part(P,F,N,L,B,T,O,I,PAGECACHE_WRITE_DONE, \
+                        K,0,(P)->block_size,V,D)
 
 extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     PAGECACHE_FILE *file,
@@ -203,7 +207,9 @@ extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     enum pagecache_write_mode write_mode,
                                     PAGECACHE_PAGE_LINK *link,
                                     uint offset,
-                                    uint size);
+                                    uint size,
+                                    pagecache_disk_read_validator validator,
+                                    uchar* validator_data);
 extern void pagecache_unlock(PAGECACHE *pagecache,
                              PAGECACHE_FILE *file,
                              pgcache_page_no_t pageno,
