@@ -59,7 +59,9 @@ int toku_hash_rehash_everything (HASHTABLE tab, unsigned int primeindexdelta) {
     unsigned int newarraysize = get_prime(newprimeindex);
     HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
     unsigned int i;
+    //printf("%s:%d newarraysize=%d\n", __FILE__, __LINE__, newarraysize);
     assert(newarray!=0);
+    tab->primeidx=newprimeindex;
     for (i=0; i<newarraysize; i++) newarray[i]=0;
     for (i=0; i<tab->arraysize; i++) {
 	HASHELT he;
