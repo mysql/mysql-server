@@ -24,6 +24,8 @@
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
+
+char f_tablename[256];
  
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
@@ -46,7 +48,6 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   }
   return NDBT_OK;
 }
-
 
 int runCreateInvalidTables(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
@@ -122,6 +123,8 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   }
   ctx->setTab(pTab2);
 
+  BaseString::snprintf(f_tablename, sizeof(f_tablename), pTab->getName());
+
   return NDBT_OK;
 }
 
@@ -130,7 +133,7 @@ int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   
   // Try to create table in db
-  pNdb->getDictionary()->dropTable(pTab->getName());
+  pNdb->getDictionary()->dropTable(f_tablename);
   
   return NDBT_OK;
 }
@@ -487,7 +490,7 @@ int runUseTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
   while (ctx->isTestStopped() == false) {
-    //    g_info << i++ << ": ";    
+    // g_info << i++ << ": ";
 
 
     // Delete and recreate Ndb object
@@ -513,8 +516,7 @@ int runUseTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
       continue;
     }
     
-    UtilTransactions utilTrans(*pTab2);
-    if ((res = utilTrans.clearTable(pNdb,  records)) != 0){
+    if ((res = hugoTrans.clearTable(pNdb,  records)) != 0){
       NdbError err = pNdb->getNdbError(res);
       if(err.classification == NdbError::SchemaError){
 	pNdb->getDictionary()->invalidateTable(pTab->getName());
@@ -535,9 +537,10 @@ int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
   HugoTransactions hugoTrans(*pTab2);
 
+  int i = 0;
   while (ctx->isTestStopped() == false) 
   {
-    //    g_info << i++ << ": ";    
+    ndbout_c("loop: %u", i++);
 
 
     // Delete and recreate Ndb object
@@ -556,8 +559,52 @@ int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
       continue;
     }
     
-    UtilTransactions utilTrans(*pTab2);
-    if ((res = utilTrans.clearTable(pNdb,  records)) != 0){
+    if ((res = hugoTrans.scanUpdateRecords(pNdb, records)) != 0)
+    {
+      NdbError err = pNdb->getNdbError(res);
+      if(err.classification == NdbError::SchemaError){
+	pNdb->getDictionary()->invalidateTable(pTab->getName());
+      }
+      continue;
+    }
+
+    if ((res = hugoTrans.clearTable(pNdb,  records)) != 0){
+      NdbError err = pNdb->getNdbError(res);
+      if(err.classification == NdbError::SchemaError){
+	pNdb->getDictionary()->invalidateTable(pTab->getName());
+      }
+      continue;
+    }
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
+int runUseTableUntilStopped3(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const NdbDictionary::Table* pTab2 =
+    NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+  HugoTransactions hugoTrans(*pTab2);
+
+  int i = 0;
+  while (ctx->isTestStopped() == false)
+  {
+    ndbout_c("loop: %u", i++);
+
+
+    // Delete and recreate Ndb object
+    // Otherwise you always get Invalid Schema Version
+    // It would be a nice feature to remove this two lines
+    //step->tearDown();
+    //step->setUp();
+
+
+    int res;
+    if ((res = hugoTrans.scanUpdateRecords(pNdb, records)) != 0)
+    {
       NdbError err = pNdb->getNdbError(res);
       if(err.classification == NdbError::SchemaError){
 	pNdb->getDictionary()->invalidateTable(pTab->getName());
@@ -1575,10 +1622,11 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
 
   for (int l = 0; l < loops && result == NDBT_OK ; l++){
     // Try to create table in db
-    if (myTab.createTableInDb(pNdb) != 0){
+
+    if (NDBT_Tables::createTable(pNdb, myTab.getName()) != 0){
       return NDBT_FAILED;
     }
-    
+
     // Verify that table is in db     
     const NdbDictionary::Table* pTab2 = 
       NDBT_Table::discoverTableFromDb(pNdb, myTab.getName());
@@ -1592,22 +1640,26 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
       Check that table already has a varpart, otherwise add attr is
       not possible.
     */
-    const NdbDictionary::Column *col;
-    for (Uint32 i= 0; (col= pTab2->getColumn(i)) != 0; i++)
+    if (pTab2->getForceVarPart() == false)
     {
-      if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
-          (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
+      const NdbDictionary::Column *col;
+      for (Uint32 i= 0; (col= pTab2->getColumn(i)) != 0; i++)
+      {
+        if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+            (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
+          break;
+      }
+      if (col == 0)
+      {
+        /* Alter table add attribute not applicable, just mark success. */
+        dict->dropTable(pTab2->getName());
         break;
-    }
-    if (col == 0)
-    {
-      /* Alter table add attribute not applicable, just mark success. */
-      break;
+      }
     }
 
     // Load table
-    HugoTransactions hugoTrans(*ctx->getTab());
-    if (hugoTrans.loadTable(pNdb, records) != 0){
+    HugoTransactions beforeTrans(*ctx->getTab());
+    if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
 
@@ -1643,6 +1695,37 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
     else {
       result = NDBT_FAILED;
     }
+
+    {
+      HugoTransactions afterTrans(* dict->getTable(pTabName.c_str()));
+
+      ndbout << "delete...";
+      if (afterTrans.clearTable(pNdb) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "insert...";
+      if (afterTrans.loadTable(pNdb, records) != 0){
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "update...";
+      if (afterTrans.scanUpdateRecords(pNdb, records) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "delete...";
+      if (afterTrans.clearTable(pNdb) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+    }
     
     // Drop table.
     dict->dropTable(pTabName.c_str());
@@ -1668,12 +1751,20 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbDictionary::Table myTab= *(ctx->getTab());
 
-  const NdbDictionary::Column *col;
-  for (Uint32 i= 0; (col= myTab.getColumn(i)) != 0; i++)
+  if (myTab.getForceVarPart() == false)
   {
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
-        (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
-      break;
+    const NdbDictionary::Column *col;
+    for (Uint32 i= 0; (col= myTab.getColumn(i)) != 0; i++)
+    {
+      if (col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+          (col->getDynamic() || col->getArrayType() != NDB_ARRAYTYPE_FIXED))
+        break;
+    }
+    if (col == 0)
+    {
+      ctx->stopTest();
+      return NDBT_OK;
+    }
   }
 
   //if 
@@ -3073,6 +3164,7 @@ TESTCASE("TableAddAttrsDuring",
   INITIALIZER(runCreateTheTable);
   STEP(runTableAddAttrsDuring);
   STEP(runUseTableUntilStopped2);
+  STEP(runUseTableUntilStopped3);
   FINALIZER(runDropTheTable);
 }
 TESTCASE("Bug21755",

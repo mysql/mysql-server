@@ -1057,6 +1057,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   else
   {
     memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+    req_struct->m_tuple_ptr->m_header_bits |= Tuple_header::COPY_TUPLE;
   }
   
   tup_version= (tup_version + 1) & ZTUP_VERSION_MASK;
@@ -1126,6 +1127,9 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   req_struct->attr_descr= tab_descr; 
   Uint16* order= (Uint16*)&tableDescriptor[order_desc];
 
+  Uint32 bits = Tuple_header::COPY_TUPLE;
+  bits |= disk_undo ? (Tuple_header::DISK_ALLOC|Tuple_header::DISK_INLINE) : 0;
+
   const Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
   const Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
   const Uint32 mm_dynvar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
@@ -1142,10 +1146,12 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
 
   if(mm_vars || mm_dyns)
   {
+    bits |= Tuple_header::VAR_PART;
     /* Prepare empty varsize part. */
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
     /* Reserve room for length word. */
     ptr++;
+
     dst->m_data_ptr= (char*)(((Uint16*)ptr)+mm_vars+1);
     dst->m_offset_array_ptr= req_struct->var_pos_array;
     dst->m_var_len_offset= mm_vars;
@@ -1200,12 +1206,14 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
     }
     ndbassert((pos&3)==0);
     ptr+= (pos>>2);
-  } 
+  }
 
   req_struct->m_disk_ptr= (Tuple_header*)ptr;
   
   ndbrequire(dd_vars == 0);
   
+  req_struct->m_tuple_ptr->m_header_bits= bits;
+
   // Set all null bits
   memset(req_struct->m_tuple_ptr->m_null_bits+
 	 regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
@@ -1213,8 +1221,6 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   memset(req_struct->m_disk_ptr->m_null_bits+
 	 regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
 	 4*regTabPtr->m_offsets[DD].m_null_words);
-  req_struct->m_tuple_ptr->m_header_bits= 
-    disk_undo ? (Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE) : 0;
 }
 
 int Dbtup::handleInsertReq(Signal* signal,
@@ -1232,9 +1238,9 @@ int Dbtup::handleInsertReq(Signal* signal,
   bool disk = regTabPtr->m_no_of_disk_attributes > 0;
   bool mem_insert = regOperPtr.p->is_first_operation();
   bool disk_insert = mem_insert && disk;
-  bool vardynsize =
-    regTabPtr->m_attributes[MM].m_no_of_varsize + 
-    regTabPtr->m_attributes[MM].m_no_of_dynamic;
+  bool vardynsize = (regTabPtr->m_attributes[MM].m_no_of_varsize ||
+                     regTabPtr->m_attributes[MM].m_no_of_dynamic);
+  bool varalloc = vardynsize || regTabPtr->m_bits & Tablerec::TR_ForceVarPart;
   bool rowid = req_struct->m_use_rowid;
   Uint32 real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
   Uint32 frag_page_id = req_struct->frag_page_id;
@@ -1243,6 +1249,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     Uint32 sizes[4];
     Uint64 cmp[2];
   };
+  cmp[0] = cmp[1] = 0;
 
   if (ERROR_INSERTED(4014))
   {
@@ -1290,6 +1297,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     else
     {
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+      tuple_ptr->m_header_bits |= Tuple_header::COPY_TUPLE;
     }
     memset(tuple_ptr->m_null_bits+
            regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
@@ -1378,7 +1386,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 	goto mem_error;
       }
 
-      if (!vardynsize)
+      if (!varalloc)
       {
 	jam();
 	ptr= alloc_fix_rec(regFragPtr,
@@ -1410,7 +1418,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 	goto alloc_rowid_error;
       }
       
-      if (!vardynsize)
+      if (!varalloc)
       {
 	jam();
 	ptr= alloc_fix_rowid(regFragPtr,
@@ -1441,8 +1449,9 @@ int Dbtup::handleInsertReq(Signal* signal,
     
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
-    base->m_header_bits= Tuple_header::ALLOC | 
-      (vardynsize ? Tuple_header::CHAINED_ROW : 0);
+    base->m_header_bits= Tuple_header::ALLOC |
+      (vardynsize ? Tuple_header::VAR_PART : 0);
+
     regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
   else 
@@ -1467,9 +1476,6 @@ int Dbtup::handleInsertReq(Signal* signal,
     base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
   }
 
-  base->m_header_bits |= Tuple_header::ALLOC & 
-    (regOperPtr.p->is_first_operation() ? ~0 : 1);
-  
   if (disk_insert)
   {
     Local_key tmp;
@@ -2649,8 +2655,8 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
   Uint32 no_attr= dst->m_dyn_len_offset;
   Uint16* dst_off_ptr= dst->m_dyn_offset_arr_ptr;
   Uint16* dst_len_ptr= dst_off_ptr + no_attr;
-  Uint16 this_src_off= *src_off_ptr++;
-  /* We need to reserve room for the offsets written by shrink_tuple+padding. */
+  Uint16 this_src_off= row_len ? * src_off_ptr++ : 0;
+  /* We need to reserve room for the offsets written by shrink_tuple+padding.*/
   Uint16 dst_off= 4 * (max_bmlen + ((mm_dynvar+2)>>1));
   char *dst_ptr= (char*)dst_bm_ptr + dst_off;
   for(Uint32 i= 0; i<mm_dynvar; i++)
@@ -2719,6 +2725,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 		    bool disk)
 {
   Uint32 bits= src->m_header_bits;
+  Uint32 extra_bits = bits;
   Tuple_header* ptr= req_struct->m_tuple_ptr;
   
   Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
@@ -2742,70 +2749,91 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   memcpy(ptr, src, 4*fix_size);
   if(mm_vars || mm_dyns)
   { 
-    Uint32 src_len;
-    Uint32 step; // in bytes
-    const Uint32 *src_data;
-    KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
-    if(bits & Tuple_header::CHAINED_ROW)
-    {
-      /* This is for the initial expansion of a stored row. */
-      Ptr<Page> var_page;
-      src_data= get_ptr(&var_page, *var_ref);
-      src_len= get_len(&var_page, *var_ref);
-      sizes[MM]= src_len;
-      /* If the original tuple was grown, the old size is stored at the end. */
-      if(bits & Tuple_header::MM_GROWN)
-      {
-	ndbrequire(false);
-        ndbassert(src_len>0);
-        src_len= src_data[src_len-1];
-      }
-      step= 0;
-      req_struct->m_varpart_page_ptr = var_page;
-    }
-    else
-    {
-      /* This is for the re-expansion of a shrunken row (update2 ...) */
-
-      Varpart_copy* vp = (Varpart_copy*)src_ptr;
-      src_len = vp->m_len;
-      src_data= vp->m_data;
-      step= (1+src_len); // 1+ is for extra word
-      req_struct->m_varpart_page_ptr = req_struct->m_page_ptr;
-      sizes[MM]= src_len;
-    }
     /*
      * Reserve place for initial length word and offset array (with one extra
      * offset). This will be filled-in in later, in shrink_tuple().
      */
     dst_ptr++;
-    dst->m_data_ptr= (char*)(((Uint16*)dst_ptr)+mm_vars+1);
-    dst->m_offset_array_ptr= req_struct->var_pos_array;
-    dst->m_var_len_offset= mm_vars;
-    dst->m_max_var_offset= tabPtrP->m_offsets[MM].m_max_var_offset;
 
-    dst_ptr= expand_var_part(dst, src_data, desc, order);
-    ndbassert(dst_ptr == ALIGN_WORD(dst->m_data_ptr + dst->m_max_var_offset));
+    KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
+    Uint32 step; // in bytes
+    Uint32 src_len;
+    const Uint32 *src_data;
+    const Uint32 *dynstart;
+    if (bits & Tuple_header::VAR_PART)
+    {
+      KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
+      if(! (bits & Tuple_header::COPY_TUPLE))
+      {
+        /* This is for the initial expansion of a stored row. */
+        Ptr<Page> var_page;
+        src_data= get_ptr(&var_page, *var_ref);
+        src_len= get_len(&var_page, *var_ref);
+        sizes[MM]= src_len;
+        /* If the original tuple was grown,
+         * the old size is stored at the end. */
+        if(bits & Tuple_header::MM_GROWN)
+        {
+          ndbrequire(false);
+          ndbassert(src_len>0);
+          src_len= src_data[src_len-1];
+        }
+        step= 0;
+        req_struct->m_varpart_page_ptr = var_page;
+      }
+      else
+      {
+        /* This is for the re-expansion of a shrunken row (update2 ...) */
 
-    /**
-     * Now do dynpart
-     */
-    char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
-    Uint32 varlen = ((Uint16*)src_data)[mm_vars];
-    Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+        Varpart_copy* vp = (Varpart_copy*)src_ptr;
+        src_len = vp->m_len;
+        src_data= vp->m_data;
+        step= (1+src_len); // 1+ is for extra word
+        req_struct->m_varpart_page_ptr = req_struct->m_page_ptr;
+        sizes[MM]= src_len;
+      }
 
-    dst->m_dyn_offset_arr_ptr= req_struct->var_pos_array+2*mm_vars;
-    dst->m_dyn_len_offset= mm_dynvar+mm_dynfix;
-    dst->m_max_dyn_offset= tabPtrP->m_offsets[MM].m_max_dyn_offset;
-    dst->m_dyn_data_ptr= (char*)dst_ptr;
-    dst_ptr= expand_dyn_part(dst, dynstart,
-			     src_len - (dynstart - src_data),
-			     desc, order + mm_vars,
-			     mm_dynvar, mm_dynfix,
-			     tabPtrP->m_offsets[MM].m_dyn_null_words);
+      dst->m_data_ptr= (char*)(((Uint16*)dst_ptr)+mm_vars+1);
+      dst->m_offset_array_ptr= req_struct->var_pos_array;
+      dst->m_var_len_offset= mm_vars;
+      dst->m_max_var_offset= tabPtrP->m_offsets[MM].m_max_var_offset;
+
+      dst_ptr= expand_var_part(dst, src_data, desc, order);
+      ndbassert(dst_ptr == ALIGN_WORD(dst->m_data_ptr + dst->m_max_var_offset));
+
+      /**
+       * Now do dynpart
+       */
+      char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+      Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+      dynstart = ALIGN_WORD(varstart + varlen);
+    }
+    else
+    {
+      /**
+       * No varpart...only allowed for dynattr
+       */
+      ndbassert(mm_vars == 0);
+      src_len = step = sizes[MM] = 0;
+      src_data = dynstart = 0;
+    }
+
+    if (mm_dyns)
+    {
+      dst->m_dyn_offset_arr_ptr= req_struct->var_pos_array+2*mm_vars;
+      dst->m_dyn_len_offset= mm_dynvar+mm_dynfix;
+      dst->m_max_dyn_offset= tabPtrP->m_offsets[MM].m_max_dyn_offset;
+      dst->m_dyn_data_ptr= (char*)dst_ptr;
+      dst_ptr= expand_dyn_part(dst, dynstart,
+                               src_len - (dynstart - src_data),
+                               desc, order + mm_vars,
+                               mm_dynvar, mm_dynfix,
+                               tabPtrP->m_offsets[MM].m_dyn_null_words);
+    }
     
     ndbassert((UintPtr(src_ptr) & 3) == 0);
     src_ptr = src_ptr + step;
+    extra_bits |= Tuple_header::VAR_PART;
   }
 
   src->m_header_bits= bits & 
@@ -2820,7 +2848,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     if(bits & Tuple_header::DISK_INLINE)
     {
       // Only on copy tuple
-      ndbassert((bits & Tuple_header::CHAINED_ROW) == 0);
+      ndbassert(bits & Tuple_header::COPY_TUPLE);
     }
     else
     {
@@ -2829,7 +2857,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
       key.m_page_no= req_struct->m_disk_page_ptr.i;
       src_ptr= get_dd_ptr(&req_struct->m_disk_page_ptr, &key, tabPtrP);
     }
-    bits |= Tuple_header::DISK_INLINE;
+    extra_bits |= Tuple_header::DISK_INLINE;
 
     // Fix diskpart
     req_struct->m_disk_ptr= (Tuple_header*)dst_ptr;
@@ -2841,7 +2869,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     ndbrequire(dd_vars == 0);
   }
   
-  ptr->m_header_bits= (bits & ~(Uint32)(Tuple_header::CHAINED_ROW));
+  ptr->m_header_bits= (extra_bits | Tuple_header::COPY_TUPLE);
   req_struct->is_expanded= true;
 }
 
@@ -2874,7 +2902,7 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
     disk_len= (dd_tot ? tabPtrP->m_offsets[DD].m_fix_header_size : 0);
 #endif
   }
-  else if(bits & Tuple_header::CHAINED_ROW)
+  else if(! (bits & Tuple_header::COPY_TUPLE))
   {
     typ= "stored";
     if(mm_vars+mm_dyns)
@@ -2953,51 +2981,63 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     const Uint32 *src_data= src_ptr;
     Uint32 src_len;
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
-    if(bits & Tuple_header::CHAINED_ROW)
+    if (bits & Tuple_header::VAR_PART)
     {
-      Ptr<Page> tmp;
-      src_data= get_ptr(&tmp, * var_ref);
-      src_len= get_len(&tmp, * var_ref);
-      /* If the original tuple was grown, the old size is stored at the end. */
-      if(bits & Tuple_header::MM_GROWN)
+      if(! (bits & Tuple_header::COPY_TUPLE))
       {
-	/**
-	 * This is when triggers read before value of update
-	 *   when original has been reallocated due to grow
-	 */
-	ndbassert(src_len>0);
-	src_len= src_data[src_len-1];
+        Ptr<Page> tmp;
+        src_data= get_ptr(&tmp, * var_ref);
+        src_len= get_len(&tmp, * var_ref);
+
+        /* If the original tuple was grown,
+         * the old size is stored at the end. */
+        if(bits & Tuple_header::MM_GROWN)
+        {
+          /**
+           * This is when triggers read before value of update
+           *   when original has been reallocated due to grow
+           */
+          ndbassert(src_len>0);
+          src_len= src_data[src_len-1];
+        }
       }
+      else
+      {
+        Varpart_copy* vp = (Varpart_copy*)src_ptr;
+        src_len = vp->m_len;
+        src_data = vp->m_data;
+        src_ptr++;
+      }
+
+      char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+      Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+      Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+
+      dst->m_data_ptr= varstart;
+      dst->m_offset_array_ptr= (Uint16*)src_data;
+      dst->m_var_len_offset= 1;
+      dst->m_max_var_offset= varlen;
+
+      Uint32 dynlen = src_len - (dynstart - src_data);
+      dst->m_dyn_data_ptr= (char*)dynstart;
+      dst->m_dyn_part_len= dynlen;
+      // Do or not to to do
+      // dst->m_dyn_offset_arr_ptr = dynlen ? (Uint16*)(dynstart + *(Uint8*)dynstart) : 0;
+
+      /*
+        dst->m_dyn_offset_arr_ptr and dst->m_dyn_len_offset are not used for
+        reading the stored/shrunken format.
+      */
     }
     else
     {
-      Varpart_copy* vp = (Varpart_copy*)src_ptr;
-      src_len = vp->m_len;
-      src_data = vp->m_data;
-      src_ptr++;
+      src_len = 0;
+      dst->m_max_var_offset = 0;
+      dst->m_dyn_part_len = 0;
+#if defined VM_TRACE || defined ERROR_INSERT
+      bzero(dst, sizeof(* dst));
+#endif
     }
-    
-    char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
-    Uint32 varlen = ((Uint16*)src_data)[mm_vars];
-    Uint32* dynstart = ALIGN_WORD(varstart + varlen);
-
-    dst->m_data_ptr= varstart;
-    dst->m_offset_array_ptr= (Uint16*)src_data;
-    dst->m_var_len_offset= 1;
-    dst->m_max_var_offset= varlen;
-
-    Uint32 dynlen = src_len - (dynstart - src_data);
-    dst->m_dyn_data_ptr= (char*)dynstart;
-    dst->m_dyn_part_len= dynlen;
-    // Do or not to to do
-    // dst->m_dyn_offset_arr_ptr = dynlen ? (Uint16*)(dynstart + *(Uint8*)dynstart) : 0;
-
-
-    
-    /*
-      dst->m_dyn_offset_arr_ptr and dst->m_dyn_len_offset are not used for
-      reading the stored/shrunken format.
-    */
     
     // disk part start after dynamic part.
     src_ptr+= src_len;
@@ -3010,7 +3050,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     if(bits & Tuple_header::DISK_INLINE)
     {
       // Only on copy tuple
-      ndbassert((bits & Tuple_header::CHAINED_ROW) == 0);
+      ndbassert(bits & Tuple_header::COPY_TUPLE);
     }
     else
     {
@@ -3035,7 +3075,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
 {
   ndbassert(tabPtrP->need_shrink());
   Tuple_header* ptr= req_struct->m_tuple_ptr;
-  ndbassert(!(ptr->m_header_bits & Tuple_header::CHAINED_ROW));
+  ndbassert(ptr->m_header_bits & Tuple_header::COPY_TUPLE);
   
   KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
   Uint32 order_desc= tabPtrP->m_real_order_descriptor;
@@ -3249,7 +3289,7 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	{
 	  Tuple_header *ptr= (Tuple_header*)page->get_ptr(i);
 	  Uint32 *part= ptr->get_end_of_fix_part_ptr(regTabPtr);
-	  if(ptr->m_header_bits & Tuple_header::CHAINED_ROW)
+	  if(! (ptr->m_header_bits & Tuple_header::COPY_TUPLE))
 	  {
 	    ndbassert(len == fix_sz + 1);
 	    Local_key tmp; tmp.assref(*part);
@@ -3313,9 +3353,9 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   Uint32 bits= org->m_header_bits;
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
-  if(sizes[MM] == sizes[2+MM])
+  if(sizes[2+MM] == sizes[MM])
     ;
-  else if(sizes[MM] > sizes[2+MM])
+  else if(sizes[2+MM] < sizes[MM])
   {
     if(0) ndbout_c("shrink");
     req_struct->m_tuple_ptr->m_header_bits= copy_bits|Tuple_header::MM_SHRINK;
@@ -3325,34 +3365,45 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if(0) printf("grow - ");
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
-    Uint32 idx, alloc, needed;
     Var_part_ref *refptr= org->get_var_part_ref_ptr(regTabPtr);
-    ndbassert(bits & Tuple_header::CHAINED_ROW);
+    ndbassert(! (bits & Tuple_header::COPY_TUPLE));
 
     Local_key ref;
     refptr->copyout(&ref);
-    idx= ref.m_page_idx;
-    if (! (copy_bits & Tuple_header::CHAINED_ROW))
+    Uint32 alloc;
+    Uint32 idx= ref.m_page_idx;
+    if (bits & Tuple_header::VAR_PART)
     {
-      c_page_pool.getPtr(pagePtr, ref.m_page_no);
-      pageP = (Var_page*)pagePtr.p;
+      if (copy_bits & Tuple_header::COPY_TUPLE)
+      {
+        c_page_pool.getPtr(pagePtr, ref.m_page_no);
+        pageP = (Var_page*)pagePtr.p;
+      }
+      alloc = pageP->get_entry_len(idx);
     }
-    alloc= pageP->get_entry_len(idx);
+    else
+    {
+      alloc = 0;
+    }
     Uint32 orig_size= alloc;
-    if(bits&Tuple_header::MM_GROWN)
+    if(bits & Tuple_header::MM_GROWN)
     {
       /* Was grown before, so must fetch real original size from last word. */
       Uint32 *old_var_part= pageP->get_ptr(idx);
       ndbassert(alloc>0);
       orig_size= old_var_part[alloc-1];
     }
-      
+
+    if (alloc)
+    {
 #ifdef VM_TRACE
-    if(!pageP->get_entry_chain(idx))
-      ndbout << *pageP << endl;
+      if(!pageP->get_entry_chain(idx))
+        ndbout << *pageP << endl;
 #endif
-    ndbassert(pageP->get_entry_chain(idx));
-    needed= sizes[2+MM];
+      ndbassert(pageP->get_entry_chain(idx));
+    }
+
+    Uint32 needed= sizes[2+MM];
 
     if(needed <= alloc)
     {
@@ -3365,8 +3416,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if (unlikely(new_var_part==NULL))
       return -1;
     /* Mark the tuple grown, store the original length at the end. */
-    org->m_header_bits= bits|Tuple_header::MM_GROWN;
-    ndbassert(needed>1);
+    org->m_header_bits= bits | Tuple_header::MM_GROWN | Tuple_header::VAR_PART;
     new_var_part[needed-1]= orig_size;
 
     if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
