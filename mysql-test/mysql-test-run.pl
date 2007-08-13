@@ -4677,6 +4677,7 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+  mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
