@@ -195,8 +195,8 @@ public:
     We implement this in ha_example.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
-  int index_read(uchar *buf, const uchar *key,
-                 key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int index_read_map(uchar *buf, const uchar *key,
+                     key_part_map keypart_map, enum ha_rkey_function find_flag);
 
   /** @brief
     We implement this in ha_example.cc. It's not an obligatory method;

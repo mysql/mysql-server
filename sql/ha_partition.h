@@ -387,9 +387,9 @@ public:
     index_init initializes an index before using it and index_end does
     any end processing needed.
   */
-  virtual int index_read(uchar * buf, const uchar * key,
-                         key_part_map keypart_map,
-                         enum ha_rkey_function find_flag);
+  virtual int index_read_map(uchar * buf, const uchar * key,
+                             key_part_map keypart_map,
+                             enum ha_rkey_function find_flag);
   virtual int index_init(uint idx, bool sorted);
   virtual int index_end();
 
@@ -402,8 +402,8 @@ public:
   virtual int index_first(uchar * buf);
   virtual int index_last(uchar * buf);
   virtual int index_next_same(uchar * buf, const uchar * key, uint keylen);
-  virtual int index_read_last(uchar * buf, const uchar * key,
-                              key_part_map keypart_map);
+  virtual int index_read_last_map(uchar * buf, const uchar * key,
+                                  key_part_map keypart_map);
 
   /*
     read_first_row is virtual method but is only implemented by

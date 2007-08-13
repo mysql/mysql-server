@@ -316,7 +316,6 @@ Ndb::computeHash(Uint32 *retval,
   const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
   const NdbColumnImpl* const * cols = impl->m_columns.getBase();
   Uint32 len;
-  NdbTransaction* trans;
   char* pos;
 
   Uint32 colcnt = impl->m_columns.size();

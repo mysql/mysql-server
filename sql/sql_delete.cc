@@ -753,7 +753,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 
 int multi_delete::do_deletes()
 {
-  int local_error= 0, counter= 0, error;
+  int local_error= 0, counter= 0, tmp_error;
   bool will_batch;
   DBUG_ENTER("do_deletes");
   DBUG_ASSERT(do_delete);
@@ -806,11 +806,11 @@ int multi_delete::do_deletes()
         break;
       }
     }
-    if (will_batch && (error= table->file->end_bulk_delete()))
+    if (will_batch && (tmp_error= table->file->end_bulk_delete()))
     {
       if (!local_error)
       {
-        local_error= error;
+        local_error= tmp_error;
         table->file->print_error(local_error,MYF(0));
       }
     }

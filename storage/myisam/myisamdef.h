@@ -181,8 +181,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   ha_checksum (*calc_checksum)(struct st_myisam_info*, const uchar *);
   int (*compare_unique)(struct st_myisam_info*, MI_UNIQUEDEF *,
 			const uchar *record, my_off_t pos);
-  uint (*file_read)(MI_INFO *, uchar *, uint, my_off_t, myf);
-  uint (*file_write)(MI_INFO *, uchar *, uint, my_off_t, myf);
+  size_t (*file_read)(MI_INFO *, uchar *, size_t, my_off_t, myf);
+  size_t (*file_write)(MI_INFO *, const uchar *, size_t, my_off_t, myf);
   invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
@@ -346,7 +346,7 @@ typedef struct st_mi_sort_param
   NEAR int (*write_keys)(struct st_mi_sort_param *, register uchar **,
                      uint , struct st_buffpek *, IO_CACHE *);
   NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,char *,
+  NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
                        uint, uint);
 } MI_SORT_PARAM;
 
@@ -717,14 +717,14 @@ extern void _mi_unmap_file(MI_INFO *info);
 extern uint save_pack_length(uint version, uchar *block_buff, ulong length);
 extern uint read_pack_length(uint version, const uchar *buf, ulong *length);
 extern uint calc_pack_length(uint version, ulong length);
-extern uint mi_mmap_pread(MI_INFO *info, uchar *Buffer,
-                           uint Count, my_off_t offset, myf MyFlags);
-extern uint mi_mmap_pwrite(MI_INFO *info, uchar *Buffer,
-                            uint Count, my_off_t offset, myf MyFlags);
-extern uint mi_nommap_pread(MI_INFO *info, uchar *Buffer,
-                             uint Count, my_off_t offset, myf MyFlags);
-extern uint mi_nommap_pwrite(MI_INFO *info, uchar *Buffer,
-                             uint Count, my_off_t offset, myf MyFlags);
+extern size_t mi_mmap_pread(MI_INFO *info, uchar *Buffer,
+                            size_t Count, my_off_t offset, myf MyFlags);
+extern size_t mi_mmap_pwrite(MI_INFO *info, const uchar *Buffer,
+                             size_t Count, my_off_t offset, myf MyFlags);
+extern size_t mi_nommap_pread(MI_INFO *info, uchar *Buffer,
+                              size_t Count, my_off_t offset, myf MyFlags);
+extern size_t mi_nommap_pwrite(MI_INFO *info, const uchar *Buffer,
+                               size_t Count, my_off_t offset, myf MyFlags);
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite);
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
@@ -732,13 +732,13 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead);
 uint mi_base_info_write(File file, MI_BASE_INFO *base);
 uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base);
 int mi_keyseg_write(File file, const HA_KEYSEG *keyseg);
-char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
+uchar *mi_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg);
 uint mi_keydef_write(File file, MI_KEYDEF *keydef);
-char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef);
+uchar *mi_keydef_read(uchar *ptr, MI_KEYDEF *keydef);
 uint mi_uniquedef_write(File file, MI_UNIQUEDEF *keydef);
-char *mi_uniquedef_read(char *ptr, MI_UNIQUEDEF *keydef);
+uchar *mi_uniquedef_read(uchar *ptr, MI_UNIQUEDEF *keydef);
 uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo);
-char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo);
+uchar *mi_recinfo_read(uchar *ptr, MI_COLUMNDEF *recinfo);
 extern int mi_disable_indexes(MI_INFO *info);
 extern int mi_enable_indexes(MI_INFO *info);
 extern int mi_indexes_are_disabled(MI_INFO *info);

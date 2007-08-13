@@ -1049,6 +1049,23 @@ String *Item_str_conv::val_str(String *str)
 }
 
 
+void Item_func_lcase::fix_length_and_dec()
+{
+  collation.set(args[0]->collation);
+  multiply= collation.collation->casedn_multiply;
+  converter= collation.collation->cset->casedn;
+  max_length= args[0]->max_length * multiply;
+}
+
+void Item_func_ucase::fix_length_and_dec()
+{
+  collation.set(args[0]->collation);
+  multiply= collation.collation->caseup_multiply;
+  converter= collation.collation->cset->caseup;
+  max_length= args[0]->max_length * multiply;
+}
+
+
 String *Item_func_left::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

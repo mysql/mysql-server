@@ -1347,6 +1347,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) share->row_type]);
     }
+    if (share->transactional != HA_CHOICE_UNDEF)
+    {
+      packet->append(STRING_WITH_LEN(" TRANSACTIONAL="));
+      packet->append(share->transactional == HA_CHOICE_YES ? "1" : "0", 1);
+    }
     if (table->s->key_block_size)
     {
       char *end;
@@ -2899,7 +2904,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     case ROW_TYPE_COMPACT:
       tmp_buff= "Compact";
       break;
-    case ROW_TYPE_PAGES:
+    case ROW_TYPE_PAGE:
       tmp_buff= "Paged";
       break;
     }
@@ -2983,6 +2988,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
+    if (share->transactional != HA_CHOICE_UNDEF)
+    {
+      ptr= strxmov(ptr, " TRANSACTIONAL=",
+                   (share->transactional == HA_CHOICE_YES ? "1" : "0"),
+                   NullS);
+    }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (show_table->s->db_type() == partition_hton && 
         show_table->part_info != NULL && 

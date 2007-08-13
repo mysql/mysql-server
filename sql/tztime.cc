@@ -1854,8 +1854,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read(table->record[0], table->field[0]->ptr,
-                              HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (table->file->index_read_map(table->record[0], table->field[0]->ptr,
+                                  HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
 #ifdef EXTRA_DEBUG
     /*
@@ -1881,8 +1881,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read(table->record[0], table->field[0]->ptr,
-                              HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (table->file->index_read_map(table->record[0], table->field[0]->ptr,
+                                  HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
@@ -1908,8 +1908,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read(table->record[0], table->field[0]->ptr,
-                               (key_part_map)1, HA_READ_KEY_EXACT);
+  res= table->file->index_read_map(table->record[0], table->field[0]->ptr,
+                                   (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttid= (uint)table->field[1]->val_int();
@@ -1979,8 +1979,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read(table->record[0], table->field[0]->ptr,
-                               (key_part_map)1, HA_READ_KEY_EXACT);
+  res= table->file->index_read_map(table->record[0], table->field[0]->ptr,
+                                   (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttime= (my_time_t)table->field[1]->val_int();

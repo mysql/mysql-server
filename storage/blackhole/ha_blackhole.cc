@@ -184,8 +184,8 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
 }
 
 
-int ha_blackhole::index_read(uchar * buf, const uchar * key,
-                             key_part_map keypart_map,
+int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
+                                 key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read");
@@ -193,7 +193,7 @@ int ha_blackhole::index_read(uchar * buf, const uchar * key,
 }
 
 
-int ha_blackhole::index_read_idx(uchar * buf, uint idx, const uchar * key,
+int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag)
 {
@@ -202,8 +202,8 @@ int ha_blackhole::index_read_idx(uchar * buf, uint idx, const uchar * key,
 }
 
 
-int ha_blackhole::index_read_last(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map)
+int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
+                                      key_part_map keypart_map)
 {
   DBUG_ENTER("ha_blackhole::index_read_last");
   DBUG_RETURN(HA_ERR_END_OF_FILE);

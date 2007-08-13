@@ -71,10 +71,12 @@ static uint ex_var_count, max_var_length, max_val_length;
 
 static void print_version(void);
 static void usage(void);
+extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
+                                  char *argument);
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
-static sig_handler endprog(int signal_number);
+extern "C" sig_handler endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
 static void print_header(MYSQL_RES *result);
 static void print_top(MYSQL_RES *result);
@@ -230,7 +232,7 @@ static struct my_option my_long_options[] =
 
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
 
-static my_bool
+my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -430,7 +432,7 @@ int main(int argc,char *argv[])
 }
 
 
-static sig_handler endprog(int signal_number __attribute__((unused)))
+sig_handler endprog(int signal_number __attribute__((unused)))
 {
   interrupted=1;
 }

@@ -309,9 +309,9 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 	   old_count*sizeof(*pa->flag));
   }
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
-  pa->typelib.type_names[pa->typelib.count++]= pa->str+pa->length;
+  pa->typelib.type_names[pa->typelib.count++]= (char*) (pa->str+pa->length);
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  VOID(strmov(pa->str+pa->length,name));
+  VOID(strmov((char*) pa->str + pa->length, name));
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */
@@ -988,7 +988,8 @@ int n;
     return 0;
 
   /* Read in new stuff. */
-  if ((i=(int) my_read(fd, buffer + bufbytes, (uint) bufread,MYF(MY_WME))) < 0)
+  if ((i=(int) my_read(fd, (uchar*) buffer + bufbytes,
+                       (size_t) bufread, MYF(MY_WME))) < 0)
     return -1;
 
   /* Kludge to pretend every nonempty file ends with a newline. */
@@ -1039,7 +1040,7 @@ FILE *in,*out;
 	return 1;
       if (!my_eof)
 	out_buff[length++]=save_char;	/* Don't write added newline */
-      if (my_fwrite(out,out_buff,length,MYF(MY_WME | MY_NABP)))
+      if (my_fwrite(out, (uchar*) out_buff, length, MYF(MY_WME | MY_NABP)))
 	DBUG_RETURN(1);
     }
   }

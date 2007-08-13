@@ -40,9 +40,9 @@ static HA_KEYSEG uniqueseg[10];
 
 static int run_test(const char *filename);
 static void get_options(int argc, char *argv[]);
-static void create_key(char *key,uint rownr);
-static void create_record(char *record,uint rownr);
-static void update_record(char *record);
+static void create_key(uchar *key,uint rownr);
+static void create_record(uchar *record,uint rownr);
+static void update_record(uchar *record);
 
 int main(int argc,char *argv[])
 {
@@ -62,7 +62,7 @@ static int run_test(const char *filename)
   int i,j,error,deleted,rec_length,uniques=0;
   ha_rows found,row_count;
   my_off_t pos;
-  char record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
+  uchar record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
   MI_UNIQUEDEF uniquedef;
   MI_CREATE_INFO create_info;
 
@@ -327,20 +327,20 @@ err:
 }
 
 
-static void create_key_part(char *key,uint rownr)
+static void create_key_part(uchar *key,uint rownr)
 {
   if (!unique_key)
     rownr&=7;					/* Some identical keys */
   if (keyinfo[0].seg[0].type == HA_KEYTYPE_NUM)
   {
-    sprintf(key,"%*d",keyinfo[0].seg[0].length,rownr);
+    sprintf((char*) key,"%*d",keyinfo[0].seg[0].length,rownr);
   }
   else if (keyinfo[0].seg[0].type == HA_KEYTYPE_VARTEXT1 ||
            keyinfo[0].seg[0].type == HA_KEYTYPE_VARTEXT2)
   {						/* Alpha record */
     /* Create a key that may be easily packed */
     bfill(key,keyinfo[0].seg[0].length,rownr < 10 ? 'A' : 'B');
-    sprintf(key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
+    sprintf((char*) key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
     if ((rownr & 7) == 0)
     {
       /* Change the key to force a unpack of the next key */
@@ -350,12 +350,12 @@ static void create_key_part(char *key,uint rownr)
   else
   {						/* Alpha record */
     if (keyinfo[0].seg[0].flag & HA_SPACE_PACK)
-      sprintf(key,"%-*d",keyinfo[0].seg[0].length,rownr);
+      sprintf((char*) key,"%-*d",keyinfo[0].seg[0].length,rownr);
     else
     {
       /* Create a key that may be easily packed */
       bfill(key,keyinfo[0].seg[0].length,rownr < 10 ? 'A' : 'B');
-      sprintf(key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
+      sprintf((char*) key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
       if ((rownr & 7) == 0)
       {
 	/* Change the key to force a unpack of the next key */
@@ -366,7 +366,7 @@ static void create_key_part(char *key,uint rownr)
 }
 
 
-static void create_key(char *key,uint rownr)
+static void create_key(uchar *key,uint rownr)
 {
   if (keyinfo[0].seg[0].null_bit)
   {
@@ -382,7 +382,7 @@ static void create_key(char *key,uint rownr)
   {
     uint tmp;
     create_key_part(key+2,rownr);
-    tmp=strlen(key+2);
+    tmp=strlen((char*) key+2);
     int2store(key,tmp);
   }
   else
@@ -390,13 +390,13 @@ static void create_key(char *key,uint rownr)
 }
 
 
-static char blob_key[MAX_REC_LENGTH];
-static char blob_record[MAX_REC_LENGTH+20*20];
+static uchar blob_key[MAX_REC_LENGTH];
+static uchar blob_record[MAX_REC_LENGTH+20*20];
 
 
-static void create_record(char *record,uint rownr)
+static void create_record(uchar *record,uint rownr)
 {
-  char *pos;
+  uchar *pos;
   bzero((char*) record,MAX_REC_LENGTH);
   record[0]=1;					/* delete marker */
   if (rownr == 0 && keyinfo[0].seg[0].null_bit)
@@ -406,9 +406,9 @@ static void create_record(char *record,uint rownr)
   if (recinfo[1].type == FIELD_BLOB)
   {
     uint tmp;
-    char *ptr;
+    uchar *ptr;
     create_key_part(blob_key,rownr);
-    tmp=strlen(blob_key);
+    tmp=strlen((char*) blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
     memcpy_fixed(pos+4,&ptr,sizeof(char*));
@@ -418,7 +418,7 @@ static void create_record(char *record,uint rownr)
   {
     uint tmp, pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
     create_key_part(pos+pack_length,rownr);
-    tmp= strlen(pos+pack_length);
+    tmp= strlen((char*) pos+pack_length);
     if (pack_length == 1)
       *(uchar*) pos= (uchar) tmp;
     else
@@ -433,10 +433,10 @@ static void create_record(char *record,uint rownr)
   if (recinfo[2].type == FIELD_BLOB)
   {
     uint tmp;
-    char *ptr;;
-    sprintf(blob_record,"... row: %d", rownr);
-    strappend(blob_record,max(MAX_REC_LENGTH-rownr,10),' ');
-    tmp=strlen(blob_record);
+    uchar *ptr;;
+    sprintf((char*) blob_record,"... row: %d", rownr);
+    strappend((char*) blob_record,max(MAX_REC_LENGTH-rownr,10),' ');
+    tmp=strlen((char*) blob_record);
     int4store(pos,tmp);
     ptr=blob_record;
     memcpy_fixed(pos+4,&ptr,sizeof(char*));
@@ -444,28 +444,28 @@ static void create_record(char *record,uint rownr)
   else if (recinfo[2].type == FIELD_VARCHAR)
   {
     uint tmp, pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
-    sprintf(pos+pack_length, "... row: %d", rownr);
-    tmp= strlen(pos+pack_length);
+    sprintf((char*) pos+pack_length, "... row: %d", rownr);
+    tmp= strlen((char*) pos+pack_length);
     if (pack_length == 1)
-      *(uchar*) pos= (uchar) tmp;
+      *pos= (uchar) tmp;
     else
       int2store(pos,tmp);
   }
   else
   {
-    sprintf(pos,"... row: %d", rownr);
-    strappend(pos,recinfo[2].length,' ');
+    sprintf((char*) pos,"... row: %d", rownr);
+    strappend((char*) pos,recinfo[2].length,' ');
   }
 }
 
 /* change row to test re-packing of rows and reallocation of keys */
 
-static void update_record(char *record)
+static void update_record(uchar *record)
 {
-  char *pos=record+1;
+  uchar *pos=record+1;
   if (recinfo[1].type == FIELD_BLOB)
   {
-    char *column,*ptr;
+    uchar *column,*ptr;
     int length;
     length=uint4korr(pos);			/* Long blob */
     memcpy_fixed(&column,pos+4,sizeof(char*));
@@ -474,7 +474,8 @@ static void update_record(char *record)
     memcpy_fixed(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
-                                         blob_key, length, blob_key, length);
+                                         (char*) blob_key, length,
+                                         (char*) blob_key, length);
     pos+=recinfo[1].length;
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
@@ -482,22 +483,22 @@ static void update_record(char *record)
     uint pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
     uint length= pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos);
     default_charset_info->cset->casedn(default_charset_info,
-                                       pos + pack_length, length,
-                                       pos + pack_length, length);
+                                       (char*) pos + pack_length, length,
+                                       (char*) pos + pack_length, length);
     pos+=recinfo[1].length;
   }
   else
   {
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
-                                         pos, keyinfo[0].seg[0].length,
-                                         pos, keyinfo[0].seg[0].length);
+                                         (char*) pos, keyinfo[0].seg[0].length,
+                                         (char*) pos, keyinfo[0].seg[0].length);
     pos+=recinfo[1].length;
   }
 
   if (recinfo[2].type == FIELD_BLOB)
   {
-    char *column;
+    uchar *column;
     int length;
     length=uint4korr(pos);
     memcpy_fixed(&column,pos+4,sizeof(char*));
@@ -505,7 +506,7 @@ static void update_record(char *record)
     bfill(blob_record+length,20,'.');	/* Make it larger */
     length+=20;
     int4store(pos,length);
-    column=blob_record;
+    column= blob_record;
     memcpy_fixed(pos+4,&column,sizeof(char*));
   }
   else if (recinfo[2].type == FIELD_VARCHAR)
