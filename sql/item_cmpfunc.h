@@ -1158,7 +1158,6 @@ public:
 class Item_func_in :public Item_func_opt_neg
 {
 public:
-  Item_result cmp_type;
   /* 
     an array of values when the right hand arguments of IN
     are all SQL constant and there are no nulls 

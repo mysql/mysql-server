@@ -2302,7 +2302,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     db= 0;
   }
   /* Write authentication package */
-  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
+  if (my_net_write(net, (uchar*) buff, (size_t) (end-buff)) || net_flush(net))
   {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                              ER(CR_SERVER_LOST_EXTENDED),
@@ -2334,7 +2334,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       password in old format.
     */
     scramble_323(buff, mysql->scramble, passwd);
-    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    if (my_net_write(net, (uchar*) buff, SCRAMBLE_LENGTH_323 + 1) ||
+        net_flush(net))
     {
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER(CR_SERVER_LOST_EXTENDED),
@@ -2531,7 +2532,8 @@ mysql_select_db(MYSQL *mysql, const char *db)
   DBUG_ENTER("mysql_select_db");
   DBUG_PRINT("enter",("db: '%s'",db));
 
-  if ((error=simple_command(mysql,COM_INIT_DB,db,(ulong) strlen(db),0)))
+  if ((error=simple_command(mysql,COM_INIT_DB, (const uchar*) db,
+                            (ulong) strlen(db),0)))
     DBUG_RETURN(error);
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
   mysql->db=my_strdup(db,MYF(MY_WME));
@@ -2644,7 +2646,7 @@ void STDCALL mysql_close(MYSQL *mysql)
       free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
       mysql->reconnect=0;
-      simple_command(mysql,COM_QUIT,NullS,0,1);
+      simple_command(mysql,COM_QUIT,(uchar*) 0,0,1);
       end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
     mysql_close_free_options(mysql);
@@ -2775,7 +2777,7 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
   mysql->last_used_con = mysql;
 #endif
 
-  DBUG_RETURN(simple_command(mysql, COM_QUERY, query, length, 1));
+  DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
 }
 
 

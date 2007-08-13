@@ -3017,11 +3017,11 @@ uchar *in_longlong::get_value(Item *item)
 
 void in_datetime::set(uint pos,Item *item)
 {
-  Item **tmp= &item;
+  Item **tmp_item= &item;
   bool is_null;
   struct packed_longlong *buff= &((packed_longlong*) base)[pos];
 
-  buff->val= get_datetime_value(thd, &tmp, 0, warn_item, &is_null);
+  buff->val= get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
   buff->unsigned_flag= 1L;
 }
 

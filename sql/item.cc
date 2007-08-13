@@ -3869,15 +3869,15 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
           if ((*res)->type() == Item::FIELD_ITEM)
           {
             /*
-             It's an Item_field referencing another Item_field in the select
-             list.
-             use the field from the Item_field in the select list and leave
-             the Item_field instance in place.
+              It's an Item_field referencing another Item_field in the select
+              list.
+              Use the field from the Item_field in the select list and leave
+              the Item_field instance in place.
             */
 
-            Field *field= (*((Item_field**)res))->field;
+            Field *new_field= (*((Item_field**)res))->field;
 
-            if (field == NULL)
+            if (new_field == NULL)
             {
               /* The column to which we link isn't valid. */
               my_error(ER_BAD_FIELD_ERROR, MYF(0), (*res)->name, 
@@ -3885,7 +3885,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               return(1);
             }
 
-            set_field(field);
+            set_field(new_field);
             return 0;
           }
           else

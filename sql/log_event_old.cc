@@ -5,7 +5,7 @@
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
-Write_rows_log_event_old::do_prepare_row(THD *thd,
+Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                          RELAY_LOG_INFO const *rli,
                                          TABLE *table,
                                          uchar const *row_start,
@@ -25,7 +25,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd,
 
 
 int
-Delete_rows_log_event_old::do_prepare_row(THD *thd,
+Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                           RELAY_LOG_INFO const *rli,
                                           TABLE *table,
                                           uchar const *row_start,
@@ -58,7 +58,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd,
 }
 
 
-int Update_rows_log_event_old::do_prepare_row(THD *thd,
+int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                               RELAY_LOG_INFO const *rli,
                                               TABLE *table,
                                               uchar const *row_start,

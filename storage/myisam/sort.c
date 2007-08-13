@@ -78,10 +78,10 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,uchar **sort_keys,
 static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile,BUFFPEK *buffpek,
                                          uint sort_length);
 static int NEAR_F write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,
-                                  char *key, uint sort_length, uint count);
+                                  uchar *key, uint sort_length, uint count);
 static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 					 IO_CACHE *to_file,
-					 char* key, uint sort_length,
+					 uchar* key, uint sort_length,
 					 uint count);
 static inline int
 my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
@@ -116,7 +116,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   {
     info->write_keys=write_keys_varlen;
     info->read_to_buffer=read_to_buffer_varlen;
-    info->write_key=write_merge_key_varlen;
+    info->write_key= write_merge_key_varlen;
   }
   else
   {
@@ -858,16 +858,16 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
 
 static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
-					 IO_CACHE *to_file,char* key,
+					 IO_CACHE *to_file, uchar* key,
                                          uint sort_length, uint count)
 {
   uint idx;
+  uchar *bufs = key;
 
-  char *bufs = key;
   for (idx=1;idx<=count;idx++)
   {
     int err;
-    if ((err= my_var_write(info,to_file, (uchar*) bufs)))
+    if ((err= my_var_write(info, to_file, bufs)))
       return (err);
     bufs=bufs+sort_length;
   }
@@ -876,10 +876,10 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 
 
 static int NEAR_F write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
-				  IO_CACHE *to_file, char* key,
+				  IO_CACHE *to_file, uchar *key,
 				  uint sort_length, uint count)
 {
-  return my_b_write(to_file,(uchar*) key,(uint) sort_length*count);
+  return my_b_write(to_file, key, (size_t) sort_length*count);
 }
 
 /*
@@ -924,7 +924,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
                                                       sort_length));
     if (error == -1)
       goto err; /* purecov: inspected */
-    queue_insert(&queue,(char*) buffpek);
+    queue_insert(&queue,(uchar*) buffpek);
   }
 
   while (queue.elements > 1)
