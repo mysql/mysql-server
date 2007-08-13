@@ -2953,10 +2953,10 @@ row_truncate_table_for_mysql(
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot truncate table ", ef);
-		ut_print_name(stderr, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, table->name);
 		fputs(" by DROP+CREATE\n"
 		      "InnoDB: because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 		putc('\n', ef);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3329,10 +3329,10 @@ check_next_foreign:
 		ut_print_timestamp(ef);
 
 		fputs("  Cannot drop table ", ef);
-		ut_print_name(stderr, trx, TRUE, name);
+		ut_print_name(ef, trx, TRUE, name);
 		fputs("\n"
 		      "because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 		putc('\n', ef);
 		mutex_exit(&dict_foreign_err_mutex);
 
