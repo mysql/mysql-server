@@ -513,14 +513,14 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   {
     /* Make a new indexfile based on first file in list */
     uint length;
-    char *buff;
+    uchar *buff;
     strmov(org_name,result_table);		/* Fix error messages */
     VOID(fn_format(new_name,result_table,"",MI_NAME_IEXT,2));
     if ((join_isam_file=my_create(new_name,0,tmpfile_createflag,MYF(MY_WME)))
 	< 0)
       goto err;
     length=(uint) share->base.keystart;
-    if (!(buff=my_malloc(length,MYF(MY_WME))))
+    if (!(buff= (uchar*) my_malloc(length,MYF(MY_WME))))
       goto err;
     if (my_pread(share->kfile,buff,length,0L,MYF(MY_WME | MY_NABP)) ||
 	my_write(join_isam_file,buff,length,
@@ -644,7 +644,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   new_length=file_buffer.pos_in_file;
   if (!error && !test_only)
   {
-    char buff[MEMMAP_EXTRA_MARGIN];		/* End marginal for memmap */
+    uchar buff[MEMMAP_EXTRA_MARGIN];		/* End marginal for memmap */
     bzero(buff,sizeof(buff));
     error=my_write(file_buffer.file,buff,sizeof(buff),
 		   MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;

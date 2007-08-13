@@ -176,6 +176,8 @@ static bool create_pid_file()
   appropriately.
 *************************************************************************/
 
+extern "C" void reap_child(int);
+
 void reap_child(int __attribute__((unused)) signo)
 {
   /* NOTE: As we have only one child, no need to cycle waitpid(). */
@@ -197,6 +199,7 @@ void reap_child(int __attribute__((unused)) signo)
   Set termination status and return.
 *************************************************************************/
 
+extern "C" void terminate(int signo);
 void terminate(int signo)
 {
   shutdown_request_signo= signo;
