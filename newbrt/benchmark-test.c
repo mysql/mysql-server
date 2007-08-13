@@ -76,13 +76,13 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 	gettimeofday(&t1,0);
 	serial_insert_from(i);
 	gettimeofday(&t2,0);
-	printf("serial %.7fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	printf("serial %9.6fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
 	fflush(stdout);
 	gettimeofday(&t1,0);
 	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	printf("random %.7fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
-	printf("cumulative %.7fs %9.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+	printf("random %9.6fs %9.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	printf("cumulative %9.6fs %9.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
     }
 }
 
@@ -108,8 +108,8 @@ int main (int argc, char *argv[]) {
     gettimeofday(&t2,0);
     shutdown();
     gettimeofday(&t3,0);
-    printf("Shutdown %.7fs\n", tdiff(&t3, &t2));
-    printf("Total time %.7fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
+    printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
     malloc_report();
     malloc_cleanup();
     return 0;
