@@ -38,8 +38,8 @@
 #include "transaction.h"
 #include "share.h"
 #include "log.h"
+#include "ma_loghandler_lsn.h"
 
-#define LSN_IMPOSSIBLE ((LSN)0) /* could also be called LSN_ERROR */
 #define LSN_MAX ((LSN)ULONGLONG_MAX)
 
 /*

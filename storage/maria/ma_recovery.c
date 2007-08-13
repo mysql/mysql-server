@@ -96,7 +96,19 @@ int maria_recover()
   maria_in_recovery= TRUE;
 
   if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
-    from_lsn= first_lsn_in_log();
+  {
+    from_lsn= translog_first_theoretical_lsn();
+    /*
+      as far as we have not yet any checkpoint then the very first
+      log file should be present.
+    */
+    DBUG_ASSERT(from_lsn != LSN_IMPOSSIBLE);
+    /*
+      @todo process eroror of getting checkpoint
+    if (from_lsn == ERROR_LSN)
+      ...
+    */
+  }
   else
   {
     DBUG_ASSERT(0); /* not yet implemented */

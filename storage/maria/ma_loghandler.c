@@ -5977,12 +5977,126 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
 
 
 /**
-   @brief returns the LSN of the first record starting in this log
+   @brief check if such log file exists
 
-   @note so far works only for the very first log created on this system
+   @param file_no number of the file to test
+
+   @retval 0 no such file
+   @retval 1 there is file with such number
 */
 
-LSN first_lsn_in_log()
+my_bool translog_is_file(uint file_no)
 {
-  return MAKE_LSN(1, TRANSLOG_PAGE_SIZE + log_descriptor.page_overhead);
+  MY_STAT stat_buff;
+  char path[FN_REFLEN];
+  return (test(my_stat(translog_filename_by_fileno(file_no, path),
+                       &stat_buff, MYF(MY_WME))));
+}
+
+
+/**
+   @brief returns the LSN of the first record starting in this log
+
+   @retval LSN_ERROR Error
+   @retval LSN_IMPOSSIBLE no log
+   @retval # LSN of the first record
+*/
+
+LSN translog_first_lsn_in_log()
+{
+  TRANSLOG_ADDRESS addr, horizon= translog_get_horizon();
+  TRANSLOG_VALIDATOR_DATA data;
+  uint min_file= 1, max_file= LSN_FILE_NO(horizon);
+  uint chunk_type;
+  uint16 chunk_offset;
+  uchar *page;
+  TRANSLOG_SCANNER_DATA scanner;
+  DBUG_ENTER("translog_first_lsn_in_log");
+  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)",
+                      LSN_FILE_NO(addr), LSN_OFFSET(addr)));
+
+  if (addr == MAKE_LSN(1, TRANSLOG_PAGE_SIZE))
+  {
+    /* there is no first page yet */
+    DBUG_RETURN(LSN_IMPOSSIBLE);
+  }
+
+
+  /*TODO: lock loghandler purger when it will be created */
+  /* binary search for last file */
+  while (min_file != max_file && min_file != (max_file - 1))
+  {
+    uint test= (min_file + max_file) / 2;
+    DBUG_PRINT("info", ("min_file: %u  test: %u  max_file: %u",
+                        min_file, test, max_file));
+    if (test == max_file)
+      test--;
+    if (translog_is_file(test))
+      max_file= test;
+    else
+      min_file= test;
+  }
+
+  addr= MAKE_LSN(max_file, TRANSLOG_PAGE_SIZE); /* the first page of the file */
+  data.addr= &addr;
+  if ((page= translog_get_page(&data, scanner.buffer)) == NULL ||
+      (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
+    DBUG_RETURN(LSN_ERROR);
+  addr+= chunk_offset;
+  if (addr == horizon)
+    DBUG_RETURN(LSN_IMPOSSIBLE);
+  translog_init_scanner(addr, 0, &scanner);
+
+  chunk_type= scanner.page[scanner.page_offset] & TRANSLOG_CHUNK_TYPE;
+  DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
+                      (uint) scanner.page[scanner.page_offset]));
+  while (chunk_type != TRANSLOG_CHUNK_LSN &&
+         chunk_type != TRANSLOG_CHUNK_FIXED &&
+         scanner.page[scanner.page_offset] != 0)
+  {
+    if (translog_get_next_chunk(&scanner))
+      DBUG_RETURN(LSN_ERROR);
+    chunk_type= scanner.page[scanner.page_offset] & TRANSLOG_CHUNK_TYPE;
+    DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
+                        (uint) scanner.page[scanner.page_offset]));
+  }
+  if (scanner.page[scanner.page_offset] == 0)
+    DBUG_RETURN(LSN_IMPOSSIBLE); /* reached page filler */
+  DBUG_RETURN(scanner.page_addr + scanner.page_offset);
+}
+
+
+/**
+   @brief returns theoretical first LSN if first log is present
+
+   @retval LSN_ERROR Error
+   @retval LSN_IMPOSSIBLE no log
+   @retval # LSN of the first record
+*/
+
+LSN translog_first_theoretical_lsn()
+{
+  TRANSLOG_ADDRESS addr= translog_get_horizon();
+  uchar buffer[TRANSLOG_PAGE_SIZE], *page;
+  TRANSLOG_VALIDATOR_DATA data;
+  DBUG_ENTER("translog_first_theoretical_lsn");
+  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)",
+                      LSN_FILE_NO(addr), LSN_OFFSET(addr)));
+
+  if (!translog_is_file(1))
+    DBUG_RETURN(LSN_IMPOSSIBLE);
+  if (addr == MAKE_LSN(1, TRANSLOG_PAGE_SIZE))
+  {
+    /* there is no first page yet */
+    DBUG_RETURN(MAKE_LSN(1, TRANSLOG_PAGE_SIZE +
+                         log_descriptor.page_overhead));
+  }
+
+  addr= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* the first page of the file */
+  data.addr= &addr;
+  if ((page= translog_get_page(&data, buffer)) == NULL)
+    DBUG_RETURN(LSN_ERROR);
+
+  DBUG_RETURN(MAKE_LSN(1, TRANSLOG_PAGE_SIZE +
+                       page_overhead[page[TRANSLOG_PAGE_FLAGS]]));
 }

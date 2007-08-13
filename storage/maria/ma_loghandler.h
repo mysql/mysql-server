@@ -266,7 +266,8 @@ extern my_bool translog_inited;
 
 #define SHARE_ID_MAX 65535 /* array's size */
 
-extern LSN first_lsn_in_log();
+extern LSN translog_first_lsn_in_log();
+extern LSN translog_first_theoretical_lsn();
 
 /* record parts descriptor */
 struct st_translog_parts

@@ -85,7 +85,12 @@ int main(int argc, char **argv)
   if (opt_only_display)
     printf("You are using --only-display, NOTHING will be written to disk\n");
 
-  lsn= first_lsn_in_log(); /* LSN could be also --start-from-lsn=# */
+  /* LSN could be also --start-from-lsn=# */
+  lsn= translog_first_theoretical_lsn();
+  /*
+    @todo process LSN_IMPOSSIBLE and LSN_ERROR values of
+    translog_first_theoretical_lsn()
+  */
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
   if (maria_apply_log(lsn, opt_display_and_apply, stdout))
