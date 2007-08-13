@@ -24,7 +24,7 @@ int toku_hashtable_create (HASHTABLE *h) {
     return 0;
 }
 
-static void hash_find_internal (HASHTABLE tab, const char *key, ITEMLEN keylen, HASHELT *hashelt, HASHELT **prev_ptr) {
+static void hash_find_internal (HASHTABLE tab, const unsigned char *key, ITEMLEN keylen, HASHELT *hashelt, HASHELT **prev_ptr) {
     unsigned int h = hash_key (key, keylen) % tab->arraysize;
     HASHELT he;
     HASHELT *prev = &tab->array[h];
@@ -59,7 +59,7 @@ int toku_hash_rehash_everything (HASHTABLE tab, int newarraysize) {
     for (i=0; i<tab->arraysize; i++) {
 	HASHELT he;
 	while ((he=tab->array[i])!=0) {
-	    unsigned int h = hash_key(he->key, he->keylen)%newarraysize;
+	    unsigned int h = hash_key((unsigned char *)he->key, he->keylen)%newarraysize;
 	    tab->array[i] = he->next;
 	    he->next = newarray[h];
 	    newarray[h] = he;
@@ -73,7 +73,7 @@ int toku_hash_rehash_everything (HASHTABLE tab, int newarraysize) {
     return 0;
 }
 
-int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *val, ITEMLEN vallen)
+int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *val, ITEMLEN vallen)
 {
     unsigned int h = hash_key (key,keylen)%tab->arraysize;
     {
@@ -100,7 +100,7 @@ int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char
     }
 }
 
-int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen) {
+int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
     HASHELT he, *prev_ptr;
     //printf("%s:%d deleting %s (bucket %d)\n", __FILE__, __LINE__, key, hash_key(key,keylen)%tab->arraysize);
     hash_find_internal(tab, key, keylen, &he, &prev_ptr);

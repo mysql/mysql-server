@@ -15,10 +15,10 @@ int toku_hashtable_create (HASHTABLE*);
 int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen);
 
 /* Replace the key if it was already there. */
-int toku_hash_insert (HASHTABLE tab, const char *key, ITEMLEN keylen, const char *data, ITEMLEN datalen);
+int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen);
 
 /* It is OK to delete something that isn't there. */
-int toku_hash_delete (HASHTABLE tab, const char *key, ITEMLEN keylen);
+int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen);
 void toku_hashtable_free(HASHTABLE *tab);
 int toku_hashtable_n_entries(HASHTABLE);
   
