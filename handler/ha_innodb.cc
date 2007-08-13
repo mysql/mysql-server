@@ -8187,7 +8187,7 @@ innobase_create_key_def(
 /*====================*/
 					/* out: key definitions or NULL */
 	trx_t*		trx,		/* in: trx */
-	dict_table_t*	table,		/* in: table definition */
+	const dict_table_t*table,		/* in: table definition */
 	mem_heap_t*	heap,		/* in: heap where space for key
 					definitions are allocated */
 	KEY*		key_info,	/* in: Indexes to be created */
@@ -8214,7 +8214,7 @@ innobase_create_key_def(
 				     key_info->name, "PRIMARY");
 
 	if (new_primary) {
-		dict_index_t*   index;
+		const dict_index_t*	index;
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(key_info, TRUE, indexdef++, heap);
