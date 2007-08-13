@@ -532,7 +532,7 @@ void assert_cursor_val(PMA_CURSOR cursor, int v) {
 }
 
 /* make sure cursors are adjusted when the pma grows */
-void test_pma_cursor_4() {
+void test_pma_cursor_4 (void) {
     int error;
     PMA pma;
     PMA_CURSOR cursora, cursorb, cursorc;
@@ -724,7 +724,7 @@ void test_pma_split_n(int n) {
     assert(error == 0);
 }
 
-void test_pma_split_varkey() {
+void test_pma_split_varkey(void) {
     char *keys[] = {
         "this", "is", "a", "key", "this is a really really big key", "zz", 0 };
     PMA pmaa, pmab, pmac;
@@ -835,7 +835,7 @@ void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
     printf("\n");
 }
 
-void test_pma_split_cursor() {
+void test_pma_split_cursor(void) {
     PMA pmaa, pmab, pmac;
     PMA_CURSOR cursora, cursorb, cursorc;
     int error;
@@ -934,7 +934,7 @@ void test_pma_split_cursor() {
     assert(error == 0);
 }
 
-void test_pma_split() {
+void test_pma_split(void) {
     test_pma_split_n(0); memory_check_all_free();
     test_pma_split_n(1); memory_check_all_free();
     test_pma_split_n(2); memory_check_all_free();
@@ -1003,7 +1003,7 @@ void test_pma_bulk_insert_n(int n) {
     toku_free(vals);
 }
 
-void test_pma_bulk_insert() {
+void test_pma_bulk_insert(void) {
     test_pma_bulk_insert_n(0); memory_check_all_free();
     test_pma_bulk_insert_n(1); memory_check_all_free();
     test_pma_bulk_insert_n(2); memory_check_all_free();
@@ -1012,6 +1012,41 @@ void test_pma_bulk_insert() {
     test_pma_bulk_insert_n(5); memory_check_all_free();
     test_pma_bulk_insert_n(8); memory_check_all_free();
     test_pma_bulk_insert_n(32); memory_check_all_free();
+}
+
+void test_pma_insert_or_replace(void) {
+    PMA pma;
+    int r;
+    DBT dbtk, dbtv;
+    int n_diff=-2;
+    r = pma_create(&pma, default_compare_fun);
+    assert(r==0);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), 0, &n_diff);
+    assert(r==0); assert(n_diff==-1);
+
+    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
+
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), 0, &n_diff);
+    assert(r==0); assert(n_diff==-1);
+
+    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
+
+    r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
+    assert(r==0); assert(dbtv.size==3); assert(memcmp(dbtv.data, "ww", 3)==0);
+
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), 0, &n_diff);
+    assert(r==0); assert(n_diff==3);
+    
+    r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
+    assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
+
+    r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
+    assert(r==0); assert(dbtv.size==5); assert(memcmp(dbtv.data, "xxxx", 3)==0);
+
+    r=pma_free(&pma);
+    assert(r==0);
 }
 
 void pma_tests (void) {
@@ -1031,6 +1066,7 @@ void pma_tests (void) {
     test_pma_cursor();            memory_check_all_free();
     test_pma_split();             memory_check_all_free();
     test_pma_bulk_insert();       memory_check_all_free();
+    test_pma_insert_or_replace(); memory_check_all_free();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

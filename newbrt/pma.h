@@ -32,6 +32,11 @@ int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen
 /* This returns an error if the key is NOT present. */
 int pma_delete (PMA, DBT *, DB*);
 
+int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
+			   int *replaced_v_size /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
+			   );
+
+
 /* Exposes internals of the PMA by returning a pointer to the guts.
  * Don't modify the returned data.  Don't free it. */
 enum pma_errors pma_lookup (PMA, DBT*, DBT*, DB*);

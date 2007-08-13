@@ -798,11 +798,23 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
+#define INSERT_ALL_ALL_ONCE
+
 static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			    int debug,
 			    DB *db) {
     DBT v2;
+#ifdef INSERT_ALL_AT_ONCE
+    int replaced_v_size;
+    enum pma_errors pma_status = pma_insert_or_replace(node->u.l.buffer, k, init_dbt(&v2), db, &replaced_v_size);
+    assert(pma_status==BRT_OK);
+    if (replaced_v_size>=0) {
+	node->u.l.n_bytes_in_buffer += v.size - replaced_v_size;
+    } else {
+	node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
+    }
+#else
     enum pma_errors pma_status = pma_lookup(node->u.l.buffer, k, init_dbt(&v2), db);
     if (pma_status==BRT_OK) {
 	pma_status = pma_delete(node->u.l.buffer, k, db);
@@ -811,6 +823,7 @@ static int brt_leaf_insert (BRT t, BRTNODE node, DBT *k, DBT *v,
     }
     pma_status = pma_insert(node->u.l.buffer, k, v, db);
     node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD;
+#endif
     // If it doesn't fit, then split the leaf.
     if (serialize_brtnode_size(node) > node->nodesize) {
 	int r = brtleaf_split (t, node, nodea, nodeb, splitk, k->app_private, db);

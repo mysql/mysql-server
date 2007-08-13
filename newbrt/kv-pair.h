@@ -23,6 +23,16 @@ static inline struct kv_pair *kv_pair_malloc(void *key, int keylen, void *val, i
     return pair;
 }
 
+/* replace the val, keep the same key */
+static inline struct kv_pair *kv_pair_realloc_same_key(struct kv_pair *p, void *newval, int newvallen) {
+    struct kv_pair *pair = toku_realloc(p, sizeof (struct kv_pair) + p->keylen + newvallen);
+    if (pair) {
+	pair->vallen = newvallen;
+	memcpy(pair->key + pair->keylen, newval, newvallen);
+    }
+    return pair;
+}
+
 static inline void kv_pair_free(struct kv_pair *pair) {
     toku_free_n(pair, sizeof(struct kv_pair)+pair->keylen+pair->vallen);
 }
