@@ -8067,7 +8067,10 @@ innobase_create_index_def(
 /*======================*/
 	KEY*			key,		/* in: key definition */
 	bool			new_primary,	/* in: TRUE=generating
-						a new primary key */
+						a new primary key
+						on the table */
+	bool			key_primary,	/* in: TRUE if this key
+						is a primary key */
 	merge_index_def_t*	index,		/* out: index definition */
 	mem_heap_t*		heap)		/* in: heap where memory
 						is allocated */
@@ -8098,7 +8101,7 @@ innobase_create_index_def(
 		index->ind_type |= DICT_UNIQUE;
 	}
 
-	if (!my_strcasecmp(system_charset_info, key->name, "PRIMARY")) {
+	if (key_primary) {
 		index->ind_type |= DICT_CLUSTERED;
 	}
 
@@ -8209,17 +8212,36 @@ innobase_create_key_def(
 	indexdef = indexdefs = (merge_index_def_t*)
 		mem_heap_alloc(heap, sizeof *indexdef * n_indexes);
 
-	/* Primary key if defined is always the first index defined for
-	the table */
+	/* If there is a primary key, it is always the first index
+	defined for the table. */
 
 	new_primary = !my_strcasecmp(system_charset_info,
 				     key_info->name, "PRIMARY");
+
+	/* If there is a UNIQUE INDEX consisting entirely of NOT NULL
+	columns, MySQL will treat it as a PRIMARY KEY unless the
+	table already has one. */
+
+	if (!new_primary && (key_info->flags & HA_NOSAME)
+	    && row_table_got_default_clust_index(table)) {
+		uint	key_part = key_info->key_parts;
+
+		new_primary = TRUE;
+
+		while (key_part--) {
+			if (key_info->key_part[key_part].null_bit) {
+				new_primary = FALSE;
+				break;
+			}
+		}
+	}
 
 	if (new_primary) {
 		const dict_index_t*	index;
 
 		/* Create the PRIMARY key index definition */
-		innobase_create_index_def(key_info, TRUE, indexdef++, heap);
+		innobase_create_index_def(key_info, TRUE, TRUE,
+					  indexdef++, heap);
 
 		row_mysql_lock_data_dictionary(trx);
 
@@ -8243,7 +8265,7 @@ innobase_create_key_def(
 	/* Create definitions for added secondary indexes. */
 
 	while (i < n_keys) {
-		innobase_create_index_def(&key_info[i++], new_primary,
+		innobase_create_index_def(&key_info[i++], new_primary, FALSE,
 					  indexdef++, heap);
 	}
 
