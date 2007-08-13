@@ -1128,6 +1128,11 @@ public:
 };
 
 
+extern "C"
+{
+  typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
+}
+
 /* Named lists (used for keycaches) */
 
 class NAMED_LIST :public ilink
@@ -1152,8 +1157,7 @@ public:
   {
     my_free((uchar*) name, MYF(0));
   }
-  friend bool process_key_caches(int (* func) (const char *name,
-					       KEY_CACHE *));
+  friend bool process_key_caches(process_key_cache_t func);
   friend void delete_elements(I_List<NAMED_LIST> *list,
 			      void (*free_element)(const char*, uchar*));
 };
@@ -1201,6 +1205,6 @@ extern sys_var_str sys_var_general_log_path, sys_var_slow_log_path;
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name);
 KEY_CACHE *get_or_create_key_cache(const char *name, uint length);
 void free_key_cache(const char *name, KEY_CACHE *key_cache);
-bool process_key_caches(int (* func) (const char *name, KEY_CACHE *));
+bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));

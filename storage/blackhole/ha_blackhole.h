@@ -76,11 +76,12 @@ public:
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
-  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
-                 enum ha_rkey_function find_flag);
-  int index_read_idx(uchar * buf, uint idx, const uchar * key,
-                   key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_read_last(uchar * buf, const uchar * key, key_part_map keypart_map);
+  int index_read_map(uchar * buf, const uchar * key, key_part_map keypart_map,
+                     enum ha_rkey_function find_flag);
+  int index_read_idx_map(uchar * buf, uint idx, const uchar * key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag);
+  int index_read_last_map(uchar * buf, const uchar * key, key_part_map keypart_map);
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);

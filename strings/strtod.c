@@ -28,6 +28,9 @@
 
 #include "my_base.h"			/* Includes errno.h + EOVERFLOW */
 #include "m_ctype.h"
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
 
 #define MAX_DBL_EXP	308
 #define MAX_RESULT_FOR_MAX_EXP 1.7976931348623157

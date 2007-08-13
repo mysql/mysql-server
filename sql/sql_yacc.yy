@@ -857,6 +857,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OUT_SYM                       /* SQL-2003-R */
 %token  OWNER_SYM
 %token  PACK_KEYS_SYM
+%token  PAGE_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
@@ -1009,6 +1010,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TO_SYM                        /* SQL-2003-R */
 %token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
+%token  TRANSACTIONAL_SYM
 %token  TRIGGERS_SYM
 %token  TRIGGER_SYM                   /* SQL-2003-R */
 %token  TRIM                          /* SQL-2003-N */
@@ -4364,6 +4366,12 @@ create_table_option:
 	    Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
 	    Lex->create_info.key_block_size= $3;
 	  }
+        | TRANSACTIONAL_SYM opt_equal ulong_num
+          {
+	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
+            Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
+        				     HA_CHOICE_NO);
+          }
         ;
 
 default_charset:
@@ -4442,7 +4450,8 @@ row_types:
 	| DYNAMIC_SYM	{ $$= ROW_TYPE_DYNAMIC; }
 	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
 	| REDUNDANT_SYM	{ $$= ROW_TYPE_REDUNDANT; }
-	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; };
+	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; }
+	| PAGE_SYM	{ $$= ROW_TYPE_PAGE; };
 
 merge_insert_types:
        NO_SYM            { $$= MERGE_INSERT_DISABLED; }
@@ -10034,6 +10043,7 @@ keyword_sp:
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
 	| PACK_KEYS_SYM		{}
+        | PAGE_SYM		{}
 	| PARTIAL		{}
 	| PARTITIONING_SYM	{}
 	| PARTITIONS_SYM	{}
@@ -10103,6 +10113,7 @@ keyword_sp:
 	| TEXT_SYM		{}
 	| THAN_SYM		{}
 	| TRANSACTION_SYM	{}
+	| TRANSACTIONAL_SYM	{}
 	| TRIGGERS_SYM		{}
 	| TIMESTAMP		{}
 	| TIMESTAMP_ADD		{}

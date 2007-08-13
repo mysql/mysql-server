@@ -32,6 +32,8 @@
 
 #include <my_user.h>
 
+extern "C" uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -483,7 +485,6 @@ sp_head::sp_head()
   */
   m_db= m_name= m_qname= str_reset;
 
-  extern uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
@@ -1066,6 +1067,12 @@ sp_head::execute(THD *thd)
   old_arena= thd->stmt_arena;
 
   /*
+    Switch query context. This has to be done early as this is sometimes
+    allocated trough sql_alloc
+  */
+  saved_creation_ctx= m_creation_ctx->set_n_backup(thd);
+
+  /*
     We have to save/restore this info when we are changing call level to
     be able properly do close_thread_tables() in instructions.
   */
@@ -1109,10 +1116,6 @@ sp_head::execute(THD *thd)
     parameters in it later during sp_eval_func_item()
   */
   thd->spcont->callers_arena= &backup_arena;
-
-  /* Switch query context. */
-
-  saved_creation_ctx= m_creation_ctx->set_n_backup(thd);
 
   do
   {
@@ -3579,8 +3582,8 @@ typedef struct st_sp_table
   uint8 trg_event_map;
 } SP_TABLE;
 
-uchar *
-sp_table_key(const uchar *ptr, size_t *plen, my_bool first)
+
+uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first)
 {
   SP_TABLE *tab= (SP_TABLE *)ptr;
   *plen= tab->qname.length;

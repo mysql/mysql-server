@@ -1932,7 +1932,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
 {
   char buff[32];
   uint length= 0;
-  char time_buff[MAX_TIME_SIZE];
+  char local_time_buff[MAX_TIME_SIZE];
   struct tm start;
   uint time_buff_len= 0;
 
@@ -1948,13 +1948,13 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
 
         localtime_r(&event_time, &start);
 
-        time_buff_len= my_snprintf(time_buff, MAX_TIME_SIZE,
+        time_buff_len= my_snprintf(local_time_buff, MAX_TIME_SIZE,
                                    "%02d%02d%02d %2d:%02d:%02d",
                                    start.tm_year % 100, start.tm_mon + 1,
                                    start.tm_mday, start.tm_hour,
                                    start.tm_min, start.tm_sec);
 
-        if (my_b_write(&log_file, (uchar*) &time_buff, time_buff_len))
+        if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
           goto err;
       }
       else

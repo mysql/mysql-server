@@ -455,7 +455,7 @@ typedef struct st_sort_info
   enum data_file_type new_data_file_type;
   MI_INFO *info;
   MI_CHECK *param;
-  char *buff;
+  uchar *buff;
   SORT_KEY_BLOCKS *key_block,*key_block_end;
   SORT_FT_BUF *ft_buf;
   /* sync things */

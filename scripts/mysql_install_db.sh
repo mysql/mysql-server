@@ -22,6 +22,7 @@ in_rpm=0
 windows=0
 defaults=""
 user=""
+source_install=0
 
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
@@ -74,6 +75,13 @@ parse_arguments() {
         # package.
          windows=1 ;;
 
+       --source-install)
+        # This is used when you want to run mysqld directly from the
+        # source tree (for example when you are developing MySQL and
+        # only want to create the default tables but don't want to
+        # install mysqld yet.
+         source_install=1 ;;
+
       *)
         if test -n "$pick_args"
         then
@@ -119,22 +127,37 @@ parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 test -z "$ldata" && ldata=@localstatedir@
-if test -z "$basedir"
+if test -z "$basedir" -a "$source_install" = 0
 then
   basedir=@prefix@
   bindir=@bindir@
+  extra_bindir="$bindir"
   execdir=@libexecdir@
   pkgdatadir=@pkgdatadir@
 else
-  bindir="$basedir/bin"
+  if test -z "$basedir"
+  then
+    bindir="$basedir/bin"
+    extra_bindir="$bindir"
+  fi
   if test -x "$basedir/libexec/mysqld"
   then
     execdir="$basedir/libexec"
   elif test -x "$basedir/sbin/mysqld"
   then
     execdir="$basedir/sbin"
-  else
+  elif test -x "$basedir/bin/mysqld"
+  then
     execdir="$basedir/bin"
+  elif test -x "./sql/mysqld"
+  then
+    execdir="./sql"
+    bindir="./client"
+    extra_bindir="./extra"
+  else
+    echo "Can't find mysqld executable through --basedir=$basedir."
+    echo "Please verify that you have MySQL installed in this location"
+    exit 1;
   fi
 fi
 
@@ -221,14 +244,14 @@ hostname=`@HOSTNAME@`
 # Check if hostname is valid
 if test "$windows" = 0 -a "$in_rpm" = 0 -a $force = 0
 then
-  resolved=`$bindir/resolveip $hostname 2>&1`
+  resolved=`$extra_bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
   then
-    resolved=`$bindir/resolveip localhost 2>&1`
+    resolved=`$extra_bindir/resolveip localhost 2>&1`
     if [ $? -ne 0 ]
     then
       echo "Neither host '$hostname' nor 'localhost' could be looked up with"
-      echo "$bindir/resolveip"
+      echo "$extra_bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct"
       echo "hostname."
       echo "If you want to solve this at a later stage, restart this script"
@@ -274,7 +297,7 @@ fi
 # Peform the install of system tables
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
---basedir=$basedir --datadir=$ldata --loose-skip-innodb \
+--basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
 --loose-skip-ndbcluster $args --max_allowed_packet=8M \
 --net_buffer_length=16K"
 
@@ -322,7 +345,7 @@ then
     if test "$in_rpm" = "0"
     then
       echo "You can start the MySQL daemon with:"
-      echo "cd @prefix@ ; $bindir/mysqld_safe &"
+      echo "cd @prefix@ ; $scriptdir/mysqld_safe &"
       echo
       echo "You can test the MySQL daemon with mysql-test-run.pl"
       echo "cd mysql-test ; perl mysql-test-run.pl"

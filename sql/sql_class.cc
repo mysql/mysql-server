@@ -2704,14 +2704,17 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 pthread_mutex_t LOCK_xid_cache;
 HASH xid_cache;
 
-static uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
+extern "C" uchar *xid_get_hash_key(const uchar *, size_t *, my_bool);
+extern "C" void xid_free_hash(void *);
+
+uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
                                   my_bool not_used __attribute__((unused)))
 {
   *length=((XID_STATE*)ptr)->xid.key_length();
   return ((XID_STATE*)ptr)->xid.key();
 }
 
-static void xid_free_hash (void *ptr)
+void xid_free_hash(void *ptr)
 {
   if (!((XID_STATE*)ptr)->in_thd)
     my_free((uchar*)ptr, MYF(0));
@@ -3245,13 +3248,13 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
   RETURN VALUE
     Error code, or 0 if no error.
 */
-int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
+int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       ulong query_len, bool is_trans, bool suppress_use,
                       THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
-  DBUG_ASSERT(query && mysql_bin_log.is_open());
+  DBUG_PRINT("enter", ("qtype: %d  query: '%s'", qtype, query_arg));
+  DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
     If we are not in prelocked mode, mysql_unlock_tables() will be
@@ -3307,7 +3310,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query,
       flush the pending rows event if necessary.
      */
     {
-      Query_log_event qinfo(this, query, query_len, is_trans, suppress_use,
+      Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
                             killed_status_arg);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
