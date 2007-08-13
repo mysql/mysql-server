@@ -496,22 +496,27 @@ dict_index_name_print(
 	FILE*			file,	/* in: output stream */
 	trx_t*			trx,	/* in: transaction */
 	const dict_index_t*	index);	/* in: index to print */
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_first_index(
 /*=======================*/
-				/* out: index, NULL if none exists */
-	dict_table_t*	table);	/* in: table */
+					/* out: index, NULL if none exists */
+	const dict_table_t*	table);	/* in: table */
 /************************************************************************
 Gets the next index on the table. */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_next_index(
 /*======================*/
-				/* out: index, NULL if none left */
-	dict_index_t*	index);	/* in: index */
+					/* out: index, NULL if none left */
+	const dict_index_t*	index);	/* in: index */
+#else /* UNIV_DEBUG */
+# define dict_table_get_first_index(table) UT_LIST_GET_FIRST((table)->indexes)
+# define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Check whether the index is the clustered index. */
 UNIV_INLINE
