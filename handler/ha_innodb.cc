@@ -4310,7 +4310,9 @@ ha_innobase::change_active_index(
 
 	prebuilt->index = innobase_get_index(keynr);
 
-	if (!prebuilt->index) {
+	if (UNIV_UNLIKELY(!prebuilt->index)) {
+		sql_print_warning("InnoDB: change_active_index(%u) failed",
+				  keynr);
 		DBUG_RETURN(1);
 	}
 
