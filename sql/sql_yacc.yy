@@ -7523,18 +7523,54 @@ opt_load_data_set_spec:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING_literal
-	{
-	  THD *thd= YYTHD;
-	  $$ = new Item_string($1.str,$1.length,thd->variables.collation_connection);
-	}
-	| NCHAR_STRING
-	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
-	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->underscore_charset); }
-	| text_literal TEXT_STRING_literal
-	  { ((Item_string*) $1)->append($2.str,$2.length); }
-	;
+        TEXT_STRING
+        {
+          LEX_STRING tmp;
+          THD *thd= YYTHD;
+          CHARSET_INFO *cs_con= thd->variables.collation_connection;
+          CHARSET_INFO *cs_cli= thd->variables.character_set_client;
+          uint repertoire= thd->lex->text_string_is_7bit &&
+                             my_charset_is_ascii_based(cs_cli) ?
+                           MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+          if (thd->charset_is_collation_connection ||
+              (repertoire == MY_REPERTOIRE_ASCII &&
+               my_charset_is_ascii_based(cs_con)))
+            tmp= $1;
+          else
+            thd->convert_string(&tmp, cs_con, $1.str, $1.length, cs_cli);
+          $$= new Item_string(tmp.str, tmp.length, cs_con,
+                              DERIVATION_COERCIBLE, repertoire);
+        }
+        | NCHAR_STRING
+        {
+          uint repertoire= Lex->text_string_is_7bit ?
+                           MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+          DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+          $$= new Item_string($1.str, $1.length, national_charset_info,
+                              DERIVATION_COERCIBLE, repertoire);
+        }
+        | UNDERSCORE_CHARSET TEXT_STRING
+          {
+            $$= new Item_string($2.str, $2.length, Lex->underscore_charset);
+            ((Item_string*) $$)->set_repertoire_from_value();
+          }
+        | text_literal TEXT_STRING_literal
+          {
+            Item_string* item= (Item_string*) $1;
+            item->append($2.str, $2.length);
+            if (!(item->collation.repertoire & MY_REPERTOIRE_EXTENDED))
+            {
+              /*
+                 If the string has been pure ASCII so far,
+                 check the new part.
+              */
+              CHARSET_INFO *cs= YYTHD->variables.collation_connection;
+              item->collation.repertoire|= my_string_repertoire(cs,
+                                                                $2.str,
+                                                                $2.length);
+            }
+          }
+        ;
 
 text_string:
 	TEXT_STRING_literal
@@ -7606,20 +7642,22 @@ literal:
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
 	| HEX_NUM	{ $$ =	new Item_hex_string($1.str, $1.length);}
 	| BIN_NUM	{ $$= new Item_bin_string($1.str, $1.length); }
-	| UNDERSCORE_CHARSET HEX_NUM
-	  {
-	    Item *tmp= new Item_hex_string($2.str, $2.length);
-	    /*
-	      it is OK only emulate fix_fieds, because we need only
+        | UNDERSCORE_CHARSET HEX_NUM
+          {
+            Item *tmp= new Item_hex_string($2.str, $2.length);
+            /*
+              it is OK only emulate fix_fieds, because we need only
               value of constant
-	    */
-	    String *str= tmp ?
-	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
-	      (String*) 0;
-	    $$= new Item_string(str ? str->ptr() : "",
-				str ? str->length() : 0,
-				Lex->underscore_charset);
-	  }
+            */
+            String *str= tmp ?
+              tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+              (String*) 0;
+            $$= new Item_string(str ? str->ptr() : "",
+                                str ? str->length() : 0,
+                                Lex->underscore_charset);
+            if ($$)
+              ((Item_string *) $$)->set_repertoire_from_value();
+          }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
 	    Item *tmp= new Item_bin_string($2.str, $2.length);

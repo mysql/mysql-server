@@ -144,14 +144,16 @@ fi
 
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
-cp client/$TARGET/*.exe                        $DESTDIR/bin/
-cp extra/$TARGET/*.exe                         $DESTDIR/bin/
-cp myisam/$TARGET/*.exe                        $DESTDIR/bin/
-cp server-tools/instance-manager/$TARGET/*.exe $DESTDIR/bin/
-cp server-tools/instance-manager/$TARGET/*.pdb $DESTDIR/bin/ || true
-cp server-tools/instance-manager/$TARGET/*.map $DESTDIR/bin/ || true
-cp tests/$TARGET/*.exe                         $DESTDIR/bin/
-cp libmysql/$TARGET/libmysql.dll               $DESTDIR/bin/
+cp client/$TARGET/*.exe                                  $DESTDIR/bin/
+cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
+cp myisam/$TARGET/*.exe                                  $DESTDIR/bin/
+cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
+if [ x"$TARGET" != x"release" ] ; then
+  cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
+fi
+cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
+cp libmysql/$TARGET/*.exe                                $DESTDIR/bin/
+cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
 
 # FIXME really needed?!
 mv $DESTDIR/bin/comp_err.exe             $DESTDIR/bin/comp-err.exe
@@ -164,8 +166,10 @@ fi
 
 # Depending on Visual Studio target, the optimized server has symbols
 cp sql/$TARGET/$BASENAME.exe   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.exe
-cp sql/$TARGET/$BASENAME.pdb   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.pdb || true
-cp sql/$TARGET/$BASENAME.map   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.map || true
+cp sql/$TARGET/$BASENAME.map   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.map
+if [ x"$TARGET" != x"release" ] ; then
+  cp sql/$TARGET/$BASENAME.pdb   $DESTDIR/bin/$BASENAME$EXE_SUFFIX.pdb
+fi
 
 if [ -f "sql/debug/mysqld-debug.exe" ] ; then
   BASENAME="mysqld-debug"  # Old style non CMake build 
@@ -176,19 +180,16 @@ fi
 if [ x"$PACK_DEBUG" = x"" -a -f "sql/debug/$BASENAME.exe" -o \
      x"$PACK_DEBUG" = x"yes" ] ; then
   cp sql/debug/$BASENAME.exe   $DESTDIR/bin/mysqld-debug.exe
-  cp sql/debug/$BASENAME.pdb   $DESTDIR/bin/mysqld-debug.pdb || true
-  cp sql/debug/$BASENAME.map   $DESTDIR/bin/mysqld-debug.map || true
+  cp sql/debug/$BASENAME.pdb   $DESTDIR/bin/mysqld-debug.pdb
+  cp sql/debug/$BASENAME.map   $DESTDIR/bin/mysqld-debug.map
 fi
 
 # ----------------------------------------------------------------------
 # Copy data directory, readme files etc
 # ----------------------------------------------------------------------
 
-# FIXME is there ever a data directory to copy?
 if [ -d win/data ] ; then
   cp -pR win/data $DESTDIR/
-elif [ -d data ] ; then
-  cp -pR data $DESTDIR/
 fi
 
 # FIXME maybe a flag to define "release build", or do the
@@ -218,16 +219,22 @@ copy_embedded()
            $DESTDIR/include
   cp libmysqld/libmysqld.def           $DESTDIR/include/
   cp libmysqld/$TARGET/mysqlserver.lib $DESTDIR/Embedded/static/release/
+  cp libmysqld/$TARGET/mysqlserver.pdb $DESTDIR/Embedded/static/release/
   cp libmysqld/$TARGET/libmysqld.dll   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.exp   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.lib   $DESTDIR/Embedded/DLL/release/
+  cp libmysqld/$TARGET/libmysqld.pdb   $DESTDIR/Embedded/DLL/release/
 
   if [ x"$PACK_DEBUG" = x"" -a -f "libmysqld/debug/libmysqld.lib" -o \
        x"$PACK_DEBUG" = x"yes" ] ; then
-    mkdir -p $DESTDIR/Embedded/DLL/debug
+    mkdir -p $DESTDIR/Embedded/DLL/debug \
+             $DESTDIR/Embedded/static/debug
+    cp libmysqld/debug/mysqlserver.lib   $DESTDIR/Embedded/static/debug/
+    cp libmysqld/debug/mysqlserver.pdb   $DESTDIR/Embedded/static/debug/
     cp libmysqld/debug/libmysqld.dll     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.exp     $DESTDIR/Embedded/DLL/debug/
     cp libmysqld/debug/libmysqld.lib     $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/libmysqld.pdb     $DESTDIR/Embedded/DLL/debug/
   fi
 }
 
@@ -287,7 +294,8 @@ cp include/mysql.h \
 mkdir -p $DESTDIR/lib/opt
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
-   client/$TARGET/mysqlclient.lib \
+   libmysql/$TARGET/mysqlclient.lib \
+   mysys/$TARGET/mysys.lib \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
@@ -297,54 +305,25 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
   mkdir -p $DESTDIR/lib/debug
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
-     client/debug/mysqlclient.lib \
+     libmysql/debug/mysqlclient.lib \
+     mysys/debug/mysys.lib \
      regex/debug/regex.lib \
      strings/debug/strings.lib \
      zlib/debug/zlib.lib $DESTDIR/lib/debug/
-
-  if [ -f "mysys/debug/mysys-nt.lib" ] ; then
-    cp mysys/debug/mysys-nt.lib $DESTDIR/lib/debug/
-  else
-    cp mysys/debug/mysys.lib $DESTDIR/lib/debug/mysys-nt.lib
-  fi
-
-fi
-
-if [ -f "mysys/$TARGET/mysys-nt.lib" ] ; then
-  cp mysys/$TARGET/mysys-nt.lib $DESTDIR/lib/opt/
-else
-  cp mysys/$TARGET/mysys.lib $DESTDIR/lib/opt/mysys-nt.lib
 fi
 
 # ----------------------------------------------------------------------
 # Copy the test directory
 # ----------------------------------------------------------------------
 
-mkdir -p $DESTDIR/mysql-test/include $DESTDIR/mysql-test/lib \
-         $DESTDIR/mysql-test/r $DESTDIR/mysql-test/std_data \
-         $DESTDIR/mysql-test/t
+mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
-cp mysql-test/install_test_db.sh $DESTDIR/mysql-test/install_test_db
-cp mysql-test/include/*.inc $DESTDIR/mysql-test/include/
-cp mysql-test/include/*.test $DESTDIR/mysql-test/include/
-cp mysql-test/lib/*.pl $DESTDIR/mysql-test/lib/
-cp mysql-test/lib/*.sql $DESTDIR/mysql-test/lib/ || true
-cp mysql-test/r/*.require $DESTDIR/mysql-test/r/
-# Need this trick, or we get "argument list too long".
-ABS_DST=`pwd`/$DESTDIR
-(cd mysql-test/r/ && cp *.result $ABS_DST/mysql-test/r/)
-cp mysql-test/std_data/* $DESTDIR/mysql-test/std_data/
-cp mysql-test/t/*.opt $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.sh $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.slave-mi $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.sql $DESTDIR/mysql-test/t/
-cp mysql-test/t/*.def $DESTDIR/mysql-test/t/
-(cd mysql-test/t/ && cp *.test $ABS_DST/mysql-test/t/)
+cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
 
 # Note that this will not copy "extra" if a soft link
 if [ -d mysql-test/extra ] ; then
-  mkdir -p $DESTDIR/mysql-test/extra
+  mkdir $DESTDIR/mysql-test/extra
   cp -pR mysql-test/extra/* $DESTDIR/mysql-test/extra/
 fi
 
@@ -372,16 +351,18 @@ for i in `cd scripts && ls`; do \
   fi; \
 done
 
-if [ -d "share" ] ; then
-  cp -pR share $DESTDIR/
-else
-  cp -pR sql/share $DESTDIR/
-fi
+cp -pR sql/share $DESTDIR/
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
 
 # The SQL initialisation code is really expected to be in "share"
 mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
+
+# ----------------------------------------------------------------------
+# Clean up from possibly copied SCCS directories
+# ----------------------------------------------------------------------
+
+rm -rf `find $DISTDIR -type d -name SCCS -print`
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE
