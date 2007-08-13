@@ -1125,7 +1125,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
   char buff[512];
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open file %s", filename);
+    die("Failed to open file '%s'", filename);
   while((len= my_read(fd, (byte*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
@@ -1364,7 +1364,7 @@ int compare_files2(File fd, const char* filename2)
   if ((fd2= my_open(filename2, O_RDONLY, MYF(0))) < 0)
   {
     my_close(fd, MYF(0));
-    die("Failed to open second file: %s", filename2);
+    die("Failed to open second file: '%s'", filename2);
   }
   while((len= my_read(fd, (byte*)&buff,
                       sizeof(buff), MYF(0))) > 0)
@@ -1421,7 +1421,7 @@ int compare_files(const char* filename1, const char* filename2)
   int error;
 
   if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open first file: %s", filename1);
+    die("Failed to open first file: '%s'", filename1);
 
   error= compare_files2(fd, filename2);
 
@@ -1447,12 +1447,12 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 {
   int error;
   File fd;
-  char ds_temp_file_path[FN_REFLEN];
+  char temp_file_path[FN_REFLEN];
 
   DBUG_ENTER("dyn_string_cmp");
   DBUG_PRINT("enter", ("fname: %s", fname));
 
-  if ((fd= create_temp_file(ds_temp_file_path, NULL,
+  if ((fd= create_temp_file(temp_file_path, NULL,
                             "tmp", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
@@ -1464,15 +1464,15 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   {
     my_close(fd, MYF(0));
     /* Remove the temporary file */
-    my_delete(ds_temp_file_path, MYF(0));
-    die("Failed to write to '%s'", ds_temp_file_path);
+    my_delete(temp_file_path, MYF(0));
+    die("Failed to write file '%s'", temp_file_path);
   }
 
   error= compare_files2(fd, fname);
 
   my_close(fd, MYF(0));
   /* Remove the temporary file */
-  my_delete(ds_temp_file_path, MYF(0));
+  my_delete(temp_file_path, MYF(0));
 
   DBUG_RETURN(error);
 }
@@ -1498,6 +1498,9 @@ void check_result(DYNAMIC_STRING* ds)
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
+  if (access(result_file_name, F_OK) != 0)
+    die("The specified result file does not exist: '%s'", result_file_name);
+
   switch (dyn_string_cmp(ds, result_file_name))
   {
   case RESULT_OK:
@@ -1507,12 +1510,15 @@ void check_result(DYNAMIC_STRING* ds)
     /* Fallthrough */
   case RESULT_CONTENT_MISMATCH:
   {
-    /* Result mismatched, dump results to .reject file and then show the diff */
+    /*
+      Result mismatched, dump results to .reject file
+      and then show the diff
+    */
     char reject_file[FN_REFLEN];
-    fn_format(reject_file, result_file_name, "", ".reject",
-              MY_REPLACE_EXT);
-    DBUG_PRINT("enter", ("reject_file_name: %s", reject_file));
-    str_to_file(reject_file, ds->str, ds->length);
+    str_to_file(fn_format(reject_file, result_file_name, opt_logdir, ".reject",
+                          *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
+                          MY_REPLACE_EXT),
+                ds->str, ds->length);
 
     dynstr_set(ds, NULL); /* Don't create a .log file */
 
@@ -2121,7 +2127,7 @@ int open_file(const char *name)
   if (!(cur_file->file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
   {
     cur_file--;
-    die("Could not open file %s", buff);
+    die("Could not open file '%s'", buff);
   }
   cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
   cur_file->lineno=1;
@@ -4980,7 +4986,7 @@ void read_embedded_server_arguments(const char *name)
     embedded_server_args[0]= (char*) "";		/* Progname */
   }
   if (!(file=my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
-    die("Failed to open file %s", buff);
+    die("Failed to open file '%s'", buff);
 
   while (embedded_server_arg_count < MAX_EMBEDDED_SERVER_ARGS &&
 	 (str=fgets(argument,sizeof(argument), file)))
