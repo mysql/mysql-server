@@ -392,6 +392,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
     assert(w.ndone==size);
     {
 	ssize_t r = pwrite(fd, w.buf, w.ndone, 0);
+	if (r<0) perror("pwrite");
 	assert((size_t)r==w.ndone);
     }
     toku_free(w.buf);
