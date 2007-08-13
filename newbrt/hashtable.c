@@ -1,6 +1,7 @@
 /* Hash table with chaining. */
 #include "hashtable.h"
 #include "memory.h"
+#include "primes.h"
 #include "../include/ydb-constants.h"
 #include <assert.h>
 #include <string.h>
@@ -13,10 +14,11 @@
 
 int toku_hashtable_create (HASHTABLE *h) {
     HASHTABLE MALLOC(tab);
-    int i;
+    unsigned int i;
     if (tab==0) return -1;
     tab->n_keys=0;
-    tab->arraysize=8;
+    tab->primeidx=0;
+    tab->arraysize=get_prime(tab->primeidx);
     assert(sizeof(*tab->array)==sizeof(void*));
     tab->array = toku_calloc(tab->arraysize, sizeof(*tab->array));
     for (i=0; i<tab->arraysize; i++) tab->array[i]=0;
@@ -51,9 +53,9 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     }
 }
 
-int toku_hash_rehash_everything (HASHTABLE tab, int newarraysize) {
+int toku_hash_rehash_everything (HASHTABLE tab, unsigned int newarraysize) {
     HASHELT *newarray = toku_calloc(newarraysize, sizeof(*tab->array));
-    int i;
+    unsigned int i;
     assert(newarray!=0);
     for (i=0; i<newarraysize; i++) newarray[i]=0;
     for (i=0; i<tab->arraysize; i++) {
@@ -128,8 +130,8 @@ int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
 
 
 int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen) {
-    int i;
-    int usei = random()%h->arraysize;
+    unsigned int i;
+    unsigned int usei = random()%h->arraysize;
     for (i=0; i<h->arraysize; i++, usei++) {
 	if (usei>=h->arraysize) usei=0;
 	HASHELT he=h->array[usei];
@@ -209,7 +211,7 @@ void toku_hashtable_free(HASHTABLE *tab) {
 
 
 void toku_hashtable_clear(HASHTABLE tab) {
-    int i;
+    unsigned int i;
     for (i=0; i<tab->arraysize; i++) {
 	hasheltlist_free(tab->array[i]);
 	tab->array[i]=0;
