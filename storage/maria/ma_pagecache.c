@@ -3167,7 +3167,9 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_page_pin pin,
                              enum pagecache_write_mode write_mode,
                              PAGECACHE_PAGE_LINK *link,
-                             uint offset, uint size)
+                             uint offset, uint size,
+                             pagecache_disk_read_validator validator,
+                             uchar* validator_data)
 {
   PAGECACHE_BLOCK_LINK *block= NULL;
   PAGECACHE_PAGE_LINK fake_link;
@@ -3253,7 +3255,7 @@ restart:
 
     if (write_mode == PAGECACHE_WRITE_DONE)
     {
-      if ((block->status & PCBLOCK_ERROR) && page_st != PAGE_READ)
+      if (!(block->status & PCBLOCK_ERROR))
       {
         /* Copy data from buff */
         if (!(size & 511))
@@ -3261,8 +3263,15 @@ restart:
         else
           memcpy(block->buffer + offset, buff, size);
         block->status= (PCBLOCK_READ | (block->status & PCBLOCK_WRLOCK));
+        /*
+          The validator can change the page content (removing page
+          protection) so it have to be called
+        */
+        if (validator != NULL &&
+            (*validator)(block->buffer, validator_data))
+          block->status|= PCBLOCK_ERROR;
         KEYCACHE_DBUG_PRINT("key_cache_insert",
-                            ("primary request: new page in cache"));
+                            ("Page injection"));
 #ifdef THREAD
         /* Signal that all pending requests for this now can be processed. */
         if (block->wqueue[COND_FOR_REQUESTED].last_thread)
@@ -3272,6 +3281,7 @@ restart:
     }
     else
     {
+      DBUG_ASSERT(validator == 0 && validator_data == 0);
       if (! (block->status & PCBLOCK_CHANGED))
           link_to_changed_list(pagecache, block);
 

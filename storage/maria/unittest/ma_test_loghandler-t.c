@@ -19,8 +19,9 @@ static TRN *trn= &dummy_transaction_object;
 #define LOG_FLAGS 0
 #define LOG_FILE_SIZE (1024L*1024L)
 #define ITERATIONS (1600*4)
+
 #else
-#define LOG_FLAGS TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC
+#define LOG_FLAGS (TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC)
 #define LOG_FILE_SIZE (1024L*1024L*3L)
 #define ITERATIONS 1600
 #endif
@@ -331,31 +332,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     ok(1, "flush");
   }
 
-  translog_destroy();
-  end_pagecache(&pagecache, 1);
-  ma_control_file_end();
-
-
-  if (ma_control_file_create_or_open(TRUE))
-  {
-    fprintf(stderr, "pass2: Can't init control file (%d)\n", errno);
-    exit(1);
-  }
-  if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             TRANSLOG_PAGE_SIZE)) == 0)
-  {
-    fprintf(stderr, "pass2: Got error: init_pagecache() (errno: %d)\n", errno);
-    exit(1);
-  }
-  if (translog_init(".", LOG_FILE_SIZE, 50112, 0, &pagecache, LOG_FLAGS))
-  {
-    fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
-    translog_destroy();
-    exit(1);
-  }
-  example_loghandler_init();
   srandom(122334817L);
-
 
   rc= 1;
 
@@ -639,5 +616,6 @@ err:
 
   if (maria_log_remove())
     exit(1);
+
   return(test(exit_status()));
 }
