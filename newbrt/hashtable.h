@@ -24,7 +24,7 @@ int toku_hashtable_n_entries(HASHTABLE);
   
 void toku_hashtable_clear(HASHTABLE);
 
-int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, long int *randomnumber);
 //int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
 typedef struct hashelt *HASHELT;

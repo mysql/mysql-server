@@ -134,9 +134,9 @@ int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
 }
 
 
-int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen) {
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, long int *randomnumber) {
     unsigned int i;
-    unsigned int usei = random()%h->arraysize;
+    unsigned int usei = (*randomnumber)%h->arraysize;
     for (i=0; i<h->arraysize; i++, usei++) {
 	if (usei>=h->arraysize) usei=0;
 	HASHELT he=h->array[usei];
@@ -145,6 +145,7 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
 	    *keylen = he->keylen;
 	    *data = &he->keyval[he->keylen];
 	    *datalen = he->vallen;
+	    *randomnumber = usei;
 	    return 0;
 	}
     }
