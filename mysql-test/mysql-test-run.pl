@@ -276,9 +276,6 @@ our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
-our $opt_wait_for_master;
-our $opt_wait_for_slave;
-
 our $opt_warnings;
 
 our $opt_skip_ndbcluster= 0;
