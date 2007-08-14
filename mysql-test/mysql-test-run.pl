@@ -933,26 +933,6 @@ sub command_line_setup () {
     mtr_error("Will not run in record mode without a specific test case");
   }
 
-  # --------------------------------------------------------------------------
-  # Embedded server flag
-  # --------------------------------------------------------------------------
-  if ( $opt_embedded_server )
-  {
-    $glob_use_embedded_server= 1;
-    push(@glob_test_mode, "embedded");
-    $opt_skip_rpl= 1;              # We never run replication with embedded
-    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
-    $opt_skip_ssl= 1;              # Turn off use of SSL
-
-    # Turn off use of bin log
-    push(@opt_extra_mysqld_opt, "--skip-log-bin");
-
-    if ( $opt_extern )
-    {
-      mtr_error("Can't use --extern with --embedded-server");
-    }
-  }
-
 
   # --------------------------------------------------------------------------
   # ps protcol flag
