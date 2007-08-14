@@ -709,9 +709,10 @@ static int push_some_kvpairs_down (BRT t, BRTNODE node, int childnum,
     {
 	bytevec key,val;
 	ITEMLEN keylen, vallen;
+	long int randomnumber = random();
 	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, node->u.n.n_bytes_in_hashtable[childnum]);
 	assert(toku_hashtable_n_entries(node->u.n.htables[childnum])>0);
-	while(0==toku_hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen)) {
+	while(0==toku_hashtable_random_pick(node->u.n.htables[childnum], &key, &keylen, &val, &vallen, &randomnumber)) {
 	    int child_did_split=0; BRTNODE childa, childb;
 	    DBT hk,hv;
 	    DBT childsplitk;

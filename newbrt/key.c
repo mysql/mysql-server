@@ -62,7 +62,7 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     return key1len-key2len;
 }
 #else
-/* unroll that one twice */
+/* unroll that one four times */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;

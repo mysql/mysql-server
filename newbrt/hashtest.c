@@ -127,7 +127,8 @@ void test1(void) {
 	for (j=0; j<4; j++) {
 	    bytevec key, val;
 	    ITEMLEN keylen, vallen;
-	    r = toku_hashtable_random_pick(table, &key, &keylen, &val, &vallen);
+	    long int randnum=random();
+	    r = toku_hashtable_random_pick(table, &key, &keylen, &val, &vallen, &randnum);
 	    assert(r==0);
 	    r = toku_hash_delete(table, key, keylen);
 	    assert(r==0);
