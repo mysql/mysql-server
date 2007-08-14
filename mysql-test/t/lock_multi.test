@@ -270,3 +270,38 @@ drop table t1;
 
 # End of 5.0 tests
 
+
+#
+# Bug #21281 "Pending write lock is incorrectly removed when its
+#             statement being KILLed"
+#
+create table t1 (i int);
+connection locker;
+lock table t1 read;
+connection writer;
+--send update t1 set i= 10;
+connection reader;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "update t1 set i= 10";
+--source include/wait_condition.inc
+--send select * from t1;
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "select * from t1";
+--source include/wait_condition.inc
+let $ID= `select id from information_schema.processlist where state = "Locked" and info = "update t1 set i= 10"`;
+--replace_result $ID ID
+eval kill query $ID;
+connection reader;
+--reap
+connection writer;
+--error ER_QUERY_INTERRUPTED 
+--reap
+connection locker;
+unlock tables;
+connection default;
+drop table t1;
+
+--echo End of 5.1 tests

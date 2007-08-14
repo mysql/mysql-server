@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 {
   int i,j,error,deleted;
   HP_INFO *file;
-  char record[128],key[32];
+  uchar record[128],key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
   HA_KEYSEG keyseg[4];
@@ -65,12 +65,12 @@ int main(int argc, char **argv)
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");
-  strmov(record,"          ..... key           ");
+  strmov((char*) record,"          ..... key           ");
 
   for (i=49 ; i>=1 ; i-=2 )
   {
     j=i%25 +1;
-    sprintf(key,"%6d",j);
+    sprintf((char*) key,"%6d",j);
     bmove(record+1,key,6);
     error=heap_write(file,record);
     if (heap_check_heap(file,0))
@@ -92,18 +92,18 @@ int main(int argc, char **argv)
   for (i=1 ; i<=10 ; i++)
   {
     if (i == remove_ant) { VOID(heap_close(file)) ; return (0) ; }
-    sprintf(key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
+    sprintf((char*) key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
     if ((error = heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT)))
     {
       if (verbose || (flags[j] == 1 ||
 		      (error && my_errno != HA_ERR_KEY_NOT_FOUND)))
-	printf("key: %s  rkey:   %3d  my_errno: %3d\n",key,error,my_errno);
+	printf("key: %s  rkey:   %3d  my_errno: %3d\n",(char*) key,error,my_errno);
     }
     else
     {
       error=heap_delete(file,record);
       if (error || verbose)
-	printf("key: %s  delete: %d  my_errno: %d\n",key,error,my_errno);
+	printf("key: %s  delete: %d  my_errno: %d\n",(char*) key,error,my_errno);
       flags[j]=0;
       if (! error)
 	deleted++;
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
   printf("- Reading records with key\n");
   for (i=1 ; i<=25 ; i++)
   {
-    sprintf(key,"%6d",i);
+    sprintf((char*) key,"%6d",i);
     bmove(record+1,key,6);
     my_errno=0;
     error=heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT);
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
     {
       printf("key: %s  rkey: %3d  my_errno: %3d  record: %s\n",
-	      key,error,my_errno,record+1);
+             (char*) key,error,my_errno,record+1);
     }
   }
 
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
       if (verbose || (error != 0 && error != HA_ERR_RECORD_DELETED))
       {
 	printf("pos: %2d  ni_rrnd: %3d  my_errno: %3d  record: %s\n",
-	       i-1,error,my_errno,record+1);
+	       i-1,error,my_errno,(char*) record+1);
       }
     }
   }

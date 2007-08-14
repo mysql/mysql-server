@@ -173,7 +173,7 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
 	printf(" %9s",llstr(next_link,buff));
       if (next_link >= info->state->data_file_length)
 	goto wrong;
-      if (my_pread(info->dfile,(char*) buff,delete_link_length,
+      if (my_pread(info->dfile, (uchar*) buff,delete_link_length,
 		   next_link,MYF(MY_NABP)))
       {
 	if (test_flag & T_VERBOSE) puts("");
@@ -250,7 +250,8 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
   my_off_t next_link;
   uint block_size=(nr+1)*MI_MIN_KEY_BLOCK_LENGTH;
   ha_rows records;
-  char llbuff[21], llbuff2[21], *buff;
+  char llbuff[21], llbuff2[21];
+  uchar *buff;
   DBUG_ENTER("check_k_link");
   DBUG_PRINT("enter", ("block_size: %u", block_size));
 
@@ -1672,7 +1673,7 @@ static int writekeys(MI_SORT_PARAM *sort_param)
     {
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_mi_ft_add(info,i,(char*) key,buff,filepos))
+        if (_mi_ft_add(info, i, key, buff, filepos))
 	  goto err;
       }
 #ifdef HAVE_SPATIAL
@@ -1703,7 +1704,7 @@ static int writekeys(MI_SORT_PARAM *sort_param)
       {
 	if (info->s->keyinfo[i].flag & HA_FULLTEXT)
         {
-          if (_mi_ft_del(info,i,(char*) key,buff,filepos))
+          if (_mi_ft_del(info,i, key,buff,filepos))
 	    break;
         }
         else
@@ -2742,7 +2743,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     sort_param[i].filepos=new_header_length;
     sort_param[i].max_pos=sort_param[i].pos=share->pack.header_length;
 
-    sort_param[i].record= (((char *)(sort_param+share->base.keys))+
+    sort_param[i].record= (((uchar *)(sort_param+share->base.keys))+
 			   (share->base.pack_reclength * i));
     if (!mi_alloc_rec_buff(info, -1, &sort_param[i].rec_buff))
     {
@@ -3586,7 +3587,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 	    DBUG_RETURN(1);
 	  sort_info->buff_length=reclength;
 	}
-	from=sort_info->buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER);
+	from= sort_info->buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER);
       }
       /* We can use info->checksum here as only one thread calls this. */
       info->checksum=mi_checksum(info,sort_param->record);
@@ -4268,7 +4269,7 @@ int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile)
 
   if (info->s->options & HA_OPTION_COMPRESS_RECORD && fix_datafile)
   {
-    char buff[MEMMAP_EXTRA_MARGIN];
+    uchar buff[MEMMAP_EXTRA_MARGIN];
     bzero(buff,sizeof(buff));
     if (my_b_write(&info->rec_cache,buff,sizeof(buff)))
     {

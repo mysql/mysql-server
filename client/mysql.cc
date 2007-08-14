@@ -196,6 +196,8 @@ void tee_putc(int c, FILE *file);
 static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
+extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
+                                  char *argument);
 static int com_quit(String *str,char*),
 	   com_go(String *str,char*), com_ego(String *str,char*),
 	   com_print(String *str,char*),
@@ -349,8 +351,8 @@ static ulong start_timer(void);
 static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
-static sig_handler mysql_end(int sig);
-static sig_handler handle_sigint(int sig);
+extern "C" sig_handler mysql_end(int sig);
+extern "C" sig_handler handle_sigint(int sig);
 
 int main(int argc,char *argv[])
 {
@@ -814,7 +816,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 }
 
 
-static my_bool
+my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -1427,7 +1429,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 #ifdef HAVE_READLINE
 
 static char *new_command_generator(const char *text, int);
-static char **new_mysql_completion (const char *text, int start, int end);
+extern "C" char **new_mysql_completion (const char *text, int start, int end);
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -1436,9 +1438,9 @@ static char **new_mysql_completion (const char *text, int start, int end);
 */
 
 #if defined(USE_NEW_READLINE_INTERFACE) || defined(USE_LIBEDIT_INTERFACE)
-char *no_completion(const char*,int)
+extern "C" char *no_completion(const char*,int)
 #else
-char *no_completion()
+extern "C" char *no_completion()
 #endif
 {
   return 0;					/* No filename completion */
@@ -1540,9 +1542,9 @@ static void initialize_readline (char *name)
   array of matches, or NULL if there aren't any.
 */
 
-static char **new_mysql_completion (const char *text,
-				    int start __attribute__((unused)),
-				    int end __attribute__((unused)))
+char **new_mysql_completion (const char *text,
+                             int start __attribute__((unused)),
+                             int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
 #if defined(USE_NEW_READLINE_INTERFACE)
