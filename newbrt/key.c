@@ -19,8 +19,7 @@ int keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) 
     return 0;
 }
 
-#else
-#if 0
+#elsif 0
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
@@ -32,7 +31,8 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 	return -keycompare(key2,key2len,key1,key1len);
     }
 }
-#else
+#elif 1
+
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
@@ -46,7 +46,20 @@ int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
 	else return -1;
     }
 }
-#endif
+#else
+int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+    int comparelen = key1len<key2len ? key1len : key2len;
+    const unsigned char *k1;
+    const unsigned char *k2;
+    for (k1=key1, k2=key2;
+	 comparelen>0;
+	 k1++, k2++) {
+	if (*k1 != *k2) {
+	    return (int)*k1-(int)*k2;
+	}
+    }
+    return key1len-key2len;
+}
 #endif
 
 void test_keycompare (void) {
