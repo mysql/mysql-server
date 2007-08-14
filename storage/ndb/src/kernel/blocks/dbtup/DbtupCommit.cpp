@@ -281,7 +281,17 @@ Dbtup::commit_operation(Signal* signal,
       if(copy_bits & Tuple_header::MM_SHRINK)
       {
         ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
-        vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+        if (len)
+        {
+          vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+        }
+        else
+        {
+          vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          tmp.m_page_no == RNIL;
+          ref->assign(&tmp);
+          copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
+        }
         update_free_page_list(regFragPtr, vpagePtr);
       }
       else
@@ -297,6 +307,7 @@ Dbtup::commit_operation(Signal* signal,
     }
     else
     {
+      ndbassert(tmp.m_page_no == RNIL);
       disk_ptr = (Tuple_header*)copy->get_end_of_fix_part_ptr(regTabPtr);
     }
   }

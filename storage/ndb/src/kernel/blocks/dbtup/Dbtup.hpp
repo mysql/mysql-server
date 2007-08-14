@@ -1478,6 +1478,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   {
     Uint32 m_len;
     Uint32 m_data[1]; // Only used for easy offset handling
+
+    STATIC_CONST( SZ32 = 1 );
   };
 
 struct KeyReqStruct {
