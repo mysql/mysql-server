@@ -9,15 +9,12 @@ CREATE TABLE `test` (
 `t` VARCHAR( 10 ) NOT NULL
 ) ENGINE = ndbcluster;
 
-create table test.db_temp as select * from mysql.db where user='';
-delete from mysql.db where user='';
-
-flush privileges;
-
+# Add user1@localhost with a specific password
+# and connect as that user
 GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
-
 connect (user1,localhost,user1,pass,*NO-ONE*);
 
+# Run the query 100 times
 disable_query_log;
 disable_result_log;
 let $i= 100;
@@ -29,10 +26,10 @@ dec $i;
 enable_query_log;
 enable_result_log;
 
-connect (root,localhost,root,,test);
-connection root;
+disconnect user1;
+
+# Switch back to the default connection and cleanup
+connection default;
 DROP TABLE `test`.`test`;
-insert into mysql.db select * from test.db_temp;
-drop table db_temp;
-flush privileges;
+drop user user1@localhost;
 
