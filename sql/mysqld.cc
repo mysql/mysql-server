@@ -4828,7 +4828,8 @@ enum options_mysqld
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
-  OPT_SECURE_FILE_PRIV
+  OPT_SECURE_FILE_PRIV,
+  OPT_KEEP_FILES_ON_CREATE
 };
 
 
@@ -5830,6 +5831,11 @@ log and this option does nothing anymore.",
    (gptr*) &max_system_variables.join_buff_size, 0, GET_ULONG,
    REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD,
    IO_SIZE, 0},
+  {"keep_files_on_create", OPT_KEEP_FILES_ON_CREATE,
+   "Don't overwrite stale .MYD and .MYI even if no directory is specified.",
+   (gptr*) &global_system_variables.keep_files_on_create,
+   (gptr*) &max_system_variables.keep_files_on_create,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &dflt_key_cache_var.param_buff_size,
