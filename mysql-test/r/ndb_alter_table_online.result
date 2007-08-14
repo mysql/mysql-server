@@ -55,6 +55,69 @@ a	b	c
 1	1	NULL
 2	1	1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+begin;
+update t1 set b = 0 where a = 1;
+update t1 set b = 1 where a = 2;
+delete from t1      where a = 3;
+insert into t1 values (5,5);
+insert into t1 values (6,6);
+update t1 set b = 0 where a = 6;
+ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+update t1 set b = 0 where a = 2;
+update t1 set b = 0 where a = 4;
+update t1 set b = 0 where a = 5;
+insert into t1 values (7,0,null,null,null);
+insert into t1 values (8,0,'8','8','8');
+commit;
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	0	NULL	NULL	NULL
+2	0	NULL	NULL	NULL
+4	0	NULL	NULL	NULL
+5	0	NULL	NULL	NULL
+6	0	NULL	NULL	NULL
+7	0	NULL	NULL	NULL
+8	0	8	8	8
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+insert into t1 values (2,2);
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+begin;
+update t1 set b = 0 where a = 1;
+update t1 set b = 1 where a = 2;
+delete from t1      where a = 3;
+insert into t1 values (5,5);
+insert into t1 values (6,6);
+update t1 set b = 0 where a = 6;
+ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+update t1 set b = 0 where a = 2;
+update t1 set b = 0 where a = 4;
+update t1 set b = 0 where a = 5;
+insert into t1 values (7,0,null,null,null);
+insert into t1 values (8,0,'8','8','8');
+rollback;
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	1	NULL	NULL	NULL
+2	2	NULL	NULL	NULL
+3	3	NULL	NULL	NULL
+4	4	NULL	NULL	NULL
+DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
