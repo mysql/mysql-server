@@ -2346,8 +2346,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
       if (!s.is_valid())
         goto err;
-      if (null_created_arg)
-        s.created= 0;
+      s.dont_set_created= null_created_arg;
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
