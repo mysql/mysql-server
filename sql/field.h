@@ -231,9 +231,9 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  inline void get_image(char *buff,uint length, CHARSET_INFO *cs)
+  virtual void get_image(char *buff, uint length, CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
+  virtual void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
 
 
@@ -1430,13 +1430,20 @@ public:
   String *val_str(String*, String *);
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
-  { return cmp_binary(a, b); }
+  { 
+    DBUG_ASSERT(ptr == a);
+    return Field_bit::key_cmp((const byte *) b, bytes_in_rec+test(bit_len));
+  }
   int key_cmp(const byte *a, const byte *b)
   { return cmp_binary((char *) a, (char *) b); }
   int key_cmp(const byte *str, uint length);
   int cmp_offset(uint row_offset);
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
+  void get_image(char *buff, uint length, CHARSET_INFO *cs)
+  { get_key_image(buff, length, itRAW); }   
+  void set_image(char *buff,uint length, CHARSET_INFO *cs)
+  { Field_bit::store(buff, length, cs); }
   uint get_key_image(char *buff, uint length, imagetype type);
   void set_key_image(char *buff, uint length)
   { Field_bit::store(buff, length, &my_charset_bin); }
