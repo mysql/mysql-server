@@ -774,6 +774,17 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
+  inline ulong get_time()
+  {
+    THD *tmp_thd;
+    if (when)
+      return (ulong) when;
+    if (thd)
+      return thd->start_time;
+    if ((tmp_thd= current_thd))
+      return tmp_thd->start_time;
+    return my_time(0);
+  }
 #endif
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
@@ -925,19 +936,6 @@ protected:
      non-zero. The caller shall decrease the counter by one.
    */
   virtual enum_skip_reason do_shall_skip(RELAY_LOG_INFO *rli);
-
-  inline ulong get_time()
-  {
-    THD *tmp_thd;
-    if (when)
-      return (ulong) when;
-    if (thd)
-      return thd->start_time;
-    if ((tmp_thd= current_thd))
-      return tmp_thd->start_time;
-    return my_time(0);
-  }
-
 #endif
 };
 
