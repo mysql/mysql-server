@@ -233,7 +233,6 @@ my $opt_report_features;
 our $opt_check_testcases;
 our $opt_mark_progress;
 
-our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
 our $max_master_num= 1;
