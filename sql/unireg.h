@@ -81,6 +81,8 @@
                            RAND_TABLE_BIT)
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
 
+#define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
+
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
 
