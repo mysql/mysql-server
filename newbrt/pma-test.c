@@ -1051,6 +1051,7 @@ void test_pma_insert_or_replace(void) {
 
 void pma_tests (void) {
     memory_check=1;
+    test_keycompare();            memory_check_all_free();
     test_pma_compare_fun(0);      memory_check_all_free();
     test_pma_compare_fun(1);      memory_check_all_free();
     test_pma_iterate();           
@@ -1061,7 +1062,6 @@ void pma_tests (void) {
     test_pma_find();              memory_check_all_free();
     test_calculate_parameters();  memory_check_all_free();
     test_count_region();          memory_check_all_free();
-    test_keycompare();            memory_check_all_free();
     test_pma_random_pick();       memory_check_all_free();
     test_pma_cursor();            memory_check_all_free();
     test_pma_split();             memory_check_all_free();
