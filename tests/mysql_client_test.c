@@ -15735,6 +15735,80 @@ static void test_bug27592()
 }
 
 
+static void test_bug29948()
+{
+  MYSQL *dbc=NULL;
+  MYSQL_STMT *stmt=NULL;
+  MYSQL_BIND bind;
+
+  int res=0;
+  my_bool auto_reconnect=1, error=0, is_null=0;
+  char kill_buf[20];
+  const char *query;
+  int buf;
+  unsigned long length;
+  
+  dbc = mysql_init(NULL);
+  DIE_UNLESS(dbc);
+
+  mysql_options(dbc, MYSQL_OPT_RECONNECT, (char*)&auto_reconnect);
+  if (!mysql_real_connect(dbc, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket,
+                          (CLIENT_FOUND_ROWS | CLIENT_MULTI_STATEMENTS |
+                           CLIENT_MULTI_RESULTS)))
+  {
+    printf("connection failed: %s (%d)", mysql_error(dbc),
+           mysql_errno(dbc));
+    exit(1);
+  }
+
+  bind.buffer_type= MYSQL_TYPE_LONG;
+  bind.buffer= (char *)&buf;
+  bind.is_null= &is_null;
+  bind.error= &error;
+  bind.length= &length;
+
+  res= mysql_query(dbc, "DROP TABLE IF EXISTS t1");
+  myquery(res);
+  res= mysql_query(dbc, "CREATE TABLE t1 (a INT)");
+  myquery(res);
+  res= mysql_query(dbc, "INSERT INTO t1 VALUES(1)");
+  myquery(res);
+
+  stmt= mysql_stmt_init(dbc);
+  check_stmt(stmt);
+
+  buf= CURSOR_TYPE_READ_ONLY;
+  res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&buf);
+  myquery(res);
+
+  query= "SELECT * from t1 where a=?";
+  res= mysql_stmt_prepare(stmt, query, strlen(query));
+  myquery(res);
+
+  res= mysql_stmt_bind_param(stmt, &bind);
+  myquery(res);
+
+  res= mysql_stmt_execute(stmt);
+  check_execute(stmt, res);
+
+  res= mysql_stmt_bind_result(stmt,&bind);
+  check_execute(stmt, res);
+    
+  sprintf(kill_buf, "kill %ld", dbc->thread_id);
+  mysql_query(dbc, kill_buf);
+
+  res= mysql_stmt_store_result(stmt);
+  DIE_UNLESS(res);
+
+  mysql_stmt_free_result(stmt);
+  mysql_stmt_close(stmt);
+  mysql_query(dbc, "DROP TABLE t1");
+  mysql_close(dbc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16019,6 +16093,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
+  { "test_bug29948", test_bug29948 },
   { 0, 0 }
 };
 
