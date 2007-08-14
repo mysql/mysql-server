@@ -170,6 +170,14 @@ extern MY_COLLATION_HANDLER my_collation_8bit_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
+/* Some typedef to make it easy for C++ to make function pointers */
+typedef int (*my_charset_conv_mb_wc)(struct charset_info_st *, my_wc_t *,
+                                     const uchar *, const uchar *);
+typedef int (*my_charset_conv_wc_mb)(struct charset_info_st *, my_wc_t,
+                                     uchar *, uchar *);
+typedef size_t (*my_charset_conv_case)(struct charset_info_st *,
+                                       char *, size_t, char *, size_t);
+
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_charset_handler_st
@@ -188,11 +196,9 @@ typedef struct my_charset_handler_st
   size_t  (*numcells)(struct charset_info_st *, const char *b, const char *e);
   
   /* Unicode conversion */
-  int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
-	       const uchar *s,const uchar *e);
-  int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
-	       uchar *s,uchar *e);
-  
+  my_charset_conv_mb_wc mb_wc;
+  my_charset_conv_wc_mb wc_mb;
+
   /* CTYPE scanner */
   int (*ctype)(struct charset_info_st *cs, int *ctype,
                const uchar *s, const uchar *e);
@@ -200,11 +206,10 @@ typedef struct my_charset_handler_st
   /* Functions for case and sort conversion */
   size_t  (*caseup_str)(struct charset_info_st *, char *);
   size_t  (*casedn_str)(struct charset_info_st *, char *);
-  size_t  (*caseup)(struct charset_info_st *, char *src, size_t srclen,
-                    char *dst, size_t dstlen);
-  size_t  (*casedn)(struct charset_info_st *, char *src, size_t srclen,
-                    char *dst, size_t dstlen);
-  
+
+  my_charset_conv_case caseup;
+  my_charset_conv_case casedn;
+
   /* Charset dependant snprintf() */
   size_t (*snprintf)(struct charset_info_st *, char *to, size_t n,
                      const char *fmt,

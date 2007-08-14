@@ -2419,7 +2419,7 @@ static uint query_cache_hits(MYSQL *conn)
 */
 static void test_ps_query_cache()
 {
-  MYSQL      *org_mysql= mysql, *lmysql;
+  MYSQL      *lmysql;
   MYSQL_STMT *stmt;
   int        rc;
   MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
@@ -2563,8 +2563,7 @@ static void test_ps_query_cache()
     check_execute(stmt, rc);
     test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
     hits2= query_cache_hits(mysql);
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON_WITH_OTHER_CONN:
     case TEST_QCACHE_ON:                 /* should have hit */
       DIE_UNLESS(hits2-hits1 == 1);
@@ -2572,6 +2571,7 @@ static void test_ps_query_cache()
     case TEST_QCACHE_OFF_ON:
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
+      break;
     }
 
     /* now modify parameter values and see qcache hits */
@@ -2582,8 +2582,7 @@ static void test_ps_query_cache()
     test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
     hits1= query_cache_hits(mysql);
 
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON:
     case TEST_QCACHE_OFF_ON:
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
@@ -2591,6 +2590,7 @@ static void test_ps_query_cache()
       break;
     case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
       DIE_UNLESS(hits1-hits2 == 1);
+      break;
     }
 
     rc= mysql_stmt_execute(stmt);
@@ -2601,8 +2601,7 @@ static void test_ps_query_cache()
 
     mysql_stmt_close(stmt);
 
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON:                 /* should have hit */
       DIE_UNLESS(hits2-hits1 == 1);
       break;
@@ -2613,8 +2612,6 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
       DIE_UNLESS(hits2-hits1 == 1);
       break;
-      mysql_close(lmysql);
-      mysql= org_mysql;
     }
 
   } /* for(iteration=...) */
@@ -12296,24 +12293,24 @@ static void test_bug6081()
   int rc;
   myheader("test_bug6081");
 
-  rc= simple_command(mysql, COM_DROP_DB, current_db,
+  rc= simple_command(mysql, COM_DROP_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
   {
     myerror(NULL);                                   /* purecov: inspected */
     die(__FILE__, __LINE__, "COM_DROP_DB failed");   /* purecov: inspected */
   }
-  rc= simple_command(mysql, COM_DROP_DB, current_db,
+  rc= simple_command(mysql, COM_DROP_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
-  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+  rc= simple_command(mysql, COM_CREATE_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
   {
     myerror(NULL);                                   /* purecov: inspected */
     die(__FILE__, __LINE__, "COM_CREATE_DB failed"); /* purecov: inspected */
   }
-  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+  rc= simple_command(mysql, COM_CREATE_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
   rc= mysql_select_db(mysql, current_db);
@@ -13540,7 +13537,8 @@ static void test_bug9478()
       /* Fill in the fethc packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
+                                               (uchar*) buff,
                                                sizeof(buff), 0,0,1,NULL) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);
@@ -16077,7 +16075,6 @@ static void test_bug24179()
 
 /*
   Bug#28075 "COM_DEBUG crashes mysqld"
-  Note: Test disabled because of failure in PushBuild.
 */
 
 static void test_bug28075()
@@ -16106,7 +16103,7 @@ static void test_bug27876()
   int rc;
   MYSQL_RES *result;
 
-  char utf8_func[] =
+  uchar utf8_func[] =
   {
     0xd1, 0x84, 0xd1, 0x83, 0xd0, 0xbd, 0xd0, 0xba,
     0xd1, 0x86, 0xd0, 0xb8, 0xd0, 0xb9, 0xd0, 0xba,
@@ -16114,7 +16111,7 @@ static void test_bug27876()
     0x00
   };
 
-  char utf8_param[] =
+  uchar utf8_param[] =
   {
     0xd0, 0xbf, 0xd0, 0xb0, 0xd1, 0x80, 0xd0, 0xb0,
     0xd0, 0xbc, 0xd0, 0xb5, 0xd1, 0x82, 0xd1, 0x8a,
@@ -16136,23 +16133,23 @@ static void test_bug27876()
   result= mysql_store_result(mysql);
   mytest(result);
 
-  sprintf(query, "DROP FUNCTION IF EXISTS %s", utf8_func);
+  sprintf(query, "DROP FUNCTION IF EXISTS %s", (char*) utf8_func);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
   sprintf(query,
           "CREATE FUNCTION %s( %s VARCHAR(25))"
           " RETURNS VARCHAR(25) DETERMINISTIC RETURN %s",
-          utf8_func, utf8_param, utf8_param);
+          (char*) utf8_func, (char*) utf8_param, (char*) utf8_param);
   rc= mysql_query(mysql, query);
   myquery(rc);
-  sprintf(query, "SELECT %s(VERSION())", utf8_func);
+  sprintf(query, "SELECT %s(VERSION())", (char*) utf8_func);
   rc= mysql_query(mysql, query);
   myquery(rc);
   result= mysql_store_result(mysql);
   mytest(result);
 
-  sprintf(query, "DROP FUNCTION %s", utf8_func);
+  sprintf(query, "DROP FUNCTION %s", (char*) utf8_func);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
@@ -16334,7 +16331,54 @@ static void test_bug29692()
   mysql_close(conn);
 }
 
+/**
+  Bug#29306 Truncated data in MS Access with decimal (3,1) columns in a VIEW
+*/
 
+static void test_bug29306()
+{
+  MYSQL_FIELD *field;
+  int rc;
+  MYSQL_RES *res;
+
+  DBUG_ENTER("test_bug29306");
+  myheader("test_bug29306");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS view17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE tab17557 (dd decimal (3,1))");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW view17557 as SELECT dd FROM tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO tab17557 VALUES (7.6)");
+  myquery(rc);
+
+  /* Checking the view */
+  res= mysql_list_fields(mysql, "view17557", NULL);
+  while ((field= mysql_fetch_field(res)))
+  {
+    if (! opt_silent)
+    {
+      printf("field name %s\n", field->name);
+      printf("field table %s\n", field->table);
+      printf("field decimals %d\n", field->decimals);
+      if (field->decimals < 1)
+        printf("Error! No decimals! \n");
+      printf("\n\n");
+    }
+    DIE_UNLESS(field->decimals == 1);
+  }
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "DROP TABLE tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW view17557");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16626,6 +16670,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug27592", test_bug27592 },
   { "test_bug29687", test_bug29687 },
   { "test_bug29692", test_bug29692 },
+  { "test_bug29306", test_bug29306 },
   { 0, 0 }
 };
 
