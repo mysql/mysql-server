@@ -403,10 +403,24 @@ sub compute_estimate
 
 package main;
 
-my ($dbh,$database,$hostname,$user,$password,$help,$savequeries,$loadqueries,$debug,$format,$excludetables,$excludedbs);
+my ($dbh,
+    $database,
+    $socket,
+    $hostname,
+    $user,
+    $password);
+
+my ($help,
+    $savequeries,
+    $loadqueries,
+    $debug,
+    $format,
+    $excludetables,
+    $excludedbs);
 
 GetOptions('database|d=s'=>\$database,
 	   'hostname=s'=>\$hostname,
+	   'socket=s'=>\$socket,
 	   'user|u=s'=>\$user,
 	   'password|p=s'=>\$password,
 	   'savequeries|s=s'=>\$savequeries,
@@ -423,7 +437,8 @@ my $report= new MySQL::NDB::Size::Report;
 if($help)
 {
     print STDERR "Usage:\n";
-    print STDERR "\tndb_size.pl --database=<db name>|ALL [--hostname=<host>]"
+    print STDERR "\tndb_size.pl --database=<db name>|ALL [--hostname=<host>] "
+	."[--socket=<socket>] "
 	."[--user=<user>] [--password=<password>] [--help|-h] [--format=(html|text)] [--loadqueries=<file>] [--savequeries=<file>]\n\n";
     print STDERR "\t--database=<db name> ALL may be specified to examine all "
 	."databases\n";
@@ -447,6 +462,7 @@ my %queries; # used for loadqueries/savequeries
 if(!$loadqueries)
 {
     my $dsn = "DBI:mysql:host=$hostname";
+    $dsn.= ";mysql_socket=$socket" if ($socket);
     $dbh= DBI->connect($dsn, $user, $password) or exit(1);
     $report->dsn($dsn);
 }
@@ -1057,6 +1073,8 @@ if($debug)
     eval 'print STDERR Dumper($report)';
 }
 
+$format= "text" unless $format;
+
 if($format eq 'text')
 {
     my $text_out= new MySQL::NDB::Size::Output::Text($report);
@@ -1066,12 +1084,6 @@ elsif($format eq 'html')
 {
     my $html_out= new MySQL::NDB::Size::Output::HTML($report);
     $html_out->output();
-}
-else
-{
-    # default to text output
-    my $text_out= new MySQL::NDB::Size::Output::Text($report);
-    $text_out->output();
 }
 
 package MySQL::NDB::Size::Output::Text;
