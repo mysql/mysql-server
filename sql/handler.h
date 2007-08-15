@@ -700,7 +700,7 @@ struct handlerton
    int (*find_files)(handlerton *hton, THD *thd,
                      const char *db,
                      const char *path,
-                     const char *wild, bool dir, List<char> *files);
+                     const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
    uint32 license; /* Flag for Engine License */
@@ -1860,7 +1860,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_discover(THD* thd, const char* dbname, const char* name,
                 uchar** frmblob, size_t* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
-                  const char *wild, bool dir,List<char>* files);
+                  const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 
 /* key cache */

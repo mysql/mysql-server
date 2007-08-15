@@ -853,6 +853,7 @@ public:
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 
+
 class in_double :public in_vector
 {
   double tmp;
@@ -862,15 +863,15 @@ public:
   uchar *get_value(Item *item);
   Item *create_item()
   { 
-    return new Item_float(0.0);
+    return new Item_float(0.0, 0);
   }
   void value_to_item(uint pos, Item *item)
   {
     ((Item_float*)item)->value= ((double*) base)[pos];
   }
   Item_result result_type() { return REAL_RESULT; }
-
 };
+
 
 class in_decimal :public in_vector
 {

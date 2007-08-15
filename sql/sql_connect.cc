@@ -97,7 +97,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
-    uc->intime= thd->thr_create_time;
+    uc->reset_utime= thd->thr_create_utime;
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       my_free((char*) uc,0);
@@ -223,16 +223,16 @@ void decrease_user_connections(USER_CONN *uc)
 
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
+  ulonglong check_time= thd->start_utime;
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time  - uc->intime >= 3600)
+  if (check_time  - uc->reset_utime >= LL(3600000000))
   {
     uc->questions=1;
     uc->updates=0;
     uc->conn_per_hour=0;
-    uc->intime=check_time;
+    uc->reset_utime= check_time;
   }
 
   DBUG_VOID_RETURN;
@@ -1053,8 +1053,8 @@ void prepare_new_connection_state(THD* thd)
 pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
-  uint launch_time  =
-    (uint) ((thd->thr_create_time = time(NULL)) - thd->connect_time);
+  ulong launch_time= (ulong) ((thd->thr_create_utime= my_micro_time()) -
+                              thd->connect_utime);
 
   if (thread_scheduler.init_new_connection_thread())
   {
@@ -1063,7 +1063,7 @@ pthread_handler_t handle_one_connection(void *arg)
     thread_scheduler.end_thread(thd,0);
     return 0;
   }
-  if (launch_time >= slow_launch_time)
+  if (launch_time >= slow_launch_time*1000000L)
     statistic_increment(slow_launch_threads,&LOCK_status);
 
   /*

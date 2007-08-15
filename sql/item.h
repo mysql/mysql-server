@@ -1743,8 +1743,11 @@ public:
     max_length=length;
     fixed= 1;
   }
-  Item_float(double value_par) :presentation(0), value(value_par) { fixed= 1; }
-
+  Item_float(double value_par, uint decimal_par) :presentation(0), value(value_par)
+  {
+    decimals= (uint8) decimal_par;
+    fixed= 1;
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }

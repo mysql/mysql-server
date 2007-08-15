@@ -36,7 +36,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.12"
+#define DUMP_VERSION "10.13"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -100,9 +100,9 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
+static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
-static my_bool insert_pat_inited= 0, info_flag;
 static DYNAMIC_STRING insert_pat;
 static char  *opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -116,7 +116,8 @@ static char compatible_mode_normal_str[255];
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
-static uint     opt_mysql_port= 0, opt_master_data;
+static uint opt_mysql_port= 0, opt_master_data;
+static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
@@ -242,8 +243,12 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (uchar**) &info_flag,
-   (uchar**) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (uchar**) &default_charset,
    (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -724,7 +729,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
-    info_flag= 1;
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
@@ -858,6 +863,10 @@ static int get_options(int *argc, char ***argv)
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
   *mysql_params->p_net_buffer_length= opt_net_buffer_length;
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (opt_delayed)
     opt_lock=0;                         /* Can't have lock with delayed */
@@ -1227,6 +1236,125 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
   return mysql_real_query(mysql, query_buffer, query_length);
 }
 
+/**
+  Rewrite CREATE TRIGGER statement, enclosing DEFINER clause in
+  version-specific comment.
+
+  This function parses the CREATE TRIGGER statement and encloses
+  DEFINER-clause in version-specific comment:
+    input query:     CREATE DEFINER=a@b TRIGGER ...
+    rewritten query: CREATE * / / *!50017 DEFINER=a@b * / / *!50003 TRIGGER ...
+
+  @note This function will go away when WL#3995 is implemented.
+
+  @param[in] trigger_def_str    CREATE TRIGGER statement string.
+  @param[in] trigger_def_length length of the trigger_def_str.
+
+  @return pointer to the new allocated query string.
+*/
+
+static char *cover_definer_clause_in_trigger(const char *trigger_def_str,
+                                             uint trigger_def_length)
+{
+  char *query_str= NULL;
+  char *definer_begin= my_case_str(trigger_def_str, trigger_def_length,
+                                   C_STRING_WITH_LEN(" DEFINER"));
+  char *definer_end;
+
+  if (!definer_begin)
+    return NULL;
+
+  definer_end= my_case_str(definer_begin, strlen(definer_begin),
+                           C_STRING_WITH_LEN(" TRIGGER"));
+
+  if (definer_end)
+  {
+    char *query_str_tail;
+
+    /*
+       Allocate memory for new query string: original string
+       from SHOW statement and version-specific comments.
+     */
+    query_str= alloc_query_str(trigger_def_length + 23);
+
+    query_str_tail= strnmov(query_str,
+                            trigger_def_str,
+                            definer_begin - trigger_def_str);
+
+    query_str_tail= strmov(query_str_tail,
+                           "*/ /*!50017");
+
+    query_str_tail= strnmov(query_str_tail,
+                            definer_begin,
+                            definer_end - definer_begin);
+
+    query_str_tail= strxmov(query_str_tail,
+                            "*/ /*!50003",
+                            definer_end,
+                            NullS);
+  }
+
+  return query_str;
+}
+
+/**
+  Rewrite CREATE FUNCTION or CREATE PROCEDURE statement, enclosing DEFINER
+  clause in version-specific comment.
+
+  This function parses the CREATE FUNCTION | PROCEDURE statement and
+  encloses DEFINER-clause in version-specific comment:
+    input query:     CREATE DEFINER=a@b FUNCTION ...
+    rewritten query: CREATE * / / *!50020 DEFINER=a@b * / / *!50003 FUNCTION ...
+
+  @note This function will go away when WL#3995 is implemented.
+
+  @param[in] def_str    CREATE FUNCTION|PROCEDURE statement string.
+  @param[in] def_length length of the def_str.
+
+  @return pointer to the new allocated query string.
+*/
+
+static char *cover_definer_clause_in_sp(const char *def_str,
+                                        uint def_str_length)
+{
+  char *query_str= NULL;
+  char *definer_begin= my_case_str(def_str, def_str_length,
+                                   C_STRING_WITH_LEN(" DEFINER"));
+  char *definer_end;
+
+  if (!definer_begin)
+    return NULL;
+
+  definer_end= my_case_str(definer_begin, strlen(definer_begin),
+                           C_STRING_WITH_LEN(" PROCEDURE"));
+
+  if (!definer_end)
+  {
+    definer_end= my_case_str(definer_begin, strlen(definer_begin),
+                             C_STRING_WITH_LEN(" FUNCTION"));
+  }
+
+  if (definer_end)
+  {
+    char *query_str_tail;
+
+    /*
+      Allocate memory for new query string: original string
+      from SHOW statement and version-specific comments.
+    */
+    query_str= alloc_query_str(def_str_length + 23);
+
+    query_str_tail= strnmov(query_str, def_str, definer_begin - def_str);
+    query_str_tail= strmov(query_str_tail, "*/ /*!50020");
+    query_str_tail= strnmov(query_str_tail, definer_begin,
+                            definer_end - definer_begin);
+    query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
+                            definer_end, NullS);
+  }
+
+  return query_str;
+}
+
 /*
   Open a new .sql file to dump the table or view into
 
@@ -1262,7 +1390,7 @@ static void free_resources()
     dynstr_free(&insert_pat);
   if (defaults_argv)
     free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
 }
 
 
@@ -1701,7 +1829,7 @@ static uint dump_events_for_db(char *db)
   MYSQL_ROW  row, event_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered;
+  int        db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -1766,16 +1894,36 @@ static uint dump_events_for_db(char *db)
 
           fprintf(sql_file, "DELIMITER %s\n", delimiter);
 
-          if (switch_db_collation(sql_file, db_name_buff, delimiter, db_cl_name,
-                                  row[6], &db_cl_altered))
+          if (mysql_num_fields(event_res) >= 7)
           {
-            DBUG_RETURN(1);
-          }
+            if (switch_db_collation(sql_file, db_name_buff, delimiter,
+                                    db_cl_name, row[6], &db_cl_altered))
+            {
+              DBUG_RETURN(1);
+            }
 
-          switch_cs_variables(sql_file, delimiter,
-                              row[4],   /* character_set_client */
-                              row[4],   /* character_set_results */
-                              row[5]);  /* collation_connection */
+            switch_cs_variables(sql_file, delimiter,
+                                row[4],   /* character_set_client */
+                                row[4],   /* character_set_results */
+                                row[5]);  /* collation_connection */
+          }
+            else
+            {
+              /*
+                mysqldump is being run against the server, that does not
+                provide character set information in SHOW CREATE
+                statements.
+
+                NOTE: the dump may be incorrect, since character set
+                information is required in order to restore event properly.
+              */
+
+              fprintf(sql_file,
+                      "--\n"
+                      "-- WARNING: old server version. "
+                        "The following dump may be incomplete.\n"
+                      "--\n");
+            }
 
           switch_sql_mode(sql_file, delimiter, row[1]);
 
@@ -1788,13 +1936,17 @@ static uint dump_events_for_db(char *db)
 
           restore_time_zone(sql_file, delimiter);
           restore_sql_mode(sql_file, delimiter);
-          restore_cs_variables(sql_file, delimiter);
 
-          if (db_cl_altered)
+          if (mysql_num_fields(event_res) >= 7)
           {
-            if (restore_db_collation(sql_file, db_name_buff, delimiter,
-                                     db_cl_name))
-              DBUG_RETURN(1);
+            restore_cs_variables(sql_file, delimiter);
+
+            if (db_cl_altered)
+            {
+              if (restore_db_collation(sql_file, db_name_buff, delimiter,
+                                       db_cl_name))
+                DBUG_RETURN(1);
+            }
           }
         }
       } /* end of event printing */
@@ -1862,7 +2014,7 @@ static uint dump_routines_for_db(char *db)
   MYSQL_ROW  row, routine_list_row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered;
+  int        db_cl_altered= FALSE;
 
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -1929,74 +2081,45 @@ static uint dump_routines_for_db(char *db)
           }
           else if (strlen(row[2]))
           {
-            char *query_str= NULL;
-            char *definer_begin;
-
+            char *query_str;
             if (opt_drop)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
 
-            /*
-              Cover DEFINER-clause in version-specific comments.
+            query_str= cover_definer_clause_in_sp(row[2], strlen(row[2]));
 
-              TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
-              However, we can not use INFORMATION_SCHEMA instead:
-                1. INFORMATION_SCHEMA provides data in UTF8, but here we
-                   need data in the original character set;
-                2. INFORMATION_SCHEMA does not provide information about
-                   routine parameters now.
-            */
-
-            definer_begin= my_case_str(row[2], strlen(row[2]),
-                                       C_STRING_WITH_LEN(" DEFINER"));
-
-            if (definer_begin)
+            if (mysql_num_fields(routine_res) >= 6)
             {
-              char *definer_end= my_case_str(definer_begin,
-                                             strlen(definer_begin),
-                                             C_STRING_WITH_LEN(" PROCEDURE"));
-
-              if (!definer_end)
+              if (switch_db_collation(sql_file, db_name_buff, ";",
+                                      db_cl_name, row[5], &db_cl_altered))
               {
-                definer_end= my_case_str(definer_begin, strlen(definer_begin),
-                                         C_STRING_WITH_LEN(" FUNCTION"));
+                DBUG_RETURN(1);
               }
 
-              if (definer_end)
-              {
-                char *query_str_tail;
-
-                /*
-                  Allocate memory for new query string: original string
-                  from SHOW statement and version-specific comments.
-                */
-                query_str= alloc_query_str(strlen(row[2]) + 23);
-
-                query_str_tail= strnmov(query_str, row[2],
-                                        definer_begin - row[2]);
-                query_str_tail= strmov(query_str_tail, "*/ /*!50020");
-                query_str_tail= strnmov(query_str_tail, definer_begin,
-                                        definer_end - definer_begin);
-                query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
-                                        definer_end, NullS);
-              }
+              switch_cs_variables(sql_file, ";",
+                                  row[3],   /* character_set_client */
+                                  row[3],   /* character_set_results */
+                                  row[4]);  /* collation_connection */
             }
-
-            /*
-              we need to change sql_mode only for the CREATE
-              PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
-            */
-
-            if (switch_db_collation(sql_file, db_name_buff, ";",
-                                    db_cl_name, row[5], &db_cl_altered))
+            else
             {
-              DBUG_RETURN(1);
+              /*
+                mysqldump is being run against the server, that does not
+                provide character set information in SHOW CREATE
+                statements.
+
+                NOTE: the dump may be incorrect, since character set
+                information is required in order to restore stored
+                procedure/function properly.
+              */
+
+              fprintf(sql_file,
+                      "--\n"
+                      "-- WARNING: old server version. "
+                        "The following dump may be incomplete.\n"
+                      "--\n");
             }
 
-            switch_cs_variables(sql_file, ";",
-                                row[3],   /* character_set_client */
-                                row[3],   /* character_set_results */
-                                row[4]);  /* collation_connection */
 
             switch_sql_mode(sql_file, ";", row[1]);
 
@@ -2007,12 +2130,16 @@ static uint dump_routines_for_db(char *db)
                     (const char *) (query_str != NULL ? query_str : row[2]));
 
             restore_sql_mode(sql_file, ";");
-            restore_cs_variables(sql_file, ";");
 
-            if (db_cl_altered)
+            if (mysql_num_fields(routine_res) >= 6)
             {
-              if (restore_db_collation(sql_file, db_name_buff, ";", db_cl_name))
-                DBUG_RETURN(1);
+              restore_cs_variables(sql_file, ";");
+
+              if (db_cl_altered)
+              {
+                if (restore_db_collation(sql_file, db_name_buff, ";", db_cl_name))
+                  DBUG_RETURN(1);
+              }
             }
 
             my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
@@ -2061,7 +2188,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
-
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -2481,6 +2607,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
         check_io(sql_file);
       }
+      mysql_free_result(result);
       if (!opt_xml)
       {
         if (keynr)
@@ -2551,153 +2678,211 @@ continue_xml:
   DBUG_RETURN((uint) num_fields);
 } /* get_table_structure */
 
+static void dump_trigger_old(MYSQL_RES *show_triggers_rs,
+                             MYSQL_ROW *show_trigger_row,
+                             const char *table_name)
+{
+  FILE *sql_file= md_result_file;
 
-/*
+  char quoted_table_name_buf[NAME_LEN * 2 + 3];
+  char *quoted_table_name= quote_name(table_name, quoted_table_name_buf, 1);
 
-  dump_triggers_for_table
+  char name_buff[NAME_LEN * 4 + 3];
 
-  Dumps the triggers given a table/db name. This should be called after
-  the tables have been dumped in case a trigger depends on the existence
-  of a table
+  DBUG_ENTER("dump_trigger_old");
 
+  fprintf(sql_file,
+          "--\n"
+          "-- WARNING: old server version. "
+            "The following dump may be incomplete.\n"
+          "--\n");
+
+  if (opt_compact)
+    fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+
+  fprintf(sql_file,
+          "DELIMITER ;;\n"
+          "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
+          "/*!50003 CREATE */ ",
+          (*show_trigger_row)[6]);
+
+  if (mysql_num_fields(show_triggers_rs) > 7)
+  {
+    /*
+      mysqldump can be run against the server, that does not support
+      definer in triggers (there is no DEFINER column in SHOW TRIGGERS
+      output). So, we should check if we have this column before
+      accessing it.
+    */
+
+    size_t user_name_len;
+    char user_name_str[USERNAME_LENGTH + 1];
+    char quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
+    size_t host_name_len;
+    char host_name_str[HOSTNAME_LENGTH + 1];
+    char quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
+
+    parse_user((*show_trigger_row)[7],
+               strlen((*show_trigger_row)[7]),
+               user_name_str, &user_name_len,
+               host_name_str, &host_name_len);
+
+    fprintf(sql_file,
+            "/*!50017 DEFINER=%s@%s */ ",
+            quote_name(user_name_str, quoted_user_name_str, FALSE),
+            quote_name(host_name_str, quoted_host_name_str, FALSE));
+  }
+
+  fprintf(sql_file,
+          "/*!50003 TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n"
+          "DELIMITER ;\n",
+          quote_name((*show_trigger_row)[0], name_buff, 0), /* Trigger */
+          (*show_trigger_row)[4], /* Timing */
+          (*show_trigger_row)[1], /* Event */
+          quoted_table_name,
+          (strchr(" \t\n\r", *((*show_trigger_row)[3]))) ? "" : " ",
+          (*show_trigger_row)[3] /* Statement */);
+
+  if (opt_compact)
+    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
+
+  DBUG_VOID_RETURN;
+}
+
+static int dump_trigger(MYSQL_RES *show_create_trigger_rs,
+                        const char *db_name,
+                        const char *db_cl_name)
+{
+  FILE *sql_file= md_result_file;
+  MYSQL_ROW row;
+  int db_cl_altered= FALSE;
+
+  DBUG_ENTER("dump_trigger");
+
+  while ((row= mysql_fetch_row(show_create_trigger_rs)))
+  {
+    char *query_str= cover_definer_clause_in_trigger(row[2], strlen(row[2]));
+
+
+    if (switch_db_collation(sql_file, db_name, ";",
+                            db_cl_name, row[5], &db_cl_altered))
+      DBUG_RETURN(TRUE);
+
+    switch_cs_variables(sql_file, ";",
+                        row[3],   /* character_set_client */
+                        row[3],   /* character_set_results */
+                        row[4]);  /* collation_connection */
+
+    switch_sql_mode(sql_file, ";", row[1]);
+
+    fprintf(sql_file,
+            "DELIMITER ;;\n"
+            "/*!50003 %s */;;\n"
+            "DELIMITER ;\n",
+            (const char *) (query_str != NULL ? query_str : row[2]));
+
+    restore_sql_mode(sql_file, ";");
+    restore_cs_variables(sql_file, ";");
+
+    if (db_cl_altered)
+    {
+      if (restore_db_collation(sql_file, db_name, ";", db_cl_name))
+        DBUG_RETURN(TRUE);
+    }
+
+    my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  Dump the triggers for a given table.
+
+  This should be called after the tables have been dumped in case a trigger
+  depends on the existence of a table.
+
+  @param[in] table_name
+  @param[in] db_name
+
+  @return Error status.
+    @retval TRUE error has occurred.
+    @retval FALSE operation succeed.
 */
 
-static void dump_triggers_for_table(char *table, char *db_name)
+static int dump_triggers_for_table(char *table_name, char *db_name)
 {
-  char       *result_table;
-  char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
+  char       name_buff[NAME_LEN*4+3];
   char       query_buff[QUERY_LENGTH];
-  uint old_opt_compatible_mode=opt_compatible_mode;
-  FILE       *sql_file= md_result_file;
-  MYSQL_RES  *result;
+  uint       old_opt_compatible_mode= opt_compatible_mode;
+  MYSQL_RES  *show_triggers_rs;
   MYSQL_ROW  row;
 
   char       db_cl_name[MY_CS_NAME_SIZE];
-  int        db_cl_altered;
 
   DBUG_ENTER("dump_triggers_for_table");
-  DBUG_PRINT("enter", ("db: %s, table: %s", db_name, table));
+  DBUG_PRINT("enter", ("db: %s, table_name: %s", db_name, table_name));
 
   /* Do not use ANSI_QUOTES on triggers in dump */
   opt_compatible_mode&= ~MASK_ANSI_QUOTES;
-  result_table=     quote_name(table, table_buff, 1);
-
-  my_snprintf(query_buff, sizeof(query_buff),
-              "SHOW TRIGGERS LIKE %s",
-              quote_for_like(table, name_buff));
-
-  if (mysql_query_with_error_report(mysql, &result, query_buff))
-  {
-    if (path)
-      my_fclose(sql_file, MYF(MY_WME));
-    DBUG_VOID_RETURN;
-  }
 
   /* Get database collation. */
 
-  if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
-    DBUG_VOID_RETURN;
-
   if (switch_character_set_results(mysql, "binary"))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(TRUE);
+
+  if (fetch_db_collation(db_name, db_cl_name, sizeof (db_cl_name)))
+    DBUG_RETURN(TRUE);
+
+  /* Get list of triggers. */
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SHOW TRIGGERS LIKE %s",
+              quote_for_like(table_name, name_buff));
+
+  if (mysql_query_with_error_report(mysql, &show_triggers_rs, query_buff))
+    DBUG_RETURN(TRUE);
 
   /* Dump triggers. */
 
-  while ((row= mysql_fetch_row(result)))
+  while ((row= mysql_fetch_row(show_triggers_rs)))
   {
-    MYSQL_RES *res2;
 
     my_snprintf(query_buff, sizeof (query_buff),
                 "SHOW CREATE TRIGGER %s",
                 quote_name(row[0], name_buff, TRUE));
 
-    if (mysql_query_with_error_report(mysql, &res2, query_buff))
+    if (mysql_query(mysql, query_buff))
     {
-      if (path)
-        my_fclose(sql_file, MYF(MY_WME));
-      maybe_exit(EX_MYSQLERR);
-      DBUG_VOID_RETURN;
-    }
-
-    while ((row= mysql_fetch_row(res2)))
-    {
-      char *query_str= NULL;
-      char *definer_begin;
-
       /*
-        Cover DEFINER-clause in version-specific comments.
+        mysqldump is being run against old server, that does not support
+        SHOW CREATE TRIGGER statement. We should use SHOW TRIGGERS output.
 
-        TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
-        However, we can not use INFORMATION_SCHEMA instead:
-          1. INFORMATION_SCHEMA provides data in UTF8, but here we
-             need data in the original character set;
-          2. INFORMATION_SCHEMA does not provide information about
-             routine parameters now.
+        NOTE: the dump may be incorrect, as old SHOW TRIGGERS does not
+        provide all the necessary information to restore trigger properly.
       */
 
-      definer_begin= my_case_str(row[2], strlen(row[2]),
-                                 C_STRING_WITH_LEN(" DEFINER"));
-
-      if (definer_begin)
-      {
-        char *definer_end= my_case_str(definer_begin, strlen(definer_begin),
-                                       C_STRING_WITH_LEN(" TRIGGER"));
-
-        if (definer_end)
-        {
-          char *query_str_tail;
-
-          /*
-             Allocate memory for new query string: original string
-             from SHOW statement and version-specific comments.
-           */
-          query_str= alloc_query_str(strlen(row[2]) + 23);
-
-          query_str_tail= strnmov(query_str, row[2],
-            definer_begin - row[2]);
-          query_str_tail= strmov(query_str_tail, "*/ /*!50017");
-          query_str_tail= strnmov(query_str_tail, definer_begin,
-            definer_end - definer_begin);
-          query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
-            definer_end, NullS);
-        }
-      }
-
-      if (switch_db_collation(sql_file, db_name, ";",
-                              db_cl_name, row[5], &db_cl_altered))
-        DBUG_VOID_RETURN;
-
-      switch_cs_variables(sql_file, ";",
-                          row[3],   /* character_set_client */
-                          row[3],   /* character_set_results */
-                          row[4]);  /* collation_connection */
-
-      switch_sql_mode(sql_file, ";", row[1]);
-
-      fprintf(sql_file,
-              "DELIMITER ;;\n"
-              "/*!50003 %s */;;\n"
-              "DELIMITER ;\n",
-              (const char *) (query_str != NULL ? query_str : row[2]));
-
-      restore_sql_mode(sql_file, ";");
-      restore_cs_variables(sql_file, ";");
-
-      if (db_cl_altered)
-      {
-        if (restore_db_collation(sql_file, db_name, ";", db_cl_name))
-          DBUG_VOID_RETURN;
-      }
-
-      my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+      dump_trigger_old(show_triggers_rs, &row, table_name);
     }
-    mysql_free_result(res2);
+    else
+    {
+      MYSQL_RES *show_create_trigger_rs= mysql_store_result(mysql);
+
+      if (!show_create_trigger_rs ||
+          dump_trigger(show_create_trigger_rs, db_name, db_cl_name))
+      {
+        DBUG_RETURN(TRUE);
+      }
+
+      mysql_free_result(show_create_trigger_rs);
+    }
+
   }
 
-  mysql_free_result(result);
+  mysql_free_result(show_triggers_rs);
 
   if (switch_character_set_results(mysql, default_charset))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(TRUE);
 
   /*
     make sure to set back opt_compatible mode to
@@ -2705,7 +2890,7 @@ static void dump_triggers_for_table(char *table, char *db_name)
   */
   opt_compatible_mode=old_opt_compatible_mode;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -2822,7 +3007,7 @@ static void dump_table(char *table, char *db)
   /*
     The "table" could be a view.  If so, we don't do anything here.
   */
-  if (strcmp (table_type, "VIEW") == 0)
+  if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
   /* Check --no-data flag */
@@ -2912,6 +3097,7 @@ static void dump_table(char *table, char *db)
     if (mysql_real_query(mysql, query_string.str, query_string.length))
     {
       DB_error(mysql, "when executing 'SELECT INTO OUTFILE'");
+      dynstr_free(&query_string);
       DBUG_VOID_RETURN;
     }
   }
@@ -3266,8 +3452,8 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
     mysql_free_result(res);
-    dynstr_free(&query_string);
   }
+  dynstr_free(&query_string);
   DBUG_VOID_RETURN;
 
 err:
@@ -3388,6 +3574,7 @@ static int dump_tablespaces(char* ts_where)
   char extra_format[]= "UNDO_BUFFER_SIZE=";
   char *ubs;
   char *endsemi;
+  DBUG_ENTER("dump_tablespaces");
 
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT LOGFILE_GROUP_NAME,"
@@ -3419,6 +3606,7 @@ static int dump_tablespaces(char* ts_where)
   if (mysql_query(mysql, sqlbuf.str) ||
       !(tableres = mysql_store_result(mysql)))
   {
+    dynstr_free(&sqlbuf);
     if (mysql_errno(mysql) == ER_BAD_TABLE_ERROR ||
         mysql_errno(mysql) == ER_BAD_DB_ERROR ||
         mysql_errno(mysql) == ER_UNKNOWN_TABLE)
@@ -3427,12 +3615,12 @@ static int dump_tablespaces(char* ts_where)
               "\n--\n-- Not dumping tablespaces as no INFORMATION_SCHEMA.FILES"
               " table on this server\n--\n");
       check_io(md_result_file);
-      return 0;
+      DBUG_RETURN(0);
     }
 
-    my_printf_error(0, "Error: Couldn't dump tablespaces %s",
+    my_printf_error(0, "Error: '%s' when trying to dump tablespaces",
                     MYF(0), mysql_error(mysql));
-    return 1;
+    DBUG_RETURN(1);
   }
 
   buf[0]= 0;
@@ -3484,6 +3672,7 @@ static int dump_tablespaces(char* ts_where)
     }
   }
   dynstr_free(&sqlbuf);
+  mysql_free_result(tableres);
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT DISTINCT TABLESPACE_NAME,"
                       " FILE_NAME,"
@@ -3501,7 +3690,10 @@ static int dump_tablespaces(char* ts_where)
   dynstr_append_checked(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
 
   if (mysql_query_with_error_report(mysql, &tableres, sqlbuf.str))
-    return 1;
+  {
+    dynstr_free(&sqlbuf);
+    DBUG_RETURN(1);
+  }
 
   buf[0]= 0;
   while ((row= mysql_fetch_row(tableres)))
@@ -3547,8 +3739,9 @@ static int dump_tablespaces(char* ts_where)
     }
   }
 
+  mysql_free_result(tableres);
   dynstr_free(&sqlbuf);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int dump_all_databases()
@@ -3635,8 +3828,11 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
+
 int init_dumping_tables(char *qdatabase)
 {
+  DBUG_ENTER("init_dumping_tables");
+
   if (!opt_create_db)
   {
     char qbuf[256];
@@ -3669,10 +3865,10 @@ int init_dumping_tables(char *qdatabase)
       {
         fprintf(md_result_file,"\n%s;\n",row[1]);
       }
+      mysql_free_result(dbinfo);
     }
   }
-
-  return 0;
+  DBUG_RETURN(0);
 } /* init_dumping_tables */
 
 
@@ -3717,7 +3913,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-my_bool include_table(uchar* hash_key, uint len)
+my_bool include_table(const char* hash_key, uint len)
 {
   return !hash_search(&ignore_table, (uchar*) hash_key, len);
 }
@@ -3775,7 +3971,14 @@ static int dump_all_tables_in_db(char *database)
       order_by= 0;
       if (opt_dump_triggers && ! opt_xml &&
           mysql_get_server_version(mysql) >= 50009)
-        dump_triggers_for_table(table, database);
+      {
+        if (dump_triggers_for_table(table, database))
+        {
+          if (path)
+            my_fclose(md_result_file, MYF(MY_WME));
+          maybe_exit(EX_MYSQLERR);
+        }
+      }
     }
   }
   if (opt_events && !opt_xml &&
@@ -3955,8 +4158,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     }
     else
     {
-       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
-       /* We shall countinue here, if --force was given */
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
+      maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
+      /* We shall countinue here, if --force was given */
     }
   }
   end= pos;
@@ -3965,14 +4173,25 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
+    {
+      if (!ignore_errors)
+      {
+        dynstr_free(&lock_tables_query);
+        free_root(&root, MYF(0));
+      }
       DB_error(mysql, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
+    }
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs)
   {
     if (mysql_refresh(mysql, REFRESH_LOG))
+    {
+      if (!ignore_errors)
+        free_root(&root, MYF(0));
       DB_error(mysql, "when doing refresh");
+    }
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
@@ -3985,7 +4204,14 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     dump_table(*pos, db);
     if (opt_dump_triggers &&
         mysql_get_server_version(mysql) >= 50009)
-      dump_triggers_for_table(*pos, db);
+    {
+      if (dump_triggers_for_table(*pos, db))
+      {
+        if (path)
+          my_fclose(md_result_file, MYF(MY_WME));
+        maybe_exit(EX_MYSQLERR);
+      }
+    }
   }
 
   /* Dump each selected view */
@@ -4288,7 +4514,8 @@ char check_if_ignore_table(const char *table_name, char *table_type)
       If these two types, we do want to skip dumping the table
     */
     if (!opt_no_data &&
-        (!strcmp(table_type,"MRG_MyISAM") || !strcmp(table_type,"MRG_ISAM")))
+        (!my_strcasecmp(&my_charset_latin1, table_type, "MRG_MyISAM") ||
+         !strcmp(table_type,"MRG_ISAM")))
       result= IGNORE_DATA;
   }
   mysql_free_result(res);
@@ -4535,6 +4762,9 @@ static my_bool get_view_structure(char *table, char* db)
     if (!(table_res= mysql_store_result(mysql)) ||
         !(row= mysql_fetch_row(table_res)))
     {
+      if (table_res)
+        mysql_free_result(table_res);
+      dynstr_free(&ds_view);
       DB_error(mysql, "when trying to save the result of SHOW CREATE TABLE in ds_view.");
       DBUG_RETURN(1);
     }

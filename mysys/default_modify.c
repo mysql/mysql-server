@@ -218,7 +218,7 @@ int modify_defaults_file(const char *file_location, const char *option,
     if (my_chsize(fileno(cnf_file), (my_off_t) (dst_ptr - file_buffer), 0,
                   MYF(MY_WME)) ||
         my_fseek(cnf_file, 0, MY_SEEK_SET, MYF(0)) ||
-        my_fwrite(cnf_file, file_buffer, (size_t) (dst_ptr - file_buffer),
+        my_fwrite(cnf_file, (uchar*) file_buffer, (size_t) (dst_ptr - file_buffer),
                   MYF(MY_NABP)))
       goto err;
   }
