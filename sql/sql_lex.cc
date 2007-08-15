@@ -173,7 +173,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
 }
 
 /**
-  The operation appends unprocessed part of pre-processed buffer till
+  @brief The operation appends unprocessed part of pre-processed buffer till
   the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to end_ptr.
 
   The idea is that some tokens in the pre-processed buffer (like character
@@ -1399,6 +1399,19 @@ int MYSQLlex(void *arg, void *yythd)
   }
 }
 
+
+/**
+  Construct a copy of this object to be used for mysql_alter_table
+  and mysql_create_table.
+
+  Historically, these two functions modify their Alter_info
+  arguments. This behaviour breaks re-execution of prepared
+  statements and stored procedures and is compensated by always
+  supplying a copy of Alter_info to these functions.
+
+  @return You need to use check the error in THD for out
+  of memory condition after calling this function.
+*/
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
