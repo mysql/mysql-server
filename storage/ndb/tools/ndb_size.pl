@@ -582,6 +582,8 @@ sub do_table {
 	{$col->dm(4)}
 	elsif($type =~ /float/)
 	{
+	    my @sz= split ',', $size;
+	    $size= $sz[0]+$sz[1];
 	    if(!defined($size) || $size<=24)
 	    {$col->dm(4)}
 	    else
