@@ -6369,8 +6369,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
   range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-		 HA_NOSAME) ? EQ_RANGE : 0);
+		 (key_info->flags & HA_END_SPACE_KEY) == 0) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
