@@ -1161,11 +1161,6 @@ ibuf_dummy_index_free(
 	dict_mem_table_free(table);
 }
 
-void
-dict_index_print_low(
-/*=================*/
-	dict_index_t*	index);	/* in: index */
-
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
 corresponding record in an ibuf index. */
