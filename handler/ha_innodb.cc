@@ -667,9 +667,6 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_LOCK_TABLE_FULL);
 
-	case DB_CANNOT_DROP_FOREIGN_INDEX:
-		return(HA_ERR_DROP_INDEX_FK);
-
 	case DB_PRIMARY_KEY_IS_NULL:
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
@@ -8301,7 +8298,7 @@ innobase_create_temporary_tablename(
 }
 
 /***********************************************************************
-Add a new index to a table */
+Create indexes. */
 
 int
 ha_innobase::add_index(
@@ -8314,7 +8311,7 @@ ha_innobase::add_index(
 	dict_index_t**	index;		/* Index to be created */
 	dict_table_t*	innodb_table;	/* InnoDB table in dictionary */
 	dict_table_t*	indexed_table;	/* Table where indexes are created */
-	merge_index_def_t* index_defs; /* Index definitions */
+	merge_index_def_t* index_defs;	/* Index definitions */
 	mem_heap_t*     heap;		/* Heap for index definitions */
 	trx_t*		trx;		/* Transaction */
 	ulint		num_of_idx;
@@ -8591,7 +8588,7 @@ func_exit:
 }
 
 /***********************************************************************
-Drop a index from a table */
+Prepare to drop some indexes of a table. */
 
 int
 ha_innobase::prepare_drop_index(
@@ -8603,7 +8600,8 @@ ha_innobase::prepare_drop_index(
 {
 	trx_t*		trx;
 	THD*		thd;
-	ulint		error = DB_SUCCESS;
+	int		err = 0;
+	uint 		n_key;
 
 	DBUG_ENTER("ha_innobase::prepare_drop_index");
 	ut_ad(table && key_num && num_of_keys);
@@ -8628,8 +8626,8 @@ ha_innobase::prepare_drop_index(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	for (ulint n_key = 0; n_key < num_of_keys; n_key++) {
-		KEY*		key;
+	for (n_key = 0; n_key < num_of_keys; n_key++) {
+		const KEY*	key;
 		dict_index_t*	index;
 
 		key = table->key_info + key_num[n_key];
@@ -8645,11 +8643,11 @@ ha_innobase::prepare_drop_index(
 
 		if (!index) {
 			sql_print_error("InnoDB could not find key n:o %u "
-				"with name %s from dict cache for table %s",
+				"with name %s in dict cache for table %s",
 			       key_num[n_key], key ? key->name : "NULL",
 			       prebuilt->table->name);
 
-			error = 1;
+			err = HA_ERR_KEY_NOT_FOUND;
 			goto func_exit;
 		}
 
@@ -8660,7 +8658,7 @@ ha_innobase::prepare_drop_index(
 	candidate indexes for deletion because when we check for an
 	equivalent foreign index we don't want to select an index that is
 	later deleted. */
-	for (ulint n_key = 0; n_key < num_of_keys; n_key++) {
+	for (n_key = 0; n_key < num_of_keys; n_key++) {
 		KEY*		key;
 		dict_index_t*	index;
 
@@ -8727,7 +8725,7 @@ ha_innobase::prepare_drop_index(
 
 				FILE* ef = dict_foreign_err_file;
 
-				error = DB_CANNOT_DROP_FOREIGN_INDEX;
+				err = HA_ERR_DROP_INDEX_FK;
 
 				mutex_enter(&dict_foreign_err_mutex);
 				rewind(ef);
@@ -8747,14 +8745,16 @@ ha_innobase::prepare_drop_index(
 	}
 
 func_exit:
-	if (error != DB_SUCCESS) {
+	if (err) {
 		/* Undo our changes since there was some sort of error */
-		for (ulint i = 0; i < num_of_keys; i++) {
-			KEY*		key;
+		for (n_key = 0; n_key < num_of_keys; n_key++) {
+			const KEY*	key;
 			dict_index_t*	index;
 
-			key = table->key_info + key_num[i];
-			ut_a(key);
+			key = table->key_info + key_num[n_key];
+			if (!key) {
+				continue;
+			}
 
 			index = dict_table_get_index_on_name_and_min_id(
 				prebuilt->table, key->name);
@@ -8767,13 +8767,11 @@ func_exit:
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	error = convert_error_code_to_mysql(error, thd);
-
-	DBUG_RETURN((int)error);
+	DBUG_RETURN(err);
 }
 
 /***********************************************************************
-Finalize a drop index */
+Drop the indexes that were passed to a successful prepare_drop_index(). */
 
 int
 ha_innobase::final_drop_index(
