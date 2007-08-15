@@ -5938,12 +5938,12 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_ERRKEY) {
-		dict_index_t* err_index;
+		const dict_index_t*	err_index;
 
 		ut_a(prebuilt->trx);
 		ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-		err_index = (dict_index_t*)trx_get_error_info(prebuilt->trx);
+		err_index = trx_get_error_info(prebuilt->trx);
 
 		if (err_index) {
 			errkey = (unsigned int)

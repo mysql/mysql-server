@@ -79,12 +79,12 @@ trx_set_detailed_error_from_file(
 	FILE*	file);	/* in: file to read message from */
 /********************************************************************
 Retrieves the error_info field from a trx. */
-
-void*
+UNIV_INLINE
+const dict_index_t*
 trx_get_error_info(
 /*===============*/
-			/* out: the error info */
-	trx_t*	trx);	/* in: trx object */
+				/* out: the error info */
+	const trx_t*	trx);	/* in: trx object */
 /********************************************************************
 Creates and initializes a transaction object. */
 
@@ -587,7 +587,7 @@ struct trx_struct{
 					doing the transaction is allowed to
 					set this field: this is NOT protected
 					by the kernel mutex */
-	void*		error_info;	/* if the error number indicates a
+	const dict_index_t*error_info;	/* if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
 	ulint		error_key_num;	/* if the index creation fails to a
