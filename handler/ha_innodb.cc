@@ -4760,7 +4760,7 @@ create_table_def(
 			}
 		}
 
-		dict_mem_table_add_col(table,
+		dict_mem_table_add_col(table, table->heap,
 			(char*) field->field_name,
 			col_type,
 			dtype_form_prtype(
