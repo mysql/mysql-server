@@ -22,43 +22,34 @@
 
 #include "my_sys.h"
 
-HP_INFO *heap_open(const char *name, int mode)
+/*
+  Open heap table based on HP_SHARE structure
+  
+  NOTE
+    This doesn't register the table in the open table list.
+*/
+
+HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
 {
   HP_INFO *info;
-  HP_SHARE *share;
+  DBUG_ENTER("heap_open_from_share");
 
-  DBUG_ENTER("heap_open");
-  pthread_mutex_lock(&THR_LOCK_heap);
-  if (!(share= hp_find_named_heap(name)))
-  {
-    my_errno= ENOENT;
-    pthread_mutex_unlock(&THR_LOCK_heap);
-    DBUG_RETURN(0);
-  }
   if (!(info= (HP_INFO*) my_malloc((uint) sizeof(HP_INFO) +
 				  2 * share->max_key_length,
 				  MYF(MY_ZEROFILL))))
   {
-    pthread_mutex_unlock(&THR_LOCK_heap);
     DBUG_RETURN(0);
   }
   share->open_count++; 
 #ifdef THREAD
   thr_lock_data_init(&share->lock,&info->lock,NULL);
 #endif
-  info->open_list.data= (void*) info;
-  heap_open_list= list_add(heap_open_list,&info->open_list);
-  pthread_mutex_unlock(&THR_LOCK_heap);
-
   info->s= share;
   info->lastkey= (uchar*) (info + 1);
   info->recbuf= (uchar*) (info->lastkey + share->max_key_length);
   info->mode= mode;
   info->current_record= (ulong) ~0L;		/* No current record */
-  info->current_ptr= 0;
-  info->current_hash_ptr= 0;
   info->lastinx= info->errkey= -1;
-  info->update= 0;
 #ifndef DBUG_OFF
   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
 #endif
@@ -68,7 +59,59 @@ HP_INFO *heap_open(const char *name, int mode)
   DBUG_RETURN(info);
 }
 
-	/* map name to a heap-nr. If name isn't found return 0 */
+
+/*
+  Open heap table based on HP_SHARE structure and register it
+*/
+
+HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
+{
+  HP_INFO *info;
+  DBUG_ENTER("heap_open_from_share_and_register");
+
+  pthread_mutex_lock(&THR_LOCK_heap);
+  if ((info= heap_open_from_share(share, mode)))
+  {
+    info->open_list.data= (void*) info;
+    heap_open_list= list_add(heap_open_list,&info->open_list);
+  }
+  pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_RETURN(info);
+}
+
+
+/*
+  Open heap table based on name
+
+  NOTE
+    This register the table in the open table list. so that it can be
+    found by future heap_open() calls.
+*/
+
+HP_INFO *heap_open(const char *name, int mode)
+{
+  HP_INFO *info;
+  HP_SHARE *share;
+  DBUG_ENTER("heap_open");
+
+  pthread_mutex_lock(&THR_LOCK_heap);
+  if (!(share= hp_find_named_heap(name)))
+  {
+    my_errno= ENOENT;
+    pthread_mutex_unlock(&THR_LOCK_heap);
+    DBUG_RETURN(0);
+  }
+  if ((info= heap_open_from_share(share, mode)))
+  {
+    info->open_list.data= (void*) info;
+    heap_open_list= list_add(heap_open_list,&info->open_list);
+  }
+  pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_RETURN(info);
+}
+
+
+/* map name to a heap-nr. If name isn't found return 0 */
 
 HP_SHARE *hp_find_named_heap(const char *name)
 {

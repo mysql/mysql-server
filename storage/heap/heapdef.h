@@ -16,6 +16,7 @@
 /* This file is included in all heap-files */
 
 #include <my_base.h>			/* This includes global */
+C_MODE_START
 #ifdef THREAD
 #include <my_pthread.h>
 #endif
@@ -107,3 +108,4 @@ extern pthread_mutex_t THR_LOCK_heap;
 #define pthread_mutex_lock(A)
 #define pthread_mutex_unlock(A)
 #endif
+C_MODE_END

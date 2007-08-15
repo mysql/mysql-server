@@ -320,22 +320,17 @@ bool Log_to_csv_event_handler::
   uint field_index;
   Silence_log_table_errors error_handler;
   Open_tables_state open_tables_backup;
-  Field_timestamp *field0;
   ulonglong save_thd_options;
-  bool save_query_start_used;
-  time_t save_start_time;
-  time_t save_time_after_lock;
-  time_t save_user_time;
   bool save_time_zone_used;
+
+  /*
+    CSV uses TIME_to_timestamp() internally if table needs to be repaired
+    which will set thd->time_zone_used
+  */
+  save_time_zone_used= thd->time_zone_used;
 
   save_thd_options= thd->options;
   thd->options&= ~OPTION_BIN_LOG;
-
-  save_query_start_used= thd->query_start_used;
-  save_start_time= thd->start_time;
-  save_time_after_lock= thd->time_after_lock;
-  save_user_time= thd->user_time;
-  save_time_zone_used= thd->time_zone_used;
 
   bzero(& table_list, sizeof(TABLE_LIST));
   table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
@@ -346,12 +341,13 @@ bool Log_to_csv_event_handler::
   table_list.db= MYSQL_SCHEMA_NAME.str;
   table_list.db_length= MYSQL_SCHEMA_NAME.length;
 
-  table= open_performance_schema_table(thd, & table_list,
-                                       & open_tables_backup);
+  if (!(table= open_performance_schema_table(thd, & table_list,
+                                             & open_tables_backup)))
+    goto err;
+
   need_close= TRUE;
 
-  if (!table ||
-      table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 
@@ -384,8 +380,8 @@ bool Log_to_csv_event_handler::
 
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
 
-  field0= (Field_timestamp*) (table->field[0]);
-  field0->set_time();
+  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
+                                                        event_time);
 
   /* do a write */
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
@@ -395,7 +391,8 @@ bool Log_to_csv_event_handler::
       table->field[5]->store(sql_text, sql_text_len, client_cs))
     goto err;
 
-  /* mark tables as not null */
+
+  /* mark all fields as not null */
   table->field[1]->set_notnull();
   table->field[2]->set_notnull();
   table->field[3]->set_notnull();
@@ -434,11 +431,6 @@ err:
     close_performance_schema_table(thd, & open_tables_backup);
 
   thd->options= save_thd_options;
-
-  thd->query_start_used= save_query_start_used;
-  thd->start_time= save_start_time;
-  thd->time_after_lock= save_time_after_lock;
-  thd->user_time= save_user_time;
   thd->time_zone_used= save_time_zone_used;
   return result;
 }
@@ -455,8 +447,8 @@ err:
     user_host         the pointer to the string with user@host info
     user_host_len     length of the user_host string. this is computed once
                       and passed to all general log event handlers
-    query_time        Amount of time the query took to execute (in seconds)
-    lock_time         Amount of time the query was locked (in seconds)
+    query_time        Amount of time the query took to execute (in microseconds)
+    lock_time         Amount of time the query was locked (in microseconds)
     is_command        The flag, which determines, whether the sql_text is a
                       query or an administrator command (these are treated
                       differently by the old logging routines)
@@ -476,7 +468,7 @@ err:
 bool Log_to_csv_event_handler::
   log_slow(THD *thd, time_t current_time, time_t query_start_arg,
            const char *user_host, uint user_host_len,
-           longlong query_time, longlong lock_time, bool is_command,
+           ulonglong query_utime, ulonglong lock_utime, bool is_command,
            const char *sql_text, uint sql_text_len)
 {
   TABLE_LIST table_list;
@@ -485,14 +477,15 @@ bool Log_to_csv_event_handler::
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
   Open_tables_state open_tables_backup;
-  bool save_query_start_used;
-  time_t save_start_time;
-  time_t save_time_after_lock;
-  time_t save_user_time;
-  bool save_time_zone_used;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
-
+  bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
+
+  /*
+    CSV uses TIME_to_timestamp() internally if table needs to be repaired
+    which will set thd->time_zone_used
+  */
+  save_time_zone_used= thd->time_zone_used;
 
   bzero(& table_list, sizeof(TABLE_LIST));
   table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
@@ -503,18 +496,13 @@ bool Log_to_csv_event_handler::
   table_list.db= MYSQL_SCHEMA_NAME.str;
   table_list.db_length= MYSQL_SCHEMA_NAME.length;
 
-  save_query_start_used= thd->query_start_used;
-  save_start_time= thd->start_time;
-  save_time_after_lock= thd->time_after_lock;
-  save_user_time= thd->user_time;
-  save_time_zone_used= thd->time_zone_used;
+  if (!(table= open_performance_schema_table(thd, & table_list,
+                                             & open_tables_backup)))
+    goto err;
 
-  table= open_performance_schema_table(thd, & table_list,
-                                       & open_tables_backup);
   need_close= TRUE;
 
-  if (!table ||
-      table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 
@@ -529,17 +517,17 @@ bool Log_to_csv_event_handler::
   if (table->s->fields < 11)
     goto err;
 
-  /*
-    We do not set a value for table->field[0], as it will use
-    default value.
-  */
-
-  /* store the value */
+  /* store the time and user values */
+  DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
+  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
+                                                        current_time);
   if (table->field[1]->store(user_host, user_host_len, client_cs))
     goto err;
 
   if (query_start_arg)
   {
+    longlong query_time= (longlong) (query_utime/1000000);
+    longlong lock_time=  (longlong) (lock_utime/1000000);
     /*
       A TIME field can not hold the full longlong range; query_time or
       lock_time may be truncated without warning here, if greater than
@@ -633,11 +621,6 @@ err:
   }
   if (need_close)
     close_performance_schema_table(thd, & open_tables_backup);
-
-  thd->query_start_used= save_query_start_used;
-  thd->start_time= save_start_time;
-  thd->time_after_lock= save_time_after_lock;
-  thd->user_time= save_user_time;
   thd->time_zone_used= save_time_zone_used;
   DBUG_RETURN(result);
 }
@@ -705,12 +688,12 @@ void Log_to_file_event_handler::init_pthread_objects()
 bool Log_to_file_event_handler::
   log_slow(THD *thd, time_t current_time, time_t query_start_arg,
            const char *user_host, uint user_host_len,
-           longlong query_time, longlong lock_time, bool is_command,
+           ulonglong query_utime, ulonglong lock_utime, bool is_command,
            const char *sql_text, uint sql_text_len)
 {
   return mysql_slow_log.write(thd, current_time, query_start_arg,
                               user_host, user_host_len,
-                              query_time, lock_time, is_command,
+                              query_utime, lock_utime, is_command,
                               sql_text, sql_text_len);
 }
 
@@ -785,10 +768,10 @@ bool LOGGER::error_log_print(enum loglevel level, const char *format,
                              va_list args)
 {
   bool error= FALSE;
-  Log_event_handler **current_handler= error_log_handler_list;
+  Log_event_handler **current_handler;
 
   /* currently we don't need locking here as there is no error_log table */
-  while (*current_handler)
+  for (current_handler= error_log_handler_list ; *current_handler ;)
     error= (*current_handler++)->log_error(level, format, args) || error;
 
   return error;
@@ -878,28 +861,27 @@ bool LOGGER::flush_logs(THD *thd)
   SYNOPSIS
     slow_log_print()
 
-    thd               THD of the query being logged
-    query             The query being logged
-    query_length      The length of the query string
-    query_start_arg   Query start timestamp
+    thd                 THD of the query being logged
+    query               The query being logged
+    query_length        The length of the query string
+    current_utime       Current time in microseconds (from undefined start)
 
   RETURN
-    FALSE - OK
-    TRUE - error occured
+    FALSE   OK
+    TRUE    error occured
 */
 
 bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
-                            time_t query_start_arg)
+                            ulonglong current_utime)
+
 {
   bool error= FALSE;
-  Log_event_handler **current_handler= slow_log_handler_list;
+  Log_event_handler **current_handler;
   bool is_command= FALSE;
   char user_host_buff[MAX_USER_HOST_SIZE];
-
-  time_t current_time;
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
-  longlong query_time= 0, lock_time= 0;
+  ulonglong query_utime, lock_utime;
 
   /*
     Print the message to the buffer if we have slow log enabled
@@ -907,10 +889,10 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
 
   if (*slow_log_handler_list)
   {
-    current_time= time(NULL);
+    time_t current_time;
 
     /* do not log slow queries from replication threads */
-    if (thd->slave_thread)
+    if (thd->slave_thread && !opt_log_slow_slave_statements)
       return 0;
 
     lock_shared();
@@ -921,17 +903,22 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     }
 
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
-    user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                            sctx->priv_user ? sctx->priv_user : "", "[",
-                            sctx->user ? sctx->user : "", "] @ ",
-                            sctx->host ? sctx->host : "", " [",
-                            sctx->ip ? sctx->ip : "", "]", NullS) -
-      user_host_buff;
+    user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
+                             sctx->priv_user ? sctx->priv_user : "", "[",
+                             sctx->user ? sctx->user : "", "] @ ",
+                             sctx->host ? sctx->host : "", " [",
+                             sctx->ip ? sctx->ip : "", "]", NullS) -
+                    user_host_buff);
 
-    if (query_start_arg)
+    current_time= my_time_possible_from_micro(current_utime);
+    if (thd->start_utime)
     {
-      query_time= (longlong) (current_time - query_start_arg);
-      lock_time= (longlong) (thd->time_after_lock - query_start_arg);
+      query_utime= (current_utime - thd->start_utime);
+      lock_utime=  (thd->utime_after_lock - thd->start_utime);
+    }
+    else
+    {
+      query_utime= lock_utime= 0;
     }
 
     if (!query)
@@ -941,10 +928,10 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       query_length= command_name[thd->command].length;
     }
 
-    while (*current_handler)
-      error= (*current_handler++)->log_slow(thd, current_time, query_start_arg,
+    for (current_handler= slow_log_handler_list; *current_handler ;)
+      error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
                                             user_host_buff, user_host_len,
-                                            query_time, lock_time, is_command,
+                                            query_utime, lock_utime, is_command,
                                             query, query_length) || error;
 
     unlock();
@@ -969,7 +956,7 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
     Security_context *sctx= thd->security_ctx;
     ulong id;
     uint message_buff_len= 0, user_host_len= 0;
-
+    time_t current_time;
     if (thd)
     {                                           /* Normal thread */
       if ((thd->options & OPTION_LOG_OFF)
@@ -991,8 +978,6 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
       unlock();
       return 0;
     }
-    time_t current_time= time(NULL);
-
     user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                             sctx->priv_user ? sctx->priv_user : "", "[",
                             sctx->user ? sctx->user : "", "] @ ",
@@ -1007,6 +992,7 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
     else
       message_buff[0]= '\0';
 
+    current_time= my_time(0);
     while (*current_handler)
       error+= (*current_handler++)->
         log_general(thd, current_time, user_host_buff,
@@ -2024,8 +2010,8 @@ err:
     user_host         the pointer to the string with user@host info
     user_host_len     length of the user_host string. this is computed once
                       and passed to all general log event handlers
-    query_time        Amount of time the query took to execute (in seconds)
-    lock_time         Amount of time the query was locked (in seconds)
+    query_utime       Amount of time the query took to execute (in microseconds)
+    lock_utime        Amount of time the query was locked (in microseconds)
     is_command        The flag, which determines, whether the sql_text is a
                       query or an administrator command.
     sql_text          the very text of the query or administrator command
@@ -2043,8 +2029,8 @@ err:
 
 bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                             time_t query_start_arg, const char *user_host,
-                            uint user_host_len, longlong query_time,
-                            longlong lock_time, bool is_command,
+                            uint user_host_len, ulonglong query_utime,
+                            ulonglong lock_utime, bool is_command,
                             const char *sql_text, uint sql_text_len)
 {
   bool error= 0;
@@ -2062,6 +2048,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
   {						// Safety agains reopen
     int tmp_errno= 0;
     char buff[80], *end;
+    char query_time_buff[22+7], lock_time_buff[22+7];
     uint buff_len;
     end= buff;
 
@@ -2092,10 +2079,12 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         tmp_errno= errno;
     }
     /* For slow query log */
+    sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
+    sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
     if (my_b_printf(&log_file,
-                    "# Query_time: %lu  Lock_time: %lu"
+                    "# Query_time: %s  Lock_time: %s"
                     " Rows_sent: %lu  Rows_examined: %lu\n",
-                    (ulong) query_time, (ulong) lock_time,
+                    query_time_buff, lock_time_buff,
                     (ulong) thd->sent_row_count,
                     (ulong) thd->examined_row_count) == (uint) -1)
       tmp_errno= errno;
@@ -3737,9 +3726,9 @@ int error_log_print(enum loglevel level, const char *format,
 
 
 bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    time_t query_start_arg)
+                    ulonglong current_utime)
 {
-  return logger.slow_log_print(thd, query, query_length, query_start_arg);
+  return logger.slow_log_print(thd, query, query_length, current_utime);
 }
 
 
@@ -3767,7 +3756,7 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
-      time_t purge_time= time(0) - expire_logs_days*24*60*60;
+      time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
         purge_logs_before_date(purge_time);
     }
@@ -4365,7 +4354,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
 
   VOID(pthread_mutex_lock(&LOCK_error_log));
 
-  skr=time(NULL);
+  skr= my_time(0);
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 

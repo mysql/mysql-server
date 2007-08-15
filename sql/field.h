@@ -293,9 +293,9 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  inline void get_image(uchar *buff,uint length, CHARSET_INFO *cs)
+  virtual void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  inline void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  virtual void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
 
 
@@ -996,6 +996,17 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
+  inline void store_timestamp(my_time_t timestamp)
+  {
+#ifdef WORDS_BIGENDIAN
+    if (table && table->s->db_low_byte_first)
+    {
+      int4store(ptr,timestamp);
+    }
+    else
+#endif
+      longstore(ptr,(uint32) timestamp);
+  }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   timestamp_auto_set_type get_auto_set_type() const;
@@ -1481,6 +1492,8 @@ public:
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
   uint is_equal(Create_field *new_field);
+  inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
+  inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -1632,7 +1645,10 @@ public:
   virtual bool str_needs_quotes() { return TRUE; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *a, const uchar *b)
-  { return cmp_binary(a, b); }
+  { 
+    DBUG_ASSERT(ptr == a);
+    return Field_bit::key_cmp(b, bytes_in_rec+test(bit_len));
+  }
   int cmp_binary_offset(uint row_offset)
   { return cmp_offset(row_offset); }
   int cmp_max(const uchar *a, const uchar *b, uint max_length);
@@ -1640,6 +1656,10 @@ public:
   { return cmp_binary((uchar *) a, (uchar *) b); }
   int key_cmp(const uchar *str, uint length);
   int cmp_offset(uint row_offset);
+  void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
+  { get_key_image(buff, length, itRAW); }   
+  void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  { Field_bit::store((char *) buff, length, cs); }
   uint get_key_image(uchar *buff, uint length, imagetype type);
   void set_key_image(const uchar *buff, uint length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }

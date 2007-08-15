@@ -167,6 +167,7 @@ public:
   void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
 
 protected:
+  Object_creation_ctx() {}
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) = 0;
 
   virtual void change_env(THD *thd) const = 0;
@@ -734,7 +735,7 @@ int error_log_print(enum loglevel level, const char *format,
                     va_list args);
 
 bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    time_t query_start_arg);
+                    ulonglong current_utime);
 
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
@@ -1802,7 +1803,7 @@ extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
-extern my_bool opt_log_slow_admin_statements;
+extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;

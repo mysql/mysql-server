@@ -1460,6 +1460,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->slave_thread = 1;
+  thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   pthread_mutex_lock(&LOCK_thread_count);
@@ -1491,7 +1492,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
   DBUG_ENTER("safe_sleep");
 
   thr_alarm_init(&alarmed);
-  time_t start_time= time((time_t*) 0);
+  time_t start_time= my_time(0);
   time_t end_time= start_time+sec;
 
   while ((nap_time= (int) (end_time - start_time)) > 0)
@@ -1508,7 +1509,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 
     if ((*thread_killed)(thd,thread_killed_arg))
       DBUG_RETURN(1);
-    start_time=time((time_t*) 0);
+    start_time= my_time(0);
   }
   DBUG_RETURN(0);
 }
@@ -1796,7 +1797,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     thd->set_time();                            // time the query
     thd->lex->current_select= 0;
     if (!ev->when)
-      ev->when = time(NULL);
+      ev->when= my_time(0);
     ev->thd = thd; // because up to this point, ev->thd == 0
 
     int reason= ev->shall_skip(rli);
