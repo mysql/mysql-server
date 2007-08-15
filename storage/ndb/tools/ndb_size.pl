@@ -169,7 +169,9 @@ use Class::MethodMaker [
 					vdm_versions
 					ddm_versions ) ],
 			scalar => [ qw( name
-					rows ) ],
+					rows
+                                        schema
+                                        real_table_name) ],
 			hash   => [ qw( columns
 					indexes
 					indexed_columns
@@ -197,6 +199,16 @@ use Class::MethodMaker [
 				       vdm_rows_per_page) ],
 			scalar => [ { -default=> 4 },'align'],
 			];
+
+sub table_name
+{
+    my ($self) = @_;
+    if ($self->real_table_name) {
+	return $self->real_table_name;
+    }else {
+	return $self->name;
+    }
+}
 
 sub compute_row_size
 {
@@ -391,7 +403,7 @@ sub compute_estimate
 
 package main;
 
-my ($dbh,$database,$hostname,$user,$password,$help,$savequeries,$loadqueries,$debug,$format);
+my ($dbh,$database,$hostname,$user,$password,$help,$savequeries,$loadqueries,$debug,$format,$excludetables,$excludedbs);
 
 GetOptions('database|d=s'=>\$database,
 	   'hostname=s'=>\$hostname,
@@ -399,6 +411,8 @@ GetOptions('database|d=s'=>\$database,
 	   'password|p=s'=>\$password,
 	   'savequeries|s=s'=>\$savequeries,
 	   'loadqueries|l=s'=>\$loadqueries,
+	   'excludetables=s'=>\$excludetables,
+	   'excludedbs=s'=>\$excludedbs,
 	   'help|usage|h!'=>\$help,
 	   'debug'=>\$debug,
 	   'format|f=s'=>\$format,
@@ -406,20 +420,25 @@ GetOptions('database|d=s'=>\$database,
 
 my $report= new MySQL::NDB::Size::Report;
 
-if($help || !$database)
+if($help)
 {
     print STDERR "Usage:\n";
-    print STDERR "\tndb_size.pl --database=<db name> [--hostname=<host>]"
+    print STDERR "\tndb_size.pl --database=<db name>|ALL [--hostname=<host>]"
 	."[--user=<user>] [--password=<password>] [--help|-h] [--format=(html|text)] [--loadqueries=<file>] [--savequeries=<file>]\n\n";
+    print STDERR "\t--database=<db name> ALL may be specified to examine all "
+	."databases\n";
     print STDERR "\t--hostname=<host>:<port> can be used to designate a "
 	."specific port\n";
     print STDERR "\t--hostname defaults to localhost\n";
     print STDERR "\t--user and --password default to empty string\n";
     print STDERR "\t--format=(html|text) Output format\n";
+    print STDERR "\t--excludetables Comma separated list of table names to skip\n";
+    print STDERR "\t--excludedbs Comma separated list of database names to skip\n";
     print STDERR "\t--savequeries=<file> saves all queries to the DB into <file>\n";
     print STDERR "\t--loadqueries=<file> loads query results from <file>. Doesn't connect to DB.\n";
     exit(1);
 }
+
 
 $hostname= 'localhost' unless $hostname;
 
@@ -427,10 +446,46 @@ my %queries; # used for loadqueries/savequeries
 
 if(!$loadqueries)
 {
-    my $dsn = "DBI:mysql:database=$database;host=$hostname";
+    my $dsn = "DBI:mysql:host=$hostname";
     $dbh= DBI->connect($dsn, $user, $password) or exit(1);
-    $report->database($database);
     $report->dsn($dsn);
+}
+
+my @dbs;
+if ($database && !($database =~  /^ALL$/i))
+{
+    @dbs = split(',', $database);
+}
+else
+{
+    # Do all databases
+    @dbs = map { $_->[0] } @{ $dbh->selectall_arrayref("show databases") };
+}
+
+my %withdb = map {$_ => 1} @dbs;
+foreach (split ",", $excludedbs || '')
+{
+    delete $withdb{$_};
+}
+delete $withdb{'mysql'};
+delete $withdb{'INFORMATION_SCHEMA'};
+delete $withdb{'information_schema'};
+
+my $dblist = join (',', map { $dbh->quote($_) } keys %withdb );
+
+$excludetables = join (',', map { $dbh->quote($_) } split ',', $excludetables )
+    if $excludetables;
+
+if(!$loadqueries)
+{
+  if (scalar(keys %withdb)>1)
+  {
+    $report->database("databases: $dblist");
+  }
+  else
+  {
+    $report->database("database: $dblist");
+  }
 }
 else
 {
@@ -441,7 +496,6 @@ else
     %queries= %$e;
     close Q;
     $report->database("file:$loadqueries");
-    $report->dsn("file:$loadqueries");
 }
 
 $report->versions('4.1','5.0','5.1');
@@ -454,7 +508,25 @@ if($loadqueries)
 }
 else
 {
-    $tables= $dbh->selectall_arrayref("show tables");
+    my $sql= "select t.TABLE_NAME,t.TABLE_SCHEMA " .
+	" from information_schema.TABLES t " .
+	" where t.TABLE_SCHEMA in ( $dblist ) ";
+
+    $sql.="   and t.TABLE_NAME not in " .
+	" ( $excludetables )"
+	if ($excludetables);
+
+    $tables= $dbh->selectall_arrayref($sql);
+
+    if (!$tables) {
+	print "WARNING: problem selecing from INFORMATION SCHEMA ($sql)\n";
+	if ($#dbs>0) {
+	    print "\t attempting to fallback to show tables from $database";
+	    $tables= $dbh->selectall_arrayref("show tables from $database\n");
+	} else {
+	    print "All Databases not supported in 4.1. Please specify --database=\n";
+	}
+    }
     $queries{"show tables"}= $tables;
 }
 
@@ -543,9 +615,10 @@ sub do_table {
 	    $col->dm($fixed);
 	    if(!$col->Key()) # currently keys must be non varsized
 	    {
-		my $sql= "select avg(length(`"
-		    .$colname
-		    ."`)) from `".$t->name().'`';
+		my $sql= sprintf("select avg(length(`%s`)) " .
+				 " from `%s`.`%s` " ,
+				 $colname, $t->schema(), $t->table_name());
+
 		my @dynamic;
 		if($loadqueries)
 		{
@@ -573,9 +646,11 @@ sub do_table {
 	    $blobhunk= 8000 if $type=~ /longblob/;
 	    $blobhunk= 4000 if $type=~ /mediumblob/;
 
-	    my $sql= "select SUM(CEILING(".
-		"length(`$colname`)/$blobhunk))"
-		."from `".$t->name."`";
+	    my $sql= sprintf("select SUM(CEILING(length(`%s`)/%s)) " .
+			     " from `%s`.`%s`" ,
+			     $colname, $blobhunk,
+			     $t->schema(), $t->table_name() );
+
 	    my @blobsize;
 	    if($loadqueries)
 	    {
@@ -589,11 +664,12 @@ sub do_table {
 	    $blobsize[0]=0 if !defined($blobsize[0]);
 
 	    # Is a supporting table, add it to the lists:
-	    $report->supporting_tables_set($t->name()."\$BLOB_$colname" => 1);
-	    $t->supporting_tables_push($t->name()."\$BLOB_$colname");
+	    $report->supporting_tables_set($t->schema().".".$t->name()."\$BLOB_$colname" => 1);
+	    $t->supporting_tables_push($t->schema().".".$t->name()."\$BLOB_$colname");
 
 	    my $st= new MySQL::NDB::Size::Table(name =>
 						$t->name()."\$BLOB_$colname",
+						schema => $t->schema(),
 						rows => $blobsize[0],
 						row_dm_overhead =>
 						{ '4.1' => 12,
@@ -632,7 +708,9 @@ sub do_table {
 	$col->size($size);
 	$t->columns_set( $colname => $col );
     }
-    $report->tables_set( $t->name => $t );
+    #print "setting tables: ",$t->schema(), $t->table_name(), $t->name, $t->real_table_name || "" , "\n";
+    # Use $t->name here instead of $t->table_name() to avoid namespace conflicts
+    $report->tables_set( $t->schema().".".$t->name() => $t );
 
     # And now... the IndexMemory usage.
     #
@@ -727,14 +805,16 @@ sub do_table {
 	    # Is a supporting table, add it to the lists:
 	    my $idxname= $t->name().'_'.join('_',@{$indexes{$index}{columns}}).
 		"\$unique";
-	    $report->supporting_tables_set($idxname => 1);
-	    $t->supporting_tables_push($idxname);
+	    $report->supporting_tables_set($t->schema().".".$idxname => 1);
+	    $t->supporting_tables_push($t->schema().".".$idxname);
 
 	    $t->indexed_columns_set($_ => 1)
 		foreach @{$indexes{$index}{columns}};
 
 	    my $st= new MySQL::NDB::Size::Table(name => $idxname,
+						real_table_name => $t->table_name(),
 						rows => $count[0],
+						schema => $t->schema(),
 						row_dm_overhead =>
 						{ '4.1' => 12,
 						  '5.0' => 12,
@@ -745,7 +825,6 @@ sub do_table {
 						row_ddm_overhead =>
 						{ '5.1' => 8 },
 						);
-
 	    do_table($st,
 		     \%idxcols,
 		     {
@@ -766,9 +845,10 @@ sub do_table {
 foreach(@{$tables})
 {
     my $table= @{$_}[0];
+    my $schema = @{$_}[1] || $database;
     my $info;
     {
-	my $sql= 'describe `'.$table.'`';
+	my $sql= 'describe `'.$schema.'`.`'.$table.'`';
 	if($loadqueries)
 	{
 	    $info= $queries{$sql};
@@ -781,7 +861,7 @@ foreach(@{$tables})
     }
     my @count;
     {
-	my $sql= 'select count(*) from `'.$table.'`';
+	my $sql= 'select count(*) from `'.$schema.'`.`'.$table.'`';
 	if($loadqueries)
 	{
 	    @count= @{$queries{$sql}};
@@ -797,7 +877,7 @@ foreach(@{$tables})
     {
 	my @show_indexes;
 	{
-	    my $sql= "show index from `".$table.'`';
+	    my $sql= "show index from `".$schema.'`.`'.$table.'`';
 	    if($loadqueries)
 	    {
 		@show_indexes= @{$queries{$sql}};
@@ -826,6 +906,7 @@ foreach(@{$tables})
 	}
     }
     my $t= new MySQL::NDB::Size::Table(name => $table,
+				       schema => $schema,
 				       rows => $count[0],
 				       row_dm_overhead =>
 				        { '4.1' => 12,
@@ -1008,7 +1089,7 @@ sub output
     my $self= shift;
     my $r= $self->{report};
 
-    print $self->ul("ndb_size.pl report for database ". $r->database().
+    print $self->ul("ndb_size.pl report for ". $r->database().
 		    " (".(($r->tables_count()||0)-($r->supporting_tables_count()||0)).
 		    " tables)");
 
@@ -1188,8 +1269,8 @@ sub output
 		my $st= $r->tables->{$_};
 		foreach(@{$st->indexes_keys()})
 		{
-		    printf $f, $st->name() if $_ eq 'PRIMARY';
-		    printf $f, $st->name().$_ if $_ ne 'PRIMARY';
+		    printf $f, $st->schema().".".$st->name() if $_ eq 'PRIMARY';
+		    printf $f, $st->schema().".".$st->name().$_ if $_ ne 'PRIMARY';
 		    my $sti= $st->indexes->{$_};
 		    printf $v, ($sti->ver_im_exists($_))
 			?$sti->ver_im->{$_}
@@ -1367,7 +1448,7 @@ print <<ENDHTML;
 <body>
 ENDHTML
 
-    print $self->h1("ndb_size.pl report for database ". $r->database().
+    print $self->h1("ndb_size.pl report for ". $r->database().
 		    " (".(($r->tables_count()||0)-($r->supporting_tables_count()||0)).
 		    " tables)");
 
@@ -1579,8 +1660,8 @@ ENDHTML
 		foreach(@{$st->indexes_keys()})
 		{
 		    my @r;
-		    push @r, $st->name() if $_ eq 'PRIMARY';
-		    push @r, $st->name().$_ if $_ ne 'PRIMARY';
+		    push @r, $st->schema().".".$st->name() if $_ eq 'PRIMARY';
+		    push @r, $st->schema().".".$st->name().$_ if $_ ne 'PRIMARY';
 		    my $sti= $st->indexes->{$_};
 		    push @r, ($sti->ver_im_exists($_))
 			?$sti->ver_im->{$_}
