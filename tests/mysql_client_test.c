@@ -15746,7 +15746,7 @@ static void test_bug29948()
   char kill_buf[20];
   const char *query;
   int buf;
-  unsigned long length;
+  unsigned long length, cursor_type;
   
   dbc = mysql_init(NULL);
   DIE_UNLESS(dbc);
@@ -15779,8 +15779,8 @@ static void test_bug29948()
   stmt= mysql_stmt_init(dbc);
   check_stmt(stmt);
 
-  buf= CURSOR_TYPE_READ_ONLY;
-  res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&buf);
+  cursor_type= CURSOR_TYPE_READ_ONLY;
+  res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&cursor_type);
   myquery(res);
 
   query= "SELECT * from t1 where a=?";
