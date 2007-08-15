@@ -424,6 +424,8 @@ typedef struct system_status_var
 
 #define last_system_status_var com_stmt_close
 
+void mark_transaction_to_rollback(THD *thd, bool all);
+
 #ifdef MYSQL_SERVER
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -2482,6 +2484,7 @@ public:
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
+
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
