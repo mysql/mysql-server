@@ -5654,6 +5654,8 @@ ER_NON_INSERTABLE_TABLE
         ger "Die Zieltabelle %-.100s von %s ist nicht einfügbar"
 ER_ADMIN_WRONG_MRG_TABLE
 	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
+ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
+	eng "Too high level of nesting for select"
 ER_FOREIGN_SERVER_EXISTS
         eng "The foreign server, %s, you are trying to create already exists."
 ER_FOREIGN_SERVER_DOESNT_EXIST

@@ -194,6 +194,12 @@ typedef struct st_join_table {
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   bool		sorted;
+  /* 
+    If it's not 0 the number stored this field indicates that the index
+    scan has been chosen to access the table data and we expect to scan 
+    this number of rows for the table.
+  */ 
+  ha_rows       limit; 
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
