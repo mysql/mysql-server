@@ -16,10 +16,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /**
-  @file
-  A public interface of Events Scheduler module.
-  @defgroup Event Scheduler
+  @defgroup Event_Scheduler Event Scheduler
+  @ingroup Runtime_Environment
   @{
+
+  @file events.h
+
+  A public interface of Events_Scheduler module.
 */
 
 class Event_parse_data;

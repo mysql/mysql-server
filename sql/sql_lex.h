@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @defgroup Semantic_Analysis Semantic Analysis
+*/
 
 /* YACC and LEX Definitions */
 
@@ -1822,5 +1825,9 @@ extern int MYSQLlex(void *arg, void *yythd);
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
+
+/**
+  @} (End of group Semantic_Analysis)
+*/
 
 #endif /* MYSQL_SERVER */
