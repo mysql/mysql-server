@@ -15,6 +15,11 @@
 
 /* sql_yacc.yy */
 
+/**
+  @defgroup Parser Parser
+  @{
+*/
+
 %{
 /* thd is passed as an argument to yyparse(), and subsequently to yylex().
 ** The type will be void*, so it must be  cast to (THD*) when used.
@@ -12255,3 +12260,6 @@ uninstall:
           }
         ;
 
+/**
+  @} (end of group Parser)
+*/

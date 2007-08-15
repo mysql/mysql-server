@@ -28,6 +28,11 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+/**
+  @defgroup Runtime_Environment Runtime Environment
+  @{
+*/
+
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
   ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
@@ -7242,3 +7247,7 @@ bool parse_sql(THD *thd,
 
   return err_status;
 }
+
+/**
+  @} (end of group Runtime_Environment)
+*/

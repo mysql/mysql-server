@@ -20,6 +20,11 @@
 #include "events.h"
 #include "sql_show.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 static
 const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
 {
@@ -1112,3 +1117,7 @@ Event_db_repository::check_system_tables(THD *thd)
 
   DBUG_RETURN(test(ret));
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

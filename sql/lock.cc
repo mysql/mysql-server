@@ -74,6 +74,11 @@ TODO:
 #include <hash.h>
 #include <assert.h>
 
+/**
+  @defgroup Locking Locking
+  @{
+*/
+
 extern HASH open_cache;
 
 /* flags for get_lock_data */
@@ -1590,4 +1595,6 @@ void broadcast_refresh(void)
   VOID(pthread_cond_broadcast(&COND_global_read_lock));
 }
 
-
+/**
+  @} (end of group Locking)
+*/
