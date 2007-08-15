@@ -191,6 +191,8 @@ row_merge_buf_add(
 		return(FALSE);
 	}
 
+	UNIV_PREFETCH_R(row->fields);
+
 	index = buf->index;
 
 	n_fields = dict_index_get_n_fields(index);
@@ -297,12 +299,15 @@ row_merge_buf_add(
 	field = entry;
 
 	/* Copy the data fields. */
-	for (i = 0; i < n_fields; i++, field++) {
+
+	do {
 		if (!dfield_is_null(field)) {
 			field->data = mem_heap_dup(buf->heap,
 						   field->data, field->len);
 		}
-	}
+
+		field++;
+	} while (--n_fields);
 
 	return(TRUE);
 }
@@ -1851,8 +1856,6 @@ row_merge_build_indexes(
 
 		goto func_exit;
 	}
-
-	trx_start_if_not_started(trx);
 
 	/* Now we have files containing index entries ready for
 	sorting and inserting. */
