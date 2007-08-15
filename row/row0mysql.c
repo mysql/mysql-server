@@ -469,15 +469,21 @@ handle_new_error:
 
 	trx->error_state = DB_SUCCESS;
 
-	if ((err == DB_DUPLICATE_KEY)
-	    || (err == DB_FOREIGN_DUPLICATE_KEY)) {
-		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
-
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
+	switch (err) {
+	case DB_LOCK_WAIT_TIMEOUT:
+		if (row_rollback_on_timeout) {
+			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			break;
 		}
-	} else if (err == DB_TOO_BIG_RECORD) {
+		/* fall through */
+	case DB_DUPLICATE_KEY:
+	case DB_FOREIGN_DUPLICATE_KEY:
+	case DB_TOO_BIG_RECORD:
+	case DB_ROW_IS_REFERENCED:
+	case DB_NO_REFERENCED_ROW:
+	case DB_CANNOT_ADD_CONSTRAINT:
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+	case DB_OUT_OF_FILE_SPACE:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -485,19 +491,8 @@ handle_new_error:
 			trx_general_rollback_for_mysql(trx, TRUE, savept);
 		}
 		/* MySQL will roll back the latest SQL statement */
-	} else if (err == DB_ROW_IS_REFERENCED
-		   || err == DB_NO_REFERENCED_ROW
-		   || err == DB_CANNOT_ADD_CONSTRAINT
-		   || err == DB_TOO_MANY_CONCURRENT_TRXS) {
-		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
-
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
-		}
-		/* MySQL will roll back the latest SQL statement */
-	} else if (err == DB_LOCK_WAIT) {
-
+		break;
+	case DB_LOCK_WAIT:
 		srv_suspend_mysql_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {
@@ -510,31 +505,15 @@ handle_new_error:
 
 		return(TRUE);
 
-	} else if (err == DB_DEADLOCK
-		   || err == DB_LOCK_TABLE_FULL
-		   || (err == DB_LOCK_WAIT_TIMEOUT
-		       && row_rollback_on_timeout)) {
+	case DB_DEADLOCK:
+	case DB_LOCK_TABLE_FULL:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		break;
 
-	} else if (err == DB_OUT_OF_FILE_SPACE
-		   || err == DB_LOCK_WAIT_TIMEOUT) {
-
-		ut_ad(!(err == DB_LOCK_WAIT_TIMEOUT
-		        && row_rollback_on_timeout));
-
-		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
-
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
-		}
-		/* MySQL will roll back the latest SQL statement */
-
-	} else if (err == DB_MUST_GET_MORE_FILE_SPACE) {
-
+	case DB_MUST_GET_MORE_FILE_SPACE:
 		fputs("InnoDB: The database cannot continue"
 		      " operation because of\n"
 		      "InnoDB: lack of space. You must add"
@@ -542,8 +521,8 @@ handle_new_error:
 		      "InnoDB: my.cnf and restart the database.\n", stderr);
 
 		exit(1);
-	} else if (err == DB_CORRUPTION) {
 
+	case DB_CORRUPTION:
 		fputs("InnoDB: We detected index corruption"
 		      " in an InnoDB type table.\n"
 		      "InnoDB: You have to dump + drop + reimport"
@@ -558,7 +537,8 @@ handle_new_error:
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
 		      "forcing-recovery.html"
 		      " for help.\n", stderr);
-	} else {
+		break;
+	default:
 		fprintf(stderr, "InnoDB: unknown error code %lu\n",
 			(ulong) err);
 		ut_error;
