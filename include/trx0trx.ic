@@ -96,3 +96,15 @@ trx_new_rec_locks_contain(
 	return(trx->new_rec_locks[0] == index
 	       || trx->new_rec_locks[1] == index);
 }
+
+/********************************************************************
+Retrieves the error_info field from a trx. */
+UNIV_INLINE
+const dict_index_t*
+trx_get_error_info(
+/*===============*/
+				/* out: the error info */
+	const trx_t*	trx)	/* in: trx object */
+{
+	return(trx->error_info);
+}
