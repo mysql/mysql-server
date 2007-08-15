@@ -30,7 +30,7 @@ pthread_key(struct st_my_thread_var, THR_KEY_mysys);
 #endif /* USE_TLS */
 pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,
 	        THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_myisam,THR_LOCK_heap,
-                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads;
+                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time;
 pthread_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
@@ -146,6 +146,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&THR_LOCK_time,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&THR_COND_threads, NULL);
 #if defined( __WIN__) || defined(OS2)
   win_pthread_init();
@@ -202,6 +203,7 @@ void my_thread_global_end(void)
   pthread_mutex_destroy(&THR_LOCK_myisam);
   pthread_mutex_destroy(&THR_LOCK_heap);
   pthread_mutex_destroy(&THR_LOCK_net);
+  pthread_mutex_destroy(&THR_LOCK_time);
   pthread_mutex_destroy(&THR_LOCK_charset);
   if (all_threads_killed)
   {

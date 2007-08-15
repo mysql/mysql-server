@@ -410,7 +410,8 @@ THD::THD()
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
-  time_after_lock=(time_t) 0;
+  start_utime= 0L;
+  utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
   bzero(&variables, sizeof(variables));

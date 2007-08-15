@@ -37,14 +37,14 @@ set session long_query_time=1;
 select sleep(2);
 sleep(2)
 0
-select * from mysql.slow_log;
+select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
 set global slow_query_log= ON;
 set session long_query_time=1;
 select sleep(2);
 sleep(2)
 0
-select * from mysql.slow_log;
+select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
 TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(2)
 show global variables

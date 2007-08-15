@@ -32,6 +32,7 @@ my_bool getopt_compare_strings(const char *s,
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
+static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options);
 static int setval(const struct my_option *opts, uchar* *value, char *argument,
 		  my_bool set_maximum_value);
@@ -611,6 +612,9 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
     case GET_ULL:
       *((ulonglong*) result_pos)= getopt_ull(argument, opts, &err);
       break;
+    case GET_DOUBLE:
+      *((double*) result_pos)= getopt_double(argument, opts, &err);
+      break;
     case GET_STR:
       *((char**) result_pos)= argument;
       break;
@@ -720,7 +724,7 @@ my_bool getopt_compare_strings(register const char *s, register const char *t,
   be k|K for kilo, m|M for mega or g|G for giga.
 */
 
-static longlong eval_num_suffix (char *argument, int *error, char *option_name)
+static longlong eval_num_suffix(char *argument, int *error, char *option_name)
 {
   char *endchar;
   longlong num;
@@ -802,6 +806,37 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
 
 
 /*
+  Get double value withing ranges
+
+  Evaluates and returns the value that user gave as an argument to a variable.
+
+  RETURN
+    decimal value of arg
+
+    In case of an error, prints an error message and sets *err to
+    EXIT_ARGUMENT_INVALID.  Otherwise err is not touched
+*/
+
+static double getopt_double(char *arg, const struct my_option *optp, int *err)
+{
+  double num;
+  int error;
+  char *end= arg + 1000;                     /* Big enough as *arg is \0 terminated */
+  num= my_strtod(arg, &end, &error);
+  if (end[0] != 0 || error)
+  {
+    fprintf(stderr,
+            "%s: ERROR: Invalid decimal value for option '%s'\n",
+            my_progname, optp->name);
+    *err= EXIT_ARGUMENT_INVALID;
+    return 0.0;
+  }
+  if (optp->max_value && num > (double) optp->max_value)
+    num= (double) optp->max_value;
+  return max(num, (double) optp->min_value);
+}
+
+/*
   Init one value to it's default values
 
   SYNOPSIS
@@ -837,6 +872,9 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
   case GET_ULL:
   case GET_SET:
     *((ulonglong*) variable)=  (ulonglong) value;
+    break;
+  case GET_DOUBLE:
+    *((double*) variable)=  (double) value;
     break;
   case GET_STR:
     /*
@@ -1051,6 +1089,9 @@ void my_print_variables(const struct my_option *options)
       case GET_ULL:
 	longlong2str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
+	break;
+      case GET_DOUBLE:
+	printf("%g\n", *(double*) value);
 	break;
       default:
 	printf("(Disabled)\n");

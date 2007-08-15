@@ -550,7 +550,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     top= ((Event_queue_element*) queue_element(&queue, 0));
 
-    thd->end_time(); /* Get current time */
+    thd->set_current_time(); /* Get current time */
 
     next_activation_at= top->execute_at;
     if (next_activation_at > thd->query_start())

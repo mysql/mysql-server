@@ -85,6 +85,8 @@
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
 #define MAX_PARTITIONS  1024
 
+#define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
+
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
 
@@ -153,6 +155,11 @@
 #define OPEN_VIEW		8192	/* Allow open on view */
 #define OPEN_VIEW_NO_PARSE     16384    /* Open frm only if it's a view,
                                            but do not parse view itself */
+#define OPEN_FRM_FILE_ONLY     32768    /* Open frm file only */
+#define OPEN_TABLE_ONLY        OPEN_FRM_FILE_ONLY*2 /* Open view only */
+#define OPEN_VIEW_ONLY         OPEN_TABLE_ONLY*2    /* Open table only */
+#define OPEN_TABLE_FROM_SHARE  OPEN_VIEW_ONLY*2     /* For I_S tables*/
+#define OPTIMIZE_I_S_TABLE     OPEN_TABLE_FROM_SHARE*2 /* For I_S tables*/
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128

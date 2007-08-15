@@ -1100,4 +1100,24 @@ SELECT variable_name FROM server_status;
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
 
+
+#
+# WL#3732 Information schema optimization
+# 
+
+explain select table_name from information_schema.views where
+table_schema='test' and table_name='v1';
+
+explain select * from information_schema.tables;
+explain select * from information_schema.collations;
+
+explain select * from information_schema.tables where
+table_schema='test' and table_name= 't1';
+explain select table_name, table_type from information_schema.tables
+where table_schema='test';
+
+explain select b.table_name
+from information_schema.tables a, information_schema.columns b
+where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
+
 --echo End of 5.1 tests.
