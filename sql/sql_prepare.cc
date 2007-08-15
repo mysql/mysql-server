@@ -112,7 +112,6 @@ public:
 /****************************************************************************/
 
 /**
-  @class Prepared_statement
   @brief Prepared_statement: a statement that can contain placeholders
 */
 

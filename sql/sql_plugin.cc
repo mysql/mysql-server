@@ -2444,7 +2444,7 @@ void plugin_thdvar_cleanup(THD *thd)
 /**
   @brief Free values of thread variables of a plugin.
 
-  @detail This must be called before a plugin is deleted. Otherwise its
+  This must be called before a plugin is deleted. Otherwise its
   variables are no longer accessible and the value space is lost. Note
   that only string values with PLUGIN_VAR_MEMALLOC are allocated and
   must be freed.
