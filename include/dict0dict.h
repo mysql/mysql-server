@@ -213,12 +213,21 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
+Adds system columns to a table object. */
+
+void
+dict_table_add_system_columns(
+/*==========================*/
+	dict_table_t*	table,	/* in/out: table */
+	mem_heap_t*	heap);	/* in: temporary heap */
+/**************************************************************************
 Adds a table object to the dictionary cache. */
 
 void
 dict_table_add_to_cache(
 /*====================*/
-	dict_table_t*	table);	/* in: table */
+	dict_table_t*	table,	/* in: table */
+	mem_heap_t*	heap);	/* in: temporary heap */
 /**************************************************************************
 Removes a table object from the dictionary cache. */
 
