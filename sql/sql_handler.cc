@@ -120,15 +120,15 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 }
 
 /**
- * Close a HANDLER table.
- *
- * @param thd Thread identifier.
- * @param A list of tables with the first entry to close.
- *
- * @note Though this function takes a list of tables, only the first list entry
- * will be closed.
- * @note Broadcasts refresh if it closed the table.
- */
+  Close a HANDLER table.
+
+  @param thd Thread identifier.
+  @param tables A list of tables with the first entry to close.
+
+  @note Though this function takes a list of tables, only the first list entry
+  will be closed.
+  @note Broadcasts refresh if it closed the table.
+*/
 
 static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
