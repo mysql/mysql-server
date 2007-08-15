@@ -186,7 +186,7 @@ public:
   LEX_STRING m_qname;		// db.name
   /**
     Key representing routine in the set of stored routines used by statement.
-    [routine_type]db.name\0
+    [routine_type]db.name
     @sa sp_name::m_sroutines_key
   */
   LEX_STRING m_sroutines_key;

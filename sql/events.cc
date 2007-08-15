@@ -790,8 +790,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   Check access rights and fill INFORMATION_SCHEMA.events table.
 
   @param[in,out]  thd     Thread context
-  @param[in]      table   The temporary table to fill.
-      cond    Unused
+  @param[in]      tables  The temporary table to fill.
 
   In MySQL INFORMATION_SCHEMA tables are temporary tables that are
   created and filled on demand. In this function, we fill

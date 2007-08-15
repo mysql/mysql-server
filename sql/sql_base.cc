@@ -2148,9 +2148,9 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
     @brief Check that table exists in table definition cache, on disk
            or in some storage engine.
 
-    @param  thd          Thread context
-    @param  table        Table list element
-    @param  exists[out]  Out parameter which is set to TRUE if table
+    @param       thd     Thread context
+    @param       table   Table list element
+    @param[out]  exists  Out parameter which is set to TRUE if table
                          exists and to FALSE otherwise.
 
     @note This function assumes that caller owns LOCK_open mutex.

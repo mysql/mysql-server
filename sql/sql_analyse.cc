@@ -668,7 +668,7 @@ void field_ulonglong::add()
 } // field_ulonglong::add
 
 
-int analyse::send_row(List<Item> &field_list __attribute__((unused)))
+int analyse::send_row(List<Item> & /* field_list */)
 {
   field_info **f = f_info;
 
