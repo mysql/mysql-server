@@ -82,6 +82,10 @@ bool Prelock_error_handler::safely_trapped_errors()
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
 
+/**
+  @defgroup Data_Dictionary Data Dictionary
+  @{
+*/
 
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
@@ -7802,3 +7806,6 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   thd->restore_backup_open_tables_state(backup);
 }
 
+/**
+  @} (end of group Data_Dictionary)
+*/

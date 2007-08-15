@@ -21,6 +21,11 @@
 #include "event_scheduler.h"
 #include "sp_head.h" // for Stored_program_creation_ctx
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 /*
  TODO list :
  - CREATE EVENT should not go into binary log! Does it now? The SQL statements
@@ -1186,3 +1191,7 @@ end:
 
   DBUG_RETURN(ret);
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/
