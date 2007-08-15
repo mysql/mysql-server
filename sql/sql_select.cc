@@ -3524,10 +3524,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   uint	and_level,i,found_eq_constant;
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
-  uint m= 1;
-  
-  if (cond_equal && cond_equal->max_members)
-    m= cond_equal->max_members;
+  uint m= max(select_lex->max_equal_elems,1);
   
   /* 
     We use the same piece of memory to store both  KEY_FIELD 
@@ -3547,7 +3544,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     it is considered as sargable only for its first argument.
     Multiple equality can add  elements that are filled after
     substitution of field arguments by equal fields. There
-    can be not more than cond_equal->max_members such substitutions.
+    can be not more than select_lex->max_equal_elems such 
+    substitutions.
   */ 
   sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
       (((thd->lex->current_select->cond_count+1)*2 +
@@ -7189,8 +7187,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     just an argument of a comparison predicate.
     The function also determines the maximum number of members in 
     equality lists of each Item_cond_and object assigning it to
-    cond_equal->max_members of this object and updating accordingly
-    the upper levels COND_EQUAL structures.  
+    thd->lex->current_select->max_equal_elems.
 
   NOTES
     Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
@@ -7235,7 +7232,6 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
                                         COND_EQUAL *inherited)
 {
   Item_equal *item_equal;
-  uint members;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
 
@@ -7273,19 +7269,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       {
         item_equal->fix_length_and_dec();
         item_equal->update_used_tables();
-        members= item_equal->members();
-        if (cond_equal.max_members < members)
-          cond_equal.max_members= members; 
-      }
-      members= cond_equal.max_members;
-      if (inherited && inherited->max_members < members)
-      {
-        do
-        {
-	  inherited->max_members= members;
-          inherited= inherited->upper_levels;
-        }
-        while (inherited);
+        set_if_bigger(thd->lex->current_select->max_equal_elems,
+                      item_equal->members());  
       }
 
       ((Item_cond_and*)cond)->cond_equal= cond_equal;
@@ -7340,10 +7325,12 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          return item_equal;
 	}
         else
-          return eq_list.pop();
+          item_equal= (Item_equal *) eq_list.pop();
+        set_if_bigger(thd->lex->current_select->max_equal_elems,
+                      item_equal->members());  
+        return item_equal;
       }
       else
       {
@@ -7359,9 +7346,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          members= item_equal->members();
-          if (cond_equal.max_members < members)
-            cond_equal.max_members= members; 
+          set_if_bigger(thd->lex->current_select->max_equal_elems,
+                        item_equal->members());  
         }
         and_cond->cond_equal= cond_equal;
         args->concat((List<Item> *)&cond_equal.current_level);
