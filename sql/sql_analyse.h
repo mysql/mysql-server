@@ -348,7 +348,7 @@ public:
   }
   virtual void add() {}
   virtual bool change_columns(List<Item> &fields);
-  virtual int  send_row(List<Item> &fields);
+  virtual int  send_row(List<Item> &field_list);
   virtual void end_group(void) {}
   virtual bool end_of_records(void);
   friend Procedure *proc_analyse_init(THD *thd, ORDER *param,
