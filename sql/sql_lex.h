@@ -859,8 +859,8 @@ public:
   uint                          no_parts;
   enum_alter_table_change_level change_level;
   Create_field                 *datetime_field;
-  bool                          error_if_not_empty;  
-    
+  bool                          error_if_not_empty;
+
 
   Alter_info() :
     flags(0),
@@ -887,16 +887,6 @@ public:
     datetime_field= 0;
     error_if_not_empty= FALSE;
   }
-  /**
-    Construct a copy of this object to be used for mysql_alter_table
-    and mysql_create_table. Historically, these two functions modify
-    their Alter_info arguments. This behaviour breaks re-execution of
-    prepared statements and stored procedures and is compensated by
-    always supplying a copy of Alter_info to these functions.
-
-    @return You need to use check the error in THD for out
-    of memory condition after calling this function.
-  */
   Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
@@ -1102,8 +1092,9 @@ enum enum_comment_state
 
 
 /**
-  This class represents the character input stream consumed during
+  @brief This class represents the character input stream consumed during
   lexical analysis.
+
   In addition to consuming the input stream, this class performs some
   comment pre processing, by filtering out out of bound special text
   from the query input stream.
@@ -1113,6 +1104,7 @@ enum enum_comment_state
   is the pre-processed buffer that contains only the query text that
   should be seen once out-of-bound data is removed.
 */
+
 class Lex_input_stream
 {
 public:
@@ -1121,6 +1113,7 @@ public:
 
   /**
     Set the echo mode.
+
     When echo is true, characters parsed from the raw input stream are
     preserved. When false, characters parsed are silently ignored.
     @param echo the echo mode.

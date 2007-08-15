@@ -5370,11 +5370,12 @@ void mysql_init_multi_delete(LEX *lex)
 
 /**
   Parse a query.
-  @param thd Current thread
-  @param inBuf Begining of the query text
-  @param length Length of the query text
-  @param [out] semicolon For multi queries, position of the character of
-  the next query in the query text.
+
+  @param       thd     Current thread
+  @param       inBuf   Begining of the query text
+  @param       length  Length of the query text
+  @param[out]  found_semicolon For multi queries, position of the character of
+                               the next query in the query text.
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,

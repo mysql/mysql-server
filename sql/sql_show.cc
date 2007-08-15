@@ -2459,8 +2459,8 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
 
   @param[in]      thd                   thread handler
   @param[in]      cond                  WHERE condition
-  @param[in]      table                 I_S table
-  @param[in, out] lookup_field_vals     Struct which holds lookup values 
+  @param[in]      tables                I_S table
+  @param[in, out] lookup_field_values   Struct which holds lookup values 
 
   @return         void
 */
