@@ -13,6 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @addtogroup Replication
+  @{
+
+  @file
+
+  Binary log event definitions.
+*/
+
 
 #ifndef _log_event_h
 #define _log_event_h
@@ -435,7 +444,7 @@ struct sql_ex_info
   ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
-#error
+#error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
@@ -2633,5 +2642,9 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     my_b_copy_to_file(cache, file) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
+
+/**
+  @} (end of group Replication)
+*/
 
 #endif /* _log_event_h */
