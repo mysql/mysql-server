@@ -674,7 +674,7 @@ skip_field:
 
 		/* Set the extern field reference in dfield to zero */
 		dfield_set_data(dfield,
-				mem_heap_calloc(heap,
+				mem_heap_zalloc(heap,
 						BTR_EXTERN_FIELD_REF_SIZE),
 				BTR_EXTERN_FIELD_REF_SIZE);
 		dfield_set_ext(dfield);
