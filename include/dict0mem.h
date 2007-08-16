@@ -33,7 +33,6 @@ combination of types */
 #define	DICT_UNIVERSAL	4	/* index which can contain records from any
 				other index */
 #define	DICT_IBUF 	8	/* insert buffer tree */
-#define DICT_NOT_READY  16	/* this index is being build */
 
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
@@ -194,13 +193,14 @@ struct dict_field_struct{
 struct dict_index_struct{
 	dulint		id;	/* id of the index */
 	mem_heap_t*	heap;	/* memory heap */
-	ulint		type;	/* index type */
-	char*		name;	/* index name */
+	const char*	name;	/* index name */
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
 	unsigned	space:32;
 				/* space where the index tree is placed */
 	unsigned	page:32;/* index tree root page number */
+	unsigned	type:4;	/* index type (DICT_CLUSTERED, DICT_UNIQUE,
+				DICT_UNIVERSAL, DICT_IBUF) */
 	unsigned	trx_id_offset:10;/* position of the the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
