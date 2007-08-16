@@ -23,8 +23,7 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
-struct st_relay_log_info;
-typedef st_relay_log_info RELAY_LOG_INFO;
+class Relay_log_info;
 
 class Query_log_event;
 class Load_log_event;
@@ -967,7 +966,7 @@ class THD :public Statement,
 {
 public:
   /* Used to execute base64 coded binlog events in MySQL server */
-  RELAY_LOG_INFO* rli_fake;
+  Relay_log_info* rli_fake;
 
   /*
     Constant for THD::where initialization in the beginning of every query.
