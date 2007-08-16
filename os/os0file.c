@@ -1436,7 +1436,7 @@ loop:
 #else
 	int	ret;
 
-	ret = unlink((const char*)name);
+	ret = unlink(name);
 
 	if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete");
@@ -1499,7 +1499,7 @@ loop:
 #else
 	int	ret;
 
-	ret = unlink((const char*)name);
+	ret = unlink(name);
 
 	if (ret != 0) {
 		os_file_handle_error_no_exit(name, "delete");
@@ -1538,7 +1538,7 @@ os_file_rename(
 #else
 	int	ret;
 
-	ret = rename((const char*)oldpath, (const char*)newpath);
+	ret = rename(oldpath, newpath);
 
 	if (ret != 0) {
 		os_file_handle_error_no_exit(oldpath, "rename");
