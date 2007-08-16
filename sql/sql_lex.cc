@@ -1750,7 +1750,7 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(SELECT_LEX *last)
+void st_select_lex::mark_as_dependent(st_select_lex *last)
 {
   /*
     Mark all selects from resolved to 1 before select where was
@@ -2368,7 +2368,7 @@ st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
     values	- SELECT_LEX with initial values for counters
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *sl)
+void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
   ha_rows select_limit_val;
 
@@ -2898,7 +2898,7 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   partitioning or if only partitions to add or to split.
 
   @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
-  is used from the sql parser that doesn't have any #ifdef's
+  is used from the sql parser that doesn't have any ifdef's
 
   @retval  TRUE    Yes, it is part of a management partition command
   @retval  FALSE          No, not a management partition command
