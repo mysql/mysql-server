@@ -774,11 +774,11 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline ulong get_time()
+  inline time_t get_time()
   {
     THD *tmp_thd;
     if (when)
-      return (ulong) when;
+      return when;
     if (thd)
       return thd->start_time;
     if ((tmp_thd= current_thd))

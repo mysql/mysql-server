@@ -692,7 +692,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
-  now= get_time();                              // Query start time
+  now= (ulong) get_time();                              // Query start time
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
