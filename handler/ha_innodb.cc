@@ -8143,11 +8143,9 @@ innobase_copy_index_def(
 	ulint	i;
 
 	DBUG_ENTER("innobase_copy_index_def");
-	DBUG_ASSERT(!dict_index_is_clust(index));
 
-	/* Note that from the secondary index we take only
-	those fields that user defined to be in the index.
-	In the internal representation more colums were
+	/* Note that we take only those fields that user defined to be
+	in the index.  In the internal representation more colums were
 	added and those colums are not copied .*/
 
 	n_fields = index->n_user_defined_cols;
@@ -8155,7 +8153,9 @@ innobase_copy_index_def(
 	new_index->fields = (merge_index_field_t*) mem_heap_alloc(
 		heap, n_fields * sizeof *new_index->fields);
 
-	new_index->ind_type = index->type;
+	/* When adding a PRIMARY KEY, we may convert a previous
+	clustered index to a secondary index (UNIQUE NOT NULL). */
+	new_index->ind_type = index->type & ~DICT_CLUSTERED;
 	new_index->n_fields = n_fields;
 	new_index->name = index->name;
 
@@ -8203,11 +8203,9 @@ innobase_create_key_def(
 
 	DBUG_ENTER("innobase_create_key_def");
 
-	/* We do not need to count the original primary key */
-	const ulint n_indexes = n_keys + UT_LIST_GET_LEN(table->indexes) - 1;
-
 	indexdef = indexdefs = (merge_index_def_t*)
-		mem_heap_alloc(heap, sizeof *indexdef * n_indexes);
+		mem_heap_alloc(heap, sizeof *indexdef
+			       * (n_keys + UT_LIST_GET_LEN(table->indexes)));
 
 	/* If there is a primary key, it is always the first index
 	defined for the table. */
@@ -8226,7 +8224,8 @@ innobase_create_key_def(
 		new_primary = TRUE;
 
 		while (key_part--) {
-			if (key_info->key_part[key_part].null_bit) {
+			if (key_info->key_part[key_part].key_type
+			    & FIELDFLAG_MAYBE_NULL) {
 				new_primary = FALSE;
 				break;
 			}
@@ -8237,21 +8236,25 @@ innobase_create_key_def(
 		const dict_index_t*	index;
 
 		/* Create the PRIMARY key index definition */
-		innobase_create_index_def(key_info, TRUE, TRUE,
+		innobase_create_index_def(&key_info[i++], TRUE, TRUE,
 					  indexdef++, heap);
 
 		row_mysql_lock_data_dictionary(trx);
 
-		/* Skip the clustered index */
+		index = dict_table_get_first_index(table);
 
-		i = 1;
-		index = dict_table_get_next_index(
-			dict_table_get_first_index(table));
+		/* Copy the index definitions of the old table.  Skip
+		the old clustered index if it is a generated clustered
+		index or a PRIMARY KEY.  If the clustered index is a
+		UNIQUE INDEX, it must be converted to a secondary index. */
 
-		/* Copy the definitions of secondary indexes */
+		if (dict_index_get_nth_col(index, 0)->mtype == DATA_SYS
+		    || !my_strcasecmp(system_charset_info,
+				      index->name, "PRIMARY")) {
+			index = dict_table_get_next_index(index);
+		}
 
 		while (index) {
-
 			innobase_copy_index_def(index, indexdef++, heap);
 			index = dict_table_get_next_index(index);
 		}
@@ -8625,6 +8628,17 @@ ha_innobase::prepare_drop_index(
 					prebuilt->table->name);
 
 			err = HA_ERR_KEY_NOT_FOUND;
+			goto func_exit;
+		}
+
+		/* Refuse to drop the clustered index.  It would be
+		better to automatically generate a clustered index,
+		but mysql_alter_table() will call this method only
+		after ha_innobase::add_index(). */
+
+		if (dict_index_is_clust(index)) {
+			my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
+			err = -1;
 			goto func_exit;
 		}
 
