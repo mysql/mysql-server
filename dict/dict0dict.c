@@ -2164,7 +2164,7 @@ dict_foreign_add_to_cache(
 	if (for_in_cache->referenced_table == NULL && ref_table) {
 		index = dict_foreign_find_index(
 			ref_table,
-			(const char**) for_in_cache->referenced_col_names,
+			for_in_cache->referenced_col_names,
 			for_in_cache->n_fields, for_in_cache->foreign_index,
 			check_charsets, FALSE);
 
@@ -2196,7 +2196,7 @@ dict_foreign_add_to_cache(
 	if (for_in_cache->foreign_table == NULL && for_table) {
 		index = dict_foreign_find_index(
 			for_table,
-			(const char**) for_in_cache->foreign_col_names,
+			for_in_cache->foreign_col_names,
 			for_in_cache->n_fields,
 			for_in_cache->referenced_index, check_charsets,
 			for_in_cache->type
@@ -4359,7 +4359,7 @@ dict_table_find_equivalent_index(
 	}
 
 	equiv_index = dict_foreign_find_index(
-		table, (const char**)column_names, index->n_fields,
+		table, column_names, index->n_fields,
 		index, TRUE, FALSE);
 
 	mem_free(column_names);

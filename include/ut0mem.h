@@ -117,7 +117,7 @@ ut_strlen(const char* str);
 
 UNIV_INLINE
 int
-ut_strcmp(const void* str1, const void* str2);
+ut_strcmp(const char* str1, const char* str2);
 
 /**************************************************************************
 Copies up to size - 1 characters from the NUL-terminated string src to
