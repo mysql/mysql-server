@@ -4462,7 +4462,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   if (!rli->inited)				// QQ When can this happen ?
     DBUG_VOID_RETURN;
 
-  MASTER_INFO* mi = rli->mi;
+  Master_info* mi = rli->mi;
   // TODO: re-write this better without holding both locks at the same time
   pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
