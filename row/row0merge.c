@@ -96,7 +96,7 @@ row_merge_buf_create_low(
 	ut_ad(max_tuples <= sizeof(row_merge_block_t));
 	ut_ad(max_tuples < buf_size);
 
-	buf = mem_heap_calloc(heap, buf_size);
+	buf = mem_heap_zalloc(heap, buf_size);
 	buf->heap = heap;
 	buf->index = index;
 	buf->max_tuples = max_tuples;

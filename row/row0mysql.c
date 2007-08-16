@@ -579,7 +579,7 @@ row_create_prebuilt(
 
 	heap = mem_heap_create(sizeof *prebuilt + 128);
 
-	prebuilt = mem_heap_calloc(heap, sizeof *prebuilt);
+	prebuilt = mem_heap_zalloc(heap, sizeof *prebuilt);
 
 	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
