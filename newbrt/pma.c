@@ -528,13 +528,19 @@ enum pma_errors pma_lookup (PMA pma, DBT *k, DBT *v, DB *db) {
 int pma_free (PMA *pmap) {
     int i;
     PMA pma=*pmap;
-    if (!list_empty(&pma->cursors)) return -1;
-    for (i=0; i<pma_index_limit(pma); i++) {
-        if (pma->pairs[i]) {
-            kv_pair_free(pma->pairs[i]);
-            pma->pairs[i] = 0;
+    if (!list_empty(&pma->cursors)) 
+        return -1;
+    
+    if (pma->n_pairs_present > 0) {
+        for (i=0; i < pma->N; i++) {
+            if (pma->pairs[i]) {
+                kv_pair_free(pma->pairs[i]);
+                pma->pairs[i] = 0;
+                pma->n_pairs_present--;
+            }
         }
     }
+    assert(pma->n_pairs_present == 0);
     toku_free(pma->pairs);
     if (pma->skey) toku_free(pma->skey);
     if (pma->sval) toku_free(pma->sval);
