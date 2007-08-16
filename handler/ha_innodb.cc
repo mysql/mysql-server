@@ -8339,14 +8339,6 @@ ha_innobase::add_index(
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
-	if (thd_test_options(user_thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(user_thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	}
-
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
@@ -8604,23 +8596,14 @@ ha_innobase::prepare_drop_index(
 	uint 		n_key;
 
 	DBUG_ENTER("ha_innobase::prepare_drop_index");
-	ut_ad(table && key_num && num_of_keys);
+	ut_ad(table);
+	ut_ad(key_num);
+	ut_ad(num_of_keys);
 
 	thd = ha_thd();
 
-	/* Create a new transaction for prepare index drop if it
-	does not exists */
-
 	trx = check_trx_exists(thd);
 	trx_search_latch_release_if_reserved(trx);
-
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
-	}
-
-	if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-		trx->check_unique_secondary = FALSE;
-	}
 
 	/* Test and mark all the indexes to be dropped */
 
@@ -8631,21 +8614,15 @@ ha_innobase::prepare_drop_index(
 		dict_index_t*	index;
 
 		key = table->key_info + key_num[n_key];
-		ut_a(key);
-
-		index = NULL;
-
-		if (key) {
-			index = dict_table_get_index_on_name_and_min_id(
-							prebuilt->table,
-							key->name);
-		}
+		index = dict_table_get_index_on_name_and_min_id(
+			prebuilt->table, key->name);
 
 		if (!index) {
 			sql_print_error("InnoDB could not find key n:o %u "
-				"with name %s in dict cache for table %s",
-			       key_num[n_key], key ? key->name : "NULL",
-			       prebuilt->table->name);
+					"with name %s for table %s",
+					key_num[n_key],
+					key ? key->name : "NULL",
+					prebuilt->table->name);
 
 			err = HA_ERR_KEY_NOT_FOUND;
 			goto func_exit;
@@ -8654,46 +8631,48 @@ ha_innobase::prepare_drop_index(
 		index->to_be_dropped = TRUE;
 	}
 
-	/* We check for the foreign key constraints after marking the
-	candidate indexes for deletion because when we check for an
-	equivalent foreign index we don't want to select an index that is
-	later deleted. */
-	for (n_key = 0; n_key < num_of_keys; n_key++) {
-		KEY*		key;
-		dict_index_t*	index;
+	/* If FOREIGN_KEY_CHECK = 1 you may not drop an index defined
+	for a foreign key constraint because InnoDB requires that both
+	tables contain indexes for the constraint.  Note that CREATE
+	INDEX id ON table does a CREATE INDEX and DROP INDEX, and we
+	can ignore here foreign keys because a new index for the
+	foreign key has already been created.
 
-		key = table->key_info + key_num[n_key];
+	We check for the foreign key constraints after marking the
+	candidate indexes for deletion, because when we check for an
+	equivalent foreign index we don't want to select an index that
+	is later deleted. */
 
-		index = dict_table_get_index_on_name_and_min_id(
-			prebuilt->table, key->name);
-
-		ut_a(index);
-		ut_a(index->to_be_dropped);
-
-		/* If FOREIGN_KEY_CHECK = 1 you may not drop an index
-		defined for a foreign key constraint because
-		InnoDB requires that both tables contain indexes
-		for the constraint. Note that create index id on table
-		does a create index and drop index and we can ignore
-		here foreign keys because a new index for the foreign
-		key has already been created. */
-
-		if (trx->check_foreigns
-		    && thd_sql_command(thd) != SQLCOM_CREATE_INDEX) {
+	if (trx->check_foreigns
+	    && thd_sql_command(thd) != SQLCOM_CREATE_INDEX) {
+		for (n_key = 0; n_key < num_of_keys; n_key++) {
+			KEY*		key;
+			dict_index_t*	index;
 			dict_foreign_t* foreign;
-			ibool		ok_to_delete = TRUE;
 
-			/* Check if this index is referenced by some other
-			table */
+			key = table->key_info + key_num[n_key];
+			index = dict_table_get_index_on_name_and_min_id(
+				prebuilt->table, key->name);
+
+			ut_a(index);
+			ut_a(index->to_be_dropped);
+
+			/* Check if the index is referenced. */
 			foreign = dict_table_get_referenced_constraint(
 				prebuilt->table, index);
 
 			if (foreign) {
+index_needed:
+				trx_set_detailed_error(
+					trx,
+					"Index needed in foreign key "
+					"constraint");
 
-				ok_to_delete = FALSE;
+				trx->error_info = index;
 
+				err = HA_ERR_DROP_INDEX_FK;
+				break;
 			} else {
-
 				/* Check if this index references some
 				other table */
 				foreign = dict_table_get_foreign_constraint(
@@ -8709,37 +8688,9 @@ ha_innobase::prepare_drop_index(
 						prebuilt->table,
 						foreign->foreign_index)) {
 
-						ok_to_delete = FALSE;
+						goto index_needed;
 					}
 				}
-			}
-
-			if (!ok_to_delete) {
-
-				trx_set_detailed_error(
-					trx,
-					"Index needed in foreign key "
-					"constraint");
-
-				trx->error_info = index;
-
-				FILE* ef = dict_foreign_err_file;
-
-				err = HA_ERR_DROP_INDEX_FK;
-
-				mutex_enter(&dict_foreign_err_mutex);
-				rewind(ef);
-				ut_print_timestamp(ef);
-
-				fputs("  Cannot drop index ", ef);
-				ut_print_name(ef, trx, FALSE, index->name);
-				fputs("\nbecause it is referenced by ", ef);
-				ut_print_name(ef, trx, TRUE,
-						foreign->foreign_table_name);
-				putc('\n', ef);
-				mutex_exit(&dict_foreign_err_mutex);
-
-				break;
 			}
 		}
 	}
@@ -8752,10 +8703,6 @@ func_exit:
 			dict_index_t*	index;
 
 			key = table->key_info + key_num[n_key];
-			if (!key) {
-				continue;
-			}
-
 			index = dict_table_get_index_on_name_and_min_id(
 				prebuilt->table, key->name);
 
@@ -8785,9 +8732,6 @@ ha_innobase::final_drop_index(
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
-
-	/* Create a new transaction for final index drop if it does not
-	 * exits*/
 
 	thd = ha_thd();
 
