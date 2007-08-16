@@ -773,7 +773,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
   Invalidate the query cache for a given table.
 
   @param thd         user thread connection handle
-  @param key         databasename\0tablename\0
+  @param key         databasename\\0tablename\\0
   @param key_length  length of key in bytes, including the NUL bytes
   @param using_trx   flag: TRUE if using transactions, FALSE otherwise
 */
