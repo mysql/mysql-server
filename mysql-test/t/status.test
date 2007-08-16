@@ -33,8 +33,8 @@ let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID
 unlock tables;
 connection con1;
 reap;
-show status like 'Table_lock%';
-select * from information_schema.session_status where variable_name like 'Table_lock%';
+show status like 'Table_locks_waited%';
+select * from information_schema.session_status where variable_name like 'Table_locks_waited%';
 drop table t1;
 
 disconnect con2;
