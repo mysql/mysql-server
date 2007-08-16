@@ -762,7 +762,7 @@ err:
   DBUG_VOID_RETURN;
 }
 
-int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
+int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
@@ -887,7 +887,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 }
 
 
-int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
+int stop_slave(THD* thd, Master_info* mi, bool net_report )
 {
   DBUG_ENTER("stop_slave");
   
@@ -953,7 +953,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 */
 
 
-int reset_slave(THD *thd, MASTER_INFO* mi)
+int reset_slave(THD *thd, Master_info* mi)
 {
   MY_STAT stat_area;
   char fname[FN_REFLEN];
@@ -1067,7 +1067,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 }
 
 
-bool change_master(THD* thd, MASTER_INFO* mi)
+bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
