@@ -72,6 +72,7 @@ static void test_make_space_at (void) {
 	    }
 	}
     }
+    pma->n_pairs_present = 0;
     r=pma_free(&pma); assert(r==0);
     assert(pma==0);
     kv_pair_free(key_A);
