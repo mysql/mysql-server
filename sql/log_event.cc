@@ -597,7 +597,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   const char *event_type;
   if (p)
     log_name = p + 1;
-  
+
   protocol->prepare_for_resend();
   protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong) pos);
