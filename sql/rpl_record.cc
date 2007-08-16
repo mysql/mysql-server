@@ -188,7 +188,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
-unpack_row(RELAY_LOG_INFO const *rli,
+unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,
            uchar const *const row_data, MY_BITMAP const *cols,
            uchar const **const row_end, ulong *const master_reclength,
@@ -217,7 +217,7 @@ unpack_row(RELAY_LOG_INFO const *rli,
   // The "current" null bits
   unsigned int null_bits= *null_ptr++;
   uint i= 0;
-  table_def *tabledef= ((RELAY_LOG_INFO*)rli)->get_tabledef(table);
+  table_def *tabledef= ((Relay_log_info*)rli)->get_tabledef(table);
   for (field_ptr= begin_ptr ; field_ptr < end_ptr && *field_ptr ; ++field_ptr)
   {
     Field *const f= *field_ptr;

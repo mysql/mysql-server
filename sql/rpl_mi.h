@@ -80,7 +80,7 @@ class MASTER_INFO : public Slave_reporting_capability
   THD *io_thd;
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */
-  RELAY_LOG_INFO rli;
+  Relay_log_info rli;
   uint port;
   uint connect_retry;
 #ifndef DBUG_OFF

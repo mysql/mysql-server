@@ -49,7 +49,7 @@ private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
 #endif
 };
@@ -83,7 +83,7 @@ private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
@@ -117,7 +117,7 @@ private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
 #endif
 };
