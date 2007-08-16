@@ -1217,13 +1217,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
-  /* 
-    End open index scans and table scans and remove references to the tables 
-    from the handler tables hash. After this preparation it is safe to close 
-    the tables.
-  */
-  mysql_ha_mark_tables_for_reopen(thd, thd->open_tables);
-
   found_old_table= 0;
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
