@@ -435,7 +435,7 @@ struct sql_ex_info
   ((ULL(1) << 14) | (ULL(1) << 26) | (ULL(1) << 27) | (ULL(1) << 19))
 
 #if OPTIONS_WRITTEN_TO_BIN_LOG != EXPECTED_OPTIONS
-#error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
+#error 1
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 

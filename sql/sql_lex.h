@@ -1512,9 +1512,9 @@ typedef struct st_lex : public Query_tables_list
   /** End of SELECT of CREATE VIEW statement */
   const char* create_view_select_end;
 
-  /** Start of 'ON <table>', in trigger statements.  */
+  /** Start of 'ON table', in trigger statements.  */
   const char* raw_trg_on_table_name_begin;
-  /** End of 'ON <table>', in trigger statements. */
+  /** End of 'ON table', in trigger statements. */
   const char* raw_trg_on_table_name_end;
 
   /* Partition info structure filled in by PARTITION BY parse part */
