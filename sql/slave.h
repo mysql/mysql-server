@@ -29,10 +29,9 @@
 
 
 // Forward declarations
-struct st_relay_log_info;
-typedef st_relay_log_info RELAY_LOG_INFO;
-
+class Relay_log_info;
 class MASTER_INFO;
+
 
 /*****************************************************************************
 
@@ -47,7 +46,7 @@ class MASTER_INFO;
                  represents each of these threads.
 
     SQL Thread - One of these threads is started and reads from the relay log
-                 file, executing each event.  A RELAY_LOG_INFO 
+                 file, executing each event.  A Relay_log_info 
                  represents this thread.
 
   Buffering in the relay log file makes it unnecessary to reread events from
@@ -80,7 +79,7 @@ class MASTER_INFO;
   data_lock protects some moving members of the struct: counters (log name,
   position) and relay log (MYSQL_BIN_LOG object).
 
-  In RELAY_LOG_INFO: run_lock, data_lock
+  In Relay_log_info: run_lock, data_lock
   see MASTER_INFO
   
   Order of acquisition: if you want to have LOCK_active_mi and a run_lock, you
@@ -103,11 +102,11 @@ extern ulonglong relay_log_space_limit;
 
 /*
   3 possible values for MASTER_INFO::slave_running and
-  RELAY_LOG_INFO::slave_running.
+  Relay_log_info::slave_running.
   The values 0,1,2 are very important: to keep the diff small, I didn't
   substitute places where we use 0/1 with the newly defined symbols. So don't change
   these values.
-  The same way, code is assuming that in RELAY_LOG_INFO we use only values
+  The same way, code is assuming that in Relay_log_info we use only values
   0/1.
   I started with using an enum, but
   enum_variable=1; is not legal so would have required many line changes.
@@ -129,7 +128,7 @@ extern ulonglong relay_log_space_limit;
 
 int init_slave();
 void init_slave_skip_errors(const char* arg);
-bool flush_relay_log_info(RELAY_LOG_INFO* rli);
+bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
 			     bool skip_lock = 0);
@@ -164,27 +163,27 @@ int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 
 bool show_master_info(THD* thd, MASTER_INFO* mi);
 bool show_binlog_info(THD* thd);
-bool rpl_master_has_bug(RELAY_LOG_INFO *rli, uint bug_id);
+bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id);
 
 const char *print_slave_db_safe(const char *db);
-int check_expected_error(THD* thd, RELAY_LOG_INFO const *rli, int error_code);
+int check_expected_error(THD* thd, Relay_log_info const *rli, int error_code);
 void skip_load_data_infile(NET* net);
 
 void end_slave(); /* clean up */
-void clear_until_condition(RELAY_LOG_INFO* rli);
-void clear_slave_error(RELAY_LOG_INFO* rli);
-void end_relay_log_info(RELAY_LOG_INFO* rli);
+void clear_until_condition(Relay_log_info* rli);
+void clear_slave_error(Relay_log_info* rli);
+void end_relay_log_info(Relay_log_info* rli);
 void lock_slave_threads(MASTER_INFO* mi);
 void unlock_slave_threads(MASTER_INFO* mi);
 void init_thread_mask(int* mask,MASTER_INFO* mi,bool inverse);
-int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,ulonglong pos,
+int init_relay_log_pos(Relay_log_info* rli,const char* log,ulonglong pos,
 		       bool need_data_lock, const char** errmsg,
                        bool look_for_description_event);
 
-int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
+int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
 void set_slave_thread_options(THD* thd);
-void set_slave_thread_default_charset(THD *thd, RELAY_LOG_INFO const *rli);
+void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 void rotate_relay_log(MASTER_INFO* mi);
 
 pthread_handler_t handle_slave_io(void *arg);

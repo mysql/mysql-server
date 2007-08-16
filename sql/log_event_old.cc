@@ -6,7 +6,7 @@
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
 Write_rows_log_event_old::do_prepare_row(THD *thd,
-                                         RELAY_LOG_INFO const *rli,
+                                         Relay_log_info const *rli,
                                          TABLE *table,
                                          uchar const *row_start,
                                          uchar const **row_end)
@@ -15,7 +15,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd,
   DBUG_ASSERT(row_start && row_end);
 
   int error;
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_WRITE_ROWS_EVENT);
@@ -26,7 +26,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd,
 
 int
 Delete_rows_log_event_old::do_prepare_row(THD *thd,
-                                          RELAY_LOG_INFO const *rli,
+                                          Relay_log_info const *rli,
                                           TABLE *table,
                                           uchar const *row_start,
                                           uchar const **row_end)
@@ -39,7 +39,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
 
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_DELETE_ROWS_EVENT);
@@ -59,7 +59,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd,
 
 
 int Update_rows_log_event_old::do_prepare_row(THD *thd,
-                                              RELAY_LOG_INFO const *rli,
+                                              Relay_log_info const *rli,
                                               TABLE *table,
                                               uchar const *row_start,
                                               uchar const **row_end)
@@ -73,13 +73,13 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd,
   DBUG_ASSERT(table->s->fields >= m_width);
 
   /* record[0] is the before image for the update */
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
-  error= unpack_row_old(const_cast<RELAY_LOG_INFO*>(rli),
+  error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
                         row_start, &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
