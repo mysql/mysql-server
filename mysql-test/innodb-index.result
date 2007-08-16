@@ -1,4 +1,4 @@
-create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
 alter table t1 add index b (b), add index b (b);
@@ -11,9 +11,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`a`),
   KEY `d2` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 explain select * from t1 order by d;
@@ -26,15 +25,14 @@ a	b	c	d
 5	5	oo	oo
 4	4	tr	tr
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '0' for key 'b'
+ERROR 23000: Duplicate entry '4' for key 'b'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`a`),
   KEY `d2` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 add index (b);
@@ -43,9 +41,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`a`),
   KEY `d2` (`d`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -55,7 +52,42 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  UNIQUE KEY `c` (`c`),
+  KEY `d2` (`d`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+explain select * from t1 order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	10	NULL	4	
+drop index c on t1;
+ERROR 42000: This table type requires a primary key
+alter table t1 add primary key (a), drop index c;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `d2` (`d`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add primary key (c);
+ERROR 42000: Multiple primary key defined
+alter table t1 drop primary key, add primary key (b);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+create unique index c on t1 (c);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
@@ -65,7 +97,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 explain select * from t1 order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	11	NULL	4	
+1	SIMPLE	t1	index	NULL	c	10	NULL	4	
 select * from t1 order by c;
 a	b	c	d
 3	4	ad	ad
@@ -78,7 +110,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
@@ -120,7 +152,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	b	5	NULL	5	
 explain select * from t1 order by c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c	11	NULL	5	
+1	SIMPLE	t1	index	NULL	c	10	NULL	5	
 explain select * from t1 order by d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	d2	23	NULL	5	
@@ -129,7 +161,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
-  `c` char(10) DEFAULT NULL,
+  `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
@@ -481,7 +513,7 @@ engine = innodb default charset=utf8;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '' for key 'b'
+ERROR 23000: Duplicate entry '2' for key 'b'
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 a	b	c	d
@@ -650,7 +682,7 @@ engine = innodb default charset=ucs2;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '' for key 'b'
+ERROR 23000: Duplicate entry '2' for key 'b'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -771,11 +803,11 @@ drop table t1;
 create table t1(a int not null, b int) engine = innodb;
 insert into t1 values (1,1),(1,1),(1,1),(1,1);
 alter table t1 add unique index (a);
-ERROR 23000: Duplicate entry '0' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 'a'
 alter table t1 add unique index (b);
-ERROR 23000: Duplicate entry '0' for key 'b'
+ERROR 23000: Duplicate entry '1' for key 'b'
 alter table t1 add unique index (a), add unique index(b);
-ERROR 23000: Duplicate entry '0' for key 'a'
+ERROR 23000: Duplicate entry '1' for key 'a'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -808,9 +840,9 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe');
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
-ERROR 23000: Duplicate entry '' for key 'c'
+ERROR 23000: Duplicate entry 'ac' for key 'c'
 alter table t1 add unique index (b), add index (d), add unique index (c);
-ERROR 23000: Duplicate entry '' for key 'c'
+ERROR 23000: Duplicate entry 'ac' for key 'c'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
