@@ -1732,7 +1732,12 @@ class Send_field {
 */
 
 class Copy_field :public Sql_alloc {
-  void (*get_copy_func(Field *to,Field *from))(Copy_field *);
+  /**
+    Convenience definition of a copy function returned by
+    get_copy_func.
+  */
+  typedef void Copy_func(Copy_field*);
+  Copy_func *get_copy_func(Field *to, Field *from);
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
