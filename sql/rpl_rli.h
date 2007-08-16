@@ -122,7 +122,7 @@ public:
   pthread_cond_t start_cond, stop_cond, data_cond;
 
   /* parent Master_info structure */
-  class Master_info *mi;
+  Master_info *mi;
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
