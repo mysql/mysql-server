@@ -52,7 +52,7 @@ void mysql_client_binlog_statement(THD* thd)
     Allocation
   */
   if (!thd->rli_fake)
-    thd->rli_fake= new RELAY_LOG_INFO;
+    thd->rli_fake= new Relay_log_info;
 
   const Format_description_log_event *desc=
     new Format_description_log_event(4);
