@@ -67,7 +67,6 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 # The slave I/O thread must stop after trying to read the above event
 connection slave; 
-sleep 2;
 --source include/wait_for_slave_io_to_stop.inc
 SHOW STATUS LIKE 'Slave_running';
 
