@@ -1506,7 +1506,6 @@ public:
                                      the current and level           */
   COND_EQUAL()
   { 
-    max_members= 0;
     upper_levels= 0;
   }
 };
