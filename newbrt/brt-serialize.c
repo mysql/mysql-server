@@ -25,17 +25,31 @@ void wbuf_char (struct cursor *w, int ch) {
 }
 
 void wbuf_int (struct cursor *w, unsigned int i) {
-    wbuf_char(w, (i>>24)&0xff);
-    wbuf_char(w, (i>>16)&0xff);
-    wbuf_char(w, (i>>8)&0xff);
-    wbuf_char(w, (i>>0)&0xff);
+#if 0
+    wbuf_char(w, i>>24);
+    wbuf_char(w, i>>16);
+    wbuf_char(w, i>>8);
+    wbuf_char(w, i>>0);
+#else
+    assert(w->ndone + 4 <= w->size);
+    w->buf[w->ndone+0] = i>>24;
+    w->buf[w->ndone+1] = i>>16;
+    w->buf[w->ndone+2] = i>>8;
+    w->buf[w->ndone+3] = i>>0;
+    w->ndone += 4;
+#endif
 }
 
 void wbuf_bytes (struct cursor *w, bytevec bytes_bv, int nbytes) {
     const unsigned char *bytes=bytes_bv; 
-    int i;
     wbuf_int(w, nbytes);
-    for (i=0; i<nbytes; i++) wbuf_char(w, bytes[i]);
+#if 0
+    { int i; for (i=0; i<nbytes; i++) wbuf_char(w, bytes[i]); }
+#else
+    assert(w->ndone + nbytes <= w->size);
+    memcpy(w->buf + w->ndone, bytes, nbytes);
+    w->ndone += nbytes;
+#endif
 }
 
 void wbuf_diskoff (struct cursor *w, diskoff off) {
