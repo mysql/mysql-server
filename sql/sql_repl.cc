@@ -762,7 +762,7 @@ err:
   DBUG_VOID_RETURN;
 }
 
-int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
+int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
@@ -799,7 +799,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
         if (thd->lex->mi.pos)
         {
-          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
+          mi->rli.until_condition= Relay_log_info::UNTIL_MASTER_POS;
           mi->rli.until_log_pos= thd->lex->mi.pos;
           /*
              We don't check thd->lex->mi.log_file_name for NULL here
@@ -810,7 +810,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         }
         else if (thd->lex->mi.relay_log_pos)
         {
-          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
+          mi->rli.until_condition= Relay_log_info::UNTIL_RELAY_POS;
           mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
           strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
                   sizeof(mi->rli.until_log_name)-1);
@@ -818,7 +818,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         else
           mi->rli.clear_until_condition();
 
-        if (mi->rli.until_condition != RELAY_LOG_INFO::UNTIL_NONE)
+        if (mi->rli.until_condition != Relay_log_info::UNTIL_NONE)
         {
           /* Preparing members for effective until condition checking */
           const char *p= fn_ext(mi->rli.until_log_name);
@@ -840,7 +840,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
           /* mark the cached result of the UNTIL comparison as "undefined" */
           mi->rli.until_log_names_cmp_result=
-            RELAY_LOG_INFO::UNTIL_LOG_NAMES_CMP_UNKNOWN;
+            Relay_log_info::UNTIL_LOG_NAMES_CMP_UNKNOWN;
 
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
@@ -887,7 +887,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 }
 
 
-int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
+int stop_slave(THD* thd, Master_info* mi, bool net_report )
 {
   DBUG_ENTER("stop_slave");
   
@@ -953,7 +953,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
 */
 
 
-int reset_slave(THD *thd, MASTER_INFO* mi)
+int reset_slave(THD *thd, Master_info* mi)
 {
   MY_STAT stat_area;
   char fname[FN_REFLEN];
@@ -1067,7 +1067,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 }
 
 
-bool change_master(THD* thd, MASTER_INFO* mi)
+bool change_master(THD* thd, Master_info* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
