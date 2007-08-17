@@ -3222,14 +3222,31 @@ void Query_cache::double_linked_list_join(Query_cache_block *head_tail,
     >0  number of tables
 */
 
-static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
-                                                   uint8 *tables_type)
+TABLE_COUNTER_TYPE
+Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
+                                      uint8 *tables_type)
 {
   DBUG_ENTER("process_and_count_tables");
   TABLE_COUNTER_TYPE table_count = 0;
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
+#ifdef HAVE_QUERY_CACHE
+    /*
+      Disable any attempt to store this statement if there are
+      column level grants on any referenced tables.
+      The grant.want_privileges flag was set to 1 in the
+      check_grant() function earlier if the TABLE_LIST object
+      had any associated column privileges.
+    */
+    if (tables_used->grant.want_privilege)
+    {
+      DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
+                            "tables with column privileges."));
+      thd->lex->safe_to_cache_query= 0;
+      DBUG_RETURN(0);
+    }
+#endif
     if (tables_used->view)
     {
       DBUG_PRINT("qcache", ("view: %s  db: %s",
@@ -3307,7 +3324,8 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
                           (long) lex->select_lex.options,
                           (int) thd->variables.query_cache_type));
 
-    if (!(table_count= process_and_count_tables(tables_used, tables_type)))
+    if (!(table_count= process_and_count_tables(thd, tables_used,
+                                                tables_type)))
       DBUG_RETURN(0);
 
     if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
