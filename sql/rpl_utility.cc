@@ -164,7 +164,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
 
 */
 int
-table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
+table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
   const
 {
   /*
@@ -172,7 +172,7 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   */
   uint const cols_to_check= min(table->s->fields, size());
   int error= 0;
-  RELAY_LOG_INFO const *rli= const_cast<RELAY_LOG_INFO*>(rli_arg);
+  Relay_log_info const *rli= const_cast<Relay_log_info*>(rli_arg);
 
   TABLE_SHARE const *const tsh= table->s;
 

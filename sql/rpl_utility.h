@@ -22,8 +22,7 @@
 
 #include "mysql_priv.h"
 
-struct st_relay_log_info;
-typedef st_relay_log_info RELAY_LOG_INFO;
+class Relay_log_info;
 
 
 /**
@@ -237,7 +236,7 @@ public:
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
-  int compatible_with(RELAY_LOG_INFO const *rli, TABLE *table) const;
+  int compatible_with(Relay_log_info const *rli, TABLE *table) const;
 
 private:
   ulong m_size;           // Number of elements in the types array
