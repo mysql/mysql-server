@@ -21,7 +21,7 @@
 #include "rpl_utility.h"
 
 struct RPL_TABLE_LIST;
-
+class Master_info;
 
 /****************************************************************************
 
