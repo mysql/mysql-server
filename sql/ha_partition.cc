@@ -2676,6 +2676,7 @@ int ha_partition::write_row(uchar * buf)
   uint32 part_id;
   int error;
   longlong func_value;
+  bool autoincrement_lock= false;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -2691,7 +2692,21 @@ int ha_partition::write_row(uchar * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
+  {
+    /*
+      Some engines (InnoDB for example) can change autoincrement
+      counter only after 'table->write_row' operation.
+      So if another thread gets inside the ha_partition::write_row
+      before it is complete, it gets same auto_increment value,
+      which means DUP_KEY error (bug #27405)
+      Here we separate the access using table_share->mutex, and
+      use autoincrement_lock variable to avoid unnecessary locks.
+      Probably not an ideal solution.
+    */
+    autoincrement_lock= true;
+    pthread_mutex_lock(&table_share->mutex);
     update_auto_increment();
+  }
 
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #ifdef NOT_NEEDED
@@ -2712,11 +2727,15 @@ int ha_partition::write_row(uchar * buf)
   if (unlikely(error))
   {
     m_part_info->err_value= func_value;
-    DBUG_RETURN(error);
+    goto exit;
   }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
-  DBUG_RETURN(m_file[part_id]->write_row(buf));
+  error= m_file[part_id]->write_row(buf);
+exit:
+  if (autoincrement_lock)
+    pthread_mutex_unlock(&table_share->mutex);
+  DBUG_RETURN(error);
 }
 
 
