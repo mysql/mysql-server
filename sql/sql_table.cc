@@ -157,6 +157,7 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   SYNOPSIS
    build_table_filename()
      buff                       Where to write result in my_charset_filename.
+                                This may be the same as table_name.
      bufflen                    buff size
      db                         Database name in system_charset_info.
      table_name                 Table name in system_charset_info.
@@ -186,10 +187,11 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table_name, const char *ext, uint flags)
 {
-  uint length;
   char dbbuff[FN_REFLEN];
   char tbbuff[FN_REFLEN];
   DBUG_ENTER("build_table_filename");
+  DBUG_PRINT("enter", ("db: '%s'  table_name: '%s'  ext: '%s'  flags: %x",
+                       db, table_name, ext, flags));
 
   if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
     strnmov(tbbuff, table_name, sizeof(tbbuff));
@@ -197,10 +199,18 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
     VOID(tablename_to_filename(table_name, tbbuff, sizeof(tbbuff)));
 
   VOID(tablename_to_filename(db, dbbuff, sizeof(dbbuff)));
-  length= strxnmov(buff, bufflen, mysql_data_home, FN_ROOTDIR, dbbuff,
-                   FN_ROOTDIR, tbbuff, ext, NullS) - buff;
+
+  char *end = buff + bufflen;
+  /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
+  char *pos = strnmov(buff, mysql_data_home, bufflen);
+  int rootdir_len= strlen(FN_ROOTDIR);
+  if (pos - rootdir_len >= buff &&
+      memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
+    pos= strnmov(pos, FN_ROOTDIR, end - pos);
+  pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, tbbuff, ext, NullS);
+
   DBUG_PRINT("exit", ("buff: '%s'", buff));
-  DBUG_RETURN(length);
+  DBUG_RETURN(pos - buff);
 }
 
 
