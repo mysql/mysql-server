@@ -1372,7 +1372,7 @@ bool Field::send_binary(Protocol *protocol)
 
    @return  New pointer into memory based on from + length of the data
 */
-const char *Field::unpack(char* to, const char *from, uint param_data)
+const uchar *Field::unpack(uchar* to, const uchar *from, uint param_data)
 {
   uint length=pack_length();
   int from_type= 0;
@@ -2697,9 +2697,9 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
 
    @return  New pointer into memory based on from + length of the data
 */
-const char *Field_new_decimal::unpack(char* to, 
-                                      const char *from, 
-                                      uint param_data)
+const uchar *Field_new_decimal::unpack(uchar* to,
+                                       const uchar *from,
+                                       uint param_data)
 {
   uint from_precision= (param_data & 0xff00) >> 8U;
   uint from_decimal= param_data & 0x00ff;
@@ -2723,7 +2723,7 @@ const char *Field_new_decimal::unpack(char* to,
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal((char *)from, &dec, from_precision, from_decimal);
+    bin2decimal(from, &dec, from_precision, from_decimal);
     decimal2bin(&dec, to, precision, decimals());
   }
   else
@@ -6406,7 +6406,7 @@ const uchar *Field_string::unpack(uchar *to,
   DBUG_ASSERT(f_length <= 255);
   length= (uint) *from++;
   bitmap_set_bit(table->write_set,field_index);
-  store(from, length, system_charset_info);
+  store((const char*) from, length, system_charset_info);
   return from+length;
 }
 
@@ -6918,9 +6918,9 @@ uchar *Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const char *Field_varstring::unpack(char *to, 
-                                    const char *from,
-                                    uint param_data)
+const uchar *Field_varstring::unpack(uchar *to,
+                                     const uchar *from,
+                                     uint param_data)
 {
   uint length;
   uint l_bytes= (param_data && (param_data < field_length)) ? 
@@ -7663,7 +7663,7 @@ const uchar *Field_blob::unpack(uchar *to,
 }
 
 
-const uchar *Field_blob::unpack(uchar *to, uconst char *from)
+const uchar *Field_blob::unpack(uchar *to, const uchar *from)
 {
   memcpy(to,from,packlength);
   uint32 length=get_length(from);
@@ -8722,9 +8722,9 @@ uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length)
 
    @return  New pointer into memory based on from + length of the data
 */
-const char *Field_bit::unpack(char *to,
-                              const char *from,
-                              uint param_data)
+const uchar *Field_bit::unpack(uchar *to,
+                               const uchar *from,
+                               uint param_data)
 {
   uint const from_len= (param_data >> 8U) & 0x00ff;
   uint const from_bit_len= param_data & 0x00ff;

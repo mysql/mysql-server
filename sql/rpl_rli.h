@@ -17,6 +17,7 @@
 #define RPL_RLI_H
 
 #include "rpl_tblmap.h"
+#include "rpl_utility.h"
 #include "rpl_reporting.h"
 
 struct RPL_TABLE_LIST;

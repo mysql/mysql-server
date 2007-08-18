@@ -1185,7 +1185,7 @@ public:
   void sql_type(String &str) const;
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
   const uchar *unpack(uchar* to, const uchar *from);
-  virtual const char *unpack(uchar* to, const uchar *from, uint param_data);
+  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
@@ -1319,7 +1319,7 @@ public:
     }
   }
   Field_blob(uint32 packlength_arg)
-    :Field_longstr((char*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
+    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
     packlength(packlength_arg) {}
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   enum ha_base_keytype key_type() const

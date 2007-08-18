@@ -64,7 +64,8 @@ public:
     : m_size(size), m_type(0),
       m_field_metadata(0), m_null_bits(0), m_memory(NULL)
   {
-    m_memory= my_multi_malloc(MYF(MY_WME),
+    m_memory= (uchar*)
+              my_multi_malloc(MYF(MY_WME),
                               &m_type, size,
                               &m_field_metadata, size * sizeof(short),
                               &m_null_bits, (m_size + 7) / 8,
@@ -239,7 +240,7 @@ private:
   field_type *m_type;                     // Array of type descriptors
   short int *m_field_metadata;
   uchar *m_null_bits;
-  gptr m_memory;
+  uchar *m_memory;
 };
 
 /**
