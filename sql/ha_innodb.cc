@@ -3301,8 +3301,6 @@ no_commit:
         if (error == DB_DUPLICATE_KEY && auto_inc_used
             && (user_thd->lex->sql_command == SQLCOM_REPLACE
                 || user_thd->lex->sql_command == SQLCOM_REPLACE_SELECT
-                || (user_thd->lex->sql_command == SQLCOM_INSERT
-                    && user_thd->lex->duplicates == DUP_UPDATE)
                 || (user_thd->lex->sql_command == SQLCOM_LOAD
                     && user_thd->lex->duplicates == DUP_REPLACE))) {
 
@@ -3532,6 +3530,27 @@ ha_innobase::update_row(
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
+
+	/* We need to do some special AUTOINC handling for the following case:
+
+	    INSERT INTO t (c1,c2) VALUES(x,y) ON DUPLICATE KEY UPDATE ...
+
+	We need to use the AUTOINC counter that was actually used by
+	MySQL in the UPDATE statement, which can be different from the
+	value used in the INSERT statement.*/
+	if (error == DB_SUCCESS
+	    && table->next_number_field && new_row == table->record[0]
+	    && user_thd->lex->sql_command == SQLCOM_INSERT
+	    && user_thd->lex->duplicates == DUP_UPDATE) {
+
+		longlong	auto_inc;
+
+		auto_inc = table->next_number_field->val_int();
+
+		if (auto_inc != 0) {
+			dict_table_autoinc_update(prebuilt->table, auto_inc);
+		}
+	}
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
@@ -5609,9 +5628,9 @@ ha_innobase::update_table_comment(
 	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
 	rewind(srv_dict_tmpfile);
 
-	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
-      		   (ulong) fsp_get_available_space_in_free_extents(
-      					prebuilt->table->space));
+ 	fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+ 		fsp_get_available_space_in_free_extents(
+ 			prebuilt->table->space));
 
 	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
