@@ -71,13 +71,13 @@ master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Xid	1	#	COMMIT /* XID */
 show binary logs;
 Log_name	File_size
-master-bin.000001	1314
-master-bin.000002	404
+master-bin.000001	1320
+master-bin.000002	406
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1412
-slave-bin.000002	305
+slave-bin.000001	1418
+slave-bin.000002	307
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4

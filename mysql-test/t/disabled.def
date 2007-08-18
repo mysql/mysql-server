@@ -39,7 +39,7 @@ rpl_ndb_mix_innodb       : BUG#28123 rpl_ndb_mix_innodb.test casue slave to core
 rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
 
 rpl_invoked_features     : BUG#29020 2007-06-21 Lars Non-deterministic test case
-ctype_big5               : BUG#26711 2007-06-21 Lars Test has never worked on Double Whopper
+rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
@@ -53,5 +53,3 @@ ndb_partition_error2	 : HF is not sure if the test can work as internded on all 
 im_options_set       : Bug#20294: Instance manager tests fail randomly
 im_options_unset     : Bug#20294: Instance manager tests fail randomly
 mysql_upgrade        : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
-rpl_udf              : Bug#28993 rpl_udf test causes server crash and valgrind warning in pushbuild
-ndb_dd_sql_features  : Bug#29102 ndb_dd_sql_features fails in pushbuild

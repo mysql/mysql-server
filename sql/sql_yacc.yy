@@ -484,6 +484,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
+  enum ha_build_method build_method;
 }
 
 %{
@@ -840,11 +841,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUM
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
+%token  OFFLINE_SYM
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
+%token  ONLINE_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIONS_SYM
@@ -1217,6 +1220,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	get_select_lex
 
 %type <boolfunc2creator> comp_op
+
+%type <build_method> build_method
 
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
@@ -1598,12 +1603,13 @@ create:
                                 $5->table.str);
           }
         }
-	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
-	  table_ident
+	| CREATE build_method opt_unique_or_fulltext INDEX_SYM ident key_alg 
+          ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7,
+            lex->alter_info.build_method= $2;
+	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
 							NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
@@ -1616,12 +1622,12 @@ create:
 	  {
 	    LEX *lex=Lex;
             Key *key;
-	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
+	    if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      my_parse_error(ER(ER_SYNTAX_ERROR));
 	      MYSQL_YYABORT;
 	    }
-            key= new Key($2, $4.str, &lex->key_create_info, 0,
+            key= new Key($3, $5.str, &lex->key_create_info, 0,
                          lex->col_list);
             lex->alter_info.key_list.push_back(key);
 	    lex->col_list.empty();
@@ -4338,7 +4344,12 @@ create_table_option:
           }
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
+	| ROW_FORMAT_SYM opt_equal row_types
+          {
+            Lex->create_info.row_type= $3;
+            Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
+            Lex->alter_info.flags|= ALTER_ROW_FORMAT;
+          }
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -4360,9 +4371,21 @@ create_table_option:
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
         | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
-        | STORAGE_SYM DEFAULT {Lex->create_info.default_storage_media= HA_SM_DEFAULT;}
-        | STORAGE_SYM DISK_SYM {Lex->create_info.default_storage_media= HA_SM_DISK;}
-        | STORAGE_SYM MEMORY_SYM {Lex->create_info.default_storage_media= HA_SM_MEMORY;}
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->create_info.default_storage_media= HA_SM_DEFAULT;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->create_info.default_storage_media= HA_SM_DISK;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->create_info.default_storage_media= HA_SM_MEMORY;
+            Lex->alter_info.flags|= ALTER_STORAGE;
+          }
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
 	| KEY_BLOCK_SIZE opt_equal ulong_num
 	  {
@@ -4775,12 +4798,32 @@ opt_attribute_list:
 
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
-        | STORAGE_SYM DEFAULT {Lex->storage_type= HA_SM_DEFAULT;}
-        | STORAGE_SYM DISK_SYM {Lex->storage_type= HA_SM_DISK;}
-        | STORAGE_SYM MEMORY_SYM {Lex->storage_type= HA_SM_MEMORY;}
-        | COLUMN_FORMAT_SYM column_format_types { Lex->column_format= $2; }
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->storage_type= HA_SM_DEFAULT;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->storage_type= HA_SM_DISK;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->storage_type= HA_SM_MEMORY;
+            Lex->alter_info.flags|= ALTER_COLUMN_STORAGE;
+          }
+        | COLUMN_FORMAT_SYM column_format_types
+          {
+            Lex->column_format= $2;
+            Lex->alter_info.flags|= ALTER_COLUMN_FORMAT;
+          }
 	| not NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+	| DEFAULT now_or_signed_literal 
+          { 
+            Lex->default_value=$2; 
+            Lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
+          }
 	| ON UPDATE_SYM NOW_SYM optional_braces 
           { Lex->on_update_value= new Item_func_now_local(); }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
@@ -5115,7 +5158,7 @@ string_list:
 */
 
 alter:
-	ALTER opt_ignore TABLE_SYM table_ident
+	ALTER build_method opt_ignore TABLE_SYM table_ident
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
@@ -5123,7 +5166,7 @@ alter:
           lex->name.length= 0;
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->duplicates= DUP_ERROR; 
-	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING))
 	    MYSQL_YYABORT;
           lex->alter_info.reset();
@@ -5137,7 +5180,8 @@ alter:
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_info.reset();
           lex->no_write_to_binlog= 0;
-          lex->create_info.default_storage_media= HA_SM_DEFAULT;	
+          lex->create_info.default_storage_media= HA_SM_DEFAULT;
+          lex->alter_info.build_method= $2;	
 	}
 	alter_commands
 	{}
@@ -5406,6 +5450,21 @@ alter_commands:
         | reorg_partition_rule
         ;
 
+build_method:
+        /* empty */
+          {
+            $$= HA_BUILD_DEFAULT;
+          }
+        | ONLINE_SYM
+          {
+            $$= HA_BUILD_ONLINE;
+          }
+        | OFFLINE_SYM
+          {
+            $$= HA_BUILD_OFFLINE;
+          }
+        ;
+
 remove_partitioning:
         REMOVE_SYM PARTITIONING_SYM
         {
@@ -5599,14 +5658,14 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,$6));
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+	    lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,
                                                                   (Item*) 0));
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+	    lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
 	  }
 	| RENAME opt_to table_ident
 	  {
@@ -5681,8 +5740,16 @@ opt_restrict:
 
 opt_place:
 	/* empty */	{}
-	| AFTER_SYM ident { store_position_for_column($2.str); }
-	| FIRST_SYM	  { store_position_for_column(first_keyword); };
+	| AFTER_SYM ident
+          {
+            store_position_for_column($2.str);
+	    Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          }
+	| FIRST_SYM
+          {
+            store_position_for_column(first_keyword);
+	    Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          };
 
 opt_to:
 	/* empty */	{}
@@ -8187,15 +8254,16 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX_SYM ident ON table_ident {}
+	| DROP build_method INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
 	     lex->alter_info.reset();
              lex->alter_info.flags= ALTER_DROP_INDEX;
+             lex->alter_info.build_method= $2;
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-                                                                $3.str));
-	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+                                                                $4.str));
+	     if (!lex->current_select->add_table_to_list(lex->thd, $6, NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
 	  }
@@ -10050,10 +10118,12 @@ keyword_sp:
 	| NODEGROUP_SYM         {}
 	| NONE_SYM		{}
 	| NVARCHAR_SYM		{}
+	| OFFLINE_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
+        | ONLINE_SYM            {}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PARTITIONING_SYM	{}

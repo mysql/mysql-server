@@ -238,6 +238,14 @@ connection slave;
 SELECT * FROM t1 ORDER BY c1;
 
 connection master;
+
+INSERT INTO t1 VALUES (11,11),(12,12),(13,13),(14,14);
+
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1;
+
+connection master;
 ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8;
 ALTER TABLE t1 CHANGE c2 c2 BLOB;
 

@@ -230,6 +230,17 @@ protected:
   CHARSET_INFO *m_connection_cl;
 };
 
+/**
+  Opening modes for open_temporary_table and open_table_from_share
+*/
+
+enum open_table_mode
+{
+  OTM_OPEN= 0,
+  OTM_CREATE= 1,
+  OTM_ALTER= 2
+}
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -1365,7 +1376,8 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list);
+                            const char *table_name, bool link_in_list,
+                            open_table_mode open_mode);
 bool rm_temporary_table(handlerton *base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
@@ -1919,7 +1931,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, open_table_mode open_mode);
 int readfrm(const char *name, uchar **data, size_t *length);
 int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);

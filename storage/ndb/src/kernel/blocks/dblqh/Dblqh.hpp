@@ -292,6 +292,7 @@ class Dbtup;
 #define ZTOO_MANY_COPY_ACTIVE_ERROR 1208 // COPY_FRAG and COPY_ACTIVEREF code
 #define ZCOPY_ACTIVE_ERROR 1210          // COPY_ACTIVEREF error code
 #define ZNO_TC_CONNECT_ERROR 1217        // Simple Read + SCAN
+#define ZTRANSPORTER_OVERLOADED_ERROR 1218
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 1.X                                    */
 /* ------------------------------------------------------------------------- */
@@ -2417,6 +2418,9 @@ private:
   void aiStateErrorCheckLab(Signal* signal, Uint32* dataPtr, Uint32 length);
   void takeOverErrorLab(Signal* signal);
   void endgettupkeyLab(Signal* signal);
+  bool checkTransporterOverloaded(Signal* signal,
+                                  const NodeBitmask& all,
+                                  const class LqhKeyReq* req);
   void noFreeRecordLab(Signal* signal, 
 		       const class LqhKeyReq * lqhKeyReq, 
 		       Uint32 errorCode);
