@@ -66,13 +66,13 @@ master-bin.000002	#	Table_map	1	#	table_id: # (test.t2)
 master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 show binary logs;
 Log_name	File_size
-master-bin.000001	1260
-master-bin.000002	377
+master-bin.000001	1266
+master-bin.000002	379
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1358
-slave-bin.000002	278
+slave-bin.000001	1364
+slave-bin.000002	280
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4

@@ -1,0 +1,160 @@
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE ndb_show_tables (id INT, type VARCHAR(20), state VARCHAR(20), logging VARCHAR(20), _database VARCHAR(255), _schema VARCHAR(20), name VARCHAR(255));
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER TABLE t1 ADD c CHAR(19);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
+INSERT INTO t1 values (1,"a");
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,"a",1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	a	NULL
+2	a	1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select id,name from ndb_show_tables where id = @t1_id and name like '%t1%';
+id	name
+5	't1'
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17'
+ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	17
+2	1	a
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL'
+ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	
+2	1	a
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED'
+ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+DROP TABLE t1;
+CREATE TABLE t1 (
+auto int(5) unsigned NOT NULL auto_increment,
+string char(10),
+vstring varchar(10),
+bin binary(2),
+vbin varbinary(7),
+tiny tinyint(4) DEFAULT '0' NOT NULL ,
+short smallint(6) DEFAULT '1' NOT NULL ,
+medium mediumint(8) DEFAULT '0' NOT NULL,
+long_int int(11) DEFAULT '0' NOT NULL,
+longlong bigint(13) DEFAULT '0' NOT NULL,
+real_float float(13,1) DEFAULT 0.0 NOT NULL,
+real_double double(16,4),
+real_decimal decimal(16,4),
+utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+ulong int(11) unsigned DEFAULT '0' NOT NULL,
+ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+bits bit(3),
+options enum('zero','one','two','three','four') not null,
+flags set('zero','one','two','three','four') not null,
+date_field date,
+year_field year,
+time_field time,
+date_time datetime,
+time_stamp timestamp,
+PRIMARY KEY (auto)
+) engine=ndb;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL'
+alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
+create index i1 on t1(medium);
+alter table t1 add index i2(new_tiny);
+drop index i1 on t1;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+DROP TABLE t1;
+DROP TABLE ndb_show_tables;

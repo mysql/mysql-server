@@ -1779,8 +1779,9 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
   suma.suma_ndbrequire(s == SimpleProperties::Break);
 
 #if 0
-ToDo handle this
-  if(m_schemaVersion != tableDesc.TableVersion){
+  //ToDo handle this
+  if(table_version_major(m_schemaVersion) !=
+     table_version_major(tableDesc.TableVersion)){
     jam();
 
     release(* this);
@@ -1829,76 +1830,7 @@ ToDo handle this
   }
 #endif
 
-  if(m_attributes.getSize() != 0){
-    jam();
-    DBUG_RETURN(true);
-  }
-
-  /**
-   * Initialize table object
-   */
-  Uint32 noAttribs = tableDesc.NoOfAttributes;
-  Uint32 notFixed = (tableDesc.NoOfNullable+tableDesc.NoOfVariable);
-  m_schemaVersion = tableDesc.TableVersion;
-  
-  // The attribute buffer
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  
-  // Temporary buffer
-  DataBuffer<15> theRest(suma.c_dataBufferPool);
-
-  if(!attrBuf.seize(noAttribs)){
-    jam();
-    suma.suma_ndbrequire(false);
-    DBUG_RETURN(false);
-  }
-  
-  if(!theRest.seize(notFixed)){
-    jam();
-    suma.suma_ndbrequire(false);
-    DBUG_RETURN(false);
-  }
-  
-  DataBuffer<15>::DataBufferIterator attrIt; // Fixed not nullable
-  DataBuffer<15>::DataBufferIterator restIt; // variable + nullable
-  attrBuf.first(attrIt);
-  theRest.first(restIt);
-  
-  for(Uint32 i = 0; i < noAttribs; i++) {
-    DictTabInfo::Attribute attrDesc; attrDesc.init();
-    s = SimpleProperties::unpack(it, &attrDesc, 
-				 DictTabInfo::AttributeMapping, 
-				 DictTabInfo::AttributeMappingSize, 
-				 true, true);
-    jam();
-    suma.suma_ndbrequire(s == SimpleProperties::Break);
-
-    if (!attrDesc.AttributeNullableFlag 
-	/* && !attrDesc.AttributeVariableFlag */) {
-      jam();
-      * attrIt.data = attrDesc.AttributeId;
-      attrBuf.next(attrIt);
-    } else {
-      jam();
-      * restIt.data = attrDesc.AttributeId;
-      theRest.next(restIt);
-    }
-    
-    // Move to next attribute
-    it.next();
-  }
-
-  /**
-   * Put the rest in end of attrBuf
-   */
-  theRest.first(restIt);
-  for(; !restIt.isNull(); theRest.next(restIt)){
-    * attrIt.data = * restIt.data;
-    attrBuf.next(attrIt);
-  }
-
-  theRest.release();
-  
+  m_noOfAttributes = tableDesc.NoOfAttributes;
   DBUG_RETURN(true);
 }
 
@@ -2130,9 +2062,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
  
   DataBuffer<15>::Head head = m_attributeList;
-  if(head.getSize() == 0){
-    head = tabPtr.p->m_attributes;
-  }
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
@@ -2946,7 +2875,8 @@ Suma::Table::setupTrigger(Signal* signal,
       req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
       req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
       req->setMonitorReplicas(true);
-      req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
+      //req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
+      req->setMonitorAllAttributes(true);
       req->setReceiverRef(SUMA_REF);
       req->setTriggerId(triggerId);
       req->setTriggerEvent((TriggerEvent::Value)j);
@@ -2973,11 +2903,8 @@ Suma::Table::createAttributeMask(AttributeMask& mask,
 {
   jam();
   mask.clear();
-  DataBuffer<15>::DataBufferIterator it;
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it)){
-    mask.set(* it.data);
-  }
+  for(Uint32 i = 0; i<m_noOfAttributes; i++)
+    mask.set(i);
 }
 
 void
@@ -3804,6 +3731,11 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 
   if (senderRef == 0)
   {
+    if (AlterTableReq::getFrmFlag(changeMask))
+    {
+      // Frm changes only are handled on-line
+      tabPtr.p->m_state = old_state;
+    }
     DBUG_VOID_RETURN;
   }
   // dict coordinator sends info to API
@@ -4097,9 +4029,6 @@ Suma::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
 void
 Suma::Table::release(Suma & suma){
   jam();
-
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  attrBuf.release();
 
   LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
@@ -5064,7 +4993,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
        */
       Ptr<Table> tabPtr;
       if (c_tables.find(tabPtr, table) && 
-	  tabPtr.p->m_schemaVersion == schemaVersion)
+          table_version_major(tabPtr.p->m_schemaVersion) ==
+          table_version_major(schemaVersion))
       {
 	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
 	data->gci            = last_gci;

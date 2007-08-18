@@ -98,6 +98,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 70080);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 71540);
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
+
+  overloadedPct = 90; // make configurable in next patch
 }
 
 TCP_Transporter::~TCP_Transporter() {
@@ -309,6 +311,7 @@ TCP_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
 void
 TCP_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
   m_sendBuffer.updateInsertPtr(lenBytes);
+  update_status_overloaded();
   
   const int bufsize = m_sendBuffer.bufferSize();
   if(bufsize > TCP_SEND_LIMIT) {
@@ -353,6 +356,7 @@ TCP_Transporter::doSend() {
     
     if (nBytesSent > 0) {
       m_sendBuffer.bytesSent(nBytesSent);
+      update_status_overloaded();
       
       sendCount ++;
       sendSize  += nBytesSent;

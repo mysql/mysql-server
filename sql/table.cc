@@ -1587,6 +1587,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     prgflag   		READ_ALL etc..
     ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
     outparam       	result table
+    open_mode           One of OTM_OPEN|OTM_CREATE|OTM_ALTER
+                        if OTM_CREATE some errors are ignore
+                        if OTM_ALTER HA_OPEN is not called
 
   RETURN VALUES
    0	ok
@@ -1600,7 +1603,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table)
+                          TABLE *outparam, open_table_mode open_mode)
 {
   int error;
   uint records, i, bitmap_size;
@@ -1608,8 +1611,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uchar *record, *bitmaps;
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
-  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
-                      share->table_name.str, (long) outparam));
+  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx, open mode:%s",
+                      share->db.str,
+                      share->table_name.str,
+                      (long) outparam,
+                      (open_mode == OTM_OPEN)?"open":
+                      ((open_mode == OTM_CREATE)?"create":"alter")));
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -1774,7 +1781,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                 share->partition_info_len,
                                 share->part_state,
                                 share->part_state_len,
-                                outparam, is_create_table,
+                                outparam, (open_mode != OTM_OPEN),
                                 share->default_part_db_type,
                                 &work_part_info_used);
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
@@ -1783,7 +1790,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
        caller's arena depending on work_part_info_used value
     */
     if (!tmp && !work_part_info_used)
-      tmp= fix_partition_func(thd, outparam, is_create_table);
+      tmp= fix_partition_func(thd, outparam, (open_mode != OTM_OPEN));
     thd->stmt_arena= backup_stmt_arena_ptr;
     thd->restore_active_arena(&part_func_arena, &backup_arena);
     if (!tmp)
@@ -1794,7 +1801,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     if (tmp)
     {
-      if (is_create_table)
+      if (open_mode == OTM_CREATE)
       {
         /*
           During CREATE/ALTER TABLE it is ok to receive errors here.
@@ -1823,7 +1830,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   /* The table struct is now initialized;  Open the table */
   error= 2;
-  if (db_stat)
+  if (db_stat && open_mode != OTM_ALTER)
   {
     int ha_err;
     if ((ha_err= (outparam->file->

@@ -928,7 +928,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     // We don't need to call invalidate() because this table is not in cache
     if ((error= (int) !(open_temporary_table(thd, share->path.str,
                                              share->db.str,
-					     share->table_name.str, 1))))
+					     share->table_name.str, 1,
+                                             OTM_OPEN))))
       (void) rm_temporary_table(table_type, path);
     free_table_share(share);
     my_free((char*) table,MYF(0));

@@ -458,6 +458,8 @@ public:
 		 const int *errcodes = 0, int temporaryMask = 0);
 
   int createTable(class Ndb & ndb, NdbTableImpl &);
+  bool supportedAlterTable(const NdbTableImpl &,
+			   NdbTableImpl &);
   int alterTable(class Ndb & ndb, const NdbTableImpl &, NdbTableImpl &);
   void syncInternalName(Ndb & ndb, NdbTableImpl &impl);
   int compChangeMask(const NdbTableImpl &old_impl,
@@ -608,6 +610,7 @@ public:
 
   int createTable(NdbTableImpl &t);
   int createBlobTables(const NdbTableImpl& t);
+  bool supportedAlterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);

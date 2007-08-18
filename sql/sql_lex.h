@@ -831,13 +831,6 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 25)
 #define ALTER_FOREIGN_KEY         (1L << 26)
 
-enum enum_alter_table_change_level
-{
-  ALTER_TABLE_METADATA_ONLY= 0,
-  ALTER_TABLE_DATA_CHANGED= 1,
-  ALTER_TABLE_INDEX_CHANGED= 2
-};
-
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
 
@@ -857,10 +850,10 @@ public:
   enum tablespace_op_type       tablespace_op;
   List<char>                    partition_names;
   uint                          no_parts;
-  enum_alter_table_change_level change_level;
+  enum ha_build_method          build_method;
   Create_field                 *datetime_field;
-  bool                          error_if_not_empty;  
-    
+  bool                          error_if_not_empty;
+
 
   Alter_info() :
     flags(0),
@@ -883,7 +876,7 @@ public:
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
-    change_level= ALTER_TABLE_METADATA_ONLY;
+    build_method= HA_BUILD_DEFAULT;
     datetime_field= 0;
     error_if_not_empty= FALSE;
   }

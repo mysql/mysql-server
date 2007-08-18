@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
-  if (cluster_connection->wait_until_ready(30,0))
+  if (cluster_connection->wait_until_ready(30,0) < 0)
   {
     std::cout << "Cluster was not ready within 30 secs." << std::endl;
     exit(-1);
