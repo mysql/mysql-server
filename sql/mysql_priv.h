@@ -995,7 +995,6 @@ bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
                    bool is_locked);
-void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
 /* mysql_ha_flush mode_flags bits */
 #define MYSQL_HA_CLOSE_FINAL        0x00
 #define MYSQL_HA_REOPEN_ON_USAGE    0x01
