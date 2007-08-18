@@ -49,18 +49,20 @@ update t1 set n = 3;
 connection con2;
 # wait for the other query to start executing
 let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = "Locked";
-# ++Immediate = 15 + $wait_condition_reps (wait_condition.inc does one select
-# in addition to the wait condition)
+# Immediate = 14 + $wait_condition_reps ($wait_timeout is 0, so no extra select
+# is done inside wait_condition.inc)
 --source include/wait_condition.inc
-# ++Immediate = 16 + $wait_condition_reps
+# ++Immediate = 15 + $wait_condition_reps
 unlock tables;
 
 connection con1;
 reap;
-# ++Immediate = 17 + $wait_condition_reps
+# ++Immediate = 16 + $wait_condition_reps
 show status like 'Table_locks_waited';
-# ++Immediate = 18 + $wait_condition_reps
+# ++Immediate = 17 + $wait_condition_reps
+--disable_query_log
 eval select variable_value - $wait_condition_reps as Immediate from information_schema.session_status where variable_name like 'Table_locks_immediate';
+--enable_query_log
 drop table t1;
 
 disconnect con2;
