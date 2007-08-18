@@ -6604,7 +6604,8 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   */
   uint num_null_bytes= (m_table->s->fields + 7) / 8;
   m_data_size+= num_null_bytes;
-  m_meta_memory= my_multi_malloc(MYF(MY_WME),
+  m_meta_memory= (uchar*)
+                 my_multi_malloc(MYF(MY_WME),
                                  &m_null_bits, num_null_bytes,
                                  &m_field_metadata, m_field_metadata_size,
                                  NULL);
@@ -6714,7 +6715,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
       uint num_null_bytes= (m_colcnt + 7) / 8;
-      m_meta_memory= my_multi_malloc(MYF(MY_WME),
+      m_meta_memory= (uchar*)
+                     my_multi_malloc(MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
                                      &m_field_metadata, m_field_metadata_size,
                                      NULL);
@@ -6932,7 +6934,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
 
   uchar cbuf[sizeof(m_colcnt)];
   uchar *const cbuf_end= net_store_length(cbuf, (size_t) m_colcnt);
-  DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
+  DBUG_ASSERT(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
   /*
     Store the size of the field metadata.

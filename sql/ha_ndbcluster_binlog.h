@@ -48,8 +48,8 @@ public:
   ~Ndb_event_data()
   {
     share= 0;
-    my_free((gptr) ndb_value[0], MYF(MY_WME));
-    my_free((gptr) ndb_value[1], MYF(MY_WME));
+    my_free(ndb_value[0], MYF(MY_WME));
+    my_free(ndb_value[1], MYF(MY_WME));
   }
   NDB_SHARE *share;
   NdbValue *ndb_value[2];

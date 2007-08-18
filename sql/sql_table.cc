@@ -5004,7 +5004,7 @@ compare_tables(THD *thd,
     uint db_options= 0; /* not used */
     /* Create the prepared information. */
     if (mysql_prepare_create_table(thd, create_info,
-                                   tmp_alter_info,
+                                   &tmp_alter_info,
                                    (table->s->tmp_table != NO_TMP_TABLE),
                                    &db_options,
                                    table->file,
@@ -5017,7 +5017,7 @@ compare_tables(THD *thd,
            (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
         ! (ha_alter_info->index_add_buffer=
            (uint*) thd->alloc(sizeof(uint) *
-                              tmp_alter_info->key_list.elements)))
+                              tmp_alter_info.key_list.elements)))
       DBUG_RETURN(TRUE);
   }
   /*
@@ -6477,7 +6477,7 @@ view_err:
                                                 table,
                                                 new_db,
                                                 create_info,
-                                                &tmp_alter_info1,
+                                                &tmp_alter_info,
                                                 !strcmp(db, new_db))))
         goto err;
       switch (table->file->check_if_supported_alter(altered_table,
