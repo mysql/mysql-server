@@ -12,17 +12,17 @@ static const char *default_dbug_option;
 
 #define PCACHE_SIZE (1024*1024*10)
 #define PCACHE_PAGE TRANSLOG_PAGE_SIZE
-#define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
+#define LOG_FILE_SIZE (4*1024L*1024L)
 #define LOG_FLAGS 0
 
-static char *first_translog_file= (char*)"maria_log.00000001";
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
+  ulong i;
   uint pagen;
   uchar long_tr_id[6];
   PAGECACHE pagecache;
-  LSN lsn, first_lsn, theor_lsn;
+  LSN lsn, max_lsn, last_lsn= LSN_IMPOSSIBLE;
   MY_STAT st;
   LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
@@ -34,11 +34,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   maria_data_root= ".";
   if (maria_log_remove())
     exit(1);
-  /* be sure that we have no logs in the directory*/
-  if (my_stat(CONTROL_FILE_BASE_NAME, &st,  MYF(0)))
-    my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  if (my_stat(first_translog_file, &st,  MYF(0)))
-    my_delete(first_translog_file, MYF(0));
 
   bzero(long_tr_id, 6);
 #ifndef DBUG_OFF
@@ -73,72 +68,71 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
   example_loghandler_init();
 
-  theor_lsn= translog_first_theoretical_lsn();
-  if (theor_lsn == 1)
+  max_lsn= translog_get_file_max_lsn_stored(1);
+  if (max_lsn == 1)
   {
     fprintf(stderr, "Error reading the first log file.");
     translog_destroy();
     exit(1);
   }
-  if (theor_lsn == LSN_IMPOSSIBLE)
-  {
-    fprintf(stderr, "There is no first log file.");
-    translog_destroy();
-    exit(1);
-  }
-  first_lsn= translog_first_lsn_in_log();
-  if (first_lsn != LSN_IMPOSSIBLE)
+  if (max_lsn != LSN_IMPOSSIBLE)
   {
     fprintf(stderr, "Incorrect first lsn response (%lu,0x%lx).",
-            (ulong) LSN_FILE_NO(first_lsn),
-            (ulong) LSN_OFFSET(first_lsn));
+            (ulong) LSN_FILE_NO(max_lsn),
+            (ulong) LSN_OFFSET(max_lsn));
     translog_destroy();
     exit(1);
   }
   ok(1, "Empty log response");
 
 
+  /* write more then 1 file */
   int4store(long_tr_id, 0);
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
-  if (translog_write_record(&lsn,
-                            LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
-                            &dummy_transaction_object, NULL, 6,
-                            TRANSLOG_INTERNAL_PARTS + 1,
-                            parts, NULL))
+  for(i= 0; i < LOG_FILE_SIZE/6; i++)
   {
-    fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
-    translog_destroy();
-    exit(1);
+    if (translog_write_record(&lsn,
+                              LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
+                              &dummy_transaction_object, NULL, 6,
+                              TRANSLOG_INTERNAL_PARTS + 1,
+                              parts, NULL))
+    {
+      fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
+      translog_destroy();
+      exit(1);
+    }
+    if (LSN_FILE_NO(lsn) == 1)
+      last_lsn= lsn;
   }
 
-  theor_lsn= translog_first_theoretical_lsn();
-  if (theor_lsn == 1)
+
+  max_lsn= translog_get_file_max_lsn_stored(1);
+  if (max_lsn == 1)
   {
     fprintf(stderr, "Error reading the first log file\n");
     translog_destroy();
     exit(1);
   }
-  if (theor_lsn == LSN_IMPOSSIBLE)
+  if (max_lsn == LSN_IMPOSSIBLE)
   {
-    fprintf(stderr, "There is no first log file\n");
+    fprintf(stderr, "Isn't first file still finished?!!\n");
     translog_destroy();
     exit(1);
   }
-  first_lsn= translog_first_lsn_in_log();
-  if (first_lsn != theor_lsn)
+  if (max_lsn != last_lsn)
   {
-    fprintf(stderr, "Incorrect first lsn: (%lu,0x%lx)  "
-            " theoretical first: (%lu,0x%lx)\n",
-            (ulong) LSN_FILE_NO(first_lsn),
-            (ulong) LSN_OFFSET(first_lsn),
-            (ulong) LSN_FILE_NO(theor_lsn),
-            (ulong) LSN_OFFSET(theor_lsn));
+    fprintf(stderr, "Incorrect max lsn: (%lu,0x%lx)  "
+            " last lsn on first file: (%lu,0x%lx)\n",
+            (ulong) LSN_FILE_NO(max_lsn),
+            (ulong) LSN_OFFSET(max_lsn),
+            (ulong) LSN_FILE_NO(last_lsn),
+            (ulong) LSN_OFFSET(last_lsn));
     translog_destroy();
     exit(1);
   }
 
-  ok(1, "Full log response");
+  ok(1, "First file max LSN");
 
   translog_destroy();
   end_pagecache(&pagecache, 1);

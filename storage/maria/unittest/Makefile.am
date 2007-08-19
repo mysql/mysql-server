@@ -44,7 +44,8 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_test_loghandler_pagecache-t \
 			ma_test_loghandler_long-t-big \
 			ma_test_loghandler_noflush-t \
-			ma_test_loghandler_first_lsn-t
+			ma_test_loghandler_first_lsn-t \
+                        ma_test_loghandler_max_lsn-t
 
 ma_test_loghandler_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c
 ma_test_loghandler_multigroup_t_SOURCES = ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c
@@ -54,6 +55,7 @@ ma_test_loghandler_long_t_big_SOURCES = ma_test_loghandler-t.c ma_maria_log_clea
 ma_test_loghandler_long_t_big_CPPFLAGS = -DLONG_LOG_TEST
 ma_test_loghandler_noflush_t_SOURCES = ma_test_loghandler_noflush-t.c ma_maria_log_cleanup.c
 ma_test_loghandler_first_lsn_t_SOURCES = ma_test_loghandler_first_lsn-t.c ma_maria_log_cleanup.c
+ma_test_loghandler_max_lsn_t_SOURCES = ma_test_loghandler_max_lsn-t.c ma_maria_log_cleanup.c
 
 ma_pagecache_single_src =	ma_pagecache_single.c test_file.c
 ma_pagecache_consist_src =	ma_pagecache_consist.c test_file.c

@@ -250,6 +250,7 @@ extern my_bool translog_init_scanner(LSN lsn,
 
 extern int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
                                             TRANSLOG_HEADER_BUFFER *buff);
+extern LSN translog_get_file_max_lsn_stored(ulong file);
 extern my_bool translog_lock();
 extern my_bool translog_unlock();
 extern void translog_lock_assert_owner();

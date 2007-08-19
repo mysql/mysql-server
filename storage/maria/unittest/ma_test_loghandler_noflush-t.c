@@ -125,8 +125,8 @@ err:
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
-  my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  my_delete(first_translog_file, MYF(0));
+  if (maria_log_remove())
+    exit(1);
 
   exit(rc);
 }
