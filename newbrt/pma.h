@@ -71,6 +71,13 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs);
 int pma_cursor (PMA, PMA_CURSOR *);
 int pma_cursor_free (PMA_CURSOR*);
 
+/*
+ * get the pma that a pma cursor is bound to
+ *
+ * c - the pma cursor
+ * pma - the location that the bound pma is returned
+ */
+int pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
 int pma_cursor_set_position_last (PMA_CURSOR c);
 int pma_cursor_set_position_first (PMA_CURSOR c);
 int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
