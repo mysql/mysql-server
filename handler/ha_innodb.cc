@@ -92,11 +92,15 @@ extern "C" {
 #include "../storage/innobase/include/ha_prototypes.h"
 }
 
+static const long AUTOINC_OLD_STYLE_LOCKING = 0;
+static const long AUTOINC_NEW_STYLE_LOCKING = 1;
+static const long AUTOINC_NO_LOCKING = 2;
+
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_log_buffer_size, innobase_buffer_pool_awe_mem_mb,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
 	innobase_lock_wait_timeout, innobase_force_recovery,
-	innobase_open_files;
+	innobase_open_files, innobase_autoinc_lock_mode;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -3358,24 +3362,46 @@ ha_innobase::innobase_autoinc_lock(void)
 {
 	ulint		error = DB_SUCCESS;
 
-	if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+	switch (innobase_autoinc_lock_mode) {
+	case AUTOINC_NO_LOCKING:
+		/* Acquire only the AUTOINC mutex. */
 		dict_table_autoinc_lock(prebuilt->table);
+		break;
 
-		/* We peek at the dict_table_t::auto_inc_lock to check if
-		another statement has locked it */
-		if (prebuilt->trx->auto_inc_lock != NULL) {
-			/* Release the mutex to avoid deadlocks */
-			dict_table_autoinc_unlock(prebuilt->table);
+	case AUTOINC_NEW_STYLE_LOCKING:
+		/* For simple (single/multi) row INSERTs, we fallback to the
+		old style only if another transaction has already acquired
+		the AUTOINC lock on behalf of a LOAD FILE or INSERT ... SELECT
+		etc. type of statement. */
+		if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
 
-			goto acquire_auto_inc_lock;
+			/* Acquire the AUTOINC mutex. */
+			dict_table_autoinc_lock(prebuilt->table);
+
+			/* We peek at the dict_table_t::auto_inc_lock
+			to check if another statement has locked it. */
+			if (prebuilt->trx->auto_inc_lock != NULL) {
+
+				/* Release the mutex to avoid deadlocks. */
+				dict_table_autoinc_unlock(prebuilt->table);
+			} else {
+				break;
+			}
 		}
-	} else {
-acquire_auto_inc_lock:
+		/* Fall through to old style locking. */
+
+	case AUTOINC_OLD_STYLE_LOCKING:
 		error = row_lock_table_autoinc_for_mysql(prebuilt);
 
 		if (error == DB_SUCCESS) {
+
+			/* Acquire the AUTOINC mutex. */
 			dict_table_autoinc_lock(prebuilt->table);
 		}
+		break;
+
+	default:
+		ut_error;
 	}
 
 	return(ulong(error));
@@ -3615,6 +3641,7 @@ no_commit:
 
 			if (auto_inc > prebuilt->last_value) {
 set_max_autoinc:
+				ut_a(prebuilt->table->autoinc_increment > 0);
 				auto_inc += prebuilt->table->autoinc_increment;
 
 				innobase_set_max_autoinc(auto_inc);
@@ -7416,13 +7443,24 @@ ha_innobase::get_auto_increment(
 
 	*nb_reserved_values = prebuilt->trx->n_autoinc_rows;
 
-	/* Compute the last value in the interval */
-	prebuilt->last_value = *first_value + (*nb_reserved_values * increment);
+	/* With old style AUTOINC locking we only update the table's
+	AUTOINC counter after attempting to insert the row. */
+	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
 
-	ut_a(prebuilt->last_value >= *first_value);
+		/* Compute the last value in the interval */
+		prebuilt->last_value = *first_value +
+		    (*nb_reserved_values * increment);
 
-	/* Update the table autoinc variable */
-	dict_table_autoinc_update(prebuilt->table, prebuilt->last_value);
+		ut_a(prebuilt->last_value >= *first_value);
+
+		/* Update the table autoinc variable */
+		dict_table_autoinc_update(
+			prebuilt->table, prebuilt->last_value);
+	} else {
+		/* This will force write_row() into attempting an update
+		of the table's AUTOINC counter. */
+		prebuilt->last_value = 0;
+	}
 
 	/* The increment to be used to increase the AUTOINC value, we use
 	this in write_row() and update_row() to increase the autoinc counter
@@ -8085,6 +8123,17 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
+  PLUGIN_VAR_RQCMDARG,
+  "The AUTOINC lock modes supported by InnoDB:\n"
+  "  0 => Old style AUTOINC locking (for backward compatibility)\n"
+  "  1 => New style AUTOINC locking\n"
+  "  2 => No AUTOINC locking (unsafe for SBR)",
+  NULL, NULL,
+  AUTOINC_NEW_STYLE_LOCKING,	/* Default setting */
+  AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
+  AUTOINC_NO_LOCKING, 0);	/* Maximum value */
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -8123,6 +8172,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
+  MYSQL_SYSVAR(autoinc_lock_mode),
   NULL
 };
 
