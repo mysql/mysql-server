@@ -457,6 +457,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                 NULL);
 
   my_close(fd, MYF(0));
+  my_delete(query_file_path, MYF(0));
 
   DBUG_RETURN(ret);
 }

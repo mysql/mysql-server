@@ -99,25 +99,26 @@ sub spawn_impl ($$$$$$$) {
 
   if ( $::opt_script_debug )
   {
-    print STDERR "\n";
-    print STDERR "#### ", "-" x 78, "\n";
-    print STDERR "#### ", "STDIN  $input\n" if $input;
-    print STDERR "#### ", "STDOUT $output\n" if $output;
-    print STDERR "#### ", "STDERR $error\n" if $error;
-    print STDERR "#### ", "$mode : $path ", join(" ",@$arg_list_t), "\n";
-    print STDERR "#### ", "spawn options:\n";
+    mtr_report("");
+    mtr_debug("-" x 73);
+    mtr_debug("STDIN  $input") if $input;
+    mtr_debug("STDOUT $output") if $output;
+    mtr_debug("STDERR $error") if $error;
+    mtr_debug("$mode: $path ", join(" ",@$arg_list_t));
+    mtr_debug("spawn options:");
     if ($spawn_opts)
     {
       foreach my $key (sort keys %{$spawn_opts})
       {
-        print STDERR "#### ", "  - $key: $spawn_opts->{$key}\n";
+        mtr_debug("  - $key: $spawn_opts->{$key}");
       }
     }
     else
     {
-      print STDERR "#### ", "  none\n";
+      mtr_debug("  none");
     }
-    print STDERR "#### ", "-" x 78, "\n";
+    mtr_debug("-" x 73);
+    mtr_report("");
   }
 
   mtr_error("Can't spawn with empty \"path\"") unless defined $path;
