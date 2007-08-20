@@ -624,7 +624,7 @@ void Item_exists_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit_arg)
+bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 {
   if (unit_arg->fake_select_lex &&
       unit_arg->fake_select_lex->test_limit())

@@ -750,7 +750,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size);
   @param thd      user thread connection handle
   @param lex_str  pointer to LEX_STRING object to be initialized
   @param str      initializer to be copied into lex_str
-  @param length   length of str, in bytes
+  @param size     length of str, in bytes
   @param allocate_lex_string  flag: if TRUE, allocate new LEX_STRING object,
                               instead of using lex_str value
   @return  NULL on failure, or pointer to the LEX_STRING object
@@ -773,7 +773,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
   Invalidate the query cache for a given table.
 
   @param thd         user thread connection handle
-  @param key         databasename\0tablename\0
+  @param key         databasename\\0tablename\\0
   @param key_length  length of key in bytes, including the NUL bytes
   @param using_trx   flag: TRUE if using transactions, FALSE otherwise
 */
