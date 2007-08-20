@@ -1765,6 +1765,8 @@ void Item_field::set_field(Field *field_par)
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), field_par->derivation());
   fixed= 1;
+  if (field->table->s->tmp_table == SYSTEM_TMP_TABLE)
+    any_privileges= 0;
 }
 
 
