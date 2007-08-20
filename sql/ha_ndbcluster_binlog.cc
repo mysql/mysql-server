@@ -1809,6 +1809,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     tabname= table_share->table_name.str;
 
     /*
+      Refresh share->flags to handle added BLOB columns
+    */
+    if (table->s->blob_fields != 0)
+      share->flags|= NSF_BLOB_FLAG;
+
+    /*
       Start subscribing to data changes to the new table definition
     */
     const char* event_name= pOp->getEvent()->getName();
