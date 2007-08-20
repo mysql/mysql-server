@@ -20,6 +20,11 @@
 #include "events.h"
 #include "sql_show.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 static
 const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
 {
@@ -556,7 +561,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   only creates a record on disk.
   @pre The thread handle has no open tables.
 
-  @param[in,out]               THD
+  @param[in,out] thd           THD
   @param[in]     parse_data    Parsed event definition
   @param[in]     create_if_not TRUE if IF NOT EXISTS clause was provided
                                to CREATE EVENT statement
@@ -657,7 +662,7 @@ end:
 
   @param[in,out]  thd         thread handle
   @param[in]      parse_data  parsed event definition
-  @paran[in[      new_dbname  not NULL if ALTER EVENT RENAME
+  @param[in]      new_dbname  not NULL if ALTER EVENT RENAME
                               points at a new database name
   @param[in]      new_name    not NULL if ALTER EVENT RENAME
                               points at a new event name
@@ -812,7 +817,7 @@ end:
 
 
   @retval FALSE  an event with such db/name key exists
-  @reval  TRUE   no record found or an error occured.
+  @retval  TRUE   no record found or an error occured.
 */
 
 bool
@@ -1112,3 +1117,7 @@ Event_db_repository::check_system_tables(THD *thd)
 
   DBUG_RETURN(test(ret));
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

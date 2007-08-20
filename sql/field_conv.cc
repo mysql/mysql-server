@@ -620,7 +620,8 @@ void Copy_field::set(Field *to,Field *from,bool save)
 }
 
 
-void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
+Copy_field::Copy_func *
+Copy_field::get_copy_func(Field *to,Field *from)
 {
   bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
                                      from->table->s->db_low_byte_first);

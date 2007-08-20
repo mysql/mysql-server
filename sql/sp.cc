@@ -84,7 +84,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx,
 {
 public:
   static Stored_routine_creation_ctx *
-  load_from_db(THD *thd, const class sp_name *name, TABLE *proc_tbl);
+  load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);
 
 public:
   virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
