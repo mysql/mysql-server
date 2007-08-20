@@ -8327,6 +8327,10 @@ ha_innobase::add_index(
 	ut_a(key_info);
 	ut_a(num_of_keys);
 
+	if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	update_thd(ha_thd());
 
 	heap = mem_heap_create(1024);
@@ -8601,6 +8605,9 @@ ha_innobase::prepare_drop_index(
 	ut_ad(table);
 	ut_ad(key_num);
 	ut_ad(num_of_keys);
+	if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	thd = ha_thd();
 
@@ -8745,6 +8752,10 @@ ha_innobase::final_drop_index(
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
+
+	if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	thd = ha_thd();
 
