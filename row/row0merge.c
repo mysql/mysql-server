@@ -504,11 +504,19 @@ row_merge_read(
 	row_merge_block_t*	buf)	/* out: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
+	ibool		success;
 
-	return(UNIV_LIKELY(os_file_read(OS_FILE_FROM_FD(fd), buf,
-					(ulint) (ofs & 0xFFFFFFFF),
-					(ulint) (ofs >> 32),
-					sizeof *buf)));
+	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
+						 (ulint) (ofs & 0xFFFFFFFF),
+						 (ulint) (ofs >> 32),
+						 sizeof *buf);
+	if (UNIV_UNLIKELY(!success)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: failed to read merge block at %llu\n", ofs);
+	}
+
+	return(UNIV_LIKELY(success));
 }
 
 /************************************************************************
