@@ -3593,7 +3593,6 @@ no_commit:
 			case SQLCOM_INSERT_SELECT:
 			case SQLCOM_REPLACE_SELECT:
 				goto set_max_autoinc;
-				break;
 
 			default:
 				break;
