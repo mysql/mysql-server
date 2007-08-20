@@ -1385,7 +1385,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
 
-    for(i = 0; i<(fragCount*replicaCount); i++)
+    for(i = 0; i<(Uint32) (fragCount*replicaCount); i++)
     {
       if (impl->m_fragments.push_back(tableDesc.FragmentData[i+2]))
       {
