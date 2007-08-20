@@ -2684,8 +2684,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     col_access= get_column_grant(thd, &tables->grant, 
                                  base_name, file_name,
                                  field->field_name) & COL_ACLS;
-    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
-        !tables->schema_table && !col_access)
+    if (!tables->schema_table && !col_access)
       continue;
     end= tmp;
     for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
@@ -3381,6 +3380,12 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   {
     Table_triggers_list *triggers= tables->table->triggers;
     int event, timing;
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (!(thd->security_ctx->master_access & SUPER_ACL))
+      goto ret;
+#endif
+
     for (event= 0; event < (int)TRG_EVENT_MAX; event++)
     {
       for (timing= 0; timing < (int)TRG_ACTION_MAX; timing++)
@@ -3407,6 +3412,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
+ret:
   DBUG_RETURN(0);
 }
 
