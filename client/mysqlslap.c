@@ -1804,6 +1804,13 @@ limit_not_met:
       {
         mysql_close(mysql);
 
+        if (!(mysql= mysql_init(NULL)))
+        {
+          fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
+                  my_progname, mysql_error(mysql));
+          exit(0);
+        }
+
         if (slap_connect(mysql))
           goto end;
       }
