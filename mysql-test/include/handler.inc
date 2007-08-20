@@ -471,7 +471,7 @@ drop table if exists t1;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (a int) ENGINE=MEMORY;
+eval create table t1 (a int) ENGINE=$other_engine_type;
 --echo --> client 2
 connection con2;
 --error 1031
