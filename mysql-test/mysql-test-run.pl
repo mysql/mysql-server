@@ -2911,7 +2911,7 @@ sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  if ($max_master_num)
+  if ($max_master_num > 1)
   {
     copy_install_db('master', $master->[1]->{'path_myddir'});
   }
