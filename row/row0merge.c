@@ -1658,6 +1658,77 @@ row_merge_rename_index(
 }
 
 /*************************************************************************
+Rename the tables in the data dictionary. */
+
+ulint
+row_merge_rename_tables(
+/*====================*/
+					/* out: error code or DB_SUCCESS */
+	dict_table_t*	old_table,	/* in/out: old table, renamed to
+					tmp_name */
+	dict_table_t*	new_table,	/* in/out: new table, renamed to
+					old_table->name */
+	const char*	tmp_name,	/* in: new name for old_table */
+	trx_t*		trx)		/* in: transaction handle */
+{
+	ulint		err	= DB_ERROR;
+	pars_info_t*	info;
+	const char*	old_name= old_table->name;
+
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(old_table != new_table);
+
+	trx->op_info = "renaming tables";
+	trx_start_if_not_started(trx);
+
+	/* We use the private SQL parser of Innobase to generate the query
+	graphs needed in updating the dictionary data in system tables. */
+
+	info = pars_info_create();
+
+	pars_info_add_str_literal(info, "new_name", new_table->name);
+	pars_info_add_str_literal(info, "old_name", old_name);
+	pars_info_add_str_literal(info, "tmp_name", tmp_name);
+
+	err = que_eval_sql(info,
+			   "PROCEDURE RENAME_TABLES () IS\n"
+			   "BEGIN\n"
+			   "UPDATE SYS_TABLES SET NAME = :tmp_name\n"
+			   " WHERE NAME = :old_name;\n"
+			   "UPDATE SYS_TABLES SET NAME = :old_name\n"
+			   " WHERE NAME = :new_name;\n"
+			   "END;\n", FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+
+		goto err_exit;
+	}
+
+	/* The following calls will also rename the .ibd data files if
+	the tables are stored in a single-table tablespace */
+
+	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)
+	    || !dict_table_rename_in_cache(new_table, old_name, FALSE)) {
+
+		err = DB_ERROR;
+		goto err_exit;
+	}
+
+	err = dict_load_foreigns(old_name, TRUE);
+
+	if (err != DB_SUCCESS) {
+err_exit:
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx->error_state = DB_SUCCESS;
+	}
+
+	trx->op_info = "";
+
+	return(err);
+}
+
+/*************************************************************************
 Create the index and load in to the dictionary. */
 
 dict_index_t*

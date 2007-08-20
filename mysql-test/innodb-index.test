@@ -111,8 +111,9 @@ create table t1(a int not null, b int not null, c int, primary key (a), key (b))
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
 create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
 create table t2(a int not null, b int not null, c int not null, d int not null, e int,
-primary key (a), foreign key (b) references t1(b), foreign key (c) references t3(c),
-foreign key (d) references t4(d)) engine = innodb;
+foreign key (b) references t1(b) on delete cascade,
+foreign key (c) references t3(c), foreign key (d) references t4(d))
+engine = innodb;
 --error ER_DROP_INDEX_FK
 alter table t1 drop index b;
 --error ER_DROP_INDEX_FK
@@ -123,7 +124,10 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
-set foreign_key_checks=0;
+-- Apparently, the following makes mysql_alter_table() drop index d.
+create unique index dc on t2 (d,c);
+-- This should preserve the foreign key constraints.
+alter table t2 add primary key (a);
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
@@ -131,13 +135,10 @@ insert into t2 values (1,1,1,1,1);
 commit;
 alter table t2 drop index b, add index (b);
 show create table t2;
-set foreign_key_checks=1;
+delete from t1;
+select * from t2;
 
-set foreign_key_checks=0;
---disable_warnings
-drop table if exists t1,t2,t3,t4;
---enable_warnings
-set foreign_key_checks=1;
+drop table if exists t2,t1,t3,t4;
 
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) 
 engine = innodb default charset=utf8;

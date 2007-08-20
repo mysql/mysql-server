@@ -8513,10 +8513,11 @@ error_handling:
 	table as a old table and drop the old table. */
 
 	if (new_primary) {
-		char*	old_name	= mem_heap_strdup(
-			heap, innodb_table->name);
-		char*	tmp_table_name	= innobase_create_temporary_tablename(
-			heap, '2', innodb_table->name);
+		const char*	old_name
+			= innodb_table->name;
+		const char*	tmp_name
+			= innobase_create_temporary_tablename(heap, '2',
+							      old_name);
 
 		trx_start_if_not_started(trx);
 
@@ -8527,7 +8528,7 @@ error_handling:
 
 		/* Write entry for UNDO */
 		error = row_undo_report_rename_table_dict_operation(
-			trx, old_name, indexed_table->name, tmp_table_name);
+			trx, old_name, indexed_table->name, tmp_name);
 
 		if (error != DB_SUCCESS) {
 
@@ -8538,15 +8539,10 @@ error_handling:
 
 		/* Set the commit flag to FALSE, we will commit the
 		transaction ourselves, required for UNDO */
-		error = innobase_rename_table(trx, innodb_table->name,
-					      tmp_table_name, FALSE);
-		if (error != DB_SUCCESS) {
 
-			goto func_exit;
-		}
+		error = row_merge_rename_tables(innodb_table, indexed_table,
+						tmp_name, trx);
 
-		error = innobase_rename_table(trx, indexed_table->name,
-					      old_name, FALSE);
 		if (error != DB_SUCCESS) {
 
 			goto func_exit;
