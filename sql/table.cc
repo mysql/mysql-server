@@ -2484,6 +2484,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->row_type= share->row_type;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
+  create_info->comment= share->comment;
 
   DBUG_VOID_RETURN;
 }
