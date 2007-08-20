@@ -1350,7 +1350,7 @@ static void mysql_change_db_impl(THD *thd,
   @brief Change the current database.
 
   @param thd          thread handle
-  @param name         database name
+  @param new_db_name  database name
   @param force_switch if this flag is set (TRUE), mysql_change_db() will
                       switch to NULL db if the specified database is not
                       available anymore. Corresponding warning will be

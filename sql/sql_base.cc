@@ -82,6 +82,10 @@ bool Prelock_error_handler::safely_trapped_errors()
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
 
+/**
+  @defgroup Data_Dictionary Data Dictionary
+  @{
+*/
 
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
@@ -2141,9 +2145,9 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
     @brief Check that table exists in table definition cache, on disk
            or in some storage engine.
 
-    @param  thd          Thread context
-    @param  table        Table list element
-    @param  exists[out]  Out parameter which is set to TRUE if table
+    @param       thd     Thread context
+    @param       table   Table list element
+    @param[out]  exists  Out parameter which is set to TRUE if table
                          exists and to FALSE otherwise.
 
     @note This function assumes that caller owns LOCK_open mutex.
@@ -2244,7 +2248,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
-  DBUG_ASSERT (table_list->lock_type != TL_WRITE_DEFAULT);
   /* find a unused table in the open table cache */
   if (refresh)
     *refresh=0;
@@ -3548,11 +3551,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   {
     safe_to_ignore_table= FALSE;
 
-    if (tables->lock_type == TL_WRITE_DEFAULT)
-    {
-      tables->lock_type= thd->update_lock_default;
-      DBUG_ASSERT (tables->lock_type >= TL_WRITE_ALLOW_WRITE);
-    }
     /*
       Ignore placeholders for derived tables. After derived tables
       processing, link to created temporary table will be put here.
@@ -3697,7 +3695,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
-      tables->table->reginfo.lock_type=tables->lock_type;
+      tables->table->reginfo.lock_type= tables->lock_type == TL_WRITE_DEFAULT ?
+        thd->update_lock_default : tables->lock_type;
     tables->table->grant= tables->grant;
 
 process_view_routines:
@@ -7795,3 +7794,6 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   thd->restore_backup_open_tables_state(backup);
 }
 
+/**
+  @} (end of group Data_Dictionary)
+*/
