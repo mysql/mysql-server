@@ -84,7 +84,7 @@ row_upd_changes_first_fields_binary(
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: old value of index entry */
 	dict_index_t*	index,	/* in: index of entry */
-	upd_t*		update,	/* in: update vector for the row */
+	const upd_t*	update,	/* in: update vector for the row */
 	ulint		n);	/* in: how many first fields to check */
 
 
@@ -925,7 +925,7 @@ row_upd_index_replace_new_col_vals(
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update,	/* in: an update vector built for the
+	const upd_t*	update,	/* in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
 	mem_heap_t*	heap)	/* in: memory heap to which we allocate and
@@ -1068,10 +1068,11 @@ NOTE: we compare the fields as binary strings! */
 ibool
 row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
-				/* out: TRUE if update vector may change
-				an ordering field in an index record */
-	dict_table_t*	table,	/* in: table */
-	upd_t*		update)	/* in: update vector for the row */
+					/* out: TRUE if update vector
+					may change an ordering field
+					in an index record */
+	const dict_table_t*	table,	/* in: table */
+	const upd_t*		update)	/* in: update vector for the row */
 {
 	upd_field_t*	upd_field;
 	dict_index_t*	index;
@@ -1105,7 +1106,7 @@ row_upd_changes_first_fields_binary(
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: index entry */
 	dict_index_t*	index,	/* in: index of entry */
-	upd_t*		update,	/* in: update vector for the row */
+	const upd_t*	update,	/* in: update vector for the row */
 	ulint		n)	/* in: how many first fields to check */
 {
 	ulint		n_upd_fields;
@@ -1182,7 +1183,7 @@ UNIV_INLINE
 void
 row_upd_eval_new_vals(
 /*==================*/
-	upd_t*	update)	/* in: update vector */
+	upd_t*	update)	/* in/out: update vector */
 {
 	que_node_t*	exp;
 	upd_field_t*	upd_field;
