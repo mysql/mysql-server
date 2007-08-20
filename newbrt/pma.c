@@ -370,6 +370,11 @@ int pma_cursor (PMA pma, PMA_CURSOR *cursp) {
     return 0;
 }
 
+int pma_cursor_get_pma(PMA_CURSOR c, PMA *pmap) {
+    *pmap = c->pma;
+    return 0;
+}
+
 int pma_cursor_set_position_last (PMA_CURSOR c) 
 {
     PMA pma = c->pma;
