@@ -208,7 +208,7 @@ row_upd_index_replace_new_col_vals(
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update,	/* in: an update vector built for the
+	const upd_t*	update,	/* in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
 	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
@@ -244,10 +244,11 @@ NOTE: we compare the fields as binary strings! */
 ibool
 row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
-				/* out: TRUE if update vector may change
-				an ordering field in an index record */
-	dict_table_t*	table,	/* in: table */
-	upd_t*		update);/* in: update vector for the row */
+					/* out: TRUE if update vector
+					may change an ordering field
+					in an index record */
+	const dict_table_t*	table,	/* in: table */
+	const upd_t*		update);/* in: update vector for the row */
 /***************************************************************
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs. */

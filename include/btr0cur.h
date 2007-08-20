@@ -269,7 +269,7 @@ btr_cur_pessimistic_update(
 	mem_heap_t**	heap,	/* in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
-	upd_t*		update,	/* in: update vector; this is allowed also
+	const upd_t*	update,	/* in: update vector; this is allowed also
 				contain trx id and roll ptr fields, but
 				the values in update vector have no effect */
 	ulint		cmpl_info,/* in: compiler info on secondary index
@@ -444,7 +444,7 @@ btr_cur_mark_extern_inherited_fields(
 	rec_t*		rec,	/* in/out: record in a clustered index */
 	dict_index_t*	index,	/* in: index of the page */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update,	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
 	mtr_t*		mtr);	/* in: mtr, or NULL if not logged */
 /***********************************************************************
 The complement of the previous function: in an update entry may inherit
