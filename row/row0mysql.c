@@ -3827,9 +3827,7 @@ row_rename_table_for_mysql(
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query
-	graphs needed in deleting the dictionary data from system tables in
-	Innobase. Deleting a row from SYS_INDEXES table also frees the file
-	segments of the B-tree associated with the index. */
+	graphs needed in updating the dictionary data from system tables. */
 
 	info = pars_info_create();
 
@@ -3985,22 +3983,11 @@ end:
 		/* The following call will also rename the .ibd data file if
 		the table is stored in a single-table tablespace */
 
-		ibool	success = dict_table_rename_in_cache(table, new_name,
-							     !new_is_tmp);
-
-		if (!success) {
+		if (!dict_table_rename_in_cache(table, new_name,
+						!new_is_tmp)) {
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, FALSE, NULL);
 			trx->error_state = DB_SUCCESS;
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error in table rename,"
-			      " cannot rename ", stderr);
-			ut_print_name(stderr, trx, TRUE, old_name);
-			fputs(" to ", stderr);
-			ut_print_name(stderr, trx, TRUE, new_name);
-			putc('\n', stderr);
-			err = DB_ERROR;
-
 			goto funct_exit;
 		}
 
@@ -4008,7 +3995,7 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, old_is_tmp ? trx->check_foreigns : TRUE);
+			new_name, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
