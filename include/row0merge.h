@@ -64,6 +64,20 @@ row_merge_drop_indexes(
 	ulint		num_created);	/* in: number of elements in index[] */
 
 /*************************************************************************
+Rename the tables in the data dictionary. */
+
+ulint
+row_merge_rename_tables(
+/*====================*/
+					/* out: error code or DB_SUCCESS */
+	dict_table_t*	old_table,	/* in/out: old table, renamed to
+					tmp_name */
+	dict_table_t*	new_table,	/* in/out: new table, renamed to
+					old_table->name */
+	const char*	tmp_name,	/* in: new name for old_table */
+	trx_t*		trx);		/* in: transaction handle */
+
+/*************************************************************************
 Create a temporary table for creating a primary key, using the definition
 of an existing table. */
 
