@@ -1873,22 +1873,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
               share->op == pOp || ndb_is_old_event_op(share, pOp));
   if (ndb_is_old_event_op(share, pOp))
   {
-    Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
-    if (event_data)
-    {
-      pOp->setCustomData(NULL);
-      delete event_data;
-    }
     ndb_remove_old_event_op(share, pOp);
   }
   else if (share->op)
   {
-    Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
-    if (event_data)
-    {
-      delete event_data;
-      share->op->setCustomData(NULL);
-    }
     share->op= 0;
   }
   // either just us or drop table handling as well
