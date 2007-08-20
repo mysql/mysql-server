@@ -913,13 +913,13 @@ dict_table_rename_in_cache(
 	dict_index_t*	index;
 	ulint		fold;
 	ulint		old_size;
-	char*		old_name;
-	ibool		success;
+	const char*	old_name;
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	old_size = mem_heap_get_size(table->heap);
+	old_name = table->name;
 
 	fold = ut_fold_string(new_name);
 
@@ -929,11 +929,15 @@ dict_table_rename_in_cache(
 		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			    dict_table_t*, table2,
 			    (ut_strcmp(table2->name, new_name) == 0));
-		if (table2) {
-			fprintf(stderr,
-				"InnoDB: Error: dictionary cache"
-				" already contains a table of name %s\n",
-				new_name);
+		if (UNIV_LIKELY_NULL(table2)) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: dictionary cache"
+			      " already contains a table ", stderr);
+			ut_print_name(stderr, NULL, TRUE, new_name);
+			fputs("\n"
+			      "InnoDB: cannot rename table ", stderr);
+			ut_print_name(stderr, NULL, TRUE, old_name);
+			putc('\n', stderr);
 			return(FALSE);
 		}
 	}
@@ -943,27 +947,24 @@ dict_table_rename_in_cache(
 
 	if (table->space != 0) {
 		if (table->dir_path_of_temp_table != NULL) {
-			fprintf(stderr,
-				"InnoDB: Error: trying to rename a table"
-				" %s (%s) created with CREATE\n"
-				"InnoDB: TEMPORARY TABLE\n",
-				table->name, table->dir_path_of_temp_table);
-			success = FALSE;
-		} else {
-			success = fil_rename_tablespace(
-				table->name, table->space, new_name);
-		}
-
-		if (!success) {
-
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: trying to rename a"
+			      " TEMPORARY TABLE ", stderr);
+			ut_print_name(stderr, NULL, TRUE, old_name);
+			fputs(" (", stderr);
+			ut_print_filename(stderr,
+					  table->dir_path_of_temp_table);
+			fputs(" )\n", stderr);
+			return(FALSE);
+		} else if (!fil_rename_tablespace(old_name, table->space,
+						  new_name)) {
 			return(FALSE);
 		}
 	}
 
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
-		    ut_fold_string(table->name), table);
-	old_name = mem_heap_strdup(table->heap, table->name);
+		    ut_fold_string(old_name), table);
 	table->name = mem_heap_strdup(table->heap, new_name);
 
 	/* Add table to hash table of tables */
