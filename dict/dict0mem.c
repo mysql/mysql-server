@@ -45,53 +45,21 @@ dict_mem_table_create(
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
-	table = mem_heap_alloc(heap, sizeof(dict_table_t));
+	table = mem_heap_zalloc(heap, sizeof(dict_table_t));
 
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
 	table->name = mem_heap_strdup(heap, name);
-	table->dir_path_of_temp_table = NULL;
-	table->version_number = 0;
 	table->space = (unsigned int) space;
-	table->ibd_file_missing = FALSE;
-	table->tablespace_discarded = FALSE;
-	table->n_def = 0;
 	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
-
-	table->n_mysql_handles_opened = 0;
-	table->n_foreign_key_checks_running = 0;
-
-	table->cached = FALSE;
-	table->to_be_dropped = 0;
 
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
-	table->col_names = NULL;
-	UT_LIST_INIT(table->indexes);
 
 	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
 
-	table->query_cache_inv_trx_id = ut_dulint_zero;
-
-	UT_LIST_INIT(table->locks);
-	UT_LIST_INIT(table->foreign_list);
-	UT_LIST_INIT(table->referenced_list);
-	UT_LIST_INIT(table->prebuilts);
-
-#ifdef UNIV_DEBUG
-	table->does_not_fit_in_memory = FALSE;
-#endif /* UNIV_DEBUG */
-
-	table->stat_initialized = FALSE;
-
-	table->stat_modified_counter = 0;
-
-	table->big_rows = 0;
-
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
-
-	table->autoinc_inited = FALSE;
 
 	/* The actual increment value will be set by MySQL, we simply
 	default to 1 here.*/
@@ -241,29 +209,19 @@ dict_mem_index_create(
 	ut_ad(table_name && index_name);
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
-	index = mem_heap_alloc(heap, sizeof(dict_index_t));
+	index = mem_heap_zalloc(heap, sizeof(dict_index_t));
 
-	index->id = ut_dulint_zero;
 	index->heap = heap;
 
 	index->type = type;
 	index->space = (unsigned int) space;
-	index->page = 0;
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
-	index->table = NULL;
-	index->n_def = index->n_nullable = 0;
 	index->n_fields = (unsigned int) n_fields;
 	index->fields = mem_heap_alloc(heap, 1 + n_fields
 				       * sizeof(dict_field_t));
 	/* The '1 +' above prevents allocation
 	of an empty mem block */
-	index->stat_n_diff_key_vals = NULL;
-
-	index->cached = FALSE;
-	index->to_be_dropped = FALSE;
-	index->trx_id = ut_dulint_zero;
-	memset(&index->lock, 0, sizeof index->lock);
 #ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
@@ -283,25 +241,9 @@ dict_mem_foreign_create(void)
 
 	heap = mem_heap_create(100);
 
-	foreign = mem_heap_alloc(heap, sizeof(dict_foreign_t));
+	foreign = mem_heap_zalloc(heap, sizeof(dict_foreign_t));
 
 	foreign->heap = heap;
-
-	foreign->id = NULL;
-
-	foreign->type = 0;
-	foreign->foreign_table_name = NULL;
-	foreign->foreign_table = NULL;
-	foreign->foreign_col_names = NULL;
-
-	foreign->referenced_table_name = NULL;
-	foreign->referenced_table = NULL;
-	foreign->referenced_col_names = NULL;
-
-	foreign->n_fields = 0;
-
-	foreign->foreign_index = NULL;
-	foreign->referenced_index = NULL;
 
 	return(foreign);
 }
