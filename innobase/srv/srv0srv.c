@@ -1151,7 +1151,7 @@ srv_conc_force_enter_innodb(
 
 	srv_conc_n_threads++;
 	trx->declared_to_be_inside_innodb = TRUE;
-	trx->n_tickets_to_enter_innodb = 0;
+	trx->n_tickets_to_enter_innodb = 1;
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
