@@ -4682,14 +4682,12 @@ Add the indexes to SYS_INDEX. */
 ulint
 dict_rename_indexes(
 /*================*/
-	trx_t*	trx,		/* in: transaction */
-	ibool	commit_flag)	/* in: TRUE=commit, FALSE=rollback */
+	trx_t*	trx)		/* in: transaction */
 {
 	dict_redo_t*	dict_redo;
 	ulint		err = DB_SUCCESS;
 
 	ut_a(trx->dict_redo_list);
-	ut_a(commit_flag);
 
 	dict_redo = UT_LIST_GET_FIRST(*trx->dict_redo_list);
 

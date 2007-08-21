@@ -1115,8 +1115,7 @@ Add the indexes to SYS_INDEX. */
 ulint
 dict_rename_indexes(
 /*================*/
-	trx_t*	trx,		/* in: transaction */
-	ibool	commit_flag);	/* in: TRUE=commit, FALSE=rollback */
+	trx_t*	trx);		/* in/out: transaction */
 /**************************************************************************
 Remove the index from the transaction's REDO list.*/
 

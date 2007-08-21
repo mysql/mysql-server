@@ -101,7 +101,6 @@ trx_create(
 	trx->table_id = ut_dulint_zero;
 	trx->dict_undo_list = NULL;
 	trx->dict_redo_list = NULL;
-	trx->sync_cb = NULL;
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
@@ -1533,14 +1532,6 @@ trx_commit_for_mysql(
 	ut_a(trx);
 
 	trx_start_if_not_started(trx);
-
-	if (trx->sync_cb) {
-		ulint	err;
-
-		err = trx->sync_cb(trx, TRUE);
-		ut_a(err == DB_SUCCESS);
-		trx->sync_cb = NULL;
-	}
 
 	trx->op_info = "committing";
 
