@@ -454,11 +454,10 @@ private:
                          part_id_range *part_spec);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
-  int unique_index_scan(const KEY* key_info, 
-			const byte *key, 
-			uint key_len,
-			byte *buf);
-  int full_table_scan(byte * buf);
+  int full_table_scan(const KEY* key_info, 
+                      const byte *key, 
+                      uint key_len,
+                      byte *buf);
   int flush_bulk_insert();
   int ndb_write_row(byte *record, bool primary_key_update, bool batched_update);
   int ndb_delete_row(const byte *record, bool primary_key_update);
