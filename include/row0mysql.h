@@ -208,16 +208,6 @@ row_lock_table_for_mysql(
 					prebuilt->select_lock_type */
 	ulint		mode);		/* in: lock mode of table
 					(ignored if table==NULL) */
-/*************************************************************************
-Sets a table lock on the table. */
-
-int
-row_lock_table_for_merge(
-/*=====================*/
-					/* out: error code or DB_SUCCESS */
-	trx_t*		trx,		/* in: lock table for this trx */
-	dict_table_t*	table,		/* in: table to lock */
-	ulint		mode);		/* in: lock mode of table */
 
 /*************************************************************************
 Does an insert for MySQL. */

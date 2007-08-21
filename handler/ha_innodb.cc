@@ -8369,6 +8369,9 @@ err_exit:
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx);
 
+	ut_a(!trx->sync_cb);
+	ut_a(!trx->dict_redo_list);
+
 	/* If a new primary key is defined for the table we need
 	to drop all original secondary indexes from the table. These
 	indexes will be rebuilt below. */
@@ -8393,10 +8396,8 @@ err_exit:
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
-	} else if (!trx->dict_redo_list) {
+	} else {
 		dict_redo_create_list(trx);
-
-		ut_a(!trx->sync_cb);
 		trx->sync_cb = dict_rename_indexes;
 	}
 
@@ -8444,7 +8445,7 @@ err_exit:
 	ut_a(trx->n_active_thrs == 0);
 	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
 
-	error = row_lock_table_for_merge(trx, innodb_table, LOCK_X);
+	error = row_merge_lock_table(trx, innodb_table);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -8456,7 +8457,7 @@ err_exit:
 		table lock also on the table that is being created. */
 		ut_ad(indexed_table != innodb_table);
 
-		error = row_lock_table_for_merge(trx, indexed_table, LOCK_X);
+		error = row_merge_lock_table(trx, indexed_table);
 
 		if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -8535,9 +8536,6 @@ error_handling:
 
 		log_buffer_flush_to_disk();
 
-		/* Set the commit flag to FALSE, we will commit the
-		transaction ourselves, required for UNDO */
-
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
 
@@ -8561,6 +8559,8 @@ error_handling:
 
 func_exit:
 	mem_heap_free(heap);
+	ut_ad(new_primary || trx->dict_redo_list);
+	ut_ad(!new_primary || !trx->dict_redo_list);
 	innobase_commit_low(trx);
 
 	if (dict_locked) {
