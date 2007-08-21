@@ -1199,7 +1199,6 @@ public:
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
   virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
@@ -1277,7 +1276,6 @@ public:
                                  uint max_length);
   virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
-  virtual const uchar *unpack(uchar* to, const uchar *from, uint param_data);
   const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
                my_bool insert_or_update);
@@ -1450,7 +1448,6 @@ public:
                                  uint max_length);
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   const uchar *unpack(uchar *to, const uchar *from);
-  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   const uchar *unpack_key(uchar* to, const uchar *from, uint max_length);
   int pack_cmp(const uchar *a, const uchar *b, uint key_length,
                my_bool insert_or_update);
@@ -1629,7 +1626,6 @@ public:
   uchar *pack(uchar *to, const uchar *from, uint max_length=~(uint) 0);
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   const uchar *unpack(uchar* to, const uchar *from);
-  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
   virtual void set_default();
 
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
