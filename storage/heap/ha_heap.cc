@@ -270,8 +270,9 @@ int ha_heap::delete_row(const uchar * buf)
   return res;
 }
 
-int ha_heap::index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
-			enum ha_rkey_function find_flag)
+int ha_heap::index_read_map(uchar *buf, const uchar *key,
+                            key_part_map keypart_map,
+                            enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_key_count);
@@ -280,7 +281,8 @@ int ha_heap::index_read(uchar * buf, const uchar * key, key_part_map keypart_map
   return error;
 }
 
-int ha_heap::index_read_last(uchar *buf, const uchar *key, key_part_map keypart_map)
+int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
+                                 key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&SSV::ha_read_key_count);
@@ -290,9 +292,9 @@ int ha_heap::index_read_last(uchar *buf, const uchar *key, key_part_map keypart_
   return error;
 }
 
-int ha_heap::index_read_idx(uchar * buf, uint index, const uchar * key,
-			    key_part_map keypart_map,
-                            enum ha_rkey_function find_flag)
+int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
 {
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);

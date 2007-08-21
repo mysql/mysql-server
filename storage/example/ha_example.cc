@@ -420,10 +420,10 @@ int ha_example::delete_row(const uchar *buf)
   index.
 */
 
-int ha_example::index_read(uchar *buf, const uchar *key,
-                           key_part_map keypart_map __attribute__((unused)),
-                           enum ha_rkey_function find_flag
-                           __attribute__((unused)))
+int ha_example::index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map __attribute__((unused)),
+                               enum ha_rkey_function find_flag
+                               __attribute__((unused)))
 {
   DBUG_ENTER("ha_example::index_read");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

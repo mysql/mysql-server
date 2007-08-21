@@ -1125,7 +1125,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     0                          Success
 */
 
-int ha_partition::prepare_new_partition(TABLE *table,
+int ha_partition::prepare_new_partition(TABLE *tbl,
                                         HA_CREATE_INFO *create_info,
                                         handler *file, const char *part_name,
                                         partition_element *p_elem)
@@ -1134,13 +1134,13 @@ int ha_partition::prepare_new_partition(TABLE *table,
   bool create_flag= FALSE;
   DBUG_ENTER("prepare_new_partition");
 
-  if ((error= set_up_table_before_create(table, part_name, create_info,
+  if ((error= set_up_table_before_create(tbl, part_name, create_info,
                                          0, p_elem)))
     goto error;
-  if ((error= file->create(part_name, table, create_info)))
+  if ((error= file->create(part_name, tbl, create_info)))
     goto error;
   create_flag= TRUE;
-  if ((error= file->ha_open(table, part_name, m_mode, m_open_test_lock)))
+  if ((error= file->ha_open(tbl, part_name, m_mode, m_open_test_lock)))
     goto error;
   /*
     Note: if you plan to add another call that may return failure,
@@ -1776,7 +1776,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
      4) Data file name on partition
 */
 
-int ha_partition::set_up_table_before_create(TABLE *table,
+int ha_partition::set_up_table_before_create(TABLE *tbl,
                     const char *partition_name_with_path, 
                     HA_CREATE_INFO *info,
                     uint part_id,
@@ -1793,8 +1793,8 @@ int ha_partition::set_up_table_before_create(TABLE *table,
     if (!part_elem)
       DBUG_RETURN(1);                             // Fatal error
   }
-  table->s->max_rows= part_elem->part_max_rows;
-  table->s->min_rows= part_elem->part_min_rows;
+  tbl->s->max_rows= part_elem->part_max_rows;
+  tbl->s->min_rows= part_elem->part_min_rows;
   partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
   if ((part_elem->index_file_name &&
       (error= append_file_to_dir(thd,
@@ -3400,11 +3400,11 @@ int ha_partition::index_end()
     used in conjuntion with multi read ranges.
 */
 
-int ha_partition::index_read(uchar * buf, const uchar * key,
-                             key_part_map keypart_map,
-                             enum ha_rkey_function find_flag)
+int ha_partition::index_read_map(uchar *buf, const uchar *key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag)
 {
-  DBUG_ENTER("ha_partition::index_read");
+  DBUG_ENTER("ha_partition::index_read_map");
 
   end_range= 0;
   m_index_scan_type= partition_index_read;
@@ -3566,7 +3566,7 @@ int ha_partition::common_first_last(uchar *buf)
     index_read_last()
     buf                   Read row in MySQL Row Format
     key                   Key
-    keylen                Length of key
+    keypart_map           Which part of key is used
 
   RETURN VALUE
     >0                    Error code
@@ -3577,8 +3577,8 @@ int ha_partition::common_first_last(uchar *buf)
     Can only be used on indexes supporting HA_READ_ORDER
 */
 
-int ha_partition::index_read_last(uchar *buf, const uchar *key,
-                                  key_part_map keypart_map)
+int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
+                                      key_part_map keypart_map)
 {
   DBUG_ENTER("ha_partition::index_read_last");
 
@@ -3929,9 +3929,9 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     switch (m_index_scan_type) {
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
-      error= file->index_read(buf, m_start_key.key,
-                              m_start_key.keypart_map,
-                              m_start_key.flag);
+      error= file->index_read_map(buf, m_start_key.key,
+                                  m_start_key.keypart_map,
+                                  m_start_key.flag);
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
@@ -4020,10 +4020,10 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
 
     switch (m_index_scan_type) {
     case partition_index_read:
-      error= file->index_read(rec_buf_ptr,
-                              m_start_key.key,
-                              m_start_key.keypart_map,
-                              m_start_key.flag);
+      error= file->index_read_map(rec_buf_ptr,
+                                  m_start_key.key,
+                                  m_start_key.keypart_map,
+                                  m_start_key.flag);
       break;
     case partition_index_first:
       error= file->index_first(rec_buf_ptr);
@@ -4034,9 +4034,9 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       reverse_order= TRUE;
       break;
     case partition_index_read_last:
-      error= file->index_read_last(rec_buf_ptr,
-                                   m_start_key.key,
-                                   m_start_key.keypart_map);
+      error= file->index_read_last_map(rec_buf_ptr,
+                                       m_start_key.key,
+                                       m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
     default:
