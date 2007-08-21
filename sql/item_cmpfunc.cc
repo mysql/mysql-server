@@ -719,6 +719,67 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 }
 
 
+/*
+  Retrieves correct TIME value from the given item.
+
+  SYNOPSIS
+    get_time_value()
+    thd                 thread handle
+    item_arg   [in/out] item to retrieve TIME value from
+    cache_arg  [in/out] pointer to place to store the cache item to
+    warn_item  [in]     unused
+    is_null    [out]    TRUE <=> the item_arg is null
+
+  DESCRIPTION
+    Retrieves the correct TIME value from given item for comparison by the
+    compare_datetime() function.
+    If item's result can be compared as longlong then its int value is used
+    and a value returned by get_time function is used otherwise.
+    If an item is a constant one then its value is cached and it isn't
+    get parsed again. An Item_cache_int object is used for for cached values.
+    It seamlessly substitutes the original item.  The cache item is marked as
+    non-constant to prevent re-caching it again.
+
+  RETURN
+    obtained value
+*/
+
+ulonglong
+get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
+               Item *warn_item, bool *is_null)
+{
+  ulonglong value;
+  Item *item= **item_arg;
+  MYSQL_TIME ltime;
+
+  if (item->result_as_longlong())
+  {
+    value= item->val_int();
+    *is_null= item->null_value;
+  }
+  else
+  {
+    *is_null= item->get_time(&ltime);
+    value= !*is_null ? TIME_to_ulonglong_datetime(&ltime) : 0;
+  }
+  /*
+    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
+    for the current thread but it still may change during the execution.
+  */
+  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
+      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+  {
+    Item_cache_int *cache= new Item_cache_int();
+    /* Mark the cache as non-const to prevent re-caching. */
+    cache->set_used_tables(1);
+    cache->store(item, value);
+    *cache_arg= cache;
+    *item_arg= cache_arg;
+  }
+  return value;
+}
+
+
 int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
@@ -757,8 +818,23 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
     }
     is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
     func= &Arg_comparator::compare_datetime;
+    get_value_func= &get_datetime_value;
     return 0;
   }
+  else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
+           (*b)->field_type() == MYSQL_TYPE_TIME)
+  {
+    /* Compare TIME values as integers. */
+    thd= current_thd;
+    owner= owner_arg;
+    a_cache= 0;
+    b_cache= 0;
+    is_nulls_eq= test(owner && owner->functype() == Item_func::EQUAL_FUNC);
+    func= &Arg_comparator::compare_datetime;
+    get_value_func= &get_time_value;
+    return 0;
+  }
+
   return set_compare_func(owner_arg, type);
 }
 
@@ -776,7 +852,9 @@ void Arg_comparator::set_datetime_cmp_func(Item **a1, Item **b1)
   b_cache= 0;
   is_nulls_eq= FALSE;
   func= &Arg_comparator::compare_datetime;
+  get_value_func= &get_datetime_value;
 }
+
 
 /*
   Retrieves correct DATETIME value from given item.
@@ -891,8 +969,8 @@ int Arg_comparator::compare_datetime()
   bool is_null= FALSE;
   ulonglong a_value, b_value;
 
-  /* Get DATE/DATETIME value of the 'a' item. */
-  a_value= get_datetime_value(thd, &a, &a_cache, *b, &is_null);
+  /* Get DATE/DATETIME/TIME value of the 'a' item. */
+  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &is_null);
   if (!is_nulls_eq && is_null)
   {
     if (owner)
@@ -900,8 +978,8 @@ int Arg_comparator::compare_datetime()
     return -1;
   }
 
-  /* Get DATE/DATETIME value of the 'b' item. */
-  b_value= get_datetime_value(thd, &b, &b_cache, *a, &is_null);
+  /* Get DATE/DATETIME/TIME value of the 'b' item. */
+  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &is_null);
   if (is_null)
   {
     if (owner)
@@ -1771,6 +1849,7 @@ void Item_func_between::fix_length_and_dec()
   max_length= 1;
   int i;
   bool datetime_found= FALSE;
+  int time_items_found= 0;
   compare_as_dates= TRUE;
   THD *thd= current_thd;
 
@@ -1791,17 +1870,19 @@ void Item_func_between::fix_length_and_dec()
     At least one of items should be a DATE/DATETIME item and other items
     should return the STRING result.
   */
-  for (i= 0; i < 3; i++)
+  if (cmp_type == STRING_RESULT)
   {
-    if (args[i]->is_datetime())
+    for (i= 0; i < 3; i++)
     {
-      datetime_found= TRUE;
-      continue;
+      if (args[i]->is_datetime())
+      {
+        datetime_found= TRUE;
+        continue;
+      }
+      if (args[i]->field_type() == MYSQL_TYPE_TIME &&
+          args[i]->result_as_longlong())
+        time_items_found++;
     }
-    if (args[i]->result_type() == STRING_RESULT)
-      continue;
-    compare_as_dates= FALSE;
-    break;
   }
   if (!datetime_found)
     compare_as_dates= FALSE;
@@ -1810,6 +1891,11 @@ void Item_func_between::fix_length_and_dec()
   {
     ge_cmp.set_datetime_cmp_func(args, args + 1);
     le_cmp.set_datetime_cmp_func(args, args + 2);
+  }
+  else if (time_items_found == 3)
+  {
+    /* Compare TIME items as integers. */
+    cmp_type= INT_RESULT;
   }
   else if (args[0]->real_item()->type() == FIELD_ITEM &&
            thd->lex->sql_command != SQLCOM_CREATE_VIEW &&

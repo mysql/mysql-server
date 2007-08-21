@@ -16,7 +16,6 @@
 #include "rpl_utility.h"
 #include "rpl_rli.h"
 
-
 /*********************************************************************
  *                   table_def member definitions                    *
  *********************************************************************/
@@ -49,8 +48,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
     else
     {
       length= m_field_metadata[col] & 0x00ff;
+      DBUG_ASSERT(length > 0);
       if (length > 255)
+      {
+        DBUG_ASSERT(uint2korr(master_data) > 0);
         length= uint2korr(master_data) + 2;
+      }
       else
         length= (uint) *master_data + 1;
     }
@@ -94,21 +97,60 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data)
   {
     uint from_len= (m_field_metadata[col] >> 8U) & 0x00ff;
     uint from_bit_len= m_field_metadata[col] & 0x00ff;
+    DBUG_ASSERT(from_bit_len <= 7);
     length= from_len + ((from_bit_len > 0) ? 1 : 0);
     break;
   }
   case MYSQL_TYPE_VARCHAR:
+  {
     length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
+    DBUG_ASSERT(uint2korr(master_data) > 0);
     length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
+  }
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
   {
+#if 1
+    /*
+      BUG#29549: 
+      This is currently broken for NDB, which is using big-endian
+      order when packing length of BLOB. Once they have decided how to
+      fix the issue, we can enable the code below to make sure to
+      always read the length in little-endian order.
+    */
     Field_blob fb(m_field_metadata[col]);
-    length= fb.get_packed_size(master_data);
+    length= fb.get_packed_size(master_data, TRUE);
+#else
+    /*
+      Compute the length of the data. We cannot use get_length() here
+      since it is dependent on the specific table (and also checks the
+      packlength using the internal 'table' pointer) and replication
+      is using a fixed format for storing data in the binlog.
+    */
+    switch (m_field_metadata[col]) {
+    case 1:
+      length= *master_data;
+      break;
+    case 2:
+      length= sint2korr(master_data);
+      break;
+    case 3:
+      length= uint3korr(master_data);
+      break;
+    case 4:
+      length= uint4korr(master_data);
+      break;
+    default:
+      DBUG_ASSERT(0);		// Should not come here
+      break;
+    }
+
+    length+= m_field_metadata[col];
+#endif
     break;
   }
   default:
@@ -134,14 +176,8 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
 
   TABLE_SHARE const *const tsh= table->s;
 
-  /*
-    We now check for column type and size compatibility.
-  */
   for (uint col= 0 ; col < cols_to_check ; ++col)
   {
-    /*
-      Checking types.
-    */
     if (table->field[col]->type() != type(col))
     {
       DBUG_ASSERT(col < size() && col < tsh->fields);

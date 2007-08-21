@@ -31,6 +31,7 @@ C_MODE_START
 #define GET_DISABLED  11
 #define GET_ENUM      12
 #define GET_SET       13
+#define GET_DOUBLE    14
 
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127

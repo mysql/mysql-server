@@ -2663,8 +2663,8 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
 {
   DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
   DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
-  char *tabname;
-  List<char> files;
+  LEX_STRING *tabname;
+  List<LEX_STRING> files;
   char path[FN_REFLEN];
 
   build_table_filename(path, sizeof(path), dbname, "", "", 0);
@@ -2676,8 +2676,8 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
   DBUG_PRINT("info",("found: %d files", files.elements));
   while ((tabname= files.pop()))
   {
-    DBUG_PRINT("info", ("Found table %s", tabname));
-    if (ndbcluster_check_if_local_table(dbname, tabname))
+    DBUG_PRINT("info", ("Found table %s", tabname->str));
+    if (ndbcluster_check_if_local_table(dbname, tabname->str))
       DBUG_RETURN(true);
   }
   

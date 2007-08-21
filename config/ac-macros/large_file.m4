@@ -127,14 +127,9 @@ AC_DEFUN([MYSQL_SYS_LARGEFILE],
 	hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
 	  ac_cv_sys_largefile_source=1 ;;
 	esac])
-     AC_SYS_LARGEFILE_MACRO_VALUE(_LARGE_FILES,
-       ac_cv_sys_large_files,
-       [Large files support on AIX-style hosts.],
-       [case "$host_os" in
-	# AIX 4.2 and later
-	aix4.[2-9]* | aix4.1[0-9]* | aix[5-9].* | aix[1-9][0-9]*)
-	  ac_cv_sys_large_files=1 ;;
-	esac])
+
+     # AIX 4.2 and later -- do nothing, include standards.h instead.
+     # this goes for both GNU and IBM C and C++ compilers.
    fi
   ])
 

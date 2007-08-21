@@ -157,7 +157,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   DBUG_ENTER("thr_alarm");
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
-  now=(ulong) time((time_t*) 0);
+  now=(ulong) my_time(0);
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   pthread_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
   if (alarm_aborted > 0)
@@ -351,7 +351,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
     }
     else
     {
-      ulong now=(ulong) time((time_t*) 0);
+      ulong now=(ulong) my_time(0);
       ulong next=now+10-(now%10);
       while ((alarm_data=(ALARM*) queue_top(&alarm_queue))->expire_time <= now)
       {
@@ -480,7 +480,7 @@ void thr_alarm_info(ALARM_INFO *info)
   info->max_used_alarms= max_used_alarms;
   if ((info->active_alarms=  alarm_queue.elements))
   {
-    ulong now=(ulong) time((time_t*) 0);
+    ulong now=(ulong) my_time(0);
     long time_diff;
     ALARM *alarm_data= (ALARM*) queue_top(&alarm_queue);
     time_diff= (long) (alarm_data->expire_time - now);
@@ -528,7 +528,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   {
     if (alarm_queue.elements)
     {
-      ulong sleep_time,now=time((time_t*) 0);
+      ulong sleep_time,now= my_time(0);
       if (alarm_aborted)
 	sleep_time=now+1;
       else
@@ -685,7 +685,7 @@ static void *test_thread(void *arg)
   for (i=1 ; i <= 10 ; i++)
   {
     wait_time=param ? 11-i : i;
-    start_time=time((time_t*) 0);
+    start_time= my_time(0);
     if (thr_alarm(&got_alarm,wait_time,0))
     {
       printf("Thread: %s  Alarms aborted\n",my_thread_name());
@@ -747,7 +747,7 @@ static void *test_thread(void *arg)
       }
     }
     printf("Thread: %s  Slept for %d (%d) sec\n",my_thread_name(),
-	   (int) (time((time_t*) 0)-start_time), wait_time); fflush(stdout);
+	   (int) (my_time(0)-start_time), wait_time); fflush(stdout);
     thr_end_alarm(&got_alarm);
     fflush(stdout);
   }

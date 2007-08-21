@@ -272,6 +272,13 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_bin_am_ldflags=""
   fi
 
+  # building dynamic breaks on AIX. (If you want to try it and get unresolved
+  # __vec__delete2 and some such, try linking against libhC.)
+  case "$host_os" in
+    aix3.* | aix4.0.* | aix4.1.*) ;;
+    *) ndb_bin_am_ldflags="-static";;
+  esac
+
   # libndbclient versioning when linked with GNU ld.
   if $LD --version 2>/dev/null|grep -q GNU; then
     NDB_LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/storage/ndb/src/libndb.ver"

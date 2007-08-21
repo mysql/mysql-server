@@ -456,7 +456,7 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		time(NULL);
+  when=		my_time(0);
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -1479,8 +1479,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
 				 bool suppress_use, THD::killed_state killed_status_arg)
   :Log_event(thd_arg,
-	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
-	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
+             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0) |
+               (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
 	     using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
@@ -2073,7 +2073,7 @@ int Query_log_event::do_apply_event(RELAY_LOG_INFO const *rli,
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
-
+      log_slow_statement(thd);
     }
     else
     {
@@ -2912,8 +2912,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       List<Item> &fields_arg,
 			       enum enum_duplicates handle_dup,
 			       bool ignore, bool using_trans)
-  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
-	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+  :Log_event(thd_arg,
+             thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
+             using_trans),
    thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
@@ -4349,7 +4350,7 @@ int User_var_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
     switch (type) {
     case REAL_RESULT:
       float8get(real_val, val);
-      it= new Item_float(real_val);
+      it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
@@ -5653,12 +5654,15 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != NULL))
+    {
       memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
+      create_last_word_mask(&m_cols);
+    }
   }
   else
   {
@@ -5711,11 +5715,12 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
     memcpy(m_cols.bitmap, ptr_after_width, (m_width + 7) / 8);
+    create_last_word_mask(&m_cols);
     ptr_after_width+= (m_width + 7) / 8;
     DBUG_DUMP("m_cols", (uchar*) m_cols.bitmap, no_bytes_in_map(&m_cols));
   }
@@ -5735,11 +5740,12 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
     /* if bitmap_init fails, catched in is_valid() */
     if (likely(!bitmap_init(&m_cols_ai,
                             m_width <= sizeof(m_bitbuf_ai)*8 ? m_bitbuf_ai : NULL,
-                            (m_width + 7) & ~7UL,
+                            m_width,
                             false)))
     {
       DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
       memcpy(m_cols_ai.bitmap, ptr_after_width, (m_width + 7) / 8);
+      create_last_word_mask(&m_cols_ai);
       ptr_after_width+= (m_width + 7) / 8;
       DBUG_DUMP("m_cols_ai", (uchar*) m_cols_ai.bitmap,
                 no_bytes_in_map(&m_cols_ai));
@@ -6186,7 +6192,7 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
       problem.  When WL#2975 is implemented, just remove the member
       st_relay_log_info::last_event_start_time and all its occurences.
     */
-    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= time(0);
+    const_cast<RELAY_LOG_INFO*>(rli)->last_event_start_time= my_time(0);
   }
 
   DBUG_RETURN(0);
@@ -6416,7 +6422,7 @@ const int Table_map_log_event::calc_field_metadata_size()
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_SET:
     {
-      size= size + sizeof(short int); // Store short int here.
+      size= size + 2; // Store short int here.
       break;
     }
     default:
@@ -6519,7 +6525,7 @@ int Table_map_log_event::save_field_metadata()
     {
       char *ptr= (char *)&m_field_metadata[index];
       int2store(ptr, m_table->s->field[i]->field_length);
-      index= index + sizeof(short int);
+      index= index + 2;
       break;
     }
     case MYSQL_TYPE_STRING:
@@ -6604,8 +6610,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   */
   uint num_null_bytes= (m_table->s->fields + 7) / 8;
   m_data_size+= num_null_bytes;
-  m_meta_memory= (uchar*)
-                 my_multi_malloc(MYF(MY_WME),
+  m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                  &m_null_bits, num_null_bytes,
                                  &m_field_metadata, m_field_metadata_size,
                                  NULL);
@@ -6714,9 +6719,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     if (bytes_read < event_len)
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
+      DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
       uint num_null_bytes= (m_colcnt + 7) / 8;
-      m_meta_memory= (uchar*)
-                     my_multi_malloc(MYF(MY_WME),
+      m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
                                      &m_field_metadata, m_field_metadata_size,
                                      NULL);
@@ -6940,18 +6945,18 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
     Store the size of the field metadata.
   */
   uchar mbuf[sizeof(m_field_metadata_size)];
-  uchar *const mbuf_end= net_store_length(mbuf, (size_t) m_field_metadata_size);
+  uchar *const mbuf_end= net_store_length(mbuf, m_field_metadata_size);
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const uchar*)m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
-          my_b_safe_write(file, (const uchar*) m_tblnam,  m_tbllen+1) ||
-          my_b_safe_write(file, cbuf, cbuf_end - cbuf) ||
+          my_b_safe_write(file, (const uchar*)m_tblnam,  m_tbllen+1) ||
+          my_b_safe_write(file, cbuf, (size_t) (cbuf_end - cbuf)) ||
           my_b_safe_write(file, m_coltype, m_colcnt) ||
-          my_b_safe_write(file, mbuf, mbuf_end - mbuf) ||
-          my_b_safe_write(file, m_field_metadata, m_field_metadata_size) ||
+          my_b_safe_write(file, mbuf, (size_t) (mbuf_end - mbuf)) ||
+          my_b_safe_write(file, m_field_metadata, m_field_metadata_size),
           my_b_safe_write(file, m_null_bits, (m_colcnt + 7) / 8));
-}
+ }
 #endif
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
@@ -7188,7 +7193,7 @@ copy_extra_record_fields(TABLE *table,
   if (table->s->fields < (uint) master_fields)
     DBUG_RETURN(0);
 
-  DBUG_ASSERT(master_reclength <= table->s->reclength);
+ DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
     bmove_align(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
@@ -7939,12 +7944,15 @@ void Update_rows_log_event::init(MY_BITMAP const *cols)
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols_ai,
                           m_width <= sizeof(m_bitbuf_ai)*8 ? m_bitbuf_ai : NULL,
-                          (m_width + 7) & ~7UL,
+                          m_width,
                           false)))
   {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != NULL))
+    {
       memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));
+      create_last_word_mask(&m_cols_ai);
+    }
   }
 }
 #endif /* !defined(MYSQL_CLIENT) */

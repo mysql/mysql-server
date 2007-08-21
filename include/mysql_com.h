@@ -188,25 +188,25 @@ typedef struct st_vio Vio;
 
 typedef struct st_net {
 #if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
-  Vio* vio;
+  Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
-  unsigned long max_packet,max_packet_size;
-  unsigned int pkt_nr,compress_pkt_nr;
-  unsigned int write_timeout, read_timeout, retry_count;
-  int fcntl;
-  my_bool compress;
   /*
     The following variable is set if we are doing several queries in one
     command ( as in LOAD TABLE ... FROM MASTER ),
     and do not want to confuse the client with OK at the wrong time
   */
   unsigned long remain_in_buf,length, buf_length, where_b;
+  unsigned long max_packet,max_packet_size;
+  unsigned int pkt_nr,compress_pkt_nr;
+  unsigned int write_timeout, read_timeout, retry_count;
+  int fcntl;
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
   my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
   my_bool no_send_eof; /* For SPs' first version read-only cursors */
+  my_bool compress;
   /*
     Set if OK packet is already sent, and we do not need to send error
     messages
@@ -217,19 +217,19 @@ typedef struct st_net {
     queries in cache that have not stored its results yet
   */
 #endif
-  char last_error[MYSQL_ERRMSG_SIZE], sqlstate[SQLSTATE_LENGTH+1];
-  unsigned int last_errno;
-  unsigned char error;
-
   /*
     'query_cache_query' should be accessed only via query cache
     functions and methods to maintain proper locking.
   */
   unsigned char *query_cache_query;
-
+  unsigned int last_errno;
+  unsigned char error;
   my_bool report_error; /* We should report error (we have unreported error) */
   my_bool return_errno;
+  char last_error[MYSQL_ERRMSG_SIZE], sqlstate[SQLSTATE_LENGTH+1];
+  void *extension;
 } NET;
+
 
 #define packet_error (~(unsigned long) 0)
 
@@ -391,6 +391,7 @@ typedef struct st_udf_args
   char *maybe_null;			/* Set to 1 for all maybe_null args */
   char **attributes;                    /* Pointer to attribute name */
   unsigned long *attribute_lengths;     /* Length of attribute arguments */
+  void *extension;
 } UDF_ARGS;
 
   /* This holds information about the result */
@@ -401,7 +402,9 @@ typedef struct st_udf_init
   unsigned int decimals;		/* for real functions */
   unsigned long max_length;		/* For string functions */
   char	  *ptr;				/* free pointer for function data */
-  my_bool const_item;			/* 0 if result is independent of arguments */
+  /* 0 if result is independent of arguments */
+  my_bool const_item;
+  void *extension;
 } UDF_INIT;
 
   /* Constants when using compression */

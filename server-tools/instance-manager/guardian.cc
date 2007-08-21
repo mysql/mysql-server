@@ -403,6 +403,8 @@ void Guardian::init()
 
 void Guardian::stop_instances()
 {
+  static const int NUM_STOP_ATTEMPTS = 100;
+
   Instance_map::Iterator instances_it(instance_map);
   Instance *instance;
 
@@ -438,7 +440,34 @@ void Guardian::stop_instances()
 
     /* Request mysqld to stop. */
 
-    instance->kill_mysqld(SIGTERM);
+    bool instance_stopped= FALSE;
+
+    for (int cur_attempt= 0; cur_attempt < NUM_STOP_ATTEMPTS; ++cur_attempt)
+    {
+      if (!instance->kill_mysqld(SIGTERM))
+      {
+        instance_stopped= TRUE;
+        break;
+      }
+
+      if (!instance->is_active())
+      {
+        instance_stopped= TRUE;
+        break;
+      }
+
+      /* Sleep for 0.3 sec and check again. */
+
+      my_sleep(300000);
+    }
+
+    /*
+      Abort if we failed to stop mysqld instance. That should not happen,
+      but if it happened, we don't know what to do and prefer to have clear
+      failure with coredump.
+    */
+
+    DBUG_ASSERT(instance_stopped);
 
     instance->unlock();
   }

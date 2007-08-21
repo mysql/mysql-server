@@ -41,7 +41,14 @@
 #define MAXSTRLEN 16 
 #define MAXATTR 64
 #define MAXTABLES 64
-#define MAXTHREADS 256
+#define NDB_MAXTHREADS 256
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
 #define MAXATTRSIZE 8000
 #define START_TIMER NdbTimer timer; timer.doStart();
 #define STOP_TIMER timer.doStop();
@@ -56,18 +63,18 @@ struct ThreadNdb
   Ndb* NdbRef;
 };
 
-static NdbThread* threadLife[MAXTHREADS];
+static NdbThread* threadLife[NDB_MAXTHREADS];
 static unsigned int tNoOfThreads;
 static unsigned int tNoOfOpsPerExecute;
 static unsigned int tNoOfRecords;
 static unsigned int tNoOfOperations;
-static int ThreadReady[MAXTHREADS];
-static int ThreadStart[MAXTHREADS];
+static int ThreadReady[NDB_MAXTHREADS];
+static int ThreadStart[NDB_MAXTHREADS];
 
 NDB_COMMAND(benchronja, "benchronja", "benchronja", "benchronja", 65535){
   ndb_init();
 
-  ThreadNdb		tabThread[MAXTHREADS];
+  ThreadNdb		tabThread[NDB_MAXTHREADS];
   int			i = 0 ;
   int			cont = 0 ;
   Ndb*			pMyNdb = NULL ; //( "TEST_DB" );	
@@ -84,7 +91,7 @@ NDB_COMMAND(benchronja, "benchronja", "benchronja", "benchronja", 65535){
   {
     if (strcmp(argv[i], "-t") == 0){
       tNoOfThreads = atoi(argv[i+1]);
-      if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS)) goto error_input;
+      if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS)) goto error_input;
     }else if (strcmp(argv[i], "-o") == 0){
       tNoOfOperations = atoi(argv[i+1]);
       if (tNoOfOperations < 1) goto error_input;

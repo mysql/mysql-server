@@ -807,19 +807,6 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
          SECS_PER_MIN + sec;
 }
 
-
- /*
-  Works like sec_since_epoch but expects MYSQL_TIME structure as parameter.
-*/
-
-my_time_t
-sec_since_epoch_TIME(MYSQL_TIME *t)
-{
-  return sec_since_epoch(t->year, t->month, t->day,
-                         t->hour, t->minute, t->second);
-}
-
-
 /*
   Converts local time in broken down MYSQL_TIME representation to my_time_t
   representation.
@@ -1425,7 +1412,9 @@ Time_zone_offset::get_name() const
 
 static Time_zone_utc tz_UTC;
 static Time_zone_system tz_SYSTEM;
+static Time_zone_offset tz_OFFSET0(0);
 
+Time_zone *my_tz_OFFSET0= &tz_OFFSET0;
 Time_zone *my_tz_UTC= &tz_UTC;
 Time_zone *my_tz_SYSTEM= &tz_SYSTEM;
 

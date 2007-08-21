@@ -851,6 +851,9 @@ int ha_rollback_trans(THD *thd, bool all)
     }
   }
 #endif /* USING_TRANSACTIONS */
+  if (all)
+    thd->transaction_rollback_request= FALSE;
+
   /*
     If a non-transactional table was updated, warn; don't warn if this is a
     slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -860,7 +863,7 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-  if (is_real_trans && thd->no_trans_update.all &&
+  if (is_real_trans && thd->transaction.all.modified_non_trans_table &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -887,6 +890,8 @@ int ha_autocommit_or_rollback(THD *thd, int error)
       if (ha_commit_stmt(thd))
 	error=1;
     }
+    else if (thd->transaction_rollback_request && !thd->in_sub_stmt)
+      (void) ha_rollback(thd);
     else
       (void) ha_rollback_stmt(thd);
 
@@ -1515,34 +1520,6 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
-
-bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
-                                                    ulong type, TABLE *table)
-{
-  /*
-    Deny locking of the log tables, which is incompatible with
-    concurrent insert. The routine is not called if the table is
-    being locked from a logger THD (general_log_thd or slow_log_thd)
-    or from a privileged thread (see log.cc for details)
-  */
-  if (table->s->log_table &&
-      sql_command != SQLCOM_TRUNCATE &&
-      sql_command != SQLCOM_ALTER_TABLE &&
-      !(sql_command == SQLCOM_FLUSH &&
-        type & REFRESH_LOG) &&
-      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
-  {
-    /*
-      The check  >= TL_READ_NO_INSERT denies all write locks
-      plus the only read lock (TL_READ_NO_INSERT itself)
-    */
-    table->reginfo.lock_type == TL_READ_NO_INSERT ?
-      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
-        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
-    return FALSE;
-  }
-  return TRUE;
-}
 
 /**
    Get tablespace name from handler 
@@ -2366,7 +2343,13 @@ static bool update_frm_version(TABLE *table)
   int result= 1;
   DBUG_ENTER("update_frm_version");
 
-  if (table->s->mysql_version != MYSQL_VERSION_ID)
+  /*
+    No need to update frm version in case table was created or checked
+    by server with the same version. This also ensures that we do not
+    update frm version for temporary tables as this code doesn't support
+    temporary tables.
+  */
+  if (table->s->mysql_version == MYSQL_VERSION_ID)
     DBUG_RETURN(0);
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
@@ -2862,7 +2845,7 @@ struct st_find_files_args
   const char *path;
   const char *wild;
   bool dir;
-  List<char> *files;
+  List<LEX_STRING> *files;
 };
 
 static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
@@ -2882,7 +2865,7 @@ static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
 
 int
 ha_find_files(THD *thd,const char *db,const char *path,
-	      const char *wild, bool dir, List<char> *files)
+	      const char *wild, bool dir, List<LEX_STRING> *files)
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
@@ -3495,8 +3478,7 @@ namespace {
     if (table->s->cached_row_logging_check == -1)
     {
       int const check(table->s->tmp_table == NO_TMP_TABLE &&
-                      binlog_filter->db_ok(table->s->db.str) &&
-                      !table->no_replicate);
+                      binlog_filter->db_ok(table->s->db.str));
       table->s->cached_row_logging_check= check;
     }
 
@@ -3504,9 +3486,9 @@ namespace {
                 table->s->cached_row_logging_check == 1);
 
     return (thd->current_stmt_binlog_row_based &&
+            table->s->cached_row_logging_check &&
             (thd->options & OPTION_BIN_LOG) &&
-            mysql_bin_log.is_open() &&
-            table->s->cached_row_logging_check);
+            mysql_bin_log.is_open());
   }
 }
 
@@ -3584,7 +3566,7 @@ namespace
                  const uchar *before_record,
                  const uchar *after_record)
   {
-    if (table->file->ha_table_flags() & HA_HAS_OWN_BINLOGGING)
+    if (table->no_replicate)
       return 0;
     bool error= 0;
     THD *const thd= table->in_use;
@@ -3691,6 +3673,7 @@ int handler::ha_write_row(uchar *buf)
     return error;
   return 0;
 }
+
 
 int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {

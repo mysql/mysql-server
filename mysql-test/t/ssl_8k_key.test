@@ -1,0 +1,6 @@
+-- source include/have_ssl.inc
+#
+# Bug#29784 YaSSL assertion failure when reading 8k key.
+#
+--exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
+

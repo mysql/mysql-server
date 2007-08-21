@@ -124,7 +124,7 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   m_tok_start_prev(NULL),
   m_buf(buffer),
   m_buf_length(length),
-  m_echo(true),
+  m_echo(TRUE),
   m_cpp_tok_start(NULL),
   m_cpp_tok_start_prev(NULL),
   m_cpp_tok_end(NULL),
@@ -498,10 +498,12 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
   uint found_escape=0;
   CHARSET_INFO *cs= lip->m_thd->charset();
 
+  lip->tok_bitmap= 0;
   sep= lip->yyGetLast();                        // String should end with this
   while (! lip->eof())
   {
     c= lip->yyGet();
+    lip->tok_bitmap|= c;
 #ifdef USE_MB
     {
       int l;
@@ -815,6 +817,7 @@ int MYSQLlex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length= lip->yytoklen;
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(NCHAR_STRING);
 
     case MY_LEX_IDENT_OR_HEX:
@@ -1178,6 +1181,7 @@ int MYSQLlex(void *arg, void *yythd)
 
       lip->m_underscore_cs= NULL;
 
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(TEXT_STRING);
 
     case MY_LEX_COMMENT:			//  Comment
@@ -1200,7 +1204,7 @@ int MYSQLlex(void *arg, void *yythd)
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
         lip->yySkip();
         lip->yySkip();
@@ -1233,7 +1237,7 @@ int MYSQLlex(void *arg, void *yythd)
           if (version <= MYSQL_VERSION_ID)
           {
             /* Expand the content of the special comment as real code */
-            lip->set_echo(true);
+            lip->set_echo(TRUE);
             state=MY_LEX_START;
             break;
           }
@@ -1241,7 +1245,7 @@ int MYSQLlex(void *arg, void *yythd)
         else
         {
           state=MY_LEX_START;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           break;
         }
       }
@@ -1261,7 +1265,7 @@ int MYSQLlex(void *arg, void *yythd)
       if (! lip->eof())
         lip->yySkip();                  // remove last '/'
       state = MY_LEX_START;             // Try again
-      lip->set_echo(true);
+      lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
       if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
@@ -1272,7 +1276,7 @@ int MYSQLlex(void *arg, void *yythd)
         lip->set_echo(lip->in_comment == PRESERVE_COMMENT);
         lip->yySkipn(2);
         /* And start recording the tokens again */
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->in_comment=NO_COMMENT;
         state=MY_LEX_START;
       }
@@ -1297,7 +1301,7 @@ int MYSQLlex(void *arg, void *yythd)
           lip->found_semicolon= lip->get_ptr();
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           lip->next_state= MY_LEX_END;
-          lip->set_echo(true);
+          lip->set_echo(TRUE);
           return (END_OF_INPUT);
         }
         state= MY_LEX_CHAR;		// Return ';'
@@ -1309,9 +1313,9 @@ int MYSQLlex(void *arg, void *yythd)
       if (lip->eof())
       {
         lip->yyUnget();                 // Reject the last '\0'
-        lip->set_echo(false);
+        lip->set_echo(FALSE);
         lip->yySkip();
-        lip->set_echo(true);
+        lip->set_echo(TRUE);
         lip->next_state=MY_LEX_END;     // Mark for next loop
         return(END_OF_INPUT);
       }
@@ -1770,7 +1774,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
-						  List<index_hint> *hints,
+						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -2297,7 +2301,7 @@ bool st_lex::need_correct_ident()
     VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
 */
 
-uint8 st_lex::get_effective_with_check(st_table_list *view)
+uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 {
   if (view->select_lex->master_unit() == &unit &&
       which_check_option_applicable())
@@ -2305,6 +2309,43 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
   return VIEW_CHECK_NONE;
 }
 
+
+/**
+  This method should be called only during parsing.
+  It is aware of compound statements (stored routine bodies)
+  and will initialize the destination with the default
+  database of the stored routine, rather than the default
+  database of the connection it is parsed in.
+  E.g. if one has no current database selected, or current database 
+  set to 'bar' and then issues:
+
+  CREATE PROCEDURE foo.p1() BEGIN SELECT * FROM t1 END//
+
+  t1 is meant to refer to foo.t1, not to bar.t1.
+
+  This method is needed to support this rule.
+
+  @return TRUE in case of error (parsing should be aborted, FALSE in
+  case of success
+*/
+
+bool
+st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
+{
+  if (sphead)
+  {
+    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    /*
+      It is safe to assign the string by-pointer, both sphead and
+      its statements reside in the same memory root.
+    */
+    *p_db= sphead->m_db.str;
+    if (p_db_length)
+      *p_db_length= sphead->m_db.length;
+    return FALSE;
+  }
+  return thd->copy_db_to(p_db, p_db_length);
+}
 
 /*
   initialize limit counters
@@ -2326,6 +2367,154 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
+}
+
+
+/**
+  @brief Set the initial purpose of this TABLE_LIST object in the list of used
+    tables.
+
+  We need to track this information on table-by-table basis, since when this
+  table becomes an element of the pre-locked list, it's impossible to identify
+  which SQL sub-statement it has been originally used in.
+
+  E.g.:
+
+  User request:                 SELECT * FROM t1 WHERE f1();
+  FUNCTION f1():                DELETE FROM t2; RETURN 1;
+  BEFORE DELETE trigger on t2:  INSERT INTO t3 VALUES (old.a);
+
+  For this user request, the pre-locked list will contain t1, t2, t3
+  table elements, each needed for different DML.
+
+  The trigger event map is updated to reflect INSERT, UPDATE, DELETE,
+  REPLACE, LOAD DATA, CREATE TABLE .. SELECT, CREATE TABLE ..
+  REPLACE SELECT statements, and additionally ON DUPLICATE KEY UPDATE
+  clause.
+*/
+
+void st_lex::set_trg_event_type_for_tables()
+{
+  uint8 new_trg_event_map= 0;
+
+  /*
+    Some auxiliary operations
+    (e.g. GRANT processing) create TABLE_LIST instances outside
+    the parser. Additionally, some commands (e.g. OPTIMIZE) change
+    the lock type for a table only after parsing is done. Luckily,
+    these do not fire triggers and do not need to pre-load them.
+    For these TABLE_LISTs set_trg_event_type is never called, and
+    trg_event_map is always empty. That means that the pre-locking
+    algorithm will ignore triggers defined on these tables, if
+    any, and the execution will either fail with an assert in
+    sql_trigger.cc or with an error that a used table was not
+    pre-locked, in case of a production build.
+
+    TODO: this usage pattern creates unnecessary module dependencies
+    and should be rewritten to go through the parser.
+    Table list instances created outside the parser in most cases
+    refer to mysql.* system tables. It is not allowed to have
+    a trigger on a system table, but keeping track of
+    initialization provides extra safety in case this limitation
+    is circumvented.
+  */
+
+  switch (sql_command) {
+  case SQLCOM_LOCK_TABLES:
+  /*
+    On a LOCK TABLE, all triggers must be pre-loaded for this TABLE_LIST
+    when opening an associated TABLE.
+  */
+    new_trg_event_map= static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_INSERT)) |
+                      static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_UPDATE)) |
+                      static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  /*
+    Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
+    clause, it will be handled later in this method.
+  */
+  case SQLCOM_INSERT:                           /* fall through */
+  case SQLCOM_INSERT_SELECT:
+  /*
+    LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
+    triggers.
+    If the statement also has REPLACE clause, it will be
+    handled later in this method.
+  */
+  case SQLCOM_LOAD:                             /* fall through */
+  /*
+    REPLACE is semantically equivalent to INSERT. In case
+    of a primary or unique key conflict, it deletes the old
+    record and inserts a new one. So we also may need to
+    fire ON DELETE triggers. This functionality is handled
+    later in this method.
+  */
+  case SQLCOM_REPLACE:                          /* fall through */
+  case SQLCOM_REPLACE_SELECT:
+  /*
+    CREATE TABLE ... SELECT defaults to INSERT if the table or
+    view already exists. REPLACE option of CREATE TABLE ...
+    REPLACE SELECT is handled later in this method.
+  */
+  case SQLCOM_CREATE_TABLE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_INSERT));
+    break;
+  /* Basic update and multi-update */
+  case SQLCOM_UPDATE:                           /* fall through */
+  case SQLCOM_UPDATE_MULTI:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_UPDATE));
+    break;
+  /* Basic delete and multi-delete */
+  case SQLCOM_DELETE:                           /* fall through */
+  case SQLCOM_DELETE_MULTI:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  default:
+    break;
+  }
+
+  switch (duplicates) {
+  case DUP_UPDATE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_UPDATE));
+    break;
+  case DUP_REPLACE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  case DUP_ERROR:
+  default:
+    break;
+  }
+
+
+  /*
+    Do not iterate over sub-selects, only the tables in the outermost
+    SELECT_LEX can be modified, if any.
+  */
+  TABLE_LIST *tables= select_lex.get_table_list();
+
+  while (tables)
+  {
+    /*
+      This is a fast check to filter out statements that do
+      not change data, or tables  on the right side, in case of
+      INSERT .. SELECT, CREATE TABLE .. SELECT and so on.
+      Here we also filter out OPTIMIZE statement and non-updateable
+      views, for which lock_type is TL_UNLOCK or TL_READ after
+      parsing.
+    */
+    if (static_cast<int>(tables->lock_type) >=
+        static_cast<int>(TL_WRITE_ALLOW_WRITE))
+      tables->trg_event_map= new_trg_event_map;
+    tables= tables->next_local;
+  }
 }
 
 
@@ -2665,7 +2854,7 @@ void st_select_lex::set_index_hint_type(enum index_hint_type type,
 
 void st_select_lex::alloc_index_hints (THD *thd)
 { 
-  index_hints= new (thd->mem_root) List<index_hint>(); 
+  index_hints= new (thd->mem_root) List<Index_hint>(); 
 }
 
 
@@ -2686,7 +2875,7 @@ void st_select_lex::alloc_index_hints (THD *thd)
 bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 {
   return index_hints->push_front (new (thd->mem_root) 
-                                 index_hint(current_index_hint_type,
+                                 Index_hint(current_index_hint_type,
                                             current_index_hint_clause,
                                             str, length));
 }

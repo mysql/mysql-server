@@ -1271,6 +1271,6 @@ grant select on test.* to юзер_юзер@localhost;
 --exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
 revoke all on test.* from юзер_юзер@localhost;
 drop user юзер_юзер@localhost;
---error 1573
+--error ER_WRONG_STRING_LENGTH
 grant select on test.* to очень_длинный_юзер@localhost;
 set names default;

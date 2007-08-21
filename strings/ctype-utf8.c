@@ -2812,16 +2812,19 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
 static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs, 
                                   const uchar *s, size_t slen,
                                   const uchar *t, size_t tlen,
-                                  my_bool diff_if_only_endspace_difference
-                                  __attribute__((unused)))
+                                  my_bool diff_if_only_endspace_difference)
 {
-  int s_res,t_res;
-  my_wc_t s_wc,t_wc;
-  const uchar *se= s+slen;
-  const uchar *te= t+tlen;
-  int save_diff = 0;
+  int s_res, t_res, res;
+  my_wc_t s_wc, t_wc;
+  const uchar *se= s + slen;
+  const uchar *te= t + tlen;
+  int save_diff= 0;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
+    
   while ( s < se && t < te )
   {
     int plane;
@@ -2853,16 +2856,20 @@ static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs,
   
   slen= se-s;
   tlen= te-t;
+  res= 0;
   
   if (slen != tlen)
   {
-    int swap= 0;
+    int swap= 1;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     if (slen < tlen)
     {
       slen= tlen;
       s= t;
       se= te;
       swap= -1;
+      res= -res;
     }
     /*
       This following loop uses the fact that in UTF-8
@@ -2876,8 +2883,8 @@ static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs,
     */
     for ( ; s < se; s++)
     {
-      if (*s != ' ')
-        return ((int)*s -  (int) ' ') ^ swap;
+      if (*s != (uchar) ' ')
+        return (*s < (uchar) ' ') ? -swap : swap;
     }
   }
   return save_diff;

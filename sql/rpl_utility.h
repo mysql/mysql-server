@@ -21,10 +21,10 @@
 #endif
 
 #include "mysql_priv.h"
-#include "my_bitmap.h"
 
 struct st_relay_log_info;
 typedef st_relay_log_info RELAY_LOG_INFO;
+
 
 /**
   A table definition from the master.
@@ -64,12 +64,15 @@ public:
     : m_size(size), m_type(0),
       m_field_metadata(0), m_null_bits(0), m_memory(NULL)
   {
-    m_memory= (uchar*)
-              my_multi_malloc(MYF(MY_WME),
-                              &m_type, size,
-                              &m_field_metadata, size * sizeof(short),
-                              &m_null_bits, (m_size + 7) / 8,
-                              NULL);
+    m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+                                       &m_type, size,
+                                       &m_field_metadata,
+                                       size * sizeof(uint16),
+                                       &m_null_bits, (size + 7) / 8,
+                                       NULL);
+
+    bzero(m_field_metadata, size * sizeof(uint16));
+
     if (m_type)
       memcpy(m_type, types, size);
     else
@@ -124,7 +127,7 @@ public:
           */
           char *ptr= (char *)&field_metadata[index];
           m_field_metadata[i]= sint2korr(ptr);
-          index= index + sizeof(short int);
+          index= index + 2;
           break;
         }
         case MYSQL_TYPE_NEWDECIMAL:
@@ -174,6 +177,7 @@ public:
     DBUG_ASSERT(index < m_size);
     return m_type[index];
   }
+
 
   /*
     This function allows callers to get the extra field data from the
@@ -238,7 +242,7 @@ public:
 private:
   ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
-  short int *m_field_metadata;
+  uint16 *m_field_metadata;
   uchar *m_null_bits;
   uchar *m_memory;
 };
@@ -248,7 +252,7 @@ private:
    slave thread, but nowhere else.
  */
 struct RPL_TABLE_LIST
-  : public st_table_list
+  : public TABLE_LIST
 {
   bool m_tabledef_valid;
   table_def m_tabledef;

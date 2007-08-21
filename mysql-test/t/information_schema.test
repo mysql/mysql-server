@@ -703,7 +703,7 @@ drop table t1;
 #
 # Bug #9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
 #
---error 1044
+--error ER_PARSE_ERROR
 alter database information_schema;
 --error 1044
 drop database information_schema;
@@ -1039,6 +1039,14 @@ delete from v1;
 drop view v1,v2;
 drop table t1,t2;
 
+#
+# Bug#25859    ALTER DATABASE works w/o parameters
+#
+--error ER_PARSE_ERROR
+alter database;
+--error ER_PARSE_ERROR
+alter database test;
+
 --echo End of 5.0 tests.
 #
 # Show engines
@@ -1091,5 +1099,25 @@ SELECT variable_name FROM server_status;
 
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
+
+
+#
+# WL#3732 Information schema optimization
+# 
+
+explain select table_name from information_schema.views where
+table_schema='test' and table_name='v1';
+
+explain select * from information_schema.tables;
+explain select * from information_schema.collations;
+
+explain select * from information_schema.tables where
+table_schema='test' and table_name= 't1';
+explain select table_name, table_type from information_schema.tables
+where table_schema='test';
+
+explain select b.table_name
+from information_schema.tables a, information_schema.columns b
+where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 
 --echo End of 5.1 tests.

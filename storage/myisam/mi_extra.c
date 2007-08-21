@@ -258,7 +258,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PREPARE_FOR_DELETE:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__
+#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
     if (flush_key_blocks(share->key_cache, share->kfile,

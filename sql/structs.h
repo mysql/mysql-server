@@ -211,6 +211,11 @@ typedef struct  user_conn {
   char *user;
   /* Pointer to host part of the key. */
   char *host;
+  /*
+     The moment of time when per hour counters were reset last time
+     (i.e. start of "hour" for conn_per_hour, updates, questions counters).
+  */
+  ulonglong reset_utime;
   /* Total length of the key. */
   uint len;
   /* Current amount of concurrent connections for this account. */
@@ -222,11 +227,6 @@ typedef struct  user_conn {
   uint conn_per_hour, updates, questions;
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
-  /*
-     The moment of time when per hour counters were reset last time
-     (i.e. start of "hour" for conn_per_hour, updates, questions counters).
-  */
-  time_t intime;
 } USER_CONN;
 
 	/* Bits in form->update */

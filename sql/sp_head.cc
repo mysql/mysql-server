@@ -349,13 +349,13 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_no_trans_update_stmt= thd->no_trans_update.stmt;
+  bool save_stmt_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->no_trans_update.stmt= FALSE;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -363,7 +363,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->no_trans_update.stmt= save_no_trans_update_stmt;
+  thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
   if (thd->net.report_error)
   {
@@ -512,12 +512,35 @@ sp_head::init(LEX *lex)
   */
   lex->trg_table_fields.empty();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
-  m_param_begin= m_param_end= m_body_begin= 0;
-  m_qname.str= m_db.str= m_name.str= m_params.str=
-    m_body.str= m_defstr.str= 0;
-  m_qname.length= m_db.length= m_name.length= m_params.length=
-    m_body.length= m_defstr.length= 0;
+
+  m_param_begin= NULL;
+  m_param_end= NULL;
+
+  m_body_begin= NULL ;
+
+  m_qname.str= NULL;
+  m_qname.length= 0;
+
+  m_db.str= NULL;
+  m_db.length= 0;
+
+  m_name.str= NULL;
+  m_name.length= 0;
+
+  m_params.str= NULL;
+  m_params.length= 0;
+
+  m_body.str= NULL;
+  m_body.length= 0;
+
+  m_defstr.str= NULL;
+  m_defstr.length= 0;
+
+  m_sroutines_key.str= NULL;
+  m_sroutines_key.length= 0;
+
   m_return_field_def.charset= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -543,9 +566,14 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   if (spname->m_qname.length == 0)
     spname->init_qname(thd);
 
-  m_qname.length= spname->m_qname.length;
-  m_qname.str= strmake_root(thd->mem_root, spname->m_qname.str,
-                            m_qname.length);
+  m_sroutines_key.length= spname->m_sroutines_key.length;
+  m_sroutines_key.str= (char*) memdup_root(thd->mem_root,
+                                           spname->m_sroutines_key.str,
+                                           spname->m_sroutines_key.length + 1);
+  m_sroutines_key.str[0]= static_cast<char>(m_type);
+
+  m_qname.length= m_sroutines_key.length - 1;
+  m_qname.str= m_sroutines_key.str + 1;
 
   DBUG_VOID_RETURN;
 }
@@ -830,7 +858,8 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
 
 
 /*
-  Replace thd->query{_length} with a string that one can write to the binlog.
+  Replace thd->query{_length} with a string that one can write to the binlog
+  or the query cache.
  
   SYNOPSIS
     subst_spvars()
@@ -842,7 +871,9 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   DESCRIPTION
 
   The binlog-suitable string is produced by replacing references to SP local 
-  variables with NAME_CONST('sp_var_name', value) calls.
+  variables with NAME_CONST('sp_var_name', value) calls. To make this string
+  suitable for the query cache this function allocates some additional space
+  for the query cache flags.
  
   RETURN
     FALSE  on success
@@ -855,80 +886,89 @@ static bool
 subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 {
   DBUG_ENTER("subst_spvars");
-  if (thd->prelocked_mode == NON_PRELOCKED && mysql_bin_log.is_open())
+
+  Dynamic_array<Item_splocal*> sp_vars_uses;
+  char *pbuf, *cur, buffer[512];
+  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
+  int prev_pos, res, buf_len;
+
+  /* Find all instances of Item_splocal used in this statement */
+  for (Item *item= instr->free_list; item; item= item->next)
   {
-    Dynamic_array<Item_splocal*> sp_vars_uses;
-    char *pbuf, *cur, buffer[512];
-    String qbuf(buffer, sizeof(buffer), &my_charset_bin);
-    int prev_pos, res;
-
-    /* Find all instances of Item_splocal used in this statement */
-    for (Item *item= instr->free_list; item; item= item->next)
+    if (item->is_splocal())
     {
-      if (item->is_splocal())
-      {
-        Item_splocal *item_spl= (Item_splocal*)item;
-        if (item_spl->pos_in_query)
-          sp_vars_uses.append(item_spl);
-      }
+      Item_splocal *item_spl= (Item_splocal*)item;
+      if (item_spl->pos_in_query)
+        sp_vars_uses.append(item_spl);
     }
-    if (!sp_vars_uses.elements())
-      DBUG_RETURN(FALSE);
-      
-    /* Sort SP var refs by their occurences in the query */
-    sp_vars_uses.sort(cmp_splocal_locations);
-
-    /* 
-      Construct a statement string where SP local var refs are replaced
-      with "NAME_CONST(name, value)"
-    */
-    qbuf.length(0);
-    cur= query_str->str;
-    prev_pos= res= 0;
-    for (Item_splocal **splocal= sp_vars_uses.front(); 
-         splocal < sp_vars_uses.back(); splocal++)
-    {
-      Item *val;
-
-      char str_buffer[STRING_BUFFER_USUAL_SIZE];
-      String str_value_holder(str_buffer, sizeof(str_buffer),
-                              &my_charset_latin1);
-      String *str_value;
-      
-      /* append the text between sp ref occurences */
-      res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
-      prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
-      
-      /* append the spvar substitute */
-      res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
-      res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
-      res|= qbuf.append(STRING_WITH_LEN("',"));
-      res|= (*splocal)->fix_fields(thd, (Item **) splocal);
-
-      if (res)
-        break;
-
-      val= (*splocal)->this_item();
-      DBUG_PRINT("info", ("print 0x%lx", (long) val));
-      str_value= sp_get_item_value(thd, val, &str_value_holder);
-      if (str_value)
-        res|= qbuf.append(*str_value);
-      else
-        res|= qbuf.append(STRING_WITH_LEN("NULL"));
-      res|= qbuf.append(')');
-      if (res)
-        break;
-    }
-    res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
-    if (res)
-      DBUG_RETURN(TRUE);
-
-    if (!(pbuf= thd->strmake(qbuf.ptr(), qbuf.length())))
-      DBUG_RETURN(TRUE);
-
-    thd->query= pbuf;
-    thd->query_length= qbuf.length();
   }
+  if (!sp_vars_uses.elements())
+    DBUG_RETURN(FALSE);
+    
+  /* Sort SP var refs by their occurences in the query */
+  sp_vars_uses.sort(cmp_splocal_locations);
+
+  /* 
+    Construct a statement string where SP local var refs are replaced
+    with "NAME_CONST(name, value)"
+  */
+  qbuf.length(0);
+  cur= query_str->str;
+  prev_pos= res= 0;
+  for (Item_splocal **splocal= sp_vars_uses.front(); 
+       splocal < sp_vars_uses.back(); splocal++)
+  {
+    Item *val;
+
+    char str_buffer[STRING_BUFFER_USUAL_SIZE];
+    String str_value_holder(str_buffer, sizeof(str_buffer),
+                            &my_charset_latin1);
+    String *str_value;
+    
+    /* append the text between sp ref occurences */
+    res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
+    prev_pos= (*splocal)->pos_in_query + (*splocal)->len_in_query;
+    
+    /* append the spvar substitute */
+    res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
+    res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
+    res|= qbuf.append(STRING_WITH_LEN("',"));
+    res|= (*splocal)->fix_fields(thd, (Item **) splocal);
+
+    if (res)
+      break;
+
+    val= (*splocal)->this_item();
+    DBUG_PRINT("info", ("print 0x%lx", (long) val));
+    str_value= sp_get_item_value(thd, val, &str_value_holder);
+    if (str_value)
+      res|= qbuf.append(*str_value);
+    else
+      res|= qbuf.append(STRING_WITH_LEN("NULL"));
+    res|= qbuf.append(')');
+    if (res)
+      break;
+  }
+  res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
+  if (res)
+    DBUG_RETURN(TRUE);
+
+  /*
+    Allocate additional space at the end of the new query string for the
+    query_cache_send_result_to_client function.
+  */
+  buf_len= qbuf.length() + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE + 1;
+  if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
+  {
+    memcpy(pbuf, qbuf.ptr(), qbuf.length());
+    pbuf[qbuf.length()]= 0;
+  }
+  else
+    DBUG_RETURN(TRUE);
+
+  thd->query= pbuf;
+  thd->query_length= qbuf.length();
+
   DBUG_RETURN(FALSE);
 }
 
@@ -1924,8 +1964,11 @@ sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
-  LEX *oldlex= (LEX *)m_lex.pop();
+  LEX *oldlex;
 
+  sublex->set_trg_event_type_for_tables();
+
+  oldlex= (LEX *)m_lex.pop();
   if (! oldlex)
     return;			// Nothing to restore
 
@@ -2262,7 +2305,8 @@ sp_head::show_create_routine(THD *thd, int type)
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
 
   if (full_access)
-    protocol->store(m_defstr.str, m_defstr.length, &my_charset_bin);
+    protocol->store(m_defstr.str, m_defstr.length,
+                    m_creation_ctx->get_client_cs());
   else
     protocol->store_null();
 
@@ -2505,6 +2549,13 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   int res= 0;
   DBUG_ENTER("reset_lex_and_exec_core");
 
+  /* 
+    The flag is saved at the entry to the following substatement.
+    It's reset further in the common code part.
+    It's merged with the saved parent's value at the exit of this func.
+  */
+  bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
   /*
@@ -2574,7 +2625,11 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   /* Update the state of the active arena. */
   thd->stmt_arena->state= Query_arena::EXECUTED;
 
-
+  /*
+    Merge here with the saved parent's values
+    what is needed from the substatement gained
+  */
+  thd->transaction.stmt.modified_non_trans_table |= parent_modified_non_trans_table;
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
@@ -3546,6 +3601,7 @@ typedef struct st_sp_table
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
   uint query_lock_count;
+  uint8 trg_event_map;
 } SP_TABLE;
 
 uchar *
@@ -3632,6 +3688,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
+        tab->trg_event_map|= table->trg_event_map;
       }
       else
       {
@@ -3653,6 +3710,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
+        tab->trg_event_map= table->trg_event_map;
 	my_hash_insert(&m_sptabs, (uchar *)tab);
       }
     }
@@ -3730,6 +3788,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
+      table->trg_event_map= stab->trg_event_map;
 
       /* Everyting else should be zeroed */
 

@@ -274,7 +274,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
     rm -f $BASE/lib/*.la
 fi
 
-copyfileto $BASE/include config.h include/*
+copyfileto $BASE/include include/*
 
 rm -f $BASE/include/Makefile* $BASE/include/*.in $BASE/include/config-win.h
 if [ $BASE_SYSTEM != "netware" ] ; then
@@ -301,7 +301,8 @@ rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 copyfileto $BASE/mysql-test \
          mysql-test/mysql-test-run mysql-test/install_test_db \
          mysql-test/mysql-test-run.pl mysql-test/README \
-	 mysql-test/valgrind.supp \
+         mysql-test/mysql-stress-test.pl \
+         mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 
 MCP mysql-test/lib/*.pl  $BASE/mysql-test/lib
@@ -312,6 +313,7 @@ MCP mysql-test/t/*.def $BASE/mysql-test/t
 MCP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.MYD mysql-test/std_data/*.MYI \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
+    mysql-test/std_data/Index.xml \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
     $BASE/mysql-test/std_data
@@ -336,7 +338,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   copyfileto $BASE/bin scripts/*
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ \
       ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ \
-      @HOSTNAME@ \@pkgdatadir\@ ./support-files \
+      @HOSTNAME@ \@pkgdatadir\@ ./share \
       < scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \
       \@sbindir\@ ./bin \@libexecdir\@ ./bin \

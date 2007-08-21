@@ -1951,12 +1951,13 @@ sp_name:
 	| ident
 	  {
             THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             LEX_STRING db;
 	    if (check_routine_name(&$1))
             {
 	      MYSQL_YYABORT;
 	    }
-            if (thd->copy_db_to(&db.str, &db.length))
+            if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
 	    $$= new sp_name(db, $1, false);
             if ($$)
@@ -4117,8 +4118,7 @@ part_bit_expr:
             }
             Lex->part_info->curr_part_elem->has_null_value= TRUE;
           }
-          else if (part_expr->result_type() != INT_RESULT &&
-                   !part_expr->null_value)
+          else if (part_expr->result_type() != INT_RESULT)
           {
             my_parse_error(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
             MYSQL_YYABORT;
@@ -5190,14 +5190,13 @@ alter:
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
           }
-          opt_create_database_options
+          create_database_options
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
             if (lex->name.str == NULL &&
-                thd->copy_db_to(&lex->name.str, &lex->name.length))
+                lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
@@ -5669,12 +5668,11 @@ alter_list_item:
 	  }
 	| RENAME opt_to table_ident
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex=Lex;
 	    size_t dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-	                thd->copy_db_to(&lex->select_lex.db, &dummy))
+                lex->copy_db_to(&lex->select_lex.db, &dummy))
             {
               MYSQL_YYABORT;
             }
@@ -7364,7 +7362,7 @@ join_table:
           so that [INNER | CROSS] JOIN is properly nested as other
           left-associative joins.
         */
-        table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
+        table_ref normal_join table_ref %prec TABLE_REF_PRIORITY
           { MYSQL_YYABORT_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { MYSQL_YYABORT_UNLESS($1 && ($$=$3)); $3->straight=1; }
@@ -8817,6 +8815,8 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
 	    WARN_DEPRECATED(yythd, "5.2", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
+              MYSQL_YYABORT;
 	  }
 	| opt_storage ENGINES_SYM
 	  {
@@ -9404,20 +9404,54 @@ opt_load_data_set_spec:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING_literal
-	{
-	  THD *thd= YYTHD;
-	  $$ = new Item_string($1.str,$1.length,thd->variables.collation_connection);
-	}
-	| NCHAR_STRING
-	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
-	| UNDERSCORE_CHARSET TEXT_STRING
-	  {
-	    $$ = new Item_string($2.str, $2.length, $1);
-	  }
-	| text_literal TEXT_STRING_literal
-	  { ((Item_string*) $1)->append($2.str,$2.length); }
-	;
+        TEXT_STRING
+        {
+          LEX_STRING tmp;
+          THD *thd= YYTHD;
+          CHARSET_INFO *cs_con= thd->variables.collation_connection;
+          CHARSET_INFO *cs_cli= thd->variables.character_set_client;
+          uint repertoire= thd->lex->text_string_is_7bit &&
+                             my_charset_is_ascii_based(cs_cli) ?
+                           MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+          if (thd->charset_is_collation_connection ||
+              (repertoire == MY_REPERTOIRE_ASCII &&
+               my_charset_is_ascii_based(cs_con)))
+            tmp= $1;
+          else
+            thd->convert_string(&tmp, cs_con, $1.str, $1.length, cs_cli);
+          $$= new Item_string(tmp.str, tmp.length, cs_con,
+                              DERIVATION_COERCIBLE, repertoire);
+        }
+        | NCHAR_STRING
+        {
+          uint repertoire= Lex->text_string_is_7bit ?
+                           MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+          DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+          $$= new Item_string($1.str, $1.length, national_charset_info,
+                              DERIVATION_COERCIBLE, repertoire);
+        }
+        | UNDERSCORE_CHARSET TEXT_STRING
+          {
+            $$= new Item_string($2.str, $2.length, $1);
+            ((Item_string*) $$)->set_repertoire_from_value();
+          }
+        | text_literal TEXT_STRING_literal
+          {
+            Item_string* item= (Item_string*) $1;
+            item->append($2.str, $2.length);
+            if (!(item->collation.repertoire & MY_REPERTOIRE_EXTENDED))
+            {
+              /*
+                 If the string has been pure ASCII so far,
+                 check the new part.
+              */
+              CHARSET_INFO *cs= YYTHD->variables.collation_connection;
+              item->collation.repertoire|= my_string_repertoire(cs,
+                                                                $2.str,
+                                                                $2.length);
+            }
+          }
+        ;
 
 text_string:
 	TEXT_STRING_literal
@@ -9489,20 +9523,22 @@ literal:
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
 	| HEX_NUM	{ $$ =	new Item_hex_string($1.str, $1.length);}
 	| BIN_NUM	{ $$= new Item_bin_string($1.str, $1.length); }
-	| UNDERSCORE_CHARSET HEX_NUM
-	  {
-	    Item *tmp= new Item_hex_string($2.str, $2.length);
-	    /*
-	      it is OK only emulate fix_fieds, because we need only
+        | UNDERSCORE_CHARSET HEX_NUM
+          {
+            Item *tmp= new Item_hex_string($2.str, $2.length);
+            /*
+              it is OK only emulate fix_fieds, because we need only
               value of constant
-	    */
-	    String *str= tmp ?
-	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
-	      (String*) 0;
-	    $$= new Item_string(str ? str->ptr() : "",
-				str ? str->length() : 0,
-				$1);
-	  }
+            */
+            String *str= tmp ?
+              tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+              (String*) 0;
+            $$= new Item_string(str ? str->ptr() : "",
+                                str ? str->length() : 0,
+                                $1);
+            if ($$)
+              ((Item_string *) $$)->set_repertoire_from_value();
+          }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
 	    Item *tmp= new Item_bin_string($2.str, $2.length);
@@ -9591,7 +9627,8 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
                                       lip->get_tok_start_prev() -
-                                      lex->sphead->m_tmp_query);
+                                      lex->sphead->m_tmp_query,
+                                      lip->get_tok_end() - lip->get_tok_start_prev());
 #ifndef DBUG_OFF
             if (splocal)
               splocal->m_sp= lex->sphead;
@@ -10971,10 +11008,9 @@ require_list_element:
 grant_ident:
 	'*'
 	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
+	    LEX *lex= Lex;
             size_t dummy;
-            if (thd->copy_db_to(&lex->current_select->db, &dummy))
+            if (lex->copy_db_to(&lex->current_select->db, &dummy))
               MYSQL_YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
@@ -11620,12 +11656,12 @@ trigger_tail:
 	    MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(thd);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_TRIGGER;
           sp->init_sp_name(thd, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $11 - $7;
 
-	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
 	  lex->spname= $3;
 	  /*
@@ -11701,9 +11737,9 @@ sp_tail:
 	  sp= new sp_head();
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+	  sp->m_type= TYPE_ENUM_PROCEDURE;
           sp->init_sp_name(YYTHD, $3);
 
-	  sp->m_type= TYPE_ENUM_PROCEDURE;
 	  lex->sphead= sp;
 	  /*
 	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a

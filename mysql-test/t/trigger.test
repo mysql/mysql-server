@@ -406,7 +406,7 @@ create table mysqltest.t1 (i int);
 --error ER_TRG_IN_WRONG_SCHEMA
 create trigger trg1 before insert on mysqltest.t1 for each row set @a:= 1;
 use mysqltest;
---error ER_TRG_IN_WRONG_SCHEMA
+--error ER_NO_SUCH_TABLE
 create trigger test.trg1 before insert on t1 for each row set @a:= 1;
 drop database mysqltest;
 use test;
@@ -1040,7 +1040,7 @@ drop table t1;
 connection addconwithoutdb;
 --error ER_NO_DB_ERROR
 create trigger t1_bi before insert on test.t1 for each row set @a:=0;
---error ER_NO_DB_ERROR
+--error ER_NO_SUCH_TABLE
 create trigger test.t1_bi before insert on t1 for each row set @a:=0;
 --error ER_NO_DB_ERROR
 drop trigger t1_bi;
@@ -1828,7 +1828,395 @@ DROP TRIGGER t1_test;
 DROP TABLE t1,t2;
 SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
 SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
+--echo
+--echo Bug#28502 Triggers that update another innodb table will block
+--echo on X lock unnecessarily
+--echo
+--echo Ensure we do not open and lock tables for triggers we do not fire.
+--echo
+--disable_warnings
+drop table if exists t1, t2;
+drop trigger if exists trg_bug28502_au;
+--enable_warnings
 
+create table t1 (id int, count int);
+create table t2 (id int);
+delimiter |;
+
+create trigger trg_bug28502_au before update on t2
+for each row
+begin
+  if (new.id is not null) then
+    update t1 set count= count + 1 where id = old.id;
+  end if;
+end|
+
+delimiter ;|
+insert into t1 (id, count) values (1, 0);
+
+lock table t1 write;
+
+--connect (connection_insert, localhost, root, , test, , )
+connection connection_insert;
+# Is expected to pass.
+insert into t2 set id=1;
+connection default;
+unlock tables;
+update t2 set id=1 where id=1;
+select * from t1;
+select * from t2;
+# Will drop the trigger
+drop table t1, t2;
+disconnect connection_insert;
+--echo
+--echo Additionally, provide test coverage for triggers and 
+--echo all MySQL data changing commands.
+--echo
+--disable_warnings
+drop table if exists t1, t2, t1_op_log;
+drop view if exists v1;
+drop trigger if exists trg_bug28502_bi;
+drop trigger if exists trg_bug28502_ai;
+drop trigger if exists trg_bug28502_bu;
+drop trigger if exists trg_bug28502_au;
+drop trigger if exists trg_bug28502_bd;
+drop trigger if exists trg_bug28502_ad;
+--enable_warnings
+create table t1 (id int primary key auto_increment, operation varchar(255));
+create table t2 (id int primary key);
+create table t1_op_log(operation varchar(255));
+create view v1 as select * from t1;
+create trigger trg_bug28502_bi before insert on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("Before INSERT, new=", new.operation));
+
+create trigger trg_bug28502_ai after insert on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("After INSERT, new=", new.operation));
+
+create trigger trg_bug28502_bu before update on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("Before UPDATE, new=", new.operation,
+                 ", old=", old.operation));
+
+create trigger trg_bug28502_au after update on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("After UPDATE, new=", new.operation,
+                 ", old=", old.operation));
+
+create trigger trg_bug28502_bd before delete on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("Before DELETE, old=", old.operation));
+
+create trigger trg_bug28502_ad after delete on t1
+for each row
+  insert into t1_op_log (operation)
+  values (concat("After DELETE, old=", old.operation));
+
+insert into t1 (operation) values ("INSERT");
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+update t1 set operation="UPDATE" where id=@id;
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+delete from t1 where id=@id;
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into t1 (id, operation) values
+(NULL, "INSERT ON DUPLICATE KEY UPDATE, inserting a new key")
+on duplicate key update id=NULL, operation="Should never happen";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+insert into t1 (id, operation) values
+(@id, "INSERT ON DUPLICATE KEY UPDATE, the key value is the same")
+on duplicate key update id=NULL,
+operation="INSERT ON DUPLICATE KEY UPDATE, updating the duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+replace into t1 values (NULL, "REPLACE, inserting a new key");
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+replace into t1 values (@id, "REPLACE, deleting the duplicate");
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+create table if not exists t1
+select NULL, "CREATE TABLE ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+create table if not exists t1 replace
+select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into t1 (id, operation)
+select NULL, "INSERT ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+insert into t1 (id, operation)
+select @id,
+"INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate"
+on duplicate key update id=NULL,
+operation="INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+replace into t1 (id, operation)
+select NULL, "REPLACE ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+replace into t1 (id, operation)
+select @id, "REPLACE ... SELECT, deleting a duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into t1 (id, operation) values (1, "INSERT for multi-DELETE");
+insert into t2 (id) values (1);
+
+delete t1.*, t2.* from t1, t2 where t1.id=1;
+
+select * from t1;
+select * from t2;
+select * from t1_op_log;
+truncate t1;
+truncate t2;
+truncate t1_op_log;
+
+insert into t1 (id, operation) values (1, "INSERT for multi-UPDATE");
+insert into t2 (id) values (1);
+update t1, t2 set t1.id=2, operation="multi-UPDATE" where t1.id=1;
+update t1, t2
+set t2.id=3, operation="multi-UPDATE, SET for t2, but the trigger is fired" where t1.id=2;
+
+select * from t1;
+select * from t2;
+select * from t1_op_log;
+truncate table t1;
+truncate table t2;
+truncate table t1_op_log;
+
+--echo
+--echo Now do the same but use a view instead of the base table.
+--echo
+
+insert into v1 (operation) values ("INSERT");
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+update v1 set operation="UPDATE" where id=@id;
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+delete from v1 where id=@id;
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into v1 (id, operation) values
+(NULL, "INSERT ON DUPLICATE KEY UPDATE, inserting a new key")
+on duplicate key update id=NULL, operation="Should never happen";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+insert into v1 (id, operation) values
+(@id, "INSERT ON DUPLICATE KEY UPDATE, the key value is the same")
+on duplicate key update id=NULL,
+operation="INSERT ON DUPLICATE KEY UPDATE, updating the duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+replace into v1 values (NULL, "REPLACE, inserting a new key");
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+replace into v1 values (@id, "REPLACE, deleting the duplicate");
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+create table if not exists v1
+select NULL, "CREATE TABLE ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+create table if not exists v1 replace
+select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into v1 (id, operation)
+select NULL, "INSERT ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+insert into v1 (id, operation)
+select @id,
+"INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate"
+on duplicate key update id=NULL,
+operation="INSERT ... SELECT ... ON DUPLICATE KEY UPDATE, updating a duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+replace into v1 (id, operation)
+select NULL, "REPLACE ... SELECT, inserting a new key";
+
+set @id=last_insert_id();
+
+select * from t1;
+select * from t1_op_log;
+truncate t1_op_log;
+
+replace into v1 (id, operation)
+select @id, "REPLACE ... SELECT, deleting a duplicate";
+
+select * from t1;
+select * from t1_op_log;
+truncate t1;
+truncate t1_op_log;
+
+insert into v1 (id, operation) values (1, "INSERT for multi-DELETE");
+insert into t2 (id) values (1);
+
+delete v1.*, t2.* from v1, t2 where v1.id=1;
+
+select * from t1;
+select * from t2;
+select * from t1_op_log;
+truncate t1;
+truncate t2;
+truncate t1_op_log;
+
+insert into v1 (id, operation) values (1, "INSERT for multi-UPDATE");
+insert into t2 (id) values (1);
+update v1, t2 set v1.id=2, operation="multi-UPDATE" where v1.id=1;
+update v1, t2
+set t2.id=3, operation="multi-UPDATE, SET for t2, but the trigger is fired" where v1.id=2;
+
+select * from t1;
+select * from t2;
+select * from t1_op_log;
+
+drop view v1;
+drop table t1, t2, t1_op_log;
+
+#
+# TODO: test LOAD DATA INFILE
+#
+--echo
+--echo Bug#27248 Triggers: error if insert affects temporary table
+--echo
+--echo The bug was fixed by the fix for Bug#26141
+--echo
+--disable_warnings
+drop table if exists t1;
+drop temporary table if exists t2;
+--enable_warnings
+create table t1 (s1 int);
+create temporary table t2 (s1 int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (0);
+create trigger t1_bd before delete on t1 for each row delete from t2;
+insert into t1 values (0);
+insert into t1 values (0);
+select * from t1;
+select * from t2;
+delete from t1;
+select * from t1;
+select * from t2;
+drop table t1;
+drop temporary table t2;
 --echo End of 5.0 tests
 
 #

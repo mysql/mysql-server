@@ -19,7 +19,19 @@
 #include "mysql_priv.h"
 #include "sql_trigger.h"
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
+
+/* INFORMATION_SCHEMA name */
+LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
+
+/* MYSQL_SCHEMA name */
+LEX_STRING MYSQL_SCHEMA_NAME= {C_STRING_WITH_LEN("mysql")};
+
+/* GENERAL_LOG name */
+LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
+
+/* SLOW_LOG name */
+LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
 
 	/* Functions defined in this file */
 
@@ -31,6 +43,7 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+inline bool is_system_table_name(const char *name, uint length);
 
 /**************************************************************************
   Object_creation_ctx implementation.
@@ -98,7 +111,7 @@ View_creation_ctx *View_creation_ctx::create(THD *thd)
 /*************************************************************************/
 
 View_creation_ctx * View_creation_ctx::create(THD *thd,
-                                              st_table_list *view)
+                                              TABLE_LIST *view)
 {
   View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
 
@@ -190,6 +203,49 @@ char *fn_rext(char *name)
   if (res && !strcmp(res, reg_ext))
     return res;
   return name + strlen(name);
+}
+
+TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
+{
+  DBUG_ASSERT(db != NULL);
+  DBUG_ASSERT(name != NULL);
+
+  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    INFORMATION_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    return TABLE_CATEGORY_INFORMATION;
+  }
+
+  if ((db->length == MYSQL_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    MYSQL_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    if (is_system_table_name(name->str, name->length))
+    {
+      return TABLE_CATEGORY_SYSTEM;
+    }
+
+    if ((name->length == GENERAL_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      GENERAL_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+
+    if ((name->length == SLOW_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      SLOW_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+  }
+
+  return TABLE_CATEGORY_USER;
 }
 
 
@@ -299,7 +355,8 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
 
   bzero((char*) share, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  share->tmp_table=  	         INTERNAL_TMP_TABLE;
+  share->table_category=         TABLE_CATEGORY_TEMPORARY;
+  share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
   share->db.length=		 strlen(key);
   share->table_cache_key.str=    (char*) key;
@@ -517,7 +574,15 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   {
     if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
         (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+    {
+      /* Open view only */
+      if (db_flags & OPEN_VIEW_ONLY)
+      {
+        error_given= 1;
+        goto err;
+      }
       table_type= 1;
+    }
     else
     {
       error= 6;                                 // Unkown .frm version
@@ -546,27 +611,10 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
-
-    if (share->db.length == 5 && !(lower_case_table_names ?
-        my_strcasecmp(system_charset_info, share->db.str, "mysql") :
-        strcmp(share->db.str, "mysql")))
-    {
-      /*
-        We can't mark all tables in 'mysql' database as system since we don't
-        allow to lock such tables for writing with any other tables (even with
-        other system tables) and some privilege tables need this.
-      */
-      share->system_table= is_system_table_name(share->table_name.str,
-                                                share->table_name.length);
-      if (!share->system_table)
-      {
-        share->log_table= check_if_log_table(share->db.length, share->db.str,
-                                             share->table_name.length,
-                                             share->table_name.str, 0);
-      }
-    }
     error_given= 1;
   }
+
+  share->table_category= get_table_category(& share->db, & share->table_name);
 
   if (!error)
     thd->status_var.opened_shares++;
@@ -1404,7 +1452,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             the primary key, then we can use any key to find this column
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
+          {
             field->part_of_key= share->keys_in_use;
+            if (field->part_of_sortkey.is_set(key))
+              field->part_of_sortkey= share->keys_in_use;
+          }
         }
         if (field->key_length() != key_part->length)
         {
@@ -1634,9 +1686,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->keys_in_use_for_query.init();
 
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
-                                        share->db_type())))
-    goto err;
+  outparam->file= 0;
+  if (!(prgflag & OPEN_FRM_FILE_ONLY))
+  {
+    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+                                          share->db_type())))
+      goto err;
+  }
+  else
+  {
+    DBUG_ASSERT(!db_stat);
+  }
 
   error= 4;
   outparam->reginfo.lock_type= TL_UNLOCK;
@@ -1884,6 +1944,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 
+  outparam->no_replicate= outparam->file &&
+                          test(outparam->file->ha_table_flags() &
+                               HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
@@ -2489,6 +2552,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->tablespace= share->tablespace;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
+  create_info->comment= share->comment;
 
   DBUG_VOID_RETURN;
 }
@@ -2921,11 +2985,11 @@ void st_table::reset_item_list(List<Item> *item_list) const
   calculate md5 of query
 
   SYNOPSIS
-    st_table_list::calc_md5()
+    TABLE_LIST::calc_md5()
     buffer	buffer for md5 writing
 */
 
-void  st_table_list::calc_md5(char *buffer)
+void  TABLE_LIST::calc_md5(char *buffer)
 {
   my_MD5_CTX context;
   uchar digest[16];
@@ -2950,10 +3014,10 @@ void  st_table_list::calc_md5(char *buffer)
     it (it is a kind of optimisation)
 
   SYNOPSIS
-    st_table_list::set_underlying_merge()
+    TABLE_LIST::set_underlying_merge()
 */
 
-void st_table_list::set_underlying_merge()
+void TABLE_LIST::set_underlying_merge()
 {
   TABLE_LIST *tbl;
 
@@ -2988,7 +3052,7 @@ void st_table_list::set_underlying_merge()
   setup fields of placeholder of merged VIEW
 
   SYNOPSIS
-    st_table_list::setup_underlying()
+    TABLE_LIST::setup_underlying()
     thd		    - thread handler
 
   DESCRIPTION
@@ -3001,9 +3065,9 @@ void st_table_list::set_underlying_merge()
     TRUE  - error
 */
 
-bool st_table_list::setup_underlying(THD *thd)
+bool TABLE_LIST::setup_underlying(THD *thd)
 {
-  DBUG_ENTER("st_table_list::setup_underlying");
+  DBUG_ENTER("TABLE_LIST::setup_underlying");
 
   if (!field_translation && merge_underlying_list)
   {
@@ -3066,7 +3130,7 @@ bool st_table_list::setup_underlying(THD *thd)
   Prepare where expression of view
 
   SYNOPSIS
-    st_table_list::prep_where()
+    TABLE_LIST::prep_where()
     thd             - thread handler
     conds           - condition of this JOIN
     no_where_clause - do not build WHERE or ON outer qwery do not need it
@@ -3080,10 +3144,10 @@ bool st_table_list::setup_underlying(THD *thd)
     TRUE  - error
 */
 
-bool st_table_list::prep_where(THD *thd, Item **conds,
+bool TABLE_LIST::prep_where(THD *thd, Item **conds,
                                bool no_where_clause)
 {
-  DBUG_ENTER("st_table_list::prep_where");
+  DBUG_ENTER("TABLE_LIST::prep_where");
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -3183,7 +3247,7 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
   Prepare check option expression of table
 
   SYNOPSIS
-    st_table_list::prep_check_option()
+    TABLE_LIST::prep_check_option()
     thd             - thread handler
     check_opt_type  - WITH CHECK OPTION type (VIEW_CHECK_NONE,
                       VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
@@ -3198,16 +3262,16 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
     This method builds check option condition to use it later on
     every call (usual execution or every SP/PS call).
     This method have to be called after WHERE preparation
-    (st_table_list::prep_where)
+    (TABLE_LIST::prep_where)
 
   RETURN
     FALSE - OK
     TRUE  - error
 */
 
-bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
+bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 {
-  DBUG_ENTER("st_table_list::prep_check_option");
+  DBUG_ENTER("TABLE_LIST::prep_check_option");
   bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
@@ -3266,12 +3330,12 @@ bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
   Hide errors which show view underlying table information
 
   SYNOPSIS
-    st_table_list::hide_view_error()
+    TABLE_LIST::hide_view_error()
     thd     thread handler
 
 */
 
-void st_table_list::hide_view_error(THD *thd)
+void TABLE_LIST::hide_view_error(THD *thd)
 {
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
@@ -3302,7 +3366,7 @@ void st_table_list::hide_view_error(THD *thd)
   table_to_find (TABLE)
 
   SYNOPSIS
-    st_table_list::find_underlying_table()
+    TABLE_LIST::find_underlying_table()
     table_to_find table to find
 
   RETURN
@@ -3310,7 +3374,7 @@ void st_table_list::hide_view_error(THD *thd)
     found table reference
 */
 
-st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
+TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
 {
   /* is this real table and table which we are looking for? */
   if (table == table_to_find && merge_underlying_list == 0)
@@ -3329,10 +3393,10 @@ st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
   cleunup items belonged to view fields translation table
 
   SYNOPSIS
-    st_table_list::cleanup_items()
+    TABLE_LIST::cleanup_items()
 */
 
-void st_table_list::cleanup_items()
+void TABLE_LIST::cleanup_items()
 {
   if (!field_translation)
     return;
@@ -3348,7 +3412,7 @@ void st_table_list::cleanup_items()
   check CHECK OPTION condition
 
   SYNOPSIS
-    st_table_list::view_check_option()
+    TABLE_LIST::view_check_option()
     ignore_failure ignore check option fail
 
   RETURN
@@ -3357,7 +3421,7 @@ void st_table_list::cleanup_items()
     VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int st_table_list::view_check_option(THD *thd, bool ignore_failure)
+int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
@@ -3382,7 +3446,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
   table belong to given mask
 
   SYNOPSIS
-    st_table_list::check_single_table()
+    TABLE_LIST::check_single_table()
     table_arg	reference on variable where to store found table
 		(should be 0 on call, to find table, or point to table for
 		unique test)
@@ -3394,9 +3458,9 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
     TRUE  found several tables
 */
 
-bool st_table_list::check_single_table(st_table_list **table_arg,
+bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
                                        table_map map,
-                                       st_table_list *view_arg)
+                                       TABLE_LIST *view_arg)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -3429,7 +3493,7 @@ bool st_table_list::check_single_table(st_table_list **table_arg,
     TRUE  - out of memory
 */
 
-bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
+bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 {
   if (table)
   {
@@ -3453,7 +3517,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   Test if this is a leaf with respect to name resolution.
 
   SYNOPSIS
-    st_table_list::is_leaf_for_name_resolution()
+    TABLE_LIST::is_leaf_for_name_resolution()
 
   DESCRIPTION
     A table reference is a leaf with respect to name resolution if
@@ -3465,7 +3529,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   RETURN
     TRUE if a leaf, FALSE otherwise.
 */
-bool st_table_list::is_leaf_for_name_resolution()
+bool TABLE_LIST::is_leaf_for_name_resolution()
 {
   return (view || is_natural_join || is_join_columns_complete ||
           !nested_join);
@@ -3477,7 +3541,7 @@ bool st_table_list::is_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::first_leaf_for_name_resolution()
+    TABLE_LIST::first_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -3495,7 +3559,7 @@ bool st_table_list::is_leaf_for_name_resolution()
     else return 'this'
 */
 
-TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref;
   NESTED_JOIN *cur_nested_join;
@@ -3535,7 +3599,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::last_leaf_for_name_resolution()
+    TABLE_LIST::last_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -3553,7 +3617,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     - else - 'this'
 */
 
-TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref= this;
   NESTED_JOIN *cur_nested_join;
@@ -3595,7 +3659,7 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
     want_access          Acess which we require
 */
 
-void st_table_list::register_want_access(ulong want_access)
+void TABLE_LIST::register_want_access(ulong want_access)
 {
   /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
   want_access&= ~SHOW_VIEW_ACL;
@@ -3614,7 +3678,7 @@ void st_table_list::register_want_access(ulong want_access)
   Load security context information for this view
 
   SYNOPSIS
-    st_table_list::prepare_view_securety_context()
+    TABLE_LIST::prepare_view_securety_context()
     thd                  [in] thread handler
 
   RETURN
@@ -3623,9 +3687,9 @@ void st_table_list::register_want_access(ulong want_access)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool st_table_list::prepare_view_securety_context(THD *thd)
+bool TABLE_LIST::prepare_view_securety_context(THD *thd)
 {
-  DBUG_ENTER("st_table_list::prepare_view_securety_context");
+  DBUG_ENTER("TABLE_LIST::prepare_view_securety_context");
   DBUG_PRINT("enter", ("table: %s", alias));
 
   DBUG_ASSERT(!prelocking_placeholder && view);
@@ -3674,17 +3738,17 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
   Find security context of current view
 
   SYNOPSIS
-    st_table_list::find_view_security_context()
+    TABLE_LIST::find_view_security_context()
     thd                  [in] thread handler
 
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-Security_context *st_table_list::find_view_security_context(THD *thd)
+Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 {
   Security_context *sctx;
   TABLE_LIST *upper_view= this;
-  DBUG_ENTER("st_table_list::find_view_security_context");
+  DBUG_ENTER("TABLE_LIST::find_view_security_context");
 
   DBUG_ASSERT(view);
   while (upper_view && !upper_view->view_suid)
@@ -3713,7 +3777,7 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
   Prepare security context and load underlying tables priveleges for view
 
   SYNOPSIS
-    st_table_list::prepare_security()
+    TABLE_LIST::prepare_security()
     thd                  [in] thread handler
 
   RETURN
@@ -3721,11 +3785,11 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
     TRUE   Error
 */
 
-bool st_table_list::prepare_security(THD *thd)
+bool TABLE_LIST::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
-  DBUG_ENTER("st_table_list::prepare_security");
+  DBUG_ENTER("TABLE_LIST::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 
@@ -4474,10 +4538,10 @@ void st_table::mark_columns_needed_for_insert()
   Cleanup this table for re-execution.
 
   SYNOPSIS
-    st_table_list::reinit_before_use()
+    TABLE_LIST::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD *thd)
+void TABLE_LIST::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
@@ -4504,7 +4568,7 @@ void st_table_list::reinit_before_use(THD *thd)
   Return subselect that contains the FROM list this table is taken from
 
   SYNOPSIS
-    st_table_list::containing_subselect()
+    TABLE_LIST::containing_subselect()
  
   RETURN
     Subselect item for the subquery that contains the FROM list
@@ -4513,7 +4577,7 @@ void st_table_list::reinit_before_use(THD *thd)
 
 */
 
-Item_subselect *st_table_list::containing_subselect()
+Item_subselect *TABLE_LIST::containing_subselect()
 {    
   return (select_lex ? select_lex->master_unit()->item : 0);
 }
@@ -4527,7 +4591,7 @@ Item_subselect *st_table_list::containing_subselect()
 
   DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
-    (st_table_list::index_hints). Using the information in this tagged list
+    (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
     st_table::force_index and st_table::covering_keys.
@@ -4569,7 +4633,7 @@ Item_subselect *st_table_list::containing_subselect()
     FALSE                no errors found
     TRUE                 found and reported an error.
 */
-bool st_table_list::process_index_hints(TABLE *table)
+bool TABLE_LIST::process_index_hints(TABLE *table)
 {
   /* initialize the result variables */
   table->keys_in_use_for_query= table->keys_in_use_for_group_by= 
@@ -4581,11 +4645,11 @@ bool st_table_list::process_index_hints(TABLE *table)
     key_map index_join[INDEX_HINT_FORCE + 1];
     key_map index_order[INDEX_HINT_FORCE + 1];
     key_map index_group[INDEX_HINT_FORCE + 1];
-    index_hint *hint;
+    Index_hint *hint;
     int type;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;
-    List_iterator <index_hint> iter(*index_hints);
+    List_iterator <Index_hint> iter(*index_hints);
 
     /* initialize temporary variables used to collect hints of each kind */
     for (type= INDEX_HINT_IGNORE; type <= INDEX_HINT_FORCE; type++)

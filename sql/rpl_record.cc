@@ -92,8 +92,30 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 
         /*
           We only store the data of the field if it is non-null
-         */
+
+          For big-endian machines, we have to make sure that the
+          length is stored in little-endian format, since this is the
+          format used for the binlog.
+
+          We do this by setting the db_low_byte_first, which is used
+          inside some store_length() to decide what order to write the
+          bytes in.
+
+          In reality, db_log_byte_first is only set for legacy table
+          type Isam, but in the event of a bug, we need to guarantee
+          the endianess when writing to the binlog.
+
+          This is currently broken for NDB due to BUG#29549, so we
+          will fix it when NDB has fixed their way of handling BLOBs.
+        */
+#if 0
+        bool save= table->s->db_low_byte_first;
+        table->s->db_low_byte_first= TRUE;
+#endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset);
+#if 0
+        table->s->db_low_byte_first= save;
+#endif
       }
 
       null_mask <<= 1;
@@ -228,11 +250,19 @@ unpack_row(RELAY_LOG_INFO const *rli,
           We only unpack the field if it was non-null.
           Use the master's size information if available else call
           normal unpack operation.
-         */
-        if (tabledef && tabledef->field_metadata(i))
-          pack_ptr= f->unpack(f->ptr, pack_ptr, tabledef->field_metadata(i));
+        */
+#if 0
+        bool save= table->s->db_low_byte_first;
+        table->s->db_low_byte_first= TRUE;
+#endif
+        uint16 const metadata= tabledef->field_metadata(i);
+        if (tabledef && metadata)
+          pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
         else
           pack_ptr= f->unpack(f->ptr, pack_ptr);
+#if 0
+        table->s->db_low_byte_first= save;
+#endif
       }
 
       bitmap_set_bit(rw_set, f->field_index);

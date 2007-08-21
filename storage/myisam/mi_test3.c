@@ -243,8 +243,8 @@ int test_read(MI_INFO *file,int id)
   for (i=0 ; i < 100 ; i++)
   {
     find=rnd(100000);
-    if (!mi_rkey(file,record.id,1,(uchar*) &find,
-		 sizeof(find),HA_READ_KEY_EXACT))
+    if (!mi_rkey(file,record.id,1,(uchar*) &find, HA_WHOLE_KEY,
+                 HA_READ_KEY_EXACT))
       found++;
     else
     {
@@ -426,8 +426,8 @@ int test_update(MI_INFO *file,int id,int lock_type)
   {
     tmp=rnd(100000);
     int4store(find,tmp);
-    if (!mi_rkey(file,record.id,1,(uchar*) find,
-		 sizeof(find),HA_READ_KEY_EXACT))
+    if (!mi_rkey(file,record.id,1,(uchar*) find, HA_WHOLE_KEY,
+                 HA_READ_KEY_EXACT))
       found++;
     else
     {

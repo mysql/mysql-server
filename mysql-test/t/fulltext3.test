@@ -1,0 +1,34 @@
+--source include/have_gbk.inc
+#
+# test of new fulltext search features
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+#
+# BUG#29299 - repeatable myisam fulltext index corruption
+#
+CREATE TABLE t1(a VARCHAR(255) CHARACTER SET gbk, FULLTEXT(a));
+SET NAMES utf8;
+INSERT INTO t1 VALUES(0xF043616161),(0xBEF361616197C22061616161);
+SELECT HEX(a) FROM t1 WHERE MATCH(a) AGAINST(0x97C22061616161 IN BOOLEAN MODE);
+DELETE FROM t1 LIMIT 1;
+CHECK TABLE t1;
+SET NAMES latin1;
+DROP TABLE t1;
+
+# End of 5.0 tests
+
+#
+# BUG#29464 - load data infile into table with big5 chinese fulltext index
+#             hangs 100% cpu
+#
+CREATE TABLE t1(a VARCHAR(2) CHARACTER SET big5 COLLATE big5_chinese_ci,
+FULLTEXT(a));
+INSERT INTO t1 VALUES(0xA3C2);
+DROP TABLE t1;
+
+# End of 5.1 tests

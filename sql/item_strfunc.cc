@@ -25,7 +25,7 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
 #include <zlib.h>
@@ -2703,7 +2703,8 @@ void Item_func_set_collation::fix_length_and_dec()
              colname, args[0]->collation.collation->csname);
     return;
   }
-  collation.set(set_collation, DERIVATION_EXPLICIT);
+  collation.set(set_collation, DERIVATION_EXPLICIT,
+                args[0]->collation.repertoire);
   max_length= args[0]->max_length;
 }
 

@@ -371,6 +371,18 @@ trx_is_interrupted(
 #define trx_is_interrupted(trx) FALSE
 #endif /* !UNIV_HOTBACKUP */
 
+/***********************************************************************
+Compares the "weight" (or size) of two transactions. The weight of one
+transaction is estimated as the number of altered rows + the number of
+locked rows. Transactions that have edited non-transactional tables are
+considered heavier than ones that have not. */
+
+int
+trx_weight_cmp(
+/*===========*/
+			/* out: <0, 0 or >0; similar to strcmp(3) */
+	trx_t*	a,	/* in: the first transaction to be compared */
+	trx_t*	b);	/* in: the second transaction to be compared */
 
 /* Signal to a transaction */
 struct trx_sig_struct{
@@ -453,7 +465,8 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-	int		active_trans;	/* 1 - if a transaction in MySQL
+	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
+	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
 	void*		mysql_thd;	/* MySQL thread handle corresponding
@@ -499,14 +512,6 @@ struct trx_struct{
 	ulint		mysql_process_no;/* since in Linux, 'top' reports
 					process id's and not thread id's, we
 					store the process number too */
-	ibool		allow_duplicates;/* normally FALSE, but if the user
-					wants to update duplicate rows,
-					(in table inserts, for example) we
-					set this TRUE */
-	ibool		replace_duplicates;/* normally FALSE, but if the user
-					wants to replace duplicate rows,
-					(in table inserts, for example) we
-					set this TRUE */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
@@ -610,7 +615,7 @@ struct trx_struct{
 					NULL */
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
-					for a lock, this it sets this to FALSE;
+					for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
@@ -651,7 +656,12 @@ struct trx_struct{
 					cannot be any activity in the undo
 					logs! */
 	dulint		undo_no;	/* next undo log record number to
-					assign */
+					assign; since the undo log is
+					private for a transaction, this
+					is a simple ascending sequence
+					with no gaps; thus it represents
+					the number of modified/inserted
+					rows in a transaction */
 	trx_savept_t	last_sql_stat_start;
 					/* undo_no when the last sql statement
 					was started: in case of an error, trx
@@ -681,19 +691,19 @@ struct trx_struct{
 					single operation of a
 					transaction, e.g., a parallel
 					query */
-/* Transaction concurrency states */
+/* Transaction concurrency states (trx->conc_state) */
 #define	TRX_NOT_STARTED		1
 #define	TRX_ACTIVE		2
 #define	TRX_COMMITTED_IN_MEMORY	3
 #define	TRX_PREPARED		4	/* Support for 2PC/XA */
 
-/* Transaction execution states when trx state is TRX_ACTIVE */
+/* Transaction execution states when trx->conc_state == TRX_ACTIVE */
 #define TRX_QUE_RUNNING		1	/* transaction is running */
 #define TRX_QUE_LOCK_WAIT	2	/* transaction is waiting for a lock */
 #define TRX_QUE_ROLLING_BACK	3	/* transaction is rolling back */
 #define TRX_QUE_COMMITTING	4	/* transaction is committing */
 
-/* Transaction isolation levels */
+/* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	1	/* dirty read: non-locking
 						SELECTs are performed so that
 						we do not look at a possible
@@ -727,6 +737,12 @@ struct trx_struct{
 #define TRX_ISO_SERIALIZABLE		4	/* all plain SELECTs are
 						converted to LOCK IN SHARE
 						MODE reads */
+
+/* Treatment of duplicate values (trx->duplicates; for example, in inserts).
+Multiple flags can be combined with bitwise OR. */
+#define TRX_DUP_IGNORE	1	/* duplicate rows are to be updated */
+#define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
+
 
 /* Types of a trx signal */
 #define TRX_SIG_NO_SIGNAL		100

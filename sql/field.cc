@@ -1360,6 +1360,18 @@ bool Field::send_binary(Protocol *protocol)
 }
 
 
+int Field::store(const char *to, uint length, CHARSET_INFO *cs,
+                 enum_check_fields check_level)
+{
+  int res;
+  enum_check_fields old_check_level= table->in_use->count_cuted_fields;
+  table->in_use->count_cuted_fields= check_level;
+  res= store(to, length, cs);
+  table->in_use->count_cuted_fields= old_check_level;
+  return res;
+}
+
+
 /**
    Unpack a field from row data.
 
@@ -1372,7 +1384,9 @@ bool Field::send_binary(Protocol *protocol)
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field::unpack(uchar* to, const uchar *from, uint param_data)
+const uchar *Field::unpack(uchar* to,
+                           const uchar *from, 
+                           uint param_data)
 {
   uint length=pack_length();
   int from_type= 0;
@@ -2359,6 +2373,7 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg,
              unireg_check_arg, field_name_arg, dec_arg, zero_arg, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -2375,6 +2390,7 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
              NONE, name, dec_arg, 0, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
@@ -2685,6 +2701,7 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
           (new_field->decimals == dec));
 }
 
+
 /**
    Unpack a decimal field from row data.
 
@@ -2697,8 +2714,8 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_new_decimal::unpack(uchar* to,
-                                       const uchar *from,
+const uchar *Field_new_decimal::unpack(uchar* to, 
+                                       const uchar *from, 
                                        uint param_data)
 {
   uint from_precision= (param_data & 0xff00) >> 8U;
@@ -2723,7 +2740,7 @@ const uchar *Field_new_decimal::unpack(uchar* to,
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal(from, &dec, from_precision, from_decimal);
+    bin2decimal((uchar *)from, &dec, from_precision, from_decimal);
     decimal2bin(&dec, to, precision, decimals());
   }
   else
@@ -4561,15 +4578,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
   }
-
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
+  store_timestamp(tmp);
   return error;
 }
 
@@ -4629,18 +4638,9 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
                          WARN_DATA_TRUNCATED,
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,timestamp);
-  }
-  else
-#endif
-    longstore(ptr,(uint32) timestamp);
-
+  store_timestamp(timestamp);
   return error;
 }
-
 
 double Field_timestamp::val_real(void)
 {
@@ -4836,14 +4836,7 @@ void Field_timestamp::set_time()
   THD *thd= table ? table->in_use : current_thd;
   long tmp= (long) thd->query_start();
   set_notnull();
-#ifdef WORDS_BIGENDIAN
-  if (table && table->s->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
+  store_timestamp(tmp);
 }
 
 /****************************************************************************
@@ -5480,7 +5473,8 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   else
   {
     tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
-    if (!error && (ret != MYSQL_TIMESTAMP_DATE))
+    if (!error && (ret != MYSQL_TIMESTAMP_DATE) &&
+        thd->count_cuted_fields != CHECK_FIELD_IGNORE)
       error= 3;                                 // Datetime was cut (note)
   }
 
@@ -6406,7 +6400,7 @@ const uchar *Field_string::unpack(uchar *to,
   DBUG_ASSERT(f_length <= 255);
   length= (uint) *from++;
   bitmap_set_bit(table->write_set,field_index);
-  store((const char*) from, length, system_charset_info);
+  store((const char *)from, length, system_charset_info);
   return from+length;
 }
 
@@ -6577,6 +6571,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
   is 2.
 ****************************************************************************/
 
+const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
@@ -6918,7 +6913,7 @@ uchar *Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_varstring::unpack(uchar *to,
+const uchar *Field_varstring::unpack(uchar *to, 
                                      const uchar *from,
                                      uint param_data)
 {
@@ -7167,7 +7162,10 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
+void Field_blob::store_length(uchar *i_ptr, 
+                              uint i_packlength, 
+                              uint32 i_number, 
+                              bool low_byte_first)
 {
   switch (i_packlength) {
   case 1:
@@ -7175,7 +7173,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
     break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (low_byte_first)
     {
       int2store(i_ptr,(unsigned short) i_number);
     }
@@ -7188,7 +7186,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
     break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (low_byte_first)
     {
       int4store(i_ptr,i_number);
     }
@@ -7199,7 +7197,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
 }
 
 
-uint32 Field_blob::get_length(const uchar *pos)
+uint32 Field_blob::get_length(const uchar *pos, bool low_byte_first)
 {
   switch (packlength) {
   case 1:
@@ -7208,7 +7206,7 @@ uint32 Field_blob::get_length(const uchar *pos)
     {
       uint16 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
 	tmp=sint2korr(pos);
       else
 #endif
@@ -7221,7 +7219,7 @@ uint32 Field_blob::get_length(const uchar *pos)
     {
       uint32 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
 	tmp=uint4korr(pos);
       else
 #endif
@@ -7726,7 +7724,7 @@ uchar *Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
 {
   uchar *save= ptr;
   ptr= (uchar*) from;
-  uint32 length=get_length();			// Length of from string
+  uint32 length=get_length();        // Length of from string
   uint local_char_length= ((field_charset->mbmaxlen > 1) ?
                            max_length/field_charset->mbmaxlen : max_length);
   if (length)
@@ -8071,8 +8069,11 @@ int Field_enum::store(longlong nr, bool unsigned_val)
   if ((ulonglong) nr > typelib->count || nr == 0)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
-    nr=0;
-    error=1;
+    if (nr != 0 || table->in_use->count_cuted_fields)
+    {
+      nr= 0;
+      error= 1;
+    }
   }
   store_type((ulonglong) (uint) nr);
   return error;
@@ -9794,4 +9795,3 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                                  field_name);
   }
 }
-
