@@ -3052,106 +3052,14 @@ guess_scan_flags(NdbOperation::LockMode lm,
   return flags;
 }
 
-
 /*
-  Unique index scan in NDB (full table scan with scan filter)
+  Start full table scan in NDB or unique index scan
  */
 
-int ha_ndbcluster::unique_index_scan(const KEY* key_info, 
-				     const byte *key, 
-				     uint key_len,
-				     byte *buf)
-{
-  NdbScanOperation *op;
-  NdbTransaction *trans= m_active_trans;
-  part_id_range part_spec;
-  uchar *mask= (uchar *)(table->read_set->bitmap);
-  const NdbRecord *ndb_record= m_ndb_record;
-
-  DBUG_ENTER("unique_index_scan");  
-  DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
-
-  if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
-    mask= copy_column_set(table->read_set);
-  if (m_use_partition_pruning)
-  {
-    part_spec.start_part= 0;
-    part_spec.end_part= m_part_info->get_tot_partitions() - 1;
-    prune_partition_set(table, &part_spec);
-    DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
-                        part_spec.start_part, part_spec.end_part));
-    /*
-      If partition pruning has found no partition in set
-      we can return HA_ERR_END_OF_FILE
-    */
-    if (part_spec.start_part > part_spec.end_part)
-    {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-
-    // If table has user defined partitioning
-    // and no primary key, we need to read the partition id
-    // to support ORDER BY queries
-    if (table_share->primary_key == MAX_KEY)
-      ndb_record= m_ndb_record_fragment;
-  }
-  if (table_share->primary_key == MAX_KEY)
-    request_hidden_key(mask);
-
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  int flags= guess_scan_flags(lm, m_table, table->read_set);
-  if (!(op=trans->scanTable(ndb_record, lm, mask, flags, parallelism)))
-    ERR_RETURN(trans->getNdbError());
-  m_active_cursor= op;
-
-  if (uses_blob_value(table->read_set) &&
-      get_blob_values(op, NULL, table->read_set) != 0)
-    ERR_RETURN(op->getNdbError());
-
-  if (m_use_partition_pruning)
-  {
-    part_spec.start_part= 0;
-    part_spec.end_part= m_part_info->get_tot_partitions() - 1;
-    prune_partition_set(table, &part_spec);
-    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
-                        part_spec.start_part, part_spec.end_part));
-    /*
-      If partition pruning has found exactly one partition in set
-      we can optimize scan to run towards that partition only.
-    */
-    if (part_spec.start_part == part_spec.end_part)
-    {
-      /*
-        Only one partition is required to scan, if sorted is required we
-        don't need it any more since output from one ordered partitioned
-        index is always sorted.
-      */
-      m_active_cursor->setPartitionId(part_spec.start_part);
-    }
-  }
-  if (!m_cond)
-    m_cond= new ha_ndbcluster_cond;
-  if (!m_cond)
-  {
-    my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_RETURN(my_errno);
-  }       
-  if (m_cond->generate_scan_filter_from_key(op, key_info, key, key_len, buf))
-    DBUG_RETURN(ndb_err(trans));
-
-  if (execute_no_commit(this,trans,FALSE) != 0)
-    DBUG_RETURN(ndb_err(trans));
-  DBUG_PRINT("exit", ("Scan started successfully"));
-  DBUG_RETURN(next_result(buf));
-}
-
-
-/*
-  Start full table scan in NDB
- */
-
-int ha_ndbcluster::full_table_scan(byte *buf)
+int ha_ndbcluster::full_table_scan(const KEY* key_info, 
+                                   const byte *key, 
+                                   uint key_len,
+                                   byte *buf)
 {
   NdbScanOperation *op;
   NdbTransaction *trans= m_active_trans;
@@ -3179,15 +3087,18 @@ int ha_ndbcluster::full_table_scan(byte *buf)
     {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-
-    // If table has user defined partitioning
-    // and no primary key, we need to read the partition id
-    // to support ORDER BY queries
-    if (table_share->primary_key == MAX_KEY)
-      ndb_record= m_ndb_record_fragment;
   }
   if (table_share->primary_key == MAX_KEY)
+  {
     request_hidden_key(mask);
+    if (m_user_defined_partitioning)
+    {
+      // If table has user defined partitioning
+      // and no primary key, we need to read the partition id
+      // to support ORDER BY queries
+      ndb_record= m_ndb_record_fragment;
+    }
+  }
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
@@ -3217,8 +3128,25 @@ int ha_ndbcluster::full_table_scan(byte *buf)
     }
   }
 
-  if (m_cond && m_cond->generate_scan_filter(op))
-    DBUG_RETURN(ndb_err(trans));
+  if (!key_info)
+  {
+    if (m_cond && m_cond->generate_scan_filter(op))
+      DBUG_RETURN(ndb_err(trans));
+  }
+  else
+  {
+    /* Unique index scan in NDB (full table scan with scan filter) */
+    DBUG_PRINT("info", ("Starting unique index scan"));
+    if (!m_cond)
+      m_cond= new ha_ndbcluster_cond;
+    if (!m_cond)
+    {
+      my_errno= HA_ERR_OUT_OF_MEM;
+      DBUG_RETURN(my_errno);
+    }       
+    if (m_cond->generate_scan_filter_from_key(op, key_info, key, key_len, buf))
+      DBUG_RETURN(ndb_err(trans));
+  }
 
   if (execute_no_commit(this,trans,FALSE) != 0)
     DBUG_RETURN(ndb_err(trans));
@@ -4203,10 +4131,10 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     else if (type == UNIQUE_INDEX)
-      DBUG_RETURN(unique_index_scan(key_info, 
-				    start_key->key, 
-				    start_key->length, 
-				    buf));
+      DBUG_RETURN(full_table_scan(key_info, 
+                                  start_key->key, 
+                                  start_key->length, 
+                                  buf));
     break;
   default:
     break;
@@ -4290,7 +4218,7 @@ int ha_ndbcluster::rnd_next(byte *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (!m_active_cursor)
-    DBUG_RETURN(full_table_scan(buf));
+    DBUG_RETURN(full_table_scan(NULL, NULL, 0, buf));
   DBUG_RETURN(next_result(buf));
 }
 
