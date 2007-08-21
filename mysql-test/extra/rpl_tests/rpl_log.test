@@ -108,7 +108,7 @@ show binlog events in 'slave-bin.000001' from 4;
 show binlog events in 'slave-bin.000002' from 4;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+--query_vertical show slave status;
 
 # Need to recode the following
 

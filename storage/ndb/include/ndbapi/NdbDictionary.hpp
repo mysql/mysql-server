@@ -1893,6 +1893,16 @@ public:
      */
     int dropTable(const char * name);
     
+    /**
+     * Check if alter of table given defined
+     * Table instance to new definition is supported
+     * @param f Table to alter
+     * @param t New definition of table
+     * @return  TRUE supported      <br>
+     *          FALSE not supported <br>
+     */
+    bool supportedAlterTable(const Table & f, const Table & t);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance

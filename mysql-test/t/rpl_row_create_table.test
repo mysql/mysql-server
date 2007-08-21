@@ -72,7 +72,7 @@ CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1098;
+SHOW BINLOG EVENTS FROM 1100;
 
 # Test that INSERT-SELECT works the same way as for SBR.
 CREATE TABLE t7 (a INT, b INT UNIQUE);
@@ -82,7 +82,7 @@ SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1098;
+SHOW BINLOG EVENTS FROM 1100;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
 
@@ -94,7 +94,7 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1294;
+SHOW BINLOG EVENTS FROM 1298;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
@@ -110,7 +110,7 @@ CREATE TEMPORARY TABLE tt7 SELECT 1;
 --query_vertical SHOW CREATE TABLE t9
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1390;
+SHOW BINLOG EVENTS FROM 1396;
 sync_slave_with_master;
 --echo **** On Slave ****
 --query_vertical SHOW CREATE TABLE t8
@@ -227,7 +227,7 @@ ROLLBACK;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 631;
+SHOW BINLOG EVENTS FROM 637;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 

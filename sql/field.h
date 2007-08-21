@@ -349,6 +349,7 @@ public:
     memcpy(to,from,length);
     return to+length;
   }
+  virtual const char *unpack(char* to, const char *from, uint param_data);
   virtual const char *unpack(char* to, const char *from)
   {
     uint length=pack_length();
@@ -426,6 +427,18 @@ public:
   inline uint32 char_length() const
   {
     return field_length / charset()->mbmaxlen;
+  }
+
+  inline  enum ha_storage_media field_storage_type() const
+  {
+    return (enum ha_storage_media)
+      ((flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
+  }
+
+  inline enum column_format_type column_format() const
+  {
+    return (enum column_format_type)
+      ((flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
   }
 
   /* Hash value */
@@ -620,6 +633,7 @@ public:
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
   uint is_equal(create_field *new_field);
+  virtual const char *unpack(char* to, const char *from, uint param_data);
 };
 
 
@@ -1161,6 +1175,7 @@ public:
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  virtual const char *unpack(char* to, const char *from, uint param_data);
   const char *unpack(char* to, const char *from);
   int pack_cmp(const char *a,const char *b,uint key_length,
                my_bool insert_or_update);
@@ -1231,6 +1246,7 @@ public:
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
+  virtual const char *unpack(char* to, const char *from, uint param_data);
   const char *unpack(char* to, const char *from);
   const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length,
@@ -1287,6 +1303,9 @@ public:
                   l_char_length <= 16777215 ? 3 : 4;
     }
   }
+  Field_blob(uint32 packlength_arg)
+    :Field_longstr((char*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
+    packlength(packlength_arg) {}
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
@@ -1308,6 +1327,17 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->s->blob_ptr_size); }
+
+  /**
+     Return the packed length without the pointer size added. 
+
+     This is used to determine the size of the actual data in the row
+     buffer.
+
+     @retval The length of the raw data itself without the pointer.
+  */
+  uint32 pack_length_no_ptr() const
+  { return (uint32) (packlength); }
   uint32 sort_length() const;
   inline uint32 max_data_length() const
   {
@@ -1323,6 +1353,17 @@ public:
   {
     store_length(ptr, packlength, number);
   }
+
+  /**
+     Return the packed length plus the length of the data. 
+
+     This is used to determine the size of the data plus the 
+     packed length portion in the row data.
+
+     @retval The length in the row plus the size of the data.
+  */
+  uint32 get_packed_size(const uchar *ptr)
+    {return packlength + get_length((const char *)ptr);}
 
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
@@ -1368,6 +1409,7 @@ public:
   char *pack(char *to, const char *from, uint max_length= ~(uint) 0);
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
+  virtual const char *unpack(char *to, const char *from, uint param_data);
   const char *unpack(char *to, const char *from);
   const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length,
@@ -1542,6 +1584,7 @@ public:
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  virtual const char *unpack(char *to, const char *from, uint param_data);
   const char *unpack(char* to, const char *from);
   virtual void set_default();
 
@@ -1632,6 +1675,18 @@ public:
   create_field(Field *field, Field *orig_field);
   void create_length_to_internal_length(void);
 
+  inline  enum ha_storage_media field_storage_type() const
+  {
+    return (enum ha_storage_media)
+      ((flags >> FIELD_STORAGE_FLAGS) & STORAGE_TYPE_MASK);
+  }
+
+  inline enum column_format_type column_format() const
+  {
+    return (enum column_format_type)
+      ((flags >> COLUMN_FORMAT_FLAGS) & COLUMN_FORMAT_MASK);
+  }
+
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
@@ -1641,7 +1696,9 @@ public:
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
-            uint uint_geom_type);
+            uint uint_geom_type,
+            enum ha_storage_media storage_type,
+            enum column_format_type column_format);
 };
 
 
