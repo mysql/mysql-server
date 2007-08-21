@@ -82,7 +82,7 @@ int ft_init_stopwords()
     end=start+len;
     while (ft_simple_get_word(default_charset_info, &start, end, &w, TRUE))
     {
-      if (ft_add_stopword(my_strndup(w.pos, w.len, MYF(0))))
+      if (ft_add_stopword(my_strndup((char*) w.pos, w.len, MYF(0))))
         goto err1;
     }
     error=0;
