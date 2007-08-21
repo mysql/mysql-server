@@ -699,6 +699,32 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	1
 DROP TABLE t1;
+CREATE TABLE t1 (
+f1 int(10) unsigned NOT NULL auto_increment PRIMARY KEY,
+f2 varchar(100) NOT NULL default ''
+);
+CREATE TABLE t2 (
+f1 varchar(10) NOT NULL default '',
+f2 char(3) NOT NULL default '',
+PRIMARY KEY  (`f1`),
+KEY `k1` (`f2`, `f1`)
+);
+INSERT INTO t1 values(NULL, '');
+INSERT INTO `t2` VALUES ('486878','WDT'),('486910','WDT');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+SELECT min(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+min(t2.f1)
+INSERT INTO t1 (f2)
+SELECT min(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+SELECT * FROM t1;
+f1	f2
+1	
+DROP TABLE t1, t2;
 CREATE TABLE t1 (x int, y int);
 CREATE TABLE t2 (z int, y int);
 CREATE TABLE t3 (a int, b int);

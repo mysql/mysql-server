@@ -41,7 +41,6 @@ public:
   Item_func_xml_extractvalue(Item *a,Item *b) :Item_xml_str_func(a,b) {}
   const char *func_name() const { return "extractvalue"; }
   String *val_str(String *);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 

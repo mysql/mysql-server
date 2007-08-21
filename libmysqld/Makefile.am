@@ -22,7 +22,7 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(libdir)
 
-EXTRA_DIST =		libmysqld.def
+EXTRA_DIST =		libmysqld.def CMakeLists.txt
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \

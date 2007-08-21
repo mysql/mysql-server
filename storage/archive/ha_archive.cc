@@ -436,6 +436,9 @@ int ha_archive::init_archive_writer()
 }
 
 
+/* 
+  No locks are required because it is associated with just one handler instance
+*/
 int ha_archive::init_archive_reader()
 {
   DBUG_ENTER("ha_archive::init_archive_reader");
@@ -794,14 +797,15 @@ int ha_archive::write_row(uchar *buf)
   if (share->crashed)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  if (!share->archive_write_open)
-    if (init_archive_writer())
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-
   ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
+
+  if (!share->archive_write_open)
+    if (init_archive_writer())
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
 
   if (table->next_number_field && record == table->record[0])
   {
@@ -992,24 +996,6 @@ int ha_archive::rnd_init(bool scan)
   {
     DBUG_PRINT("info", ("archive will retrieve %llu rows", 
                         (unsigned long long) scan_rows));
-    stats.records= 0;
-
-    /* 
-      If dirty, we lock, and then reset/flush the data.
-      I found that just calling azflush() doesn't always work.
-    */
-    pthread_mutex_lock(&share->mutex);
-    scan_rows= share->rows_recorded;
-    if (share->dirty == TRUE)
-    {
-      if (share->dirty == TRUE)
-      {
-        DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
-        azflush(&(share->archive_write), Z_SYNC_FLUSH);
-        share->dirty= FALSE;
-      }
-    }
-    pthread_mutex_unlock(&share->mutex);
 
     if (read_data_header(&archive))
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1223,9 +1209,7 @@ int ha_archive::rnd_next(uchar *buf)
   current_position= aztell(&archive);
   rc= get_row(&archive, buf);
 
-
-  if (rc != HA_ERR_END_OF_FILE)
-    stats.records++;
+  table->status=rc ? STATUS_NOT_FOUND: 0;
 
   DBUG_RETURN(rc);
 }
@@ -1461,12 +1445,33 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
 int ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
+
+  /* 
+    If dirty, we lock, and then reset/flush the data.
+    I found that just calling azflush() doesn't always work.
+  */
+  pthread_mutex_lock(&share->mutex);
+  if (share->dirty == TRUE)
+  {
+    if (share->dirty == TRUE)
+    {
+      DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
+      azflush(&(share->archive_write), Z_SYNC_FLUSH);
+      share->dirty= FALSE;
+    }
+  }
+
   /* 
     This should be an accurate number now, though bulk and delayed inserts can
     cause the number to be inaccurate.
   */
   stats.records= share->rows_recorded;
+  pthread_mutex_unlock(&share->mutex);
+
+  scan_rows= stats.records;
   stats.deleted= 0;
+
+  DBUG_PRINT("ha_archive", ("Stats rows is %d\n", (int)stats.records));
   /* Costs quite a bit more to get all information */
   if (flag & HA_STATUS_TIME)
   {
@@ -1486,7 +1491,9 @@ int ha_archive::info(uint flag)
   if (flag & HA_STATUS_AUTO)
   {
     init_archive_reader();
+    pthread_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
+    pthread_mutex_unlock(&share->mutex);
     stats.auto_increment_value= archive.auto_increment;
   }
 
@@ -1548,36 +1555,24 @@ bool ha_archive::is_crashed() const
 int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
-  uchar *buf; 
   const char *old_proc_info;
   ha_rows count= share->rows_recorded;
   DBUG_ENTER("ha_archive::check");
 
   old_proc_info= thd_proc_info(thd, "Checking table");
   /* Flush any waiting data */
+  pthread_mutex_lock(&share->mutex);
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
-
-  /* 
-    First we create a buffer that we can use for reading rows, and can pass
-    to get_row().
-  */
-  if (!(buf= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME))))
-    rc= HA_ERR_OUT_OF_MEM;
+  pthread_mutex_unlock(&share->mutex);
 
   /*
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
   init_archive_reader();
-
-  if (!rc)
-    read_data_header(&archive);
-
-  if (!rc)
-    while (!(rc= get_row(&archive, buf)))
-      count--;
-
-  my_free((char*)buf, MYF(0));
+  read_data_header(&archive);
+  while (!(rc= get_row(&archive, table->record[0])))
+    count--;
 
   thd_proc_info(thd, old_proc_info);
 

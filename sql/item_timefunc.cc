@@ -1594,7 +1594,7 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
 void Item_func_sysdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
 {
   THD *thd= current_thd;
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) time(NULL));
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) my_time(0));
   thd->time_zone_used= 1;
 }
 
@@ -1697,7 +1697,11 @@ void Item_func_date_format::fix_length_and_dec()
   Item *arg1= args[1]->this_item();
 
   decimals=0;
-  collation.set(thd->variables.collation_connection);
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= arg1->collation.repertoire;
+  if (!thd->variables.lc_time_names->is_ascii)
+    repertoire|= MY_REPERTOIRE_EXTENDED;
+  collation.set(cs, arg1->collation.derivation, repertoire);
   if (arg1->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
@@ -2534,11 +2538,8 @@ longlong Item_date_typecast::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (args[0]->get_date(&ltime, TIME_FUZZY_DATE))
-  {
-    null_value= 1;
+  if ((null_value= args[0]->get_date(&ltime, TIME_FUZZY_DATE)))
     return 0;
-  }
   return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
 }
 

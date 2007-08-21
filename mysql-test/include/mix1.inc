@@ -28,7 +28,7 @@
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
-drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
+drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
 
@@ -221,9 +221,6 @@ t.a6=t.a6 AND t1.a6=NULL AND
 t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
 
 DROP TABLE t1;
-
---echo End of 4.1 tests
-
 
 #
 # Bug #12882  	min/max inconsistent on empty table
@@ -424,24 +421,6 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 DROP TABLE t1,t2;
 
 #
-# Bug#22781: SQL_BIG_RESULT fails to influence sort plan
-#
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
-
-INSERT INTO t1 VALUES (    1 , 1              , 1);
-INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
-INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
-
-EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
-EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
-DROP TABLE t1;
-
-#
 # Bug#26159: crash for a loose scan of a table that has been emptied 
 #
 
@@ -500,40 +479,6 @@ set global query_cache_type=@save_qcache_type;
 set global query_cache_size=@save_qcache_size;
 
 --source include/innodb_rollback_on_timeout.inc
-
-#
-# Bug #27210: INNODB ON DUPLICATE KEY UPDATE
-#
-
-set @save_qcache_size=@@global.query_cache_size;
-set @save_qcache_type=@@global.query_cache_type;
-set global query_cache_size=10*1024*1024;
-set global query_cache_type=1;
-connect (con1,localhost,root,,);
-connection con1;
-drop table if exists `test`;
-CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
-  `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
-  ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
-disconnect con1;
-connect (con2,localhost,root,,);
-connection con2;
-select * from test;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
-  ON DUPLICATE KEY UPDATE `test2` = '1234';
-select * from test;
-flush tables;
-select * from test;
-disconnect con2;
-connection default;
-drop table test;
-set global query_cache_type=@save_qcache_type;
-set global query_cache_size=@save_qcache_size;
-
---echo End of 5.0 tests
-
--- source include/have_innodb.inc
 
 #
 # Bug #27650: INSERT fails after multi-row INSERT of the form:
@@ -672,6 +617,20 @@ SELECT * FROM t3 WHERE a = 'uk';
 
 DROP TABLE t1,t2,t3;
 
+#
+# Test bug when trying to drop data file which no InnoDB directory entry
+#
+
+create table t1 (a int) engine=innodb;
+copy_file $MYSQLTEST_VARDIR/master-data/test/t1.frm $MYSQLTEST_VARDIR/master-data/test/bug29807.frm;
+--error 1146
+select * from bug29807;
+drop table t1;
+--error 1051
+drop table bug29807;
+create table bug29807 (a int);
+drop table bug29807;
+
 
 #
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
@@ -706,8 +665,62 @@ DISCONNECT c1;
 DISCONNECT c2;
 DROP TABLE t1,t2;
 
+#
+# Bug #25798: a query with forced index merge returns wrong result 
+#
 
---echo End of 5.0 tests
+CREATE TABLE t1 (
+  id int NOT NULL auto_increment PRIMARY KEY,
+  b int NOT NULL,
+  c datetime NOT NULL,
+  INDEX idx_b(b),
+  INDEX idx_c(c)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  b int NOT NULL auto_increment PRIMARY KEY,
+  c datetime NOT NULL
+) ENGINE= MyISAM;
+
+INSERT INTO t2(c) VALUES ('2007-01-01');
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+INSERT INTO t2(c) SELECT c FROM t2;
+
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-02';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+UPDATE t2 SET c='2007-01-03';
+INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+set @@sort_buffer_size=8192;
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+--replace_column 9 #
+EXPLAIN 
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
+  WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
+
+set @@sort_buffer_size=default;
+
+DROP TABLE t1,t2;
 
 #
 # Test of behaviour with CREATE ... SELECT
@@ -786,8 +799,147 @@ DROP TABLE t1;
 
 --source include/innodb_rollback_on_timeout.inc
 
---echo End of 5.0 tests
+#
+# Bug#27296 Assertion in ALTER TABLE SET DEFAULT in Linux Debug build
+# (possible deadlock).
+#
+# The bug is applicable only to a transactoinal table.
+# Cover with tests behavior that no longer causes an
+# assertion.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+alter table t1 alter a set default 1;
+drop table t1;
 
+--echo
+--echo Bug#24918 drop table and lock / inconsistent between 
+--echo perm and temp tables
+--echo
+--echo Check transactional tables under LOCK TABLES
+--echo
+--disable_warnings
+drop table if exists t24918, t24918_tmp, t24918_trans, t24918_trans_tmp, 
+t24918_access;
+--enable_warnings
+create table t24918_access (id int);
+create table t24918 (id int) engine=myisam;
+create temporary table t24918_tmp (id int) engine=myisam;
+create table t24918_trans (id int) engine=innodb;
+create temporary table t24918_trans_tmp (id int) engine=innodb;
+
+lock table t24918 write, t24918_tmp write, t24918_trans write, t24918_trans_tmp write;
+drop table t24918;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_trans;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_trans_tmp;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+drop table t24918_tmp;
+--error ER_TABLE_NOT_LOCKED
+select * from t24918_access;
+unlock tables;
+
+drop table t24918_access;
+#
+# Bug #28591: MySQL need not sort the records in case of ORDER BY
+# primary_key on InnoDB table
+#
+
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
+INSERT INTO t1 SELECT a + 8, 2 FROM t1;
+INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
+SELECT * FROM t1 WHERE b=2 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY b,a;
+
+CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
+  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
+INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
+INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
+SELECT * FROM t2 WHERE b=1 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY b,c,a;
+query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+SELECT * FROM t2 WHERE b=1 AND c=1 ORDER BY c,a;
+
+DROP TABLE t1,t2;
+
+
+#
+# Bug #29644: alter table hangs if records locked in share mode by long
+# running transaction
+#
+
+CREATE TABLE t1 (a INT, PRIMARY KEY (a)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a + 8  FROM t1;
+INSERT INTO t1 SELECT a + 16 FROM t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1 ()
+BEGIN
+  DECLARE i INT DEFAULT 50;
+  DECLARE cnt INT;
+  START TRANSACTION;
+    ALTER TABLE t1 ENGINE=InnoDB;
+  COMMIT;
+  START TRANSACTION;
+  WHILE (i > 0) DO
+    SET i = i - 1;
+    SELECT COUNT(*) INTO cnt FROM t1 LOCK IN SHARE MODE;
+  END WHILE;
+  COMMIT;
+END;|
+
+DELIMITER ;|
+
+CONNECT (con1,localhost,root,,);
+CONNECT (con2,localhost,root,,);
+
+CONNECTION con1;
+SEND CALL p1();
+CONNECTION con2;
+SEND CALL p1();
+CONNECTION default;
+CALL p1();
+
+CONNECTION con1;
+REAP;
+CONNECTION con2;
+REAP;
+CONNECTION default;
+DISCONNECT con1;
+DISCONNECT con2;
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+#
+# Bug #28125: ERROR 2013 when adding index.
+#
+create table t1(a text) engine=innodb default charset=utf8; 
+insert into t1 values('aaa');
+alter table t1 add index(a(1024));
+show create table t1;
+drop table t1;
+
+--echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
 # UPDATE": if the row is updated, it's like a regular UPDATE:
@@ -889,5 +1041,29 @@ unlock tables;
 select * from t1;
 drop tables t1;
 
+#
+# Bug#29310: An InnoDB table was updated when the data wasn't actually changed.
+#
+create table t1(f1 varchar(5) unique, f2 timestamp NOT NULL DEFAULT
+  CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+insert into t1(f1) values(1);
+--replace_column 1 #
+select @a:=f2 from t1;
+--sleep 5
+update t1 set f1=1;
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) values (1) on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+--sleep 5
+insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
+--replace_column 1 #
+select @b:=f2 from t1;
+select if(@a=@b,"ok","wrong");
+drop table t1;
 
 --echo End of 5.1 tests

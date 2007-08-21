@@ -69,7 +69,7 @@ TODO:
 
 */
 
-#define SHOW_VERSION "0.9"
+#define SLAP_VERSION "1.0"
 
 #define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
@@ -81,6 +81,7 @@ TODO:
 #define UPDATE_TYPE_REQUIRES_PREFIX 3
 #define CREATE_TABLE_TYPE 4
 #define SELECT_TYPE_REQUIRES_PREFIX 5
+#define DELETE_TYPE_REQUIRES_PREFIX 6
 
 #include "client_priv.h"
 #include <mysqld_error.h>
@@ -122,16 +123,16 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_pre_statements= NULL,
             *user_supplied_post_statements= NULL,
             *default_engine= NULL,
+            *pre_system= NULL,
+            *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 
 const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve;
-
+static my_bool opt_preserve= 0, debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
-
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql_autoincrement= FALSE,
@@ -142,15 +143,18 @@ const char *auto_generate_sql_type= "mixed";
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
 
 static int verbose, delimiter_length;
+static uint commit_rate;
+static uint detach_rate;
 const char *num_int_cols_opt;
 const char *num_char_cols_opt;
+
 /* Yes, we do set defaults here */
 static unsigned int num_int_cols= 1;
 static unsigned int num_char_cols= 1;
 static unsigned int num_int_cols_index= 0; 
 static unsigned int num_char_cols_index= 0;
-
 static unsigned int iterations;
+static uint my_end_arg= 0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static ulonglong actual_queries= 0;
 static ulonglong auto_actual_queries;
@@ -254,6 +258,8 @@ void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
+int slap_connect(MYSQL *mysql);
+static int run_query(MYSQL *mysql, const char *query, int len);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -403,7 +409,7 @@ int main(int argc, char **argv)
     my_free(shared_memory_base_name, MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(defaults_argv);
-  my_end(0);
+  my_end(my_end_arg);
 
   return 0;
 }
@@ -451,6 +457,16 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       generate_primary_key_list(mysql, eptr);
 
+    if (commit_rate)
+      run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
+
+    if (pre_system)
+      system(pre_system);
+
+    /* 
+      Pre statements are always run after all other logic so they can 
+      correct/adjust any item that they want. 
+    */
     if (pre_statements)
       run_statements(mysql, pre_statements);
 
@@ -458,6 +474,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     
     if (post_statements)
       run_statements(mysql, post_statements);
+
+    if (post_system)
+      system(post_system);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -527,6 +546,9 @@ static struct my_option my_long_options[] =
     "Number of rows to insert to used in read and write loads (default is 100).\n",
     (uchar**) &auto_generate_sql_number, (uchar**) &auto_generate_sql_number,
     0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
+  {"commit", OPT_SLAP_COMMIT, "Commit records after X number of statements.",
+    (uchar**) &commit_rate, (uchar**) &commit_rate, 0, GET_UINT, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
     (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
@@ -546,9 +568,17 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     (uchar**) &default_dbug_option, (uchar**) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
+   (uchar**) &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
     (uchar**) &delimiter, (uchar**) &delimiter, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"detach", OPT_SLAP_DETACH, "Detach connections after X number of requests.",
+    (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
@@ -589,10 +619,20 @@ static struct my_option my_long_options[] =
     (uchar**) &user_supplied_post_statements, 
     (uchar**) &user_supplied_post_statements,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"post-system", OPT_SLAP_POST_SYSTEM,
+    "System() string to run after the load has completed.",
+    (uchar**) &post_system, 
+    (uchar**) &post_system,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"pre-query", OPT_SLAP_PRE_QUERY, 
     "Query to run or file containing query to run before executing.",
     (uchar**) &user_supplied_pre_statements, 
     (uchar**) &user_supplied_pre_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"pre-system", OPT_SLAP_PRE_SYSTEM, 
+    "System() string to before load has completed.",
+    (uchar**) &pre_system, 
+    (uchar**) &pre_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run, this happens unless "
@@ -636,7 +676,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
          MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
@@ -695,6 +735,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V':
@@ -1090,6 +1131,10 @@ get_options(int *argc,char ***argv)
   DBUG_ENTER("get_options");
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (!user)
     user= (char *)"root";
@@ -1715,6 +1760,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
+  ulonglong trans_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1749,38 +1795,28 @@ pthread_handler_t run_task(void *p)
 
   if (!opt_only_print)
   {
-    /* Connect to server */
-    static ulong connection_retry_sleep= 100000; /* Microseconds */
-    int i, connect_error= 1;
-    for (i= 0; i < 10; i++)
-    {
-      if (mysql_real_connect(mysql, host, user, opt_password,
-                             create_schema_string,
-                             opt_mysql_port,
-                             opt_mysql_unix_port,
-                             connect_flags))
-      {
-        /* Connect suceeded */
-        connect_error= 0;
-        break;
-      }
-      my_sleep(connection_retry_sleep);
-    }
-    if (connect_error)
-    {
-      fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
-              my_progname, mysql_errno(mysql), mysql_error(mysql));
+    if (slap_connect(mysql))
       goto end;
-    }
   }
+
   DBUG_PRINT("info", ("connected."));
   if (verbose >= 3)
     printf("connected!\n");
   queries= 0;
 
 limit_not_met:
-    for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
+    for (ptr= con->stmt, trans_counter= 0; 
+         ptr && ptr->length; 
+         ptr= ptr->next, trans_counter++)
     {
+      if (!opt_only_print && detach_rate && !(trans_counter % detach_rate))
+      {
+        mysql_close(mysql);
+
+        if (slap_connect(mysql))
+          goto end;
+      }
+
       /* 
         We have to execute differently based on query type. This should become a function.
       */
@@ -1837,6 +1873,9 @@ limit_not_met:
       }
       queries++;
 
+      if (commit_rate && commit_rate <= trans_counter)
+        run_query(mysql, "COMMIT", strlen("COMMIT"));
+
       if (con->limit && queries == con->limit)
         goto end;
     }
@@ -1845,6 +1884,8 @@ limit_not_met:
       goto limit_not_met;
 
 end:
+  if (commit_rate)
+    run_query(mysql, "COMMIT", strlen("COMMIT"));
 
   if (!opt_only_print) 
     mysql_close(mysql);
@@ -2103,4 +2144,35 @@ statement_cleanup(statement *stmt)
       my_free(ptr->string, MYF(0)); 
     my_free(ptr, MYF(0));
   }
+}
+
+
+int 
+slap_connect(MYSQL *mysql)
+{
+  /* Connect to server */
+  static ulong connection_retry_sleep= 100000; /* Microseconds */
+  int x, connect_error= 1;
+  for (x= 0; x < 10; x++)
+  {
+    if (mysql_real_connect(mysql, host, user, opt_password,
+                           create_schema_string,
+                           opt_mysql_port,
+                           opt_mysql_unix_port,
+                           connect_flags))
+    {
+      /* Connect suceeded */
+      connect_error= 0;
+      break;
+    }
+    my_sleep(connection_retry_sleep);
+  }
+  if (connect_error)
+  {
+    fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
+            my_progname, mysql_errno(mysql), mysql_error(mysql));
+    return 1;
+  }
+
+  return 0;
 }

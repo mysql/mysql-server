@@ -22,7 +22,7 @@
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 #include "ha_heap.h"
-
+#include "heapdef.h"
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 
@@ -61,8 +61,8 @@ static handler *heap_create_handler(handlerton *hton,
 *****************************************************************************/
 
 ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), file(0), records_changed(0),
-  key_stat_version(0)
+  :handler(hton, table_arg), file(0), records_changed(0), internal_table(0),
+   key_stat_version(0)
 {}
 
 
@@ -90,13 +90,25 @@ const char **ha_heap::bas_ext() const
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
-  if (!(file= heap_open(name, mode)) && my_errno == ENOENT)
+  if ((test_if_locked & HA_OPEN_INTERNAL_TABLE) ||
+      !(file= heap_open(name, mode)) && my_errno == ENOENT)
   {
     HA_CREATE_INFO create_info;
+    internal_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);
     bzero(&create_info, sizeof(create_info));
+    file= 0;
     if (!create(name, table, &create_info))
     {
-      file= heap_open(name, mode);
+        file= internal_table ?
+          heap_open_from_share(internal_share, mode) :
+          heap_open_from_share_and_register(internal_share, mode);
+      if (!file)
+      {
+         /* Couldn't open table; Remove the newly created table */
+        pthread_mutex_lock(&THR_LOCK_heap);
+        hp_free(internal_share);
+        pthread_mutex_unlock(&THR_LOCK_heap);
+      }
       implicit_emptied= 1;
     }
   }
@@ -120,7 +132,27 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 
 int ha_heap::close(void)
 {
-  return heap_close(file);
+  return internal_table ? hp_close(file) : heap_close(file);
+}
+
+
+/*
+  Create a copy of this table
+
+  DESCRIPTION
+    Do same as default implementation but use file->s->name instead of 
+    table->s->path. This is needed by Windows where the clone() call sees
+    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    with '\'-delimited path.
+*/
+
+handler *ha_heap::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;  /* purecov: inspected */
 }
 
 
@@ -522,7 +554,7 @@ int ha_heap::delete_table(const char *name)
 
 void ha_heap::drop_table(const char *name)
 {
-  heap_drop_table(file);
+  file->s->delete_on_close= 1;
   close();
 }
 
@@ -661,16 +693,16 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 				  create_info->auto_increment_value - 1 : 0);
   hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
   hp_create_info.with_auto_increment= found_real_auto_increment;
+  hp_create_info.internal_table= internal_table;
   max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
   error= heap_create(name,
 		     keys, keydef, share->reclength,
 		     (ulong) ((share->max_rows < max_rows &&
 			       share->max_rows) ? 
 			      share->max_rows : max_rows),
-		     (ulong) share->min_rows, &hp_create_info);
+		     (ulong) share->min_rows, &hp_create_info, &internal_share);
   my_free((uchar*) keydef, MYF(0));
-  if (file)
-    info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+  DBUG_ASSERT(file == 0);
   return (error);
 }
 

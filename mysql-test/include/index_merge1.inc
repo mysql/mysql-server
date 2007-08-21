@@ -439,3 +439,51 @@ INSERT INTO t2(a,b) VALUES(1,2);
 SELECT t2.a FROM t1,t2 WHERE t2.b=2 AND t2.a=1;
 UNLOCK TABLES;
 DROP TABLE t1, t2;
+
+#
+# BUG#29740: HA_KEY_SCAN_NOT_ROR wasn't set for HEAP engine
+# 
+CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `filler` char(200) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+
+insert into t1 values
+(0, 'filler', 0), (1, 'filler', 1), (2, 'filler', 2), (3, 'filler', 3), 
+(4, 'filler', 4), (5, 'filler', 5), (6, 'filler', 6), (7, 'filler', 7), 
+(8, 'filler', 8), (9, 'filler', 9), (0, 'filler', 0), (1, 'filler', 1), 
+(2, 'filler', 2), (3, 'filler', 3), (4, 'filler', 4), (5, 'filler', 5), 
+(6, 'filler', 6), (7, 'filler', 7), (8, 'filler', 8), (9, 'filler', 9), 
+(10, 'filler', 10), (11, 'filler', 11), (12, 'filler', 12), (13, 'filler', 13),
+(14, 'filler', 14), (15, 'filler', 15), (16, 'filler', 16), (17, 'filler', 17), 
+(18, 'filler', 18), (19, 'filler', 19), (4, '5      ', 0), (5, '4      ', 0), 
+(4, '4      ', 0), (4, 'qq     ', 5), (5, 'qq     ', 4), (4, 'zz     ', 4);
+
+create table t2(
+  `a` int(11) DEFAULT NULL,
+  `filler` char(200) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY USING BTREE (`a`),
+  KEY USING BTREE (`b`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+insert into t2 select * from t1;
+
+--echo must use sort-union rather than union:
+--replace_column 9 #
+explain select * from t1 where a=4 or b=4;
+--sorted_result
+select * from t1 where a=4 or b=4;
+--sorted_result
+select * from t1 ignore index(a,b) where a=4 or b=4;
+
+--echo must use union, not sort-union:
+--replace_column 9 #
+explain select * from t2 where a=4 or b=4;
+--sorted_result
+select * from t2 where a=4 or b=4;
+
+drop table t1, t2;
+

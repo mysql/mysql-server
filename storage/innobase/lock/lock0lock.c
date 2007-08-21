@@ -6,10 +6,14 @@ The transaction lock system
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
 
+#define LOCK_MODULE_IMPLEMENTATION
+
 #include "lock0lock.h"
+#include "lock0priv.h"
 
 #ifdef UNIV_NONINL
 #include "lock0lock.ic"
+#include "lock0priv.ic"
 #endif
 
 #include "usr0sess.h"
@@ -319,42 +323,6 @@ ibool	lock_print_waits	= FALSE;
 /* The lock system */
 lock_sys_t*	lock_sys	= NULL;
 
-/* A table lock */
-typedef struct lock_table_struct	lock_table_t;
-struct lock_table_struct{
-	dict_table_t*	table;	/* database table in dictionary cache */
-	UT_LIST_NODE_T(lock_t)
-			locks;	/* list of locks on the same table */
-};
-
-/* Record lock for a page */
-typedef struct lock_rec_struct		lock_rec_t;
-struct lock_rec_struct{
-	ulint	space;		/* space id */
-	ulint	page_no;	/* page number */
-	ulint	n_bits;		/* number of bits in the lock bitmap */
-				/* NOTE: the lock bitmap is placed immediately
-				after the lock struct */
-};
-
-/* Lock struct */
-struct lock_struct{
-	trx_t*		trx;		/* transaction owning the lock */
-	UT_LIST_NODE_T(lock_t)
-			trx_locks;	/* list of the locks of the
-					transaction */
-	ulint		type_mode;	/* lock type, mode, LOCK_GAP or
-					LOCK_REC_NOT_GAP,
-					LOCK_INSERT_INTENTION,
-					wait flag, ORed */
-	hash_node_t	hash;		/* hash chain node for a record lock */
-	dict_index_t*	index;		/* index for a record lock */
-	union {
-		lock_table_t	tab_lock;/* table lock */
-		lock_rec_t	rec_lock;/* record lock */
-	} un_member;
-};
-
 /* We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
 ibool	lock_deadlock_found = FALSE;
@@ -399,20 +367,6 @@ lock_deadlock_recursive(
 	ulint	depth);		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
-
-/*************************************************************************
-Gets the type of a lock. */
-UNIV_INLINE
-ulint
-lock_get_type(
-/*==========*/
-			/* out: LOCK_TABLE or LOCK_REC */
-	lock_t*	lock)	/* in: lock */
-{
-	ut_ad(lock);
-
-	return(lock->type_mode & LOCK_TYPE_MASK);
-}
 
 /*************************************************************************
 Gets the nth bit of a record lock. */
@@ -611,8 +565,8 @@ UNIV_INLINE
 ulint
 lock_get_mode(
 /*==========*/
-			/* out: mode */
-	lock_t*	lock)	/* in: lock */
+				/* out: mode */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
@@ -1017,7 +971,7 @@ lock_rec_has_to_wait(
 
 /*************************************************************************
 Checks if a lock request lock1 has to wait for request lock2. */
-static
+
 ibool
 lock_has_to_wait(
 /*=============*/
@@ -1098,7 +1052,7 @@ lock_rec_set_nth_bit(
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found. */
-static
+
 ulint
 lock_rec_find_set_bit(
 /*==================*/
@@ -1390,7 +1344,7 @@ lock_rec_copy(
 
 /*************************************************************************
 Gets the previous record lock set on a record. */
-static
+
 lock_t*
 lock_rec_get_prev(
 /*==============*/
@@ -3174,7 +3128,8 @@ lock_deadlock_occurs(
 	ulint		ret;
 	ulint		cost	= 0;
 
-	ut_ad(trx && lock);
+	ut_ad(trx);
+	ut_ad(lock);
 	ut_ad(mutex_own(&kernel_mutex));
 retry:
 	/* We check that adding this trx to the waits-for graph
@@ -3246,7 +3201,9 @@ lock_deadlock_recursive(
 	trx_t*	lock_trx;
 	ulint	ret;
 
-	ut_a(trx && start && wait_lock);
+	ut_a(trx);
+	ut_a(start);
+	ut_a(wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
 
 	if (trx->deadlock_mark == 1) {
@@ -3357,8 +3314,8 @@ lock_deadlock_recursive(
 					return(LOCK_VICTIM_IS_START);
 				}
 
-				if (ut_dulint_cmp(wait_lock->trx->undo_no,
-						  start->undo_no) >= 0) {
+				if (trx_weight_cmp(wait_lock->trx,
+						   start) >= 0) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
@@ -4423,11 +4380,8 @@ lock_table_queue_validate(
 	dict_table_t*	table)	/* in: table */
 {
 	lock_t*	lock;
-	ibool	is_waiting;
 
 	ut_ad(mutex_own(&kernel_mutex));
-
-	is_waiting = FALSE;
 
 	lock = UT_LIST_GET_FIRST(table->locks);
 
@@ -4438,13 +4392,10 @@ lock_table_queue_validate(
 
 		if (!lock_get_wait(lock)) {
 
-			ut_a(!is_waiting);
-
 			ut_a(!lock_table_other_has_incompatible(
 				     lock->trx, 0, table,
 				     lock_get_mode(lock)));
 		} else {
-			is_waiting = TRUE;
 
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}

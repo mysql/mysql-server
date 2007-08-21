@@ -115,6 +115,7 @@ ulint	mutex_system_call_count		= 0;
 
 /* Number of spin waits on mutexes: for performance monitoring */
 
+/* round=one iteration of a spin loop */
 ulint	mutex_spin_round_count		= 0;
 ulint	mutex_spin_wait_count		= 0;
 ulint	mutex_os_wait_count		= 0;

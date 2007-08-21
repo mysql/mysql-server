@@ -406,7 +406,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
-  if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+  if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -602,6 +602,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
       (*sphp)->set_info(created, modified, &chistics, sql_mode);
       (*sphp)->set_creation_ctx(creation_ctx);
       (*sphp)->optimize();
+      /*
+        Not strictly necessary to invoke this method here, since we know
+        that we've parsed CREATE PROCEDURE/FUNCTION and not an
+        UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
+        maintain the invariant that this method is called for each
+        distinct statement, in case its logic is extended with other
+        types of analyses in future.
+      */
+      newlex.set_trg_event_type_for_tables();
     }
   }
 
@@ -686,7 +695,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     strxnmov(definer, sizeof(definer)-1, thd->lex->definer->user.str, "@",
             thd->lex->definer->host.str, NullS);
 
-    if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
+    if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
       goto done;
@@ -1058,7 +1067,7 @@ sp_show_status_routine(THD *thd, int type, const char *name_pattern)
   tables.db= (char*)"mysql";
   tables.table_name= tables.alias= (char*)"proc";
 
-  if (! (table= open_ltable(thd, &tables, TL_READ)))
+  if (! (table= open_ltable(thd, &tables, TL_READ, 0)))
   {
     res= SP_OPEN_TABLE_FAILED;
     goto done;
@@ -1912,32 +1921,40 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                               TABLE_LIST *table)
 {
   int ret= 0;
-  Table_triggers_list *triggers= table->table->triggers;
-  if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key,
-                       table->belong_to_view))
+
+  Sroutine_hash_entry **last_cached_routine_ptr=
+    (Sroutine_hash_entry **)lex->sroutines_list.next;
+
+  if (static_cast<int>(table->lock_type) >=
+      static_cast<int>(TL_WRITE_ALLOW_WRITE))
   {
-    Sroutine_hash_entry **last_cached_routine_ptr=
-                            (Sroutine_hash_entry **)lex->sroutines_list.next;
     for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
     {
-      for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
+      if (table->trg_event_map &
+          static_cast<uint8>(1 << static_cast<int>(i)))
       {
-        sp_head *trigger_body= triggers->bodies[i][j];
-        if (trigger_body)
+        for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
         {
-          (void)trigger_body->
-            add_used_tables_to_table_list(thd, &lex->query_tables_last,
-                                          table->belong_to_view);
-          sp_update_stmt_used_routines(thd, lex,
-                                       &trigger_body->m_sroutines,
-                                       table->belong_to_view);
-          trigger_body->propagate_attributes(lex);
+          /* We can have only one trigger per action type currently */
+          sp_head *trigger= table->table->triggers->bodies[i][j];
+          if (trigger &&
+              add_used_routine(lex, thd->stmt_arena, &trigger->m_sroutines_key,
+                               table->belong_to_view))
+          {
+            trigger->add_used_tables_to_table_list(thd, &lex->query_tables_last,
+                                                   table->belong_to_view);
+            trigger->propagate_attributes(lex);
+            sp_update_stmt_used_routines(thd, lex,
+                                         &trigger->m_sroutines,
+                                         table->belong_to_view);
+          }
         }
       }
     }
-    ret= sp_cache_routines_and_add_tables_aux(thd, lex,
-                                              *last_cached_routine_ptr, FALSE);
   }
+  ret= sp_cache_routines_and_add_tables_aux(thd, lex,
+                                            *last_cached_routine_ptr,
+                                            FALSE);
   return ret;
 }
 
@@ -2044,15 +2061,11 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
   DBUG_PRINT("enter", ("newdb: %s", new_db.str));
 
   /*
-    Set new_db to an empty string if it's NULL, because mysql_change_db
-    requires a non-NULL argument.
-    new_db.str can be NULL only if we're restoring the old database after
-    execution of a stored procedure and there were no current database
-    selected. The stored procedure itself must always have its database
-    initialized.
+    A stored routine always belongs to some database. The
+    old database (old_db) might be NULL, but to restore the
+    old database we will use mysql_change_db.
   */
-  if (new_db.str == NULL)
-    new_db.str= empty_c_string;
+  DBUG_ASSERT(new_db.str && new_db.length);
 
   if (thd->db)
   {

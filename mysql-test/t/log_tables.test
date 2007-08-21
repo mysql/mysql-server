@@ -64,10 +64,10 @@ flush logs;
 # check locking of the log tables
 #
 
---error ER_CANT_WRITE_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.general_log WRITE;
 
---error ER_CANT_WRITE_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.slow_log WRITE;
 
 #
@@ -76,78 +76,59 @@ lock tables mysql.slow_log WRITE;
 # tables are always opened and locked by the logger.
 #
 
---error ER_CANT_READ_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.general_log READ;
 
---error ER_CANT_READ_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.slow_log READ;
 
 #
-# This call should result in TL_READ lock on the log table. This is ok and
-# should pass.
+# This call should result in TL_READ lock on the log table.
+# This is not ok and should fail.
 #
 
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
 
-unlock tables;
+# Misc locking tests
+
+show create table mysql.general_log;
+show fields from mysql.general_log;
+
+show create table mysql.slow_log;
+show fields from mysql.slow_log;
 
 #
-# check that FLUSH LOGS waits for all readers of the log table to vanish
+# check that FLUSH LOGS does not flush the log tables
 #
 
-connect (con1,localhost,root,,);
-connect (con2,localhost,root,,);
+flush logs;
+flush tables;
 
-connection con1;
+SET GLOBAL GENERAL_LOG=ON;
+SET GLOBAL SLOW_QUERY_LOG=ON;
 
-lock tables mysql.general_log READ LOCAL;
-
-connection con2;
-
-# this should wait for log tables to unlock
-send flush logs;
-
-connection con1;
-
-unlock tables;
-
-# this connection should be alive by the time
-connection con2;
-
-reap;
-
-select "Mark that we woke up from flush logs in the test"
-       as "test passed";
+show open tables;
+flush logs;
+show open tables;
 
 #
-# perform the same check for TRUNCATE: it should also wait for readers
-# to disappear
+# check that FLUSH TABLES does flush the log tables
 #
 
-connection con1;
+flush tables;
+# Since the flush is logged, mysql.general_log will be in the cache
+show open tables;
 
-lock tables mysql.general_log READ LOCAL;
+SET GLOBAL GENERAL_LOG=OFF;
+SET GLOBAL SLOW_QUERY_LOG=OFF;
 
-connection con2;
+flush tables;
+# Here the table cache is empty
+show open tables;
 
-# this should wait for log tables to unlock
-send truncate mysql.general_log;
-
-connection con1;
-
-unlock tables;
-
-# this connection should be alive by the time
-connection con2;
-
-reap;
-
-select "Mark that we woke up from TRUNCATE in the test"
-       as "test passed";
-
-connection con1;
-
-use test;
+SET GLOBAL GENERAL_LOG=ON;
+SET GLOBAL SLOW_QUERY_LOG=ON;
 
 #
 # Bug #16905    Log tables: unicode statements are logged incorrectly
@@ -220,10 +201,10 @@ flush logs;
 
 # check locking of myisam-based log tables
 
---error ER_CANT_WRITE_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.general_log WRITE;
 
---error ER_CANT_WRITE_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.slow_log WRITE;
 
 #
@@ -232,20 +213,11 @@ lock tables mysql.slow_log WRITE;
 # tables are always opened and locked by the logger.
 #
 
---error ER_CANT_READ_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.general_log READ;
 
---error ER_CANT_READ_LOCK_LOG_TABLE
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables mysql.slow_log READ;
-
-#
-# This call should result in TL_READ lock on the log table. This is ok and
-# should pass.
-#
-
-lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
-
-unlock tables;
 
 # check that we can drop them
 set global general_log='OFF';
@@ -314,6 +286,7 @@ use test;
 flush tables with read lock;
 unlock tables;
 use mysql;
+--error ER_CANT_LOCK_LOG_TABLE
 lock tables general_log read local, help_category read local;
 unlock tables;
 
@@ -368,9 +341,9 @@ set global slow_query_log='OFF';
 RENAME TABLE slow_log TO slow_log2;
 
 # this should fail
---error ER_CANT_ACTIVATE_LOG
+--error ER_NO_SUCH_TABLE
 set global general_log='ON';
---error ER_CANT_ACTIVATE_LOG
+--error ER_NO_SUCH_TABLE
 set global slow_query_log='ON';
 
 RENAME TABLE general_log2 TO general_log;
@@ -470,8 +443,311 @@ FLUSH LOGS;
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
 
-# kill all connections
-disconnect con1;
-disconnect con2;
+#
+# Bug#25422 (Hang with log tables)
+#
+
+--disable_warnings
+drop procedure if exists proc25422_truncate_slow;
+drop procedure if exists proc25422_truncate_general;
+drop procedure if exists proc25422_alter_slow;
+drop procedure if exists proc25422_alter_general;
+--enable_warnings
+
+delimiter //;
+
+use test//
+create procedure proc25422_truncate_slow (loops int)
+begin
+  declare v1 int default 0;
+  declare continue handler for sqlexception /* errors from truncate */
+    begin end;
+  while v1 < loops do
+    truncate mysql.slow_log;
+    set v1 = v1 + 1;
+    end while;
+end//
+
+create procedure proc25422_truncate_general (loops int)
+begin
+  declare v1 int default 0;
+  declare continue handler for sqlexception /* errors from truncate */
+    begin end;
+  while v1 < loops do
+    truncate mysql.general_log;
+    set v1 = v1 + 1;
+    end while;
+end//
+
+create procedure proc25422_alter_slow (loops int)
+begin
+  declare v1 int default 0;
+  declare ER_BAD_LOG_STATEMENT condition for 1575;
+  declare continue handler for ER_BAD_LOG_STATEMENT begin end;
+
+  while v1 < loops do
+    set @old_log_state = @@global.slow_query_log;
+    set global slow_query_log = 'OFF';
+    alter table mysql.slow_log engine = CSV;
+    set global slow_query_log = @old_log_state;
+    set v1 = v1 + 1;
+    end while;
+end//
+
+create procedure proc25422_alter_general (loops int)
+begin
+  declare v1 int default 0;
+  declare ER_BAD_LOG_STATEMENT condition for 1575;
+  declare continue handler for ER_BAD_LOG_STATEMENT begin end;
+
+  while v1 < loops do
+    set @old_log_state = @@global.general_log;
+    set global general_log = 'OFF';
+    alter table mysql.general_log engine = CSV;
+    set global general_log = @old_log_state;
+    set v1 = v1 + 1;
+    end while;
+end//
+
+delimiter ;//
+
+set @iterations=100;
+
+--echo "Serial test (proc25422_truncate_slow)"
+call proc25422_truncate_slow(@iterations);
+--echo "Serial test (proc25422_truncate_general)"
+call proc25422_truncate_general(@iterations);
+--echo "Serial test (proc25422_alter_slow)"
+call proc25422_alter_slow(@iterations);
+--echo "Serial test (proc25422_alter_general)"
+call proc25422_alter_general(@iterations);
+
+--echo "Parallel test"
+
+# ER_BAD_LOG_STATEMENT errors will occur,
+# since concurrent threads do SET GLOBAL general_log= ...
+# This is silenced by handlers and will not affect the test
+
+connect (addconroot1, localhost, root,,);
+connect (addconroot2, localhost, root,,);
+connect (addconroot3, localhost, root,,);
+connect (addconroot4, localhost, root,,);
+connect (addconroot5, localhost, root,,);
+connect (addconroot6, localhost, root,,);
+connect (addconroot7, localhost, root,,);
+connect (addconroot8, localhost, root,,);
+
+connection addconroot1;
+send call proc25422_truncate_slow(@iterations);
+connection addconroot2;
+send call proc25422_truncate_slow(@iterations);
+
+connection addconroot3;
+send call proc25422_truncate_general(@iterations);
+connection addconroot4;
+send call proc25422_truncate_general(@iterations);
+
+connection addconroot5;
+send call proc25422_alter_slow(@iterations);
+connection addconroot6;
+send call proc25422_alter_slow(@iterations);
+
+connection addconroot7;
+send call proc25422_alter_general(@iterations);
+connection addconroot8;
+send call proc25422_alter_general(@iterations);
+
+connection addconroot1;
+reap;
+connection addconroot2;
+reap;
+connection addconroot3;
+reap;
+connection addconroot4;
+reap;
+connection addconroot5;
+reap;
+connection addconroot6;
+reap;
+connection addconroot7;
+reap;
+connection addconroot8;
+reap;
+
+connection default;
+
+disconnect addconroot1;
+disconnect addconroot2;
+disconnect addconroot3;
+disconnect addconroot4;
+disconnect addconroot5;
+disconnect addconroot6;
+disconnect addconroot7;
+disconnect addconroot8;
+
+drop procedure proc25422_truncate_slow;
+drop procedure proc25422_truncate_general;
+drop procedure proc25422_alter_slow;
+drop procedure proc25422_alter_general;
+
 --enable_ps_protocol
+
+
+#
+# Bug#23044 (Warnings on flush of a log table)
+#
+
+FLUSH TABLE mysql.general_log;
+show warnings;
+
+FLUSH TABLE mysql.slow_log;
+show warnings;
+
+#
+# Bug#17876 (Truncating mysql.slow_log in a SP after using cursor locks the
+#            thread)
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS `db_17876.slow_log_data`;
+DROP TABLE IF EXISTS `db_17876.general_log_data`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
+DROP DATABASE IF EXISTS `db_17876`;
+--enable_warnings
+
+CREATE DATABASE db_17876;
+
+CREATE TABLE `db_17876.slow_log_data` (
+  `start_time` timestamp  default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `user_host` mediumtext ,
+  `query_time` time ,
+  `lock_time` time ,
+  `rows_sent` int(11) ,
+  `rows_examined` int(11) ,
+  `db` varchar(512) default NULL,
+  `last_insert_id` int(11) default NULL,
+  `insert_id` int(11) default NULL,
+  `server_id` int(11) default NULL,
+  `sql_text` mediumtext 
+);
+
+CREATE TABLE `db_17876.general_log_data` (
+  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext,
+  `thread_id` int(11) DEFAULT NULL,
+  `server_id` int(11) DEFAULT NULL,
+  `command_type` varchar(64) DEFAULT NULL,
+  `argument` mediumtext
+);
+
+DELIMITER //;
+
+CREATE procedure `db_17876.archiveSlowLog`()
+BEGIN
+  DECLARE start_time, query_time, lock_time CHAR(20);
+  DECLARE user_host MEDIUMTEXT;
+  DECLARE rows_set, rows_examined, last_insert_id, insert_id, server_id INT;
+  DECLARE dbname MEDIUMTEXT;
+  DECLARE sql_text BLOB;
+  DECLARE done INT DEFAULT 0;
+  DECLARE ER_SP_FETCH_NO_DATA CONDITION for 1329;
+
+  DECLARE cur1 CURSOR FOR SELECT * FROM mysql.slow_log;
+
+  OPEN cur1;
+  
+  REPEAT
+    BEGIN
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR ER_SP_FETCH_NO_DATA SET done = 1;
+
+        FETCH cur1 INTO
+           start_time, user_host, query_time, lock_time,
+           rows_set, rows_examined, dbname, last_insert_id,
+           insert_id, server_id, sql_text;
+      END;
+
+      IF NOT done THEN
+        BEGIN
+          INSERT INTO
+            `db_17876.slow_log_data`
+            VALUES(start_time, user_host, query_time, lock_time, rows_set, rows_examined,
+                   dbname, last_insert_id,  insert_id, server_id, sql_text);
+        END;
+      END IF;
+    END;
+  UNTIL done END REPEAT;
+
+  CLOSE cur1;
+  TRUNCATE mysql.slow_log;
+END //
+
+CREATE procedure `db_17876.archiveGeneralLog`()
+BEGIN
+  DECLARE event_time CHAR(20);
+  DECLARE user_host, argument MEDIUMTEXT;
+  DECLARE thread_id, server_id INT;
+  DECLARE sql_text BLOB;
+  DECLARE done INT DEFAULT 0;
+  DECLARE command_type VARCHAR(64);
+  DECLARE ER_SP_FETCH_NO_DATA CONDITION for 1329;
+
+  DECLARE cur1 CURSOR FOR SELECT * FROM mysql.general_log;
+
+  OPEN cur1;
+  
+  REPEAT
+    BEGIN
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR ER_SP_FETCH_NO_DATA SET done = 1;
+
+        FETCH cur1 INTO
+          event_time, user_host, thread_id, server_id,
+          command_type, argument;
+      END;
+
+      IF NOT done THEN
+        BEGIN
+          INSERT INTO
+            `db_17876.general_log_data`
+            VALUES(event_time, user_host, thread_id, server_id,
+            command_type, argument);
+        END;
+      END IF;
+    END;
+  UNTIL done END REPEAT;
+
+  CLOSE cur1;
+  TRUNCATE mysql.general_log;
+END //
+
+DELIMITER ;//
+
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+
+select "put something into general_log";
+select "... and something more ...";
+
+call `db_17876.archiveSlowLog`();
+call `db_17876.archiveGeneralLog`();
+
+SET GLOBAL general_log = OFF;
+SET GLOBAL slow_query_log = OFF;
+
+call `db_17876.archiveSlowLog`();
+call `db_17876.archiveGeneralLog`();
+
+DROP TABLE `db_17876.slow_log_data`;
+DROP TABLE `db_17876.general_log_data`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;
+DROP PROCEDURE IF EXISTS `db_17876.archiveGeneralLog`;
+DROP DATABASE IF EXISTS `db_17876`;
+
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
 

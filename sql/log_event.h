@@ -2089,12 +2089,12 @@ private:
   size_t         m_data_size;
 
   uchar          *m_field_metadata;        // buffer for field metadata
-  /**
+  /*
     The size of field metadata buffer set by calling calc_field_metadata_size()
   */
-  ulong         m_field_metadata_size;
-  uchar        *m_null_bits;
-  uchar        *m_meta_memory;
+  ulong          m_field_metadata_size;   
+  uchar         *m_null_bits;
+  uchar         *m_meta_memory;
 };
 
 

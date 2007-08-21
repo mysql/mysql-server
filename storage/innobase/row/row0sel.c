@@ -3619,6 +3619,32 @@ shortcut_fails_too_big_rec:
 					   pcur, 0, &mtr);
 
 		pcur->trx_if_known = trx;
+
+		rec = btr_pcur_get_rec(pcur);
+
+		if (!moves_up
+		    && !page_rec_is_supremum(rec)
+		    && set_also_gap_locks
+		    && !(srv_locks_unsafe_for_binlog
+			 || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		    && prebuilt->select_lock_type != LOCK_NONE) {
+
+			/* Try to place a gap lock on the next index record
+			to prevent phantoms in ORDER BY ... DESC queries */
+
+			offsets = rec_get_offsets(page_rec_get_next(rec),
+						  index, offsets,
+						  ULINT_UNDEFINED, &heap);
+			err = sel_set_rec_lock(page_rec_get_next(rec),
+					       index, offsets,
+					       prebuilt->select_lock_type,
+					       LOCK_GAP, thr);
+
+			if (err != DB_SUCCESS) {
+
+				goto lock_wait_or_error;
+			}
+		}
 	} else {
 		if (mode == PAGE_CUR_G) {
 			btr_pcur_open_at_index_side(

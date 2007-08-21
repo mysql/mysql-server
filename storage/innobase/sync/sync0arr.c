@@ -670,7 +670,9 @@ sync_array_detect_deadlock(
 	ibool		ret;
 	rw_lock_debug_t*debug;
 
-	ut_a(arr && start && cell);
+	ut_a(arr);
+	ut_a(start);
+	ut_a(cell);
 	ut_ad(cell->wait_object);
 	ut_ad(os_thread_get_curr_id() == start->thread);
 	ut_ad(depth < 100);
