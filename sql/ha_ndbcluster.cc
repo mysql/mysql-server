@@ -2817,6 +2817,8 @@ int ha_ndbcluster::write_row(uchar *record)
       op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     else if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
+    else if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
   m_rows_changed++;
 
@@ -3107,6 +3109,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     else if (thd->slave_thread)
       op->setAnyValue(thd->server_id);
+    else if (!(thd->options & OPTION_BIN_LOG))
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
   /*
     Execute update operation if we are not doing a scan for update
@@ -3177,6 +3181,9 @@ int ha_ndbcluster::delete_row(const uchar *record)
       else if (thd->slave_thread)
         ((NdbOperation *)trans->getLastDefinedOperation())->
           setAnyValue(thd->server_id);
+      else if (!(thd->options & OPTION_BIN_LOG))
+        ((NdbOperation *)trans->getLastDefinedOperation())->
+          setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     }
     if (!(m_primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
@@ -3215,6 +3222,8 @@ int ha_ndbcluster::delete_row(const uchar *record)
         op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
       else if (thd->slave_thread)
         op->setAnyValue(thd->server_id);
+      else if (!(thd->options & OPTION_BIN_LOG))
+        op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
     }
   }
 
@@ -3960,6 +3969,8 @@ int ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (m_table && table->found_next_number_field)
     {
+      if ((my_errno= check_ndb_connection()))
+        DBUG_RETURN(my_errno);
       Ndb *ndb= get_ndb();
       Ndb_tuple_id_range_guard g(m_share);
       
@@ -8536,7 +8547,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   if (uses_blob_value() ||
       (cur_index_type ==  UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
-       null_value_index_search(ranges, ranges+range_count, buffer)))
+       null_value_index_search(ranges, ranges+range_count, buffer))
+      || m_delete_cannot_batch || m_update_cannot_batch)
   {
     m_disable_multi_read= TRUE;
     DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
