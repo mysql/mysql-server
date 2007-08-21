@@ -92,6 +92,17 @@ dict_col_copy_type_noninline(
 /*=========================*/
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type);	/* out: data type */
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Assert that a column and a data type match. */
+UNIV_INLINE
+ibool
+dict_col_type_assert_equal(
+/*=======================*/
+					/* out: TRUE */
+	const dict_col_t*	col,	/* in: column */
+	const dtype_t*		type);	/* in: data type */
+#endif /* UNIV_DEBUG */
 /***************************************************************************
 Returns the minimum size of the column. */
 UNIV_INLINE

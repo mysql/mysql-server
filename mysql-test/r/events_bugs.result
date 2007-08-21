@@ -31,7 +31,7 @@ create event e_55 on schedule at 10000101000000 do drop table t;
 ERROR HY000: Incorrect AT value: '10000101000000'
 create event e_55 on schedule at 20000101000000 do drop table t;
 Warnings:
-Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+Note	1585	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
@@ -447,32 +447,32 @@ e3		+00:00	CREATE EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00
 The following should fail, and nothing should be altered.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00';
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00' DISABLE;
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been altered
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 The following should give warnings, and nothing should be created.
 CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00'
 DO
 SELECT 1;
 Warnings:
-Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+Note	1585	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00' DISABLE
 DO
 SELECT 1;
 Warnings:
-Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+Note	1585	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DO
 SELECT 1;
 Warnings:
-Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+Note	1585	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 CREATE EVENT e4 ON SCHEDULE AT '1999-01-01 00:00:00' DISABLE
 DO
 SELECT 1;
 Warnings:
-Note	1584	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. Event has not been created
+Note	1585	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 events_test	e1	root@localhost	+05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -482,19 +482,19 @@ The following should succeed giving a warning.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE;
 Warnings:
-Note	1533	Event execution time is in the past. Event has been disabled
+Note	1541	Event execution time is in the past. Event has been disabled
 CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00' ON COMPLETION PRESERVE
 DO
 SELECT 1;
 Warnings:
-Note	1533	Event execution time is in the past. Event has been disabled
+Note	1541	Event execution time is in the past. Event has been disabled
 CREATE EVENT e5 ON SCHEDULE AT '1999-01-01 00:00:00'
   ON COMPLETION PRESERVE
 DO
 SELECT 1;
 Warnings:
-Note	1533	Event execution time is in the past. Event has been disabled
+Note	1541	Event execution time is in the past. Event has been disabled
 The following should succeed without warnings.
 ALTER EVENT e2 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00';
 ALTER EVENT e3 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
@@ -611,3 +611,10 @@ id	ev_nm	ev_cnt
 DROP TABLE event_log;
 SET GLOBAL event_scheduler = OFF;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler= ON;
+CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
+            DO BEGIN
+SELECT 1;
+END;|
+SET GLOBAL event_scheduler= OFF;
+DROP EVENT bug28641;

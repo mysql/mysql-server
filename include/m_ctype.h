@@ -84,9 +84,15 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
-#define MY_CS_CSSORT	1024   /* if case sensitive sort order   */
+#define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
 #define MY_CS_HIDDEN	2048   /* don't display in SHOW          */	
+#define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
 #define MY_CHARSET_UNDEFINED 0
+
+/* Character repertoire flags */
+#define MY_REPERTOIRE_ASCII      1 /* Pure ASCII            U+0000..U+007F */
+#define MY_REPERTOIRE_EXTENDED   2 /* Extended characters:  U+0080..U+FFFF */
+#define MY_REPERTOIRE_UNICODE30  3 /* ASCII | EXTENDED:     U+0000..U+FFFF */
 
 
 typedef struct my_uni_idx_st
@@ -455,6 +461,11 @@ extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, size_t len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, size_t len);
+
+
+uint my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong len);
+my_bool my_charset_is_ascii_based(CHARSET_INFO *cs);
+my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
 
 
 #define	_MY_U	01	/* Upper case */

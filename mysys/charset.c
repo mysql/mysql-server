@@ -277,6 +277,9 @@ static int add_collation(CHARSET_INFO *cs)
         if (sort_order && sort_order['A'] < sort_order['a'] &&
                           sort_order['a'] < sort_order['B'])
           all_charsets[cs->number]->state|= MY_CS_CSSORT; 
+
+        if (my_charset_is_8bit_pure_ascii(all_charsets[cs->number]))
+          all_charsets[cs->number]->state|= MY_CS_PUREASCII;
       }
     }
     else
@@ -323,14 +326,14 @@ static int charset_initialized=0;
 
 static my_bool my_read_charset_file(const char *filename, myf myflags)
 {
-  char *buf;
+  uchar *buf;
   int  fd;
   uint len, tmp_len;
   MY_STAT stat_info;
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-       !(buf= (char *)my_malloc(len,myflags)))
+       !(buf= (uchar*) my_malloc(len,myflags)))
     return TRUE;
   
   if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
@@ -340,7 +343,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   if (tmp_len != len)
     goto error;
   
-  if (my_parse_charset_xml(buf,len,add_collation))
+  if (my_parse_charset_xml((char*) buf,len,add_collation))
   {
 #ifdef NOT_YET
     printf("ERROR at line %d pos %d '%s'\n",
@@ -350,7 +353,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 #endif
   }
   
-  my_free(buf, myflags);  
+  my_free(buf, myflags);
   return FALSE;
 
 error:

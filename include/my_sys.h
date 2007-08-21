@@ -150,7 +150,7 @@ extern ulonglong sf_malloc_mem_limit;
 #else
 #define my_checkmalloc()
 #undef TERMINATE
-#define TERMINATE(A) {}
+#define TERMINATE(A,B) {}
 #define QUICK_SAFEMALLOC
 #define NORMAL_SAFEMALLOC
 extern void *my_malloc(size_t Size,myf MyFlags);
@@ -618,7 +618,7 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 #endif
 
 #ifndef TERMINATE
-extern void TERMINATE(FILE *file);
+extern void TERMINATE(FILE *file, uint flag);
 #endif
 extern void init_glob_errs(void);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
@@ -833,7 +833,7 @@ extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
-extern int packfrm(const uchar *, size_t, uchar **, size_t *);
+extern int packfrm(uchar *, size_t, uchar **, size_t *);
 extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
@@ -846,7 +846,11 @@ extern void my_sleep(ulong m_seconds);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
+extern time_t my_time(myf flags);
 extern ulonglong my_getsystime(void);
+extern ulonglong my_micro_time();
+extern ulonglong my_micro_time_and_time(time_t *time_arg);
+time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
 extern int my_getncpus();
 

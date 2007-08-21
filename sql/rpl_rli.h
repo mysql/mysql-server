@@ -18,6 +18,7 @@
 
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
+#include "rpl_utility.h"
 
 struct RPL_TABLE_LIST;
 
@@ -300,6 +301,15 @@ typedef struct st_relay_log_info : public Slave_reporting_capability
   RPL_TABLE_LIST *tables_to_lock;           /* RBR: Tables to lock  */
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
+
+  inline table_def *get_tabledef(TABLE *tbl)
+  {
+    table_def *td= 0;
+    for (TABLE_LIST *ptr= tables_to_lock; ptr && !td; ptr= ptr->next_global)
+      if (ptr->table == tbl)
+        td= &((RPL_TABLE_LIST *)ptr)->m_tabledef;
+    return (td);
+  }
 
   /*
     Last charset (6 bytes) seen by slave SQL thread is cached here; it helps

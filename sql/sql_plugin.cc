@@ -1617,7 +1617,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
-  if (! (table = open_ltable(thd, &tables, TL_WRITE)))
+  if (! (table = open_ltable(thd, &tables, TL_WRITE, 0)))
     DBUG_RETURN(TRUE);
 
   pthread_mutex_lock(&LOCK_plugin);
@@ -1674,7 +1674,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   tables.table_name= tables.alias= (char *)"plugin";
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
     DBUG_RETURN(TRUE);
 
   pthread_mutex_lock(&LOCK_plugin);

@@ -1,0 +1,487 @@
+drop table if exists t1, t2;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+reset master;
+begin;
+insert into t1 values(1);
+insert into t2 select * from t1;
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(1)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(2);
+insert into t2 select * from t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(2)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(3);
+savepoint my_savepoint;
+insert into t1 values(4);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(3)
+master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(4)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(5);
+savepoint my_savepoint;
+insert into t1 values(6);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into t1 values(7);
+commit;
+select a from t1 order by a;
+a
+5
+7
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(5)
+master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(6)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(7)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+reset master;
+select get_lock("a",10);
+get_lock("a",10)
+1
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+select get_lock("a",10);
+get_lock("a",10)
+1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(8)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(9);
+insert into t2 select * from t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(9)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(10);
+begin;
+insert into t2 select * from t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+insert into t1 values(11);
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(11)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+alter table t2 engine=INNODB;
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(12);
+insert into t2 select * from t1;
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(12)
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(13);
+insert into t2 select * from t1;
+rollback;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(14);
+savepoint my_savepoint;
+insert into t1 values(15);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(14)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(16);
+savepoint my_savepoint;
+insert into t1 values(17);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(18);
+commit;
+select a from t1 order by a;
+a
+16
+18
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(16)
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(18)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+delete from t1;
+delete from t2;
+alter table t2 engine=MyISAM;
+insert into t1 values (1);
+begin;
+select * from t1 for update;
+a
+1
+select (@before:=unix_timestamp())*0;
+(@before:=unix_timestamp())*0
+0
+begin;
+select * from t1 for update;
+insert into t2 values (20);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select (@after:=unix_timestamp())*0;
+(@after:=unix_timestamp())*0
+0
+select (@after-@before) >= 2;
+(@after-@before) >= 2
+1
+drop table t1,t2;
+commit;
+begin;
+create temporary table ti (a int) engine=innodb;
+rollback;
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam;
+commit;
+insert t1 values (1);
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3);
+select get_lock("lock1",60);
+get_lock("lock1",60)
+1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(16)
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(18)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; delete from t1
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; delete from t2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; alter table t2 engine=MyISAM
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (20)
+master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
+master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engine=myisam
+master-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
+master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
+master-bin.000001	#	Query	#	#	use `test`; insert t0 select * from t1
+master-bin.000001	#	Query	#	#	use `test`; insert into t0 select GET_LOCK("lock1",null)
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+do release_lock("lock1");
+drop table t0,t2;
+set autocommit=0;
+CREATE TABLE t1 (a int, b int) engine=myisam;
+reset master;
+INSERT INTO t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+INSERT INTO t1 values (3,3);
+CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
+INSERT INTO t1 VALUES (4,4);
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 VALUES (5,5);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * FROM t2;
+a	b
+DROP TABLE t2;
+INSERT INTO t1 values (6,6);
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
+INSERT INTO t1 values (7,7);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO t1 values (8,8);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t1 values (9,9);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 values (10,10);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t1;
+a	b
+1	1
+1	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+INSERT INTO t2 values (100,100);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t2 values (101,101);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+SELECT * from t2;
+a	b
+100	100
+DROP TABLE t1,t2;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (1,1),(1,2)
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE if exists t2
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (3,3)
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,4)
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (5,5)
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t2
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (6,6)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (7,7)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
+reset master;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+select get_lock("a",10);
+get_lock("a",10)
+1
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+select get_lock("a",10);
+get_lock("a",10)
+1
+flush logs;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
+is not null;
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
+is not null
+1
+select
+@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
+@a not like "%#%error_code=%error_code=%";
+@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
+1	1
+drop table t1, t2;
+create table tt (a int unique);
+create table ti (a int) engine=innodb;
+reset master;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	106		
+begin;
+insert into ti values (1);
+insert into ti values (2) ;
+insert into tt select * from ti;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select count(*) from tt /* 2 */;
+count(*)
+2
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	515		
+show binlog events from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2)
+master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+select count(*) from ti /* zero */;
+count(*)
+0
+insert into ti select * from tt;
+select * from ti /* that is what slave would miss - a bug */;
+a
+1
+2
+delete from ti;
+delete from tt where a=1;
+reset master;
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	106		
+begin;
+insert into ti values (1);
+insert into ti values (2) /* to make the dup error in the following */;
+insert into tt select * from ti /* one affected and error */;
+ERROR 23000: Duplicate entry '2' for key 'a'
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	589		
+show binlog events from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	1	#	use `test`; insert into ti values (2) /* to make the dup error in the following */
+master-bin.000001	#	Query	1	#	use `test`; insert into tt select * from ti /* one affected and error */
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+select count(*) from ti /* zero */;
+count(*)
+0
+insert into ti select * from tt;
+select * from tt /* that is what otherwise slave missed - the bug */;
+a
+1
+2
+drop table ti,tt;
+drop function if exists bug27417;
+drop table if exists t1,t2;
+CREATE TABLE t1 (a int NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int NOT NULL auto_increment, PRIMARY KEY (a));
+create function bug27417(n int) 
+RETURNS int(11)
+begin
+insert into t1 values (null);
+return n;
+end|
+reset master;
+insert into t2 values (bug27417(1));
+insert into t2 select bug27417(2);
+reset master;
+insert into t2 values (bug27417(2));
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select count(*) from t1 /* must be 3 */;
+count(*)
+3
+reset master;
+select count(*) from t2;
+count(*)
+2
+delete from t2 where a=bug27417(3);
+select count(*) from t2 /* nothing got deleted */;
+count(*)
+2
+select count(*) from t1 /* must be 5 */;
+count(*)
+5
+delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
+affected rows: 0
+select count(*) from t1 /* must be 7 */;
+count(*)
+7
+drop function bug27417;
+drop table t1,t2;
+end of tests

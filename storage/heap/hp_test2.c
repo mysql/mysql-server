@@ -59,6 +59,7 @@ int main(int argc, char *argv[])
   char record[128],record2[128],record3[128],key[10];
   const char *filename,*filename2;
   HP_INFO *file,*file2;
+  HP_SHARE *tmp_share;
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
 
   printf("- Creating heap-file\n");
   if (heap_create(filename,keys,keyinfo,reclength,(ulong) flag*100000L, 
-		(ulong) recant/2, &hp_create_info) ||
+                  (ulong) recant/2, &hp_create_info, &tmp_share) ||
       !(file= heap_open(filename, 2)))
     goto err;
   signal(SIGINT,endprog);
@@ -562,8 +563,9 @@ int main(int argc, char *argv[])
   heap_close(file2);
 
   printf("- Creating output heap-file 2\n");
-  if (heap_create(filename2,1,keyinfo,reclength,0L,0L,&hp_create_info) ||
-      !(file2= heap_open(filename2, 2)))
+  if (heap_create(filename2, 1, keyinfo, reclength, 0L, 0L, &hp_create_info,
+                  &tmp_share) ||
+      !(file2= heap_open_from_share_and_register(tmp_share, 2)))
     goto err;
 
   printf("- Copying and removing records\n");

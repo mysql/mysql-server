@@ -4,7 +4,7 @@ SELECT * from T1;
 a
 drop table t1;
 flush tables;
-CREATE TABLE t1 (a int) ENGINE=INNODB;
-SELECT * from T1;
-ERROR 42S02: Table 'test.T1' doesn't exist
-drop table t1;
+CREATE TABLE bug29839 (a int) ENGINE=INNODB;
+SELECT * from BUG29839;
+ERROR 42S02: Table 'test.BUG29839' doesn't exist
+drop table bug29839;

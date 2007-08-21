@@ -328,13 +328,21 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
 #define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
 
-#define XIDDATASIZE 128
+#define XIDDATASIZE MYSQL_XIDDATASIZE
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+/**
+  struct xid_t is binary compatible with the XID structure as
+  in the X/Open CAE Specification, Distributed Transaction Processing:
+  The XA Specification, X/Open Company Ltd., 1991.
+  http://www.opengroup.org/bookstore/catalog/c193.htm
+
+  @see MYSQL_XID in mysql/plugin.h
+*/
 struct xid_t {
   long formatID;
   long gtrid_length;
@@ -655,7 +663,7 @@ struct handlerton
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
-                           struct st_table_list *tables,
+                           TABLE_LIST *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
    /*
@@ -692,7 +700,7 @@ struct handlerton
    int (*find_files)(handlerton *hton, THD *thd,
                      const char *db,
                      const char *path,
-                     const char *wild, bool dir, List<char> *files);
+                     const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
    uint32 license; /* Flag for Engine License */
@@ -720,6 +728,35 @@ typedef struct st_thd_trans
   bool        no_2pc;
   /* storage engines that registered themselves for this transaction */
   handlerton *ht[MAX_HA];
+  /* 
+    The purpose of this flag is to keep track of non-transactional
+    tables that were modified in scope of:
+    - transaction, when the variable is a member of
+    THD::transaction.all
+    - top-level statement or sub-statement, when the variable is a
+    member of THD::transaction.stmt
+    This member has the following life cycle:
+    * stmt.modified_non_trans_table is used to keep track of
+    modified non-transactional tables of top-level statements. At
+    the end of the previous statement and at the beginning of the session,
+    it is reset to FALSE.  If such functions
+    as mysql_insert, mysql_update, mysql_delete etc modify a
+    non-transactional table, they set this flag to TRUE.  At the
+    end of the statement, the value of stmt.modified_non_trans_table 
+    is merged with all.modified_non_trans_table and gets reset.
+    * all.modified_non_trans_table is reset at the end of transaction
+    
+    * Since we do not have a dedicated context for execution of a
+    sub-statement, to keep track of non-transactional changes in a
+    sub-statement, we re-use stmt.modified_non_trans_table. 
+    At entrance into a sub-statement, a copy of the value of
+    stmt.modified_non_trans_table (containing the changes of the
+    outer statement) is saved on stack. Then 
+    stmt.modified_non_trans_table is reset to FALSE and the
+    substatement is executed. Then the new value is merged with the
+    saved value.
+  */
+  bool modified_non_trans_table;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -984,6 +1021,7 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
+  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
   /*
@@ -1014,11 +1052,13 @@ public:
     estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
-    ft_handler(0), inited(NONE), implicit_emptied(0),
+    ft_handler(0), inited(NONE),
+    locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
     {}
   virtual ~handler(void)
   {
+    DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1027,44 +1067,6 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /*
-    Check whether a handler allows to lock the table.
-
-    SYNOPSIS
-      check_if_locking_is_allowed()
-        thd     Handler of the thread, trying to lock the table
-        table   Table handler to check
-        count   Total number of tables to be locked
-        current Index of the current table in the list of the tables
-                to be locked.
-        system_count Pointer to the counter of system tables seen thus
-                     far.
-        called_by_privileged_thread TRUE if called from a logger THD
-                                    (general_log_thd or slow_log_thd)
-                                    or by a privileged thread, which
-                                    has the right to lock log tables.
-
-    DESCRIPTION
-      Check whether a handler allows to lock the table. For instance,
-      MyISAM does not allow to lock mysql.proc along with other tables.
-      This limitation stems from the fact that MyISAM does not support
-      row-level locking and we have to add this limitation to avoid
-      deadlocks.
-
-    RETURN
-      TRUE      Locking is allowed
-      FALSE     Locking is not allowed. The error was thrown.
-  */
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_privileged_thread)
-  {
-    return TRUE;
-  }
-  bool check_if_log_table_locking_is_allowed(uint sql_command,
-                                             ulong type, TABLE *table);
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -1621,8 +1623,10 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
-  /*
-    NOTE that one can NOT rely on table->in_use in store_lock().  It may
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    @note that one can NOT rely on table->in_use in store_lock().  It may
     refer to a different thread if called from mysql_lock_abort_for_thread().
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
@@ -1631,16 +1635,49 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /* ask handler about permission to cache table when query is to be cached */
+
+
+  /**
+    @brief Register a named table with a call back function to the query cache.
+
+    @param thd The thread handle
+    @param table_key A pointer to the table name in the table cache
+    @param key_length The length of the table name
+    @param[out] engine_callback The pointer to the storage engine call back
+      function
+    @param[out] engine_data Storage engine specific data which could be
+      anything
+
+    This method offers the storage engine, the possibility to store a reference
+    to a table name which is going to be used with query cache. 
+    The method is called each time a statement is written to the cache and can
+    be used to verify if a specific statement is cachable. It also offers
+    the possibility to register a generic (but static) call back function which
+    is called each time a statement is matched against the query cache.
+
+    @note If engine_data supplied with this function is different from
+      engine_data supplied with the callback function, and the callback returns
+      FALSE, a table invalidation on the current table will occur.
+
+    @return Upon success the engine_callback will point to the storage engine
+      call back function, if any, and engine_data will point to any storage
+      engine data used in the specific implementation.
+      @retval TRUE Success
+      @retval FALSE The specified table or current statement should not be
+        cached
+  */
+
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-					     uint key_length,
-					     qc_engine_callback 
-					     *engine_callback,
-					     ulonglong *engine_data)
+                                             uint key_length,
+                                             qc_engine_callback
+                                             *engine_callback,
+                                             ulonglong *engine_data)
   {
     *engine_callback= 0;
-    return 1;
+    return TRUE;
   }
+
+
  /*
   RETURN
     true  Primary key (if there is one) is clustered key covering all fields
@@ -1719,6 +1756,29 @@ private:
     Row-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
+  */
+
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    Tells the storage engine that we intend to read or write data
+    from the table. This call is prefixed with a call to handler::store_lock()
+    and is invoked only for those handler instances that stored the lock.
+
+    Calls to rnd_init/index_init are prefixed with this call. When table
+    IO is complete, we call external_lock(F_UNLCK).
+    A storage engine writer should expect that each call to
+    ::external_lock(F_[RD|WR]LOCK is followed by a call to
+    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+
+    The name and signature originate from the first implementation
+    in MyISAM, which would call fcntl to set/clear an advisory
+    lock on the data file in this method.
+
+    @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
+
+    @return  non-0 in case of failure, 0 in case of success.
+    When lock_type is F_UNLCK, the return value is ignored.
   */
   virtual int external_lock(THD *thd __attribute__((unused)),
                             int lock_type __attribute__((unused)))
@@ -1800,7 +1860,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_discover(THD* thd, const char* dbname, const char* name,
                 uchar** frmblob, size_t* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
-                  const char *wild, bool dir,List<char>* files);
+                  const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 
 /* key cache */

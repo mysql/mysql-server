@@ -104,7 +104,7 @@ public:
 
   bool start_mysqld();
   bool stop_mysqld();
-  void kill_mysqld(int signo);
+  bool kill_mysqld(int signo);
 
   void lock();
   void unlock();

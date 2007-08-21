@@ -30,6 +30,8 @@ Created 1/8/1996 Heikki Tuuri
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
 
+#include <ctype.h>
+
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
 rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
@@ -1529,6 +1531,12 @@ dict_index_add_col(
 	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
 		field->fixed_len = 0;
 	}
+#if DICT_MAX_INDEX_COL_LEN != 768
+	/* The comparison limit above must be constant.  If it were
+	changed, the disk format of some fixed-length columns would
+	change, which would be a disaster. */
+# error "DICT_MAX_INDEX_COL_LEN != 768"
+#endif
 
 	if (!(col->prtype & DATA_NOT_NULL)) {
 		index->n_nullable++;
@@ -1585,9 +1593,6 @@ dict_index_copy_types(
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
-		if (UNIV_UNLIKELY(ifield->prefix_len)) {
-			dfield_type->len = ifield->prefix_len;
-		}
 	}
 }
 
@@ -3361,7 +3366,8 @@ dict_create_foreign_constraints(
 	ulint			err;
 	mem_heap_t*		heap;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
@@ -3403,7 +3409,8 @@ dict_foreign_parse_drop_constraints(
 	FILE*			ef	= dict_foreign_err_file;
 	struct charset_info_st*	cs;
 
-	ut_a(trx && trx->mysql_thd);
+	ut_a(trx);
+	ut_a(trx->mysql_thd);
 
 	cs = innobase_get_charset(trx->mysql_thd);
 
@@ -3712,7 +3719,7 @@ dict_index_calc_min_rec_len(
 		}
 
 		/* round the NULL flags up to full bytes */
-		sum += (nullable + 7) / 8;
+		sum += UT_BITS_IN_BYTES(nullable);
 
 		return(sum);
 	}

@@ -649,16 +649,8 @@ bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
 {
   if (Item_int_func::fix_fields(thd, ref))
     return TRUE;
-
-  /*
-    To replicate CONNECTION_ID() properly we should use
-    pseudo_thread_id on slave, which contains the value of thread_id
-    on master.
-  */
-  value= ((thd->slave_thread) ?
-          thd->variables.pseudo_thread_id :
-          thd->thread_id);
-
+  thd->thread_specific_used= TRUE;
+  value= thd->variables.pseudo_thread_id;
   return FALSE;
 }
 
@@ -3749,7 +3741,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
-    entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->collation.set(NULL, DERIVATION_IMPLICIT, 0);
     entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -5599,7 +5591,17 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
   DBUG_RETURN(res);
+}
+
+
+void Item_func_sp::update_used_tables()
+{
+  Item_func::update_used_tables();
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
 }
 
 

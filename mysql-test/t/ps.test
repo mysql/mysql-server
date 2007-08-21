@@ -2018,10 +2018,17 @@ delimiter ;|
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
 drop procedure proc_1;
+
+# make the output deterministic:
+# the order used in SHOW OPEN TABLES
+# is too much implementation dependent
+--disable_ps_protocol
 flush tables;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.host limit 0;
 show open tables from mysql;
+--enable_ps_protocol
+
 prepare abc from "flush tables";
 execute abc;
 show open tables from mysql;

@@ -81,6 +81,13 @@ public:
   */
   Field **full_part_field_array;
   Field **full_part_charset_field_array;
+  /*
+    Set of all fields used in partition and subpartition expression.
+    Required for testing of partition fields in write_set when
+    updating. We need to set all bits in read_set because the row may
+    need to be inserted in a different [sub]partition.
+  */
+  MY_BITMAP full_part_field_set;
 
   /*
     When we have a field that requires transformation before calling the

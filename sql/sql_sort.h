@@ -50,6 +50,12 @@ typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
   ulong max_keys;			/* Max keys in buffert */
 } BUFFPEK;
 
+struct BUFFPEK_COMPARE_CONTEXT
+{
+  qsort_cmp2 key_compare;
+  void *key_compare_arg;
+};
+
 typedef struct st_sort_param {
   uint rec_length;          /* Length of sorted records */
   uint sort_length;			/* Length of sorted columns */
@@ -65,6 +71,9 @@ typedef struct st_sort_param {
   uchar *unique_buff;
   bool not_killable;
   char* tmp_buffer;
+  /* The fields below are used only by Unique class */
+  qsort2_cmp compare;
+  BUFFPEK_COMPARE_CONTEXT cmp_context;
 } SORTPARAM;
 
 
