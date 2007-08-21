@@ -1294,12 +1294,11 @@ dict_foreign_eval_sql(
 		      ef);
 		ut_print_name(ef, trx, TRUE, table->name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, trx, FALSE, foreign->id);
+		ut_print_name(ef, trx, TRUE, foreign->id);
 		fputs("\nalready exists."
-		      " (Note that internally InnoDB adds 'databasename/'\n"
-		      "in front of the user-defined constraint name).\n",
-		      ef);
-		fputs("Note that InnoDB's FOREIGN KEY system tables store\n"
+		      " (Note that internally InnoDB adds 'databasename'\n"
+		      "in front of the user-defined constraint name.)\n"
+		      "Note that InnoDB's FOREIGN KEY system tables store\n"
 		      "constraint names as case-insensitive, with the\n"
 		      "MySQL standard latin1_swedish_ci collation. If you\n"
 		      "create tables or databases whose names differ only in\n"
