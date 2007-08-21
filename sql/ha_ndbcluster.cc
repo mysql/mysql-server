@@ -9553,7 +9553,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   if (uses_blob_value(table->read_set) ||
       (cur_index_type ==  UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
-       null_value_index_search(ranges, ranges+range_count, buffer)))
+       null_value_index_search(ranges, ranges+range_count, buffer))
+      || m_delete_cannot_batch || m_update_cannot_batch)
   {
     DBUG_PRINT("info", ("read_multi_range not possible, falling back to default handler implementation"));
     m_disable_multi_read= TRUE;
