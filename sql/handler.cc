@@ -2523,10 +2523,10 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
-
   DBUG_ENTER("ha_enable_transaction");
-  thd->transaction.on= on;
-  if (on)
+  DBUG_PRINT("info", ("on: %d", (int) on));
+
+  if ((thd->transaction.on= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.

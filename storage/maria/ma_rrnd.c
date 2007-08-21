@@ -33,20 +33,12 @@ int maria_rrnd(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
   DBUG_ENTER("maria_rrnd");
 
   DBUG_ASSERT(filepos != HA_OFFSET_ERROR);
-#ifdef NOT_USED
-  if (filepos == HA_OFFSET_ERROR)
-  {
-    if (info->cur_row.lastpos == HA_OFFSET_ERROR)  /* First read ? */
-      filepos= info->s->pack.header_length;	   /* Read first record */
-    else
-      filepos= info->cur_row.nextpos;
-  }
-#endif
 
   /* Init all but update-flag */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
     DBUG_RETURN(my_errno);
 
+  info->cur_row.lastpos= filepos;               /* Remember for update */
   DBUG_RETURN((*info->s->read_record)(info, buf, filepos));
 }

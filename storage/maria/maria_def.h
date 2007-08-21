@@ -517,8 +517,13 @@ struct st_maria_info
   }while(0)
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
+#ifdef EXTRA_DEBUG
 #define maria_print_error(SHARE, ERRNO)                     \
         _ma_report_error((ERRNO), (SHARE)->index_file_name)
+#else
+#define maria_print_error(SHARE, ERRNO) while (0)
+#endif
+
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
