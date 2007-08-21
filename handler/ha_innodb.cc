@@ -8441,8 +8441,6 @@ err_exit:
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
-	mem_heap_empty(heap);
-
 	ut_a(trx->n_active_thrs == 0);
 	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
 
