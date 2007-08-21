@@ -376,7 +376,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
-    thd->no_trans_update.stmt= FALSE;
     thd->abort_on_warning= (!ignore &&
                             (thd->variables.sql_mode &
                              (MODE_STRICT_TRANS_TABLES |
@@ -410,7 +409,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ha_autocommit_...
   */
   query_cache_invalidate3(thd, table_list, 0);
-
   if (error)
   {
     if (read_file_from_client)
@@ -469,8 +467,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
 
-  if (!transactional_table)
-    thd->no_trans_update.all= TRUE;
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
@@ -506,6 +504,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* ok to client sent only after binlog write and engine commit */
   send_ok(thd, info.copied + info.deleted, 0L, name);
 err:
+  DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
+              thd->transaction.stmt.modified_non_trans_table);
   table->file->ha_release_auto_increment();
   if (thd->lock)
   {
@@ -552,7 +552,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item_field *sql_field;
   TABLE *table= table_list->table;
   ulonglong id;
-  bool no_trans_update_stmt, err;
+  bool err;
   DBUG_ENTER("read_fixed_length");
 
   id= 0;
@@ -580,7 +580,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #ifdef HAVE_purify
     read_info.row_end[0]=0;
 #endif
-    no_trans_update_stmt= !table->file->has_transactions();
 
     restore_record(table, s->default_values);
     /*
@@ -650,7 +649,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     table->auto_increment_field_not_null= FALSE;
     if (err)
       DBUG_RETURN(1);
-    thd->no_trans_update.stmt= no_trans_update_stmt;
    
     /*
       We don't need to reset auto-increment field since we are restoring
@@ -685,12 +683,11 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   uint enclosed_length;
   ulonglong id;
-  bool no_trans_update_stmt, err;
+  bool err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
   id= 0;
-  no_trans_update_stmt= !table->file->has_transactions();
 
   for (;;it.rewind())
   {
@@ -827,7 +824,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->no_trans_update.stmt= no_trans_update_stmt;
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
@@ -851,6 +847,7 @@ continue_loop:;
 char
 READ_INFO::unescape(char chr)
 {
+  /* keep this switch synchornous with the ESCAPE_CHARS macro */
   switch(chr) {
   case 'n': return '\n';
   case 't': return '\t';

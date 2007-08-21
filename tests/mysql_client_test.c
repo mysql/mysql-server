@@ -16077,7 +16077,6 @@ static void test_bug24179()
 
 /*
   Bug#28075 "COM_DEBUG crashes mysqld"
-  Note: Test disabled because of failure in PushBuild.
 */
 
 static void test_bug28075()
@@ -16106,7 +16105,7 @@ static void test_bug27876()
   int rc;
   MYSQL_RES *result;
 
-  char utf8_func[] =
+  unsigned char utf8_func[] =
   {
     0xd1, 0x84, 0xd1, 0x83, 0xd0, 0xbd, 0xd0, 0xba,
     0xd1, 0x86, 0xd0, 0xb8, 0xd0, 0xb9, 0xd0, 0xba,
@@ -16114,7 +16113,7 @@ static void test_bug27876()
     0x00
   };
 
-  char utf8_param[] =
+  unsigned char utf8_param[] =
   {
     0xd0, 0xbf, 0xd0, 0xb0, 0xd1, 0x80, 0xd0, 0xb0,
     0xd0, 0xbc, 0xd0, 0xb5, 0xd1, 0x82, 0xd1, 0x8a,
@@ -16271,6 +16270,117 @@ static void test_bug27592()
 }
 
 
+
+/*
+  Bug#29687 mysql_stmt_store_result memory leak in libmysqld
+*/
+
+static void test_bug29687()
+{
+  const int NUM_ITERATIONS= 40;
+  int i;
+  int rc;
+  MYSQL_STMT *stmt= NULL;
+
+  DBUG_ENTER("test_bug29687");
+  myheader("test_bug29687");
+
+  stmt= mysql_simple_prepare(mysql, "SELECT 1 FROM dual WHERE 0=2");
+  DIE_UNLESS(stmt);
+
+  for (i= 0; i < NUM_ITERATIONS; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    mysql_stmt_store_result(stmt);
+    while (mysql_stmt_fetch(stmt)==0);
+    mysql_stmt_free_result(stmt);
+  }
+
+  mysql_stmt_close(stmt);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Bug #29692  	Single row inserts can incorrectly report a huge number of 
+  row insertions
+*/
+
+static void test_bug29692()
+{
+  MYSQL* conn;
+
+  if (!(conn= mysql_init(NULL)))
+  {
+    myerror("test_bug29692 init failed");
+    exit(1);
+  }
+
+  if (!(mysql_real_connect(conn, opt_host, opt_user,
+                           opt_password, opt_db ? opt_db:"test", opt_port,
+                           opt_unix_socket,  CLIENT_FOUND_ROWS)))
+  {
+    myerror("test_bug29692 connection failed");
+    mysql_close(mysql);
+    exit(1);
+  }
+  myquery(mysql_query(conn, "drop table if exists t1"));
+  myquery(mysql_query(conn, "create table t1(f1 int)"));
+  myquery(mysql_query(conn, "insert into t1 values(1)"));
+  DIE_UNLESS(1 == mysql_affected_rows(conn));
+  myquery(mysql_query(conn, "drop table t1"));
+  mysql_close(conn);
+}
+
+/**
+  Bug#29306 Truncated data in MS Access with decimal (3,1) columns in a VIEW
+*/
+
+static void test_bug29306()
+{
+  MYSQL_FIELD *field;
+  int rc;
+  MYSQL_RES *res;
+
+  DBUG_ENTER("test_bug29306");
+  myheader("test_bug29306");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS view17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE tab17557 (dd decimal (3,1))");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW view17557 as SELECT dd FROM tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO tab17557 VALUES (7.6)");
+  myquery(rc);
+
+  /* Checking the view */
+  res= mysql_list_fields(mysql, "view17557", NULL);
+  while ((field= mysql_fetch_field(res)))
+  {
+    if (! opt_silent)
+    {
+      printf("field name %s\n", field->name);
+      printf("field table %s\n", field->table);
+      printf("field decimals %d\n", field->decimals);
+      if (field->decimals < 1)
+        printf("Error! No decimals! \n");
+      printf("\n\n");
+    }
+    DIE_UNLESS(field->decimals == 1);
+  }
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "DROP TABLE tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW view17557");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16560,6 +16670,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
+  { "test_bug29687", test_bug29687 },
+  { "test_bug29692", test_bug29692 },
+  { "test_bug29306", test_bug29306 },
   { 0, 0 }
 };
 

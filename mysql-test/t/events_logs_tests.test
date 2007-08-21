@@ -1,115 +1,87 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
-CREATE DATABASE IF NOT EXISTS events_test;
-USE events_test;
---echo "We use procedure here because its statements won't be logged into the general log"
---echo "If we had used normal select that are logged in different ways depending on whether"
---echo "the test suite is run in normal mode or with --ps-protocol"
+--disable_warnings
+drop database if exists events_test;
+--enable_warnings
+create database if not exists events_test;
+use events_test;
+--echo
+--echo We use procedure here because its statements won't be
+--echo logged into the general log. If we had used normal select
+--echo that are logged in different ways depending on whether the
+--echo test suite is run in normal mode or with --ps-protocol
+--echo
 delimiter |;
-CREATE procedure select_general_log()
-BEGIN
-  SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
-END|
-delimiter ;|
---echo "Check General Query Log"
---replace_column 1 USER_HOST
-CALL select_general_log();
-SET GLOBAL event_scheduler=on;
-TRUNCATE mysql.general_log;
-CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1) FROM DUAL;
---echo "Wait the scheduler to start"
---sleep 1.5
---echo "Should see 2 rows - the 'SELECT' is in the middle. The other two are selects from general_log"
---replace_column 1 USER_HOST
-CALL select_general_log();
-DROP PROCEDURE select_general_log;
-DROP EVENT log_general;
-SET GLOBAL event_scheduler=off;
-
---echo "Check slow query log"
---disable_query_log
-DELIMITER |;
-CREATE FUNCTION get_value()
-  returns INT
-  deterministic
-BEGIN
-  DECLARE var_name CHAR(255);
-  DECLARE var_val INT;
-  DECLARE done INT DEFAULT 0;
-  DECLARE cur1 CURSOR FOR SHOW GLOBAL VARIABLES LIKE 'long_query_time';
-  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
-  OPEN cur1;
-  FETCH cur1 INTO var_name, var_val;
-  CLOSE cur1;
-  RETURN var_val;
+create procedure select_general_log()
+begin
+  select user_host, argument from mysql.general_log
+  where argument like '%events_logs_test%';
 end|
-DELIMITER ;|
---enable_query_log
---echo "Save the values"
-SET @old_global_long_query_time:=(select get_value());
-SET @old_session_long_query_time:=@@long_query_time;
-SHOW VARIABLES LIKE 'log_slow_queries';
-DROP FUNCTION get_value;
---echo "Make it quite long"
-SET SESSION long_query_time=300;
-TRUNCATE mysql.slow_log;
+delimiter ;|
+--echo
+--echo Check that general query log works, but sub-statements
+--echo of the stored procedure do not leave traces in it.
+--echo
+truncate mysql.general_log;
+# Logging format in ps protocol is slightly different
+--disable_ps_protocol
+select 'events_logs_tests' as outside_event;
+--enable_ps_protocol
 --replace_column 1 USER_HOST
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
---echo "Set new values"
-SET GLOBAL long_query_time=4;
-SET SESSION long_query_time=1;
---echo "Check that logging is working"
-SELECT SLEEP(2);
---replace_column 1 USER_HOST 2 SLEEPVAL
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
-SET SESSION long_query_time=300;
---echo "Make it quite long"
-TRUNCATE mysql.slow_log;
-CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
-SET SESSION long_query_time=1;
---echo "This won't go to the slow log"
-SELECT * FROM slow_event_test;
-SET SESSION long_query_time=1;
-SET GLOBAL event_scheduler=on;
-SET GLOBAL long_query_time=20;
-CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
---echo "Sleep some more time than the actual event run will take"
---sleep 2
-SHOW VARIABLES LIKE 'event_scheduler';
---echo "Check our table. Should see 1 row"
-SELECT * FROM slow_event_test;
---echo "Check slow log. Should not see anything because 1.5 is under the threshold of 20 for GLOBAL, though over SESSION which is 1"
---echo "This should show that the GLOBAL value is regarded and not the SESSION one of the current connection"
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
---echo "Another test to show that GLOBAL is regarded and not SESSION."
---echo "This should go to the slow log"
-SET SESSION long_query_time=10;
-DROP EVENT long_event;
-SET GLOBAL long_query_time=1;
-CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
---echo "Sleep some more time than the actual event run will take"
-let $wait_timeout= 30;
-let $wait_condition= SELECT COUNT(*) = 1 FROM mysql.slow_log; 
+call select_general_log();
+--echo  
+--echo Check that unlike sub-statements of stored procedures,
+--echo sub-statements of events are present in the general log.
+--echo 
+set global event_scheduler=on;
+truncate mysql.general_log;
+create event ev_log_general on schedule at now() on completion not preserve do select 'events_logs_test' as inside_event;
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
 --source include/wait_condition.inc
---echo "Check our table. Should see 2 rows"
-SELECT * FROM slow_event_test;
---echo "Check slow log. Should see 1 row because 2 is over the threshold of 1 for GLOBAL, though under SESSION which is 10"
---replace_column 1 USER_HOST 2 SLEEPVAL
-SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
-DROP EVENT long_event2;
---echo "Make it quite long"
-SET SESSION long_query_time=300;
-TRUNCATE mysql.slow_log;
-DROP TABLE slow_event_test;
-SET GLOBAL  long_query_time =@old_global_long_query_time;
-SET SESSION long_query_time =@old_session_long_query_time; 
+--replace_column 1 USER_HOST
+call select_general_log();
 
-DROP DATABASE events_test;
+--echo
+--echo Check slow query log
+--echo
+--echo Ensure that slow logging is on
+show variables like 'log_slow_queries';
+--echo 
+--echo Demonstrate that session value has no effect
+--echo
+set @@session.long_query_time=1;
+set @@global.long_query_time=300;
+truncate mysql.slow_log;
+create event ev_log_general on schedule at now() on completion not preserve
+  do select 'events_logs_test' as inside_event, sleep(1.5);
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
+--source include/wait_condition.inc
+--echo
+--echo Nothing should be logged
+--echo
+--replace_column 1 USER_HOST
+select user_host, db, sql_text from mysql.slow_log where sql_text not like 'create event%';
+set @@global.long_query_time=1;
+truncate mysql.slow_log;
+create event ev_log_general on schedule at now() on completion not preserve
+  do select 'events_logs_test' as inside_event, sleep(1.5);
+--let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
+--source include/wait_condition.inc
+--echo
+--echo Event sub-statement should be logged.
+--echo 
+--replace_column 1 USER_HOST
+select user_host, db, sql_text from mysql.slow_log where sql_text not like 'create event%';
 
+drop database events_test;
+set global event_scheduler=off;
+set @@global.long_query_time=default;
+set @@session.long_query_time=default;
 
-SET GLOBAL event_scheduler=off;
-
+#
+# Safety
+#
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();

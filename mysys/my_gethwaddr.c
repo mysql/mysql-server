@@ -19,7 +19,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-#ifndef MAIN
+#if !defined(__FreeBSD__) || defined(__linux__)
 static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
 {
   uint i, res=1;

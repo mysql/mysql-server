@@ -1,0 +1,506 @@
+#############################################################
+# Purpose: To test having extra columns on the master WL#3915
+# engine inspecific sourced part
+#############################################################
+
+# TODO: partition specific
+# -- source include/have_partition.inc
+
+########### Clean up ################
+--disable_warnings
+--disable_query_log
+DROP TABLE IF EXISTS  t1,t2,t3,t4,t31;
+
+--enable_query_log
+--enable_warnings
+
+#
+# Setup differently defined tables on master and slave
+#
+
+# Def on master: t (f_1 type_m_1,... f_s type_m_s, f_s1, f_m)
+# Def on slave:  t (f_1 type_s_1,... f_s type_s_s)
+# where type_mi,type_si (0 < i-1 <s1) pairs are compatible types (WL#3228)
+# Arbitrary paramaters of the test are:
+# 1. the tables type
+# 2. the types of the extra master's column f_s1,..., f_m
+# 3. the numbers of common columns `s' 
+# 4. and  extra columns `m' are par
+#
+# optionally
+#
+# 5. vary the common columns type within compatible ranges.
+
+#
+# constant size column type:
+
+#BIGINT       
+#BLOB         
+#DATE         
+#DATETIME     
+#FLOAT        
+#INT, INTEGER 
+#LONGBLOB      
+#LONGTEXT     
+#MEDIUMBLOB   
+#MEDIUMINT    
+#MEDIUMTEXT   
+#REAL         
+#SMALLINT     
+#TEXT         
+#TIME         
+#TIMESTAMP    
+#TINYBLOB     
+#TINYINT      
+#TINYTEXT     
+#YEAR         
+
+# variable size column types:
+
+#BINARY(M)    
+#BIT(M)        
+#CHAR(M)      
+#DECIMAL(M,D) 
+#DOUBLE[P]    
+#ENUM         
+#FLOAT(p)     
+#NUMERIC(M,D) 
+#SET           
+#VARBINARY(M) 
+#VARCHAR(M)    
+#
+
+
+connection master;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      f5 FLOAT DEFAULT '2.00')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0);
+
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi');
+
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0')
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1);
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT)
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT,
+                       f9 LONGBLOB)
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+                       f7 INT DEFAULT '0',
+                       f8 TEXT,
+                       f9 LONGBLOB,
+                       f10 BIT(63))
+                      ENGINE=$engine_type;
+
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10;
+
+connection master;
+INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob', b'01010101010101');
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+connection master;
+DROP TABLE t1;
+    eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 FLOAT DEFAULT '2.00', 
+                       f6 CHAR(4) DEFAULT 'TEST',
+		       f7 INT DEFAULT '0',
+		       f8 TEXT,
+		       f9 LONGBLOB,
+           f10 BIT(63),
+		       f11 VARBINARY(64))
+                      ENGINE=$engine_type;
+
+#connection slave;
+   sync_slave_with_master;
+   alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+
+connection master;
+
+   INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob', b'01010101010101', 0x123456);
+   INSERT into t1 values (2, 2, 2, 'second', 2.0, 'kaks', 2, 'got stolen from the paradise', 'very fat blob', b'01010101010101', 0x123456), (3, 3, 3, 'third', 3.0, 'kolm', 3, 'got stolen from the paradise', 'very fat blob', b'01010101010101', 0x123456);
+   update t1 set f4= 'next' where f1=1;
+   delete from t1 where f1=1;
+
+   select * from t1 order by f3;
+
+
+#connection slave;
+   sync_slave_with_master;
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+   select * from t1 order by f3;
+
+
+### Altering table def scenario
+
+connection master;
+
+   eval CREATE TABLE t2 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+                       f6 ENUM('a', 'b', 'c') default 'a',
+		       f7 DECIMAL(17,9) default '1000.00',
+		       f8 MEDIUMBLOB,
+		       f9 NUMERIC(6,4) default '2000.00',
+		       f10 VARCHAR(1024),
+		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f12 SET('a', 'b', 'c') default 'b')
+                       ENGINE=$engine_type;
+
+   eval CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+                       f6 ENUM('a', 'b', 'c') default 'a',
+		       f8 MEDIUMBLOB,
+		       f10 VARCHAR(1024),
+		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f12 SET('a', 'b', 'c') default 'b')
+                       ENGINE=$engine_type;
+
+
+# no ENUM and SET
+    eval CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                      /* extra */
+                       f5 DOUBLE DEFAULT '2.00', 
+		       f6 DECIMAL(17,9) default '1000.00',
+		       f7 MEDIUMBLOB,
+		       f8 NUMERIC(6,4) default '2000.00',
+		       f9 VARCHAR(1024),
+		       f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+		       f11 CHAR(255))
+                       ENGINE=$engine_type;
+
+
+    eval CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
+                       
+                       /* extra */
+
+                       f5  BIGINT,
+                       f6  BLOB,
+		       f7  DATE,
+		       f8  DATETIME,
+		       f9  FLOAT,
+		       f10 INT,
+		       f11 LONGBLOB,
+		       f12 LONGTEXT,
+		       f13 MEDIUMBLOB,
+		       f14 MEDIUMINT,
+		       f15 MEDIUMTEXT,
+		       f16 REAL,
+		       f17 SMALLINT,
+		       f18 TEXT,
+		       f19 TIME,
+		       f20 TIMESTAMP,
+		       f21 TINYBLOB,
+		       f22 TINYINT,
+		       f23 TINYTEXT,
+		       f24 YEAR,
+		       f25 BINARY(255),
+		       f26 BIT(64),
+		       f27 CHAR(255),
+		       f28 DECIMAL(30,7),
+		       f29 DOUBLE,
+		       f30 ENUM ('a','b', 'c') default 'a',
+		       f31 FLOAT,
+		       f32 NUMERIC(17,9),
+		       f33 SET ('a', 'b', 'c') default 'b',
+		       f34 VARBINARY(1025),
+		       f35 VARCHAR(257)       
+                       ) ENGINE=$engine_type;
+
+#connection slave;
+    sync_slave_with_master;
+    alter table t2 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11, drop
+f12;
+    alter table t3 drop f5, drop f6, drop f8, drop f10, drop f11, drop f12;
+    alter table t4 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
+
+    alter table t31 
+       drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11,
+       drop f12, drop f13, drop f14, drop f15, drop f16, drop f17, drop f18,
+       drop f19, drop f20, drop f21, drop f22, drop f23, drop f24, drop f25,
+       drop f26, drop f27, drop f28, drop f29, drop f30, drop f31, drop f32,
+       drop f33, drop f34, drop f35;
+                 
+
+
+connection master;
+   INSERT into t2 set f1=1, f2=1, f3=1, f4='first', f8='f8: medium size blob', f10='f10:
+some var char';
+   INSERT into t2 values (2, 2, 2, 'second',
+       2.0, 'b', 2000.0002, 'f8: medium size blob', 2000, 'f10: some var char',
+'01234567', 'c'),
+                       (3, 3, 3, 'third',
+       3.0, 'b', 3000.0003, 'f8: medium size blob', 3000, 'f10: some var char',
+'01234567', 'c');
+   INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
+   INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
+binary data';
+   INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
+   INSERT into t31 set f1=1, f2=1, f3=2, f4='second',
+     f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
+   INSERT into t31 values (1, 1, 3, 'third',
+      /* f5  BIGINT,  */            333333333333333333333333,
+      /* f6  BLOB,  */              '3333333333333333333333',
+      /* f7  DATE,  */              '2007-07-18',
+      /* f8  DATETIME,  */          "2007-07-18",
+      /* f9  FLOAT,  */             3.33333333,
+      /* f10 INT,  */               333333333,
+      /* f11 LONGBLOB,  */          '3333333333333333333',
+      /* f12 LONGTEXT,  */          '3333333333333333333',
+      /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+      /* f14 MEDIUMINT,  */         33,
+      /* f15 MEDIUMTEXT,  */        3.3,
+      /* f16 REAL,  */              3.3,
+      /* f17 SMALLINT,  */          3,
+      /* f18 TEXT,  */              '33',
+      /* f19 TIME,  */              '2:59:58.999',
+      /* f20 TIMESTAMP,  */         20000303000000,
+      /* f21 TINYBLOB,  */          '3333',
+      /* f22 TINYINT,  */           3,
+      /* f23 TINYTEXT,  */          '3',
+      /* f24 YEAR,  */              3000,
+      /* f25 BINARY(255),  */       'three_33333',
+      /* f26 BIT(64),  */           b'011', 
+      /* f27 CHAR(255),  */         'three',
+      /* f28 DECIMAL(30,7),  */     3.333,
+      /* f29 DOUBLE,  */            3.333333333333333333333333333,
+      /* f30 ENUM ('a','b','c')*/   'c',
+      /* f31 FLOAT,  */             3.0,
+      /* f32 NUMERIC(17,9),  */     3.3333,
+      /* f33 SET ('a','b','c'),*/   'c',
+      /*f34 VARBINARY(1025),*/      '3333 minus 3',
+      /*f35 VARCHAR(257),*/         'three times three'
+      );
+   
+   INSERT into t31 values (1, 1, 4, 'fourth',
+       /* f5  BIGINT,  */            333333333333333333333333,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         'three times three'
+       ),
+   (1, 1, 5, 'fifth',
+       /* f5  BIGINT,  */            333333333333333333333333,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         'three times three'
+       ),
+   (1, 1, 6, 'sixth',
+       /* f5  BIGINT,  */            NULL,
+       /* f6  BLOB,  */              '3333333333333333333333',
+       /* f7  DATE,  */              '2007-07-18',
+       /* f8  DATETIME,  */          "2007-07-18",
+       /* f9  FLOAT,  */             3.33333333,
+       /* f10 INT,  */               333333333,
+       /* f11 LONGBLOB,  */          '3333333333333333333',
+       /* f12 LONGTEXT,  */          '3333333333333333333',
+       /* f13 MEDIUMBLOB,  */        '3333333333333333333',
+       /* f14 MEDIUMINT,  */         33,
+       /* f15 MEDIUMTEXT,  */        3.3,
+       /* f16 REAL,  */              3.3,
+       /* f17 SMALLINT,  */          3,
+       /* f18 TEXT,  */              '33',
+       /* f19 TIME,  */              '2:59:58.999',
+       /* f20 TIMESTAMP,  */         20000303000000,
+       /* f21 TINYBLOB,  */          '3333',
+       /* f22 TINYINT,  */           3,
+       /* f23 TINYTEXT,  */          '3',
+       /* f24 YEAR,  */              3000,
+       /* f25 BINARY(255),  */       'three_33333',
+       /* f26 BIT(64),  */           b'011',
+       /* f27 CHAR(255),  */         'three',
+       /* f28 DECIMAL(30,7),  */     3.333,
+       /* f29 DOUBLE,  */            3.333333333333333333333333333,
+       /* f30 ENUM ('a','b','c')*/   'c',
+       /* f31 FLOAT,  */             3.0,
+       /* f32 NUMERIC(17,9),  */     3.3333,
+       /* f33 SET ('a','b','c'),*/   'c',
+       /*f34 VARBINARY(1025),*/      '3333 minus 3',
+       /*f35 VARCHAR(257),*/         NULL
+       );
+   
+#connection slave;
+   sync_slave_with_master;
+
+   select * from t1 order by f3;
+   select * from t2 order by f1;
+   select * from t3 order by f1;
+   select * from t4 order by f1;
+   select * from t31 order by f1;
+   
+connection master;
+
+   update t31 set f5=555555555555555 where f3=6;
+   update t31 set f2=2 where f3=2;
+   update t31 set f1=NULL where f3=1;
+   update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+
+   delete from t1;
+   delete from t2;
+   delete from t3;
+   delete from t4;
+   delete from t31;
+
+#connection slave;
+   sync_slave_with_master;
+   select * from t31;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical show slave status;
+
+#### Clean Up ####
+
+connection master;
+--disable_warnings
+--disable_query_log
+  DROP TABLE t1,t2,t3,t4,t31;
+
+#connection slave;
+  sync_slave_with_master;
+--enable_query_log
+--enable_warnings
+
+# END of the tests
+
+

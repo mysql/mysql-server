@@ -550,7 +550,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     top= ((Event_queue_element*) queue_element(&queue, 0));
 
-    thd->end_time(); /* Get current time */
+    thd->set_current_time(); /* Get current time */
 
     next_activation_at= top->execute_at;
     if (next_activation_at > thd->query_start())
@@ -740,7 +740,7 @@ Event_queue::dump_internal_status()
   printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
 
   MYSQL_TIME time;
-  my_tz_UTC->gmt_sec_to_TIME(&time, next_activation_at);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, next_activation_at);
   if (time.year != 1970)
     printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
            time.year, time.month, time.day, time.hour, time.minute, time.second);

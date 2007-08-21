@@ -237,4 +237,13 @@ select hex(cast('a' as char(2) binary));
 select hex(cast('a' as binary(2)));
 select hex(cast('a' as char(2) binary));
 
+#
+# Bug#29898: Item_date_typecast::val_int doesn't reset the null_value flag.
+#
+CREATE TABLE t1 (d1 datetime);
+INSERT INTO t1(d1) VALUES ('2007-07-19 08:30:00'), (NULL),
+  ('2007-07-19 08:34:00'), (NULL), ('2007-07-19 08:36:00');
+SELECT cast(date(d1) as signed) FROM t1;
+drop table t1;
+
 --echo End of 5.0 tests

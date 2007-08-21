@@ -49,6 +49,7 @@ typedef struct st_tina_share {
   File tina_write_filedes;  /* File handler for readers */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
+  uint data_file_version;   /* Version of the data file used */
 } TINA_SHARE;
 
 struct tina_set {
@@ -63,6 +64,7 @@ class ha_tina: public handler
   off_t current_position;  /* Current position in the file during a file scan */
   off_t next_position;     /* Next position in the file scan */
   off_t local_saved_data_file_length; /* save position for reads */
+  off_t temp_file_length;
   uchar byte_buffer[IO_SIZE];
   Transparent_file *file_buff;
   File data_file;                   /* File handler for readers */
@@ -78,12 +80,14 @@ class ha_tina: public handler
   tina_set *chain_ptr;
   uchar chain_alloced;
   uint32 chain_size;
+  uint local_data_file_version;  /* Saved version of the data file used */
   bool records_is_known;
 
 private:
   bool get_write_pos(off_t *end_pos, tina_set *closest_hole);
   int open_update_temp_file_if_needed();
   int init_tina_writer();
+  int init_data_file();
 
 public:
   ha_tina(handlerton *hton, TABLE_SHARE *table_arg);
@@ -127,11 +131,6 @@ public:
   */
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_logger_thread);
   int open(const char *name, int mode, uint open_options);
   int close(void);
   int write_row(uchar * buf);

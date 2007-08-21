@@ -437,7 +437,7 @@ net_write_command(NET *net,uchar command,
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   DBUG_ENTER("net_write_command");
-  DBUG_PRINT("enter",("length: %lu", len));
+  DBUG_PRINT("enter",("length: %lu", (ulong) len));
 
   buff[4]=command;				/* For first packet */
 

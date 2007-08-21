@@ -13,9 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(mySTL include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include)
 
-ADD_LIBRARY(taocrypt src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp src/asn.cpp src/coding.cpp 
+SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp src/asn.cpp src/coding.cpp 
 				src/des.cpp src/dh.cpp src/dsa.cpp src/file.cpp src/hash.cpp src/integer.cpp src/md2.cpp 
 				src/md4.cpp src/md5.cpp src/misc.cpp src/random.cpp src/ripemd.cpp src/rsa.cpp src/sha.cpp
 				include/aes.hpp include/algebra.hpp include/arc4.hpp include/asn.hpp include/block.hpp 
@@ -23,3 +24,6 @@ ADD_LIBRARY(taocrypt src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp 
 				include/error.hpp include/file.hpp include/hash.hpp include/hmac.hpp include/integer.hpp 
 				include/md2.hpp include/md5.hpp include/misc.hpp include/modarith.hpp include/modes.hpp
 				include/random.hpp include/ripemd.hpp include/rsa.hpp include/sha.hpp)
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(taocrypt ${TAOCRYPT_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)

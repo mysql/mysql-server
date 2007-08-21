@@ -232,7 +232,7 @@ static int wait_for_data(my_socket fd, uint timeout)
     implementations of select that don't adjust tv upon
     failure to reflect the time remaining
    */
-  start_time = time(NULL);
+  start_time= my_time(0);
   for (;;)
   {
     tv.tv_sec = (long) timeout;
@@ -246,7 +246,7 @@ static int wait_for_data(my_socket fd, uint timeout)
 #endif
     if (res == 0)					/* timeout */
       return -1;
-    now_time=time(NULL);
+    now_time= my_time(0);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
       return -1;
@@ -1226,12 +1226,12 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       /* fields count may be wrong */
       DBUG_ASSERT((uint) (field - result) < fields);
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
-      field->catalog  = strdup_root(alloc,(char*) row->data[0]);
-      field->db       = strdup_root(alloc,(char*) row->data[1]);
-      field->table    = strdup_root(alloc,(char*) row->data[2]);
-      field->org_table= strdup_root(alloc,(char*) row->data[3]);
-      field->name     = strdup_root(alloc,(char*) row->data[4]);
-      field->org_name = strdup_root(alloc,(char*) row->data[5]);
+      field->catalog=   strmake_root(alloc,(char*) row->data[0], lengths[0]);
+      field->db=        strmake_root(alloc,(char*) row->data[1], lengths[1]);
+      field->table=     strmake_root(alloc,(char*) row->data[2], lengths[2]);
+      field->org_table= strmake_root(alloc,(char*) row->data[3], lengths[3]);
+      field->name=      strmake_root(alloc,(char*) row->data[4], lengths[4]);
+      field->org_name=  strmake_root(alloc,(char*) row->data[5], lengths[5]);
 
       field->catalog_length=	lengths[0];
       field->db_length=		lengths[1];
@@ -1252,7 +1252,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags|= NUM_FLAG;
       if (default_value && row->data[7])
       {
-        field->def=strdup_root(alloc,(char*) row->data[7]);
+        field->def=strmake_root(alloc,(char*) row->data[7], lengths[7]);
 	field->def_length= lengths[7];
       }
       else

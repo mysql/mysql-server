@@ -10,13 +10,13 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.21-beta)
-AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(mysql, 5.1.22-beta)
+AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_MAJOR_VERSION=15
+SHARED_LIB_MAJOR_VERSION=16
 SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 NDB_SHARED_LIB_MAJOR_VERSION=3
 NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
@@ -71,14 +71,22 @@ AC_SUBST(AVAILABLE_LANGUAGES)
 
 
 # Canonicalize the configuration name.
-SYSTEM_TYPE="$host_vendor-$host_os"
-MACHINE_TYPE="$host_cpu"
+
+# Check whether --with-system-type or --without-system-type was given.
+AC_ARG_WITH(system-type,
+    [  --with-system-type      Set the system type, like "sun-solaris10"],
+    [SYSTEM_TYPE="$withval"],
+    [SYSTEM_TYPE="$host_vendor-$host_os"])
+AC_ARG_WITH(machine-type,
+    [  --with-machine-type     Set the machine type, like "powerpc"],
+    [MACHINE_TYPE="$withval"],
+    [MACHINE_TYPE="$host_cpu"])
 AC_SUBST(SYSTEM_TYPE)
 AC_DEFINE_UNQUOTED([SYSTEM_TYPE], ["$SYSTEM_TYPE"],
-                   [Name of system, eg solaris])
+                   [Name of system, eg sun-solaris])
 AC_SUBST(MACHINE_TYPE)
 AC_DEFINE_UNQUOTED([MACHINE_TYPE], ["$MACHINE_TYPE"],
-                   [Machine type name, eg sun10])
+                   [Machine type name, eg sparc])
 
 # Detect intel x86 like processor
 BASE_MACHINE_TYPE=$MACHINE_TYPE
@@ -1784,6 +1792,8 @@ MYSQL_TYPE_ACCEPT
 #---END:
 # Figure out what type of struct rlimit to use with setrlimit
 MYSQL_TYPE_STRUCT_RLIMIT
+# Find where the stack goes
+MYSQL_STACK_DIRECTION
 # We want to skip alloca on irix unconditionally. It may work on some version..
 MYSQL_FUNC_ALLOCA
 # Do struct timespec have members tv_sec or ts_sec
@@ -1912,8 +1922,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
-  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
-  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  getpwuid getrlimit getrusage getwd index initgroups isnan \
+  localtime_r gethrtime gmtime_r \
+  locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \

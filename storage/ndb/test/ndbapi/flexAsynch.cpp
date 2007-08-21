@@ -35,7 +35,14 @@
 #define MAXSTRLEN 16 
 #define MAXATTR 64
 #define MAXTABLES 64
-#define MAXTHREADS 128
+#define NDB_MAXTHREADS 128
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
 #define MAXPAR 1024
 #define MAXATTRSIZE 1000
 #define PKSIZE 2
@@ -76,10 +83,10 @@ struct ThreadNdb
   int ThreadNo;
 };
 
-static NdbThread*               threadLife[MAXTHREADS];
+static NdbThread*               threadLife[NDB_MAXTHREADS];
 static int                              tNodeId;
-static int                              ThreadReady[MAXTHREADS];
-static StartType                ThreadStart[MAXTHREADS];
+static int                              ThreadReady[NDB_MAXTHREADS];
+static StartType                ThreadStart[NDB_MAXTHREADS];
 static char                             tableName[MAXTABLES][MAXSTRLEN+1];
 static char                             attrName[MAXATTR][MAXSTRLEN+1];
 
@@ -160,7 +167,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  pThreadData = new ThreadNdb[MAXTHREADS];
+  pThreadData = new ThreadNdb[NDB_MAXTHREADS];
 
   ndbout << endl << "FLEXASYNCH - Starting normal mode" << endl;
   ndbout << "Perform benchmark of insert, update and delete transactions";
@@ -844,7 +851,7 @@ readArguments(int argc, const char** argv){
   while (argc > 1){
     if (strcmp(argv[i], "-t") == 0){
       tNoOfThreads = atoi(argv[i+1]);
-      if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS)){
+      if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS)){
 	ndbout_c("Invalid no of threads");
         return -1;
       }

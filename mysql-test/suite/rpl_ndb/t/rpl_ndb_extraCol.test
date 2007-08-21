@@ -1,0 +1,13 @@
+###########################################
+# Author: Jeb
+# Date: 2006-09-08
+# Purpose: Wapper for rpl_extraSlave_Col.test
+#          Using NDB
+########################################### 
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
+let $engine_type = 'NDB';
+-- source extra/rpl_tests/rpl_extraSlave_Col.test
+
+

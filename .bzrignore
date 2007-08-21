@@ -5,6 +5,7 @@
 *.bb
 *.bbg
 *.bin
+*.cdf
 *.core
 *.d
 *.da
@@ -38,9 +39,9 @@
 */.libs/*
 */.pure
 */debug/*
+*/minsizerel/*
 */release/*
 */relwithdebinfo/*
-*/minsizerel/*
 *~
 .*.swp
 ./CMakeCache.txt
@@ -584,6 +585,7 @@ heap/hp_test2
 help
 help.c
 help.h
+include/abi_check
 include/check_abi
 include/link_sources
 include/my_config.h
@@ -1021,8 +1023,8 @@ libmysqld/.deps/unireg.Po
 libmysqld/backup_dir
 libmysqld/client.c
 libmysqld/client_settings.h
-libmysqld/convert.cc
 libmysqld/cmake_dummy.c
+libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/discover.cc
 libmysqld/emb_qcache.cpp
@@ -1097,6 +1099,7 @@ libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
 libmysqld/key.cc
+libmysqld/lex_hash.h
 libmysqld/lib_sql.cpp
 libmysqld/libmysql.c
 libmysqld/link_sources
@@ -1105,6 +1108,8 @@ libmysqld/log.cc
 libmysqld/log_event.cc
 libmysqld/log_event_old.cc
 libmysqld/md5.c
+libmysqld/message.h
+libmysqld/message.rc
 libmysqld/mf_iocache.cc
 libmysqld/mini_client.cc
 libmysqld/my_decimal.cc
@@ -2880,6 +2885,7 @@ support-files/mysql-3.23.29-gamma.spec
 support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
+support-files/mysqld_multi.server
 support-files/ndb-config-2-node.ini
 tags
 test/ndbapi/bank/bankCreator
@@ -2945,6 +2951,7 @@ tests/.deps/thread_test.Po
 tests/.libs -prune
 tests/.libs/lt-mysql_client_test
 tests/.libs/mysql_client_test
+tests/bug25714
 tests/client_test
 tests/connect_test
 tests/mysql_client_test

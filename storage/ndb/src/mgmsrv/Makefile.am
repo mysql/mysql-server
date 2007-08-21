@@ -38,7 +38,7 @@ INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/ndbapi \
                -I$(top_srcdir)/storage/ndb/src/common/mgmcommon \
                -I$(top_srcdir)/storage/ndb/src/mgmclient
 
-LDADD_LOC = $(top_builddir)/storage/ndb/src/mgmclient/CommandInterpreter.o \
+LDADD_LOC = $(top_builddir)/storage/ndb/src/mgmclient/CommandInterpreter.lo \
             $(top_builddir)/storage/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \

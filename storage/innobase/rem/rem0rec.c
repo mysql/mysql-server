@@ -153,7 +153,6 @@ static
 void
 rec_init_offsets(
 /*=============*/
-				/* out: the offsets */
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets)/* in/out: array of offsets;
@@ -189,7 +188,7 @@ rec_init_offsets(
 		}
 
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-		lens = nulls - (index->n_nullable + 7) / 8;
+		lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 		offs = 0;
 		null_mask = 1;
 
@@ -304,7 +303,7 @@ rec_get_offsets_func(
 				/* out: the new offsets */
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in: array consisting of offsets[0]
+	ulint*		offsets,/* in/out: array consisting of offsets[0]
 				allocated elements, or an array from
 				rec_get_offsets(), or NULL */
 	ulint		n_fields,/* in: maximum number of initialized fields
@@ -440,7 +439,7 @@ rec_get_converted_size_new(
 	dtuple_t*	dtuple)	/* in: data tuple */
 {
 	ulint		size		= REC_N_NEW_EXTRA_BYTES
-		+ (index->n_nullable + 7) / 8;
+		+ UT_BITS_IN_BYTES(index->n_nullable);
 	ulint		i;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
@@ -459,10 +458,10 @@ rec_get_converted_size_new(
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
-		/* infimum or supremum record, 8 bytes */
-		return(size + 8); /* no extra data needed */
+		/* infimum or supremum record, 8 data bytes */
+		return(REC_N_NEW_EXTRA_BYTES + 8);
 	default:
-		ut_a(0);
+		ut_error;
 		return(ULINT_UNDEFINED);
 	}
 
@@ -476,21 +475,31 @@ rec_get_converted_size_new(
 		len = dtuple_get_nth_field(dtuple, i)->len;
 		col = dict_field_get_col(field);
 
-		ut_ad(len != UNIV_SQL_NULL || !(col->prtype & DATA_NOT_NULL));
+		ut_ad(dict_col_type_assert_equal(
+			      col, dfield_get_type(dtuple_get_nth_field(
+							   dtuple, i))));
 
 		if (len == UNIV_SQL_NULL) {
 			/* No length is stored for NULL fields. */
+			ut_ad(!(col->prtype & DATA_NOT_NULL));
 			continue;
 		}
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
-		ut_ad(!field->fixed_len || len == field->fixed_len);
 
 		if (field->fixed_len) {
+			ut_ad(len == field->fixed_len);
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
+			      || field->fixed_len == field->prefix_len);
 		} else if (len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			size++;
 		} else {
+			/* For variable-length columns, we look up the
+			maximum length from the column itself.  If this
+			is a prefix index column shorter than 256 bytes,
+			this will waste one byte. */
 			size += 2;
 		}
 		size += len;
@@ -586,7 +595,7 @@ rec_set_nth_field_extern_bit_new(
 				we do not write to log about the change */
 {
 	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
+	byte*		lens	= nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	ulint		i;
 	ulint		n_fields;
 	ulint		null_mask	= 1;
@@ -744,7 +753,11 @@ rec_convert_dtuple_to_rec_old(
 	/* Calculate the offset of the origin in the physical record */
 
 	rec = buf + rec_get_converted_extra_size(data_size, n_fields);
-
+#ifdef UNIV_DEBUG
+	/* Suppress Valgrind warnings of ut_ad()
+	in mach_write_to_1(), mach_write_to_2() et al. */
+	memset(buf, 0xff, rec - buf + data_size);
+#endif /* UNIV_DEBUG */
 	/* Store the number of fields */
 	rec_set_n_fields_old(rec, n_fields);
 
@@ -875,7 +888,7 @@ rec_convert_dtuple_to_rec_new(
 
 	/* Calculate the offset of the origin in the physical record.
 	We must loop over all fields to do this. */
-	rec += (index->n_nullable + 7) / 8;
+	rec += UT_BITS_IN_BYTES(index->n_nullable);
 
 	for (i = 0; i < n_fields; i++) {
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
@@ -891,6 +904,11 @@ rec_convert_dtuple_to_rec_new(
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
 		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
+
+		ut_ad(dict_col_type_assert_equal(
+			      dict_field_get_col(dict_index_get_nth_field(
+							 index, i)),
+			      dfield_get_type(field)));
 
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			if (len == UNIV_SQL_NULL)
@@ -915,7 +933,7 @@ rec_convert_dtuple_to_rec_new(
 init:
 	end = rec;
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	/* clear the SQL-null flags */
 	memset (lens + 1, 0, nulls - lens);
 
@@ -1172,7 +1190,7 @@ rec_copy_prefix_to_buf(
 	}
 
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	lens = nulls - (index->n_nullable + 7) / 8;
+	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	UNIV_PREFETCH_R(lens);
 	prefix_len = 0;
 	null_mask = 1;

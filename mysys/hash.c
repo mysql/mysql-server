@@ -137,7 +137,7 @@ void my_hash_reset(HASH *hash)
   DBUG_VOID_RETURN;
 }
 
-	/* some helper functions */
+/* some helper functions */
 
 /*
   This function is char* instead of uchar* as HPUX11 compiler can't
@@ -149,9 +149,9 @@ hash_key(const HASH *hash, const uchar *record, size_t *length,
          my_bool first)
 {
   if (hash->get_key)
-    return (*hash->get_key)(record,length,first);
+    return (char*) (*hash->get_key)(record,length,first);
   *length=hash->key_length;
-  return (uchar*) record+hash->key_offset;
+  return (char*) record+hash->key_offset;
 }
 
 	/* Calculate pos according to keys */
@@ -313,12 +313,14 @@ my_bool my_hash_insert(HASH *info,const uchar *record)
   uchar *ptr_to_rec,*ptr_to_rec2;
   HASH_LINK *data,*empty,*gpos,*gpos2,*pos;
 
-  LINT_INIT(gpos); LINT_INIT(gpos2);
-  LINT_INIT(ptr_to_rec); LINT_INIT(ptr_to_rec2);
+  LINT_INIT(gpos);
+  LINT_INIT(gpos2);
+  LINT_INIT(ptr_to_rec);
+  LINT_INIT(ptr_to_rec2);
 
   if (HASH_UNIQUE & info->flags)
   {
-    char *key= (char*) hash_key(info, record, &idx, 1);
+    uchar *key= (uchar*) hash_key(info, record, &idx, 1);
     if (hash_search(info, key, idx))
       return(TRUE);				/* Duplicate entry */
   }
@@ -544,14 +546,16 @@ my_bool hash_update(HASH *hash, uchar *record, uchar *old_key,
   if (HASH_UNIQUE & hash->flags)
   {
     HASH_SEARCH_STATE state;
-    char *found, *new_key= hash_key(hash, record, &idx, 1);
+    uchar *found, *new_key= (uchar*) hash_key(hash, record, &idx, 1);
     if ((found= hash_first(hash, new_key, idx, &state)))
+    {
       do 
       {
-        if (found != (char*) record)
+        if (found != record)
           DBUG_RETURN(1);		/* Duplicate entry */
       } 
       while ((found= hash_next(hash, new_key, idx, &state)));
+    }
   }
 
   data=dynamic_element(&hash->array,0,HASH_LINK*);
@@ -593,6 +597,25 @@ my_bool hash_update(HASH *hash, uchar *record, uchar *old_key,
     previous->next=pos->next;		/* unlink pos */
 
   /* Move data to correct position */
+  if (new_index == empty)
+  {
+    /*
+      At this point record is unlinked from the old chain, thus it holds
+      random position. By the chance this position is equal to position
+      for the first element in the new chain. That means updated record
+      is the only record in the new chain.
+    */
+    if (empty != idx)
+    {
+      /*
+        Record was moved while unlinking it from the old chain.
+        Copy data to a new position.
+      */
+      data[empty]= org_link;
+    }
+    data[empty].next= NO_RECORD;
+    DBUG_RETURN(0);
+  }
   pos=data+new_index;
   new_pos_index=hash_rec_mask(hash,pos,blength,records);
   if (new_index != new_pos_index)

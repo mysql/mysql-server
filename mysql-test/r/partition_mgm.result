@@ -10,13 +10,13 @@ subpartition sp01, subpartition sp02));
 ERROR HY000: Wrong number of subpartitions defined, mismatch with previous setting
 drop table t1;
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
-PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2;
+PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (YEAR(f_date)) PARTITIONS 2  */
 hello/master-data/test/t1#P#p0.MYD
 hello/master-data/test/t1#P#p0.MYI
 hello/master-data/test/t1#P#p1.MYD
@@ -29,7 +29,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 1  */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (YEAR(f_date)) PARTITIONS 1  */
 hello/master-data/test/t1#P#p0.MYD
 hello/master-data/test/t1#P#p0.MYI
 hello/master-data/test/t1.frm

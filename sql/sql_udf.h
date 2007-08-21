@@ -47,7 +47,6 @@ typedef struct st_udf_func
 } udf_func;
 
 class Item_result_field;
-struct st_table_list;
 
 class udf_handler :public Sql_alloc
 {

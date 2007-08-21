@@ -1142,6 +1142,12 @@ int ha_partition::prepare_new_partition(TABLE *table,
   create_flag= TRUE;
   if ((error= file->ha_open(table, part_name, m_mode, m_open_test_lock)))
     goto error;
+  /*
+    Note: if you plan to add another call that may return failure,
+    better to do it before external_lock() as cleanup_new_partition()
+    assumes that external_lock() is last call that may fail here.
+    Otherwise see description for cleanup_new_partition().
+  */
   if ((error= file->external_lock(current_thd, m_lock_type)))
     goto error;
 
@@ -1164,6 +1170,14 @@ error:
     NONE
 
   DESCRIPTION
+    This function is called immediately after prepare_new_partition() in
+    case the latter fails.
+
+    In prepare_new_partition() last call that may return failure is
+    external_lock(). That means if prepare_new_partition() fails,
+    partition does not have external lock. Thus no need to call
+    external_lock(F_UNLCK) here.
+
   TODO:
     We must ensure that in the case that we get an error during the process
     that we call external_lock with F_UNLCK, close the table and delete the
@@ -1182,7 +1196,6 @@ void ha_partition::cleanup_new_partition(uint part_count)
     m_file= m_added_file;
     m_added_file= NULL;
 
-    external_lock(current_thd, F_UNLCK);
     /* delete_table also needed, a bit more complex */
     close();
 
@@ -2961,8 +2974,34 @@ int ha_partition::rnd_init(bool scan)
   uint32 part_id;
   DBUG_ENTER("ha_partition::rnd_init");
 
-  include_partition_fields_in_used_fields();
-  
+  /*
+    For operations that may need to change data, we may need to extend
+    read_set.
+  */
+  if (m_lock_type == F_WRLCK)
+  {
+    /*
+      If write_set contains any of the fields used in partition and
+      subpartition expression, we need to set all bits in read_set because
+      the row may need to be inserted in a different [sub]partition. In
+      other words update_row() can be converted into write_row(), which
+      requires a complete record.
+    */
+    if (bitmap_is_overlapping(&m_part_info->full_part_field_set,
+                              table->write_set))
+      bitmap_set_all(table->read_set);
+    else
+    {
+      /*
+        Some handlers only read fields as specified by the bitmap for the
+        read set. For partitioned handlers we always require that the
+        fields of the partition functions are read such that we can
+        calculate the partition id to place updated and deleted records.
+      */
+      bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+    }
+  }
+
   /* Now we see what the index of our first important partition is */
   DBUG_PRINT("info", ("m_part_info->used_partitions: 0x%lx",
                       (long) m_part_info->used_partitions.bitmap));
@@ -3118,7 +3157,7 @@ int ha_partition::rnd_next(uchar *buf)
       continue;                               // Probably MyISAM
 
     if (result != HA_ERR_END_OF_FILE)
-      break;                                  // Return error
+      goto end_dont_reset_start_part;         // Return error
 
     /* End current partition */
     late_extra_no_cache(part_id);
@@ -3144,6 +3183,7 @@ int ha_partition::rnd_next(uchar *buf)
 
 end:
   m_part_spec.start_part= NO_CURRENT_PART_ID;
+end_dont_reset_start_part:
   table->status= STATUS_NOT_FOUND;
   DBUG_RETURN(result);
 }
@@ -3275,7 +3315,15 @@ int ha_partition::index_init(uint inx, bool sorted)
   m_start_key.length= 0;
   m_ordered= sorted;
   m_curr_key_info= table->key_info+inx;
-  include_partition_fields_in_used_fields();
+  /*
+    Some handlers only read fields as specified by the bitmap for the
+    read set. For partitioned handlers we always require that the
+    fields of the partition functions are read such that we can
+    calculate the partition id to place updated and deleted records.
+    But this is required for operations that may need to change data only.
+  */
+  if (m_lock_type == F_WRLCK)
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
   file= m_file;
   do
   {
@@ -4144,35 +4192,6 @@ int ha_partition::handle_ordered_prev(uchar *buf)
 }
 
 
-/*
-  Set fields in partition functions in read set for underlying handlers
-
-  SYNOPSIS
-    include_partition_fields_in_used_fields()
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    Some handlers only read fields as specified by the bitmap for the
-    read set. For partitioned handlers we always require that the
-    fields of the partition functions are read such that we can
-    calculate the partition id to place updated and deleted records.
-*/
-
-void ha_partition::include_partition_fields_in_used_fields()
-{
-  Field **ptr= m_part_field_array;
-  DBUG_ENTER("ha_partition::include_partition_fields_in_used_fields");
-
-  do
-  {
-    bitmap_set_bit(table->read_set, (*ptr)->field_index);
-  } while (*(++ptr));
-  DBUG_VOID_RETURN;
-}
-
-
 /****************************************************************************
                 MODULE information calls
 ****************************************************************************/
@@ -4714,6 +4733,12 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_KEY_CACHE:
   HA_EXTRA_NO_KEY_CACHE:
     This parameters are no longer used and could be removed.
+
+  7) Parameters only used by federated tables for query processing
+  ----------------------------------------------------------------
+  HA_EXTRA_INSERT_WITH_UPDATE:
+    Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
+    executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -4795,6 +4820,9 @@ int ha_partition::extra(enum ha_extra_function operation)
     */
     break;
   }
+    /* Category 7), used by federated handlers */
+  case HA_EXTRA_INSERT_WITH_UPDATE:
+    DBUG_RETURN(loop_extra(operation));
   default:
   {
     /* Temporary crash to discover what is wrong */
