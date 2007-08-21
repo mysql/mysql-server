@@ -26,8 +26,7 @@ end|
 reset master|
 --error ER_DUP_ENTRY
 insert into t2 values (bug23333(),1)| 
---replace_column 2 # 5 # 6 #
-show binlog events from 98 /* with fixes for #23333 will show there is the query */|
+show master status /* the offset must denote there is the query */|
 select count(*),@a from t1 /* must be 1,1 */|
 drop table t1, t2|
 
