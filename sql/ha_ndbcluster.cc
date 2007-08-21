@@ -11039,7 +11039,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 int ha_ndbcluster::alter_frm(const char *file, NDB_ALTER_DATA *alter_data)
 {
   uchar *data= NULL, *pack_data= NULL;
-  uint length, pack_length;
+  size_t length, pack_length;
   int error= 0;
 
   DBUG_ENTER("alter_frm");
