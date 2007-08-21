@@ -250,6 +250,15 @@ os_file_get_last_error(
 				"InnoDB: the directory. It may also be"
 				" you have created a subdirectory\n"
 				"InnoDB: of the same name as a data file.\n");
+		} else if (err == ERROR_SHARING_VIOLATION
+			   || err == ERROR_LOCK_VIOLATION) {
+			fprintf(stderr,
+				"InnoDB: The error means that another program"
+				" is using InnoDB's files.\n"
+				"InnoDB: This might be a backup or antivirus"
+				" software or another instance\n"
+				"InnoDB: of MySQL."
+				" Please close it to get rid of this error.\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -268,6 +277,9 @@ os_file_get_last_error(
 		return(OS_FILE_DISK_FULL);
 	} else if (err == ERROR_FILE_EXISTS) {
 		return(OS_FILE_ALREADY_EXISTS);
+	} else if (err == ERROR_SHARING_VIOLATION
+		   || err == ERROR_LOCK_VIOLATION) {
+		return(OS_FILE_SHARING_VIOLATION);
 	} else {
 		return(100 + err);
 	}
@@ -388,6 +400,10 @@ os_file_handle_error_cond_exit(
 		   || err == OS_FILE_PATH_ERROR) {
 
 		return(FALSE);
+	} else if (err == OS_FILE_SHARING_VIOLATION) {
+
+		os_thread_sleep(10000000);  /* 10 sec */
+		return(TRUE);
 	} else {
 		if (name) {
 			fprintf(stderr, "InnoDB: File name %s\n", name);
@@ -440,10 +456,9 @@ os_file_handle_error_no_exit(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__) || defined(__NETWARE__)
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__NETWARE__)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
- * On FreeBSD with LinuxThreads, advisory locking does not work properly.
  */
 # undef USE_FILE_LOCK
 #endif

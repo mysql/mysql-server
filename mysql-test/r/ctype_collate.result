@@ -603,3 +603,11 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 (a varchar(2) character set latin7 collate latin7_general_ci,key(a));
+insert into t1 set a=0x4c20;
+insert into t1 set a=0x6c;
+insert into t1 set a=0x4c98;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

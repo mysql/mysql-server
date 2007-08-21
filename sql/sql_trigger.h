@@ -56,14 +56,6 @@ class Table_triggers_list: public Sql_alloc
     updating trigger definitions during RENAME TABLE.
   */
   List<LEX_STRING>  on_table_names_list;
-  /*
-    Key representing triggers for this table in set of all stored
-    routines used by statement.
-    TODO: We won't need this member once triggers namespace will be
-    database-wide instead of table-wide because then we will be able
-    to use key based on sp_name as for other stored routines.
-  */
-  LEX_STRING        sroutines_key;
 
   /*
     Grant information for each trigger (pair: subject table, trigger definer).

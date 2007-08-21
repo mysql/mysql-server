@@ -607,41 +607,7 @@ err:
 #endif /* HAVE_REPLICATION */
 
 
-bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
-                                            ulong type, TABLE *table,
-                                            uint count, uint current,
-                                            uint *system_count,
-                                            bool called_by_privileged_thread)
-{
-  /*
-    To be able to open and lock for reading system tables like 'mysql.proc',
-    when we already have some tables opened and locked, and avoid deadlocks
-    we have to disallow write-locking of these tables with any other tables.
-  */
-  if (table->s->system_table &&
-      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
-    (*system_count)++;
-
-  /* 'current' is an index, that's why '<=' below. */
-  if (*system_count > 0 && *system_count <= current)
-  {
-    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0));
-    return FALSE;
-  }
-
-  /*
-    Deny locking of the log tables, which is incompatible with
-    concurrent insert. Unless called from a logger THD (general_log_thd
-    or slow_log_thd) or by a privileged thread.
-  */
-  if (!called_by_privileged_thread)
-    return check_if_log_table_locking_is_allowed(sql_command, type, table);
-
-  return TRUE;
-}
-
-	/* Name is here without an extension */
-
+/* Name is here without an extension */
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   MI_KEYDEF *keyinfo;
@@ -1889,6 +1855,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;
+  if (ha_create_info->options & HA_CREATE_KEEP_FILES)
+    create_flags|= HA_CREATE_KEEP_FILES;
   if (options & HA_OPTION_PACK_RECORD)
     create_flags|= HA_PACK_RECORD;
   if (options & HA_OPTION_CHECKSUM)
@@ -2075,3 +2043,78 @@ mysql_declare_plugin(myisam)
 }
 mysql_declare_plugin_end;
 
+
+#ifdef HAVE_QUERY_CACHE
+/**
+  @brief Register a named table with a call back function to the query cache.
+
+  @param thd The thread handle
+  @param table_key A pointer to the table name in the table cache
+  @param key_length The length of the table name
+  @param[out] engine_callback The pointer to the storage engine call back
+    function, currently 0
+  @param[out] engine_data Engine data will be set to 0.
+
+  @note Despite the name of this function, it is used to check each statement
+    before it is cached and not to register a table or callback function.
+
+  @see handler::register_query_cache_table
+
+  @return The error code. The engine_data and engine_callback will be set to 0.
+    @retval TRUE Success
+    @retval FALSE An error occured
+*/
+
+my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
+                                              uint table_name_len,
+                                              qc_engine_callback
+                                              *engine_callback,
+                                              ulonglong *engine_data)
+{
+  /*
+    No call back function is needed to determine if a cached statement
+    is valid or not.
+  */
+  *engine_callback= 0;
+
+  /*
+    No engine data is needed.
+  */
+  *engine_data= 0;
+
+  /*
+    If a concurrent INSERT has happened just before the currently processed
+    SELECT statement, the total size of the table is unknown.
+
+    To determine if the table size is known, the current thread's snap shot of
+    the table size with the actual table size are compared.
+
+    If the table size is unknown the SELECT statement can't be cached.
+  */
+  ulonglong actual_data_file_length;
+  ulonglong current_data_file_length;
+
+  /*
+    POSIX visibility rules specify that "2. Whatever memory values a
+    thread can see when it unlocks a mutex <...> can also be seen by any
+    thread that later locks the same mutex". In this particular case,
+    concurrent insert thread had modified the data_file_length in
+    MYISAM_SHARE before it has unlocked (or even locked)
+    structure_guard_mutex. So, here we're guaranteed to see at least that
+    value after we've locked the same mutex. We can see a later value
+    (modified by some other thread) though, but it's ok, as we only want
+    to know if the variable was changed, the actual new value doesn't matter
+  */
+  actual_data_file_length= file->s->state.state.data_file_length;
+  current_data_file_length= file->save_state.data_file_length;
+
+  if (current_data_file_length != actual_data_file_length)
+  {
+    /* Don't cache current statement. */
+    return FALSE;
+  }
+
+  /* It is ok to try to cache current statement. */
+  return TRUE;
+}
+#endif

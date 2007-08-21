@@ -83,6 +83,8 @@ memory is read outside the allocated blocks. */
 /* Make a non-inline debug version */
 
 #if 0
+#define UNIV_DEBUG_VALGRIND			/* Enable extra
+						Valgrind instrumentation */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
@@ -214,6 +216,8 @@ typedef __int64			ib_longlong;
 typedef longlong		ib_longlong;
 #endif
 
+typedef unsigned long long int	ullint;
+
 #ifndef __WIN__
 #if SIZEOF_LONG != SIZEOF_VOIDP
 #error "Error: InnoDB's ulint must be of the same size as void*"
@@ -298,5 +302,17 @@ typedef void* os_thread_ret_t;
 #include "ut0dbg.h"
 #include "ut0ut.h"
 #include "db0err.h"
+#ifdef UNIV_DEBUG_VALGRIND
+# include <valgrind/memcheck.h>
+# define UNIV_MEM_VALID(addr, size) VALGRIND_MAKE_MEM_DEFINED(addr, size)
+# define UNIV_MEM_INVALID(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+# define UNIV_MEM_FREE(addr, size) VALGRIND_MAKE_MEM_NOACCESS(addr, size)
+# define UNIV_MEM_ALLOC(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+#else
+# define UNIV_MEM_VALID(addr, size) do {} while(0)
+# define UNIV_MEM_INVALID(addr, size) do {} while(0)
+# define UNIV_MEM_FREE(addr, size) do {} while(0)
+# define UNIV_MEM_ALLOC(addr, size) do {} while(0)
+#endif
 
 #endif

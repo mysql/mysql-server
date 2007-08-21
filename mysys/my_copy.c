@@ -54,7 +54,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   my_bool new_file_stat= 0; /* 1 if we could stat "to" */
   int create_flag;
   File from_file,to_file;
-  char buff[IO_SIZE];
+  uchar buff[IO_SIZE];
   MY_STAT stat_buff,new_stat_buff;
   DBUG_ENTER("my_copy");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
@@ -80,10 +80,12 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 			     MyFlags)) < 0)
       goto err;
 
-    while ((Count=my_read(from_file,buff,IO_SIZE,MyFlags)) != 0)
+    while ((Count=my_read(from_file, buff, sizeof(buff), MyFlags)) != 0)
+    {
 	if (Count == (uint) -1 ||
 	    my_write(to_file,buff,Count,MYF(MyFlags | MY_NABP)))
 	goto err;
+    }
 
     if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
       DBUG_RETURN(-1);				/* Error on close */

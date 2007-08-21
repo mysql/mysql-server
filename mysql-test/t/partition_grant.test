@@ -63,13 +63,13 @@ insert into t1 values (1);
 grant alter on mysqltest_1.* to mysqltest_1@localhost;
 connect (conn4,localhost,mysqltest_1,,mysqltest_1);
 connection conn4;
---error 1514
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 alter table t1 partition by list (s1) (partition p1 values in (2));
 connection default;
 grant select, alter on mysqltest_1.* to mysqltest_1@localhost;
 disconnect conn4;
 connect (conn5,localhost,mysqltest_1,,mysqltest_1);
---error 1514
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 alter table t1 partition by list (s1) (partition p1 values in (2));
 disconnect conn5;
 connection default;

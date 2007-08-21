@@ -113,9 +113,10 @@ class sys_var_long_ptr_global: public sys_var_global
 {
 public:
   ulong *value;
-  sys_var_long_ptr_global(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_arg,
-                        pthread_mutex_t *guard_arg,
-                        sys_after_update_func after_update_arg= NULL)
+  sys_var_long_ptr_global(sys_var_chain *chain, const char *name_arg,
+                          ulong *value_ptr_arg,
+                          pthread_mutex_t *guard_arg,
+                          sys_after_update_func after_update_arg= NULL)
     :sys_var_global(name_arg, after_update_arg, guard_arg),
     value(value_ptr_arg)
   { chain_sys_var(chain); }
@@ -910,6 +911,27 @@ public:
   SHOW_TYPE show_type() { return SHOW_INT; }
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
+
+
+class sys_var_microseconds :public sys_var_thd
+{
+  ulonglong SV::*offset;
+public:
+  sys_var_microseconds(sys_var_chain *chain, const char *name_arg,
+                       ulonglong SV::*offset_arg):
+    sys_var_thd(name_arg), offset(offset_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var) {return 0;}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE show_type() { return SHOW_DOUBLE; }
+  bool check_update_type(Item_result type)
+  {
+    return (type != INT_RESULT && type != REAL_RESULT && type != DECIMAL_RESULT);
+  }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
 
 class sys_var_trust_routine_creators :public sys_var_bool_ptr
 {

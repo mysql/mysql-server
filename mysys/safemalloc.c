@@ -51,7 +51,7 @@
 				(equivalent to realloc())
 	FREE( pPtr )		Free memory allocated by NEW
 				(equivalent to free())
-	TERMINATE(file)		End system, report errors and stats on file
+	TERMINATE(file,flag)	End system, report errors and stats on file
   I personally use two more functions, but have not included them here:
 	char *STRSAVE( sPtr )	Save a copy of the string in dynamic memory
 	char *RENEW( pPtr, uSize )
@@ -352,12 +352,15 @@ static int check_ptr(const char *where, uchar *ptr, const char *filename,
 
 
 /*
-  TERMINATE(FILE *file)
-    Report on all the memory pieces that have not been
-    free'ed as well as the statistics.
+  Report on all the memory pieces that have not been free'ed
+
+  SYNOPSIS
+    TERMINATE()
+    file   Write output to this file
+    flag   If <> 0, also write statistics 
  */
 
-void TERMINATE(FILE *file)
+void TERMINATE(FILE *file, uint flag)
 {
   struct st_irem *irem;
   DBUG_ENTER("TERMINATE");
@@ -373,8 +376,7 @@ void TERMINATE(FILE *file)
   {
     if (file)
     {
-      fprintf(file, "Warning: Not freed memory segments: %u\n",
-	      sf_malloc_count);
+      fprintf(file, "Warning: Not freed memory segments: %u\n", sf_malloc_count);
       (void) fflush(file);
     }
     DBUG_PRINT("safe",("sf_malloc_count: %u", sf_malloc_count));
@@ -414,7 +416,7 @@ void TERMINATE(FILE *file)
     }
   }
   /* Report the memory usage statistics */
-  if (file)
+  if (file && flag)
   {
     fprintf(file, "Maximum memory usage: %ld bytes (%ldk)\n",
 	    sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) / 1024L);

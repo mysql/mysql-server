@@ -30,6 +30,30 @@ dict_col_copy_type(
 	type->mbmaxlen = col->mbmaxlen;
 }
 
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Assert that a column and a data type match. */
+UNIV_INLINE
+ibool
+dict_col_type_assert_equal(
+/*=======================*/
+					/* out: TRUE */
+	const dict_col_t*	col,	/* in: column */
+	const dtype_t*		type)	/* in: data type */
+{
+	ut_ad(col);
+	ut_ad(type);
+
+	ut_ad(col->mtype == type->mtype);
+	ut_ad(col->prtype == type->prtype);
+	ut_ad(col->len == type->len);
+	ut_ad(col->mbminlen == type->mbminlen);
+	ut_ad(col->mbmaxlen == type->mbmaxlen);
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /***************************************************************************
 Returns the minimum size of the column. */
 UNIV_INLINE

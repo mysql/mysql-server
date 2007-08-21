@@ -57,7 +57,14 @@
 #define MAXSTRLEN 16 
 #define MAXATTR 64
 #define MAXTABLES 64
-#define MAXTHREADS 256
+#define NDB_MAXTHREADS 256
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
 #define MAXATTRSIZE 1000
 #define PKSIZE 1
 
@@ -95,10 +102,10 @@ static int failed = 0 ; // lame global variable that keeps track of failed trans
                         // incremented in executeCallback() and reset in main()
 /************************************************************* < epaulsa */
 
-static NdbThread* threadLife[MAXTHREADS];
+static NdbThread* threadLife[NDB_MAXTHREADS];
 static int tNodeId;
-static int ThreadReady[MAXTHREADS];
-static StartType ThreadStart[MAXTHREADS];
+static int ThreadReady[NDB_MAXTHREADS];
+static StartType ThreadStart[NDB_MAXTHREADS];
 static char tableName[MAXTABLES][MAXSTRLEN+1];
 static char attrName[MAXATTR][MAXSTRLEN+1];
 static int *getAttrValueTable;
@@ -174,7 +181,7 @@ void deleteAttributeSpace(){
 NDB_COMMAND(flexTimedAsynch, "flexTimedAsynch", "flexTimedAsynch [-tpoilcas]", "flexTimedAsynch", 65535)
 {
   ndb_init();
-  ThreadNdb		tabThread[MAXTHREADS];
+  ThreadNdb		tabThread[NDB_MAXTHREADS];
   int                   tLoops=0;
   int                   returnValue;
   //NdbOut flexTimedAsynchNdbOut;
@@ -615,8 +622,8 @@ void readArguments(int argc, const char** argv)
       if (strcmp(argv[i], "-t") == 0)
 	{
 	  tNoOfThreads = atoi(argv[i+1]);
-	  //      if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS))
-	  if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS))
+	  //      if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS))
+	  if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS))
 	    exit(-1);
 	}
       else if (strcmp(argv[i], "-i") == 0)
@@ -628,7 +635,7 @@ void readArguments(int argc, const char** argv)
       else if (strcmp(argv[i], "-p") == 0)
 	{
 	  tNoOfTransInBatch = atoi(argv[i+1]);
-	  //if ((tNoOfTransInBatch < 1) || (tNoOfTransInBatch > MAXTHREADS))
+	  //if ((tNoOfTransInBatch < 1) || (tNoOfTransInBatch > NDB_MAXTHREADS))
 	  if ((tNoOfTransInBatch < 1) || (tNoOfTransInBatch > 10000))
 	    exit(-1);
 	}

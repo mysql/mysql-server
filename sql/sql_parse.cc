@@ -120,7 +120,7 @@ bool end_active_trans(THD *thd)
       error=1;
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->no_trans_update.all= FALSE;
+  thd->transaction.all.modified_non_trans_table= FALSE;
   DBUG_RETURN(error);
 }
 
@@ -197,8 +197,8 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
@@ -211,7 +211,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;  
+  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
@@ -223,7 +223,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND;
@@ -235,10 +234,36 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_COLUMN_TYPES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROCESSLIST]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_GRANTS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
 
-  sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
-                                                CF_SHOW_TABLE_COMMAND);
+   sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
+                                               CF_SHOW_TABLE_COMMAND);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND);
 
@@ -250,6 +275,14 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT;
   sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
+
+  /*
+    The following admin table operations are allowed
+    on log tables.
+  */
+  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND;
 }
 
 
@@ -257,6 +290,17 @@ bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
+}
+
+/**
+  Check if a sql command is allowed to write to log tables.
+  @param command The SQL command
+  @return true if writing is allowed
+*/
+bool is_log_table_write_query(enum enum_sql_command command)
+{
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
@@ -493,7 +537,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
 
-  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT, 0)))
     DBUG_RETURN(1);
 
   if (check_one_table_access(thd, SELECT_ACL, table_list))
@@ -553,7 +597,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -571,7 +615,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     if (ha_rollback(thd))
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -1025,8 +1069,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       HA_CREATE_INFO create_info;
 
       status_var_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB]);
-      if (thd->LEX_STRING_make(&db, packet, packet_length -1) ||
-          thd->LEX_STRING_make(&alias, db.str, db.length) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
+          thd->make_lex_string(&alias, db.str, db.length, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1046,7 +1090,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       status_var_increment(thd->status_var.com_stat[SQLCOM_DROP_DB]);
       LEX_STRING db;
 
-      if (thd->LEX_STRING_make(&db, packet, packet_length - 1) ||
+      if (thd->make_lex_string(&db, packet, packet_length - 1, FALSE) ||
           check_db_name(&db))
       {
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
@@ -1297,7 +1341,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
-  time_t start_of_query;
   DBUG_ENTER("log_slow_statement");
 
   /*
@@ -1308,25 +1351,25 @@ void log_slow_statement(THD *thd)
   if (unlikely(thd->in_sub_stmt))
     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
 
-  start_of_query= thd->start_time;
-  thd->end_time();				// Set start time
-
   /*
     Do not log administrative statements unless the appropriate option is
     set; do not log into slow log if reading from backup.
   */
   if (thd->enable_slow_log && !thd->user_time)
   {
-    thd->proc_info="logging slow query";
+    ulonglong end_utime_of_query= thd->current_utime();
 
-    if ((ulong) (thd->start_time - thd->time_after_lock) >
-	thd->variables.long_query_time ||
-	((thd->server_status &
-	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
+    thd->proc_info="logging slow query";
+    if (((end_utime_of_query - thd->utime_after_lock) >
+         thd->variables.long_query_time ||
+         ((thd->server_status &
+           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+          opt_log_queries_not_using_indexes &&
+           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
+        thd->examined_row_count >= thd->variables.min_examined_row_limit)
     {
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query, thd->query_length, start_of_query);
+      slow_log_print(thd, thd->query, thd->query_length, end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
@@ -1391,7 +1434,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       LEX_STRING db;
       size_t dummy;
       if (lex->select_lex.db == NULL &&
-          thd->copy_db_to(&lex->select_lex.db, &dummy))
+          lex->copy_db_to(&lex->select_lex.db, &dummy))
       {
         DBUG_RETURN(1);
       }
@@ -1780,6 +1823,8 @@ mysql_execute_command(THD *thd)
 #endif
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
+  DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+  
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
     if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -2449,7 +2494,7 @@ end_with_restore_list:
           check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
         goto error;
     }
-    query_cache_invalidate3(thd, first_table, 0);
+
     if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
       goto error;
     break;
@@ -3594,7 +3639,8 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if (((thd->options & OPTION_KEEP_LOG) || thd->no_trans_update.all) &&
+        if (((thd->options & OPTION_KEEP_LOG) || 
+             thd->transaction.all.modified_non_trans_table) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4174,8 +4220,8 @@ create_sp_error:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
-    thd->no_trans_update.all= FALSE;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
     break;
@@ -4269,7 +4315,7 @@ create_sp_error:
       break;
     }
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -4300,7 +4346,7 @@ create_sp_error:
     else
       send_ok(thd);
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -5042,7 +5088,11 @@ bool check_merge_table_access(THD *thd, char *db,
 
 #ifndef EMBEDDED_LIBRARY
 
-#define used_stack(A,B) (long)(A > B ? A - B : B - A)
+#if STACK_DIRECTION < 0
+#define used_stack(A,B) (long) (A - B)
+#else
+#define used_stack(A,B) (long) (B - A)
+#endif
 
 #ifndef DBUG_OFF
 long max_stack_used;
@@ -5147,10 +5197,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     thd->options&= ~OPTION_KEEP_LOG;
-    thd->no_trans_update.all= FALSE;
+    thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->tmp_table_used= 0;
+  thd->thread_specific_used= FALSE;
   if (!thd->in_sub_stmt)
   {
     if (opt_bin_log)
@@ -5392,8 +5442,9 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
               (thd->query_length= (ulong)(*found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
-	  mysql_execute_command(thd);
-	  query_cache_end_of_result(thd);
+          lex->set_trg_event_type_for_tables();
+          mysql_execute_command(thd);
+          query_cache_end_of_result(thd);
 	}
       }
     }
@@ -5635,7 +5686,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
-					     List<index_hint> *index_hints_arg,
+					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -5680,7 +5731,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= table->db.str;
     ptr->db_length= table->db.length;
   }
-  else if (thd->copy_db_to(&ptr->db, &ptr->db_length))
+  else if (lex->copy_db_to(&ptr->db, &ptr->db_length))
     DBUG_RETURN(0);
 
   ptr->alias= alias_str;

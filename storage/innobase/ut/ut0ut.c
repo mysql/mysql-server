@@ -14,6 +14,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "ut0sort.h"
 #include "trx0trx.h"

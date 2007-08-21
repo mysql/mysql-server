@@ -606,7 +606,8 @@ let $col_type= my_year;
 
 
 # 1.1.6. CAST --> DECIMAL
-let $target_type= DECIMAL;
+# Set the following to (37,2) since the default was changed to (10,0) - OBN
+let $target_type= DECIMAL(37,2);
 #
 let $col_type= my_char_30;
 --source suite/funcs_1/views/fv_cast.inc

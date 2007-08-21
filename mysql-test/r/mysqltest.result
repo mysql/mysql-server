@@ -420,7 +420,7 @@ mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 OK
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Connection limit exhausted, you can have max 128 connections
+mysqltest: The test didn't produce any output
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
 connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);

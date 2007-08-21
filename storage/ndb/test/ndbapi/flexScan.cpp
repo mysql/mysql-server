@@ -68,7 +68,14 @@
 #define MAXSTRLEN 16 
 #define MAXATTR 64
 #define MAXTABLES 64
-#define MAXTHREADS 256
+#define NDB_MAXTHREADS 256
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
 #define MAXATTRSIZE 64
 
 enum StartType { 
@@ -848,7 +855,7 @@ static int readArguments(int argc, const char** argv)
     if (strcmp(argv[i], "-t") == 0) {
       if (argv[i + 1] != NULL) {
 	tNoOfThreads = atoi(argv[i + 1]);
-	if ((tNoOfThreads < 1) || (tNoOfThreads > MAXTHREADS)) {
+	if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS)) {
 	  retValue = -1;
 	} // if
       } // if

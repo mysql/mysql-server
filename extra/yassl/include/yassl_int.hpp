@@ -584,6 +584,7 @@ class SSL {
     Socket              socket_;                // socket wrapper
     Buffers             buffers_;               // buffered handshakes and data
     Log                 log_;                   // logger
+    bool                quietShutdown_;         // shutdown without handshakes
 
     // optimization variables
     bool                has_data_;              // buffered data ready?
@@ -610,6 +611,7 @@ public:
     Buffers&   useBuffers();
 
     bool       HasData() const;
+    bool       GetQuietShutdown() const;
 
     // sets
     void set_pending(Cipher suite);
@@ -621,6 +623,7 @@ public:
     void SetError(YasslError);
     int  SetCompression();
     void UnSetCompression();
+    void SetQuietShutdown(bool mode);
 
     // helpers
     bool isTLS() const;

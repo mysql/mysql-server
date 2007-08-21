@@ -1184,7 +1184,7 @@ void _db_dump_(uint _line_, const char *keyword,
       fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
     sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%ld)\n",
-            keyword,(ulong) memory, length);
+            keyword, (ulong) memory, (long) length);
     (void) fputs(dbuff,cs->stack->out_file);
 
     pos=0;
@@ -1449,6 +1449,7 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
     FreeList(state->p_functions);
   if (!is_shared(state, out_file))
     DBUGCloseFile(cs, state->out_file);
+  (void) fflush(cs->stack->out_file);
   if (state->prof_file)
     DBUGCloseFile(cs, state->prof_file);
   if (free_state)
@@ -1882,7 +1883,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
   {
     (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
     perror("");
-    dbug_flush(0);
     (void) Delay(cs->stack->delay);
   }
   else
@@ -1892,7 +1892,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
     {
       (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
       perror("");
-      dbug_flush(0);
     }
     else
     {
@@ -1931,7 +1930,7 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
-    dbug_flush(0);
+    dbug_flush(cs);
   }
 }
 

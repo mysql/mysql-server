@@ -83,6 +83,75 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
+/**
+  @brief Re-read record if more columns are needed for error message.
+
+  @detail If we got a duplicate key error, we want to write an error
+    message containing the value of the duplicate key. If we do not have
+    all fields of the key value in record[0], we need to re-read the
+    record with a proper read_set.
+
+  @param[in] error   error number
+  @param[in] table   table
+*/
+
+static void prepare_record_for_error_message(int error, TABLE *table)
+{
+  Field **field_p;
+  Field *field;
+  uint keynr;
+  MY_BITMAP unique_map; /* Fields in offended unique. */
+  my_bitmap_map unique_map_buf[bitmap_buffer_size(MAX_FIELDS)];
+  DBUG_ENTER("prepare_record_for_error_message");
+
+  /*
+    Only duplicate key errors print the key value.
+    If storage engine does always read all columns, we have the value alraedy.
+  */
+  if ((error != HA_ERR_FOUND_DUPP_KEY) ||
+      !(table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ))
+    DBUG_VOID_RETURN;
+
+  /*
+    Get the number of the offended index.
+    We will see MAX_KEY if the engine cannot determine the affected index.
+  */
+  if ((keynr= table->file->get_dup_key(error)) >= MAX_KEY)
+    DBUG_VOID_RETURN;
+
+  /* Create unique_map with all fields used by that index. */
+  bitmap_init(&unique_map, unique_map_buf, table->s->fields, FALSE);
+  table->mark_columns_used_by_index_no_reset(keynr, &unique_map);
+
+  /* Subtract read_set and write_set. */
+  bitmap_subtract(&unique_map, table->read_set);
+  bitmap_subtract(&unique_map, table->write_set);
+
+  /*
+    If the unique index uses columns that are neither in read_set
+    nor in write_set, we must re-read the record.
+    Otherwise no need to do anything.
+  */
+  if (bitmap_is_clear_all(&unique_map))
+    DBUG_VOID_RETURN;
+
+  /* Get identifier of last read record into table->file->ref. */
+  table->file->position(table->record[0]);
+  /* Add all fields used by unique index to read_set. */
+  bitmap_union(table->read_set, &unique_map);
+  /* Tell the engine about the new set. */
+  table->file->column_bitmaps_signal();
+  /* Read record that is identified by table->file->ref. */
+  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  /* Copy the newly read columns into the new record. */
+  for (field_p= table->field; (field= *field_p); field_p++)
+    if (bitmap_is_set(&unique_map, field->field_index))
+      field->copy_from_tmp(table->s->rec_buff_length);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Process usual UPDATE
 
@@ -231,6 +300,17 @@ int mysql_update(THD *thd,
     if (cond_value == Item::COND_FALSE)
       limit= 0;                                   // Impossible WHERE
   }
+
+  /*
+    If a timestamp field settable on UPDATE is present then to avoid wrong
+    update force the table handler to retrieve write-only fields to be able
+    to compare records and detect data change.
+  */
+  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+      table->timestamp_field &&
+      (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+       table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+    bitmap_union(table->read_set, table->write_set);
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
@@ -450,7 +530,6 @@ int mysql_update(THD *thd,
   thd->proc_info="Updating";
 
   transactional_table= table->file->has_transactions();
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
@@ -469,6 +548,13 @@ int mysql_update(THD *thd,
   }
   else
     will_batch= !table->file->start_bulk_update();
+
+  /*
+    Assure that we can use position()
+    if we need to create an error message.
+  */
+  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
+    table->prepare_for_position();
 
   /*
     We can use compare_record() to optimize away updates if
@@ -554,7 +640,6 @@ int mysql_update(THD *thd,
             updated++;
           else
             error= 0;
-          thd->no_trans_update.stmt= !transactional_table;
 
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -573,6 +658,8 @@ int mysql_update(THD *thd,
           */
           if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             thd->fatal_error(); /* Other handler errors are fatal */
+
+          prepare_record_for_error_message(error, table);
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -596,13 +683,16 @@ int mysql_update(THD *thd,
         {
  	  if (error)
           {
+            /* purecov: begin inspected */
             /*
               The handler should not report error of duplicate keys if they
               are ignored. This is a requirement on batching handlers.
             */
+            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(0));
             error= 1;
             break;
+            /* purecov: end */
           }
           /*
             Either an error was found and we are ignoring errors or there
@@ -624,6 +714,10 @@ int mysql_update(THD *thd,
     thd->row_count++;
   }
   dup_key_found= 0;
+
+  if (!transactional_table && updated > 0)
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+
 
   /*
     todo bug#27571: to avoid asynchronization of `error' and
@@ -668,9 +762,12 @@ int mysql_update(THD *thd,
       in the batched update.
     */
   {
+    /* purecov: begin inspected */
     thd->fatal_error();
+    prepare_record_for_error_message(loc_error, table);
     table->file->print_error(loc_error,MYF(0));
     error= 1;
+    /* purecov: end */
   }
   else
     updated-= dup_key_found;
@@ -714,9 +811,10 @@ int mysql_update(THD *thd,
         error=1;				// Rollback update
       }
     }
-    if (!transactional_table)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(transactional_table || !updated || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
@@ -1081,7 +1179,6 @@ bool mysql_multi_update(THD *thd,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
-  thd->no_trans_update.stmt= FALSE;
   thd->abort_on_warning= test(thd->variables.sql_mode &
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
@@ -1454,9 +1551,8 @@ multi_update::~multi_update()
   if (copy_field)
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
-  if (!trans_safe)  // todo: remove since redundant
-    thd->no_trans_update.all= TRUE;
-  DBUG_ASSERT(trans_safe || thd->no_trans_update.all);
+  DBUG_ASSERT(trans_safe || !updated || 
+              thd->transaction.all.modified_non_trans_table);
 }
 
 
@@ -1540,6 +1636,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
             */
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               thd->fatal_error(); /* Other handler errors are fatal */
+
+            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(0));
             DBUG_RETURN(1);
           }
@@ -1558,7 +1656,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
           else
           {
             trans_safe= 0;
-            thd->no_trans_update.stmt= TRUE;
+            thd->transaction.stmt.modified_non_trans_table= TRUE;
           }
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1621,7 +1719,6 @@ void multi_update::send_error(uint errcode,const char *err)
 
   /* Something already updated so we have to invalidate cache */
   query_cache_invalidate3(thd, update_tables, 1);
-
   /*
     If all tables that has been updated are trans safe then just do rollback.
     If not attempt to do remaining updates.
@@ -1634,7 +1731,7 @@ void multi_update::send_error(uint errcode,const char *err)
   }
   else
   { 
-    DBUG_ASSERT(thd->no_trans_update.stmt);
+    DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table);
     if (do_update && table_count > 1)
     {
       /* Add warning here */
@@ -1645,7 +1742,7 @@ void multi_update::send_error(uint errcode,const char *err)
       VOID(do_updates(0));
     }
   }
-  if (thd->no_trans_update.stmt)
+  if (thd->transaction.stmt.modified_non_trans_table)
   {
     /*
       The query has to binlog because there's a modified non-transactional table
@@ -1658,9 +1755,9 @@ void multi_update::send_error(uint errcode,const char *err)
                         transactional_tables, FALSE);
     }
     if (!trans_safe)
-      thd->no_trans_update.all= TRUE;
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
+  DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.modified_non_trans_table);
   
   if (transactional_tables)
   {
@@ -1676,7 +1773,7 @@ int multi_update::do_updates(bool from_send_error)
   ha_rows org_updated;
   TABLE *table, *tmp_table;
   List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
-  DBUG_ENTER("do_updates");
+  DBUG_ENTER("multi_update::do_updates");
 
   do_update= 0;					// Don't retry this function
   if (!found)
@@ -1803,7 +1900,7 @@ int multi_update::do_updates(bool from_send_error)
       else
       {
         trans_safe= 0;				// Can't do safe rollback
-        thd->no_trans_update.stmt= TRUE;
+        thd->transaction.stmt.modified_non_trans_table= TRUE;
       }
     }
     (void) table->file->ha_rnd_end();
@@ -1819,6 +1916,7 @@ err:
   if (!from_send_error)
   {
     thd->fatal_error();
+    prepare_record_for_error_message(local_error, table);
     table->file->print_error(local_error,MYF(0));
   }
 
@@ -1836,7 +1934,7 @@ err2:
     else
     {
       trans_safe= 0;
-      thd->no_trans_update.stmt= TRUE;
+      thd->transaction.stmt.modified_non_trans_table= TRUE;
     }
   }
   DBUG_RETURN(1);
@@ -1849,6 +1947,7 @@ bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   ulonglong id;
+  DBUG_ENTER("multi_update::send_eof");
   thd->proc_info="updating reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
@@ -1862,7 +1961,6 @@ bool multi_update::send_eof()
   {
     query_cache_invalidate3(thd, update_tables, 1);
   }
-
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
@@ -1872,8 +1970,9 @@ bool multi_update::send_eof()
     either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  DBUG_ASSERT(trans_safe || !updated || thd->no_trans_update.stmt);
-  if (local_error == 0 || thd->no_trans_update.stmt)
+  DBUG_ASSERT(trans_safe || !updated || 
+              thd->transaction.stmt.modified_non_trans_table);
+  if (local_error == 0 || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -1889,8 +1988,8 @@ bool multi_update::send_eof()
 	local_error= 1;				// Rollback update
       }
     }
-    if (!trans_safe)
-     thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
 
   if (transactional_tables)
@@ -1904,7 +2003,7 @@ bool multi_update::send_eof()
     /* Safety: If we haven't got an error before (can happen in do_updates) */
     my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
 	       MYF(0));
-    return TRUE;
+    DBUG_RETURN(TRUE);
   }
 
   id= thd->arg_of_last_insert_id_function ?
@@ -1914,5 +2013,5 @@ bool multi_update::send_eof()
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }

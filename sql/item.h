@@ -19,7 +19,7 @@
 #endif
 
 class Protocol;
-struct st_table_list;
+struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
 
@@ -49,29 +49,50 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint repertoire;
   
+  void set_repertoire_from_charset(CHARSET_INFO *cs)
+  {
+    repertoire= cs->state & MY_CS_PUREASCII ?
+                MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+  }
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    repertoire= MY_REPERTOIRE_UNICODE30;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
   }
   void set(DTCollation &dt)
   { 
     collation= dt.collation;
     derivation= dt.derivation;
+    repertoire= dt.repertoire;
   }
   void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
+  void set(CHARSET_INFO *collation_arg,
+           Derivation derivation_arg,
+           uint repertoire_arg)
+  {
+    collation= collation_arg;
+    derivation= derivation_arg;
+    repertoire= repertoire_arg;
   }
   void set(CHARSET_INFO *collation_arg)
-  { collation= collation_arg; }
+  {
+    collation= collation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
   bool aggregate(DTCollation &dt, uint flags= 0);
@@ -653,6 +674,7 @@ public:
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
+  int save_str_value_in_field(Field *field, String *result);
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
@@ -843,8 +865,7 @@ public:
     german character for double s is equal to 2 s.
 
     The default is that an item is not allowed
-    in a partition function. However all mathematical functions, string
-    manipulation functions, date functions are allowed. Allowed functions
+    in a partition function. Allowed functions
     can never depend on server version, they cannot depend on anything
     related to the environment. They can also only depend on a set of
     fields in the table itself. They cannot depend on other tables and
@@ -1054,9 +1075,18 @@ public:
     SP variable in query text.
   */
   uint pos_in_query;
+  /*
+    Byte length of SP variable name in the statement (see pos_in_query).
+    The value of this field may differ from the name_length value because
+    name_length contains byte length of UTF8-encoded item name, but
+    the query string (see sp_instr_stmt::m_query) is currently stored with
+    a charset from the SET NAMES statement.
+  */
+  uint len_in_query;
 
   Item_splocal(const LEX_STRING &sp_var_name, uint sp_var_idx,
-               enum_field_types sp_var_type, uint pos_in_q= 0);
+               enum_field_types sp_var_type,
+               uint pos_in_q= 0, uint len_in_q= 0);
 
   bool is_splocal() { return 1; } /* Needed for error checking */
 
@@ -1633,6 +1663,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1650,6 +1681,7 @@ public:
   void print(String *str);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1692,6 +1724,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1710,8 +1743,11 @@ public:
     max_length=length;
     fixed= 1;
   }
-  Item_float(double value_par) :presentation(0), value(value_par) { fixed= 1; }
-
+  Item_float(double value_par, uint decimal_par) :presentation(0), value(value_par)
+  {
+    decimals= (uint8) decimal_par;
+    fixed= 1;
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -1752,7 +1788,6 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1760,10 +1795,11 @@ class Item_string :public Item
 {
 public:
   Item_string(const char *str,uint length,
-  	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
@@ -1787,10 +1823,11 @@ public:
     fixed= 1;
   }
   Item_string(const char *name_par, const char *str, uint length,
-	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par, 0, cs);
     decimals=NOT_FIXED_DEC;
@@ -1805,6 +1842,12 @@ public:
   {
     str_value.copy(str_arg, length_arg, collation.collation);
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
+  void set_repertoire_from_value()
+  {
+    collation.repertoire= my_string_repertoire(str_value.charset(),
+                                               str_value.ptr(),
+                                               str_value.length());
   }
   enum Type type() const { return STRING_ITEM; }
   double val_real();
@@ -1861,7 +1904,6 @@ public:
                                   CHARSET_INFO *cs= NULL):
     Item_string(name, length, cs)
   {}
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1915,7 +1957,6 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -2116,6 +2157,12 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  Item *get_tmp_table_item(THD *thd)
+  {
+    Item *item= Item_ref::get_tmp_table_item(thd);
+    item->name= name;
+    return item;
+  }
   virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
@@ -2237,7 +2284,6 @@ public:
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER
@@ -2289,7 +2335,10 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
-  int save_in_field(Field *field, bool no_conversions);
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return save_str_value_in_field(field, &str_value);
+  }
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -2436,14 +2485,6 @@ public:
 enum trg_action_time_type
 {
   TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
-
-/*
-  Event on which trigger is invoked.
-*/
-enum trg_event_type
-{
-  TRG_EVENT_INSERT= 0 , TRG_EVENT_UPDATE= 1, TRG_EVENT_DELETE= 2, TRG_EVENT_MAX
 };
 
 class Table_triggers_list;

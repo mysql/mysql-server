@@ -132,7 +132,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $default_vardir;
 
 our $opt_usage;
-our $opt_suite;
+our $opt_suites= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -143,6 +143,7 @@ our $exe_mysqladmin;
 our $exe_mysql_upgrade;
 our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
+our $exe_bug25714;
 our $exe_mysqld;
 our $exe_mysqlcheck;
 our $exe_mysqldump;
@@ -404,7 +405,7 @@ sub main () {
   else
   {
     # Figure out which tests we are going to run
-    my $tests= collect_test_cases($opt_suite);
+    my $tests= collect_test_cases($opt_suites);
 
     # Turn off NDB and other similar options if no tests use it
     my ($need_ndbcluster,$need_im);
@@ -458,7 +459,7 @@ sub main () {
       run_report_features();
     }
 
-    run_suite($opt_suite, $tests);
+    run_tests($tests);
   }
 
   mtr_exit(0);
@@ -474,7 +475,6 @@ sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
 
-  $opt_suite=        "main";    # Special default suite
   my $opt_comment;
 
   $opt_master_myport=          9306;
@@ -534,7 +534,7 @@ sub command_line_setup () {
              'skip-slave-binlog'        => \$opt_skip_slave_binlog,
              'do-test=s'                => \$opt_do_test,
              'start-from=s'             => \$opt_start_from,
-             'suite=s'                  => \$opt_suite,
+             'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \$opt_skip_rpl,
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
@@ -693,6 +693,37 @@ sub command_line_setup () {
 
   $glob_timers= mtr_init_timers();
 
+  # --------------------------------------------------------------------------
+  # Embedded server flag
+  # --------------------------------------------------------------------------
+  if ( $opt_embedded_server )
+  {
+    $glob_use_embedded_server= 1;
+    # Add the location for libmysqld.dll to the path.
+    if ( $glob_win32 )
+    {
+      my $lib_mysqld=
+        mtr_path_exists(vs_config_dirs('libmysqld',''));
+	  $lib_mysqld= $glob_cygwin_perl ? ":".`cygpath "$lib_mysqld"` 
+                                     : ";".$lib_mysqld;
+      chomp($lib_mysqld);
+      $ENV{'PATH'}="$ENV{'PATH'}".$lib_mysqld;
+    }
+
+    push(@glob_test_mode, "embedded");
+    $opt_skip_rpl= 1;              # We never run replication with embedded
+    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
+    $opt_skip_ssl= 1;              # Turn off use of SSL
+
+    # Turn off use of bin log
+    push(@opt_extra_mysqld_opt, "--skip-log-bin");
+
+    if ( $opt_extern )
+    {
+      mtr_error("Can't use --extern with --embedded-server");
+    }
+  }
+
   #
   # Find the mysqld executable to be able to find the mysqld version
   # number as early as possible
@@ -717,6 +748,7 @@ sub command_line_setup () {
   if (!$opt_extern)
   {
     $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
+                                       vs_config_dirs('sql', 'mysqld-debug'),
 				       "$glob_basedir/sql/mysqld",
 				       "$path_client_bindir/mysqld-max-nt",
 				       "$path_client_bindir/mysqld-max",
@@ -1649,6 +1681,12 @@ sub executable_setup () {
                            "$glob_basedir/tests/mysql_client_test",
                            "$glob_basedir/bin/mysql_client_test");
   }
+
+  # Look for bug25714 executable which may _not_ exist in
+  # some versions, test using it should be skipped
+  $exe_bug25714=
+      mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
+                           "$glob_basedir/tests/bug25714");
 }
 
 
@@ -1656,7 +1694,7 @@ sub generate_cmdline_mysqldump ($) {
   my($mysqld) = @_;
   return
     mtr_native_path($exe_mysqldump) .
-      " --no-defaults -uroot --debug-info " .
+      " --no-defaults -uroot --debug-check " .
       "--port=$mysqld->{'port'} " .
       "--socket=$mysqld->{'path_sock'} --password=";
 }
@@ -1909,7 +1947,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlcheck=
     mtr_native_path($exe_mysqlcheck) .
-    " --no-defaults --debug-info -uroot " .
+    " --no-defaults --debug-check -uroot " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1961,7 +1999,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlimport=
     mtr_native_path($exe_mysqlimport) .
-    " -uroot --debug-info " .
+    " -uroot --debug-check " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1978,7 +2016,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlshow=
     mtr_native_path($exe_mysqlshow) .
-    " -uroot --debug-info " .
+    " -uroot --debug-check " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} --password=";
 
@@ -1994,7 +2032,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysqlbinlog=
     mtr_native_path($exe_mysqlbinlog) .
-      " --no-defaults --disable-force-if-open --debug-info";
+      " --no-defaults --disable-force-if-open --debug-check";
   if ( !$opt_extern && $mysql_version_id >= 50000 )
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
@@ -2012,12 +2050,17 @@ sub environment_setup () {
   # ----------------------------------------------------
   my $cmdline_mysql=
     mtr_native_path($exe_mysql) .
-    " --no-defaults --debug-info --host=localhost  --user=root --password= " .
+    " --no-defaults --debug-check --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute bug25714
+  # ----------------------------------------------------
+  $ENV{'MYSQL_BUG25714'}=  $exe_bug25714;
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_client_test
@@ -2438,6 +2481,7 @@ sub vs_config_dirs ($$) {
   }
 
   return ("$glob_basedir/$path_part/release/$exe",
+          "$glob_basedir/$path_part/relwithdebinfo/$exe",
           "$glob_basedir/$path_part/debug/$exe");
 }
 
@@ -2593,10 +2637,19 @@ sub ndbcluster_wait_started($$){
 sub mysqld_wait_started($){
   my $mysqld= shift;
 
-  my $res= sleep_until_file_created($mysqld->{'path_pid'},
-				    $mysqld->{'start_timeout'},
-				    $mysqld->{'pid'});
-  return $res == 0;
+  if (sleep_until_file_created($mysqld->{'path_pid'},
+			       $mysqld->{'start_timeout'},
+			       $mysqld->{'pid'}) == 0)
+  {
+    # Failed to wait for pid file
+    return 1;
+  }
+
+  # Get the "real pid" of the process, it will be used for killing
+  # the process in ActiveState's perl on windows
+  $mysqld->{'real_pid'}= mtr_get_pid_from_file($mysqld->{'path_pid'});
+
+  return 0;
 }
 
 
@@ -2797,18 +2850,16 @@ sub run_benchmarks ($) {
 
 ##############################################################################
 #
-#  Run the test suite
+#  Run the tests
 #
 ##############################################################################
 
-sub run_suite () {
-  my ($suite, $tests)= @_;
+sub run_tests () {
+  my ($tests)= @_;
 
   mtr_print_thick_line();
 
   mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
-
-  mtr_report("Starting Tests in the '$suite' suite");
 
   mtr_report_tests_not_skipped_though_disabled($tests);
 
@@ -3272,18 +3323,14 @@ sub run_testcase_check_skip_test($)
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
-  my $tname= $tinfo->{'name'};
 
   # Remove old files produced by mysqltest
-  my $result_dir= "r";
-  if ( $opt_suite ne "main" )
-  {
-    $result_dir= "suite/$opt_suite/r";
-  }
-  unlink("$result_dir/$tname.reject");
-  unlink("$result_dir/$tname.progress");
-  unlink("$result_dir/$tname.log");
-  unlink("$result_dir/$tname.warnings");
+  my $base_file= mtr_match_extension($tinfo->{'result_file'},
+				    "result"); # Trim extension
+  unlink("$base_file.reject");
+  unlink("$base_file.progress");
+  unlink("$base_file.log");
+  unlink("$base_file.warnings");
 
   if (!$opt_extern)
   {
@@ -3302,7 +3349,6 @@ sub do_before_run_mysqltest($)
 sub do_after_run_mysqltest($)
 {
   my $tinfo= shift;
-  my $tname= $tinfo->{'name'};
 
   # Save info from this testcase run to mysqltest.log
   mtr_appendfile_to_file($path_current_test_log, $path_mysqltest_log)
@@ -3626,7 +3672,7 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'result_file'});
+  mtr_show_failed_diff($tinfo);
   print "\n";
   if ( $opt_force )
   {
@@ -3759,22 +3805,13 @@ sub mysqld_arguments ($$$$) {
 
   mtr_add_arg($args, "%s--no-defaults", $prefix);
 
-  mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
 
   if ( $mysql_version_id >= 50036)
   {
     # By default, prevent the started mysqld to access files outside of vardir
-    my $secure_file_dir= $opt_vardir;
-    if ( $opt_suite ne "main" )
-    {
-      # When running a suite other than default allow the mysqld
-      # access to subdirs of mysql-test/ in order to make it possible
-      # to "load data" from the suites data/ directory.
-      $secure_file_dir= $glob_mysql_test_dir;
-    }
-    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $secure_file_dir);
+    mtr_add_arg($args, "%s--secure-file-priv=%s", $prefix, $opt_vardir);
   }
 
   if ( $mysql_version_id >= 50000 )
@@ -4134,6 +4171,7 @@ sub stop_all_servers () {
 
       push(@kill_pids,{
 		       pid      => $mysqld->{'pid'},
+                       real_pid => $mysqld->{'real_pid'},
 		       pidfile  => $mysqld->{'path_pid'},
 		       sockfile => $mysqld->{'path_sock'},
 		       port     => $mysqld->{'port'},
@@ -4335,12 +4373,13 @@ sub run_testcase_stop_servers($$$) {
     {
       if ( $mysqld->{'pid'} )
       {
-	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 20);
 
 	$admin_pids{$pid}= 1;
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
@@ -4386,12 +4425,13 @@ sub run_testcase_stop_servers($$$) {
     {
       if ( $mysqld->{'pid'} )
       {
-	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 20);
 
 	$admin_pids{$pid}= 1;
 
 	push(@kill_pids,{
 			 pid      => $mysqld->{'pid'},
+			 real_pid => $mysqld->{'real_pid'},
 			 pidfile  => $mysqld->{'path_pid'},
 			 sockfile => $mysqld->{'path_sock'},
 			 port     => $mysqld->{'port'},
@@ -4818,12 +4858,10 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
-  mtr_add_arg($args, "--test-file");
-  mtr_add_arg($args, $tinfo->{'path'});
+  mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
   if ( defined $tinfo->{'result_file'} ) {
-    mtr_add_arg($args, "--result-file");
-    mtr_add_arg($args, $tinfo->{'result_file'});
+    mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
 
   if ( $opt_record )
@@ -5150,7 +5188,9 @@ Options to control what test suites or cases to run
   ndb-extra             Run extra tests from ndb directory
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
-  suite=NAME            Run the test suite named NAME. The default is "main"
+  suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
+                        list of suite names.
+                        The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX

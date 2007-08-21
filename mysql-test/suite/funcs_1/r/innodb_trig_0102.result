@@ -242,7 +242,7 @@ create table t1 (f1 integer) engine = innodb;
 use test;
 CREATE TRIGGER trig_db.trg6_2 AFTER INSERT on tb3 
 for each row set @ret_trg6_2 = 5;
-ERROR HY000: Trigger in wrong schema
+ERROR 42S02: Table 'trig_db.tb3' doesn't exist
 use trig_db;
 CREATE TRIGGER trg6_3 AFTER INSERT on test.tb3 
 for each row set @ret_trg6_3 = 18;

@@ -39,8 +39,6 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-enum enum_check_fields
-{ CHECK_FIELD_IGNORE, CHECK_FIELD_WARN, CHECK_FIELD_ERROR_FOR_NULL };
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
@@ -67,11 +65,23 @@ typedef struct st_user_var_events
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
 #define RP_FORCE_ROTATE               2
 
+/*
+  The COPY_INFO structure is used by INSERT/REPLACE code.
+  The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
+  UPDATE code:
+    If a row is inserted then the copied variable is incremented.
+    If a row is updated by the INSERT ... ON DUPLICATE KEY UPDATE and the
+      new data differs from the old one then the copied and the updated
+      variables are incremented.
+    The touched variable is incremented if a row was touched by the update part
+      of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
+      was actually changed or not.
+*/
 typedef struct st_copy_info {
-  ha_rows records;
-  ha_rows deleted;
-  ha_rows updated;
-  ha_rows copied;
+  ha_rows records; /* Number of processed records */
+  ha_rows deleted; /* Number of deleted records */
+  ha_rows updated; /* Number of updated records */
+  ha_rows copied;  /* Number of copied records */
   ha_rows error_count;
   ha_rows touched; /* Number of touched records */
   enum enum_duplicates handle_duplicates;
@@ -179,7 +189,7 @@ public:
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
-    ref_table(table), ref_columns(cols),
+    ref_table(table), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
@@ -239,18 +249,19 @@ struct system_variables
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
+  ulonglong long_query_time;
   ha_rows select_limit;
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong long_query_time;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
+  ulong min_examined_row_limit;
   ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
@@ -305,6 +316,7 @@ struct system_variables
   my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
+  my_bool keep_files_on_create;
   my_bool ndb_force_send;
   my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
@@ -492,13 +504,6 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size)
   { return strmake_root(mem_root,str,size); }
-  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str,
-                              size_t size)
-  {
-    return ((lex_str->str= 
-             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
-  }
-
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
   inline void *memdup_w_gap(const void *str, size_t size, uint gap)
@@ -761,13 +766,25 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 class Open_tables_state
 {
 public:
-  /*
-    open_tables - list of regular tables in use by this thread
-    temporary_tables - list of temp tables in use by this thread
-    handler_tables - list of tables that were opened with HANDLER OPEN
-     and are still in use by this thread
+  /**
+    List of regular tables in use by this thread. Contains temporary and
+    base tables that were opened with @see open_tables().
   */
-  TABLE *open_tables, *temporary_tables, *handler_tables, *derived_tables;
+  TABLE *open_tables;
+  /**
+    List of temporary tables used by this thread. Contains user-level
+    temporary tables, created with CREATE TEMPORARY TABLE, and
+    internal temporary tables, created, e.g., to resolve a SELECT,
+    or for an intermediate table used in ALTER.
+    XXX Why are internal temporary tables added to this list?
+  */
+  TABLE *temporary_tables;
+  /**
+    List of tables that were opened with HANDLER OPEN and are
+    still in use by this thread.
+  */
+  TABLE *handler_tables;
+  TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before
@@ -1021,8 +1038,6 @@ public:
   Security_context main_security_ctx;
   Security_context *security_ctx;
 
-  /* remote (peer) port */
-  uint16 peer_port;
   /*
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded
@@ -1030,6 +1045,14 @@ public:
   */
   const char *proc_info;
 
+  /*
+    Used in error messages to tell user in what part of MySQL we found an
+    error. E. g. when where= "having clause", if fix_fields() fails, user
+    will know that the error was in having clause.
+  */
+  const char *where;
+
+  double tmp_double_value;                    /* Used in set_var.cc */
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
@@ -1051,14 +1074,12 @@ public:
   enum enum_server_command command;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
-  /*
-    Used in error messages to tell user in what part of MySQL we found an
-    error. E. g. when where= "having clause", if fix_fields() fails, user
-    will know that the error was in having clause.
-  */
-  const char *where;
-  time_t     start_time,time_after_lock,user_time;
-  time_t     connect_time,thr_create_time; // track down slow pthread_create
+  /* remote (peer) port */
+  uint16 peer_port;
+  time_t     start_time, user_time;
+  ulonglong  connect_utime, thr_create_utime; // track down slow pthread_create
+  ulonglong  start_utime, utime_after_lock;
+  
   thr_lock_type update_lock_default;
   Delayed_insert *di;
 
@@ -1395,20 +1416,44 @@ public:
   bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
-  bool	     no_errors, password, is_fatal_error;
+  bool	     no_errors, password;
+  /**
+    Set to TRUE if execution of the current compound statement
+    can not continue. In particular, disables activation of
+    CONTINUE or EXIT handlers of stored routines.
+    Reset in the end of processing of the current user request, in
+    @see mysql_reset_thd_for_next_command().
+  */
+  bool is_fatal_error;
+  /**
+    Set by a storage engine to request the entire
+    transaction (that possibly spans multiple engines) to
+    rollback. Reset in ha_rollback.
+  */
+  bool       transaction_rollback_request;
+  /**
+    TRUE if we are in a sub-statement and the current error can
+    not be safely recovered until we left the sub-statement mode.
+    In particular, disables activation of CONTINUE and EXIT
+    handlers inside sub-statements. E.g. if it is a deadlock
+    error and requires a transaction-wide rollback, this flag is
+    raised (traditionally, MySQL first has to close all the reads
+    via @see handler::ha_index_or_rnd_end() and only then perform
+    the rollback).
+    Reset to FALSE when we leave the sub-statement mode.
+  */
+  bool       is_fatal_sub_stmt_error;
   bool	     query_start_used, rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     tmp_table_used;
+  
+  /**  is set if some thread specific value(s) used in a statement. */
+  bool       thread_specific_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
-  struct {
-    bool all:1;
-    bool stmt:1;
-  } no_trans_update;
   bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
@@ -1567,10 +1612,24 @@ public:
     pthread_mutex_unlock(&mysys_var->mutex);
   }
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else time_after_lock=time(&start_time); }
-  inline void	end_time()    { time(&start_time); }
-  inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
-  inline void	lock_time()   { time(&time_after_lock); }
+  inline void set_time()
+  {
+    if (user_time)
+    {
+      start_time= user_time;
+      start_utime= utime_after_lock= my_micro_time();
+    }
+    else
+      start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+  }
+  inline void	set_current_time()    { start_time= my_time(MY_WME); }
+  inline void	set_time(time_t t)
+  {
+    start_time= user_time= t;
+    start_utime= utime_after_lock= my_micro_time();
+  }
+  void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
+  ulonglong current_utime()  { return my_micro_time(); }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
@@ -1595,6 +1654,10 @@ public:
   {
     return alloc_root(&transaction.mem_root,size);
   }
+
+  LEX_STRING *make_lex_string(LEX_STRING *lex_str,
+                              const char* str, uint length,
+                              bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
@@ -1675,7 +1738,7 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!no_trans_update.stmt ||
+            (!transaction.stmt.modified_non_trans_table ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
@@ -1949,9 +2012,30 @@ public:
 };
 
 
+#define ESCAPE_CHARS "ntrb0ZN" // keep synchronous with READ_INFO::unescape
+
+
+/*
+ List of all possible characters of a numeric value text representation.
+*/
+#define NUMERIC_CHARS ".0123456789e+-"
+
+
 class select_export :public select_to_file {
   uint field_term_length;
   int field_sep_char,escape_char,line_sep_char;
+  /*
+    The is_ambiguous_field_sep field is true if a value of the field_sep_char
+    field is one of the 'n', 't', 'r' etc characters
+    (see the READ_INFO::unescape method and the ESCAPE_CHARS constant value).
+  */
+  bool is_ambiguous_field_sep;
+  /*
+    The is_unsafe_field_sep field is true if a value of the field_sep_char
+    field is one of the '0'..'9', '+', '-', '.' and 'e' characters
+    (see the NUMERIC_CHARS constant value).
+  */
+  bool is_unsafe_field_sep;
   bool fixed_row_size;
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
@@ -1999,8 +2083,8 @@ class select_insert :public select_result_interceptor {
 class select_create: public select_insert {
   ORDER *group;
   TABLE_LIST *create_table;
-  TABLE_LIST *select_tables;
   HA_CREATE_INFO *create_info;
+  TABLE_LIST *select_tables;
   Alter_info *alter_info;
   Field **field;
 public:
@@ -2393,10 +2477,13 @@ public:
 #define CF_HAS_ROW_COUNT	2
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
+#define CF_WRITE_LOGS_COMMAND  16
 
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
+void mark_transaction_to_rollback(THD *thd, bool all);
+
 #endif /* MYSQL_SERVER */

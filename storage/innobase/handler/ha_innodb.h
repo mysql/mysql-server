@@ -190,27 +190,57 @@ class ha_innobase: public handler
 					uint table_changes);
 };
 
-extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern long long innobase_buffer_pool_size, innobase_log_file_size;
-extern long innobase_log_buffer_size;
-extern long innobase_additional_mem_pool_size;
-extern long innobase_buffer_pool_awe_mem_mb;
-extern long innobase_file_io_threads, innobase_lock_wait_timeout;
-extern long innobase_force_recovery;
-extern long innobase_open_files;
-extern char *innobase_data_home_dir, *innobase_data_file_path;
-extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
-extern char *innobase_unix_file_flush_method;
+/* Some accessor functions which the InnoDB plugin needs, but which
+can not be added to mysql/plugin.h as part of the public interface;
+the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
+
+#ifndef INNODB_COMPATIBILITY_HOOKS
+#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
+#endif
+
 extern "C" {
-extern ulong srv_max_buf_pool_modified_pct;
-extern ulong srv_max_purge_lag;
-extern ulong srv_auto_extend_increment;
-extern ulong srv_n_spin_wait_rounds;
-extern ulong srv_n_free_tickets_to_enter;
-extern ulong srv_thread_sleep_delay;
-extern ulong srv_thread_concurrency;
-extern ulong srv_commit_concurrency;
-extern ulong srv_flush_log_at_trx_commit;
+struct charset_info_st *thd_charset(MYSQL_THD thd);
+char **thd_query(MYSQL_THD thd);
+
+/** Get the file name of the MySQL binlog.
+ * @return the name of the binlog file
+ */
+const char* mysql_bin_log_file_name(void);
+
+/** Get the current position of the MySQL binlog.
+ * @return byte offset from the beginning of the binlog
+ */
+ulonglong mysql_bin_log_file_pos(void);
+
+/**
+  Check if a user thread is a replication slave thread
+  @param thd  user thread
+  @retval 0 the user thread is not a replication slave thread
+  @retval 1 the user thread is a replication slave thread
+*/
+int thd_slave_thread(const MYSQL_THD thd);
+
+/**
+  Check if a user thread is running a non-transactional update
+  @param thd  user thread
+  @retval 0 the user thread is not running a non-transactional update
+  @retval 1 the user thread is running a non-transactional update
+*/
+int thd_non_transactional_update(const MYSQL_THD thd);
+
+/**
+  Get the user thread's binary logging format
+  @param thd  user thread
+  @return Value to be used as index into the binlog_format_names array
+*/
+int thd_binlog_format(const MYSQL_THD thd);
+
+/**
+  Mark transaction to rollback and mark error as fatal to a sub-statement.
+  @param  thd   Thread handle
+  @param  all   TRUE <=> rollback main transaction.
+*/
+void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 }
 
 /*
