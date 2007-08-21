@@ -462,18 +462,13 @@ struct trx_struct{
 					may need to be dropped in crash
 					recovery. */
 	dict_undo_list_t*
-			dict_undo_list;	/* List of undo records are created
-					during recovery.*/
+			dict_undo_list;	/* List of undo records created
+					during recovery. */
 	dict_redo_list_t*
 			dict_redo_list;	/* List of indexes created by this
-					transaction.*/
-	ulint		(*sync_cb)(trx_t*, ibool);
-					/* Transaction synchronization
-					callback, if ibool parameter is TRUE
-					then callback invoked for commit else
-					rollback.*/
+					transaction. */
 	dulint		table_id;	/* Table to drop iff dict_operation
-					is TRUE.*/
+					is TRUE. */
 	/*------------------------------*/
 	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
