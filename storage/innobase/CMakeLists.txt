@@ -15,18 +15,16 @@
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -DWIN32 -D_LIB)
-IF(EMBEDDED_ONLY)
-  ADD_DEFINITIONS(-DUSE_TLS)
-ENDIF(EMBEDDED_ONLY)
+ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -D_LIB)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    include
-                    handler
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
+
+SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
 					 buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c 
 					 data/data0data.c data/data0type.c 
 					 dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c 
@@ -57,3 +55,7 @@ ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 					 trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c 
 					 usr/usr0sess.c 
 					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c ut/ut0list.c ut/ut0wqueue.c)
+
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(innobase ${INNOBASE_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)
