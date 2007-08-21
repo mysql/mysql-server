@@ -43,6 +43,15 @@ struct merge_index_def_struct {
 typedef struct merge_index_def_struct merge_index_def_t;
 
 /*************************************************************************
+Sets an exclusive lock on a table, for the duration of creating indexes. */
+
+ulint
+row_merge_lock_table(
+/*=================*/
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in/out: transaction */
+	dict_table_t*	table);		/* in: table to LOCK_X */
+/*************************************************************************
 Drop an index from the InnoDB system tables. */
 
 void
