@@ -3412,7 +3412,9 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 ret:
+#endif
   DBUG_RETURN(0);
 }
 
