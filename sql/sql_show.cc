@@ -4351,7 +4351,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     int event, timing;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!(thd->security_ctx->master_access & SUPER_ACL))
+    if (check_table_access(thd, TRIGGER_ACL, tables, 1))
       goto ret;
 #endif
 
