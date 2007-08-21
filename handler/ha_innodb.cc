@@ -8369,7 +8369,6 @@ err_exit:
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx);
 
-	ut_a(!trx->sync_cb);
 	ut_a(!trx->dict_redo_list);
 
 	/* If a new primary key is defined for the table we need
@@ -8398,7 +8397,6 @@ err_exit:
 		}
 	} else {
 		dict_redo_create_list(trx);
-		trx->sync_cb = dict_rename_indexes;
 	}
 
 	/* Allocate memory for dictionary index definitions */
@@ -8559,9 +8557,12 @@ error_handling:
 
 func_exit:
 	mem_heap_free(heap);
-	ut_ad(new_primary || trx->dict_redo_list);
-	ut_ad(!new_primary || !trx->dict_redo_list);
-	innobase_commit_low(trx);
+	if (!new_primary) {
+		dict_rename_indexes(trx);
+	}
+	ut_ad(!trx->dict_redo_list);
+
+	trx_commit_for_mysql(trx);
 
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
