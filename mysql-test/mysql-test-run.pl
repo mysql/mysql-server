@@ -883,7 +883,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   if ($opt_extern)
   {
-    mtr_report("Disable instance manager when running with extern mysqld");
+    # mtr_report("Disable instance manager when running with extern mysqld");
     $opt_skip_im= 1;
   }
   elsif ( $mysql_version_id < 50000 )
@@ -2037,7 +2037,10 @@ sub environment_setup () {
     $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
 
   }
-  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  if ( !$opt_extern )
+  {
+    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults

@@ -435,6 +435,28 @@ bbb.
 bbb.
 aa.
 drop table t1;
+create table t1 ( a text not null, key a (a(20))) row_format=dynamic;
+insert into t1 values ('aaa   '),('aaa'),('aa');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select concat(a,'.') from t1 where a='aaa';
+concat(a,'.')
+aaa   .
+aaa.
+select concat(a,'.') from t1 where binary a='aaa';
+concat(a,'.')
+aaa.
+update t1 set a='bbb' where a='aaa';
+select concat(a,'.') from t1;
+concat(a,'.')
+bbb.
+bbb.
+aa.
+drop table t1;
 create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
 insert into t1 values('807780', '477', '165');
 insert into t1 values('807780', '477', '162');
@@ -1045,7 +1067,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c	c	11	const	#	Using where; Using index
 explain select count(*) from t1 where t='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	t	t	13	NULL	#	Using where
+1	SIMPLE	t1	ref	t	t	13	const	#	Using where
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index

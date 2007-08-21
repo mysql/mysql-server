@@ -3357,7 +3357,6 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   DBUG_ENTER("_ma_read_block_record");
   DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
 
-  info->cur_row.lastpos= record_pos;
   offset= ma_recordpos_to_dir_entry(record_pos);
 
   DBUG_ASSERT(info->s->pagecache->block_size == block_size);

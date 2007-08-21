@@ -2004,6 +2004,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         tons of archived logs to roll-forward, we could then not disable
         REDOs/UNDOs in this case.
       */
+      DBUG_PRINT("info", ("Disabling logging for table"));
       _ma_tmp_disable_logging_for_table(file->s);
     }
     if (!trn)  /* no transaction yet - open it now */
