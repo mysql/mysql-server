@@ -2599,7 +2599,8 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
          col->m_storageType == NDB_STORAGETYPE_DISK ||
          col->m_pk ||
          col->m_distributionKey ||
-         col->m_autoIncrement                   // ToDo: allow this?
+         col->m_autoIncrement ||                   // ToDo: allow this?
+	 (col->getBlobType() && col->getPartSize())
          )
         goto invalid_alter_table;
     }
@@ -4258,7 +4259,6 @@ static int scanEventTable(Ndb* pNdb,
 {
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
   NdbTransaction       *pTrans = NULL;
   NdbScanOperation     *pOp = NULL;
   NdbRecAttr *event_name, *event_id;
