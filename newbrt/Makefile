@@ -48,7 +48,7 @@ hashtable.o: hashtable.h brttypes.h memory.h key.h yerror.h ../include/ydb-const
 memory.o: memory.h
 primes.o: primes.h
 hashtest: hashtable.o memory.o primes.o
-brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h
+brt-serialize.o: brt.h cachetable.h memory.h mdict.h pma.h brttypes.h brt-internal.h hashtable.h wbuf.h rbuf.h
 header-io.o: brttypes.h brt-internal.h memory.h
 mdict-test: hashtable.o pma.o memory.o
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o
