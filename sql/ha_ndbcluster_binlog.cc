@@ -114,6 +114,9 @@ NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
 pthread_mutex_t ndb_schema_share_mutex;
 
+extern my_bool opt_log_slave_updates;
+static my_bool g_ndb_log_slave_updates;
+
 /* Schema object distribution handling */
 HASH ndb_schema_objects;
 typedef struct st_ndb_schema_object {
@@ -348,7 +351,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(error);
   }
   if ((error= open_table_from_share(thd, table_share, "", 0 /* fon't allocate buffers */, 
-                                    (uint) READ_ALL, 0, table, FALSE)))
+                                    (uint) READ_ALL, 0, table, OTM_OPEN)))
   {
     sql_print_error("Unable to open table for %s, error=%d(%d)",
                     share->key, error, my_errno);
@@ -445,6 +448,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     {
       share->flags|= NSF_NO_BINLOG;
     }
+    share->old_ops.empty();
     DBUG_VOID_RETURN;
   }
   while (1) 
@@ -454,22 +458,12 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     TABLE *table= (TABLE*) alloc_root(mem_root, sizeof(*table));
     if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table, 0)))
       break;
-    /*
-      ! do not touch the contents of the table
-      it may be in use by the injector thread
-    */
-    MEM_ROOT *mem_root= &share->mem_root;
-    share->ndb_value[0]= (NdbValue*)
-      alloc_root(mem_root, sizeof(NdbValue) *
-                 (table->s->fields + 2 /*extra for hidden key and part key*/));
-    share->ndb_value[1]= (NdbValue*)
-      alloc_root(mem_root, sizeof(NdbValue) *
-                 (table->s->fields + 2 /*extra for hidden key and part key*/));
 
     if (table->s->primary_key == MAX_KEY)
       share->flags|= NSF_HIDDEN_PK;
     if (table->s->blob_fields != 0)
       share->flags|= NSF_BLOB_FLAG;
+    share->old_ops.empty();
     break;
   }
   DBUG_VOID_RETURN;
@@ -942,9 +936,10 @@ struct Cluster_schema
 /*
   Transfer schema table data into corresponding struct
 */
-static void ndbcluster_get_schema(NDB_SHARE *share,
+static void ndbcluster_get_schema(Ndb_event_data *event_data,
                                   Cluster_schema *s)
 {
+  NDB_SHARE *share= event_data->share;
   TABLE *table= share->table;
   Field **field;
   /* unpack blob values */
@@ -953,7 +948,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   {
     ptrdiff_t ptrdiff= 0;
-    int ret= get_ndb_blobs_value(table, share->ndb_value[0],
+    int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
                                  blobs_buffer, blobs_buffer_size,
                                  ptrdiff);
     if (ret != 0)
@@ -1599,6 +1594,83 @@ end:
   DBUG_RETURN(0);
 }
 
+inline
+bool
+ndb_is_old_event_op(NDB_SHARE *share, NdbEventOperation *pOp)
+{
+  List_iterator_fast<NdbEventOperation> it(share->old_ops);
+  NdbEventOperation *op;
+  if (share->old_ops.is_empty())
+    return FALSE;
+  while ((op= it++))
+  {
+    if (op == pOp)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+inline
+void
+ndb_remove_old_event_op(NDB_SHARE *share, NdbEventOperation *pOp)
+{
+  List_iterator<NdbEventOperation> it(share->old_ops);
+  NdbEventOperation *op;
+  if (share->old_ops.is_empty())
+    return;
+  while ((op= it++))
+  {
+    if (op == pOp)
+    {
+      it.remove();
+      return;
+    }
+  }
+}
+
+void
+ndb_remove_old_event_ops(NDB_SHARE *share)
+{
+  List_iterator<NdbEventOperation> it(share->old_ops);
+  NdbEventOperation *op;
+  if (share->old_ops.is_empty())
+    return;
+  while ((op= it++))
+  {
+    Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+    if (event_data)
+    {
+      delete event_data;
+      op->setCustomData(NULL);
+    }
+    it.remove();
+    return;
+  }
+}
+
+inline
+void
+ndb_drop_old_event_ops(Ndb *ndb, NDB_SHARE *share)
+{
+  List_iterator<NdbEventOperation> it(share->old_ops);
+  NdbEventOperation *op;
+  if (share->old_ops.is_empty())
+    return;
+  while ((op= it++))
+  {
+      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+      if (event_data)
+      {
+        delete event_data;
+        op->setCustomData(NULL);
+      }
+      ndb->dropEventOperation(op);
+      it.remove();
+      free_share(&share);
+  }
+}
+
+
 /*
   Handle _non_ data events from the storage nodes
 */
@@ -1607,10 +1679,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                          NDB_SHARE *share)
 {
   DBUG_ENTER("ndb_handle_schema_change");
-  TABLE* table= share->table;
+  MEM_ROOT *mem_root= &share->mem_root;
   TABLE_SHARE *table_share= share->table_share;
-  const char *dbname= table_share->db.str;
   const char *tabname= table_share->table_name.str;
+  const char *dbname= table_share->db.str;
+  const NDBTAB *altered_table= pOp->getTable();
+  int error;
   bool do_close_cached_tables= FALSE;
   bool is_online_alter_table= FALSE;
   bool is_rename_table= FALSE;
@@ -1621,13 +1695,23 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   {
     if (pOp->tableFrmChanged())
     {
+      /*
+         Table definition was changed as part of an
+         on-line alter table.
+         Replication will adapt to the new table definition.
+       */
       DBUG_PRINT("info", ("NDBEVENT::TE_ALTER: table frm changed"));
       is_online_alter_table= TRUE;
     }
     else
     {
-      DBUG_PRINT("info", ("NDBEVENT::TE_ALTER: name changed"));
       DBUG_ASSERT(pOp->tableNameChanged());
+      /*
+         Table name was changed either explicitely or indirectly
+         as part of an off-line (copying) alter table.
+         Replication will be taken down and then set-up again.
+       */
+      DBUG_PRINT("info", ("NDBEVENT::TE_ALTER: table name changed"));
       is_rename_table= TRUE;
     }
   }
@@ -1649,13 +1733,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   */
   if (is_remote_change && is_online_alter_table)
   {
-    const char *tabname= table_share->table_name.str;
     char key[FN_REFLEN];
     const void *data= 0, *pack_data= 0;
     uint length, pack_length;
-    int error;
     NDBDICT *dict= ndb->getDictionary();
-    const NDBTAB *altered_table= pOp->getTable();
     
     DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                         dbname, tabname));
@@ -1687,38 +1768,75 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
         sql_print_information("NDB: Failed write frm for %s.%s, error %d",
                               dbname, tabname, error);
       }
-      
-      // copy names as memory will be freed
-      NdbAutoPtr<char> a1((char *)(dbname= strdup(dbname)));
-      NdbAutoPtr<char> a2((char *)(tabname= strdup(tabname)));
-      ndbcluster_binlog_close_table(thd, share);
-
-      TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.db= (char *)dbname;
-      table_list.alias= table_list.table_name= (char *)tabname;
-      close_cached_tables(thd, 0, &table_list, TRUE);
-
-      if ((error= ndbcluster_binlog_open_table(thd, share,
-                                               table_share, table, 1)))
-        sql_print_information("NDB: Failed to re-open table %s.%s",
-                              dbname, tabname);
-
-      table= share->table;
-      table_share= share->table_share;
-      dbname= table_share->db.str;
-      tabname= table_share->table_name.str;
 
       pthread_mutex_unlock(&LOCK_open);
     }
+
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
 
-  // If only frm was changed continue replicating
+  // If only frm was changed continue replicating new table
   if (is_online_alter_table)
   {
-    /* Signal ha_ndbcluster::alter_table that drop is done */
+    pthread_mutex_lock(&LOCK_open);
+    (void) pthread_mutex_lock(&share->mutex);
+
+    // copy names as memory will be freed
+    NdbAutoPtr<char> a1((char *)(dbname= strdup(dbname)));
+    NdbAutoPtr<char> a2((char *)(tabname= strdup(tabname)));
+
+    TABLE_LIST table_list;
+    bzero((char*) &table_list,sizeof(table_list));
+    table_list.db= (char *)dbname;
+    table_list.alias= table_list.table_name= (char *)tabname;
+    close_cached_tables(thd, 0, &table_list, TRUE);
+
+    ndbcluster_binlog_close_table(thd, share);
+
+    TABLE *table= (share->table) ?
+	             share->table // allready allocated
+	          : (TABLE*) alloc_root(mem_root, sizeof(*table));
+    if ((error= ndbcluster_binlog_open_table(thd, share,
+					     table_share, table, 1)))
+	 sql_print_information("NDB: Failed to re-open table %s.%s",
+			       dbname, tabname);
+    pthread_mutex_unlock(&LOCK_open);
+
+    table= share->table;
+    table_share= share->table_share;
+    dbname= table_share->db.str;
+    tabname= table_share->table_name.str;
+
+    /*
+      Refresh share->flags to handle added BLOB columns
+    */
+    if (table->s->blob_fields != 0)
+      share->flags|= NSF_BLOB_FLAG;
+
+    /*
+      Start subscribing to data changes to the new table definition
+    */
+    const char* event_name= pOp->getEvent()->getName();
+
+    (void) pthread_mutex_lock(&injector_mutex);
+    share->old_ops.push_back(share->op, mem_root);
+    share->op= 0;
+    (void) pthread_mutex_unlock(&injector_mutex);
+    if (ndbcluster_create_event_ops(thd, share, altered_table, event_name))
+    {
+       sql_print_error("NDB Binlog:"
+		       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
+		       event_name);
+    }
+    else
+    {
+      /* Increase refernce count */
+      get_share(share);
+    }
+    (void) pthread_mutex_unlock(&share->mutex);
+
+    /* Signal ha_ndbcluster::alter_table that alter is done */
     (void) pthread_cond_signal(&injector_cond);
     DBUG_RETURN(0);
   }
@@ -1751,11 +1869,16 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     share->table->s->table_name.str= share->table_name;
     share->table->s->table_name.length= strlen(share->table_name);
   }
-  DBUG_ASSERT(share->op == pOp || share->op_old == pOp);
-  if (share->op_old == pOp)
-    share->op_old= 0;
-  else
+  DBUG_ASSERT(share->state == NSS_DROPPED || 
+              share->op == pOp || ndb_is_old_event_op(share, pOp));
+  if (ndb_is_old_event_op(share, pOp))
+  {
+    ndb_remove_old_event_op(share, pOp);
+  }
+  else if (share->op)
+  {
     share->op= 0;
+  }
   // either just us or drop table handling as well
       
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
@@ -1790,7 +1913,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     share= 0;
   pthread_mutex_unlock(&ndbcluster_mutex);
 
-  pOp->setCustomData(0);
+  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  if (event_data)
+  {
+    delete event_data;
+    pOp->setCustomData(NULL);
+  }
 
   pthread_mutex_lock(&injector_mutex);
   ndb->dropEventOperation(pOp);
@@ -1847,7 +1975,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                       MEM_ROOT *mem_root)
 {
   DBUG_ENTER("ndb_binlog_thread_handle_schema_event");
-  NDB_SHARE *tmp_share= (NDB_SHARE *)pOp->getCustomData();
+  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  NDB_SHARE *tmp_share= event_data->share;
   if (tmp_share && ndb_schema_share == tmp_share)
   {
     NDBEVENT::TableEvent ev_type= pOp->getEventType();
@@ -1862,7 +1991,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, FALSE);
       uint node_id= g_ndb_cluster_connection->node_id();
       {
-        ndbcluster_get_schema(tmp_share, schema);
+        ndbcluster_get_schema(event_data, schema);
         schema->any_value= pOp->getAnyValue();
       }
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
@@ -2190,6 +2319,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
       case SOT_RENAME_TABLE:
         // fall through
       case SOT_ALTER_TABLE:
+        if (share && schema_type == SOT_ALTER_TABLE)
+          ndb_drop_old_event_ops(injector_ndb, share);
         // invalidation already handled by binlog thread
         if (!share || !share->op)
         {
@@ -2285,20 +2416,27 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
   ndb_binlog_index table
 */
 struct ndb_binlog_index_row {
-  ulonglong gci;
+  ulonglong epoch;
   const char *master_log_file;
   ulonglong master_log_pos;
-  ulonglong n_inserts;
-  ulonglong n_updates;
-  ulonglong n_deletes;
-  ulonglong n_schemaops;
+  ulong n_inserts;
+  ulong n_updates;
+  ulong n_deletes;
+  ulong n_schemaops;
+
+  ulong orig_server_id;
+  ulonglong orig_epoch;
+
+  ulong gci;
+
+  struct ndb_binlog_index_row *next;
 };
 
 /*
   Open the ndb_binlog_index table
 */
 static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
-                             TABLE **ndb_binlog_index)
+                                 TABLE **ndb_binlog_index)
 {
   static char repdb[]= NDB_REP_DB;
   static char reptable[]= NDB_REP_TABLE;
@@ -2331,11 +2469,12 @@ static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   Insert one row in the ndb_binlog_index
 */
 
-int ndb_add_ndb_binlog_index(THD *thd, void *_row)
+static int
+ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 {
-  ndb_binlog_index_row &row= *(ndb_binlog_index_row *) _row;
   int error= 0;
   bool need_reopen;
+  ndb_binlog_index_row *first= row;
   /*
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
@@ -2370,24 +2509,48 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   /*
     Intialize ndb_binlog_index->record[0]
   */
-  empty_record(ndb_binlog_index);
-
-  ndb_binlog_index->field[0]->store(row.master_log_pos);
-  ndb_binlog_index->field[1]->store(row.master_log_file,
-                                strlen(row.master_log_file),
-                                &my_charset_bin);
-  ndb_binlog_index->field[2]->store(row.gci);
-  ndb_binlog_index->field[3]->store(row.n_inserts);
-  ndb_binlog_index->field[4]->store(row.n_updates);
-  ndb_binlog_index->field[5]->store(row.n_deletes);
-  ndb_binlog_index->field[6]->store(row.n_schemaops);
-
-  if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
+  do
   {
-    sql_print_error("NDB Binlog: Writing row to ndb_binlog_index: %d", error);
-    error= -1;
-    goto add_ndb_binlog_index_err;
-  }
+    empty_record(ndb_binlog_index);
+
+    ndb_binlog_index->field[0]->store(first->master_log_pos);
+    ndb_binlog_index->field[1]->store(first->master_log_file,
+                                      strlen(first->master_log_file),
+                                      &my_charset_bin);
+    ndb_binlog_index->field[2]->store(first->epoch);
+    if (ndb_binlog_index->s->fields > 7)
+    {
+      ndb_binlog_index->field[3]->store(row->n_inserts);
+      ndb_binlog_index->field[4]->store(row->n_updates);
+      ndb_binlog_index->field[5]->store(row->n_deletes);
+      ndb_binlog_index->field[6]->store(row->n_schemaops);
+      ndb_binlog_index->field[7]->store(row->orig_server_id);
+      ndb_binlog_index->field[8]->store(row->orig_epoch);
+      ndb_binlog_index->field[9]->store(first->gci);
+      row= row->next;
+    }
+    else
+    {
+      while ((row= row->next))
+      {
+        first->n_inserts+= row->n_inserts;
+        first->n_updates+= row->n_updates;
+        first->n_deletes+= row->n_deletes;
+        first->n_schemaops+= row->n_schemaops;
+      }
+      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts);
+      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates);
+      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes);
+      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops);
+    }
+
+    if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
+    {
+      sql_print_error("NDB Binlog: Writing row to ndb_binlog_index: %d", error);
+      error= -1;
+      goto add_ndb_binlog_index_err;
+    }
+  } while (row);
 
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
@@ -2549,7 +2712,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
   {
     if (share->flags & NSF_NO_BINLOG ||
         share->op != 0 ||
-        share->op_old != 0)
+        !share->old_ops.is_empty())
     {
       pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(0); // replication already setup, or should not
@@ -2558,7 +2721,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
   if (share)
   {
-    if (share->op || share->op_old)
+    if (share->op || !share->old_ops.is_empty())
     {
       my_errno= HA_ERR_TABLE_EXIST;
       pthread_mutex_unlock(&ndbcluster_mutex);
@@ -2664,7 +2827,8 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
     /*
       create the event operations for receiving logging events
     */
-    if (ndbcluster_create_event_ops(share, ndbtab, event_name.c_ptr()))
+    if (ndbcluster_create_event_ops(current_thd, share,
+                                    ndbtab, event_name.c_ptr()))
     {
       sql_print_error("NDB Binlog:"
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
@@ -2842,10 +3006,9 @@ inline int is_ndb_compatible_type(Field *field)
   used at create/discover of tables
 */
 int
-ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
-                            const char *event_name)
+ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
+                            const NDBTAB *ndbtab, const char *event_name)
 {
-  THD *thd= current_thd;
   /*
     we are in either create table or rename table so table should be
     locked, hence we can work with the share without locks
@@ -2879,7 +3042,8 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
 
   if (share->op)
   {
-    assert(share->op->getCustomData() == (void *) share);
+    Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
+    assert(event_data->share == share);
 
     DBUG_ASSERT(share->use_count > 1);
     sql_print_error("NDB Binlog: discover reusing old ev op");
@@ -2939,11 +3103,10 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     if (share->flags & NSF_BLOB_FLAG)
       op->mergeEvents(TRUE); // currently not inherited from event
 
-    DBUG_PRINT("info", ("share->ndb_value[0]: 0x%lx  share->ndb_value[1]: 0x%lx",
-                        (long) share->ndb_value[0],
-                        (long) share->ndb_value[1]));
     int n_columns= ndbtab->getNoOfColumns();
     int n_fields= table ? table->s->fields : 0; // XXX ???
+    Ndb_event_data *event_data= new Ndb_event_data(share, n_columns);
+
     for (int j= 0; j < n_columns; j++)
     {
       const char *col_name= ndbtab->getColumn(j)->getName();
@@ -2983,6 +3146,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
                                 "NDB");
             ndb->dropEventOperation(op);
             pthread_mutex_unlock(&injector_mutex);
+            delete event_data;
             DBUG_RETURN(-1);
           }
         }
@@ -2993,19 +3157,20 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
         attr0.rec= op->getValue(col_name);
         attr1.rec= op->getPreValue(col_name);
       }
-      share->ndb_value[0][j].ptr= attr0.ptr;
-      share->ndb_value[1][j].ptr= attr1.ptr;
-      DBUG_PRINT("info", ("&share->ndb_value[0][%d]: 0x%lx  "
-                          "share->ndb_value[0][%d]: 0x%lx",
-                          j, (long) &share->ndb_value[0][j],
+      event_data->ndb_value[0][j].ptr= attr0.ptr;
+      event_data->ndb_value[1][j].ptr= attr1.ptr;
+      DBUG_PRINT("info", ("&event_data->ndb_value[0][%d]: 0x%lx  "
+                          "event_data->ndb_value[0][%d]: 0x%lx",
+                          j, (long) &event_data->ndb_value[0][j],
                           j, (long) attr0.ptr));
-      DBUG_PRINT("info", ("&share->ndb_value[1][%d]: 0x%lx  "
-                          "share->ndb_value[1][%d]: 0x%lx",
-                          j, (long) &share->ndb_value[0][j],
+      DBUG_PRINT("info", ("&event_data->ndb_value[1][%d]: 0x%lx  "
+                          "event_data->ndb_value[1][%d]: 0x%lx",
+                          j, (long) &event_data->ndb_value[0][j],
                           j, (long) attr1.ptr));
     }
-    op->setCustomData((void *) share); // set before execute
+    op->setCustomData((void *) event_data); // set before execute
     share->op= op; // assign op in NDB_SHARE
+    share->op_gci= op->getLatestGCI();
     if (op->execute())
     {
       share->op= NULL;
@@ -3023,8 +3188,15 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
                         event_name,
                         op->getNdbError().code, op->getNdbError().message);
       }
+      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+      if (event_data)
+      {
+        delete event_data;
+        op->setCustomData(NULL);
+      }
       ndb->dropEventOperation(op);
       pthread_mutex_unlock(&injector_mutex);
+      delete event_data;
       if (retries)
       {
         my_sleep(retry_sleep);
@@ -3157,7 +3329,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
   (void) pthread_mutex_unlock(&share->mutex);
 #else
   (void) pthread_mutex_lock(&share->mutex);
-  share->op_old= share->op;
+  share->old_ops->push_back(share->op, &share->mem_root);;
   share->op= 0;
   (void) pthread_mutex_unlock(&share->mutex);
 #endif
@@ -3219,16 +3391,13 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
         {
           if (is_null > 0)
           {
-	    DBUG_PRINT("info",("[%u] NULL",
-                               (*value).rec->getColumn()->getColumnNo()));
+            DBUG_PRINT("info",("[%u] NULL", field->field_index));
             field->set_null(row_offset);
           }
           else
           {
-            DBUG_PRINT("info",("[%u] UNDEFINED",
-                               (*value).rec->getColumn()->getColumnNo()));
-            bitmap_clear_bit(defined,
-                             (*value).rec->getColumn()->getColumnNo());
+            DBUG_PRINT("info",("[%u] UNDEFINED", field->field_index));
+            bitmap_clear_bit(defined, field->field_index);
           }
         }
         else if (field->type() == MYSQL_TYPE_BIT)
@@ -3286,7 +3455,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
       else
       {
         NdbBlob *ndb_blob= (*value).blob;
-        uint col_no = ndb_blob->getColumn()->getColumnNo();
+        uint col_no= field->field_index;
         int isNull;
         ndb_blob->getDefined(isNull);
         if (isNull == 1)
@@ -3324,7 +3493,8 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
 static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
                                           ndb_binlog_index_row &row)
 {
-  NDB_SHARE *share= (NDB_SHARE *)pOp->getCustomData();
+  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  NDB_SHARE *share= event_data->share;
   DBUG_ENTER("ndb_binlog_thread_handle_error");
 
   int overrun= pOp->isOverrun();
@@ -3366,7 +3536,8 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                         NdbEventOperation *pOp,
                                         ndb_binlog_index_row &row)
 {
-  NDB_SHARE *share= (NDB_SHARE *)pOp->getCustomData();
+  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  NDB_SHARE *share= event_data->share;
   NDBEVENT::TableEvent type= pOp->getEventType();
 
   /* make sure to flush any pending events as they can be dependent
@@ -3394,9 +3565,9 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
     }
     DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
-                        "op_old: 0x%lx",
+                        "old_ops: %u",
                          share->key, (long) share, (long) pOp,
-                         (long) share->op, (long) share->op_old));
+                         (long) share->op, share->old_ops.elements));
     break;
   case NDBEVENT::TE_DROP:
     if (ndb_apply_status_share == share)
@@ -3418,10 +3589,10 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
   case NDBEVENT::TE_ALTER:
     row.n_schemaops++;
     DBUG_PRINT("info", ("TABLE %s  EVENT: %s  received share: 0x%lx  op: 0x%lx  "
-                        "share op: 0x%lx  op_old: 0x%lx",
+                        "share op: 0x%lx  old_ops: %u",
                         type == NDBEVENT::TE_DROP ? "DROP" : "ALTER",
                         share->key, (long) share, (long) pOp,
-                        (long) share->op, (long) share->op_old));
+                        (long) share->op, share->old_ops.elements));
     break;
   case NDBEVENT::TE_NODE_FAILURE:
     /* fall through */
@@ -3443,14 +3614,96 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
 /*
   Handle data events from the storage nodes
 */
+inline ndb_binlog_index_row *
+ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
+                          uint orig_server_id, int flag)
+{
+  ndb_binlog_index_row *row= *rows;
+#ifdef NOT_YET
+  ndb_binlog_index_row *first= row, *found_id= 0;
+  for (;;)
+  {
+    if (row->orig_server_id == orig_server_id)
+    {
+      /* */
+      if (!flag || !row->orig_epoch)
+        return row;
+      if (!found_id)
+        found_id= row;
+    }
+    if (row->orig_server_id == 0)
+      break;
+    row= row->next;
+    if (row == NULL)
+    {
+      row= (ndb_binlog_index_row*)sql_alloc(sizeof(ndb_binlog_index_row));
+      bzero((char*)row, sizeof(ndb_binlog_index_row));
+      row->next= first;
+      *rows= row;
+      if (found_id)
+      {
+        /*
+          If we found index_row with same server id already
+          that row will contain the current stats.
+          Copy stats over to new and reset old.
+        */
+        row->n_inserts= found_id->n_inserts;
+        row->n_updates= found_id->n_updates;
+        row->n_deletes= found_id->n_deletes;
+        found_id->n_inserts= 0;
+        found_id->n_updates= 0;
+        found_id->n_deletes= 0;
+      }
+      /* keep track of schema ops only on "first" index_row */
+      row->n_schemaops= first->n_schemaops;
+      first->n_schemaops= 0;
+      break;
+    }
+  }
+  row->orig_server_id= orig_server_id;
+#endif
+  return row;
+}
+
 static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
-                                    ndb_binlog_index_row &row,
+                                    ndb_binlog_index_row **rows,
                                     injector::transaction &trans)
 {
-  NDB_SHARE *share= (NDB_SHARE*) pOp->getCustomData();
+  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  NDB_SHARE *share= event_data->share;
   if (share == ndb_apply_status_share)
+  {
+#ifdef NOT_YET
+    switch(pOp->getEventType())
+    {
+    case NDBEVENT::TE_INSERT:
+      // fall through
+    case NDBEVENT::TE_UPDATE:
+    {
+      /* unpack data to fetch orig_server_id and orig_epoch */
+      TABLE *table= share->table;
+      uint n_fields= table->s->fields;
+      MY_BITMAP b;
+      uint32 bitbuf[128 / (sizeof(uint32) * 8)];
+      bitmap_init(&b, bitbuf, n_fields, FALSE);
+      bitmap_set_all(&b);
+      ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
+      /* store */
+      ndb_binlog_index_row *row= ndb_find_binlog_index_row
+        (rows, ((Field_long *)table->field[0])->val_int(), 1);
+      row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
+      break;
+    }
+    case NDBEVENT::TE_DELETE:
+      break;
+    default:
+      /* We should REALLY never get here */
+      abort();
+    }
+#endif
     return 0;
+  }
 
   uint32 originating_server_id= pOp->getAnyValue();
   if (originating_server_id == 0)
@@ -3463,6 +3716,22 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                         originating_server_id);
     return 0;
   }
+  else if (!g_ndb_log_slave_updates)
+  {
+    /*
+      This event comes from a slave applier since it has an originating
+      server id set. Since option to log slave updates is not set, skip it.
+    */
+    return 0;
+  }
+
+  /*
+     Filter away duplicate events by checking if event was generated
+     after new event operation was created
+  */
+  DBUG_PRINT("info", ("share->op 0x%lx(%ld), pOp 0x%lx(%ld)", (long) share->op, (long) share->op_gci, (long) pOp, (long) pOp->getGCI()));
+  if (pOp != share->op && pOp->getGCI() >= share->op_gci)
+    return 0;
 
   TABLE *table= share->table;
   DBUG_ASSERT(trans.good());
@@ -3472,6 +3741,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
 
   TABLE_SHARE *table_s= table->s;
   uint n_fields= table_s->fields;
+  DBUG_PRINT("info", ("Assuming %u columns for table %s", n_fields, table_s->table_name.str));
   MY_BITMAP b;
   /* Potential buffer for the bitmap */
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
@@ -3492,23 +3762,26 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   byte* blobs_buffer[2] = { 0, 0 };
   uint blobs_buffer_size[2] = { 0, 0 };
 
+  ndb_binlog_index_row *row=
+    ndb_find_binlog_index_row(rows, originating_server_id, 0);
+
   switch(pOp->getEventType())
   {
   case NDBEVENT::TE_INSERT:
-    row.n_inserts++;
+    row->n_inserts++;
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table_s->db.str, table_s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[0],
                                                blobs_buffer[0],
                                                blobs_buffer_size[0],
                                                ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
-      ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
+      ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
       IF_DBUG(int ret=) trans.write_row(originating_server_id,
                                         injector::transaction::table(table,
                                                                      TRUE),
@@ -3517,7 +3790,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_DELETE:
-    row.n_deletes++;
+    row->n_deletes++;
     DBUG_PRINT("info",("DELETE FROM %s.%s",
                        table_s->db.str, table_s->table_name.str));
     {
@@ -3541,13 +3814,13 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[n],
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[n],
                                                blobs_buffer[n],
                                                blobs_buffer_size[n],
                                                ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
-      ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
+      ndb_unpack_record(table, event_data->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
       IF_DBUG(int ret =) trans.delete_row(originating_server_id,
                                           injector::transaction::table(table,
@@ -3557,20 +3830,20 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_UPDATE:
-    row.n_updates++;
+    row->n_updates++;
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table_s->db.str, table_s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
         my_ptrdiff_t ptrdiff= 0;
-        IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[0],
+        IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[0],
                                                blobs_buffer[0],
                                                blobs_buffer_size[0],
                                                ptrdiff);
         DBUG_ASSERT(ret == 0);
       }
-      ndb_unpack_record(table, share->ndb_value[0],
+      ndb_unpack_record(table, event_data->ndb_value[0],
                         &b, table->record[0]);
       DBUG_EXECUTE("info", print_records(table, table->record[0]););
       if (table->s->primary_key != MAX_KEY) 
@@ -3592,13 +3865,13 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         if (share->flags & NSF_BLOB_FLAG)
         {
           my_ptrdiff_t ptrdiff= table->record[1] - table->record[0];
-          IF_DBUG(int ret =) get_ndb_blobs_value(table, share->ndb_value[1],
+          IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[1],
                                                  blobs_buffer[1],
                                                  blobs_buffer_size[1],
                                                  ptrdiff);
           DBUG_ASSERT(ret == 0);
         }
-        ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
+        ndb_unpack_record(table, event_data->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
         IF_DBUG(int ret =) trans.update_row(originating_server_id,
                                             injector::transaction::table(table,
@@ -4098,9 +4371,10 @@ restart:
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
       NdbEventOperation *pOp= i_ndb->nextEvent();
-      ndb_binlog_index_row row;
+      ndb_binlog_index_row _row;
       while (pOp != NULL)
       {
+        ndb_binlog_index_row *rows= &_row;
 #ifdef RUN_NDB_BINLOG_TIMER
         Timer gci_timer, write_timer;
         int event_count= 0;
@@ -4113,11 +4387,13 @@ restart:
                     ! IS_NDB_BLOB_PREFIX(pOp->getEvent()->getTable()->getName()));
         DBUG_ASSERT(gci <= ndb_latest_received_binlog_epoch);
 
+        /* initialize some variables for this epoch */
+        g_ndb_log_slave_updates= opt_log_slave_updates;
         i_ndb->
           setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
         i_ndb->setReportThreshEventFreeMem(ndb_report_thresh_binlog_mem_usage);
 
-        bzero((char*) &row, sizeof(row));
+        bzero((char*)&_row, sizeof(_row));
         injector::transaction trans;
         // pass table map before epoch
         {
@@ -4127,7 +4403,9 @@ restart:
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
           {
-            NDB_SHARE *share= (NDB_SHARE*)gci_op->getCustomData();
+            Ndb_event_data *event_data=
+              (Ndb_event_data *) gci_op->getCustomData();
+            NDB_SHARE *share= (event_data)?event_data->share:NULL;
             DBUG_PRINT("info", ("per gci_op: 0x%lx  share: 0x%lx  event_types: 0x%x",
                                 (long) gci_op, (long) share, event_types));
             // workaround for interface returning TE_STOP events
@@ -4168,7 +4446,7 @@ restart:
                          ("Found new data event, initializing transaction"));
               inj->new_trans(thd, &trans);
             }
-            DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+            DBUG_PRINT("info", ("use_table: %.*s, cols %u", name.length, name.str, table->s->fields));
             injector::transaction::table tbl(table, TRUE);
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
@@ -4217,12 +4495,14 @@ restart:
           event_count++;
 #endif
           if (pOp->hasError() &&
-              ndb_binlog_thread_handle_error(i_ndb, pOp, row) < 0)
+              ndb_binlog_thread_handle_error(i_ndb, pOp, *rows) < 0)
             goto err;
 
 #ifndef DBUG_OFF
           {
-            NDB_SHARE *share= (NDB_SHARE*) pOp->getCustomData();
+            Ndb_event_data *event_data=
+              (Ndb_event_data *) pOp->getCustomData();
+            NDB_SHARE *share= (event_data)?event_data->share:NULL;
             DBUG_PRINT("info",
                        ("EVENT TYPE: %d  GCI: %ld  last applied: %ld  "
                         "share: 0x%lx (%s.%s)", pOp->getEventType(),
@@ -4251,14 +4531,14 @@ restart:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, row, trans);
+            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans);
           else
           {
             // set injector_ndb database/schema from table internal name
             IF_DBUG(int ret=)
               i_ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
             DBUG_ASSERT(ret == 0);
-            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
+            ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, *rows);
             // reset to catch errors
             i_ndb->setDatabaseName("");
             DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
@@ -4306,13 +4586,14 @@ restart:
                             r);
             /* TODO: Further handling? */
           }
-          row.gci= gci;
-          row.master_log_file= start.file_name();
-          row.master_log_pos= start.file_pos();
+          rows->gci= (ulong)gci;
+          rows->epoch= gci;
+          rows->master_log_file= start.file_name();
+          rows->master_log_pos= start.file_pos();
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
           if (ndb_update_ndb_binlog_index)
-            ndb_add_ndb_binlog_index(thd, &row);
+            ndb_add_ndb_binlog_index(thd, rows);
           ndb_latest_applied_binlog_epoch= gci;
         }
         ndb_latest_handled_binlog_epoch= gci;
@@ -4389,11 +4670,18 @@ err:
       DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
       DBUG_PRINT("info",("removing event operation on %s",
                          op->getEvent()->getName()));
-      NDB_SHARE *share= (NDB_SHARE*) op->getCustomData();
+      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+      NDB_SHARE *share= (event_data)?event_data->share:NULL;
       DBUG_ASSERT(share != 0);
       DBUG_ASSERT(share->op == op ||
-                  share->op_old == op);
-      share->op= share->op_old= 0;
+                  ndb_is_old_event_op(share, op));
+      if (event_data)
+      {
+        delete event_data;
+        op->setCustomData(NULL);
+      }
+      share->op= 0;
+      ndb_remove_old_event_op(share, op);
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));
@@ -4412,11 +4700,18 @@ err:
       DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
       DBUG_PRINT("info",("removing event operation on %s",
                          op->getEvent()->getName()));
-      NDB_SHARE *share= (NDB_SHARE*) op->getCustomData();
+      Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
+      NDB_SHARE *share= (event_data)?event_data->share:NULL;
       DBUG_ASSERT(share != 0);
       DBUG_ASSERT(share->op == op ||
-                  share->op_old == op);
-      share->op= share->op_old= 0;
+                  ndb_is_old_event_op(share, op));
+      if (event_data)
+      {
+        delete event_data;
+        op->setCustomData(NULL);
+      }
+      share->op= 0;
+      ndb_remove_old_event_op(share, op);
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));

@@ -86,6 +86,10 @@ public:
   };
 
   virtual Uint32 get_free_buffer() const = 0;
+
+  void set_status_overloaded(bool val) {
+    m_transporter_registry.set_status_overloaded(remoteNodeId, val);
+  }
   
 protected:
   Transporter(TransporterRegistry &,

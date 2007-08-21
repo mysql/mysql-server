@@ -16,25 +16,17 @@
 
 #ifndef VERSION_H
 #define VERSION_H
-#include <ndb_types.h>
+#include <ndb_version.h>
+
+/* some backwards compatible macros */
+#define MAKE_VERSION(A,B,C) NDB_MAKE_VERSION(A,B,C)
+#define getMajor(a) ndbGetMajor(a)
+#define getMinor(a) ndbGetMinor(a)
+#define getBuild(a) ndbGetBuild(a)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-  Uint32 getMajor(Uint32 version);
-  
-  Uint32 getMinor(Uint32 version);
-  
-  Uint32 getBuild(Uint32 version);
-
-  Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build);
-
-  const char* getVersionString(Uint32 version, Uint32 mysql_version,
-			       const char * status,
-			       char *buf, unsigned sz);
-  
-  void ndbPrintVersion();
-  Uint32 ndbGetOwnVersion();
 
   int ndbCompatible_mgmt_ndb(Uint32 ownVersion, Uint32 otherVersion);
   int ndbCompatible_ndb_mgmt(Uint32 ownVersion, Uint32 otherVersion);

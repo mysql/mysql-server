@@ -1283,6 +1283,12 @@ private:
     
     Uint32 m_expectedNextWord;
   } c_copyGCISlave;
+
+  /*
+   * Time GCP in master DIH.
+   * Later can measure per node or per protocol parts.
+   */
+  MicroSecondTimer gcp_timer_start;
   
   /*------------------------------------------------------------------------*/
   /*       THIS VARIABLE IS USED TO KEEP TRACK OF THE STATE OF LOCAL        */

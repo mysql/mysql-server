@@ -28,11 +28,12 @@ rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
 rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to checked
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
+rpl_ndb_innodb2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
+rpl_ndb_myisam2ndb       : Bug#29549 rpl_ndb_myisam2ndb,rpl_ndb_innodb2ndb failed on Solaris for pack_length issue
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 synchronization          : Bug#24529  	Test 'synchronization' fails on Mac pushbuild; Also on Linux 64 bit.
-rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld default multibyte charset
+rpl_stm_extraColmaster_ndb : WL#3915 : Statement-based replication not supported in ndb. Enable test when supported.
+rpl_ndb_ctype_ucs2_def   : BUG#29562, BUG#29563 and BUG#29564
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
@@ -43,3 +44,7 @@ rpl_ndb_ctype_ucs2_def   : BUG#27404 util thd mysql_parse sig11 when mysqld defa
 
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
 mysql_upgrade		 : Bug#28560 test links to /usr/local/mysql/lib libraries, causes non-determinism and failures on ABI breakage
+
+
+
+ndb_bug26793

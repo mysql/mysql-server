@@ -103,6 +103,8 @@ enum enum_server_command
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 #define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
+#define FIELD_STORAGE_FLAGS 22          /* Storage type: bit 22, 23 and 24 */
+#define COLUMN_FORMAT_FLAGS 25          /* Column format: bit 25, 26 and 27 */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */

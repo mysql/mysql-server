@@ -805,30 +805,35 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_ADD_COLUMN	(1L << 0)
 #define ALTER_DROP_COLUMN	(1L << 1)
 #define ALTER_CHANGE_COLUMN	(1L << 2)
-#define ALTER_ADD_INDEX		(1L << 3)
-#define ALTER_DROP_INDEX	(1L << 4)
-#define ALTER_RENAME		(1L << 5)
-#define ALTER_ORDER		(1L << 6)
-#define ALTER_OPTIONS		(1L << 7)
-#define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
-#define ALTER_KEYS_ONOFF        (1L << 9)
-#define ALTER_CONVERT           (1L << 10)
-#define ALTER_FORCE		(1L << 11)
-#define ALTER_RECREATE          (1L << 12)
-#define ALTER_ADD_PARTITION     (1L << 13)
-#define ALTER_DROP_PARTITION    (1L << 14)
-#define ALTER_COALESCE_PARTITION (1L << 15)
-#define ALTER_REORGANIZE_PARTITION (1L << 16) 
-#define ALTER_PARTITION          (1L << 17)
-#define ALTER_OPTIMIZE_PARTITION (1L << 18)
-#define ALTER_TABLE_REORG        (1L << 19)
-#define ALTER_REBUILD_PARTITION  (1L << 20)
-#define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_ANALYZE_PARTITION  (1L << 22)
-#define ALTER_CHECK_PARTITION    (1L << 23)
-#define ALTER_REPAIR_PARTITION   (1L << 24)
-#define ALTER_REMOVE_PARTITIONING (1L << 25)
-#define ALTER_FOREIGN_KEY         (1L << 26)
+#define ALTER_COLUMN_STORAGE	(1L << 3)
+#define ALTER_COLUMN_FORMAT	(1L << 4)
+#define ALTER_COLUMN_ORDER      (1L << 5)
+#define ALTER_ADD_INDEX		(1L << 6)
+#define ALTER_DROP_INDEX	(1L << 7)
+#define ALTER_RENAME		(1L << 8)
+#define ALTER_ORDER		(1L << 9)
+#define ALTER_OPTIONS		(1L << 10)
+#define ALTER_COLUMN_DEFAULT    (1L << 11)
+#define ALTER_KEYS_ONOFF        (1L << 12)
+#define ALTER_STORAGE	        (1L << 13)
+#define ALTER_ROW_FORMAT        (1L << 14)
+#define ALTER_CONVERT           (1L << 15)
+#define ALTER_FORCE		(1L << 16)
+#define ALTER_RECREATE          (1L << 17)
+#define ALTER_ADD_PARTITION     (1L << 18)
+#define ALTER_DROP_PARTITION    (1L << 19)
+#define ALTER_COALESCE_PARTITION (1L << 20)
+#define ALTER_REORGANIZE_PARTITION (1L << 21)
+#define ALTER_PARTITION          (1L << 22)
+#define ALTER_OPTIMIZE_PARTITION (1L << 23)
+#define ALTER_TABLE_REORG        (1L << 24)
+#define ALTER_REBUILD_PARTITION  (1L << 25)
+#define ALTER_ALL_PARTITION      (1L << 26)
+#define ALTER_ANALYZE_PARTITION  (1L << 27)
+#define ALTER_CHECK_PARTITION    (1L << 28)
+#define ALTER_REPAIR_PARTITION   (1L << 29)
+#define ALTER_REMOVE_PARTITIONING (1L << 30)
+#define ALTER_FOREIGN_KEY         (1L << 31)
 
 typedef struct st_alter_info
 {
@@ -839,6 +844,7 @@ typedef struct st_alter_info
   enum tablespace_op_type     tablespace_op;
   List<char>                  partition_names;
   uint                        no_parts;
+  enum ha_build_method        build_method;
 
   st_alter_info(){clear();}
   void clear()
@@ -847,6 +853,7 @@ typedef struct st_alter_info
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
+    build_method= HA_BUILD_DEFAULT;
   }
   void reset(){drop_list.empty();alter_list.empty();clear();}
 } ALTER_INFO;
@@ -1170,6 +1177,8 @@ typedef struct st_lex : public Query_tables_list
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
   uint uint_geom_type;
+  enum ha_storage_media storage_type;
+  enum column_format_type column_format;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt, start_transaction_opt;

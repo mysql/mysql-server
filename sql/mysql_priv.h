@@ -153,6 +153,15 @@ extern MY_LOCALE *my_default_lc_time_names;
 MY_LOCALE *my_locale_by_name(const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
 
+/*
+  Opening modes for open_temporary_table and open_table_from_share
+*/
+enum open_table_mode
+{ OTM_OPEN= 0,
+  OTM_CREATE= 1,
+  OTM_ALTER= 2
+};
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -988,7 +997,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
 bool mysql_rename_table(handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
-bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
+bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys,
+                        ALTER_INFO *alter_info);
 bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
@@ -1182,6 +1192,8 @@ void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
+                       enum ha_storage_media storage_type,
+                       enum column_format_type column_format,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
@@ -1283,7 +1295,8 @@ bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list);
+                            const char *table_name, bool link_in_list,
+                            open_table_mode open_mode);
 bool rm_temporary_table(handlerton *base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
@@ -1841,7 +1854,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, open_table_mode open_mode);
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table, bool free_share);

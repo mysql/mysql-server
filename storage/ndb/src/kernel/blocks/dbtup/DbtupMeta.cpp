@@ -677,7 +677,8 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
 
   /* Can only add attributes if varpart already present. */
   if((regTabPtr->m_attributes[MM].m_no_of_varsize +
-      regTabPtr->m_attributes[MM].m_no_of_dynamic) == 0)
+      regTabPtr->m_attributes[MM].m_no_of_dynamic +
+      (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)) == 0)
   {
     sendAlterTabRef(signal, req, ZINVALID_ALTER_TAB);
     return;
@@ -687,6 +688,8 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
   seizeAlterTabOperation(regAlterTabOpPtr);
 
   regAlterTabOpPtr.p->newNoOfAttrs= newNoOfAttr;
+  regAlterTabOpPtr.p->newNoOfCharsets= newNoOfCharsets;
+  regAlterTabOpPtr.p->newNoOfKeyAttrs= newNoOfKeyAttrs;
 
   /* Allocate a new (possibly larger) table descriptor buffer. */
   Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
@@ -728,6 +731,12 @@ Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
    */
   Uint32 charsetIndex= regTabPtr->noOfCharsets;
   Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits;
+  if (dyn_nullbits == 0)
+  {
+    jam();
+    dyn_nullbits = DYN_BM_LEN_BITS;
+  }
+
   Uint32 noDynFix= regTabPtr->m_attributes[MM].m_no_of_dyn_fix;
   Uint32 noDynVar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
   Uint32 noDynamic= regTabPtr->m_attributes[MM].m_no_of_dynamic;
@@ -867,6 +876,8 @@ Dbtup::handleAlterTableCommit(Signal *signal,
 
   /* Set new attribute counts. */
   regTabPtr->m_no_of_attributes= regAlterTabOpPtr.p->newNoOfAttrs;
+  regTabPtr->noOfCharsets= regAlterTabOpPtr.p->newNoOfCharsets;
+  regTabPtr->noOfKeyAttr= regAlterTabOpPtr.p->newNoOfKeyAttrs;
   regTabPtr->m_attributes[MM].m_no_of_dyn_fix= regAlterTabOpPtr.p->noOfDynFix;
   regTabPtr->m_attributes[MM].m_no_of_dyn_var= regAlterTabOpPtr.p->noOfDynVar;
   regTabPtr->m_attributes[MM].m_no_of_dynamic= regAlterTabOpPtr.p->noOfDynamic;
