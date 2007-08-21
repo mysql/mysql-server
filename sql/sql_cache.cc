@@ -3237,8 +3237,19 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
       The grant.want_privileges flag was set to 1 in the
       check_grant() function earlier if the TABLE_LIST object
       had any associated column privileges.
+
+      We need to check that the TABLE_LIST object isn't part
+      of a VIEW definition because we want to be able to cache
+      views.
+
+      TODO: Although it is possible to cache views, the privilege
+      check on view tables always fall back on column privileges
+      even if there are more generic table privileges. Thus it isn't
+      currently possible to retrieve cached view-tables unless the
+      client has the super user privileges.
     */
-    if (tables_used->grant.want_privilege)
+    if (tables_used->grant.want_privilege &&
+        tables_used->belong_to_view == NULL)
     {
       DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
                             "tables with column privileges."));
