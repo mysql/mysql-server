@@ -6731,6 +6731,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   select_lex->cond_count= 0;
   select_lex->between_count= 0;
+  select_lex->max_equal_elems= 0;
 
   for (table= tables; table; table= table->next_local)
   {
