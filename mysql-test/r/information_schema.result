@@ -1419,8 +1419,8 @@ where event_object_table='t1';
 trigger_name
 t1_ai
 show triggers from mysqltest;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	NULL		root@localhost
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 b	int(11)	YES		NULL	
@@ -1428,7 +1428,7 @@ select column_name from information_schema.columns where table_name='t1';
 column_name
 b
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
 trigger_name
