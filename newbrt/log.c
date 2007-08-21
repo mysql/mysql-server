@@ -77,3 +77,37 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, char *bytes) {
     }
     return 0;
 }
+
+enum { LT_INSERT_WITH_NO_OVERWITE = 'I' }; 
+
+// Log an insertion of a key-value pair into a particular node of the tree.
+int tokulogger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
+						 TXNID txnid,
+						 diskoff diskoff,
+						 unsigned char *key,
+						 int keylen,
+						 unsigned char *val,
+						 int vallen) {
+    int buflen=30+keylen+vallen;
+    char buf[buflen];
+    WBUF wbuf;
+    int r;
+    r = wbuf_create(&wbuf, buf, buflen) ;
+    if (r!=0) return r;
+    wbuf_byte(&wbuf, LT_INSERT_WITH_NO_OVERWRITE);
+    wbuf_txnid(&wbuf, txnind);
+    wbuf_diskoff(&wbuf, diskoff);
+    wbuf_bytes(&wbuf, key, keylen);
+    wbuf_bytes(&wbuf, val, vallen);
+    return tokulogger_log_wbuf(logger, &wbuf);
+}
+
+int tokulogger_log_brt_remove (TOKULOGGER logger,
+			       TXNID txnid,
+			       diskoff diskoff,
+			       unsigned char *key,
+			       int keylen,
+			       unsigned char *val,
+			       int vallen) {
+    
+}

@@ -5,88 +5,14 @@
 //#include "pma.h"
 #include "brt-internal.h"
 #include "key.h"
+#include "rbuf.h"
+#include "wbuf.h"
+
 
 #include <assert.h>
 #include <unistd.h>
-#include <string.h>
 #include <stdio.h>
 #include <arpa/inet.h>
-#include <errno.h>
-
-struct cursor {
-    unsigned char *buf;
-    unsigned int  size;
-    unsigned int  ndone;
-};
-
-void wbuf_char (struct cursor *w, int ch) {
-    assert(w->ndone<w->size);
-    w->buf[w->ndone++]=ch;
-}
-
-void wbuf_int (struct cursor *w, unsigned int i) {
-#if 0
-    wbuf_char(w, i>>24);
-    wbuf_char(w, i>>16);
-    wbuf_char(w, i>>8);
-    wbuf_char(w, i>>0);
-#else
-    assert(w->ndone + 4 <= w->size);
-    w->buf[w->ndone+0] = i>>24;
-    w->buf[w->ndone+1] = i>>16;
-    w->buf[w->ndone+2] = i>>8;
-    w->buf[w->ndone+3] = i>>0;
-    w->ndone += 4;
-#endif
-}
-
-void wbuf_bytes (struct cursor *w, bytevec bytes_bv, int nbytes) {
-    const unsigned char *bytes=bytes_bv; 
-    wbuf_int(w, nbytes);
-#if 0
-    { int i; for (i=0; i<nbytes; i++) wbuf_char(w, bytes[i]); }
-#else
-    assert(w->ndone + nbytes <= w->size);
-    memcpy(w->buf + w->ndone, bytes, nbytes);
-    w->ndone += nbytes;
-#endif
-}
-
-void wbuf_diskoff (struct cursor *w, diskoff off) {
-    wbuf_int(w, off>>32);
-    wbuf_int(w, off&0xFFFFFFFF);
-}
-
-unsigned int rbuf_char (struct cursor *r) {
-    assert(r->ndone<r->size);
-    return r->buf[r->ndone++];
-}
-
-unsigned int rbuf_int (struct cursor *r) {
-    unsigned char c0 = rbuf_char(r);
-    unsigned char c1 = rbuf_char(r);
-    unsigned char c2 = rbuf_char(r);
-    unsigned char c3 = rbuf_char(r);
-    return ((c0<<24)|
-	    (c1<<16)|
-	    (c2<<8)|
-	    (c3<<0));
-}
-
-/* Return a pointer into the middle of the buffer. */
-void rbuf_bytes (struct cursor *r, bytevec *bytes, unsigned int *n_bytes)
-{
-    *n_bytes = rbuf_int(r);
-    *bytes =   &r->buf[r->ndone];
-    r->ndone+=*n_bytes;
-    assert(r->ndone<=r->size);
-}
-
-diskoff rbuf_diskoff (struct cursor *r) {
-    unsigned i0 = rbuf_int(r);  
-    unsigned i1 = rbuf_int(r);
-    return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
-}
 
 static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
     unsigned int size=4+4; /* size+height */
@@ -147,14 +73,13 @@ unsigned int serialize_brtnode_size (BRTNODE node) {
     return result;
 }
 
-void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
-    struct cursor w;
+int serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
+    struct wbuf w;
     int i;
     unsigned int calculated_size = serialize_brtnode_size(node);
+    int r;
     assert(size>0);
-    w.buf=toku_malloc(size);
-    w.size=size;
-    w.ndone=0;
+    if ((r=wbuf_init(&w, size))) return r;
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
     wbuf_int(&w, calculated_size);
     wbuf_int(&w, node->height);
@@ -200,11 +125,12 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     assert(w.ndone<=size);
     toku_free(w.buf);
+    return 0;
 }
 
 int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize) {
     TAGMALLOC(BRTNODE, result);
-    struct cursor rc;
+    struct rbuf rc;
     int i;
     uint32_t datasize;
     int r;
@@ -373,7 +299,7 @@ void verify_counts (BRTNODE node) {
 }
     
 int serialize_brt_header_to (int fd, struct brt_header *h) {
-    struct cursor w;
+    struct wbuf w;
     int i;
     unsigned int size=0; /* I don't want to mess around calculating it exactly. */ 
     size += 4+4+8+8+4; /* this size, the tree's nodesize, freelist, unused_memory, nnamed_rootse. */
@@ -416,7 +342,7 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
 int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
     printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     struct brt_header *MALLOC(h);
-    struct cursor rc;
+    struct rbuf rc;
     int size;
     int sizeagain;
     assert(off==0);
