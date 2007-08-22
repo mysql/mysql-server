@@ -4581,7 +4581,6 @@ row_types:
         | DYNAMIC_SYM    { $$= ROW_TYPE_DYNAMIC; }
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
-        | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
 	| COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
 	| PAGE_SYM       { $$= ROW_TYPE_PAGE; }
         ;
