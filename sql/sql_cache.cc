@@ -710,6 +710,12 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
+  if (thd->killed)
+  {
+    query_cache_abort(&thd->net);
+    DBUG_VOID_RETURN;
+  }
+
 #ifdef EMBEDDED_LIBRARY
   query_cache_insert(&thd->net, (char*)thd, 
                      emb_count_querycache_size(thd));
@@ -727,27 +733,30 @@ void query_cache_end_of_result(THD *thd)
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
     Query_cache_query *header= query_block->query();
-    Query_cache_block *last_result_block= header->result()->prev;
-    ulong allign_size= ALIGN_SIZE(last_result_block->used);
-    ulong len= max(query_cache.min_allocation_unit, allign_size);
+    Query_cache_block *last_result_block;
+    ulong allign_size;
+    ulong len;
+
+    if (header->result() == 0)
+    {
+      DBUG_PRINT("error", ("End of data with no result blocks; "
+                           "Query '%s' removed from cache.", header->query()));
+      /*
+        Extra safety: empty result should not happen in the normal call
+        to this function. In the release version that query should be ignored
+        and removed from QC.
+      */
+      DBUG_ASSERT(0);
+      query_cache.free_query(query_block);
+      goto end;
+    }
+
+    last_result_block= header->result()->prev;
+    allign_size= ALIGN_SIZE(last_result_block->used);
+    len= max(query_cache.min_allocation_unit, allign_size);
     if (last_result_block->length >= query_cache.min_allocation_unit + len)
       query_cache.split_block(last_result_block,len);
 
-#ifndef DBUG_OFF
-    if (header->result() == 0)
-    {
-      DBUG_PRINT("error", ("end of data whith no result. query '%s'",
-                           header->query()));
-      query_cache.wreck(__LINE__, "");
-
-      /*
-        We do not need call of BLOCK_UNLOCK_WR(query_block); here because
-        query_cache.wreck() switched query cache off but left content
-        untouched for investigation (it is debugging method).
-      */
-      goto end;
-    }
-#endif
     header->found_rows(current_thd->limit_found_rows);
     header->result()->type= Query_cache_block::RESULT;
     header->writer(0);
