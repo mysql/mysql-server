@@ -456,7 +456,11 @@ Log_event::Log_event()
    thd(0)
 {
   server_id=	::server_id;
-  when=		my_time(0);
+  /*
+    We can't call my_time() here as this would cause a call before
+    my_init() is called
+  */
+  when=		0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -637,6 +641,7 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 {
   uchar header[LOG_EVENT_HEADER_LEN];
+  ulong now;
   DBUG_ENTER("Log_event::write_header");
 
   /* Store number of bytes that will be written by this event */
@@ -687,6 +692,8 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
+  now= (ulong) get_time();                              // Query start time
+
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
     FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT, where it will be
@@ -694,7 +701,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     because we read them before knowing the format).
   */
 
-  int4store(header, (ulong) when);              // timestamp
+  int4store(header, now);              // timestamp
   header[EVENT_TYPE_OFFSET]= get_type_code();
   int4store(header+ SERVER_ID_OFFSET, server_id);
   int4store(header+ EVENT_LEN_OFFSET, data_written);
@@ -803,10 +810,12 @@ end:
 #ifndef MYSQL_CLIENT
 Log_event* Log_event::read_log_event(IO_CACHE* file,
 				     pthread_mutex_t* log_lock,
-                                     const Format_description_log_event *description_event)
+                                     const Format_description_log_event
+                                     *description_event)
 #else
 Log_event* Log_event::read_log_event(IO_CACHE* file,
-                                     const Format_description_log_event *description_event)
+                                     const Format_description_log_event
+                                     *description_event)
 #endif
 {
   DBUG_ENTER("Log_event::read_log_event");
@@ -1461,7 +1470,7 @@ Query_log_event::Query_log_event()
 /*
   SYNOPSIS
     Query_log_event::Query_log_event()
-      thd               - thread handle
+      thd_arg           - thread handle
       query_arg         - array of char representing the query
       query_length      - size of the  `query_arg' array
       using_trans       - there is a modified transactional table
@@ -1477,10 +1486,12 @@ Query_log_event::Query_log_event()
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use, THD::killed_state killed_status_arg)
+				 bool suppress_use,
+                                 THD::killed_state killed_status_arg)
   :Log_event(thd_arg,
-             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0) |
-               (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
+             (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
+              0) |
+             (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
 	     using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
@@ -1501,10 +1512,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   error_code=
     (killed_status_arg == THD::NOT_KILLED) ? thd_arg->net.last_errno :
     ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ? 0 :
-     thd->killed_errno());
+     thd_arg->killed_errno());
   
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time);
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
   db_len = (db) ? (uint32) strlen(db) : 0;
@@ -1513,15 +1524,15 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   
   /*
     If we don't use flags2 for anything else than options contained in
-    thd->options, it would be more efficient to flags2=thd_arg->options
+    thd_arg->options, it would be more efficient to flags2=thd_arg->options
     (OPTIONS_WRITTEN_TO_BINLOG would be used only at reading time).
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
   flags2= (uint32) (thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG);
-  DBUG_ASSERT(thd->variables.character_set_client->number < 256*256);
-  DBUG_ASSERT(thd->variables.collation_connection->number < 256*256);
-  DBUG_ASSERT(thd->variables.collation_server->number < 256*256);
+  DBUG_ASSERT(thd_arg->variables.character_set_client->number < 256*256);
+  DBUG_ASSERT(thd_arg->variables.collation_connection->number < 256*256);
+  DBUG_ASSERT(thd_arg->variables.collation_server->number < 256*256);
   int2store(charset, thd_arg->variables.character_set_client->number);
   int2store(charset+2, thd_arg->variables.collation_connection->number);
   int2store(charset+4, thd_arg->variables.collation_server->number);
@@ -2247,9 +2258,10 @@ Muted_query_log_event::Muted_query_log_event()
 **************************************************************************/
 
 #ifndef MYSQL_CLIENT
-Start_log_event_v3::Start_log_event_v3() :Log_event(), binlog_version(BINLOG_VERSION), artificial_event(0)
+Start_log_event_v3::Start_log_event_v3()
+  :Log_event(), created(0), binlog_version(BINLOG_VERSION),
+   artificial_event(0), dont_set_created(0)
 {
-  created= when;
   memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
 }
 #endif
@@ -2319,7 +2331,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 
 Start_log_event_v3::Start_log_event_v3(const char* buf,
-                                       const Format_description_log_event* description_event)
+                                       const Format_description_log_event
+                                       *description_event)
   :Log_event(buf, description_event)
 {
   buf+= description_event->common_header_len;
@@ -2331,6 +2344,7 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   created= uint4korr(buf+ST_CREATED_OFFSET);
   /* We use log_pos to mark if this was an artificial event or not */
   artificial_event= (log_pos == 0);
+  dont_set_created= 1;
 }
 
 
@@ -2344,6 +2358,8 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   char buff[START_V3_HEADER_LEN];
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
+  if (!dont_set_created)
+    created= when= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   return (write_header(file, sizeof(buff)) ||
           my_b_safe_write(file, (uchar*) buff, sizeof(buff)));
@@ -2374,8 +2390,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Start_log_event_v3::do_apply_event");
-  switch (binlog_version)
-  {
+  switch (binlog_version) {
   case 3:
   case 4:
     /*
@@ -2446,7 +2461,6 @@ Format_description_log_event::
 Format_description_log_event(uint8 binlog_ver, const char* server_ver)
   :Start_log_event_v3()
 {
-  created= when;
   binlog_version= binlog_ver;
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 */
@@ -2598,6 +2612,8 @@ bool Format_description_log_event::write(IO_CACHE* file)
   uchar buff[FORMAT_DESCRIPTION_HEADER_LEN];
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
+  if (!dont_set_created)
+    created= when= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET+1, (uchar*) post_header_len,
@@ -4904,8 +4920,9 @@ err:
 */
 
 #ifndef MYSQL_CLIENT  
-Append_block_log_event::Append_block_log_event(THD* thd_arg, const char* db_arg,
-					       char* block_arg,
+Append_block_log_event::Append_block_log_event(THD *thd_arg,
+                                               const char *db_arg,
+					       char *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
   :Log_event(thd_arg,0, using_trans), block(block_arg),
@@ -5154,7 +5171,8 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 */
 
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD *thd_arg, const char* db_arg,
+Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
+                                               const char* db_arg,
 					       bool using_trans)
   :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
@@ -5355,7 +5373,7 @@ int Begin_load_query_log_event::get_create_or_append() const
 
 #ifndef MYSQL_CLIENT
 Execute_load_query_log_event::
-Execute_load_query_log_event(THD* thd_arg, const char* query_arg,
+Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                      ulong query_length_arg, uint fn_pos_start_arg,
                      uint fn_pos_end_arg,
                      enum_load_dup_handling dup_handling_arg,
@@ -6998,7 +7016,8 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error? error : local_error;
 }
 
-int Write_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
+int Write_rows_log_event::do_prepare_row(THD *thd_arg,
+                                         Relay_log_info const *rli,
                                          TABLE *table,
                                          uchar const *const row_start,
                                          uchar const **const row_end)
@@ -7009,7 +7028,7 @@ int Write_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
   if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                             &m_master_reclength, table->write_set, WRITE_ROWS_EVENT))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
   bitmap_copy(table->read_set, table->write_set);
@@ -7272,11 +7291,12 @@ replace_record(THD *thd, TABLE *table,
           DBUG_RETURN(ENOMEM);
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum, 0);
-      error= table->file->index_read_idx(table->record[1], keynum,
-                                         (const uchar*)key.get(),
-                                         HA_WHOLE_KEY,
-                                         HA_READ_KEY_EXACT);
+      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+               0);
+      error= table->file->index_read_idx_map(table->record[1], keynum,
+                                             (const uchar*)key.get(),
+                                             HA_WHOLE_KEY,
+                                             HA_READ_KEY_EXACT);
       if (error)
       {
         table->file->print_error(error, MYF(0));
@@ -7527,8 +7547,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read(table->record[1], key, HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT)))
+    if ((error= table->file->index_read_map(table->record[1], key, HA_WHOLE_KEY,
+                                            HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
@@ -7728,7 +7748,8 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error;
 }
 
-int Delete_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
+int Delete_rows_log_event::do_prepare_row(THD *thd_arg,
+                                          Relay_log_info const *rli,
                                           TABLE *table,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
@@ -7737,7 +7758,7 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
   if (int error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
                             &m_master_reclength, table->read_set, DELETE_ROWS_EVENT))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 
@@ -7894,7 +7915,10 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
 
 int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
 {
-  /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
+  /*
+    error= ToDo:find out what this should really be, this triggers
+    close_scan in nbd, returning error?
+  */
   table->file->ha_index_or_rnd_end();
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
   m_memory= NULL;
@@ -7904,7 +7928,8 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error;
 }
 
-int Update_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
+int Update_rows_log_event::do_prepare_row(THD *thd_arg,
+                                          Relay_log_info const *rli,
                                           TABLE *table,
                                           uchar const *const row_start,
                                           uchar const **const row_end)
@@ -7919,9 +7944,10 @@ int Update_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
 
   /* record[0] is the before image for the update */
   if ((error= unpack_row(rli, table, m_width, row_start, &m_cols, row_end,
-                         &m_master_reclength, table->read_set, UPDATE_ROWS_EVENT)))
+                         &m_master_reclength, table->read_set,
+                         UPDATE_ROWS_EVENT)))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 
@@ -7929,9 +7955,10 @@ int Update_rows_log_event::do_prepare_row(THD *thd, Relay_log_info const *rli,
   uchar const *next_start = *row_end;
   /* m_after_image is the after image for the update */
   if ((error= unpack_row(rli, table, m_width, next_start, &m_cols_ai, row_end,
-                         &m_master_reclength, table->write_set, UPDATE_ROWS_EVENT)))
+                         &m_master_reclength, table->write_set,
+                         UPDATE_ROWS_EVENT)))
   {
-    thd->net.last_errno= error;
+    thd_arg->net.last_errno= error;
     return error;
   }
 
@@ -8115,5 +8142,3 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   DBUG_ENTER("Incident_log_event::write_data_body");
   DBUG_RETURN(write_str(file, m_message.str, m_message.length));
 }
-
-
