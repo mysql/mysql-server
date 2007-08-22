@@ -1171,7 +1171,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         NUM_literal
 
 %type <item_list>
-        expr_list udf_expr_list udf_expr_list2 when_list
+        expr_list opt_udf_expr_list udf_expr_list when_list
         ident_list ident_list_arg opt_expr_list
 
 %type <var_type>
@@ -1245,7 +1245,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         select_item_list select_item values_list no_braces
         opt_limit_clause delete_limit_clause fields opt_values values
         procedure_list procedure_list2 procedure_item
-        expr_list2 udf_expr_list3 handler
+        handler
         opt_precision opt_ignore opt_column opt_restrict
         grant revoke set lock unlock string_list field_options field_option
         field_opt_list opt_binary table_lock_list table_lock
@@ -7253,7 +7253,7 @@ function_call_generic:
             $<udf>$= udf;
 #endif
           }
-          udf_expr_list ')'
+          opt_udf_expr_list ')'
           {
             THD *thd= YYTHD;
             Create_func *builder;
@@ -7350,27 +7350,23 @@ opt_query_expansion:
         | WITH QUERY_SYM EXPANSION_SYM          { $$= FT_EXPAND; }
         ;
 
+opt_udf_expr_list:
+        /* empty */     { $$= NULL; }
+        | udf_expr_list { $$= $1; }
+        ;
+
 udf_expr_list:
-	/* empty */	 { $$= NULL; }
-	| udf_expr_list2 { $$= $1;}
-	;
-
-udf_expr_list2:
-	{ Select->expr_list.push_front(new List<Item>); }
-	udf_expr_list3
-	{ $$= Select->expr_list.pop(); }
-	;
-
-udf_expr_list3:
-	udf_expr 
-	  {
-	    Select->expr_list.head()->push_back($1);
-	  }
-	| udf_expr_list3 ',' udf_expr 
-	  {
-	    Select->expr_list.head()->push_back($3);
-	  }
-	;
+          udf_expr
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            $$->push_back($1);
+          }
+        | udf_expr_list ',' udf_expr
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
 
 udf_expr:
           remember_name expr remember_end select_alias
@@ -7568,13 +7564,17 @@ opt_expr_list:
         ;
 
 expr_list:
-	{ Select->expr_list.push_front(new List<Item>); }
-	expr_list2
-	{ $$= Select->expr_list.pop(); };
-
-expr_list2:
-	expr { Select->expr_list.head()->push_back($1); }
-	| expr_list2 ',' expr { Select->expr_list.head()->push_back($3); };
+          expr
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            $$->push_back($1);
+          }
+        | expr_list ',' expr
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
 
 ident_list_arg:
           ident_list          { $$= $1; }
@@ -7582,13 +7582,17 @@ ident_list_arg:
         ;
 
 ident_list:
-        { Select->expr_list.push_front(new List<Item>); }
-        ident_list2
-        { $$= Select->expr_list.pop(); };
-
-ident_list2:
-        simple_ident { Select->expr_list.head()->push_back($1); }
-        | ident_list2 ',' simple_ident { Select->expr_list.head()->push_back($3); };
+          simple_ident
+          {
+            $$= new (YYTHD->mem_root) List<Item>;
+            $$->push_back($1);
+          }
+        | ident_list ',' simple_ident
+          {
+            $1->push_back($3);
+            $$= $1;
+          }
+        ;
 
 opt_expr:
           /* empty */    { $$= NULL; }
