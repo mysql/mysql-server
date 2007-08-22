@@ -508,10 +508,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there is 286 shift/reduce conflict. We should not introduce
-  new conflicts any more.
+  Currently there are 280 shift/reduce conflicts.
+  We should not introduce new conflicts any more.
 */
-%expect 286
+%expect 280
 
 /*
    Comments for TOKENS.
@@ -1089,7 +1089,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 /* A dummy token to force the priority of table_ref production in a join. */
 %left   TABLE_REF_PRIORITY
 %left   SET_VAR
-%left   OR_OR_SYM OR_SYM OR2_SYM XOR
+%left   OR_OR_SYM OR_SYM OR2_SYM
+%left   XOR
 %left   AND_SYM AND_AND_SYM
 %left   BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left   EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
@@ -1102,6 +1103,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %left   NEG '~'
 %right  NOT_SYM NOT2_SYM
 %right  BINARY COLLATE_SYM
+%left  INTERVAL_SYM
 
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
@@ -1150,7 +1152,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item>
         literal text_literal insert_ident order_ident
         simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-        variable variable_aux bool_term bool_factor bool_test bool_pri 
+        variable variable_aux bool_factor bool_test bool_pri
         predicate bit_expr bit_term bit_factor value_expr term factor
         table_wild simple_expr udf_expr
         expr_or_default set_expr_or_default interval_expr
@@ -6554,53 +6556,103 @@ optional_braces:
         ;
 
 /* all possible expressions */
-expr:	
-	  bool_term { Select->expr_list.push_front(new List<Item>); }
-          bool_or_expr
+expr:
+          bool_factor
+        | expr or expr %prec OR_SYM
           {
-            List<Item> *list= Select->expr_list.pop();
-            if (list->elements)
+            /*
+              Design notes:
+              Do not use a manually maintained stack like thd->lex->xxx_list,
+              but use the internal bison stack ($$, $1 and $3) instead.
+              Using the bison stack is:
+              - more robust to changes in the grammar,
+              - guaranteed to be in sync with the parser state,
+              - better for performances (no memory allocation).
+            */
+            Item_cond_or *item1;
+            Item_cond_or *item3;
+            if (is_cond_or($1))
             {
-              list->push_front($1);
-              $$= new Item_cond_or(*list);
-              /* optimize construction of logical OR to reduce
-                 amount of objects for complex expressions */
+              item1= (Item_cond_or*) $1;
+              if (is_cond_or($3))
+              {
+                item3= (Item_cond_or*) $3;
+                /*
+                  (X1 OR X2) OR (Y1 OR Y2) ==> OR (X1, X2, Y1, Y2)
+                */
+                item3->add_at_head(item1->argument_list());
+                $$ = $3;
+              }
+              else
+              {
+                /*
+                  (X1 OR X2) OR Y ==> OR (X1, X2, Y)
+                */
+                item1->add($3);
+                $$ = $1;
+              }
+            }
+            else if (is_cond_or($3))
+            {
+              item3= (Item_cond_or*) $3;
+              /*
+                X OR (Y1 OR Y2) ==> OR (X, Y1, Y2)
+              */
+              item3->add_at_head($1);
+              $$ = $3;
             }
             else
-              $$= $1;
-            delete list;
-          }
-	;
-
-bool_or_expr:
-	/* empty */
-        | bool_or_expr or bool_term
-          { Select->expr_list.head()->push_back($3); }
-        ;
-
-bool_term:
-	bool_term XOR bool_term { $$= new Item_cond_xor($1,$3); }
-	| bool_factor { Select->expr_list.push_front(new List<Item>); }
-          bool_and_expr
-          {
-            List<Item> *list= Select->expr_list.pop();
-            if (list->elements)
             {
-              list->push_front($1);
-              $$= new Item_cond_and(*list);
-              /* optimize construction of logical AND to reduce
-                 amount of objects for complex expressions */
+              /* X OR Y */
+              $$ = new (YYTHD->mem_root) Item_cond_or($1, $3);
+            }
+          }
+        | expr XOR expr %prec XOR
+          {
+            /* XOR is a proprietary extension */
+            $$ = new (YYTHD->mem_root) Item_cond_xor($1, $3);
+          }
+        | expr and expr %prec AND_SYM
+          {
+            /* See comments in rule expr: expr or expr */
+            Item_cond_and *item1;
+            Item_cond_and *item3;
+            if (is_cond_and($1))
+            {
+              item1= (Item_cond_and*) $1;
+              if (is_cond_and($3))
+              {
+                item3= (Item_cond_and*) $3;
+                /*
+                  (X1 AND X2) AND (Y1 AND Y2) ==> AND (X1, X2, Y1, Y2)
+                */
+                item3->add_at_head(item1->argument_list());
+                $$ = $3;
+              }
+              else
+              {
+                /*
+                  (X1 AND X2) AND Y ==> AND (X1, X2, Y)
+                */
+                item1->add($3);
+                $$ = $1;
+              }
+            }
+            else if (is_cond_and($3))
+            {
+              item3= (Item_cond_and*) $3;
+              /*
+                X AND (Y1 AND Y2) ==> AND (X, Y1, Y2)
+              */
+              item3->add_at_head($1);
+              $$ = $3;
             }
             else
-              $$= $1;
-            delete list;
+            {
+              /* X AND Y */
+              $$ = new (YYTHD->mem_root) Item_cond_and($1, $3);
+            }
           }
-	;
-
-bool_and_expr:
-	/* empty */
-        | bool_and_expr and bool_factor
-          { Select->expr_list.head()->push_back($3); }
         ;
 
 bool_factor:
@@ -6766,7 +6818,8 @@ all_or_any:
         ;
 
 interval_expr:
-          INTERVAL_SYM expr { $$=$2; }
+          INTERVAL_SYM expr %prec INTERVAL_SYM
+          { $$=$2; }
         ;
 
 simple_expr:
