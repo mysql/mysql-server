@@ -83,7 +83,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		perror.def \
 		mysql_client_test.def \
 		replace.def resolve_stack_dump.def resolveip.def \
-		static_init_db.sql \
+		static_init_db.sql init_db.sql test_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
 		BUILD/compile-linux-tools BUILD/compile-netware-END \
 		BUILD/compile-netware-START BUILD/compile-netware-all\
