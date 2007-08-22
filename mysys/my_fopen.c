@@ -76,6 +76,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 	 my_strdup(filename,MyFlags)))
     {
       my_stream_opened++;
+      my_file_total_opened++;
       my_file_info[fileno(fd)].type = STREAM_BY_FOPEN;
       pthread_mutex_unlock(&THR_LOCK_open);
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
