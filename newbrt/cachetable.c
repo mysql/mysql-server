@@ -386,7 +386,7 @@ int cachefile_flush (CACHEFILE cf) {
 		flush_and_remove(t, p, 1); // Must be careful, since flush_and_remove kills the linked list.
 		goto again;
 	    } else {
-		p=p->next;
+		p=p->hash_chain;
 	    }
 	}
     }
