@@ -91,10 +91,10 @@ partition_info *partition_info::get_clone()
 #define MAX_PART_NAME_SIZE 8
 
 char *partition_info::create_default_partition_names(uint part_no,
-                                                     uint no_parts, 
+                                                     uint no_parts_arg,
                                                      uint start_no)
 {
-  char *ptr= (char*) sql_calloc(no_parts*MAX_PART_NAME_SIZE);
+  char *ptr= (char*) sql_calloc(no_parts_arg*MAX_PART_NAME_SIZE);
   char *move_ptr= ptr;
   uint i= 0;
   DBUG_ENTER("create_default_partition_names");
@@ -105,11 +105,11 @@ char *partition_info::create_default_partition_names(uint part_no,
     {
       my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
       move_ptr+=MAX_PART_NAME_SIZE;
-    } while (++i < no_parts);
+    } while (++i < no_parts_arg);
   }
   else
   {
-    mem_alloc_error(no_parts*MAX_PART_NAME_SIZE);
+    mem_alloc_error(no_parts_arg*MAX_PART_NAME_SIZE);
   }
   DBUG_RETURN(ptr);
 }

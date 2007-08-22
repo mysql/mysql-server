@@ -45,6 +45,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     info->once_flags&= ~USE_PACKED_KEYS;	/* Reset flag */
     /*
       key is already packed!;  This happens when we are using a MERGE TABLE
+      In this key 'key_part_map' is the length of the key !
     */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length= keypart_map;
