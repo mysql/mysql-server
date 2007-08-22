@@ -52,8 +52,9 @@
     execute_at.second_part is not considered during comparison
 */
 
-static int
-event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
+extern "C" int event_queue_element_compare_q(void *, uchar *, uchar *);
+
+int event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
 {
   my_time_t lhs = ((Event_queue_element *)a)->execute_at;
   my_time_t rhs = ((Event_queue_element *)b)->execute_at;

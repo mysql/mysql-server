@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
     frm_file= my_open(argv[1], O_CREAT|O_RDWR|O_BINARY, MYF(0));
     ptr= (char *)my_malloc(sizeof(char) * reader_handle.frm_length, MYF(0));
     azread_frm(&reader_handle, ptr);
-    my_write(frm_file, ptr, reader_handle.frm_length, MYF(0));
+    my_write(frm_file, (uchar*) ptr, reader_handle.frm_length, MYF(0));
     my_close(frm_file, MYF(0));
     my_free(ptr, MYF(0));
   }

@@ -145,8 +145,7 @@ class Item_str_conv :public Item_str_func
 {
 protected:
   uint multiply;
-  size_t (*converter)(CHARSET_INFO *cs, char *src, size_t srclen,
-                      char *dst, size_t dstlen);
+  my_charset_conv_case converter;
   String tmp_value;
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
@@ -159,13 +158,7 @@ class Item_func_lcase :public Item_str_conv
 public:
   Item_func_lcase(Item *item) :Item_str_conv(item) {}
   const char *func_name() const { return "lcase"; }
-  void fix_length_and_dec()
-  {
-    collation.set(args[0]->collation);
-    multiply= collation.collation->casedn_multiply;
-    converter= collation.collation->cset->casedn;
-    max_length= args[0]->max_length * multiply;
-  }
+  void fix_length_and_dec();
 };
 
 class Item_func_ucase :public Item_str_conv
@@ -173,13 +166,7 @@ class Item_func_ucase :public Item_str_conv
 public:
   Item_func_ucase(Item *item) :Item_str_conv(item) {}
   const char *func_name() const { return "ucase"; }
-  void fix_length_and_dec()
-  {
-    collation.set(args[0]->collation);
-    multiply= collation.collation->caseup_multiply;
-    converter= collation.collation->cset->caseup;
-    max_length= args[0]->max_length * multiply;
-  }
+  void fix_length_and_dec();
 };
 
 
