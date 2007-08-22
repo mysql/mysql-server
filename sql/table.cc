@@ -51,11 +51,13 @@ inline bool is_system_table_name(const char *name, uint length);
 
 Object_creation_ctx *Object_creation_ctx::set_n_backup(THD *thd)
 {
-  Object_creation_ctx *backup_ctx= create_backup_ctx(thd);
+  Object_creation_ctx *backup_ctx;
+  DBUG_ENTER("Object_creation_ctx::set_n_backup");
 
+  backup_ctx= create_backup_ctx(thd);
   change_env(thd);
 
-  return backup_ctx;
+  DBUG_RETURN(backup_ctx);
 }
 
 void Object_creation_ctx::restore_env(THD *thd, Object_creation_ctx *backup_ctx)
@@ -84,7 +86,7 @@ Default_object_creation_ctx::Default_object_creation_ctx(
 { }
 
 Object_creation_ctx *
-Default_object_creation_ctx::create_backup_ctx(THD *thd)
+Default_object_creation_ctx::create_backup_ctx(THD *thd) const
 {
   return new Default_object_creation_ctx(thd);
 }
@@ -703,7 +705,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share-> row_type= (row_type) head[40];
+    share->transactional= (ha_choice) head[39];
+    share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
@@ -1750,7 +1753,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->partition_info_len)
+  if (share->partition_info_len && outparam->file)
   {
   /*
     In this execution we must avoid calling thd->change_item_tree since
@@ -2433,6 +2436,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
+    fileinfo[39]= (uchar) create_info->transactional;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes were for RAID support */
     fileinfo[41]= 0;
@@ -4565,11 +4569,11 @@ Item_subselect *TABLE_LIST::containing_subselect()
     FALSE                no errors found
     TRUE                 found and reported an error.
 */
-bool TABLE_LIST::process_index_hints(TABLE *table)
+bool TABLE_LIST::process_index_hints(TABLE *tbl)
 {
   /* initialize the result variables */
-  table->keys_in_use_for_query= table->keys_in_use_for_group_by= 
-    table->keys_in_use_for_order_by= table->s->keys_in_use;
+  tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
+    tbl->keys_in_use_for_order_by= tbl->s->keys_in_use;
 
   /* index hint list processing */
   if (index_hints)
@@ -4621,8 +4625,8 @@ bool TABLE_LIST::process_index_hints(TABLE *table)
         Check if an index with the given name exists and get his offset in 
         the keys bitmask for the table 
       */
-      if (table->s->keynames.type_names == 0 ||
-          (pos= find_type(&table->s->keynames, hint->key_name.str,
+      if (tbl->s->keynames.type_names == 0 ||
+          (pos= find_type(&tbl->s->keynames, hint->key_name.str,
                           hint->key_name.length, 1)) <= 0)
       {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
@@ -4658,7 +4662,7 @@ bool TABLE_LIST::process_index_hints(TABLE *table)
         !index_order[INDEX_HINT_FORCE].is_clear_all() ||
         !index_group[INDEX_HINT_FORCE].is_clear_all())
     {
-      table->force_index= TRUE;
+      tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
       index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
       index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
@@ -4666,20 +4670,20 @@ bool TABLE_LIST::process_index_hints(TABLE *table)
 
     /* apply USE INDEX */
     if (!index_join[INDEX_HINT_USE].is_clear_all() || have_empty_use_join)
-      table->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
     if (!index_order[INDEX_HINT_USE].is_clear_all() || have_empty_use_order)
-      table->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
     if (!index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)
-      table->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
 
     /* apply IGNORE INDEX */
-    table->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);
-    table->keys_in_use_for_order_by.subtract (index_order[INDEX_HINT_IGNORE]);
-    table->keys_in_use_for_group_by.subtract (index_group[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_order_by.subtract (index_order[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_group_by.subtract (index_group[INDEX_HINT_IGNORE]);
   }
 
   /* make sure covering_keys don't include indexes disabled with a hint */
-  table->covering_keys.intersect(table->keys_in_use_for_query);
+  tbl->covering_keys.intersect(tbl->keys_in_use_for_query);
   return 0;
 }
 

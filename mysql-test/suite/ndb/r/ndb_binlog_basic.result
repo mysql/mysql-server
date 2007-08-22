@@ -31,9 +31,6 @@ inserts	updates	deletes
 2	1	1
 flush logs;
 purge master logs before now();
-select count(*) from mysql.ndb_binlog_index;
-count(*)
-0
 create table t1 (a int primary key, b int) engine=ndb;
 create database mysqltest;
 use mysqltest;

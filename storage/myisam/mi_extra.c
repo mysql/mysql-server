@@ -78,7 +78,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       if (_mi_memmap_file(info))
       {
 	/* We don't nead MADV_SEQUENTIAL if small file */
-	madvise(share->file_map,share->state.state.data_file_length,
+	madvise((char*) share->file_map, share->state.state.data_file_length,
 		share->state.state.data_file_length <= RECORD_CACHE_SIZE*16 ?
 		MADV_RANDOM : MADV_SEQUENTIAL);
 	pthread_mutex_unlock(&share->intern_lock);
@@ -158,7 +158,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
-      madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+      madvise((char*) share->file_map, share->state.state.data_file_length,
+              MADV_RANDOM);
 #endif
     break;
   case HA_EXTRA_FLUSH_CACHE:
@@ -435,7 +436,8 @@ int mi_reset(MI_INFO *info)
     mi_alloc_rec_buff(info, -1, &info->rec_buff);
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
-    madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+    madvise((char*) share->file_map, share->state.state.data_file_length,
+            MADV_RANDOM);
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode=0;
