@@ -178,6 +178,15 @@ hash_get_nth_cell(
 				/* out: pointer to cell */
 	hash_table_t*	table,	/* in: hash table */
 	ulint		n);	/* in: cell index */
+
+/*****************************************************************
+Clears a hash table so that all the cells become empty again. */
+UNIV_INLINE
+void
+hash_table_clear(
+/*=============*/
+	hash_table_t*	table);	/* in/out: hash table */
+
 /*****************************************************************
 Returns the number of cells in a hash table. */
 UNIV_INLINE
