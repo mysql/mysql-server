@@ -190,7 +190,8 @@ void write_header(azio_stream *s)
   *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
 
   /* Always begin at the begining, and end there as well */
-  my_pwrite(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0, MYF(0));
+  my_pwrite(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+            MYF(0));
 }
 
 /* ===========================================================================
@@ -821,7 +822,7 @@ int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
   s->frm_length= length;
   s->start+= length;
 
-  my_pwrite(s->file, blob, s->frm_length, s->frm_start_pos, MYF(0));
+  my_pwrite(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
 
   write_header(s);
   my_seek(s->file, 0, MY_SEEK_END, MYF(0));
@@ -831,7 +832,7 @@ int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
 
 int azread_frm(azio_stream *s, char *blob)
 {
-  my_pread(s->file, blob, s->frm_length, s->frm_start_pos, MYF(0));
+  my_pread(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
 
   return 0;
 }
@@ -852,7 +853,8 @@ int azwrite_comment(azio_stream *s, char *blob, unsigned int length)
   s->comment_length= length;
   s->start+= length;
 
-  my_pwrite(s->file, blob, s->comment_length, s->comment_start_pos, MYF(0));
+  my_pwrite(s->file, (uchar*) blob, s->comment_length, s->comment_start_pos,
+            MYF(0));
 
   write_header(s);
   my_seek(s->file, 0, MY_SEEK_END, MYF(0));
@@ -862,7 +864,8 @@ int azwrite_comment(azio_stream *s, char *blob, unsigned int length)
 
 int azread_comment(azio_stream *s, char *blob)
 {
-  my_pread(s->file, blob, s->comment_length, s->comment_start_pos, MYF(0));
+  my_pread(s->file, (uchar*) blob, s->comment_length, s->comment_start_pos,
+           MYF(0));
 
   return 0;
 }
