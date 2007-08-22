@@ -1671,7 +1671,6 @@ row_merge_create_temporary_table(
 		mem_heap_free(heap);
 
 		if (error != DB_SUCCESS) {
-			dict_mem_table_free(new_table);
 			new_table = NULL;
 		}
 	}
