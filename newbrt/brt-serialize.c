@@ -124,6 +124,7 @@ int serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     assert(w.ndone<=size);
+    toku_free(w.buf);
     return 0;
 }
 
