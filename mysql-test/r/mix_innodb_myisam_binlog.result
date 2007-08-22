@@ -459,6 +459,6 @@ show master status /* the offset must denote there is the query */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	376		
 drop trigger trg_del;
-drop table t1,t2,t3;
+drop table t1,t2,t3,t4;
 drop function bug27417;
 end of tests
