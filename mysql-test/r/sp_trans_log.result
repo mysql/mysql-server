@@ -12,9 +12,10 @@ end|
 reset master|
 insert into t2 values (bug23333(),1)|
 ERROR 23000: Duplicate entry '1' for key 1
-show master status /* the offset must denote there is the query */|
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	284		
+show binlog events from 98 /* with fixes for #23333 will show there are 2 queries */|
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	#
+master-bin.000001	#	Query	1	#	#
 select count(*),@a from t1 /* must be 1,1 */|
 count(*)	@a
 1	1
