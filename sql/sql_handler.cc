@@ -555,8 +555,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
-      error= table->file->index_read(table->record[0],
-                                     key, keypart_map, ha_rkey_mode);
+      error= table->file->index_read_map(table->record[0],
+                                         key, keypart_map, ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }

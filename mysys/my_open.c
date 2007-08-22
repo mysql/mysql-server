@@ -151,6 +151,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
     {
       my_file_opened++;
+      my_file_total_opened++;
       my_file_info[fd].type = type_of_file;
 #if defined(THREAD) && !defined(HAVE_PREAD)
       pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);

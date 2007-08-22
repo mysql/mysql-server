@@ -1398,9 +1398,9 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  }
 	}
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
-	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
-                                                (uchar*) key, HA_WHOLE_KEY,
-						HA_READ_KEY_EXACT))))
+	if ((error=(table->file->index_read_idx_map(table->record[1],key_nr,
+                                                    (uchar*) key, HA_WHOLE_KEY,
+                                                    HA_READ_KEY_EXACT))))
 	  goto err;
       }
       if (info->handle_duplicates == DUP_UPDATE)
@@ -3556,13 +3556,13 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   int result;
-  TABLE_LIST table_list;
+  TABLE_LIST tmp_table_list;
 
-  memset(&table_list, 0, sizeof(table_list));
-  table_list.table = *tables;
+  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
+  tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 
-  result= store_create_info(thd, &table_list, &query, create_info);
+  result= store_create_info(thd, &tmp_table_list, &query, create_info);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   thd->binlog_query(THD::STMT_QUERY_TYPE,

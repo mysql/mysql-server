@@ -364,7 +364,6 @@ Uint32
 DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
 {
   Uint32 sz = iter.m_sz;
-  Uint32 pos = iter.m_pos;
   Uint32 ptrI = iter.m_ptr_i[sz];
   Uint32 page_no = ptrI >> DA256_BITS;
   Uint32 page_idx = ptrI & DA256_MASK;
@@ -442,7 +441,6 @@ DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
     return 2;
   }
   
-done:  
   new (&m_head) Head();
   return 0;
   
