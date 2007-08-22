@@ -323,7 +323,6 @@ void lex_start(THD *thd)
   lex->length=0;
   lex->part_info= 0;
   lex->select_lex.in_sum_expr=0;
-  lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
@@ -1555,7 +1554,6 @@ void st_select_lex::init_select()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
-  expr_list.empty();
   interval_list.empty();
   ftfunc_list_alloc.empty();
   inner_sum_func_list= 0;
