@@ -44,7 +44,7 @@ link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
 	  rm -f ../$$f; \
-	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
+	  org=`basename $$f`; \
 	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
 	done
 else
