@@ -70,7 +70,7 @@ static void safe_hash_entry_free(SAFE_HASH_ENTRY *entry)
     #  reference on the key
 */
 
-static uchar *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, uint *length,
+static uchar *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, size_t *length,
                                   my_bool not_used __attribute__((unused)))
 {
   *length= entry->length;

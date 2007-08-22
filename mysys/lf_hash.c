@@ -32,10 +32,10 @@ LF_REQUIRE_PINS(3);
 
 /* An element of the list */
 typedef struct {
-  intptr volatile link; /* a pointer to the next element in a listand a flag  */
-  uint32 hashnr;        /* reversed hash number, for sorting                  */
+  intptr volatile link; /* a pointer to the next element in a listand a flag */
+  uint32 hashnr;        /* reversed hash number, for sorting                 */
   const uchar *key;
-  uint keylen;
+  size_t keylen;
   /*
     data is stored here, directly after the keylen.
     thus the pointer to data is (void*)(slist_element_ptr+1)
@@ -272,7 +272,7 @@ static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
 }
 
 static inline const uchar* hash_key(const LF_HASH *hash,
-                              const uchar *record, uint *length)
+                                    const uchar *record, size_t *length)
 {
   if (hash->get_key)
     return (*hash->get_key)(record, length, 0);

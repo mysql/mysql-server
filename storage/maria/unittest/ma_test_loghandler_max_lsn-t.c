@@ -23,7 +23,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   uchar long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn, max_lsn, last_lsn= LSN_IMPOSSIBLE;
-  MY_STAT st;
   LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
