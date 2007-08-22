@@ -1,0 +1,93 @@
+
+--disable_warnings
+drop table if exists t1_30237_bool;
+--enable_warnings
+
+create table t1_30237_bool(A boolean, B boolean, C boolean);
+
+insert into t1_30237_bool values
+(FALSE, FALSE, FALSE),
+(FALSE, FALSE, NULL),
+(FALSE, FALSE, TRUE),
+(FALSE, NULL, FALSE),
+(FALSE, NULL, NULL),
+(FALSE, NULL, TRUE),
+(FALSE, TRUE, FALSE),
+(FALSE, TRUE, NULL),
+(FALSE, TRUE, TRUE),
+(NULL, FALSE, FALSE),
+(NULL, FALSE, NULL),
+(NULL, FALSE, TRUE),
+(NULL, NULL, FALSE),
+(NULL, NULL, NULL),
+(NULL, NULL, TRUE),
+(NULL, TRUE, FALSE),
+(NULL, TRUE, NULL),
+(NULL, TRUE, TRUE),
+(TRUE, FALSE, FALSE),
+(TRUE, FALSE, NULL),
+(TRUE, FALSE, TRUE),
+(TRUE, NULL, FALSE),
+(TRUE, NULL, NULL),
+(TRUE, NULL, TRUE),
+(TRUE, TRUE, FALSE),
+(TRUE, TRUE, NULL),
+(TRUE, TRUE, TRUE) ;
+
+--echo Testing OR, XOR, AND
+select A, B, A OR B, A XOR B, A AND B
+  from t1_30237_bool where C is null order by A, B;
+
+--echo Testing that OR is associative 
+select A, B, C, (A OR B) OR C, A OR (B OR C), A OR B OR C
+ from t1_30237_bool order by A, B, C;
+
+select count(*) from t1_30237_bool
+  where ((A OR B) OR C) != (A OR (B OR C));
+
+--echo Testing that XOR is associative 
+select A, B, C, (A XOR B) XOR C, A XOR (B XOR C), A XOR B XOR C
+  from t1_30237_bool order by A, B, C;
+
+select count(*) from t1_30237_bool
+  where ((A XOR B) XOR C) != (A XOR (B XOR C));
+
+--echo Testing that AND is associative 
+select A, B, C, (A AND B) AND C, A AND (B AND C), A AND B AND C
+  from t1_30237_bool order by A, B, C;
+
+select count(*) from t1_30237_bool
+  where ((A AND B) AND C) != (A AND (B AND C));
+
+--echo Testing that AND has precedence over OR
+select A, B, C, (A OR B) AND C, A OR (B AND C), A OR B AND C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where (A OR (B AND C)) != (A OR B AND C);
+select A, B, C, (A AND B) OR C, A AND (B OR C), A AND B OR C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where ((A AND B) OR C) != (A AND B OR C);
+
+--echo Testing that AND has precedence over XOR
+select A, B, C, (A XOR B) AND C, A XOR (B AND C), A XOR B AND C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where (A XOR (B AND C)) != (A XOR B AND C);
+select A, B, C, (A AND B) XOR C, A AND (B XOR C), A AND B XOR C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where ((A AND B) XOR C) != (A AND B XOR C);
+
+--echo Testing that XOR has precedence over OR
+select A, B, C, (A XOR B) OR C, A XOR (B OR C), A XOR B OR C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where ((A XOR B) OR C) != (A XOR B OR C);
+select A, B, C, (A OR B) XOR C, A OR (B XOR C), A OR B XOR C
+  from t1_30237_bool order by A, B, C;
+select count(*) from t1_30237_bool
+  where (A OR (B XOR C)) != (A OR B XOR C);
+
+drop table t1_30237_bool;
+
