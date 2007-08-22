@@ -24,6 +24,18 @@ hash_get_nth_cell(
 }
 
 /*****************************************************************
+Clears a hash table so that all the cells become empty again. */
+UNIV_INLINE
+void
+hash_table_clear(
+/*=============*/
+	hash_table_t*	table)	/* in/out: hash table */
+{
+	memset(table->array, 0x0,
+	       table->n_cells * sizeof(*table->array));
+}
+
+/*****************************************************************
 Returns the number of cells in a hash table. */
 UNIV_INLINE
 ulint
