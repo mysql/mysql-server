@@ -315,11 +315,11 @@ struct dict_table_struct{
 	unsigned	n_cols:10;/* number of columns */
 	dict_col_t*	cols;	/* array of column descriptions */
 	const char*	col_names;
-				/* n_def column names packed in an
-				"name1\0name2\0...nameN\0" array. until
-				n_def reaches n_cols, this is allocated with
-				ut_malloc, and the final size array is
-				allocated through the table's heap. */
+				/* Column names packed in a character string
+				"name1\0name2\0...nameN\0".  Until
+				the string contains n_cols, it will be
+				allocated from a temporary heap.  The final
+				string will be allocated from table->heap. */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	UT_LIST_BASE_NODE_T(dict_index_t)
