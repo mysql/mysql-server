@@ -1425,6 +1425,7 @@ public:
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
   bool add(Item *item) { return list.push_back(item); }
+  bool add_at_head(Item *item) { return list.push_front(item); }
   void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
   bool fix_fields(THD *, Item **ref);
 
@@ -1618,6 +1619,15 @@ public:
   Item *neg_transformer(THD *thd);
 };
 
+inline bool is_cond_and(Item *item)
+{
+  if (item->type() != Item::COND_ITEM)
+    return FALSE;
+
+  Item_cond *cond_item= (Item_cond*) item;
+  return (cond_item->functype() == Item_func::COND_AND_FUNC);
+}
+
 class Item_cond_or :public Item_cond
 {
 public:
@@ -1639,6 +1649,14 @@ public:
   Item *neg_transformer(THD *thd);
 };
 
+inline bool is_cond_or(Item *item)
+{
+  if (item->type() != Item::COND_ITEM)
+    return FALSE;
+
+  Item_cond *cond_item= (Item_cond*) item;
+  return (cond_item->functype() == Item_func::COND_OR_FUNC);
+}
 
 /*
   XOR is Item_cond, not an Item_int_func because we could like to
