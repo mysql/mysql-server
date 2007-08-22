@@ -270,9 +270,10 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                  Closed interval: Either The MIN argument is non-nullable, or
                  we have a >= predicate for the MIN argument.
               */
-              error= table->file->index_read(table->record[0], ref.key_buff,
-                                             make_prev_keypart_map(ref.key_parts),
-                                             HA_READ_KEY_OR_NEXT);
+              error= table->file->index_read_map(table->record[0],
+                                                 ref.key_buff,
+                                                 make_prev_keypart_map(ref.key_parts),
+                                                 HA_READ_KEY_OR_NEXT);
             else
             {
               /*
@@ -281,9 +282,10 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                 2) there is a > predicate on it, nullability is irrelevant.
                 We need to scan the next bigger record first.
               */
-              error= table->file->index_read(table->record[0], ref.key_buff, 
-                                             make_prev_keypart_map(ref.key_parts),
-                                             HA_READ_AFTER_KEY);
+              error= table->file->index_read_map(table->record[0],
+                                                 ref.key_buff, 
+                                                 make_prev_keypart_map(ref.key_parts),
+                                                 HA_READ_AFTER_KEY);
               /* 
                  If the found record is outside the group formed by the search
                  prefix, or there is no such record at all, check if all
@@ -305,9 +307,10 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
                    key_cmp_if_same(table, ref.key_buff, ref.key, prefix_len)))
               {
                 DBUG_ASSERT(item_field->field->real_maybe_null());
-                error= table->file->index_read(table->record[0], ref.key_buff,
-                                               make_prev_keypart_map(ref.key_parts),
-                                               HA_READ_KEY_EXACT);
+                error= table->file->index_read_map(table->record[0],
+                                                   ref.key_buff,
+                                                   make_prev_keypart_map(ref.key_parts),
+                                                   HA_READ_KEY_EXACT);
               }
             }
           }
@@ -394,11 +397,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           if (!ref.key_length)
             error= table->file->index_last(table->record[0]);
           else
-	    error= table->file->index_read(table->record[0], key_buff,
-                                           make_prev_keypart_map(ref.key_parts),
-					   range_fl & NEAR_MAX ?
-					   HA_READ_BEFORE_KEY :
-					   HA_READ_PREFIX_LAST_OR_PREV);
+	    error= table->file->index_read_map(table->record[0], key_buff,
+                                               make_prev_keypart_map(ref.key_parts),
+                                               range_fl & NEAR_MAX ?
+                                               HA_READ_BEFORE_KEY :
+                                               HA_READ_PREFIX_LAST_OR_PREV);
 	  if (!error && reckey_in_range(1, &ref, item_field->field,
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;

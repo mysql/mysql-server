@@ -107,7 +107,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
                 int level)
 {
   my_off_t old_link;
-  char buff[8];
+  uchar buff[8];
   DBUG_ENTER("_mi_dispose");
   DBUG_PRINT("enter",("pos: %ld", (long) pos));
 
@@ -128,7 +128,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
 my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
-  char buff[8];
+  uchar buff[8];
   DBUG_ENTER("_mi_new");
 
   if ((pos= info->s->state.key_del[keyinfo->block_size_index]) ==
