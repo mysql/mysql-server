@@ -224,7 +224,7 @@ gcov_compile_flags="$gcov_compile_flags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
 
 gcov_link_flags="-fprofile-arcs -ftest-coverage"
 
-gcov_configs="--disable-shared $static_link"
+gcov_configs="--disable-shared"
 
 # gprof
 
