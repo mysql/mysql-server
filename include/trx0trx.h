@@ -383,6 +383,29 @@ trx_weight_cmp(
 	const trx_t*	a,	/* in: the first transaction to be compared */
 	const trx_t*	b);	/* in: the second transaction to be compared */
 
+/***********************************************************************
+Retrieves transacion's id, represented as unsigned long long. */
+UNIV_INLINE
+ullint
+trx_get_id(
+/*=======*/
+				/* out: transaction's id */
+	const trx_t*	trx);	/* in: transaction */
+
+/* Maximum length of a string that can be returned by
+trx_get_que_state_str(). */
+#define TRX_QUE_STATE_STR_MAX_LEN	12 /* "ROLLING BACK" */
+
+/***********************************************************************
+Retrieves transaction's que state in a human readable string. The string
+should not be free()'d or modified. */
+UNIV_INLINE
+const char*
+trx_get_que_state_str(
+/*==================*/
+				/* out: string in the data segment */
+	const trx_t*	trx);	/* in: transaction */
+
 /* Signal to a transaction */
 struct trx_sig_struct{
 	ulint		type;		/* signal type */
