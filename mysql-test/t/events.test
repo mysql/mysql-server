@@ -466,13 +466,17 @@ drop event закачка;
 set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
---sleep 1
+let $wait_condition= select count(*) = 3 from information_schema.processlist;
+--source include/wait_condition.inc
 --echo "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
 set global event_scheduler=off;
---sleep 0.8
+let $wait_condition= select count(*) =1 from information_schema.processlist
+  where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+--source include/wait_condition.inc
 --echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+select release_lock("test_lock2_1");
 drop event закачка21;
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
