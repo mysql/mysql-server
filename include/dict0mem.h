@@ -416,6 +416,16 @@ struct dict_table_struct{
 				/* The increment step of the auto increment
 				column. Value must be greater than or equal
 				to 1 */
+	ulong		n_waiting_or_granted_auto_inc_locks;
+				/* This counter is used to track the number
+				of granted and pending autoinc locks on this
+				table. This value is set after acquiring the
+				kernel mutex but we peek the contents to
+				determine whether other transactions have
+				acquired the AUTOINC lock or not. Of course
+				only one transaction can be granted the
+				lock but there can be multiple waiters. */
+
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_TABLE_MAGIC_N	76333786
