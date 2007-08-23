@@ -3812,12 +3812,23 @@ ha_innobase::delete_row(
 	if (table->found_next_number_field && record == table->record[0]) {
 		ulonglong	dummy = 0;
 
-		error = innobase_get_auto_increment(&dummy);
+		/* First check whether the AUTOINC sub-system has been
+		initialized using the AUTOINC mutex. If not then we
+		do it the "proper" way, by acquiring the heavier locks. */
+		dict_table_autoinc_lock(prebuilt->table);
 
-		if (error == DB_SUCCESS) {
+		if (!prebuilt->table->autoinc_inited) {
 			dict_table_autoinc_unlock(prebuilt->table);
-		} else {
-			goto error_exit;
+
+			error = innobase_get_auto_increment(&dummy);
+
+			if (error == DB_SUCCESS) {
+				dict_table_autoinc_unlock(prebuilt->table);
+			} else {
+				goto error_exit;
+			}
+		} else  {
+			dict_table_autoinc_unlock(prebuilt->table);
 		}
 	}
 
