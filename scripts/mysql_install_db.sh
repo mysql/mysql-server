@@ -31,6 +31,7 @@ force=0
 in_rpm=0
 ip_only=0
 windows=0
+source_install=0
 
 usage()
 {
@@ -41,7 +42,7 @@ Usage: $0 [OPTIONS]
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
                        use hostnames will use IP addresses.
-  --ldata=path         The path to the MySQL data directory.
+  --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --rpm                For internal use.  This option is used by RPM files
                        during the MySQL installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
@@ -120,6 +121,13 @@ parse_arguments()
         # package.
          windows=1 ;;
 
+       --source-install)
+        # This is used when you want to run mysqld directly from the
+        # source tree (for example when you are developing MySQL and
+        # only want to create the default tables but don't want to
+        # install mysqld yet.
+         source_install=1 ;;
+
       *)
         if test -n "$pick_args"
         then
@@ -147,15 +155,22 @@ find_in_basedir()
 
   file=$1; shift
 
+  base="$basedir"
+  if test -z "$base"
+  then
+    # Assume source installation if basedir is not given
+    base="."
+  fi
+
   for dir in "$@"
   do
-    if test -f "$basedir/$dir/$file"
+    if test -f "$base/$dir/$file"
     then
       if test -n "$return_dir"
       then
-        echo "$basedir/$dir"
+        echo "$base/$dir"
       else
-        echo "$basedir/$dir/$file"
+        echo "$base/$dir/$file"
       fi
       break
     fi
@@ -164,11 +179,17 @@ find_in_basedir()
 
 missing_in_basedir()
 {
-  echo "FATAL ERROR: Could not find $* inside --basedir"
-  echo
-  echo "When using --basedir you must point either into a MySQL binary"
-  echo "distribution directory or a compiled tree previously populated"
-  echo "by 'make install'"
+  if test -z "$basedir"
+  then
+    echo "FATAL ERROR: Could not find $* inside --basedir"
+    echo
+    echo "When using --basedir you must point either into a MySQL binary"
+    echo "distribution directory or a compiled tree previously populated"
+    echo "by 'make install'"
+  else
+    echo "FATAL ERROR: Can't find $*. Please specify your installation"
+    echo "directory with the '--basedir=' option."
+  fi
 }
 
 # Ok, let's go.  We first need to parse arguments which are required by
@@ -178,15 +199,10 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # We can now find my_print_defaults, either in the supplied --basedir
 # location or in the installed area.
-if test -n "$basedir"
+
+print_defaults=`find_in_basedir my_print_defaults bin extra`
+if test -z "$print_defaults"
 then
-  print_defaults=`find_in_basedir my_print_defaults bin extra`
-  if ! test -x "$print_defaults"
-  then
-    missing_in_basedir my_print_defaults
-    exit 1
-  fi
-else
   print_defaults="@bindir@/my_print_defaults"
   if ! test -x "$print_defaults"
   then
@@ -194,7 +210,8 @@ else
     echo
     echo "If you are using a binary release, you must run this script from"
     echo "within the directory the archive extracted into.  If you compiled"
-    echo "MySQL yourself you must run 'make install' first."
+    echo "MySQL yourself you must run 'make install' first or use"
+    echo "use --source-install --install-dir=xxx from the top source directory"
     exit 1
   fi
 fi
@@ -205,10 +222,11 @@ parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Path to MySQL installation directory
-if test -z "$basedir"
+if test -z "$basedir" -a "$source_install" = 0
 then
   basedir="@prefix@"
   bindir="@bindir@"
+  extra_bindir="$bindir"
   mysqld="@libexecdir@/mysqld"
   pkgdatadir="@pkgdatadir@"
 else
@@ -216,17 +234,33 @@ else
   # We set up bootstrap-specific paths later, so skip this for --windows
   if test "$windows" -eq 0
   then
-    pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
-    if test -z "$pkgdatadir"
-    then
-      missing_in_basedir fill_help_tables.sql
-      exit 1
-    fi
     mysqld=`find_in_basedir mysqld libexec sbin bin`
-    if ! test -x "$mysqld"
+    if test -z "$basedir"
     then
-      missing_in_basedir mysqld
-      exit 1
+      # We come here when source-install is given
+      bindir="$basedir/bin"
+      extra_bindir="$bindir"
+    fi
+    if test -x "$mysqld"
+    then
+      pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql scripts`
+      if test -z "$pkgdatadir"
+      then
+        missing_in_basedir fill_help_tables.sql
+       exit 1
+      fi
+    else
+      if test -x "./sql/mysqld"
+      then
+        # Source installation
+        mysqld="./sql/mysqld"
+        bindir="./client"
+        extra_bindir="./extra"
+        pkgdatadir="./scripts"
+        mysqld_opt="--language=./sql/share/english"
+      else
+        missing_in_basedir mysqld
+      fi
     fi
   fi
 fi
@@ -272,7 +306,7 @@ fi
 # already tested above).
 if test ! -x "$mysqld"
 then
-  echo "FATAL ERROR: $mysqld not found!"
+  echo "FATAL ERROR: 'mysqld' executable not found!"
   exit 1
 fi
 
@@ -282,14 +316,14 @@ hostname=`@HOSTNAME@`
 # Check if hostname is valid
 if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
-  resolved=`$bindir/resolveip $hostname 2>&1`
+  resolved=`$extra_bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
   then
-    resolved=`$bindir/resolveip localhost 2>&1`
+    resolved=`$extra_bindir/resolveip localhost 2>&1`
     if [ $? -ne 0 ]
     then
       echo "Neither host '$hostname' nor 'localhost' could be looked up with"
-      echo "$bindir/resolveip"
+      echo "$extra_bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct"
       echo "hostname."
       echo "If you want to solve this at a later stage, restart this script"
@@ -332,7 +366,7 @@ fi
 # Peform the install of system tables
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
-  --basedir=$basedir --datadir=$ldata --loose-skip-innodb \
+  --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
   --net_buffer_length=16K"
 
@@ -374,7 +408,7 @@ then
     echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
     echo "See the manual for more instructions."
 
-    if test "$in_rpm" -eq 0
+    if test "$in_rpm" -eq 0 -a "$source_install" -eq 0
     then
       echo "You can start the MySQL daemon with:"
       echo "cd @prefix@ ; $bindir/mysqld_safe &"

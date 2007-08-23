@@ -3266,11 +3266,12 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
   var->save_result.plugin= NULL;
   if (var->value->result_type() == STRING_RESULT)
   {
-    LEX_STRING name;
+    LEX_STRING engine_name;
     handlerton *hton;
     if (!(res=var->value->val_str(&str)) ||
-        !(name.str= (char *)res->ptr()) || !(name.length= res->length()) ||
-	!(var->save_result.plugin= ha_resolve_by_name(thd, &name)) ||
+        !(engine_name.str= (char *)res->ptr()) ||
+        !(engine_name.length= res->length()) ||
+	!(var->save_result.plugin= ha_resolve_by_name(thd, &engine_name)) ||
         !(hton= plugin_data(var->save_result.plugin, handlerton *)) ||
         ha_checktype(thd, ha_legacy_type(hton), 1, 0) != hton)
     {
@@ -3292,13 +3293,13 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
 {
   uchar* result;
   handlerton *hton;
-  LEX_STRING *name;
+  LEX_STRING *engine_name;
   plugin_ref plugin= thd->variables.*offset;
   if (type == OPT_GLOBAL)
     plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
   hton= plugin_data(plugin, handlerton*);
-  name= &hton2plugin[hton->slot]->name;
-  result= (uchar *) thd->strmake(name->str, name->length);
+  engine_name= &hton2plugin[hton->slot]->name;
+  result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
   if (type == OPT_GLOBAL)
     plugin_unlock(thd, plugin);
   return result;
@@ -3585,7 +3586,7 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache)
 }
 
 
-bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
+bool process_key_caches(process_key_cache_t func)
 {
   I_List_iterator<NAMED_LIST> it(key_caches);
   NAMED_LIST *element;

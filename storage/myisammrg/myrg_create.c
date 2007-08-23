@@ -46,7 +46,7 @@ int myrg_create(const char *name, const char **table_names,
 	fn_same(buff,name,4);
       *(end=strend(buff))='\n';
       end[1]=0;
-      if (my_write(file,buff,(uint) (end-buff+1),
+      if (my_write(file,(char*) buff,(uint) (end-buff+1),
 		   MYF(MY_WME | MY_NABP)))
 	goto err;
     }
@@ -55,7 +55,7 @@ int myrg_create(const char *name, const char **table_names,
   {
     end=strxmov(buff,"#INSERT_METHOD=",
 		get_type(&merge_insert_method,insert_method-1),"\n",NullS);
-    if (my_write(file,buff,(uint) (end-buff),MYF(MY_WME | MY_NABP)))
+    if (my_write(file, (uchar*) buff,(uint) (end-buff),MYF(MY_WME | MY_NABP)))
         goto err;
   }
   if (my_close(file,MYF(0)))
