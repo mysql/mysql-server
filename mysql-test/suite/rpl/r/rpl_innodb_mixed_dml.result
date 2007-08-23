@@ -103,7 +103,7 @@ DELETE FROM t1;
 DELETE FROM t2;
 
 ******************** LOAD DATA INFILE ********************
-LOAD DATA INFILE '../../suite/rpl/data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
+LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
 SELECT * FROM t1;
 a	b
 10	line A
@@ -683,13 +683,13 @@ INSERT INTO t1 VALUES(1, 'test1');
 CREATE EVENT e1 ON SCHEDULE EVERY '1' SECOND COMMENT 'e_second_comment' DO DELETE FROM t1;
 ==========MASTER==========
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
-test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========SLAVE===========
 USE test_rpl;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
-test_rpl	e1	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test_rpl	e1	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -743,13 +743,13 @@ a	b
 ALTER EVENT e1 RENAME TO e2;
 ==========MASTER==========
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
-test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========SLAVE===========
 USE test_rpl;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
-test_rpl	e2	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test_rpl	e2	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -778,11 +778,11 @@ a	b
 DROP EVENT e2;
 ==========MASTER==========
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 ==========SLAVE===========
 USE test_rpl;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 DELETE FROM t1;
 DELETE FROM t2;
 
@@ -793,32 +793,32 @@ CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = 1;
 CREATE VIEW v2 AS SELECT * FROM t1 WHERE b <> UUID();
 ==========MASTER==========
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 a	b
 1	test1
 ==========SLAVE===========
 USE test_rpl;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 a	b
 1	test1
 ALTER VIEW v1 AS SELECT * FROM t1 WHERE a = 2;
 ==========MASTER==========
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 a	b
 2	test2
 ==========SLAVE===========
 USE test_rpl;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 a	b
 2	test2
@@ -867,8 +867,8 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
-master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=30
-master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE '../../suite/rpl/data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=1
+master-bin.000001	#	Begin_load_query	1	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=#
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
@@ -1004,9 +1004,7 @@ master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	#
-master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
-master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t2)
-master-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
