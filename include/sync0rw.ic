@@ -231,7 +231,7 @@ rw_lock_s_lock_func(
 	owns an s-lock here, it may end up in a deadlock with another thread
 	which requests an x-lock here. Therefore, we will forbid recursive
 	s-locking of a latch: the following assert will warn the programmer
-	of the possibility of a tjis kind of deadlock. If we want to implement
+	of the possibility of this kind of a deadlock. If we want to implement
 	safe recursive s-locking, we should keep in a list the thread ids of
 	the threads which have s-locked a latch. This would use some CPU
 	time. */
