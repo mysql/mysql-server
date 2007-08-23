@@ -165,6 +165,17 @@ static void set_latest_trans_gci(ulonglong val)
   }
 }
 
+static int has_node_id(uint id)
+{
+  unsigned i;
+  for (i= 0; i < g_ndb_cluster_connection_pool_alloc; i++)
+  {
+    if (id == g_ndb_cluster_connection_pool[i]->node_id())
+      return 1;
+  }
+  return 0;
+}
+
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
@@ -1686,8 +1697,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   bool do_close_cached_tables= FALSE;
   bool is_online_alter_table= FALSE;
   bool is_rename_table= FALSE;
-  bool is_remote_change=
-    (uint) pOp->getReqNodeId() != g_ndb_cluster_connection->node_id();
+  bool is_remote_change= !has_node_id(pOp->getReqNodeId());
 
   if (pOp->getEventType() == NDBEVENT::TE_ALTER)
   {
