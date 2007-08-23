@@ -25,8 +25,6 @@
 
 #include "mysql_priv.h"
 #include "rpl_filter.h"
-
-
 #include <myisampack.h>
 #include <errno.h>
 
@@ -64,7 +62,7 @@ static const LEX_STRING sys_table_aliases[]=
 };
 
 const char *ha_row_type[] = {
-  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT", "?","?","?"
+  "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT", "PAGE", "?","?","?"
 };
 
 const char *tx_isolation_names[] =
@@ -2004,9 +2002,9 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
-    error= index_read(table->record[1], key,
-                      make_prev_keypart_map(table->s->next_number_keypart),
-                      HA_READ_PREFIX_LAST);
+    error= index_read_map(table->record[1], key,
+                          make_prev_keypart_map(table->s->next_number_keypart),
+                          HA_READ_PREFIX_LAST);
     /*
       MySQL needs to call us for next row: assume we are inserting ("a",null)
       here, we return 3, and next this statement will want to insert
@@ -3229,10 +3227,10 @@ int handler::read_range_first(const key_range *start_key,
   if (!start_key)			// Read first record
     result= index_first(table->record[0]);
   else
-    result= index_read(table->record[0],
-		       start_key->key,
-                       start_key->keypart_map,
-		       start_key->flag);
+    result= index_read_map(table->record[0],
+                           start_key->key,
+                           start_key->keypart_map,
+                           start_key->flag);
   if (result)
     DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
 		? HA_ERR_END_OF_FILE
@@ -3304,15 +3302,15 @@ int handler::compare_key(key_range *range)
 }
 
 
-int handler::index_read_idx(uchar * buf, uint index, const uchar * key,
-                            key_part_map keypart_map,
-                            enum ha_rkey_function find_flag)
+int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
 {
   int error, error1;
   error= index_init(index, 0);
   if (!error)
   {
-    error= index_read(buf, key, keypart_map, find_flag);
+    error= index_read_map(buf, key, keypart_map, find_flag);
     error1= index_end();
   }
   return error ?  error : error1;

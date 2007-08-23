@@ -32,7 +32,8 @@ struct file_info {
   long process;
   int  filenr,id;
   uint rnd;
-  char *name, *show_name, *record;
+  char *name, *show_name;
+  uchar *record;
   MI_INFO *isam;
   bool closed,used;
   ulong accessed;
@@ -815,7 +816,7 @@ static int find_record_with_key(struct file_info *file_info, uchar *record)
 	info->s->keyinfo[key].flag & HA_NOSAME)
     {
       VOID(_mi_make_key(info,key,tmp_key,record,0L));
-      return mi_rkey(info,file_info->record,(int) key,(char*) tmp_key,0,
+      return mi_rkey(info,file_info->record,(int) key,tmp_key,0,
 		     HA_READ_KEY_EXACT);
     }
   }

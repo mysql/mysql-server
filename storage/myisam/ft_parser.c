@@ -83,7 +83,7 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   uint i, j;
 
   if (!str ||
-      (strlen(str)+1 != sizeof(ft_boolean_syntax)) ||
+      (strlen((char*) str)+1 != sizeof(ft_boolean_syntax)) ||
       (str[0] != ' ' && str[1] != ' '))
     return 1;
   for (i=0; i<sizeof(ft_boolean_syntax); i++)
@@ -127,7 +127,7 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
         break;
       if (*doc == FTB_RQUOT && param->quot)
       {
-        param->quot=doc;
+        param->quot= (char*) doc;
         *start=doc+1;
         param->type= FT_TOKEN_RIGHT_PAREN;
         goto ret;
@@ -138,7 +138,8 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
         {
           /* param->prev=' '; */
           *start=doc+1;
-          if (*doc == FTB_LQUOT) param->quot=*start;
+          if (*doc == FTB_LQUOT)
+            param->quot= (char*) *start;
           param->type= (*doc == FTB_RBR ? FT_TOKEN_RIGHT_PAREN : FT_TOKEN_LEFT_PAREN);
           goto ret;
         }
@@ -174,7 +175,8 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (((length >= ft_min_word_len && !is_stopword(word->pos, word->len))
+    if (((length >= ft_min_word_len && !is_stopword((char*) word->pos,
+                                                    word->len))
          || param->trunc) && length < ft_max_word_len)
     {
       *start=doc;
@@ -190,7 +192,8 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
   }
   if (param->quot)
   {
-    param->quot=*start=doc;
+    *start= doc;
+    param->quot= (char*) doc;
     param->type= 3; /* FT_RBR */
     goto ret;
   }
@@ -235,7 +238,7 @@ uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
 
     if (skip_stopwords == FALSE ||
         (length >= ft_min_word_len && length < ft_max_word_len &&
-         !is_stopword(word->pos, word->len)))
+         !is_stopword((char*) word->pos, word->len)))
     {
       *start= doc;
       DBUG_RETURN(1);
@@ -271,7 +274,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
     w.pos= ptr;
   }
   else
-    w.pos= word;
+    w.pos= (uchar*) word;
   w.len= word_len;
   if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
   {
@@ -293,7 +296,7 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
   DBUG_ENTER("ft_parse_internal");
 
   while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (param->mysql_add_word(param, w.pos, w.len, 0))
+    if (param->mysql_add_word(param, (char*) w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -314,7 +317,7 @@ int ft_parse(TREE *wtree, uchar *doc, int doclen,
   param->mysql_add_word= ft_add_word;
   param->mysql_ftparam= &my_param;
   param->cs= wtree->custom_arg;
-  param->doc= doc;
+  param->doc= (char*) doc;
   param->length= doclen;
   param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
   DBUG_RETURN(parser->parse(param));
@@ -392,7 +395,9 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
        mysql_add_word == 0 - parser is not initialized
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
-    info->ftparser_param[ftparser_nr].mysql_add_word= (void *)1;
+    info->ftparser_param[ftparser_nr].mysql_add_word=
+      (int (*)(struct st_mysql_ftparser_param *, char *, int,
+              MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;
   }

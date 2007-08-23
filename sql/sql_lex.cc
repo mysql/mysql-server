@@ -2826,8 +2826,8 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
 
   SYNOPSIS
     set_index_hint_type()
-      type         the kind of hints to be added from now on.
-      clause       the clause to use for hints to be added from now on.
+      type_arg     The kind of hints to be added from now on.
+      clause       The clause to use for hints to be added from now on.
 
   DESCRIPTION
     Used in filling up the tagged hints list.
@@ -2836,10 +2836,10 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     Then the context variable index_hint_type can be reset to the
     next hint type.
 */
-void st_select_lex::set_index_hint_type(enum index_hint_type type, 
+void st_select_lex::set_index_hint_type(enum index_hint_type type_arg,
                                         index_clause_map clause)
 { 
-  current_index_hint_type= type;
+  current_index_hint_type= type_arg;
   current_index_hint_clause= clause;
 }
 

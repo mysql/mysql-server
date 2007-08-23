@@ -748,7 +748,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
  sys/prctl.h \
- sys/resource.h sys/param.h port.h)
+ sys/resource.h sys/param.h port.h ieeefp.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -762,6 +762,7 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
+AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
