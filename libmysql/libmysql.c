@@ -4673,9 +4673,17 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL      *mysql= stmt->mysql;
   MYSQL_DATA *result= &stmt->result;
   MYSQL_ROWS *cur, **prev_ptr= &result->data;
-  NET        *net = &mysql->net;
+  NET        *net;
+
+  if (!mysql)
+  {
+    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
+    return 1;
+  }
+
   DBUG_ENTER("cli_read_binary_rows");
 
+  net = &mysql->net;
   mysql= mysql->last_used_con;
 
   while ((pkt_len= cli_safe_read(mysql)) != packet_error)
