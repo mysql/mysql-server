@@ -200,6 +200,240 @@ COUNT(*)
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+CREATE TABLE test.t (
+a smallint NOT NULL,
+b int NOT NULL,
+c bigint NOT NULL,
+d char(10),
+e TEXT,
+f VARCHAR(255),
+PRIMARY KEY(a)
+) TABLESPACE ts1 STORAGE DISK ENGINE=NDB;
+ALTER TABLE test.t ADD INDEX (d), ADD INDEX (f);
+SHOW CREATE TABLE test.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` smallint(6) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` bigint(20) NOT NULL,
+  `d` char(10) DEFAULT NULL,
+  `e` text,
+  `f` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `d` (`d`),
+  KEY `f` (`f`)
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM test.t order by a;
+a	b	c	d	e	f
+1	2	3	aaa1	bbb1	ccccc1
+2	3	4	aaa2	bbb2	ccccc2
+3	4	5	aaa3	bbb3	ccccc3
+4	5	6	aaa4	bbb4	ccccc4
+5	6	7	aaa5	bbb5	ccccc5
+6	7	8	aaa6	bbb6	ccccc6
+7	8	9	aaa7	bbb7	ccccc7
+8	9	10	aaa8	bbb8	ccccc8
+9	10	11	aaa9	bbb9	ccccc9
+10	11	12	aaa10	bbb10	ccccc10
+11	12	13	aaa11	bbb11	ccccc11
+12	13	14	aaa12	bbb12	ccccc12
+13	14	15	aaa13	bbb13	ccccc13
+14	15	16	aaa14	bbb14	ccccc14
+15	16	17	aaa15	bbb15	ccccc15
+16	17	18	aaa16	bbb16	ccccc16
+17	18	19	aaa17	bbb17	ccccc17
+18	19	20	aaa18	bbb18	ccccc18
+19	20	21	aaa19	bbb19	ccccc19
+20	21	22	aaa20	bbb20	ccccc20
+21	22	23	aaa21	bbb21	ccccc21
+22	23	24	aaa22	bbb22	ccccc22
+23	24	25	aaa23	bbb23	ccccc23
+24	25	26	aaa24	bbb24	ccccc24
+25	26	27	aaa25	bbb25	ccccc25
+26	27	28	aaa26	bbb26	ccccc26
+27	28	29	aaa27	bbb27	ccccc27
+28	29	30	aaa28	bbb28	ccccc28
+29	30	31	aaa29	bbb29	ccccc29
+30	31	32	aaa30	bbb30	ccccc30
+31	32	33	aaa31	bbb31	ccccc31
+32	33	34	aaa32	bbb32	ccccc32
+33	34	35	aaa33	bbb33	ccccc33
+34	35	36	aaa34	bbb34	ccccc34
+35	36	37	aaa35	bbb35	ccccc35
+36	37	38	aaa36	bbb36	ccccc36
+37	38	39	aaa37	bbb37	ccccc37
+38	39	40	aaa38	bbb38	ccccc38
+39	40	41	aaa39	bbb39	ccccc39
+40	41	42	aaa40	bbb40	ccccc40
+41	42	43	aaa41	bbb41	ccccc41
+42	43	44	aaa42	bbb42	ccccc42
+43	44	45	aaa43	bbb43	ccccc43
+44	45	46	aaa44	bbb44	ccccc44
+45	46	47	aaa45	bbb45	ccccc45
+46	47	48	aaa46	bbb46	ccccc46
+47	48	49	aaa47	bbb47	ccccc47
+48	49	50	aaa48	bbb48	ccccc48
+49	50	51	aaa49	bbb49	ccccc49
+50	51	52	aaa50	bbb50	ccccc50
+51	52	53	aaa51	bbb51	ccccc51
+52	53	54	aaa52	bbb52	ccccc52
+53	54	55	aaa53	bbb53	ccccc53
+54	55	56	aaa54	bbb54	ccccc54
+55	56	57	aaa55	bbb55	ccccc55
+56	57	58	aaa56	bbb56	ccccc56
+57	58	59	aaa57	bbb57	ccccc57
+58	59	60	aaa58	bbb58	ccccc58
+59	60	61	aaa59	bbb59	ccccc59
+60	61	62	aaa60	bbb60	ccccc60
+61	62	63	aaa61	bbb61	ccccc61
+62	63	64	aaa62	bbb62	ccccc62
+63	64	65	aaa63	bbb63	ccccc63
+64	65	66	aaa64	bbb64	ccccc64
+65	66	67	aaa65	bbb65	ccccc65
+66	67	68	aaa66	bbb66	ccccc66
+67	68	69	aaa67	bbb67	ccccc67
+68	69	70	aaa68	bbb68	ccccc68
+69	70	71	aaa69	bbb69	ccccc69
+70	71	72	aaa70	bbb70	ccccc70
+71	72	73	aaa71	bbb71	ccccc71
+72	73	74	aaa72	bbb72	ccccc72
+73	74	75	aaa73	bbb73	ccccc73
+74	75	76	aaa74	bbb74	ccccc74
+75	76	77	aaa75	bbb75	ccccc75
+76	77	78	aaa76	bbb76	ccccc76
+77	78	79	aaa77	bbb77	ccccc77
+78	79	80	aaa78	bbb78	ccccc78
+79	80	81	aaa79	bbb79	ccccc79
+80	81	82	aaa80	bbb80	ccccc80
+81	82	83	aaa81	bbb81	ccccc81
+82	83	84	aaa82	bbb82	ccccc82
+83	84	85	aaa83	bbb83	ccccc83
+84	85	86	aaa84	bbb84	ccccc84
+85	86	87	aaa85	bbb85	ccccc85
+86	87	88	aaa86	bbb86	ccccc86
+87	88	89	aaa87	bbb87	ccccc87
+88	89	90	aaa88	bbb88	ccccc88
+89	90	91	aaa89	bbb89	ccccc89
+90	91	92	aaa90	bbb90	ccccc90
+91	92	93	aaa91	bbb91	ccccc91
+92	93	94	aaa92	bbb92	ccccc92
+93	94	95	aaa93	bbb93	ccccc93
+94	95	96	aaa94	bbb94	ccccc94
+95	96	97	aaa95	bbb95	ccccc95
+96	97	98	aaa96	bbb96	ccccc96
+97	98	99	aaa97	bbb97	ccccc97
+98	99	100	aaa98	bbb98	ccccc98
+99	100	101	aaa99	bbb99	ccccc99
+100	101	102	aaa100	bbb100	ccccc100
+SELECT * INTO OUTFILE 't_backup' FROM test.t;
+TRUNCATE test.t;
+SELECT count(*) FROM test.t;
+count(*)
+0
+LOAD DATA INFILE 't_backup' INTO TABLE test.t;
+SELECT * FROM test.t order by a;
+a	b	c	d	e	f
+1	2	3	aaa1	bbb1	ccccc1
+2	3	4	aaa2	bbb2	ccccc2
+3	4	5	aaa3	bbb3	ccccc3
+4	5	6	aaa4	bbb4	ccccc4
+5	6	7	aaa5	bbb5	ccccc5
+6	7	8	aaa6	bbb6	ccccc6
+7	8	9	aaa7	bbb7	ccccc7
+8	9	10	aaa8	bbb8	ccccc8
+9	10	11	aaa9	bbb9	ccccc9
+10	11	12	aaa10	bbb10	ccccc10
+11	12	13	aaa11	bbb11	ccccc11
+12	13	14	aaa12	bbb12	ccccc12
+13	14	15	aaa13	bbb13	ccccc13
+14	15	16	aaa14	bbb14	ccccc14
+15	16	17	aaa15	bbb15	ccccc15
+16	17	18	aaa16	bbb16	ccccc16
+17	18	19	aaa17	bbb17	ccccc17
+18	19	20	aaa18	bbb18	ccccc18
+19	20	21	aaa19	bbb19	ccccc19
+20	21	22	aaa20	bbb20	ccccc20
+21	22	23	aaa21	bbb21	ccccc21
+22	23	24	aaa22	bbb22	ccccc22
+23	24	25	aaa23	bbb23	ccccc23
+24	25	26	aaa24	bbb24	ccccc24
+25	26	27	aaa25	bbb25	ccccc25
+26	27	28	aaa26	bbb26	ccccc26
+27	28	29	aaa27	bbb27	ccccc27
+28	29	30	aaa28	bbb28	ccccc28
+29	30	31	aaa29	bbb29	ccccc29
+30	31	32	aaa30	bbb30	ccccc30
+31	32	33	aaa31	bbb31	ccccc31
+32	33	34	aaa32	bbb32	ccccc32
+33	34	35	aaa33	bbb33	ccccc33
+34	35	36	aaa34	bbb34	ccccc34
+35	36	37	aaa35	bbb35	ccccc35
+36	37	38	aaa36	bbb36	ccccc36
+37	38	39	aaa37	bbb37	ccccc37
+38	39	40	aaa38	bbb38	ccccc38
+39	40	41	aaa39	bbb39	ccccc39
+40	41	42	aaa40	bbb40	ccccc40
+41	42	43	aaa41	bbb41	ccccc41
+42	43	44	aaa42	bbb42	ccccc42
+43	44	45	aaa43	bbb43	ccccc43
+44	45	46	aaa44	bbb44	ccccc44
+45	46	47	aaa45	bbb45	ccccc45
+46	47	48	aaa46	bbb46	ccccc46
+47	48	49	aaa47	bbb47	ccccc47
+48	49	50	aaa48	bbb48	ccccc48
+49	50	51	aaa49	bbb49	ccccc49
+50	51	52	aaa50	bbb50	ccccc50
+51	52	53	aaa51	bbb51	ccccc51
+52	53	54	aaa52	bbb52	ccccc52
+53	54	55	aaa53	bbb53	ccccc53
+54	55	56	aaa54	bbb54	ccccc54
+55	56	57	aaa55	bbb55	ccccc55
+56	57	58	aaa56	bbb56	ccccc56
+57	58	59	aaa57	bbb57	ccccc57
+58	59	60	aaa58	bbb58	ccccc58
+59	60	61	aaa59	bbb59	ccccc59
+60	61	62	aaa60	bbb60	ccccc60
+61	62	63	aaa61	bbb61	ccccc61
+62	63	64	aaa62	bbb62	ccccc62
+63	64	65	aaa63	bbb63	ccccc63
+64	65	66	aaa64	bbb64	ccccc64
+65	66	67	aaa65	bbb65	ccccc65
+66	67	68	aaa66	bbb66	ccccc66
+67	68	69	aaa67	bbb67	ccccc67
+68	69	70	aaa68	bbb68	ccccc68
+69	70	71	aaa69	bbb69	ccccc69
+70	71	72	aaa70	bbb70	ccccc70
+71	72	73	aaa71	bbb71	ccccc71
+72	73	74	aaa72	bbb72	ccccc72
+73	74	75	aaa73	bbb73	ccccc73
+74	75	76	aaa74	bbb74	ccccc74
+75	76	77	aaa75	bbb75	ccccc75
+76	77	78	aaa76	bbb76	ccccc76
+77	78	79	aaa77	bbb77	ccccc77
+78	79	80	aaa78	bbb78	ccccc78
+79	80	81	aaa79	bbb79	ccccc79
+80	81	82	aaa80	bbb80	ccccc80
+81	82	83	aaa81	bbb81	ccccc81
+82	83	84	aaa82	bbb82	ccccc82
+83	84	85	aaa83	bbb83	ccccc83
+84	85	86	aaa84	bbb84	ccccc84
+85	86	87	aaa85	bbb85	ccccc85
+86	87	88	aaa86	bbb86	ccccc86
+87	88	89	aaa87	bbb87	ccccc87
+88	89	90	aaa88	bbb88	ccccc88
+89	90	91	aaa89	bbb89	ccccc89
+90	91	92	aaa90	bbb90	ccccc90
+91	92	93	aaa91	bbb91	ccccc91
+92	93	94	aaa92	bbb92	ccccc92
+93	94	95	aaa93	bbb93	ccccc93
+94	95	96	aaa94	bbb94	ccccc94
+95	96	97	aaa95	bbb95	ccccc95
+96	97	98	aaa96	bbb96	ccccc96
+97	98	99	aaa97	bbb97	ccccc97
+98	99	100	aaa98	bbb98	ccccc98
+99	100	101	aaa99	bbb99	ccccc99
+100	101	102	aaa100	bbb100	ccccc100
+DROP TABLE test.t;
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile_ts1_01.dat' 
 ENGINE = NDB;

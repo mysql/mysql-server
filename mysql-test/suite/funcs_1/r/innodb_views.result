@@ -863,31 +863,31 @@ CREATE TABLE t1 (f1 BIGINT);
 INSERT INTO t1 VALUES(1);
 CREATE VIEW test.v1 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 f1
 1
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW test.v1
 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 f1
 1
 CREATE OR REPLACE VIEW test.v1 AS SELECT * FROM tb2 limit 2;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `f59`,`tb2`.`f60` AS `f60`,`tb2`.`f61` AS `f61`,`tb2`.`f62` AS `f62`,`tb2`.`f63` AS `f63`,`tb2`.`f64` AS `f64`,`tb2`.`f65` AS `f65`,`tb2`.`f66` AS `f66`,`tb2`.`f67` AS `f67`,`tb2`.`f68` AS `f68`,`tb2`.`f69` AS `f69`,`tb2`.`f70` AS `f70`,`tb2`.`f71` AS `f71`,`tb2`.`f72` AS `f72`,`tb2`.`f73` AS `f73`,`tb2`.`f74` AS `f74`,`tb2`.`f75` AS `f75`,`tb2`.`f76` AS `f76`,`tb2`.`f77` AS `f77`,`tb2`.`f78` AS `f78`,`tb2`.`f79` AS `f79`,`tb2`.`f80` AS `f80`,`tb2`.`f81` AS `f81`,`tb2`.`f82` AS `f82`,`tb2`.`f83` AS `f83`,`tb2`.`f84` AS `f84`,`tb2`.`f85` AS `f85`,`tb2`.`f86` AS `f86`,`tb2`.`f87` AS `f87`,`tb2`.`f88` AS `f88`,`tb2`.`f89` AS `f89`,`tb2`.`f90` AS `f90`,`tb2`.`f91` AS `f91`,`tb2`.`f92` AS `f92`,`tb2`.`f93` AS `f93`,`tb2`.`f94` AS `f94`,`tb2`.`f95` AS `f95`,`tb2`.`f96` AS `f96`,`tb2`.`f97` AS `f97`,`tb2`.`f98` AS `f98`,`tb2`.`f99` AS `f99`,`tb2`.`f100` AS `f100`,`tb2`.`f101` AS `f101`,`tb2`.`f102` AS `f102`,`tb2`.`f103` AS `f103`,`tb2`.`f104` AS `f104`,`tb2`.`f105` AS `f105`,`tb2`.`f106` AS `f106`,`tb2`.`f107` AS `f107`,`tb2`.`f108` AS `f108`,`tb2`.`f109` AS `f109` from `tb2` limit 2
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `f59`,`tb2`.`f60` AS `f60`,`tb2`.`f61` AS `f61`,`tb2`.`f62` AS `f62`,`tb2`.`f63` AS `f63`,`tb2`.`f64` AS `f64`,`tb2`.`f65` AS `f65`,`tb2`.`f66` AS `f66`,`tb2`.`f67` AS `f67`,`tb2`.`f68` AS `f68`,`tb2`.`f69` AS `f69`,`tb2`.`f70` AS `f70`,`tb2`.`f71` AS `f71`,`tb2`.`f72` AS `f72`,`tb2`.`f73` AS `f73`,`tb2`.`f74` AS `f74`,`tb2`.`f75` AS `f75`,`tb2`.`f76` AS `f76`,`tb2`.`f77` AS `f77`,`tb2`.`f78` AS `f78`,`tb2`.`f79` AS `f79`,`tb2`.`f80` AS `f80`,`tb2`.`f81` AS `f81`,`tb2`.`f82` AS `f82`,`tb2`.`f83` AS `f83`,`tb2`.`f84` AS `f84`,`tb2`.`f85` AS `f85`,`tb2`.`f86` AS `f86`,`tb2`.`f87` AS `f87`,`tb2`.`f88` AS `f88`,`tb2`.`f89` AS `f89`,`tb2`.`f90` AS `f90`,`tb2`.`f91` AS `f91`,`tb2`.`f92` AS `f92`,`tb2`.`f93` AS `f93`,`tb2`.`f94` AS `f94`,`tb2`.`f95` AS `f95`,`tb2`.`f96` AS `f96`,`tb2`.`f97` AS `f97`,`tb2`.`f98` AS `f98`,`tb2`.`f99` AS `f99`,`tb2`.`f100` AS `f100`,`tb2`.`f101` AS `f101`,`tb2`.`f102` AS `f102`,`tb2`.`f103` AS `f103`,`tb2`.`f104` AS `f104`,`tb2`.`f105` AS `f105`,`tb2`.`f106` AS `f106`,`tb2`.`f107` AS `f107`,`tb2`.`f108` AS `f108`,`tb2`.`f109` AS `f109` from `tb2` limit 2	latin1	latin1_swedish_ci
 SELECT * FROM test.v1 ;
 f59	f60	f61	f62	f63	f64	f65	f66	f67	f68	f69	f70	f71	f72	f73	f74	f75	f76	f77	f78	f79	f80	f81	f82	f83	f84	f85	f86	f87	f88	f89	f90	f91	f92	f93	f94	f95	f96	f97	f98	f99	f100	f101	f102	f103	f104	f105	f106	f107	f108	f109
 1	1	0000000001	0000000000000000000000000000000000000000000000000000000000000001	0000000001	0000000000000000000000000000000000000000000000000000000000000001	-5	0.000000000000000000000000000000	1	0.000000000000000000000000000000	0000000001	000000000000000000000000000000000.000000000000000000000000000000	0000000001	000000000000000000000000000000000.000000000000000000000000000000	-1.17549435e-38	1.175494352e-38	00000001.175494352e-38	00000001.175494352e-38	-1.17549435e-38	1.175494352e-38	00000001.175494352e-38	00000001.175494352e-38	-1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549e-38	1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549435e-38	1.17549e-38	1.175494352e-38	01.17549e-38	00000001.175494352e-38	01.17549e-38	00000001.175494352e-38	1000-01-01	838:59:58	1970-01-02 00:00:01	1970-01-02 00:00:01	1902	1902	1902	2enum	2set
 2	2	0000000002	0000000000000000000000000000000000000000000000000000000000000002	0000000002	0000000000000000000000000000000000000000000000000000000000000002	-4	1.100000000000000000000000000000	2	1.100000000000000000000000000000	0000000002	000000000000000000000000000000001.100000000000000000000000000000	0000000002	000000000000000000000000000000001.100000000000000000000000000000	-1.175494349e-38	1.175494353e-38	00000001.175494353e-38	00000001.175494353e-38	-1.175494349e-38	1.175494353e-38	00000001.175494353e-38	00000001.175494353e-38	-1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.17549e-38	1.17549e-38	1.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	01.17549e-38	-1.17549e-38	-1.175494349e-38	1.17549e-38	1.175494353e-38	01.17549e-38	00000001.175494353e-38	01.17549e-38	00000001.175494353e-38	1000-01-02	838:59:57	1970-01-03 00:00:02	1970-01-03 00:00:02	1903	1903	1903	1enum	1set,2set
 CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2 limit 10,100;
 SHOW CREATE VIEW test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `F59` from `tb2` limit 10,100
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `tb2`.`f59` AS `F59` from `tb2` limit 10,100	latin1	latin1_swedish_ci
 SELECT * FROM test.v1;
 F59
 76710
@@ -965,38 +965,38 @@ CREATE TABLE t1 (f1 NUMERIC(15,3));
 INSERT INTO t1 VALUES(8.8);
 CREATE VIEW v1 AS SELECT * FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 f1
 8.800
 CREATE OR REPLACE VIEW v1 AS SELECT f1 As my_column FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `my_column` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `my_column` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 my_column
 8.800
 CREATE OR REPLACE VIEW v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 column1	column2
 8.800	8.800
 CREATE OR REPLACE VIEW test.v1(column1,column2)
 AS SELECT f1 As my_column, f1 FROM test.t1;
 SHOW CREATE VIEW v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `column1`,`t1`.`f1` AS `column2` from `t1`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 column1	column2
 8.800	8.800
@@ -10250,8 +10250,8 @@ CREATE VIEW test3.v30 AS SELECT * FROM test3.v29;
 CREATE VIEW test3.v31 AS SELECT * FROM test3.v30;
 CREATE VIEW test3.v32 AS SELECT * FROM test3.v31;
 SHOW CREATE VIEW test3.v32;
-View	Create View
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`
+View	Create View	character_set_client	collation_connection
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	latin1	latin1_swedish_ci
 SELECT * FROM test3.v32;
 f1
 1.000
@@ -10260,8 +10260,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	
 DROP VIEW test3.v0;
 SHOW CREATE VIEW test3.v32;
-View	Create View
-v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`
+View	Create View	character_set_client	collation_connection
+v32	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test3`.`v32` AS select `v31`.`f1` AS `f1` from `test3`.`v31`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test3.v32' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM test3.v32;
@@ -10389,8 +10389,8 @@ FROM test2.t1 tab1 NATURAL JOIN test1.v27 tab2;
 CREATE OR REPLACE VIEW test1.v29 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v28 tab2;
 SHOW CREATE VIEW test1.v29;
-View	Create View
-v29	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v29` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v28` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))
+View	Create View	character_set_client	collation_connection
+v29	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v29` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v28` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	latin1	latin1_swedish_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v29;
 f1	f2
@@ -10405,8 +10405,8 @@ CAST(f2 AS CHAR) AS f2 FROM test1.v29;
 CREATE VIEW test1.v30 AS SELECT f1, f2
 FROM test3.t1 tab1 NATURAL JOIN test1.v29 tab2;
 SHOW CREATE VIEW test1.v30;
-View	Create View
-v30	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v30` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v29` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))
+View	Create View	character_set_client	collation_connection
+v30	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test1`.`v30` AS select `tab1`.`f1` AS `f1`,`tab1`.`f2` AS `f2` from (`test3`.`t1` `tab1` join `test1`.`v29` `tab2` on(((`tab1`.`f1` = `tab2`.`f1`) and (`tab1`.`f2` = `tab2`.`f2`))))	latin1	latin1_swedish_ci
 SELECT CAST(f1 AS SIGNED INTEGER) AS f1,
 CAST(f2 AS CHAR) AS f2 FROM test1.v30;
 f1	f2
