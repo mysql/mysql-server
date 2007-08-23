@@ -103,12 +103,7 @@ hash_create(
 	table->magic_n = HASH_TABLE_MAGIC_N;
 
 	/* Initialize the cell array */
-
-	for (i = 0; i < prime; i++) {
-
-		cell = hash_get_nth_cell(table, i);
-		cell->node = NULL;
-	}
+	hash_table_clear(table);
 
 	return(table);
 }

@@ -24,7 +24,7 @@ hash_get_nth_cell(
 }
 
 /*****************************************************************
-Clears a hash table so that all the cells become empty again. */
+Clears a hash table so that all the cells become empty. */
 UNIV_INLINE
 void
 hash_table_clear(
