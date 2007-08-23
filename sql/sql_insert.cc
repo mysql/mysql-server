@@ -1587,6 +1587,8 @@ public:
   ulonglong next_insert_id;
   ulong auto_increment_increment;
   ulong auto_increment_offset;
+  ulong sql_mode;
+  bool auto_increment_field_not_null;
   timestamp_auto_set_type timestamp_field_type;
   uint query_length;
 
@@ -2048,6 +2050,9 @@ int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
   /* The session variable settings can always be copied. */
   row->auto_increment_increment= thd->variables.auto_increment_increment;
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  row->sql_mode=                 thd->variables.sql_mode;
+  row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+
   /*
     Next insert id must be set for the first value in a multi-row insert
     only. So clear it after the first use. Assume a multi-row insert.
@@ -2436,10 +2441,13 @@ bool Delayed_insert::handle_inserts(void)
     thd.last_insert_id_used=row->last_insert_id_used;
     thd.insert_id_used=row->insert_id_used;
     table->timestamp_field_type= row->timestamp_field_type;
+    table->auto_increment_field_not_null= row->auto_increment_field_not_null;
 
     /* The session variable settings can always be copied. */
     thd.variables.auto_increment_increment= row->auto_increment_increment;
     thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    thd.variables.sql_mode=                 row->sql_mode;
+
     /* Next insert id must be used only if non-zero. */
     if (row->next_insert_id)
       thd.next_insert_id= row->next_insert_id;
