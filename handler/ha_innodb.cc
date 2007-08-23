@@ -3270,16 +3270,16 @@ ha_innobase::innobase_autoinc_lock(void)
 		the AUTOINC lock on behalf of a LOAD FILE or INSERT ... SELECT
 		etc. type of statement. */
 		if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+			dict_table_t*	table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
-			dict_table_autoinc_lock(prebuilt->table);
+			dict_table_autoinc_lock(table);
 
-			/* We peek at the dict_table_t::auto_inc_lock
-			to check if another statement has locked it. */
-			if (prebuilt->trx->auto_inc_lock != NULL) {
-
+			/* We need to check that another transaction isn't
+			already holding the AUTOINC lock on the table. */
+			if (table->n_waiting_or_granted_auto_inc_locks) {
 				/* Release the mutex to avoid deadlocks. */
-				dict_table_autoinc_unlock(prebuilt->table);
+				dict_table_autoinc_unlock(table);
 			} else {
 				break;
 			}
