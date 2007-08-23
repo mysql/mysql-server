@@ -809,7 +809,386 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     memory_check_all_free();
 }
 
+void assert_tree_first(BRT brt, long long firstv __attribute__((unused)), long long lastv __attribute__((unused))) {
+    BRT_CURSOR cursor;
+    int r;
+    DBT kbt, vbt;
+    long long v;
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+#if 1
+    printf("first key: ");
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+    r = brt_c_get(cursor, &kbt, &vbt, DB_FIRST);
+    assert(r == 0);
+    printf("%s ", (char*)kbt.data);
+    assert(vbt.size == sizeof v);
+    memcpy(&v, vbt.data, vbt.size);
+    assert(v == firstv);
+    toku_free(kbt.data);
+    toku_free(vbt.data);
+    printf("\n");
+#endif
+#if 0
+    printf("last key:");
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+    r = brt_c_get(cursor, &kbt, &vbt, DB_LAST);
+    assert(r == 0);
+    printf("%s ", (char*)kbt.data);
+    assert(vbt.size == sizeof v);
+    memcpy(&v, vbt.data, vbt.size);
+    assert(v == lastv);
+    toku_free(kbt.data);
+    toku_free(vbt.data);
+    printf("\n");
+#endif
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+}
+
+void test_brt_cursor_first(int n) {
+    const char *fname="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    int r;
+    int i;
+
+    printf("test_brt_cursor_first:%d\n", n);
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    /* insert a bunch of kv pairs */
+    for (i=0; i<n; i++) {
+        char key[8]; long long v;
+        DBT kbt, vbt;
+
+        snprintf(key, sizeof key, "%4.4d", i);
+        fill_dbt(&kbt, key, strlen(key)+1);
+        v = i;
+        fill_dbt(&vbt, &v, sizeof v);
+        r = brt_insert(brt, &kbt, &vbt, 0);
+        assert(r==0);
+    }
+
+    assert_tree_first(brt, 0, n-1);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void test_brt_cursor_rfirst(int n) {
+    const char *fname="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    int r;
+    int i;
+
+    printf("test_brt_cursor_rfirst:%d\n", n);
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    /* insert a bunch of kv pairs */
+    for (i=n-1; i>=0; i--) {
+        char key[8]; long long v;
+        DBT kbt, vbt;
+
+        snprintf(key, sizeof key, "%4.4d", i);
+        fill_dbt(&kbt, key, strlen(key)+1);
+        v = i;
+        fill_dbt(&vbt, &v, sizeof v);
+        r = brt_insert(brt, &kbt, &vbt, 0);
+        assert(r==0);
+    }
+
+    assert_tree_first(brt, 0, n-1);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void assert_tree_walk(BRT brt, int n) {
+    BRT_CURSOR cursor;
+    int i;
+    int r;
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    printf("key: ");
+    for (i=0; ; i++) {
+        DBT kbt, vbt;
+        long long v;
+
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+        if (r != 0)
+            break;
+        printf("%s ", (char*)kbt.data);
+        assert(vbt.size == sizeof v);
+        memcpy(&v, vbt.data, vbt.size);
+        assert(v == i);
+        toku_free(kbt.data);
+        toku_free(vbt.data);
+    }
+    printf("\n");
+    assert(i == n);
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+}
+
+void test_brt_cursor_walk(int n) {
+    const char *fname="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    int r;
+    int i;
+
+    printf("test_brt_cursor_walk:%d\n", n);
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    /* insert a bunch of kv pairs */
+    for (i=0; i<n; i++) {
+        char key[8]; long long v;
+        DBT kbt, vbt;
+
+        snprintf(key, sizeof key, "%4.4d", i);
+        fill_dbt(&kbt, key, strlen(key)+1);
+        v = i;
+        fill_dbt(&vbt, &v, sizeof v);
+        r = brt_insert(brt, &kbt, &vbt, 0);
+        assert(r==0);
+    }
+
+    /* walk the tree */
+    assert_tree_walk(brt, n);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void assert_tree_walk_inorder(BRT brt, int n) {
+    BRT_CURSOR cursor;
+    int i;
+    int r;
+    char *prevkey;
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    prevkey = 0;
+    printf("key: ");
+    for (i=0; ; i++) {
+        DBT kbt, vbt;
+        long long v;
+
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+        if (r != 0)
+            break;
+        printf("%s ", (char*)kbt.data);
+        assert(vbt.size == sizeof v);
+        memcpy(&v, vbt.data, vbt.size);
+        if (i != 0) {
+	    assert(strcmp(prevkey, kbt.data) < 0);
+	    toku_free(prevkey);
+	}
+        prevkey = kbt.data;
+        toku_free(vbt.data);
+    }
+    if (prevkey) toku_free(prevkey);
+    printf("\n");
+    assert(i == n);
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+}
+
+void test_brt_cursor_rand(int n) {
+    const char *fname="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    int r;
+    int i;
+
+    printf("test_brt_cursor_rand:%d\n", n);
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    /* insert a bunch of kv pairs */
+    for (i=0; i<n; i++) {
+        char key[8]; long long v;
+        DBT kbt, vbt;
+
+        for (;;) {
+	    v = ((long long) random() << 32) + random();
+	    snprintf(key, sizeof key, "%lld", v);
+	    fill_dbt(&kbt, key, strlen(key)+1);
+	    v = i;
+	    fill_dbt(&vbt, &v, sizeof v);
+	    r = brt_lookup(brt, &kbt, &vbt, 0);
+	    if (r == 0) {
+                printf("dup");
+                continue;
+	    }
+	    r = brt_insert(brt, &kbt, &vbt, 0);
+	    assert(r==0);
+	    break;
+        }
+    }
+
+    /* walk the tree */
+    assert_tree_walk_inorder(brt, n);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void test_brt_cursor_split(int n) {
+    const char *fname="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+    int r;
+    int keyseqnum;
+    int i;
+    DBT kbt, vbt;
+
+    printf("test_brt_cursor_split:%d\n", n);
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    /* insert a bunch of kv pairs */
+    for (keyseqnum=0; keyseqnum < n/2; keyseqnum++) {
+        char key[8]; long long v;
+
+        snprintf(key, sizeof key, "%4.4d", keyseqnum);
+        fill_dbt(&kbt, key, strlen(key)+1);
+        v = keyseqnum;
+        fill_dbt(&vbt, &v, sizeof v);
+        r = brt_insert(brt, &kbt, &vbt, 0);
+        assert(r==0);
+    }
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    printf("key: ");
+    for (i=0; i<n/2; i++) {
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+        assert(r==0);
+        printf("%s ", (char*)kbt.data);
+        toku_free(kbt.data);
+        toku_free(vbt.data);
+    }
+    printf("\n");
+
+    for (; keyseqnum<n; keyseqnum++) {
+        char key[8]; long long v;
+
+        snprintf(key, sizeof key, "%4.4d", keyseqnum);
+        fill_dbt(&kbt, key, strlen(key)+1);
+        v = keyseqnum;
+        fill_dbt(&vbt, &v, sizeof v);
+        r = brt_insert(brt, &kbt, &vbt, 0);
+        assert(r==0);
+    }
+
+    printf("key: ");
+    for (;;) {
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
+        if (r != 0)
+            break;
+        printf("%s ", (char*)kbt.data);
+        toku_free(kbt.data);
+        toku_free(vbt.data);
+    }
+    printf("\n");
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void test_brt_cursor() {
+    int n;
+
+    if (1) for (n=100; n<10000; n += 100) {
+        test_brt_cursor_first(n); memory_check_all_free();
+    }
+    if (1) for (n=100; n<10000; n += 100) {
+        test_brt_cursor_rfirst(n); memory_check_all_free();
+    }
+    if (1) for (n=100; n<10000; n += 100) {
+        test_brt_cursor_walk(n); memory_check_all_free();
+    }
+    if (1) for (n=100; n<10000; n += 100) {
+        test_brt_cursor_split(n); memory_check_all_free();
+    }
+    if (1) for (n=100; n<10000; n += 100) {
+        test_brt_cursor_rand(n); memory_check_all_free();
+    }
+}
+
 static void brt_blackbox_test (void) {
+    test_brt_cursor();
     test_wrongendian_compare(0, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 257);        memory_check_all_free();

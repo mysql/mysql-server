@@ -36,7 +36,8 @@ struct brtnode {
 	    HASHTABLE       htables[TREE_FANOUT+1];
 	    unsigned int    n_bytes_in_hashtable[TREE_FANOUT+1]; /* how many bytes are in each hashtable (including overheads) */
 	    unsigned int    n_bytes_in_hashtables;
-	} n;
+            unsigned int    n_cursors[TREE_FANOUT+1];
+        } n;
 	struct leaf {
 	    PMA buffer;
 	    unsigned int n_bytes_in_buffer;
@@ -92,3 +93,47 @@ void brtnode_free (BRTNODE *node);
 #define DEADBEEF ((void*)0xDEADBEEFDEADBEEF)
 #endif
 
+
+#define CURSOR_PATHLEN_LIMIT 256
+struct brt_cursor {
+    BRT brt;
+    int path_len;  /* -1 if the cursor points nowhere. */
+    BRTNODE path[CURSOR_PATHLEN_LIMIT]; /* Include the leaf (last).    These are all pinned. */
+    int pathcnum[CURSOR_PATHLEN_LIMIT]; /* which child did we descend to from here? */
+    PMA_CURSOR pmacurs; /* The cursor into the leaf.  NULL if the cursor doesn't exist. */
+    BRT_CURSOR prev,next;
+};
+
+/* print the cursor path */
+void brt_cursor_print(BRT_CURSOR cursor);
+
+/* is the cursor path empty? */
+static inline int brt_cursor_path_empty(BRT_CURSOR cursor) {
+    return cursor->path_len == 0;
+}
+
+/*is the cursor path full? */
+static inline int brt_cursor_path_full(BRT_CURSOR cursor) {
+    return cursor->path_len == CURSOR_PATHLEN_LIMIT;
+}
+
+static inline int brt_cursor_active(BRT_CURSOR cursor) {
+    return cursor->path_len > 0;
+}
+
+/* brt has a new root.  add the root to this cursor. */
+void brt_cursor_new_root(BRT_CURSOR cursor, BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
+
+/* a brt leaf has split.  modify this cursor if it includes the old node in its path. */
+void brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+
+/* a brt internal node has expanded.  modify this cursor if it includes the  old node in its path. */
+void brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
+
+/* a brt internal node has split.  modify this cursor if it includes the old node in its path. */
+void brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+
+void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
+void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
+void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);

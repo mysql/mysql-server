@@ -176,8 +176,16 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     //printf("height==%d\n", result->height);
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
-	for (i=0; i<TREE_FANOUT; i++) { result->u.n.childkeys[i]=0; result->u.n.childkeylens[i]=0; }
-	for (i=0; i<TREE_FANOUT+1; i++) { result->u.n.children[i]=0; result->u.n.htables[i]=0; result->u.n.n_bytes_in_hashtable[i]=0; }
+	for (i=0; i<TREE_FANOUT; i++) { 
+            result->u.n.childkeys[i]=0; 
+            result->u.n.childkeylens[i]=0; 
+        }
+	for (i=0; i<TREE_FANOUT+1; i++) { 
+            result->u.n.children[i]=0; 
+            result->u.n.htables[i]=0; 
+            result->u.n.n_bytes_in_hashtable[i]=0;
+            result->u.n.n_cursors[i]=0;
+        }
 	result->u.n.n_children = rbuf_int(&rc);
 	//printf("n_children=%d\n", result->n_children);
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
