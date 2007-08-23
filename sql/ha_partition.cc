@@ -3235,8 +3235,13 @@ end_dont_reset_start_part:
 
 void ha_partition::position(const uchar *record)
 {
-  handler *file= m_file[m_last_part];
+  handler *file;
   DBUG_ENTER("ha_partition::position");
+
+  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
+    m_last_part= 0;
+
+  file= m_file[m_last_part];
 
   file->position(record);
   int2store(ref, m_last_part);
@@ -5584,6 +5589,13 @@ int ha_partition::indexes_are_disabled(void)
       break;
   }
   return error;
+}
+
+
+void ha_partition::column_bitmaps_signal()
+{
+    handler::column_bitmaps_signal();
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
 
 
