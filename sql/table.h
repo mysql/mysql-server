@@ -312,6 +312,7 @@ typedef struct st_table_share
   enum ha_storage_media default_storage_media;
   char *tablespace;
   enum tmp_table_type tmp_table;
+  enum ha_choice transactional;
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint open_count;			/* Number of tables in open list */

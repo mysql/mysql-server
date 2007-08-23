@@ -168,7 +168,7 @@ public:
 
 protected:
   Object_creation_ctx() {}
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) = 0;
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
 
   virtual void change_env(THD *thd) const = 0;
 
@@ -204,7 +204,7 @@ protected:
                               CHARSET_INFO *connection_cl);
 
 protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd);
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
 
   virtual void change_env(THD *thd) const;
 
@@ -1662,7 +1662,7 @@ bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
-int key_rec_cmp(void *key_info, uchar *a, uchar *b);
+extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
 
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
