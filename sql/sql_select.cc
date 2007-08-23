@@ -3562,10 +3562,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   uint	and_level,i,found_eq_constant;
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
-  uint m= 1;
-  
-  if (cond_equal && cond_equal->max_members)
-    m= cond_equal->max_members;
+  uint m= max(select_lex->max_equal_elems,1);
   
   /* 
     We use the same piece of memory to store both  KEY_FIELD 
@@ -3585,7 +3582,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     it is considered as sargable only for its first argument.
     Multiple equality can add  elements that are filled after
     substitution of field arguments by equal fields. There
-    can be not more than cond_equal->max_members such substitutions.
+    can be not more than select_lex->max_equal_elems such 
+    substitutions.
   */ 
   sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
       (((thd->lex->current_select->cond_count+1)*2 +
@@ -7387,8 +7385,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     just an argument of a comparison predicate.
     The function also determines the maximum number of members in 
     equality lists of each Item_cond_and object assigning it to
-    cond_equal->max_members of this object and updating accordingly
-    the upper levels COND_EQUAL structures.  
+    thd->lex->current_select->max_equal_elems.
 
   NOTES
     Multiple equality predicate =(f1,..fn) is equivalent to the conjuction of
@@ -7433,7 +7430,6 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
                                         COND_EQUAL *inherited)
 {
   Item_equal *item_equal;
-  uint members;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
 
@@ -7471,19 +7467,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       {
         item_equal->fix_length_and_dec();
         item_equal->update_used_tables();
-        members= item_equal->members();
-        if (cond_equal.max_members < members)
-          cond_equal.max_members= members; 
-      }
-      members= cond_equal.max_members;
-      if (inherited && inherited->max_members < members)
-      {
-        do
-        {
-	  inherited->max_members= members;
-          inherited= inherited->upper_levels;
-        }
-        while (inherited);
+        set_if_bigger(thd->lex->current_select->max_equal_elems,
+                      item_equal->members());  
       }
 
       ((Item_cond_and*)cond)->cond_equal= cond_equal;
@@ -7538,10 +7523,12 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          return item_equal;
 	}
         else
-          return eq_list.pop();
+          item_equal= (Item_equal *) eq_list.pop();
+        set_if_bigger(thd->lex->current_select->max_equal_elems,
+                      item_equal->members());  
+        return item_equal;
       }
       else
       {
@@ -7557,9 +7544,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
-          members= item_equal->members();
-          if (cond_equal.max_members < members)
-            cond_equal.max_members= members; 
+          set_if_bigger(thd->lex->current_select->max_equal_elems,
+                        item_equal->members());  
         }
         and_cond->cond_equal= cond_equal;
         args->concat((List<Item> *)&cond_equal.current_level);
@@ -9417,7 +9403,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bool  using_unique_constraint= 0;
   bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char	*tmpname, *tmppath, path[FN_REFLEN], table_name[NAME_LEN+1];
+  char  *tmpname,path[FN_REFLEN];
   uchar	*pos, *group_buff, *bitmaps;
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
@@ -9441,12 +9427,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(table_name, "%s_%lx_%i", tmp_file_prefix,
+    sprintf(path, "%s_%lx_%i", tmp_file_prefix,
             current_pid, temp_pool_slot);
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(table_name, "%s%lx_%lx_%x", tmp_file_prefix,current_pid,
+    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
   }
 
@@ -9454,8 +9440,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     No need to change table name to lower case as we are only creating
     MyISAM or HEAP tables here
   */
-  fn_format(path, table_name, mysql_tmpdir, "",
-            MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+
 
   if (group)
   {
@@ -9501,8 +9487,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         sizeof(*key_part_info)*(param->group_parts+1),
                         &param->start_recinfo,
                         sizeof(*param->recinfo)*(field_count*2+4),
-                        &tmppath, (uint) strlen(path)+1,
-                        &tmpname, (uint) strlen(table_name)+1,
+                        &tmpname, (uint) strlen(path)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
                         &bitmaps, bitmap_buffer_size(field_count)*2,
@@ -9521,8 +9506,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
-  strmov(tmppath, path);
-  strmov(tmpname, table_name);
+  strmov(tmpname,path);
   /* make table according to fields */
 
   bzero((char*) table,sizeof(*table));
@@ -9547,7 +9531,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->keys_in_use_for_query.init();
 
   table->s= share;
-  init_tmp_table_share(share, "", 0, tmpname, tmppath);
+  init_tmp_table_share(share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
   share->blob_ptr_size= mi_portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
