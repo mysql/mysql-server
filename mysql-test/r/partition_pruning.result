@@ -631,7 +631,7 @@ flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1215
+Handler_read_rnd_next	1115
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	0
@@ -645,7 +645,7 @@ flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1215
+Handler_read_rnd_next	1115
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	0
