@@ -41,11 +41,11 @@ bin_SCRIPTS =		@server_scripts@ \
 
 noinst_SCRIPTS =	make_binary_distribution \
 			make_sharedlib_distribution \
-			make_win_src_distribution
+			make_win_src_distribution_old
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
-			make_win_src_distribution.sh \
+			make_win_src_distribution_old.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
@@ -99,7 +99,7 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysql_upgrade_shell \
 			mysqld_multi \
-			make_win_src_distribution
+			make_win_src_distribution_old
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
