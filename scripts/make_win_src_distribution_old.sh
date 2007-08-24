@@ -14,6 +14,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# NOTE: This script creates a source TAR and ZIP to be used when
+# building using Visual Studio 2003 .Net. To gain more flexibility, a
+# new CMake build was added. The new build obsoletes this script, Unix
+# and Windows share the same source TAR/ZIP.
+# Also note that the old build from source created by this script is
+# no longer tested by MySQL AB and may not work. Please use the new
+# CMake based build.
+
 # Terminate loudly on error, we don't want partial package
 set -e
 trap "echo '*** script failed ***'" 0
