@@ -538,6 +538,7 @@ typedef struct st_my_pthread_fastmutex_t
   pthread_mutex_t mutex;
   uint spins;
 } my_pthread_fastmutex_t;
+void fastmutex_global_init(void);
 
 int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp, 
                               const pthread_mutexattr_t *attr);
