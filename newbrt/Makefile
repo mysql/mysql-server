@@ -32,6 +32,7 @@ BINS =  \
         randbrt \
         randdb4 \
         ybt-test \
+# This line intentially kept blank so I can have a \ on the end of the previous line
 
 bins: $(BINS)
 check: bins
