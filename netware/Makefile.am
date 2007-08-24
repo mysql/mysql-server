@@ -44,7 +44,7 @@ link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
 	  rm -f ../$$f; \
-	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
+	  org=`basename $$f`; \
 	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
 	done
 else
@@ -75,7 +75,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		mysqlshow.def mysqltest.def mysql_upgrade.def perror.def \
 		mysql_client_test.def \
 		replace.def resolve_stack_dump.def resolveip.def \
-		static_init_db.sql \
+		static_init_db.sql init_db.sql test_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
 		BUILD/compile-linux-tools BUILD/compile-netware-END \
 		BUILD/compile-netware-START BUILD/compile-netware-all\
