@@ -607,7 +607,10 @@ RestoreDataIterator::getNextTuple(int  & res)
     attr_data->size = 4*sz;
 
     //if (m_currentTable->getTableId() >= 2) { ndbout << "fix i=" << i << " off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
-    
+    if(!m_hostByteOrder
+        && attr_desc->m_column->getType() == NdbDictionary::Column::Timestamp)
+      attr_data->u_int32_value[0] = Twiddle32(attr_data->u_int32_value[0]);
+
     if(!Twiddle(attr_desc, attr_data))
       {
 	res = -1;
