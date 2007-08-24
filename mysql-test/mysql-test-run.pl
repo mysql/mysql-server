@@ -61,7 +61,6 @@ use File::Copy;
 use File::Temp qw / tempdir /;
 use Cwd;
 use Getopt::Long;
-use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
 use strict;
@@ -100,7 +99,6 @@ $Devel::Trace::TRACE= 1;
 our $mysql_version_id;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
-our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
 our $glob_use_running_ndbcluster= 0;
@@ -646,8 +644,6 @@ sub command_line_setup () {
   {
     $source_dist=  1;
   }
-
-  $glob_hostname=  mtr_short_hostname();
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
@@ -3063,10 +3059,14 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  mtr_tofile($bootstrap_sql_file,
+	     "DELETE FROM mysql.user where user= '';");
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
+
 
   if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
