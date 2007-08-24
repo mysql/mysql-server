@@ -606,7 +606,8 @@ public:
   */
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
-  uint between_count; /* number of between predicates in where/having/on      */   
+  uint between_count; /* number of between predicates in where/having/on      */
+  uint max_equal_elems; /* maximal number of elements in multiple equalities  */   
   /*
     Number of fields used in select list or where clause of current select
     and all inner subselects.
