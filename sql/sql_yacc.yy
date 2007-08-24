@@ -31,7 +31,7 @@
 
 #define MYSQL_YACC
 #define YYINITDEPTH 100
-#define YYMAXDEPTH 3200				/* Because of 64K stack */
+#define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select
 #include "mysql_priv.h"
@@ -506,7 +506,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
 bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
-%pure_parser					/* We have threads */
+%pure_parser                                    /* We have threads */
 /*
   Currently there are 280 shift/reduce conflicts.
   We should not introduce new conflicts any more.
@@ -1315,10 +1315,11 @@ rule: <-- starts at col 1
           }
         ; <-- on a line by itself, starts at col 9
 
-Also, please do not use any <TAB>, but spaces.
-Having a uniform indentation in this file helps
-code reviews, patches, merges, and make maintenance easier.
-Thanks.
+  Also, please do not use any <TAB>, but spaces.
+  Having a uniform indentation in this file helps
+  code reviews, patches, merges, and make maintenance easier.
+  Tip: grep [[:cntrl:]] sql_yacc.yy
+  Thanks.
 */
 
 query:
@@ -5149,7 +5150,7 @@ opt_bin_charset:
               MYSQL_YYABORT;
             }
           }
-        | charset charset_name	{ Lex->charset=$2; }
+        | charset charset_name { Lex->charset=$2; }
         ;
 
 opt_primary:
@@ -5371,7 +5372,7 @@ alter:
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
             lex->alter_info.reset();
             lex->no_write_to_binlog= 0;
-            lex->create_info.storage_media= HA_SM_DEFAULT;	
+            lex->create_info.storage_media= HA_SM_DEFAULT;
           }
           alter_commands
           {}
@@ -6675,9 +6676,9 @@ bool_test:
         ;
 
 bool_pri:
-          bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
+          bool_pri IS NULL_SYM { $$= new Item_func_isnull($1); }
         | bool_pri IS not NULL_SYM { $$= new Item_func_isnotnull($1); }
-        | bool_pri EQUAL_SYM predicate	{ $$= new Item_func_equal($1,$3); }
+        | bool_pri EQUAL_SYM predicate { $$= new Item_func_equal($1,$3); }
         | bool_pri comp_op predicate %prec EQ
           { $$= (*$2)(0)->create($1,$3); }
         | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
@@ -6842,7 +6843,7 @@ simple_expr:
         | sum_expr
         | simple_expr OR_OR_SYM simple_expr
           { $$= new (YYTHD->mem_root) Item_func_concat($1, $3); }
-        | '+' simple_expr %prec NEG	{ $$= $2; }
+        | '+' simple_expr %prec NEG { $$= $2; }
         | '-' simple_expr %prec NEG
           { $$= new (YYTHD->mem_root) Item_func_neg($2); }
         | '~' simple_expr %prec NEG
