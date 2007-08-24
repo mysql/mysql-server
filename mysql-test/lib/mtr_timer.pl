@@ -18,7 +18,6 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-use Socket;
 use Errno;
 use strict;
 
