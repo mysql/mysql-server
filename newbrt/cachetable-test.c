@@ -191,7 +191,7 @@ void test_nested_pin (void) {
     int i0, i1;
     int r;
     void *vv;
-    char fname[] = "test.dat";
+    char fname[] = "test_ct.dat";
     r = create_cachetable(&t, 1);
     assert(r==0);
     unlink(fname);
@@ -242,9 +242,9 @@ int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void *
 void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
-    char fname1[]="test.dat";
-    char fname2[]="test2.dat";
-    char fname3[]="test3.dat";
+    char fname1[]="test_ct.dat";
+    char fname2[]="test2_ct.dat";
+    char fname3[]="test3_ct.dat";
     int r;
     void *v;
     unlink(fname1);
