@@ -809,6 +809,8 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     memory_check_all_free();
 }
 
+int test_cursor_debug = 0;
+
 void assert_tree_first(BRT brt, long long firstv) {
     BRT_CURSOR cursor;
     int r;
@@ -818,18 +820,18 @@ void assert_tree_first(BRT brt, long long firstv) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    printf("first key: ");
+    if (test_cursor_debug) printf("first key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_c_get(cursor, &kbt, &vbt, DB_FIRST);
     assert(r == 0);
-    printf("%s ", (char*)kbt.data);
+    if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
     memcpy(&v, vbt.data, vbt.size);
     assert(v == firstv);
     toku_free(kbt.data);
     toku_free(vbt.data);
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
     r = brt_cursor_close(cursor);
     assert(r==0);
@@ -844,18 +846,18 @@ void assert_tree_last(BRT brt, long long lastv) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    printf("last key:");
+    if (test_cursor_debug) printf("last key:");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_c_get(cursor, &kbt, &vbt, DB_LAST);
     assert(r == 0);
-    printf("%s ", (char*)kbt.data);
+    if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
     memcpy(&v, vbt.data, vbt.size);
     assert(v == lastv);
     toku_free(kbt.data);
     toku_free(vbt.data);
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
     r = brt_cursor_close(cursor);
     assert(r==0);
@@ -870,31 +872,31 @@ void assert_tree_first_last(BRT brt, long long firstv, long long lastv) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    printf("first key: ");
+    if (test_cursor_debug) printf("first key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_c_get(cursor, &kbt, &vbt, DB_FIRST);
     assert(r == 0);
-    printf("%s ", (char*)kbt.data);
+    if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
     memcpy(&v, vbt.data, vbt.size);
     assert(v == firstv);
     toku_free(kbt.data);
     toku_free(vbt.data);
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
-    printf("last key:");
+    if (test_cursor_debug) printf("last key:");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_c_get(cursor, &kbt, &vbt, DB_LAST);
     assert(r == 0);
-    printf("%s ", (char*)kbt.data);
+    if (test_cursor_debug)printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
     memcpy(&v, vbt.data, vbt.size);
     assert(v == lastv);
     toku_free(kbt.data);
     toku_free(vbt.data);
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
     r = brt_cursor_close(cursor);
     assert(r==0);
@@ -1064,7 +1066,7 @@ void assert_tree_walk(BRT brt, int n) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    printf("key: ");
+    if (test_cursor_debug) printf("key: ");
     for (i=0; ; i++) {
         DBT kbt, vbt;
         long long v;
@@ -1074,14 +1076,14 @@ void assert_tree_walk(BRT brt, int n) {
         r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
         if (r != 0)
             break;
-        printf("%s ", (char*)kbt.data);
+        if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         assert(vbt.size == sizeof v);
         memcpy(&v, vbt.data, vbt.size);
         assert(v == i);
         toku_free(kbt.data);
         toku_free(vbt.data);
     }
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
     assert(i == n);
 
     r = brt_cursor_close(cursor);
@@ -1138,7 +1140,7 @@ void assert_tree_walk_inorder(BRT brt, int n) {
     assert(r==0);
 
     prevkey = 0;
-    printf("key: ");
+    if (test_cursor_debug) printf("key: ");
     for (i=0; ; i++) {
         DBT kbt, vbt;
         long long v;
@@ -1148,7 +1150,7 @@ void assert_tree_walk_inorder(BRT brt, int n) {
         r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
         if (r != 0)
             break;
-        printf("%s ", (char*)kbt.data);
+        if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         assert(vbt.size == sizeof v);
         memcpy(&v, vbt.data, vbt.size);
         if (i != 0) {
@@ -1159,7 +1161,7 @@ void assert_tree_walk_inorder(BRT brt, int n) {
         toku_free(vbt.data);
     }
     if (prevkey) toku_free(prevkey);
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
     assert(i == n);
 
     r = brt_cursor_close(cursor);
@@ -1250,17 +1252,17 @@ void test_brt_cursor_split(int n) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    printf("key: ");
+    if (test_cursor_debug) printf("key: ");
     for (i=0; i<n/2; i++) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
         assert(r==0);
-        printf("%s ", (char*)kbt.data);
+        if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         toku_free(kbt.data);
         toku_free(vbt.data);
     }
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
     for (; keyseqnum<n; keyseqnum++) {
         char key[8]; long long v;
@@ -1273,18 +1275,18 @@ void test_brt_cursor_split(int n) {
         assert(r==0);
     }
 
-    printf("key: ");
+    if (test_cursor_debug) printf("key: ");
     for (;;) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_c_get(cursor, &kbt, &vbt, DB_NEXT);
         if (r != 0)
             break;
-        printf("%s ", (char*)kbt.data);
+        if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         toku_free(kbt.data);
         toku_free(vbt.data);
     }
-    printf("\n");
+    if (test_cursor_debug) printf("\n");
 
     r = brt_cursor_close(cursor);
     assert(r==0);
@@ -1390,6 +1392,6 @@ static void brt_blackbox_test (void) {
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     brt_blackbox_test();
     malloc_cleanup();
-    printf("ok\n");
+    printf("test ok\n");
     return 0;
 }
