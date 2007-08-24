@@ -20,7 +20,19 @@ LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS)
 
 
 default: bins
-BINS =  pma-test brt-test cachetable-test brt-serialize-test randbrt randdb4 hashtest ybt-test benchmark-test
+# Put these one-per-line so that if we insert a new one the svn diff can understand it better.
+# Also keep them sorted.
+BINS =  \
+        benchmark-test \
+        brt-serialize-test \
+        brt-test \
+        cachetable-test \
+        hashtest \
+        pma-test \
+        randbrt \
+        randdb4 \
+        ybt-test \
+
 bins: $(BINS)
 check: bins
 	$(DTOOL) ./ybt-test
