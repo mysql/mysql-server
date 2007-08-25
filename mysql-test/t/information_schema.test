@@ -1145,4 +1145,20 @@ explain select b.table_name
 from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 
+#
+# Bug#30310 wrong result on SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE ..
+#
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'mysqltest';
+
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = '';
+
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'test';
+
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='nonexisting';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
 --echo End of 5.1 tests.
