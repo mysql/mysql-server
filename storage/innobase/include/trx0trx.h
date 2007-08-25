@@ -482,31 +482,6 @@ struct trx_struct{
 	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	const char*	mysql_master_log_file_name;
-					/* if the database server is a MySQL
-					replication slave, we have here the
-					master binlog name up to which
-					replication has processed; otherwise
-					this is a pointer to a null
-					character */
-	ib_longlong	mysql_master_log_pos;
-					/* if the database server is a MySQL
-					replication slave, this is the
-					position in the log file up to which
-					replication has processed */
-	/* A MySQL variable mysql_thd->synchronous_repl tells if we have
-	to use synchronous replication. See ha_innodb.cc. */
-	char*		repl_wait_binlog_name;/* NULL, or if synchronous MySQL
-					replication is used, the binlog name
-					up to which we must communicate the
-					binlog to the slave, before returning
-					from a commit; this is the same as
-					mysql_log_file_name, but we allocate
-					and copy the name to a separate buffer
-					here */
-	ib_longlong	repl_wait_binlog_pos;/* see above at
-					repl_wait_binlog_name */
-
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
 	ulint		mysql_process_no;/* since in Linux, 'top' reports

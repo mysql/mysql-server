@@ -95,6 +95,10 @@ dict_mem_table_create(
 	default to 1 here.*/
 	table->autoinc_increment = 1;
 
+	/* The number of transactions that are either waiting on the
+	AUTOINC lock or have been granted the lock. */
+	table->n_waiting_or_granted_auto_inc_locks = 0;
+
 #ifdef UNIV_DEBUG
 	table->magic_n = DICT_TABLE_MAGIC_N;
 #endif /* UNIV_DEBUG */
