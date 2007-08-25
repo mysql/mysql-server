@@ -15,6 +15,10 @@ endif
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS)
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
 
+ifdef BRT_FANOUT
+CPPFLAGS += -DBRT_FANOUT=$(BRT_FANOUT)
+endif
+
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
@@ -43,6 +47,13 @@ check: bins
 	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
 #	./mdict-test
+
+check-fanout:
+	let BRT_FANOUT=4; \
+	while [ $$BRT_FANOUT -le 16 ] ;do \
+		make clean; make check BRT_FANOUT=$$BRT_FANOUT; \
+		let BRT_FANOUT=BRT_FANOUT+1; \
+	done
 
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 key.o: brttypes.h key.h

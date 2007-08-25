@@ -6,7 +6,10 @@
 
 typedef long long diskoff;  /* Offset in a disk. -1 is the NULL pointer. */
 
-enum { TREE_FANOUT = 16 }; //, NODESIZE=1<<20 };
+#ifndef BRT_FANOUT
+#define BRT_FANOUT 16
+#endif
+enum { TREE_FANOUT = BRT_FANOUT }; //, NODESIZE=1<<20 };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 struct nodeheader_in_file {
     int n_in_buffer;
