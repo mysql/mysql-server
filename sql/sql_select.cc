@@ -538,7 +538,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
     DBUG_RETURN(-1);
 
-  if (group)
+  if (group_list)
   {
     /*
       Because HEAP tables can't index BIT fields we need to use an
