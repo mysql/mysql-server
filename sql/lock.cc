@@ -74,6 +74,11 @@ TODO:
 #include <hash.h>
 #include <assert.h>
 
+/**
+  @defgroup Locking Locking
+  @{
+*/
+
 extern HASH open_cache;
 
 /* flags for get_lock_data */
@@ -472,6 +477,9 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   unlock_external() we call handler::external_lock(F_UNLCK) only
   if table->current_lock is not F_UNLCK.
 
+  @param  thd             thread context
+  @param  locked          list of locked tables
+  @param  table           the table to unlock
   @param  always_unlock   specify explicitly if the legacy side
                           effect is desired.
 */
@@ -849,6 +857,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
+    DBUG_ASSERT (lock_type != TL_WRITE_DEFAULT);
     if (lock_type >= TL_WRITE_ALLOW_WRITE)
     {
       *write_lock_used=table;
@@ -1174,8 +1183,9 @@ bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list)
 /**
   @brief Test is 'table' is protected by an exclusive name lock.
 
-  @param[in] thd The current thread handler
-  @param[in] table Table container containing the single table to be tested
+  @param[in] thd        The current thread handler
+  @param[in] table_list Table container containing the single table to be
+                        tested
 
   @note Needs to be protected by LOCK_open mutex.
 
@@ -1201,8 +1211,9 @@ is_table_name_exclusively_locked_by_this_thread(THD *thd,
 /**
   @brief Test is 'table key' is protected by an exclusive name lock.
 
-  @param[in] thd The current thread handler.
-  @param[in] table Table container containing the single table to be tested.
+  @param[in] thd        The current thread handler.
+  @param[in] key
+  @param[in] key_length
 
   @note Needs to be protected by LOCK_open mutex
 
@@ -1585,4 +1596,6 @@ void broadcast_refresh(void)
   VOID(pthread_cond_broadcast(&COND_global_read_lock));
 }
 
-
+/**
+  @} (end of group Locking)
+*/

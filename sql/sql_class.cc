@@ -2423,6 +2423,10 @@ bool Security_context::set_user(char *user_arg)
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
+  @param       thd
+  @param       definer_user
+  @param       definer_host
+  @param       db
   @param[out]  backup  Save a pointer to the current security context
                        in the thread. In case of success it points to the
                        saved old context, otherwise it points to NULL.

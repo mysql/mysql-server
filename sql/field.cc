@@ -1360,6 +1360,27 @@ bool Field::send_binary(Protocol *protocol)
 }
 
 
+/**
+   Check to see if field size is compatible with destination.
+
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @retval 0 if this field's size is < the source field's size
+   @retval 1 if this field's size is >= the source field's size
+*/
+int Field::compatible_field_size(uint field_metadata)
+{
+  uint const source_size= pack_length_from_metadata(field_metadata);
+  uint const destination_size= row_pack_length();
+  return (source_size <= destination_size);
+}
+
+
 int Field::store(const char *to, uint length, CHARSET_INFO *cs,
                  enum_check_fields check_level)
 {
@@ -2690,6 +2711,76 @@ void Field_new_decimal::sql_type(String &str) const
 }
 
 
+/**
+   Save the field metadata for new decimal fields.
+
+   Saves the precision in the first byte and decimals() in the second
+   byte of the field metadata array at index of *metadata_ptr and 
+   *(metadata_ptr + 1).
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_new_decimal::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= precision;
+  *(metadata_ptr + 1)= decimals();
+  return 2;
+}
+
+
+/**
+   Returns the number of bytes field uses in row-based replication 
+   row packed size.
+
+   This method is used in row-based replication to determine the number
+   of bytes that the field consumes in the row record format. This is
+   used to skip fields in the master that do not exist on the slave.
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @returns The size of the field based on the field metadata.
+*/
+uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
+{
+  uint const source_precision= (field_metadata >> 8U) & 0x00ff;
+  uint const source_decimal= field_metadata & 0x00ff; 
+  uint const source_size= my_decimal_get_binary_size(source_precision, 
+                                                     source_decimal);
+  return (source_size);
+}
+
+
+/**
+   Check to see if field size is compatible with destination.
+
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @retval 0 if this field's size is < the source field's size
+   @retval 1 if this field's size is >= the source field's size
+*/
+int Field_new_decimal::compatible_field_size(uint field_metadata)
+{
+  int compatible= 0;
+  uint const source_precision= (field_metadata >> 8U) & 0x00ff;
+  uint const source_decimal= field_metadata & 0x00ff; 
+  uint const source_size= my_decimal_get_binary_size(source_precision, 
+                                                     source_decimal);
+  uint const destination_size= row_pack_length();
+  compatible= (source_size <= destination_size);
+  if (compatible)
+    compatible= (source_precision <= precision) &&
+                (source_decimal <= decimals());
+  return (compatible);
+}
+
+
 uint Field_new_decimal::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
@@ -2724,7 +2815,9 @@ const uchar *Field_new_decimal::unpack(uchar* to,
   uint from_pack_len= my_decimal_get_binary_size(from_precision, from_decimal);
   uint len= (param_data && (from_pack_len < length)) ?
             from_pack_len : length;
-  if (from_pack_len && (from_pack_len < length))
+  if ((from_pack_len && (from_pack_len < length)) ||
+      (from_precision < precision) ||
+      (from_decimal < decimals()))
   {
     /*
       If the master's data is smaller than the slave, we need to convert
@@ -4087,6 +4180,22 @@ bool Field_float::send_binary(Protocol *protocol)
 }
 
 
+/**
+   Save the field metadata for float fields.
+
+   Saves the pack length in the first byte.
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_float::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= pack_length();
+  return 1;
+}
+
+
 void Field_float::sql_type(String &res) const
 {
   if (dec == NOT_FIXED_DEC)
@@ -4404,6 +4513,23 @@ void Field_double::sort_string(uchar *to,uint length __attribute__((unused)))
 }
 
 
+/**
+   Save the field metadata for double fields.
+
+   Saves the pack length in the first byte of the field metadata array
+   at index of *metadata_ptr.
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_double::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= pack_length();
+  return 1;
+}
+
+
 void Field_double::sql_type(String &res) const
 {
   CHARSET_INFO *cs=res.charset();
@@ -4655,6 +4781,7 @@ longlong Field_timestamp::val_int(void)
   MYSQL_TIME time_tmp;
   THD  *thd= table ? table->in_use : current_thd;
 
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4666,7 +4793,6 @@ longlong Field_timestamp::val_int(void)
     return(0);					/* purecov: inspected */
   
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, (my_time_t)temp);
-  thd->time_zone_used= 1;
   
   return time_tmp.year * LL(10000000000) + time_tmp.month * LL(100000000) +
          time_tmp.day * 1000000L + time_tmp.hour * 10000L +
@@ -4686,6 +4812,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4701,7 +4828,6 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   val_buffer->set_charset(&my_charset_bin);	// Safety
   
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,(my_time_t)temp);
-  thd->time_zone_used= 1;
 
   temp= time_tmp.year % 100;
   if (temp < YY_PART_YEAR - 1)
@@ -4751,6 +4877,7 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   long temp;
   THD *thd= table ? table->in_use : current_thd;
+  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4766,7 +4893,6 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   else
   {
     thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)temp);
-    thd->time_zone_used= 1;
   }
   return 0;
 }
@@ -6421,6 +6547,25 @@ const uchar *Field_string::unpack(uchar *to, const uchar *from)
 }
 
 
+/**
+   Save the field metadata for string fields.
+
+   Saves the real type in the first byte and the field length in the 
+   second byte of the field metadata array at index of *metadata_ptr and
+   *(metadata_ptr + 1).
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_string::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= real_type();
+  *(metadata_ptr + 1)= field_length;
+  return 2;
+}
+
+
 /*
   Compare two packed keys
 
@@ -6572,6 +6717,24 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
 ****************************************************************************/
 
 const uint Field_varstring::MAX_SIZE= UINT_MAX16;
+
+/**
+   Save the field metadata for varstring fields.
+
+   Saves the field length in the first byte. Note: may consume
+   2 bytes. Caller must ensure second byte is contiguous with
+   first byte (e.g. array index 0,1).
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
+{
+  char *ptr= (char *)metadata_ptr;
+  int2store(ptr, field_length);
+  return 2;
+}
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
@@ -7539,6 +7702,23 @@ int Field_blob::key_cmp(const uchar *a,const uchar *b)
 }
 
 
+/**
+   Save the field metadata for blob fields.
+
+   Saves the pack length in the first byte of the field metadata array
+   at index of *metadata_ptr.
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_blob::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= pack_length_no_ptr();
+  return 1;
+}
+
+
 uint32 Field_blob::sort_length() const
 {
   return (uint32) (current_thd->variables.max_sort_length + 
@@ -7644,7 +7824,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 
    @param   to         Destination of the data
    @param   from       Source of the data
-   @param   param_data <not used>
+   @param   param_data not used
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -8124,6 +8304,25 @@ longlong Field_enum::val_int(void)
   }
   }
   return 0;					// impossible
+}
+
+
+/**
+   Save the field metadata for enum fields.
+
+   Saves the real type in the first byte and the pack length in the 
+   second byte of the field metadata array at index of *metadata_ptr and
+   *(metadata_ptr + 1).
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_enum::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= real_type();
+  *(metadata_ptr + 1)= pack_length();
+  return 2;
 }
 
 
@@ -8661,6 +8860,77 @@ uint Field_bit::get_key_image(uchar *buff, uint length, imagetype type_arg)
   memcpy(buff, ptr, data_length);
   return data_length + 1;
 }
+
+
+/**
+   Save the field metadata for bit fields.
+
+   Saves the bit length in the first byte and bytes in record in the
+   second byte of the field metadata array at index of *metadata_ptr and
+   *(metadata_ptr + 1).
+
+   @param   metadata_ptr   First byte of field metadata
+
+   @returns number of bytes written to metadata_ptr
+*/
+int Field_bit::do_save_field_metadata(uchar *metadata_ptr)
+{
+  *metadata_ptr= bit_len;
+  *(metadata_ptr + 1)= bytes_in_rec;
+  return 2;
+}
+
+
+/**
+   Returns the number of bytes field uses in row-based replication 
+   row packed size.
+
+   This method is used in row-based replication to determine the number
+   of bytes that the field consumes in the row record format. This is
+   used to skip fields in the master that do not exist on the slave.
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @returns The size of the field based on the field metadata.
+*/
+uint Field_bit::pack_length_from_metadata(uint field_metadata)
+{
+  uint const from_len= (field_metadata >> 8U) & 0x00ff;
+  uint const from_bit_len= field_metadata & 0x00ff;
+  uint const source_size= from_len + ((from_bit_len > 0) ? 1 : 0);
+  return (source_size);
+}
+
+
+/**
+   Check to see if field size is compatible with destination.
+
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @retval 0 if this field's size is < the source field's size
+   @retval 1 if this field's size is >= the source field's size
+*/
+int Field_bit::compatible_field_size(uint field_metadata)
+{
+  int compatible= 0;
+  uint const source_size= pack_length_from_metadata(field_metadata);
+  uint const destination_size= row_pack_length();
+  uint const from_bit_len= field_metadata & 0x00ff;
+  uint const from_len= (field_metadata >> 8U) & 0x00ff;
+  if ((bit_len == 0) || (from_bit_len == 0))
+    compatible= (source_size <= destination_size);
+  else if (from_bit_len > bit_len)
+    compatible= (from_len < bytes_in_rec);
+  else
+    compatible= ((from_bit_len <= bit_len) && (from_len <= bytes_in_rec));
+  return (compatible);
+}
+
 
 
 void Field_bit::sql_type(String &res) const
