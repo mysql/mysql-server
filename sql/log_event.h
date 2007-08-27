@@ -829,7 +829,7 @@ public:
 
      @see do_apply_event
    */
-  int apply_event(RELAY_LOG_INFO const *rli)
+  int apply_event(Relay_log_info const *rli)
   {
     return do_apply_event(rli);
   }
@@ -2291,20 +2291,20 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  const uchar *m_curr_row;     /* Start of the row being processed */
-  const uchar *m_curr_row_end; /* One-after the end of the current row */
-
   flag_set m_flags;		/* Flags for row-level events */
-  uchar    *m_key;      /* Buffer to keep key value during searches */
 
   /* helper functions */
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  int find_row(const RELAY_LOG_INFO *const);
-  int write_row(const RELAY_LOG_INFO *const, const bool);
+  const uchar *m_curr_row;     /* Start of the row being processed */
+  const uchar *m_curr_row_end; /* One-after the end of the current row */
+  uchar    *m_key;      /* Buffer to keep key value during searches */
+
+  int find_row(const Relay_log_info *const);
+  int write_row(const Relay_log_info *const, const bool);
 
   // Unpack the current row into m_table->record[0]
-  int unpack_current_row(const RELAY_LOG_INFO *const rli)
+  int unpack_current_row(const Relay_log_info *const rli)
   { 
     DBUG_ASSERT(m_table);
     return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols, 
@@ -2368,7 +2368,7 @@ private:
       0 if execution succeeded, 1 if execution failed.
       
   */
-  virtual int do_exec_row(const RELAY_LOG_INFO *const rli) = 0;
+  virtual int do_exec_row(const Relay_log_info *const rli) = 0;
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;
@@ -2424,7 +2424,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
-  virtual int do_exec_row(const RELAY_LOG_INFO *const);
+  virtual int do_exec_row(const Relay_log_info *const);
 #endif
 };
 
@@ -2498,7 +2498,7 @@ protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
-  virtual int do_exec_row(const RELAY_LOG_INFO *const);
+  virtual int do_exec_row(const Relay_log_info *const);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
@@ -2563,7 +2563,7 @@ protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
-  virtual int do_exec_row(const RELAY_LOG_INFO *const);
+  virtual int do_exec_row(const Relay_log_info *const);
 #endif
 };
 

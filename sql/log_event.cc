@@ -5653,9 +5653,10 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
-    m_curr_row(NULL), m_curr_row_end(NULL),
-    m_flags(0), m_key(NULL)
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
+#ifdef HAVE_REPLICATION
+    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+#endif
 {
   /*
     We allow a special form of dummy event when the table, and cols
@@ -5697,10 +5698,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                *description_event)
   : Log_event(buf, description_event),
     m_row_count(0),
+#ifndef MYSQL_CLIENT
     m_table(NULL),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
-    m_curr_row(NULL), m_curr_row_end(NULL),
-    m_key(NULL)
+#endif
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+#endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
   uint8 const common_header_len= description_event->common_header_len;
@@ -5789,7 +5793,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     m_curr_row= m_rows_buf;
+#endif
     m_rows_end= m_rows_buf + data_size;
     m_rows_cur= m_rows_end;
     memcpy(m_rows_buf, ptr_rows_data, data_size);
@@ -6055,7 +6061,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   TABLE* 
     table= 
-    m_table= const_cast<RELAY_LOG_INFO*>(rli)->m_table_map.get_table(m_table_id);
+    m_table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(m_table_id);
 
   if (table)
   {
@@ -6100,7 +6106,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       inside a statement and halting abruptly might cause problems
       when restarting.
      */
-    const_cast<RELAY_LOG_INFO*>(rli)->set_flag(RELAY_LOG_INFO::IN_STMT);
+    const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
      if ( m_width == table->s->fields && bitmap_is_set_all(&m_cols))
       set_flags(COMPLETE_ROWS_F);
@@ -6187,8 +6193,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   } // if (table)
 
   /*
-    We need to delay this clear until the table def stored in m_table_def is no 
-    longer needed. It is used in unpack_current_row().
+    We need to delay this clear until here bacause unpack_current_row() uses
+    master-side table definitions stored in rli.
   */
   if (rli->tables_to_lock && get_flags(STMT_END_F))
     const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
@@ -7136,7 +7142,7 @@ is_duplicate_key_error(int errcode)
 */ 
 
 int
-Rows_log_event::write_row(const RELAY_LOG_INFO *const rli,
+Rows_log_event::write_row(const Relay_log_info *const rli,
                           const bool overwrite)
 {
   DBUG_ENTER("write_row");
@@ -7323,7 +7329,7 @@ Rows_log_event::write_row(const RELAY_LOG_INFO *const rli,
 #endif
 
 int 
-Write_rows_log_event::do_exec_row(const RELAY_LOG_INFO *const rli)
+Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
   int error= write_row(rli, TRUE /* overwrite */);
@@ -7453,7 +7459,7 @@ record_compare_exit:
   @c position() and @c rnd_pos() will be used. 
  */
 
-int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
+int Rows_log_event::find_row(const Relay_log_info *rli)
 {
   DBUG_ENTER("find_row");
 
@@ -7505,7 +7511,7 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
     DBUG_RETURN(error);
   }
 
-  // We can't use pisition() - try other methods.
+  // We can't use position() - try other methods.
   
   /* 
     We need to retrieve all fields
@@ -7721,8 +7727,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
       m_table->s->primary_key < MAX_KEY)
   {
     /*
-      We don't need to allocate any memory for m_after_image and
-      m_key since they are not used.
+      We don't need to allocate any memory for m_key since it is not used.
     */
     return 0;
   }
@@ -7749,7 +7754,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   return error;
 }
 
-int Delete_rows_log_event::do_exec_row(const RELAY_LOG_INFO *const rli)
+int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   int error;
   DBUG_ASSERT(m_table != NULL);
@@ -7873,7 +7878,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
 }
 
 int 
-Update_rows_log_event::do_exec_row(const RELAY_LOG_INFO *const rli)
+Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
 
