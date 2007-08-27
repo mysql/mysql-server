@@ -276,6 +276,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
                                                      thd->lock_id)];
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
+      if (sql_lock->table_count)
+        VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
       my_error(rc, MYF(0));
       my_free((uchar*) sql_lock,MYF(0));
       sql_lock= 0;
