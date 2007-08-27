@@ -1317,10 +1317,10 @@ public:
     mode, row-based binlogging is used for such cases where two
     auto_increment columns are inserted.
   */
-  inline void record_first_successful_insert_id_in_cur_stmt(ulonglong id)
+  inline void record_first_successful_insert_id_in_cur_stmt(ulonglong id_arg)
   {
     if (first_successful_insert_id_in_cur_stmt == 0)
-      first_successful_insert_id_in_cur_stmt= id;
+      first_successful_insert_id_in_cur_stmt= id_arg;
   }
   inline ulonglong read_first_successful_insert_id_in_prev_stmt(void)
   {

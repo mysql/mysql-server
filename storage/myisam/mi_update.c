@@ -102,7 +102,7 @@ int mi_update(register MI_INFO *info, const uchar *oldrec, uchar *newrec)
 	    key_changed|=HA_STATE_WRITTEN;
 	  }
 	  changed|=((ulonglong) 1 << i);
-	  if (_mi_ft_update(info,i,(char*) old_key,oldrec,newrec,pos))
+	  if (_mi_ft_update(info,i, old_key,oldrec,newrec,pos))
 	    goto err;
 	}
       }
@@ -207,8 +207,8 @@ err:
       {
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-	  if ((flag++ && _mi_ft_del(info,i,(char*) new_key,newrec,pos)) ||
-	      _mi_ft_add(info,i,(char*) old_key,oldrec,pos))
+	  if ((flag++ && _mi_ft_del(info,i, new_key,newrec,pos)) ||
+	      _mi_ft_add(info,i, old_key,oldrec,pos))
 	    break;
 	}
 	else

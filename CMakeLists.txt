@@ -21,22 +21,6 @@ INCLUDE(win/configure.data)
 # Hardcode support for CSV storage engine
 SET(WITH_CSV_STORAGE_ENGINE TRUE)
 
-# CMAKE will not allow custom VS7+ configurations.  mysqld and libmysqld
-# cannot be built at the same time as they require different configurations
-IF(EMBEDDED_ONLY)
-  ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
-  # By default, CMake will create Release, Debug, RelWithDebInfo and MinSizeRel
-  # configurations. The EMBEDDED_ONLY build parameter is necessary because CMake
-  # doesn't support custom build configurations for VS2005.  Since the Debug
-  # configuration does not work properly with USE_TLS defined 
-  # (see mysys/CMakeLists.txt) the easiest way to debug the Embedded Server is to
-  # use the RelWithDebInfo configuration without optimizations.
-  #
-  # Debug default CXX_FLAGS           "/D_DEBUG /MDd /Zi /Ob0 /Od /RTC1"
-  # RelWithDebInfo default CXX_FLAGS  "/MD /Zi /O2 /Ob1 /D NDEBUG"
-  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MD /Zi /Od /Ob0 /D NDEBUG" CACHE STRING "No Optimization" FORCE)
-ENDIF(EMBEDDED_ONLY)
-
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_SOURCE_DIR}/include/mysql_version.h @ONLY)
 
@@ -154,7 +138,9 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR 
       CMAKE_GENERATOR MATCHES "Visual Studio 8")
 
-ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
+IF(WIN32)
+  ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
+ENDIF(WIN32)
 
 IF(EMBED_MANIFESTS)
     # Search for the tools (mt, makecat, signtool) necessary for embedding
@@ -229,7 +215,7 @@ ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(storage/heap)
 ADD_SUBDIRECTORY(storage/myisam)
 ADD_SUBDIRECTORY(storage/myisammrg)
-
+ADD_SUBDIRECTORY(client)
 IF(WITH_ARCHIVE_STORAGE_ENGINE)
   ADD_SUBDIRECTORY(storage/archive)
 ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
@@ -248,13 +234,11 @@ ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_SUBDIRECTORY(storage/innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
+ADD_SUBDIRECTORY(sql)
+ADD_SUBDIRECTORY(server-tools/instance-manager)
 ADD_SUBDIRECTORY(libmysql)
-IF(EMBEDDED_ONLY) 
+ADD_SUBDIRECTORY(tests)
+IF(WITH_EMBEDDED_SERVER) 
   ADD_SUBDIRECTORY(libmysqld)
   ADD_SUBDIRECTORY(libmysqld/examples)
-ELSE(EMBEDDED_ONLY)
-  ADD_SUBDIRECTORY(client)
-  ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(server-tools/instance-manager)
-  ADD_SUBDIRECTORY(tests)
-ENDIF(EMBEDDED_ONLY)
+ENDIF(WITH_EMBEDDED_SERVER)
