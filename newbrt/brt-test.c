@@ -811,7 +811,24 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 
 int test_cursor_debug = 0;
 
-void assert_tree_first(BRT brt, long long firstv) {
+void assert_cursor_notfound(BRT brt, int position) {
+    BRT_CURSOR cursor;
+    int r;
+    DBT kbt, vbt;
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
+    r = brt_c_get(cursor, &kbt, &vbt, position);
+    assert(r == DB_NOTFOUND);
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+}
+
+void assert_cursor_value(BRT brt, int position, long long value) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -820,15 +837,15 @@ void assert_tree_first(BRT brt, long long firstv) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    if (test_cursor_debug) printf("first key: ");
+    if (test_cursor_debug) printf("key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_c_get(cursor, &kbt, &vbt, DB_FIRST);
+    r = brt_c_get(cursor, &kbt, &vbt, position);
     assert(r == 0);
     if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
     memcpy(&v, vbt.data, vbt.size);
-    assert(v == firstv);
+    assert(v == value);
     toku_free(kbt.data);
     toku_free(vbt.data);
     if (test_cursor_debug) printf("\n");
@@ -837,33 +854,7 @@ void assert_tree_first(BRT brt, long long firstv) {
     assert(r==0);
 }
 
-void assert_tree_last(BRT brt, long long lastv) {
-    BRT_CURSOR cursor;
-    int r;
-    DBT kbt, vbt;
-    long long v;
-
-    r = brt_cursor(brt, &cursor);
-    assert(r==0);
-
-    if (test_cursor_debug) printf("last key:");
-    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
-    init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_c_get(cursor, &kbt, &vbt, DB_LAST);
-    assert(r == 0);
-    if (test_cursor_debug) printf("%s ", (char*)kbt.data);
-    assert(vbt.size == sizeof v);
-    memcpy(&v, vbt.data, vbt.size);
-    assert(v == lastv);
-    toku_free(kbt.data);
-    toku_free(vbt.data);
-    if (test_cursor_debug) printf("\n");
-
-    r = brt_cursor_close(cursor);
-    assert(r==0);
-}
-
-void assert_tree_first_last(BRT brt, long long firstv, long long lastv) {
+void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -932,7 +923,10 @@ void test_brt_cursor_first(int n) {
         assert(r==0);
     }
 
-    assert_tree_first(brt, 0);
+    if (n == 0)
+        assert_cursor_notfound(brt, DB_FIRST);
+    else
+        assert_cursor_value(brt, DB_FIRST, 0);
 
     r = close_brt(brt);
     assert(r==0);
@@ -971,7 +965,10 @@ void test_brt_cursor_last(int n) {
         assert(r==0);
     }
 
-    assert_tree_last(brt, n-1);
+    if (n == 0)
+        assert_cursor_notfound(brt, DB_LAST);
+    else
+        assert_cursor_value(brt, DB_LAST, n-1);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1010,7 +1007,11 @@ void test_brt_cursor_first_last(int n) {
         assert(r==0);
     }
 
-    assert_tree_first_last(brt, 0, n-1);
+    if (n == 0) {
+        assert_cursor_notfound(brt, DB_FIRST);
+        assert_cursor_notfound(brt, DB_LAST);
+    } else 
+        assert_cursor_first_last(brt, 0, n-1);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1049,7 +1050,10 @@ void test_brt_cursor_rfirst(int n) {
         assert(r==0);
     }
 
-    assert_tree_first(brt, 0);
+    if (n == 0)
+        assert_cursor_notfound(brt, DB_FIRST);
+    else
+        assert_cursor_value(brt, DB_FIRST, 0);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1058,7 +1062,7 @@ void test_brt_cursor_rfirst(int n) {
     assert(r==0);
 }
 
-void assert_tree_walk(BRT brt, int n) {
+void assert_cursor_walk(BRT brt, int n) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1121,7 +1125,7 @@ void test_brt_cursor_walk(int n) {
     }
 
     /* walk the tree */
-    assert_tree_walk(brt, n);
+    assert_cursor_walk(brt, n);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1130,7 +1134,7 @@ void test_brt_cursor_walk(int n) {
     assert(r==0);
 }
 
-void assert_tree_walk_inorder(BRT brt, int n) {
+void assert_cursor_walk_inorder(BRT brt, int n) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1208,7 +1212,7 @@ void test_brt_cursor_rand(int n) {
     }
 
     /* walk the tree */
-    assert_tree_walk_inorder(brt, n);
+    assert_cursor_walk_inorder(brt, n);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1301,25 +1305,25 @@ void test_brt_cursor_split(int n) {
 void test_brt_cursor() {
     int n;
 
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_last(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_first(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_rfirst(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_first_last(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_walk(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_split(n); memory_check_all_free();
     }
-    if (1) for (n=100; n<10000; n += 100) {
+    if (1) for (n=0; n<10000; n += 100) {
         test_brt_cursor_rand(n); memory_check_all_free();
     }
 }
