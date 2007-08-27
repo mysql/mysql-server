@@ -1416,15 +1416,15 @@ get_options(int *argc,char ***argv)
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_pre_statements)
-      actual_queries= parse_delimiter(tmp_string, &pre_statements,
-                                      delimiter[0]);
+      (void)parse_delimiter(tmp_string, &pre_statements,
+                            delimiter[0]);
     my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_pre_statements)
   {
-    actual_queries= parse_delimiter(user_supplied_pre_statements,
-                                    &pre_statements,
-                                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_pre_statements,
+                          &pre_statements,
+                          delimiter[0]);
   }
 
   if (user_supplied_post_statements && my_stat(user_supplied_post_statements, &sbuf, MYF(0)))
@@ -1447,14 +1447,14 @@ get_options(int *argc,char ***argv)
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_post_statements)
-      parse_delimiter(tmp_string, &post_statements,
-                      delimiter[0]);
+      (void)parse_delimiter(tmp_string, &post_statements,
+                            delimiter[0]);
     my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_post_statements)
   {
-    parse_delimiter(user_supplied_post_statements, &post_statements,
-                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_post_statements, &post_statements,
+                          delimiter[0]);
   }
 
   if (verbose >= 2)
@@ -1813,6 +1813,13 @@ limit_not_met:
       {
         mysql_close(mysql);
 
+        if (!(mysql= mysql_init(NULL)))
+        {
+          fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
+                  my_progname, mysql_error(mysql));
+          exit(0);
+        }
+
         if (slap_connect(mysql))
           goto end;
       }
@@ -2002,7 +2009,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
-    count++;
   }
 
   if (ptr != script+length)
