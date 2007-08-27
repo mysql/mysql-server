@@ -1008,6 +1008,11 @@ void prepare_new_connection_state(THD* thd)
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
+  /*
+    Much of this is duplicated in create_embedded_thd() for the
+    embedded server library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;

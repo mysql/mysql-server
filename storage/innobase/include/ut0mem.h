@@ -63,7 +63,7 @@ ut_test_malloc(
 			/* out: TRUE if succeeded */
 	ulint	n);	/* in: try to allocate this many bytes */
 /**************************************************************************
-Frees a memory bloock allocated with ut_malloc. */
+Frees a memory block allocated with ut_malloc. */
 
 void
 ut_free(
