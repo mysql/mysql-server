@@ -65,7 +65,7 @@ Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-Error	1466	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Error	1475	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/ndb_tb3.txt' into table tb3 ;
 
 Testcase: 3.5.1.1:
@@ -243,7 +243,7 @@ create table t1 (f1 integer) engine = ndb;
 use test;
 CREATE TRIGGER trig_db.trg6_2 AFTER INSERT on tb3 
 for each row set @ret_trg6_2 = 5;
-ERROR HY000: Trigger in wrong schema
+ERROR 42S02: Table 'trig_db.tb3' doesn't exist
 use trig_db;
 CREATE TRIGGER trg6_3 AFTER INSERT on test.tb3 
 for each row set @ret_trg6_3 = 18;

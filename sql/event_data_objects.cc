@@ -20,6 +20,10 @@
 #include "event_db_repository.h"
 #include "sp_head.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
@@ -2082,3 +2086,7 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
   return !sortcmp_lex_string(name, b->name, system_charset_info) &&
          !sortcmp_lex_string(db, b->dbname, system_charset_info);
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

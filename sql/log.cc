@@ -2733,7 +2733,7 @@ err:
 
 #ifdef HAVE_REPLICATION
 
-int MYSQL_BIN_LOG::purge_first_log(struct st_relay_log_info* rli, bool included) 
+int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 {
   int error;
   DBUG_ENTER("purge_first_log");

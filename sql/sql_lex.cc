@@ -173,7 +173,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
 }
 
 /**
-  The operation appends unprocessed part of pre-processed buffer till
+  @brief The operation appends unprocessed part of pre-processed buffer till
   the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to end_ptr.
 
   The idea is that some tokens in the pre-processed buffer (like character
@@ -1400,6 +1400,19 @@ int MYSQLlex(void *arg, void *yythd)
 }
 
 
+/**
+  Construct a copy of this object to be used for mysql_alter_table
+  and mysql_create_table.
+
+  Historically, these two functions modify their Alter_info
+  arguments. This behaviour breaks re-execution of prepared
+  statements and stored procedures and is compensated by always
+  supplying a copy of Alter_info to these functions.
+
+  @return You need to use check the error in THD for out
+  of memory condition after calling this function.
+*/
+
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
   alter_list(rhs.alter_list, mem_root),
@@ -1517,6 +1530,7 @@ void st_select_lex::init_query()
   */
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
+  max_equal_elems= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_where_fields= 0;
@@ -1737,7 +1751,7 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(SELECT_LEX *last)
+void st_select_lex::mark_as_dependent(st_select_lex *last)
 {
   /*
     Mark all selects from resolved to 1 before select where was
@@ -2355,7 +2369,7 @@ st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
     values	- SELECT_LEX with initial values for counters
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *sl)
+void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
   ha_rows select_limit_val;
 
@@ -2885,7 +2899,7 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   partitioning or if only partitions to add or to split.
 
   @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
-  is used from the sql parser that doesn't have any #ifdef's
+  is used from the sql parser that doesn't have any ifdef's
 
   @retval  TRUE    Yes, it is part of a management partition command
   @retval  FALSE          No, not a management partition command

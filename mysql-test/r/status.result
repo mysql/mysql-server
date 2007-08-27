@@ -16,12 +16,11 @@ unlock tables;
 lock tables t1 read;
 update t1 set n = 3;
 unlock tables;
-show status like 'Table_locks_waited%';
+show status like 'Table_locks_waited';
 Variable_name	Value
 Table_locks_waited	1
-select * from information_schema.session_status where variable_name like 'Table_locks_waited%';
-VARIABLE_NAME	VARIABLE_VALUE
-TABLE_LOCKS_WAITED	1
+Immediate
+17
 drop table t1;
 select 1;
 1

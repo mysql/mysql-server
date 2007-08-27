@@ -33,12 +33,12 @@ extern const char* rpl_role_type[], *rpl_status_type[];
 pthread_handler_t handle_failsafe_rpl(void *arg);
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status);
 int find_recovery_captain(THD* thd, MYSQL* mysql);
-int update_slave_list(MYSQL* mysql, MASTER_INFO* mi);
+int update_slave_list(MYSQL* mysql, Master_info* mi);
 
 extern HASH slave_list;
 
 bool load_master_data(THD* thd);
-int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi);
+int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi);
 
 bool show_new_master(THD* thd);
 bool show_slave_hosts(THD* thd);
