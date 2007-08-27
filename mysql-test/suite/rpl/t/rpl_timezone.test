@@ -139,7 +139,7 @@ sync_slave_with_master;
 
 # Restore original timezone
 connection master;
-set global time_zone= @my_te_zone;
+set global time_zone= @my_time_zone;
 
 --echo End of 4.1 tests
 
