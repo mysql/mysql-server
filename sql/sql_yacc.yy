@@ -4501,6 +4501,7 @@ create_table_option:
             Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
         				     HA_CHOICE_NO);
           }
+
         ;
 
 default_charset:
@@ -4581,8 +4582,8 @@ row_types:
         | DYNAMIC_SYM    { $$= ROW_TYPE_DYNAMIC; }
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
-	| COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
-	| PAGE_SYM       { $$= ROW_TYPE_PAGE; }
+        | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
+ 	| PAGE_SYM       { $$= ROW_TYPE_PAGE; }
         ;
 
 merge_insert_types:
@@ -10582,7 +10583,7 @@ keyword_sp:
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
         | TRANSACTION_SYM          {}
-        | TRANSACTIONAL_SYM        {}
+ 	| TRANSACTIONAL_SYM        {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}
         | TIMESTAMP_ADD            {}
