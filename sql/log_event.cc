@@ -7602,13 +7602,19 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
     DBUG_RETURN(error);
   }
 
-  // We can't use pisition() - try other methods.
+  // We can't use position() - try other methods.
   
   /* 
     We need to retrieve all fields
     TODO: Move this out from this function to main loop 
    */
   table->use_all_columns();
+
+  /*
+    Save copy of the record in table->record[1]. It might be needed 
+    later if linear search is used to find exact match.
+   */ 
+  store_record(table,record[1]);    
 
   if (table->s->keys > 0)
   {
@@ -7643,8 +7649,9 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
     */
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-    table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read_map(table->record[1], m_key, 
+    table->record[0][pos]= 0xFF;
+    
+    if ((error= table->file->index_read_map(table->record[0], m_key, 
                                             HA_WHOLE_KEY,
                                             HA_READ_KEY_EXACT)))
     {
@@ -7684,8 +7691,8 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
 
     /*
       In case key is not unique, we still have to iterate over records found
-      and find the one which is identical to the row given. The row is unpacked
-      in record[1] where missing columns are filled with default values.
+      and find the one which is identical to the row given. A copy of the 
+      record we are looking for is stored in record[1].
      */ 
     DBUG_PRINT("info",("non-unique index, scanning it to find matching record")); 
 
@@ -7702,11 +7709,11 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
       */
       if (table->s->null_bytes > 0)
       {
-        table->record[1][table->s->null_bytes - 1]|=
+        table->record[0][table->s->null_bytes - 1]|=
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      if ((error= table->file->index_next(table->record[1])))
+      if ((error= table->file->index_next(table->record[0])))
       {
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
@@ -7738,13 +7745,11 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
-      error= table->file->rnd_next(table->record[1]);
+      error= table->file->rnd_next(table->record[0]);
 
       switch (error) {
 
       case 0:
-        DBUG_DUMP("record found", table->record[0], table->s->reclength);
-
       case HA_ERR_RECORD_DELETED:
         break;
 
@@ -7773,6 +7778,8 @@ int Rows_log_event::find_row(const RELAY_LOG_INFO *rli)
     */
     if (restart_count == 2)
       DBUG_PRINT("info", ("Record not found"));
+    else
+      DBUG_DUMP("record found", table->record[0], table->s->reclength);
     table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
