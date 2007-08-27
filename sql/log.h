@@ -16,7 +16,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-struct st_relay_log_info;
+class Relay_log_info;
 
 class Format_description_log_event;
 
@@ -121,7 +121,7 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-struct st_relay_log_info;
+class Relay_log_info;
 
 typedef struct st_log_info
 {
@@ -362,7 +362,7 @@ public:
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
-  int purge_first_log(struct st_relay_log_info* rli, bool included);
+  int purge_first_log(Relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
   void close(uint exiting);
 

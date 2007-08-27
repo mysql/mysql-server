@@ -333,11 +333,18 @@ ENGINE NDB;
 ###
 #
 # bug#16341
-create table t1 (a int primary key) engine = myisam;
+#create table t1 (a int primary key) engine = myisam;
+# 2007-08-22 Jeb
+# Removed the use of create table and manually 
+# created the file to cause failure due to
+# inconsistant results on other OS
+# see #bug30559
+
+--exec touch $MYSQLTEST_VARDIR/tmp/t1.frm
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
---eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/master-data/test/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;
+--eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/tmp/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;
 
 create logfile group lg1
 add undofile 'undofile.dat'
@@ -347,7 +354,7 @@ engine=ndb;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
---eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/master-data/test/t1.frm' use logfile group lg1 initial_size 1M engine ndb;
+--eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/tmp/t1.frm' use logfile group lg1 initial_size 1M engine ndb;
 
 --error ER_DROP_FILEGROUP_FAILED
 drop tablespace ts1
@@ -356,8 +363,8 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
-drop table t1;
-
+#drop table t1;
+--exec rm $MYSQLTEST_VARDIR/tmp/t1.frm
 
 
 # End 5.1 test

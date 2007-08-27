@@ -1,3 +1,6 @@
+# This test requires that --log-output includes 'table', and the general
+# log is on
+
 # embedded server causes different stat
 -- source include/not_embedded.inc
 
@@ -8,33 +11,58 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 flush status;
+
+# Logging to the general query log table (--log-output=table --log) increments
+# Table_locks_immediate with each query, so here Immediate becomes 1
 show status like 'Table_lock%';
+# ++Immediate = 2
 select * from information_schema.session_status where variable_name like 'Table_lock%';
+
 connection con1;
+# ++Immediate = 3
 SET SQL_LOG_BIN=0;
 --disable_warnings
+# ++Immediate = 4
 drop table if exists t1;
 --enable_warnings
 
+# ++Immediate = 5
 create table t1(n int) engine=myisam;
+# Immediate + 2 = 7
 insert into t1 values(1);
+
 connection con2;
+# Immediate + 2 = 9
 lock tables t1 read;
+# ++Immediate = 10
 unlock tables;
+# Immediate + 2 = 12
 lock tables t1 read;
+
 connection con1;
+# ++Immediate = 13
 let $ID= `select connection_id()`;
+# ++Immediate = 14 (Not +2, because this increments Table_locks_waited)
 --send
 update t1 set n = 3;
+
 connection con2;
 # wait for the other query to start executing
 let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = "Locked";
+# Immediate = 14 + $wait_condition_reps ($wait_timeout is 0, so no extra select
+# is done inside wait_condition.inc)
 --source include/wait_condition.inc
+# ++Immediate = 15 + $wait_condition_reps
 unlock tables;
+
 connection con1;
 reap;
-show status like 'Table_locks_waited%';
-select * from information_schema.session_status where variable_name like 'Table_locks_waited%';
+# ++Immediate = 16 + $wait_condition_reps
+show status like 'Table_locks_waited';
+# ++Immediate = 17 + $wait_condition_reps
+--disable_query_log
+eval select variable_value - $wait_condition_reps as Immediate from information_schema.session_status where variable_name like 'Table_locks_immediate';
+--enable_query_log
 drop table t1;
 
 disconnect con2;

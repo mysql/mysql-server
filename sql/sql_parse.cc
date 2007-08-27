@@ -28,6 +28,11 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+/**
+  @defgroup Runtime_Environment Runtime Environment
+  @{
+*/
+
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
   ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
@@ -5251,6 +5256,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   lex->nest_level++;
+  if (lex->nest_level > (int) MAX_SELECT_NESTING)
+  {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    DBUG_RETURN(1);
+  }
   select_lex->nest_level= lex->nest_level;
   /*
     Don't evaluate this subquery during statement prepare even if
@@ -5370,11 +5380,12 @@ void mysql_init_multi_delete(LEX *lex)
 
 /**
   Parse a query.
-  @param thd Current thread
-  @param inBuf Begining of the query text
-  @param length Length of the query text
-  @param [out] semicolon For multi queries, position of the character of
-  the next query in the query text.
+
+  @param       thd     Current thread
+  @param       inBuf   Begining of the query text
+  @param       length  Length of the query text
+  @param[out]  found_semicolon For multi queries, position of the character of
+                               the next query in the query text.
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
@@ -7241,3 +7252,7 @@ bool parse_sql(THD *thd,
 
   return err_status;
 }
+
+/**
+  @} (end of group Runtime_Environment)
+*/
