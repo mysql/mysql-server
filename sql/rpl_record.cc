@@ -157,9 +157,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    the various member functions of Field and subclasses expect to
    write.
 
-   The row is assumed to only consist of the fields for which the
-   bitset represented by @c arr and @c bits; the other parts of the
-   record are left alone.
+   The row is assumed to only consist of the fields for which the corresponding
+   bit in bitset @c cols is set; the other parts of the record are left alone.
 
    At most @c colcnt columns are read: if the table is larger than
    that, the remaining fields are not filled in.
@@ -169,15 +168,12 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @param colcnt  Number of columns to read from record
    @param row_data
                   Packed row data
-   @param cols    Pointer to columns data to fill in
+   @param cols    Pointer to bitset describing columns to fill in
    @param row_end Pointer to variable that will hold the value of the
                   one-after-end position for the row
    @param master_reclength
                   Pointer to variable that will be set to the length of the
                   record on the master side
-   @param rw_set  Pointer to bitmap that holds either the read_set or the
-                  write_set of the table
-
 
    @retval 0 No error
 
@@ -191,8 +187,7 @@ int
 unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,
            uchar const *const row_data, MY_BITMAP const *cols,
-           uchar const **const row_end, ulong *const master_reclength,
-           MY_BITMAP* const rw_set, Log_event_type const event_type)
+           uchar const **const row_end, ulong *const master_reclength)
 {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(row_data);
@@ -201,10 +196,6 @@ unpack_row(Relay_log_info const *rli,
 
   uchar const *null_ptr= row_data;
   uchar const *pack_ptr= row_data + master_null_byte_count;
-
-  bitmap_clear_all(rw_set);
-
-  empty_record(table);
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
@@ -265,7 +256,6 @@ unpack_row(Relay_log_info const *rli,
 #endif
       }
 
-      bitmap_set_bit(rw_set, f->field_index);
       null_mask <<= 1;
     }
     i++;
@@ -307,30 +297,58 @@ unpack_row(Relay_log_info const *rli,
     else
       *master_reclength = table->s->reclength;
   }
+  
+  DBUG_RETURN(error);
+}
 
-  /*
-    Set properties for remaining columns, if there are any. We let the
-    corresponding bit in the write_set be set, to write the value if
-    it was not there already. We iterate over all remaining columns,
-    even if there were an error, to get as many error messages as
-    possible.  We are still able to return a pointer to the next row,
-    so redo that.
+/**
+  Fills @c table->record[0] with default values.
 
-    This generation of error messages is only relevant when inserting
-    new rows.
-   */
-  for ( ; *field_ptr ; ++field_ptr)
+  First @c empty_record() is called and then, additionally, fields are
+  initialized explicitly with a call to @c set_default().
+
+  For optimization reasons, the explicit initialization can be skipped for
+  first @c skip fields. This is useful if later we are going to fill these 
+  fields from other source (e.g. from a Rows replication event).
+
+  If @c check is true, fields are explicitly initialized only if they have
+  default value or can be NULL. Otherwise error is reported.
+ 
+  @param log    Used to report errors.
+  @param table  Table whose record[0] buffer is prepared. 
+  @param skip   Number of columns for which default value initialization 
+                should be skipped.
+  @param check  Indicates if errors should be checked when setting default
+                values.
+                
+  @returns 0 on success. 
+ */ 
+int prepare_record(const Slave_reporting_capability *const log, 
+                   TABLE *const table, 
+                   const uint skip, const bool check)
+{
+  DBUG_ENTER("prepare_record");
+
+  int error= 0;
+  empty_record(table);
+
+  if (skip >= table->s->fields)  // nothing to do
+    DBUG_RETURN(0);
+
+  /* Explicit initialization of fields */
+
+  for (Field **field_ptr= table->field+skip ; *field_ptr ; ++field_ptr)
   {
     uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
 
-    if (event_type == WRITE_ROWS_EVENT &&
-        ((*field_ptr)->flags & mask) == mask)
+    if (check && ((f->flags & mask) == mask))
     {
-      rli->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,
+      DBUG_ASSERT(log);
+      log->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,
                   "Field `%s` of table `%s`.`%s` "
                   "has no default value and cannot be NULL",
-                  (*field_ptr)->field_name, table->s->db.str,
+                  f->field_name, table->s->db.str,
                   table->s->table_name.str);
       error = ER_NO_DEFAULT_FOR_FIELD;
     }

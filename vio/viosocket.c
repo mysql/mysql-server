@@ -80,7 +80,7 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
   }
   else if (size < VIO_UNBUFFERED_READ_MIN_SIZE)
   {
-    rc= vio_read(vio, vio->read_buffer, VIO_READ_BUFFER_SIZE);
+    rc= vio_read(vio, (uchar*) vio->read_buffer, VIO_READ_BUFFER_SIZE);
     if (rc != 0 && rc != (size_t) -1)
     {
       if (rc > size)

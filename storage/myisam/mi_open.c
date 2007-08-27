@@ -79,7 +79,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
-  char *disk_cache, *disk_pos, *end_pos;
+  uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
   ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
@@ -104,7 +104,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.state.key_del=key_del;
-    share_buff.key_cache= multi_key_cache_search(name_buff, strlen(name_buff));
+    share_buff.key_cache= multi_key_cache_search((uchar*) name_buff,
+                                                 strlen(name_buff));
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
                     if (strstr(name, "/t1"))
@@ -121,7 +122,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     share->mode=open_mode;
     errpos=1;
-    if (my_read(kfile,(char*) share->state.header.file_version,head_length,
+    if (my_read(kfile, share->state.header.file_version, head_length,
 		MYF(MY_NABP)))
     {
       my_errno= HA_ERR_NOT_A_TABLE;
@@ -165,7 +166,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);
-    if (!(disk_cache=(char*) my_alloca(info_length+128)))
+    if (!(disk_cache= (uchar*) my_alloca(info_length+128)))
     {
       my_errno=ENOMEM;
       goto err;
@@ -202,15 +203,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     share->state_diff_length=len-MI_STATE_INFO_SIZE;
 
-    mi_state_info_read((uchar*) disk_cache, &share->state);
+    mi_state_info_read(disk_cache, &share->state);
     len= mi_uint2korr(share->state.header.base_info_length);
     if (len != MI_BASE_INFO_SIZE)
     {
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
 			    len,MI_BASE_INFO_SIZE));
     }
-    disk_pos= (char*)
-      my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
+    disk_pos= my_n_base_info_read(disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -504,7 +504,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
-    my_afree((uchar*) disk_cache);
+    my_afree(disk_cache);
     mi_setup_functions(share);
     share->is_log_table= FALSE;
 #ifdef THREAD
@@ -642,7 +642,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   if (myisam_log_file >= 0)
   {
     intern_filename(name_buff,share->index_file_name);
-    _myisam_log(MI_LOG_OPEN, m_info,name_buff, strlen(name_buff));
+    _myisam_log(MI_LOG_OPEN, m_info, (uchar*) name_buff, strlen(name_buff));
   }
   DBUG_RETURN(m_info);
 
@@ -669,7 +669,7 @@ err:
       VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
     /* fall through */
   case 2:
-    my_afree((uchar*) disk_cache);
+    my_afree(disk_cache);
     /* fall through */
   case 1:
     VOID(my_close(kfile,MYF(0)));
@@ -961,7 +961,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 
 uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
 {
-  char	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
+  uchar	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 
   if (!myisam_single_user)
   {
@@ -972,7 +972,7 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
     }
     else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
       return 1;
-    mi_state_info_read((uchar*) buff, state);
+    mi_state_info_read(buff, state);
   }
   return 0;
 }
@@ -1076,7 +1076,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
+uchar *mi_keydef_read(uchar *ptr, MI_KEYDEF *keydef)
 {
    keydef->keysegs	= (uint) *ptr++;
    keydef->key_alg	= *ptr++;		/* Rtree or Btree */
@@ -1121,7 +1121,7 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
 }
 
 
-char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
+uchar *mi_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg)
 {
    keyseg->type		= *ptr++;
    keyseg->language	= *ptr++;
@@ -1160,7 +1160,7 @@ uint mi_uniquedef_write(File file, MI_UNIQUEDEF *def)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *mi_uniquedef_read(char *ptr, MI_UNIQUEDEF *def)
+uchar *mi_uniquedef_read(uchar *ptr, MI_UNIQUEDEF *def)
 {
    def->keysegs = mi_uint2korr(ptr);
    def->key	= ptr[2];
@@ -1184,7 +1184,7 @@ uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
+uchar *mi_recinfo_read(uchar *ptr, MI_COLUMNDEF *recinfo)
 {
    recinfo->type=  mi_sint2korr(ptr);	ptr +=2;
    recinfo->length=mi_uint2korr(ptr);	ptr +=2;

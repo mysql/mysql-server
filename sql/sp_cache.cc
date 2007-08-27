@@ -214,8 +214,12 @@ void sp_cache_flush_obsolete(sp_cache **cp)
   Internal functions 
  *************************************************************************/
 
-static uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
-                                       my_bool first)
+extern "C" uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
+                                           my_bool first);
+extern "C" void hash_free_sp_head(void *p);
+
+uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
+                                my_bool first)
 {
   sp_head *sp= (sp_head *)ptr;
   *plen= sp->m_qname.length;
@@ -223,8 +227,7 @@ static uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
 }
 
 
-static void
-hash_free_sp_head(void *p)
+void hash_free_sp_head(void *p)
 {
   sp_head *sp= (sp_head *)p;
   delete sp;
