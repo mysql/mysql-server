@@ -3386,6 +3386,10 @@ lock_table_create(
 	ut_ad(table && trx);
 	ut_ad(mutex_own(&kernel_mutex));
 
+	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
+		++table->n_waiting_or_granted_auto_inc_locks;
+	}
+
 	if (type_mode == LOCK_AUTO_INC) {
 		/* Only one trx can have the lock on the table
 		at a time: we may use the memory preallocated
@@ -3436,6 +3440,9 @@ lock_table_remove_low(
 
 	if (lock == trx->auto_inc_lock) {
 		trx->auto_inc_lock = NULL;
+
+		ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
+		--table->n_waiting_or_granted_auto_inc_locks;
 	}
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
