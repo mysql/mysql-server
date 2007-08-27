@@ -20,8 +20,6 @@
 
 use strict;
 
-sub mtr_full_hostname ();
-sub mtr_short_hostname ();
 sub mtr_native_path($);
 sub mtr_init_args ($);
 sub mtr_add_arg ($$@);
@@ -39,30 +37,6 @@ sub mtr_cmp_opts($$);
 #  Misc
 #
 ##############################################################################
-
-# We want the fully qualified host name and hostname() may have returned
-# only the short name. So we use the resolver to find out.
-# Note that this might fail on some platforms
-
-sub mtr_full_hostname () {
-
-  my $hostname=  hostname();
-  if ( $hostname !~ /\./ )
-  {
-    my $address=   gethostbyname($hostname)
-      or mtr_error("Couldn't resolve $hostname : $!");
-    my $fullname=  gethostbyaddr($address, AF_INET);
-    $hostname= $fullname if $fullname; 
-  }
-  return $hostname;
-}
-
-sub mtr_short_hostname () {
-
-  my $hostname=  hostname();
-  $hostname =~ s/\..+$//;
-  return $hostname;
-}
 
 # Convert path to OS native format
 sub mtr_native_path($)
