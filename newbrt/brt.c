@@ -1273,7 +1273,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     if (r!=0) {
 	int r2;
     died0:
-	printf("%s:%d r=%d\n", __FILE__, __LINE__, r);
+	// printf("%s:%d r=%d\n", __FILE__, __LINE__, r);
 	r2 = cachetable_unpin(brt->cf, off, 0);
 	return r;
     }
@@ -1321,13 +1321,13 @@ int brt_lookup (BRT brt, DBT *k, DBT *v, DB *db) {
     if ((r = read_and_pin_brt_header(brt->cf, &brt->h))) {
 	printf("%s:%d\n", __FILE__, __LINE__);
 	if (0) { died0: unpin_brt_header(brt); }
-	printf("%s:%d returning %d\n", __FILE__, __LINE__, r);
+	// printf("%s:%d returning %d\n", __FILE__, __LINE__, r);
 	assert(0==cachefile_count_pinned(brt->cf, 1));
 	return r;
     }
     rootp = calculate_root_offset_pointer(brt);
     if ((r = brt_lookup_node(brt, *rootp, k, v, db))) {
-	printf("%s:%d\n", __FILE__, __LINE__);
+	// printf("%s:%d\n", __FILE__, __LINE__);
 	goto died0;
     }
     //printf("%s:%d r=%d", __FILE__, __LINE__, r); if (r==0) printf(" vallen=%d", *vallen); printf("\n");
