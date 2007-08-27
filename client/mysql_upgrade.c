@@ -466,6 +466,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
+                "--no-defaults",
                 ds_args.str,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
@@ -628,6 +629,7 @@ static int run_mysqlcheck_upgrade(void)
   verbose("Running 'mysqlcheck'...");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
                   ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
