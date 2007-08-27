@@ -4355,6 +4355,11 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    The initialization of thread_id is done in create_embedded_thd() for
+    the embedded library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
   /* Start a new thread to handle connection */
