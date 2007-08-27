@@ -135,16 +135,35 @@ The LRU-list contains all the blocks holding a file page
 except those for which the bufferfix count is non-zero.
 The pages are in the LRU list roughly in the order of the last
 access to the page, so that the oldest pages are at the end of the
-list. We also keep a pointer to near the end of the LRU list,
-which we can use when we want to artificially age a page in the
-buf_pool. This is used if we know that some page is not needed
-again for some time: we insert the block right after the pointer,
-causing it to be replaced sooner than would noramlly be the case.
-Currently this aging mechanism is used for read-ahead mechanism
-of pages, and it can also be used when there is a scan of a full
-table which cannot fit in the memory. Putting the pages near the
-of the LRU list, we make sure that most of the buf_pool stays in the
-main memory, undisturbed.
+list. The LRU logic has two optimizations implemented in it.
+
+Artificial aging of pages:
+--------------------------
+This is achieved by maintaining a pointer at 3/8 from the tail of
+the LRU. All pages that are read in are inserted at this location.
+The pages are moved to the front of LRU when they are *accessed*.
+How this helps? A regular read request will result in immediately
+accessing the page and the block will be moved to the front of the
+LRU. The reads done as part of read-ahead mechanism (random read-ahead,
+linear read-ahead etc.) will leave these pages in the lower 3/8 of the
+LRU. If these pages are not accessed they will be eventually evicted
+without polluting the whole buffer cache.
+
+Reduced LRU manipulation:
+-------------------------
+In a classic LRU each access to a page should result in putting it
+to the front of LRU. LRU manipulation, however, can lead to mutex
+contention. To avoid this, we only make a block "young" if we see
+that it has slipped past the top 1/4th of the LRU.
+We implement this heuristic by maintaining a freed_page_clock at the
+buffer pool level and in each block as well. By comparing these two
+values, without holding any locks, we can determine how far a block is
+from the front of LRU.
+Both these clocks start ticking only after victim eviction has started
+in earnest (i.e.: no blocks in free list). Hence we cannot determine
+location of a block during the initial warm up phase and, therefore, we
+disable this optimization during that period. Look at
+buf_block_peek_if_too_old() in include/buf0buf.ic
 
 The chain of modified blocks contains the blocks
 holding file pages that have been modified in the memory
