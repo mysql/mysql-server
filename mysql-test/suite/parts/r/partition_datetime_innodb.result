@@ -186,7 +186,7 @@ a
 1971-01-01 00:00:59
 drop table t2;
 create table t3 (a timestamp not null, primary key(a)) engine='InnoDB' 
-partition by range (cast(month(a) as unsigned)) subpartition by key (a)
+partition by range (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (4),
 partition quarter2 values less than (7),
@@ -198,7 +198,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
 insert into t3 values (date_add('1970-01-01 00:00:00',interval 12-1 month));
 insert into t3 values (date_add('1970-01-01 00:00:00',interval 11-1 month));
@@ -233,7 +233,7 @@ a
 1970-12-01 00:00:00
 drop table t3;
 create table t4 (a timestamp not null, primary key(a)) engine='InnoDB' 
-partition by list (cast(month(a) as unsigned)) subpartition by key (a)
+partition by list (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (0,1,2,3),
 partition quarter2 values in (4,5,6),
@@ -245,7 +245,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (0,1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (0,1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
 insert into t4 values (date_add('1970-01-01 00:00:00',interval 12-1 month));
 insert into t4 values (date_add('1970-01-01 00:00:00',interval 11-1 month));
@@ -517,7 +517,7 @@ a
 1970-03-28
 drop table t2;
 create table t3 (a date not null, primary key(a)) engine='InnoDB' 
-partition by range (cast(month(a) as unsigned)) subpartition by key (a)
+partition by range (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (4),
 partition quarter2 values less than (7),
@@ -529,7 +529,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
 insert into t3 values (adddate(19700101,interval 12-1 month));
 insert into t3 values (adddate(19700101,interval 11-1 month));
@@ -562,7 +562,7 @@ a
 1970-12-01
 drop table t3;
 create table t4 (a date not null, primary key(a)) engine='InnoDB' 
-partition by list (cast(month(a) as unsigned)) subpartition by key (a)
+partition by list (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (1,2,3),
 partition quarter2 values in (4,5,6),
@@ -574,7 +574,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` date NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
 insert into t4 values (adddate(19700101,interval 12-1 month));
 insert into t4 values (adddate(19700101,interval 11-1 month));
@@ -794,7 +794,7 @@ a
 00:01:59
 drop table t2;
 create table t3 (a time not null, primary key(a)) engine='InnoDB' 
-partition by range (cast(second(a) as unsigned)) subpartition by key (a)
+partition by range (second(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (16),
 partition quarter2 values less than (31),
@@ -806,7 +806,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (cast(second(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (16) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (31) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (46) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (61) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (second(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (16) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (31) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (46) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (61) ENGINE = InnoDB) */
 59 inserts;
 insert into t3 values (100000+59);
 insert into t3 values (100000+58);
@@ -933,7 +933,7 @@ a
 10:00:59
 drop table t3;
 create table t4 (a time not null, primary key(a)) engine='InnoDB' 
-partition by list (cast(second(a) as unsigned)) subpartition by key (a)
+partition by list (second(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
 partition quarter2 values in (16,17,18,19,20,21,22,23,24,25,26,27,28,29,30),
@@ -945,7 +945,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` time NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (cast(second(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (16,17,18,19,20,21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (31,32,33,34,35,36,37,38,39,40,41,42,43,44,45) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (46,47,48,49,50,51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (second(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (16,17,18,19,20,21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (31,32,33,34,35,36,37,38,39,40,41,42,43,44,45) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (46,47,48,49,50,51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
 59 inserts;
 insert into t4 values (100000+59);
 insert into t4 values (100000+58);
@@ -1259,7 +1259,7 @@ a
 1970-01-01 00:00:59
 drop table t2;
 create table t3 (a datetime not null, primary key(a)) engine='InnoDB' 
-partition by range (cast(month(a) as unsigned)) subpartition by key (a)
+partition by range (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (4),
 partition quarter2 values less than (7),
@@ -1271,7 +1271,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES LESS THAN (4) ENGINE = InnoDB, PARTITION quarter2 VALUES LESS THAN (7) ENGINE = InnoDB, PARTITION quarter3 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION quarter4 VALUES LESS THAN (13) ENGINE = InnoDB) */
 12 inserts;
 insert into t3 values (adddate(19700101000000,interval 12-1 month));
 insert into t3 values (adddate(19700101000000,interval 11-1 month));
@@ -1304,7 +1304,7 @@ a
 1970-12-01 00:00:00
 drop table t3;
 create table t4 (a datetime not null, primary key(a)) engine='InnoDB' 
-partition by list (cast(month(a) as unsigned)) subpartition by key (a)
+partition by list (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (1,2,3),
 partition quarter2 values in (4,5,6),
@@ -1316,7 +1316,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` datetime NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (cast(month(a) as unsigned)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (month(a)) SUBPARTITION BY KEY (a) SUBPARTITIONS 3 (PARTITION quarter1 VALUES IN (1,2,3) ENGINE = InnoDB, PARTITION quarter2 VALUES IN (4,5,6) ENGINE = InnoDB, PARTITION quarter3 VALUES IN (7,8,9) ENGINE = InnoDB, PARTITION quarter4 VALUES IN (10,11,12) ENGINE = InnoDB) */
 12 inserts;
 insert into t4 values (adddate(19700101000000,interval 12-1 month));
 insert into t4 values (adddate(19700101000000,interval 11-1 month));
