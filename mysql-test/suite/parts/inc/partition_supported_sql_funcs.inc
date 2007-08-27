@@ -83,14 +83,9 @@ eval insert into t3 values ($val1);
 eval insert into t3 values ($val2);
 eval insert into t3 values ($val3);
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval load data infile '$MYSQL_TEST_DIR/suite/parts/inc/$infile' into table t4;
-
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval load data infile '$MYSQL_TEST_DIR/suite/parts/inc/$infile' into table t5;
-
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval load data infile '$MYSQL_TEST_DIR/suite/parts/inc/$infile' into table t6;
+eval load data infile '../std_data_ln/parts/$infile' into table t4;
+eval load data infile '../std_data_ln/parts/$infile' into table t5;
+eval load data infile '../std_data_ln/parts/$infile' into table t6;
 
 eval select $sqlfunc from t1 order by col1;
 
