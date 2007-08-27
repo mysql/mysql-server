@@ -191,3 +191,7 @@ drop table table_26093;
 drop function func_26093_a;
 drop function func_26093_b;
 End of 5.0 tests
+select connection_id() > 0;
+connection_id() > 0
+1
+End of tests

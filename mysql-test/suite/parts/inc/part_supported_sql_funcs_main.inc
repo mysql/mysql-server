@@ -40,58 +40,39 @@ let $val4 = 15 ;
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
-let $sqlfunc = ascii(col1);
-let $valsqlfunc = ascii('5');
-let $coltype = char(1);
-let $infile = part_supported_sql_funcs_int_ch1.inc;
-let $val1 =  '1';
-let $val2 =  '9';
-let $val3 =  '3';
-let $val4 =  '8';
---source suite/parts/inc/partition_supported_sql_funcs.inc
-# --source include/partition_supported_sql_funcs.inc
 
-let $sqlfunc = cast(ceiling(col1) as signed integer);
-let $valsqlfunc = cast(ceiling(15) as signed integer);
+let $sqlfunc = ceiling(col1);
+let $valsqlfunc = ceiling(15);
 let $coltype = float(7,4);
 let $infile = part_supported_sql_funcs_int_float.inc;
 let $val1 =  5.1230;
 let $val2 = 13.345;
 let $val3 = 17.987;
 let $val4 = 15.654 ;
---source suite/parts/inc/partition_supported_sql_funcs.inc
+# DISABLED due to bug 30577
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
-let $sqlfunc = cast(floor(col1) as signed);
-let $valsqlfunc = cast(floor(15.123) as signed);
+let $sqlfunc = floor(col1);
+let $valsqlfunc = floor(15.123);
 let $coltype = float(7,4);
 let $infile = part_supported_sql_funcs_int_float.inc;
 let $val1 =  5.1230;
 let $val2 = 13.345;
 let $val3 = 17.987;
 let $val4 = 15.654 ;
---source suite/parts/inc/partition_supported_sql_funcs.inc
+# DISABLED due to bug 30577
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
-let $sqlfunc = cast(mod(col1,10) as signed);
-let $valsqlfunc = cast(mod(15,10) as signed);
-let $coltype = float(7,4);
-let $infile = part_supported_sql_funcs_int_float.inc;
-let $val1 =  5.0000;
+let $sqlfunc = mod(col1,10);
+let $valsqlfunc = mod(15,10);
+let $coltype = int;
+let $infile = part_supported_sql_funcs_int_int.inc;
+let $val1 =  5;
 let $val2 = 19;
 let $val3 = 17;
 let $val4 = 15 ;
---source suite/parts/inc/partition_supported_sql_funcs.inc
-# --source include/partition_supported_sql_funcs.inc
-
-let $sqlfunc = ord(col1);
-let $valsqlfunc = ord('a');
-let $coltype = char(3);
-let $infile = part_supported_sql_funcs_int_ch1.inc;
-let $val1 =  '1';
-let $val2 =  '9';
-let $val3 =  '3';
-let $val4 =  '8';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
@@ -243,6 +224,18 @@ let $val4 =  '2006-02-06';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
+# DATEDIFF() is implemented as (TO_DAYS(d1) - TO_DAYS(d2))
+let $sqlfunc = datediff(col1, '2006-01-01');
+let $valsqlfunc = datediff('2006-02-02', '2006-01-01');
+let $coltype = date;
+let $infile = part_supported_sql_funcs_int_date.inc;
+let $val1 =  '2006-02-03';
+let $val2 =  '2006-01-17';
+let $val3 =  '2006-01-25';
+let $val4 =  '2006-02-06';
+--source suite/parts/inc/partition_supported_sql_funcs.inc
+# --source include/partition_supported_sql_funcs.inc
+
 let $sqlfunc = weekday(col1);
 let $valsqlfunc = weekday('2006-10-14');
 let $coltype = date;
@@ -251,17 +244,6 @@ let $val1 =  '2006-12-03';
 let $val2 =  '2006-11-17';
 let $val3 =  '2006-05-25';
 let $val4 =  '2006-02-06';
---source suite/parts/inc/partition_supported_sql_funcs.inc
-# --source include/partition_supported_sql_funcs.inc
-
-let $sqlfunc = weekofyear(col1);
-let $valsqlfunc = weekofyear('2006-02-14');
-let $coltype = date;
-let $infile = part_supported_sql_funcs_int_date.inc;
-let $val1 =  '2006-01-03';
-let $val2 =  '2006-03-17';
-let $val3 =  '2006-05-25';
-let $val4 =  '2006-09-06';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 # --source include/partition_supported_sql_funcs.inc
 
