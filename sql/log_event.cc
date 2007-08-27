@@ -7016,6 +7016,7 @@ int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
   return error? error : local_error;
 }
 
+
 int Write_rows_log_event::do_prepare_row(THD *thd_arg,
                                          Relay_log_info const *rli,
                                          TABLE *table,
