@@ -1739,12 +1739,13 @@ static bool show_status_array(THD *thd, const char *wild,
           if (thd->net.vio->ssl_arg)
           {
             char *to= buff;
-            for (int i=0 ; i++ ;)
+            char *buff_end= buff + sizeof(buff);
+            for (int i= 0; to < buff_end; i++)
             {
               const char *p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i);
               if (p == NULL)
                 break;
-              to= strmov(to, p);
+              to= strnmov(to, p, buff_end-to-1);
               *to++= ':';
             }
             if (to != buff)
