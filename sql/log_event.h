@@ -2294,15 +2294,15 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  const uchar *m_curr_row;     /* Start of the row being processed */
-  const uchar *m_curr_row_end; /* One-after the end of the current row */
-
-  flag_set m_flags;		/* Flags for row-level events */
-  uchar    *m_key;      /* Buffer to keep key value during searches */
+  flag_set m_flags;	  /* Flags for row-level events */
 
   /* helper functions */
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  const uchar *m_curr_row;     /* Start of the row being processed */
+  const uchar *m_curr_row_end; /* One-after the end of the current row */
+  uchar    *m_key;      /* Buffer to keep key value during searches */
+
   int find_row(const RELAY_LOG_INFO *const);
   int write_row(const RELAY_LOG_INFO *const, const bool);
 
