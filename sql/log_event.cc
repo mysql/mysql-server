@@ -5697,7 +5697,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                *description_event)
   : Log_event(buf, description_event),
     m_row_count(0),
-    m_table(NULL),
+    m_table_id(0),
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
     m_curr_row(NULL), m_curr_row_end(NULL),
     m_key(NULL)
