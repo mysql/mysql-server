@@ -262,6 +262,6 @@ select @@character_set_filesystem;
 LOAD DATA INFILE 't@002d1' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
---exec rm $MYSQLTEST_VARDIR/master-data/test/t@002d1
+remove_file $MYSQLTEST_VARDIR/master-data/test/t@002d1;
 SET character_set_filesystem=default;
 select @@character_set_filesystem;
