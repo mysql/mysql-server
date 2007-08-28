@@ -1882,7 +1882,7 @@ end:
 
   @param thd
   @param event
-  @param time_type,
+  @param time_type
   @param old_row_is_record1
 
   @return Error status.
@@ -2074,9 +2074,9 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
 /**
   Contruct path to TRN-file.
 
-  @param thd[in]        Thread context.
-  @param trg_name[in]   Trigger name.
-  @param trn_path[out]  Variable to store constructed path
+  @param[in]  thd        Thread context.
+  @param[in]  trg_name   Trigger name.
+  @param[out] trn_path   Variable to store constructed path
 */
 
 void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path)
@@ -2109,10 +2109,10 @@ bool check_trn_exists(const LEX_STRING *trn_path)
 /**
   Retrieve table name for given trigger.
 
-  @param thd[in]        Thread context.
-  @param trg_name[in]   Trigger name.
-  @param trn_path[in]   Path to the corresponding TRN-file.
-  @param tbl_name[out]  Variable to store retrieved table name.
+  @param[in]  thd        Thread context.
+  @param[in]  trg_name   Trigger name.
+  @param[in]  trn_path   Path to the corresponding TRN-file.
+  @param[out] tbl_name  Variable to store retrieved table name.
 
   @return Error status.
     @retval FALSE on success.

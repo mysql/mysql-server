@@ -6298,12 +6298,12 @@ uint Field::is_equal(Create_field *new_field)
 
 /* If one of the fields is binary and the other one isn't return 1 else 0 */
 
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flags)
+bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
 {
   return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
+          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
          (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flags & (BINCMP_FLAG | BINARY_FLAG))));
+          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
 }
 
 
@@ -7824,7 +7824,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 
    @param   to         Destination of the data
    @param   from       Source of the data
-   @param   param_data <not used>
+   @param   param_data not used
 
    @return  New pointer into memory based on from + length of the data
 */

@@ -68,4 +68,5 @@ int main (int argc, char **argv)
   my_end(0);
 
   return 0;
-};
+}
+

@@ -79,6 +79,10 @@
   ha_example::open() would also have been necessary. Calls to
   ha_example::extra() are hints as to what will be occuring to the request.
 
+  A Longer Example can be found called the "Skeleton Engine" which can be 
+  found on TangentOrg. It has both an engine and a full build environment
+  for building a pluggable storage engine.
+
   Happy coding!<br>
     -Brian
 */
@@ -132,7 +136,6 @@ static int example_init_func(void *p)
                    (hash_get_key) example_get_key,0,0);
 
   example_hton->state=   SHOW_OPTION_YES;
-  example_hton->db_type= DB_TYPE_EXAMPLE_DB;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
 
@@ -420,10 +423,10 @@ int ha_example::delete_row(const uchar *buf)
   index.
 */
 
-int ha_example::index_read(uchar *buf, const uchar *key,
-                           key_part_map keypart_map __attribute__((unused)),
-                           enum ha_rkey_function find_flag
-                           __attribute__((unused)))
+int ha_example::index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map __attribute__((unused)),
+                               enum ha_rkey_function find_flag
+                               __attribute__((unused)))
 {
   DBUG_ENTER("ha_example::index_read");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
