@@ -356,7 +356,7 @@ private:
 inline void
 TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
 {
-  assert(nodeId < (Uint32) MAX_NTRANSPORTERS);
+  assert(nodeId < MAX_NODES);
   m_status_overloaded.set(nodeId, val);
 }
 
