@@ -10,8 +10,9 @@
 . *__datadict.test are started. This can be a result of showing e.g. maximum
 . values of the number of rows of tables.
 .
-. This .result file has been checked OK with Linux 5.0.23-bk,
-. ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+. This .result file has been checked OK with Linux 5.0.48,
+. build tree ChangeSet@1.2477.6.3, 2007-07-30
+. except that the not fixed Bug#30020 causes a difference.
 .
 --------------------------------------------------------------------------------
 
@@ -1063,7 +1064,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -3280,7 +3282,8 @@ END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh
 select count(*) from routines;
 count(*)
 1
-select * from statistics;
+select * from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	NULL	NULL	NULL		BTREE	
@@ -3294,14 +3297,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
@@ -3331,10 +3326,10 @@ NULL	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	31	N
 NULL	mysql	user	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	user	0	mysql	PRIMARY	2	User	A	3	NULL	NULL		BTREE	
 select * from views;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
+NULL	db_datadict	v1	/* ALGORITHM=UNDEFINED */ select `tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`tables`.`TABLE_NAME` AS `TABLE_NAME`,`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`tables`.`ENGINE` AS `ENGINE`,`tables`.`VERSION` AS `VERSION`,`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`tables`.`DATA_FREE` AS `DATA_FREE`,`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`tables`.`CREATE_TIME` AS `CREATE_TIME`,`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`tables`.`CHECK_TIME` AS `CHECK_TIME`,`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`tables`.`CHECKSUM` AS `CHECKSUM`,`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`	NONE	NO	root@localhost	DEFINER
+NULL	db_datadict	vu	/* ALGORITHM=UNDEFINED */ select distinct `vu1`.`u` AS `u`,substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3)) AS `server`,substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3),(length(substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3))) - 1)) AS `Server_Clean` from `db_datadict`.`vu1`	NONE	NO	root@localhost	DEFINER
+NULL	db_datadict	vu1	/* ALGORITHM=UNDEFINED */ select `user_privileges`.`GRANTEE` AS `u` from `information_schema`.`user_privileges`	NONE	NO	root@localhost	DEFINER
 select * from user_privileges order by grantee, privilege_type;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
@@ -3532,7 +3527,8 @@ NULL	mysql	PRIMARY	NULL	mysql	user	User	2	NULL	NULL	NULL	NULL
 select count(*) as max_recs from key_column_usage;
 max_recs
 45
-select max(cardinality) from statistics;
+select max(cardinality) from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 max(cardinality)
 393
 select concat("View '",
@@ -4424,7 +4420,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -5740,10 +5737,10 @@ NULL	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	NULL	NULL	NULL		BTREE
 NULL	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	0	NULL	NULL		BTREE	
 select * from information_schema.views limit 0, 5;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	db_datadict	v1	SELECT * FROM information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu	SELECT DISTINCT u,	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	db_datadict	vu1	SELECT grantee AS u	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
+NULL	db_datadict	v1	/* ALGORITHM=UNDEFINED */ select `tables`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`tables`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`tables`.`TABLE_NAME` AS `TABLE_NAME`,`tables`.`TABLE_TYPE` AS `TABLE_TYPE`,`tables`.`ENGINE` AS `ENGINE`,`tables`.`VERSION` AS `VERSION`,`tables`.`ROW_FORMAT` AS `ROW_FORMAT`,`tables`.`TABLE_ROWS` AS `TABLE_ROWS`,`tables`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`tables`.`DATA_LENGTH` AS `DATA_LENGTH`,`tables`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`tables`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`tables`.`DATA_FREE` AS `DATA_FREE`,`tables`.`AUTO_INCREMENT` AS `AUTO_INCREMENT`,`tables`.`CREATE_TIME` AS `CREATE_TIME`,`tables`.`UPDATE_TIME` AS `UPDATE_TIME`,`tables`.`CHECK_TIME` AS `CHECK_TIME`,`tables`.`TABLE_COLLATION` AS `TABLE_COLLATION`,`tables`.`CHECKSUM` AS `CHECKSUM`,`tables`.`CREATE_OPTIONS` AS `CREATE_OPTIONS`,`tables`.`TABLE_COMMENT` AS `TABLE_COMMENT` from `information_schema`.`tables`	NONE	NO	root@localhost	DEFINER
+NULL	db_datadict	vu	/* ALGORITHM=UNDEFINED */ select distinct `vu1`.`u` AS `u`,substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3)) AS `server`,substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3),(length(substr(`vu1`.`u`,(length(substring_index(`vu1`.`u`,_utf8'@',1)) + 3))) - 1)) AS `Server_Clean` from `db_datadict`.`vu1`	NONE	NO	root@localhost	DEFINER
+NULL	db_datadict	vu1	/* ALGORITHM=UNDEFINED */ select `user_privileges`.`GRANTEE` AS `u` from `information_schema`.`user_privileges`	NONE	NO	root@localhost	DEFINER
 select * from information_schema.user_privileges limit 0, 5;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'localhost'	NULL	SELECT	YES
@@ -5876,10 +5873,10 @@ utf8_esperanto_ci	utf8
 utf8_estonian_ci	utf8
 select routine_definition from routines;
 routine_definition
-select * from statistics group by index_name asc  limit 0, 5;
+select * from statistics where table_name not like 'help_%'
+group by index_name asc  limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE	
 select concat(table_schema, ', ', table_name, ', ', view_definition) view_info
@@ -5993,9 +5990,9 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 NULL	test1	latin1	latin1_swedish_ci	NULL
 select distinct grantee from user_privileges;
 grantee
-'root'@'localhost'
-'root'@'<SERVER_NAME>'
 'root'@'127.0.0.1'
+'root'@'<SERVER_NAME>'
+'root'@'localhost'
 select all      grantee from user_privileges order by grantee, privilege_type;
 grantee
 'root'@'127.0.0.1'
@@ -7945,7 +7942,7 @@ Testcase 3.2.1.14:
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 USE db_datadict;
-create table res_t_401014(f1 char(10), f2 text(25), f3 int);
+create table res_t_401014(f1 char(10), f2 varchar(25), f3 int);
 create view res_v_401014 as select * from res_t_401014;
 create procedure sp_6_401014() select 'db_datadict';
 create function fn_6_401014() returns int return 0;
@@ -7968,10 +7965,10 @@ from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_v_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_v_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
 from information_schema.views
@@ -8090,7 +8087,7 @@ WHERE trigger_schema LIKE 'db_datadict%';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 use db_datadict;
 alter table res_t_401014 change f1 ff1 int;
-alter table res_t_401014 engine = innodb;
+alter table res_t_401014 engine = MEMORY;
 alter table res_t_401014 change f3 f3_new bigint;
 alter view res_v_401014 as select ff1 from res_t_401014;
 alter procedure sp_6_401014 sql security invoker;
@@ -8108,14 +8105,14 @@ select table_catalog, table_schema, engine
 from information_schema.tables
 where table_schema like 'db_datadict%';
 table_catalog	table_schema	engine
-NULL	db_datadict	InnoDB
+NULL	db_datadict	MEMORY
 NULL	db_datadict	NULL
 select *
 from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3_new	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
@@ -14488,7 +14485,7 @@ NULL	information_schema	TRIGGERS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#
 NULL	information_schema	USER_PRIVILEGES	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	VIEWS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema') AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 NULL	db_datadict	tb1	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	tb2	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -14731,7 +14728,8 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_
 	
 root@localhost	db_datadict_2
 REVOKE SELECT ON db_datadict.tb_6_401402_1 FROM 'user_1'@'localhost';
-SELECT * FROM information_schema.statistics;
+SELECT * FROM information_schema.statistics
+WHERE NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	db_datadict	tb_6_401402_1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE	
 NULL	db_datadict	tb_6_401402_1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE	
@@ -14753,14 +14751,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
