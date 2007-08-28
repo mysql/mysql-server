@@ -99,6 +99,7 @@ AsyncFile::AsyncFile(SimulatedBlock& fs) :
 {
   m_page_ptr.setNull();
   m_current_request= m_last_request= 0;
+  m_open_flags = 0;
 }
 
 void
@@ -328,6 +329,7 @@ void AsyncFile::openReq(Request* request)
 {  
   m_auto_sync_freq = 0;
   m_write_wo_sync = 0;
+  m_open_flags = request->par.open.flags;
 
   // for open.flags, see signal FSOPENREQ
 #ifdef NDB_WIN32
@@ -954,7 +956,12 @@ AsyncFile::writevReq( Request * request)
 void
 AsyncFile::closeReq(Request * request)
 {
-  syncReq(request);
+  if (m_open_flags & (
+      FsOpenReq::OM_WRITEONLY |
+      FsOpenReq::OM_READWRITE |
+      FsOpenReq::OM_APPEND )) {
+    syncReq(request);
+  }
 #ifdef NDB_WIN32
   if(!CloseHandle(hFile)) {
     request->error = GetLastError();
