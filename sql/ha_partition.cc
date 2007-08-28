@@ -5601,13 +5601,6 @@ int ha_partition::indexes_are_disabled(void)
 }
 
 
-void ha_partition::column_bitmaps_signal()
-{
-    handler::column_bitmaps_signal();
-    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-}
-
-
 /****************************************************************************
                 MODULE Partition Share
 ****************************************************************************/
