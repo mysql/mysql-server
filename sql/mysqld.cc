@@ -746,14 +746,16 @@ static void close_connections(void)
   (void) pthread_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing manager thread: 0x%lx",manager_thread));
+    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
+                        (ulong)manager_thread));
    (void) pthread_cond_signal(&COND_manager);
   }
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
-  DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
+  DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
+                      (ulong) select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
@@ -5087,8 +5089,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE,
-  OPT_KEEP_FILES_ON_CREATE
+  OPT_OLD_MODE
 };
 
 
