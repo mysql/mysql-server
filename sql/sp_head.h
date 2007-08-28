@@ -23,6 +23,11 @@
 
 #include <stddef.h>
 
+/**
+  @defgroup Stored_Routines Stored Routines
+  @ingroup Runtime_Environment
+  @{
+*/
 // Values for the type enum. This reflects the order of the enum declaration
 // in the CREATE TABLE command.
 #define TYPE_ENUM_FUNCTION  1
@@ -186,7 +191,7 @@ public:
   LEX_STRING m_qname;		// db.name
   /**
     Key representing routine in the set of stored routines used by statement.
-    [routine_type]db.name\0
+    [routine_type]db.name
     @sa sp_name::m_sroutines_key
   */
   LEX_STRING m_sroutines_key;
@@ -1321,5 +1326,9 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+/**
+  @} (end of group Stored_Routines)
+*/
 
 #endif /* _SP_HEAD_H_ */

@@ -13,6 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @addtogroup Replication
+  @{
+
+  @file
+
+  Binary log event definitions.
+*/
+
 
 #ifndef _log_event_h
 #define _log_event_h
@@ -57,8 +66,8 @@
    which increments every time we write an event to the binlog) (3 bytes).
    Q: how do we handle when the counter is overflowed and restarts from 0 ?
 
-   - Query and Load (Create or Execute) events may have a more precise timestamp
-   (with microseconds), number of matched/affected/warnings rows
+   - Query and Load (Create or Execute) events may have a more precise
+     timestamp (with microseconds), number of matched/affected/warnings rows
    and fields of session variables: SQL_MODE,
    FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
    charsets, the PASSWORD() version (old/new/...).
@@ -706,7 +715,8 @@ public:
   */
   static Log_event* read_log_event(IO_CACHE* file,
 				   pthread_mutex_t* log_lock,
-                                   const Format_description_log_event *description_event);
+                                   const Format_description_log_event
+                                   *description_event);
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
   /*
@@ -734,7 +744,8 @@ public:
   Log_event() : temp_buf(0) {}
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
-                                   const Format_description_log_event *description_event);
+                                   const Format_description_log_event
+                                   *description_event);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t *ts = 0);
@@ -770,12 +781,24 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
+  inline time_t get_time()
+  {
+    THD *tmp_thd;
+    if (when)
+      return when;
+    if (thd)
+      return thd->start_time;
+    if ((tmp_thd= current_thd))
+      return tmp_thd->start_time;
+    return my_time(0);
+  }
 #endif
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
   virtual bool is_artificial_event() { return 0; }
   inline bool get_cache_stmt() const { return cache_stmt; }
-  Log_event(const char* buf, const Format_description_log_event* description_event);
+  Log_event(const char* buf, const Format_description_log_event
+            *description_event);
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
@@ -798,6 +821,8 @@ public:
   /* returns the human readable name of the event's type */
   const char* get_type_str();
 
+  /* Return start of query time or current time */
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 public:
 
@@ -809,7 +834,8 @@ public:
 
      @see do_apply_event
    */
-  int apply_event(Relay_log_info const *rli) {
+  int apply_event(Relay_log_info const *rli)
+  {
     return do_apply_event(rli);
   }
 
@@ -917,7 +943,6 @@ protected:
      non-zero. The caller shall decrease the counter by one.
    */
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
-
 #endif
 };
 
@@ -1149,7 +1174,8 @@ private:
                    char **fn_start, char **fn_end);
 protected:
   int copy_log_event(const char *buf, ulong event_len,
-                     int body_offset, const Format_description_log_event* description_event);
+                     int body_offset,
+                     const Format_description_log_event* description_event);
 
 public:
   ulong thread_id;
@@ -1294,6 +1320,11 @@ public:
     setting log_event == 0 (for now).
   */
   bool artificial_event;
+  /*
+    We set this to 1 if we don't want to have the created time in the log,
+    which is the case when we rollover to a new log.
+  */
+  bool dont_set_created;
 
 #ifndef MYSQL_CLIENT
   Start_log_event_v3();
@@ -1360,7 +1391,8 @@ public:
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
-                               const Format_description_log_event* description_event);
+                               const Format_description_log_event
+                               *description_event);
   ~Format_description_log_event() { my_free((uchar*)post_header_len, MYF(0)); }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifndef MYSQL_CLIENT
@@ -1418,7 +1450,8 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Intvar_log_event(const char* buf, const Format_description_log_event* description_event);
+  Intvar_log_event(const char* buf,
+                   const Format_description_log_event *description_event);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
@@ -1465,7 +1498,8 @@ class Rand_log_event: public Log_event
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Rand_log_event(const char* buf, const Format_description_log_event* description_event);
+  Rand_log_event(const char* buf,
+                 const Format_description_log_event *description_event);
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
   int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
@@ -1508,7 +1542,8 @@ class Xid_log_event: public Log_event
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Xid_log_event(const char* buf, const Format_description_log_event* description_event);
+  Xid_log_event(const char* buf,
+                const Format_description_log_event *description_event);
   ~Xid_log_event() {}
   Log_event_type get_type_code() { return XID_EVENT;}
   int get_data_size() { return sizeof(xid); }
@@ -1554,7 +1589,8 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  User_var_log_event(const char* buf, const Format_description_log_event* description_event);
+  User_var_log_event(const char* buf,
+                     const Format_description_log_event *description_event);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifndef MYSQL_CLIENT
@@ -1586,7 +1622,8 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Stop_log_event(const char* buf, const Format_description_log_event* description_event):
+  Stop_log_event(const char* buf,
+                 const Format_description_log_event *description_event):
     Log_event(buf, description_event)
   {}
   ~Stop_log_event() {}
@@ -1695,7 +1732,8 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
+             bool enable_local);
 #endif
 
   Create_file_log_event(const char* buf, uint event_len,
@@ -1770,7 +1808,8 @@ public:
 #endif
 
   Append_block_log_event(const char* buf, uint event_len,
-                         const Format_description_log_event* description_event);
+                         const Format_description_log_event
+                         *description_event);
   ~Append_block_log_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
   int get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
@@ -1806,7 +1845,8 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
+             bool enable_local);
 #endif
 
   Delete_file_log_event(const char* buf, uint event_len,
@@ -1849,7 +1889,8 @@ public:
 #endif
 
   Execute_load_log_event(const char* buf, uint event_len,
-                         const Format_description_log_event* description_event);
+                         const Format_description_log_event
+                         *description_event);
   ~Execute_load_log_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
   int get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
@@ -1888,7 +1929,8 @@ public:
 #endif /* HAVE_REPLICATION */
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,
-                             const Format_description_log_event* description_event);
+                             const Format_description_log_event
+                             *description_event);
   ~Begin_load_query_log_event() {}
   Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
 };
@@ -1940,7 +1982,8 @@ public:
 	     const char *local_fname);
 #endif
   Execute_load_query_log_event(const char* buf, uint event_len,
-                               const Format_description_log_event *description_event);
+                               const Format_description_log_event
+                               *description_event);
   ~Execute_load_query_log_event() {}
 
   Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
@@ -1967,7 +2010,8 @@ public:
     Log_event's ctor, this way we can extract maximum information from the
     event's header (the unique ID for example).
   */
-  Unknown_log_event(const char* buf, const Format_description_log_event* description_event):
+  Unknown_log_event(const char* buf,
+                    const Format_description_log_event *description_event):
     Log_event(buf, description_event)
   {}
   ~Unknown_log_event() {}
@@ -2546,7 +2590,7 @@ protected:
    <caption>Incident event format</caption>
    <tr>
      <th>Symbol</th>
-     <th>Size<br/>(bytes)</th>
+     <th>Size<br>(bytes)</th>
      <th>Description</th>
    </tr>
    <tr>
@@ -2630,5 +2674,9 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     my_b_copy_to_file(cache, file) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
+
+/**
+  @} (end of group Replication)
+*/
 
 #endif /* _log_event_h */

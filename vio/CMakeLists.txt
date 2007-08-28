@@ -18,4 +18,10 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG -DSAFEMALLOC -DSAFE_MUT
 
 ADD_DEFINITIONS(-DUSE_SYMDIR)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(vio vio.c viosocket.c viossl.c viosslfactories.c)
+
+SET(VIO_SOURCES  vio.c viosocket.c viossl.c viosslfactories.c)
+
+IF(NOT SOURCE_SUBLIBS)
+  ADD_LIBRARY(vio ${VIO_SOURCES})
+ENDIF(NOT SOURCE_SUBLIBS)
+

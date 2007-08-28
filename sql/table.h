@@ -157,7 +157,7 @@ enum enum_table_category
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     do not apply to this table.
-    Note that LOCK TABLE <t> FOR READ/WRITE
+    Note that LOCK TABLE t FOR READ/WRITE
     can be used on temporary tables.
     Temporary tables are not part of the table cache.
   */
@@ -166,7 +166,7 @@ enum enum_table_category
   /**
     User table.
     These tables do honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     User tables are cached in the table cache.
@@ -176,7 +176,7 @@ enum enum_table_category
   /**
     System table, maintained by the server.
     These tables do honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     Typically, writes to system tables are performed by
@@ -190,7 +190,7 @@ enum enum_table_category
     These tables are an interface provided by the system
     to inspect the system metadata.
     These tables do *not* honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     as there is no point in locking explicitely
@@ -212,7 +212,7 @@ enum enum_table_category
     These tables are an interface provided by the system
     to inspect the system performance data.
     These tables do *not* honor:
-    - LOCK TABLE <t> FOR READ/WRITE
+    - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
     as there is no point in locking explicitely
@@ -310,6 +310,7 @@ typedef struct st_table_share
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
+  enum ha_choice transactional;
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint open_count;			/* Number of tables in open list */

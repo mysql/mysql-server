@@ -1058,8 +1058,12 @@ err:
 }
 
 
-static uchar *get_hash_key(const uchar *buff, size_t *length,
-                   my_bool not_used __attribute__((unused)))
+extern "C" uchar *get_plugin_hash_key(const uchar *, size_t *, my_bool);
+extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
+
+
+uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
+                           my_bool not_used __attribute__((unused)))
 {
   struct st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1067,8 +1071,8 @@ static uchar *get_hash_key(const uchar *buff, size_t *length,
 }
 
 
-static uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                   my_bool not_used __attribute__((unused)))
+uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
+                             my_bool not_used __attribute__((unused)))
 {
   struct st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
@@ -1115,7 +1119,7 @@ int plugin_init(int *argc, char **argv, int flags)
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
     if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                  get_hash_key, NULL, HASH_UNIQUE))
+                  get_plugin_hash_key, NULL, HASH_UNIQUE))
       goto err;
   }
 
@@ -1702,9 +1706,10 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  if (! table->file->index_read_idx(table->record[0], 0,
-                                    (uchar *)table->field[0]->ptr, HA_WHOLE_KEY,
-                                    HA_READ_KEY_EXACT))
+  if (! table->file->index_read_idx_map(table->record[0], 0,
+                                        (uchar *)table->field[0]->ptr,
+                                        HA_WHOLE_KEY,
+                                        HA_READ_KEY_EXACT))
   {
     int error;
     if ((error= table->file->ha_delete_row(table->record[0])))
@@ -2444,7 +2449,7 @@ void plugin_thdvar_cleanup(THD *thd)
 /**
   @brief Free values of thread variables of a plugin.
 
-  @detail This must be called before a plugin is deleted. Otherwise its
+  This must be called before a plugin is deleted. Otherwise its
   variables are no longer accessible and the value space is lost. Note
   that only string values with PLUGIN_VAR_MEMALLOC are allocated and
   must be freed.
@@ -2769,8 +2774,10 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->arg_type= OPT_ARG;
 }
 
+extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
+                                         char *);
 
-static my_bool get_one_option(int optid __attribute__((unused)),
+my_bool get_one_plugin_option(int optid __attribute__((unused)),
                               const struct my_option *opt,
                               char *argument)
 {
@@ -3078,7 +3085,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       DBUG_RETURN(-1);
     }
 
-    error= handle_options(argc, &argv, opts, get_one_option);
+    error= handle_options(argc, &argv, opts, get_one_plugin_option);
     (*argc)++; /* add back one for the program name */
 
     if (error)
@@ -3140,7 +3147,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     DBUG_RETURN(0);
   }
 
-  if (enabled_saved)
+  if (enabled_saved && global_system_variables.log_warnings)
     sql_print_information("Plugin '%s' disabled by command line option",
                           tmp->name.str);
   DBUG_RETURN(1);
