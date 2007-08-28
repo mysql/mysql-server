@@ -7616,19 +7616,16 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
   uint32 length=get_length();			// Length of from string
   if (length > max_length)
   {
-    ptr=to;
     length=max_length;
-    store_length(length);			// Store max length
-    ptr= (uchar*) from;
+    store_length(to,packlength,length,TRUE);
   }
-  else
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  else if (!table->s->db_low_byte_first)
   {
-    store_length(to,packlength,length,0);
+    store_length(to,packlength,length,TRUE);
   }
-  else
 #endif
+  else
     memcpy(to,from,packlength);			// Copy length
   if (length)
   {
@@ -7667,9 +7664,9 @@ const uchar *Field_blob::unpack(uchar *to, const uchar *from)
 {
   uint32 length=get_length(from);
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
-    store_length(to,packlength,length,1);
+    store_length(to,packlength,length,FALSE);
   }
   else
 #endif
