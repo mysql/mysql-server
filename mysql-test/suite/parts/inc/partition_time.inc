@@ -46,7 +46,7 @@ select * from t2;
 drop table t2;
 
 eval create table t3 (a time not null, primary key(a)) engine=$engine 
-partition by range (cast(second(a) as unsigned)) subpartition by key (a)
+partition by range (second(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (16),
 partition quarter2 values less than (31),
@@ -66,7 +66,7 @@ select * from t3;
 drop table t3;
 
 eval create table t4 (a time not null, primary key(a)) engine=$engine 
-partition by list (cast(second(a) as unsigned)) subpartition by key (a)
+partition by list (second(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
 partition quarter2 values in (16,17,18,19,20,21,22,23,24,25,26,27,28,29,30),

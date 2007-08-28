@@ -3257,6 +3257,14 @@ void ha_partition::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
+
+void ha_partition::column_bitmaps_signal()
+{
+    handler::column_bitmaps_signal();
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+}
+ 
+
 /*
   Read row using position
 
@@ -5469,6 +5477,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
 
   for (pos=m_file, end= m_file+ m_tot_parts; pos != end ; pos++)
   {
+    first_value_part= *first_value;
     (*pos)->get_auto_increment(offset, increment, nb_desired_values,
                                &first_value_part, &nb_reserved_values_part);
     if (first_value_part == ~(ulonglong)(0)) // error in one partition
