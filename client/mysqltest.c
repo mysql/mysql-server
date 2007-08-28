@@ -2976,15 +2976,30 @@ void do_diff_files(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
-  /*
-    SYNOPSIS
-    do_send_quit
-    command	called command
 
-    DESCRIPTION
-    Sends a simple quit command to the server for the named connection.
+struct st_connection * find_connection_by_name(const char *name)
+{
+  struct st_connection *con;
+  for (con= connections; con < next_con; con++)
+  {
+    if (!strcmp(con->name, name))
+    {
+      return con;
+    }
+  }
+  return 0; /* Connection not found */
+}
 
-  */
+
+/*
+  SYNOPSIS
+  do_send_quit
+  command	called command
+
+  DESCRIPTION
+  Sends a simple quit command to the server for the named connection.
+
+*/
 
 void do_send_quit(struct st_command *command)
 {
@@ -2995,7 +3010,7 @@ void do_send_quit(struct st_command *command)
   DBUG_PRINT("enter",("name: '%s'",p));
 
   if (!*p)
-    die("Missing connection name in do_send_quit");
+    die("Missing connection name in send_quit");
   name= p;
   while (*p && !my_isspace(charset_info,*p))
     p++;
@@ -3004,17 +3019,12 @@ void do_send_quit(struct st_command *command)
     *p++= 0;
   command->last_argument= p;
 
-  /* Loop through connection pool for connection to close */
-  for (con= connections; con < next_con; con++)
-  {
-    DBUG_PRINT("info", ("con->name: %s", con->name));
-    if (!strcmp(con->name, name))
-    {
-      simple_command(&con->mysql,COM_QUIT,0,0,1);
-      DBUG_VOID_RETURN;
-    }
-  }
-  die("connection '%s' not found in connection pool", name);
+  if (!(con= find_connection_by_name(name)))
+    die("connection '%s' not found in connection pool", name);
+
+  simple_command(&con->mysql,COM_QUIT,0,0,1);
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3855,20 +3865,6 @@ void set_reconnect(MYSQL* mysql, int val)
 }
 
 
-struct st_connection * find_connection_by_name(const char *name)
-{
-  struct st_connection *con;
-  for (con= connections; con < next_con; con++)
-  {
-    if (!strcmp(con->name, name))
-    {
-      return con;
-    }
-  }
-  return 0; /* Connection not found */
-}
-
-
 int select_connection_name(const char *name)
 {
   DBUG_ENTER("select_connection_name");
@@ -3916,44 +3912,40 @@ void do_close_connection(struct st_command *command)
     *p++= 0;
   command->last_argument= p;
 
-  /* Loop through connection pool for connection to close */
-  for (con= connections; con < next_con; con++)
-  {
-    DBUG_PRINT("info", ("con->name: %s", con->name));
-    if (!strcmp(con->name, name))
-    {
-      DBUG_PRINT("info", ("Closing connection %s", con->name));
+  if (!(con= find_connection_by_name(name)))
+    die("connection '%s' not found in connection pool", name);
+
+  DBUG_PRINT("info", ("Closing connection %s", con->name));
 #ifndef EMBEDDED_LIBRARY
-      if (command->type == Q_DIRTY_CLOSE)
-      {
-	if (con->mysql.net.vio)
-	{
-	  vio_delete(con->mysql.net.vio);
-	  con->mysql.net.vio = 0;
-	}
-      }
-#endif
-      if (next_con->stmt)
-        mysql_stmt_close(next_con->stmt);
-      next_con->stmt= 0;
-
-      mysql_close(&con->mysql);
-      if (con->util_mysql)
-	mysql_close(con->util_mysql);
-      con->util_mysql= 0;
-      my_free(con->name, MYF(0));
-
-      /*
-        When the connection is closed set name to "-closed_connection-"
-        to make it possible to reuse the connection name.
-      */
-      if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
-        die("Out of memory");
-
-      DBUG_VOID_RETURN;
+  if (command->type == Q_DIRTY_CLOSE)
+  {
+    if (con->mysql.net.vio)
+    {
+      vio_delete(con->mysql.net.vio);
+      con->mysql.net.vio = 0;
     }
   }
-  die("connection '%s' not found in connection pool", name);
+#endif
+  if (con->stmt)
+    mysql_stmt_close(con->stmt);
+  con->stmt= 0;
+
+  mysql_close(&con->mysql);
+
+  if (con->util_mysql)
+    mysql_close(con->util_mysql);
+  con->util_mysql= 0;
+
+  my_free(con->name, MYF(0));
+
+  /*
+    When the connection is closed set name to "-closed_connection-"
+    to make it possible to reuse the connection name.
+  */
+  if (!(con->name = my_strdup("-closed_connection-", MYF(MY_WME))))
+    die("Out of memory");
+
+  DBUG_VOID_RETURN;
 }
 
 
