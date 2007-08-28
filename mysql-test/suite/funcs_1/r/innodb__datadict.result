@@ -1208,90 +1208,6 @@ CREATE_OPTIONS
 TABLE_COMMENT	General log
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
 TABLE_NAME	host
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -3215,7 +3131,7 @@ cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
 eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
 select sum(id) from collations;
 sum(id)
-10840
+11094
 select collation_name, character_set_name into @x,@y
 from collation_character_set_applicability limit 1;
 select @x, @y;
@@ -3473,7 +3389,7 @@ NULL	mysql	PRIMARY	NULL	mysql	user	Host	1	NULL	NULL	NULL	NULL
 NULL	mysql	PRIMARY	NULL	mysql	user	User	2	NULL	NULL	NULL	NULL
 select count(*) as max_recs from key_column_usage;
 max_recs
-40
+45
 select max(cardinality) from statistics
 where not (table_schema = 'mysql' and table_name like 'help_%');
 max(cardinality)
@@ -4537,90 +4453,6 @@ TABLE_COLLATION	utf8_general_ci
 CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	General log
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	0
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	host
@@ -5740,10 +5572,10 @@ COUNT(*)
 36
 SELECT COUNT(*) FROM information_schema. collations                            ;
 COUNT(*)
-127
+128
 SELECT COUNT(*) FROM information_schema. collation_character_set_applicability ;
 COUNT(*)
-128
+129
 SELECT COUNT(*) FROM information_schema. routines                              ;
 COUNT(*)
 1
@@ -5967,6 +5799,8 @@ grantee
 'root'@'127.0.0.1'
 'root'@'127.0.0.1'
 'root'@'127.0.0.1'
+'root'@'127.0.0.1'
+'root'@'127.0.0.1'
 'root'@'<SERVER_NAME>'
 'root'@'<SERVER_NAME>'
 'root'@'<SERVER_NAME>'
@@ -5992,6 +5826,10 @@ grantee
 'root'@'<SERVER_NAME>'
 'root'@'<SERVER_NAME>'
 'root'@'<SERVER_NAME>'
+'root'@'<SERVER_NAME>'
+'root'@'<SERVER_NAME>'
+'root'@'localhost'
+'root'@'localhost'
 'root'@'localhost'
 'root'@'localhost'
 'root'@'localhost'
@@ -8694,6 +8532,7 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
+utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -9475,6 +9314,7 @@ utf8_roman_ci
 utf8_persian_ci
 utf8_esperanto_ci
 utf8_hungarian_ci
+utf8_general_cs
 ucs2_general_ci
 ucs2_bin
 ucs2_unicode_ci
@@ -9840,6 +9680,7 @@ utf8_roman_ci	utf8	207		Yes	8
 utf8_persian_ci	utf8	208		Yes	8
 utf8_esperanto_ci	utf8	209		Yes	8
 utf8_hungarian_ci	utf8	210		Yes	8
+utf8_general_cs	utf8	254		Yes	1
 ucs2_general_ci	ucs2	35	Yes	Yes	1
 ucs2_bin	ucs2	90		Yes	1
 ucs2_unicode_ci	ucs2	128		Yes	8
@@ -10003,6 +9844,7 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
+utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -14338,10 +14180,6 @@ NULL	mysql	db	BASE TABLE	MyISAM	10	Fixed	3	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-
 NULL	mysql	event	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Events
 NULL	mysql	func	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		User defined functions
 NULL	mysql	general_log	BASE TABLE	CSV	10	Dynamic	1	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		General log
-NULL	mysql	help_category	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help categories
-NULL	mysql	help_keyword	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help keywords
-NULL	mysql	help_relation	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		keyword-topic relation
-NULL	mysql	help_topic	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help topics
 NULL	mysql	host	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		Host privileges;  Merged with database privileges
 NULL	mysql	ndb_binlog_index	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	mysql	plugin	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		MySQL plugins
