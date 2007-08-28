@@ -61,7 +61,6 @@ use File::Copy;
 use File::Temp qw / tempdir /;
 use Cwd;
 use Getopt::Long;
-use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
 use strict;
@@ -83,7 +82,6 @@ require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_report.pl";
-require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
@@ -101,7 +99,6 @@ $Devel::Trace::TRACE= 1;
 our $mysql_version_id;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
-our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
 our $glob_use_running_ndbcluster= 0;
@@ -234,7 +231,6 @@ my $opt_report_features;
 our $opt_check_testcases;
 our $opt_mark_progress;
 
-our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
 our $max_master_num= 1;
@@ -277,12 +273,7 @@ our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
-our $opt_wait_for_master;
-our $opt_wait_for_slave;
-
 our $opt_warnings;
-
-our $opt_udiff;
 
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
@@ -307,7 +298,6 @@ our @data_dir_lst;
 our $used_binlog_format;
 our $used_default_engine;
 our $debug_compiled_binaries;
-our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
 
@@ -620,7 +610,6 @@ sub command_line_setup () {
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
-             'unified-diff|udiff'       => \$opt_udiff,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -655,8 +644,6 @@ sub command_line_setup () {
   {
     $source_dist=  1;
   }
-
-  $glob_hostname=  mtr_short_hostname();
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
@@ -2905,13 +2892,16 @@ sub initialize_servers () {
     }
   }
   check_running_as_root();
+
+  mtr_log_init("$opt_vardir/log/mysql-test-run.log");
+
 }
 
 sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  if ($max_master_num)
+  if ($max_master_num > 1)
   {
     copy_install_db('master', $master->[1]->{'path_myddir'});
   }
@@ -3069,10 +3059,14 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  mtr_tofile($bootstrap_sql_file,
+	     "DELETE FROM mysql.user where user= '';");
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
+
 
   if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
@@ -3617,7 +3611,6 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo->{'result_file'});
   print "\n";
   if ( $opt_force )
   {
@@ -3626,13 +3619,13 @@ sub report_failure_and_restart ($) {
 
     # Restore the snapshot of the installed test db
     restore_installed_db($tinfo->{'name'});
-    print "Resuming Tests\n\n";
+    mtr_report("Resuming Tests\n");
     return;
   }
 
   my $test_mode= join(" ", @::glob_test_mode) || "default";
-  print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
-  print "To continue, re-run with '--force'.\n";
+  mtr_report("Aborting: $tinfo->{'name'} failed in $test_mode mode. ");
+  mtr_report("To continue, re-run with '--force'.");
   if ( ! $glob_debugger and
        ! $opt_extern and
        ! $glob_use_embedded_server )
@@ -4090,11 +4083,11 @@ sub mysqld_start ($$$) {
 
 sub stop_all_servers () {
 
-  print  "Stopping All Servers\n";
+  mtr_report("Stopping All Servers");
 
   if ( ! $opt_skip_im )
   {
-    print  "Shutting-down Instance Manager\n";
+    mtr_report("Shutting-down Instance Manager");
     unless (mtr_im_stop($instance_manager, "stop_all_servers"))
     {
       mtr_error("Failed to stop Instance Manager.")
@@ -4680,6 +4673,7 @@ sub run_mysqltest ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+  mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
@@ -4801,6 +4795,9 @@ sub run_mysqltest ($) {
   }
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
+
+  # Number of lines of resut to include in failure report
+  mtr_add_arg($args, "--tail-lines=20");
 
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
@@ -5213,7 +5210,6 @@ Misc options
   fast                  Don't try to clean up from earlier runs
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
-  unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
   suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)

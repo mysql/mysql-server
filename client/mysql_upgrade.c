@@ -342,12 +342,6 @@ static my_bool get_full_path_to_executable(char* path)
 
 /*
   Look for the tool in the same directory as mysql_upgrade.
-
-  When running in a not yet installed build the the program
-  will exist but it need to be invoked via it's libtool wrapper.
-  Check if the found tool can executed and if not look in the
-  directory one step higher up where the libtool wrapper normally
-  is found
 */
 
 static void find_tool(char *tool_path, const char *tool_name)
@@ -385,37 +379,52 @@ static void find_tool(char *tool_path, const char *tool_name)
       path[0]= 0;
     }
   }
-  do
+
+  DBUG_PRINT("info", ("path: '%s'", path));
+
+  /* Chop off binary name (i.e mysql-upgrade) from path */
+  dirname_part(path, path);
+
+  /*
+    When running in a not yet installed build and using libtool,
+    the program(mysql_upgrade) will be in .libs/ and executed
+    through a libtool wrapper in order to use the dynamic libraries
+    from this build. The same must be done for the tools(mysql and
+    mysqlcheck). Thus if path ends in .libs/, step up one directory
+    and execute the tools from there
+  */
+  path[max((strlen(path)-1), 0)]= 0;   /* Chop off last / */
+  if (strncmp(path + dirname_length(path), ".libs", 5) == 0)
   {
-    DBUG_PRINT("enter", ("path: %s", path));
+    DBUG_PRINT("info", ("Chopping off .libs from '%s'", path));
 
-    /* Chop off last char(since it might be a /) */
-    path[max((strlen(path)-1), 0)]= 0;
-
-    /* Chop off last dir part */
+    /* Chop off .libs */
     dirname_part(path, path);
-
-    /* Format name of the tool to search for */
-    fn_format(tool_path, tool_name,
-              path, "", MYF(MY_REPLACE_DIR));
-
-    verbose("Looking for '%s' in: %s", tool_name, tool_path);
-
-    /* Make sure the tool exists */
-    if (my_access(tool_path, F_OK) != 0)
-      die("Can't find '%s'", tool_path);
-
-    /*
-      Make sure it can be executed, otherwise try again
-      in higher level directory
-    */
   }
-  while(run_tool(tool_path,
-                 &ds_tmp, /* Get output from command, discard*/
-                 "--help",
-                 "2>&1",
-                 IF_WIN("> NUL", "> /dev/null"),
-                 NULL));
+
+
+  DBUG_PRINT("info", ("path: '%s'", path));
+
+  /* Format name of the tool to search for */
+  fn_format(tool_path, tool_name,
+            path, "", MYF(MY_REPLACE_DIR));
+
+  verbose("Looking for '%s' in: %s", tool_name, tool_path);
+
+  /* Make sure the tool exists */
+  if (my_access(tool_path, F_OK) != 0)
+    die("Can't find '%s'", tool_path);
+
+  /*
+    Make sure it can be executed
+  */
+  if (run_tool(tool_path,
+               &ds_tmp, /* Get output from command, discard*/
+               "--help",
+               "2>&1",
+               IF_WIN("> NUL", "> /dev/null"),
+               NULL))
+    die("Can't execute '%s'", tool_path);
 
   dynstr_free(&ds_tmp);
 
@@ -446,6 +455,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
+                "--no-defaults",
                 ds_args.str,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
@@ -457,6 +467,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                 NULL);
 
   my_close(fd, MYF(0));
+  my_delete(query_file_path, MYF(0));
 
   DBUG_RETURN(ret);
 }
@@ -607,6 +618,7 @@ static int run_mysqlcheck_upgrade(void)
   verbose("Running 'mysqlcheck'...");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
                   ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
