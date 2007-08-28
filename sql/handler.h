@@ -178,12 +178,13 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
 
+#define HA_ONLINE_ALTER        (LL(1) << 36)
+
 /*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
-#define HA_ONLINE_ALTER        (LL(1) << 36)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
