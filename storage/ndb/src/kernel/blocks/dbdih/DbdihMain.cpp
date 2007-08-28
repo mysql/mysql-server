@@ -756,6 +756,12 @@ done:
     jam();
     return;
   }
+#ifdef GCP_TIMER_HACK
+  if (reason == CopyGCIReq::GLOBAL_CHECKPOINT) {
+    jam();
+    NdbTick_getMicroTimer(&globalData.gcp_timer_copygci[0]);
+  }
+#endif
 
   /* ----------------------------------------------------------------------- */
   /*     WE START BY TRYING TO OPEN THE FIRST RESTORABLE GCI FILE.           */
@@ -8011,8 +8017,6 @@ void Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   signal->theData[1] = cnewgcp;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  NdbTick_getMicroTimer(&gcp_timer_start);
-
   CRASH_INSERTION(7000);
   cnewgcp++;
   signal->setTrace(TestOrd::TraceGlobalCheckpoint);
@@ -8177,7 +8181,9 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 3000, 1);
     return;
   }
-  
+#ifdef GCP_TIMER_HACK
+  NdbTick_getMicroTimer(&globalData.gcp_timer_commit[0]);
+#endif
   GCPPrepareConf* conf = (GCPPrepareConf*)signal->getDataPtrSend();
   conf->nodeId = cownNodeId;
   conf->gci = gci;  
@@ -8230,6 +8236,10 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 	       GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
+
+#ifdef GCP_TIMER_HACK
+  NdbTick_getMicroTimer(&globalData.gcp_timer_commit[1]);
+#endif
 
   cgcpParticipantState = GCP_PARTICIPANT_TC_FINISHED;
 
@@ -8533,18 +8543,6 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     signal->theData[1] = coldgcp;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
-    {
-      MicroSecondTimer stop;
-      NdbTick_getMicroTimer(&stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(gcp_timer_start, stop);
-      Uint32 ms = ticks / 1000;
-      // random formula to report excessive duration
-      bool report = ms > 3000 * (1 + cgcpDelay / 1000);
-      if (report)
-        infoEvent("GCP %u duration %u ms (config %u ms)",
-                  coldgcp, ms, cgcpDelay);
-    }
-
     c_newest_restorable_gci = coldgcp;
 
     CRASH_INSERTION(7004);
@@ -8672,6 +8670,32 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     EXECUTE_DIRECT(LGMAN, GSN_SUB_GCP_COMPLETE_REP, signal, 
 		   SubGcpCompleteRep::SignalLength);
     jamEntry();
+
+#ifdef GCP_TIMER_HACK
+    NdbTick_getMicroTimer(&globalData.gcp_timer_copygci[1]);
+
+    // this is last timer point so we send local report here
+    {
+      const GlobalData& g = globalData;
+      Uint32 ms_commit = NdbTick_getMicrosPassed(
+          g.gcp_timer_commit[0], g.gcp_timer_commit[1]) / 1000;
+      Uint32 ms_save = NdbTick_getMicrosPassed(
+          g.gcp_timer_save[0], g.gcp_timer_save[1]) / 1000;
+      Uint32 ms_copygci = NdbTick_getMicrosPassed(
+          g.gcp_timer_copygci[0], g.gcp_timer_copygci[1]) / 1000;
+
+      Uint32 ms_total = ms_commit + ms_save + ms_copygci;
+
+      // random formula to report excessive duration
+      bool report =
+        g.gcp_timer_limit != 0 ?
+          (ms_total > g.gcp_timer_limit) :
+          (ms_total > 3000 * (1 + cgcpDelay / 1000));
+      if (report)
+        infoEvent("GCP %u ms: total:%u commit:%u save:%u copygci:%u",
+            coldgcp, ms_total, ms_commit, ms_save, ms_copygci);
+    }
+#endif
   }
   
   jam();
@@ -14631,6 +14655,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     jam();
     crashSystemAtGcpStop(signal, true);
   }
+
+#ifdef GCP_TIMER_HACK
+  if (signal->theData[0] == 7901)
+    globalData.gcp_timer_limit = signal->theData[1];
+#endif
 }//Dbdih::execDUMP_STATE_ORD()
 
 void
