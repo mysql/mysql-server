@@ -2628,6 +2628,14 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
+case $SYSTEM_TYPE in
+  *netware*)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --no-strip"
+    ;;
+  *)
+    : # no change for other platforms yet
+    ;;
+esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results

@@ -7622,9 +7622,26 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   while ((file_name=it++))
   {
     bool file_on_disk= FALSE;
-    DBUG_PRINT("info", ("%s", file_name->str));     
+    DBUG_PRINT("info", ("%s", file_name->str));
     if (hash_search(&ndb_tables, (uchar*) file_name->str, file_name->length))
     {
+      build_table_filename(name, sizeof(name), db, file_name->str, reg_ext, 0);
+      if (my_access(name, F_OK))
+      {
+        pthread_mutex_lock(&LOCK_open);
+        DBUG_PRINT("info", ("Table %s listed and need discovery",
+                            file_name->str));
+        if (ndb_create_table_from_engine(thd, db, file_name->str))
+        {
+          pthread_mutex_unlock(&LOCK_open);
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_TABLE_EXISTS_ERROR,
+                              "Discover of table %s.%s failed",
+                              db, file_name->str);
+          continue;
+        }
+        pthread_mutex_unlock(&LOCK_open);
+      }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
     }
