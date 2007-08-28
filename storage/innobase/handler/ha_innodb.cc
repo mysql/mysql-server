@@ -7221,7 +7221,7 @@ ulong
 ha_innobase::innobase_get_auto_increment(
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulint		error;
+	ulong		error;
 
 	do {
 		error = innobase_autoinc_lock();
