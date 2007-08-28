@@ -72,7 +72,8 @@ void
 dict_mem_table_add_col(
 /*===================*/
 	dict_table_t*	table,	/* in: table */
-	const char*	name,	/* in: column name */
+	mem_heap_t*	heap,	/* in: temporary memory heap, or NULL */
+	const char*	name,	/* in: column name, or NULL */
 	ulint		mtype,	/* in: main datatype */
 	ulint		prtype,	/* in: precise type */
 	ulint		len);	/* in: precision */
@@ -314,11 +315,11 @@ struct dict_table_struct{
 	unsigned	n_cols:10;/* number of columns */
 	dict_col_t*	cols;	/* array of column descriptions */
 	const char*	col_names;
-				/* n_def column names packed in an
-				"name1\0name2\0...nameN\0" array. until
-				n_def reaches n_cols, this is allocated with
-				ut_malloc, and the final size array is
-				allocated through the table's heap. */
+				/* Column names packed in a character string
+				"name1\0name2\0...nameN\0".  Until
+				the string contains n_cols, it will be
+				allocated from a temporary heap.  The final
+				string will be allocated from table->heap. */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	UT_LIST_BASE_NODE_T(dict_index_t)
@@ -410,6 +411,21 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
 				next inserted row */
+
+	ib_longlong	autoinc_increment;
+				/* The increment step of the auto increment
+				column. Value must be greater than or equal
+				to 1 */
+	ulong		n_waiting_or_granted_auto_inc_locks;
+				/* This counter is used to track the number
+				of granted and pending autoinc locks on this
+				table. This value is set after acquiring the
+				kernel mutex but we peek the contents to
+				determine whether other transactions have
+				acquired the AUTOINC lock or not. Of course
+				only one transaction can be granted the
+				lock but there can be multiple waiters. */
+
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_TABLE_MAGIC_N	76333786

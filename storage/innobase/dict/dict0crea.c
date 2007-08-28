@@ -960,7 +960,7 @@ dict_create_table_step(
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
 
-		dict_table_add_to_cache(node->table);
+		dict_table_add_to_cache(node->table, node->heap);
 
 		err = DB_SUCCESS;
 	}
