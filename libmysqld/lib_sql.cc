@@ -564,6 +564,17 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
+/**
+  @brief Initialize a new THD for a connection in the embedded server
+
+  @param client_flag  Client capabilities which this thread supports
+  @return pointer to the created THD object
+
+  @todo
+  This function copies code from several places in the server, including
+  create_new_thread(), and prepare_new_connection_state().  This should
+  be refactored to avoid code duplication.
+*/
 void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;

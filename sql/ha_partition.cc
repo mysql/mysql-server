@@ -3216,8 +3216,13 @@ end_dont_reset_start_part:
 
 void ha_partition::position(const uchar *record)
 {
-  handler *file= m_file[m_last_part];
+  handler *file;
   DBUG_ENTER("ha_partition::position");
+
+  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
+    m_last_part= 0;
+
+  file= m_file[m_last_part];
 
   file->position(record);
   int2store(ref, m_last_part);
@@ -3232,6 +3237,14 @@ void ha_partition::position(const uchar *record)
 #endif
   DBUG_VOID_RETURN;
 }
+
+
+void ha_partition::column_bitmaps_signal()
+{
+    handler::column_bitmaps_signal();
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+}
+ 
 
 /*
   Read row using position
@@ -5445,6 +5458,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
 
   for (pos=m_file, end= m_file+ m_tot_parts; pos != end ; pos++)
   {
+    first_value_part= *first_value;
     (*pos)->get_auto_increment(offset, increment, nb_desired_values,
                                &first_value_part, &nb_reserved_values_part);
     if (first_value_part == ~(ulonglong)(0)) // error in one partition

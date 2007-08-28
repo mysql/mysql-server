@@ -271,15 +271,19 @@ mem_heap_free_heap_top(
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version erase block from top up */
-
-	mem_erase_buf(old_top, (byte*)block + block->len - old_top);
+	{
+		ulint	len = (byte*)block + block->len - old_top;
+		mem_erase_buf(old_top, len);
+		UNIV_MEM_FREE(old_top, len);
+	}
 
 	/* Update allocated memory count */
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
-
-#endif
+#else /* UNIV_MEM_DEBUG */
+	UNIV_MEM_FREE(old_top, (byte*)block + block->len - old_top);
+#endif /* UNIV_MEM_DEBUG */
 
 	/* If free == start, we may free the block if it is not the first
 	one */
