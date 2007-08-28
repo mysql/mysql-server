@@ -5653,9 +5653,10 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
-    m_curr_row(NULL), m_curr_row_end(NULL),
-    m_flags(0), m_key(NULL)
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
+#ifdef HAVE_REPLICATION
+    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+#endif
 {
   /*
     We allow a special form of dummy event when the table, and cols
@@ -5697,10 +5698,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                *description_event)
   : Log_event(buf, description_event),
     m_row_count(0),
-    m_table_id(0),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
-    m_curr_row(NULL), m_curr_row_end(NULL),
-    m_key(NULL)
+#ifndef MYSQL_CLIENT
+    m_table(NULL),
+#endif
+    m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+    ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
+#endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
   uint8 const common_header_len= description_event->common_header_len;
@@ -5789,7 +5793,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     m_curr_row= m_rows_buf;
+#endif
     m_rows_end= m_rows_buf + data_size;
     m_rows_cur= m_rows_end;
     memcpy(m_rows_buf, ptr_rows_data, data_size);
@@ -6187,8 +6193,8 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
   } // if (table)
 
   /*
-    We need to delay this clear until the table def stored in m_table_def is no 
-    longer needed. It is used in unpack_current_row().
+    We need to delay this clear until here bacause unpack_current_row() uses
+    master-side table definitions stored in rli.
   */
   if (rli->tables_to_lock && get_flags(STMT_END_F))
     const_cast<RELAY_LOG_INFO*>(rli)->clear_tables_to_lock();
@@ -7825,8 +7831,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
       m_table->s->primary_key < MAX_KEY)
   {
     /*
-      We don't need to allocate any memory for m_after_image and
-      m_key since they are not used.
+      We don't need to allocate any memory for m_key since it is not used.
     */
     return 0;
   }
