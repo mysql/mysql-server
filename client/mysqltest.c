@@ -1987,7 +1987,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 
     while ((row= mysql_fetch_row(res)))
     {
-      if (++rows == (ulong) row_no)
+      if (++rows == row_no)
       {
 
         DBUG_PRINT("info", ("At row %ld, column %d is '%s'",
