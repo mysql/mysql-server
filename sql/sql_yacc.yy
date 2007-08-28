@@ -1068,9 +1068,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	variable variable_aux bool_factor
-        bool_test bool_pri
-	predicate bit_expr bit_term bit_factor value_expr term factor
+	variable variable_aux
+        bool_pri
+	predicate bit_expr
 	table_wild simple_expr udf_expr
 	expr_or_default set_expr_or_default interval_expr
 	param_marker geometry_function
@@ -4468,8 +4468,7 @@ optional_braces:
 
 /* all possible expressions */
 expr:
-          bool_factor
-        | expr or expr %prec OR_SYM
+          expr or expr %prec OR_SYM
           {
             /*
               Design notes:
@@ -4564,30 +4563,30 @@ expr:
               $$ = new (YYTHD->mem_root) Item_cond_and($1, $3);
             }
           }
-        ;
-
-bool_factor:
-	NOT_SYM bool_factor	{ $$= negate_expression(YYTHD, $2); }
-	| bool_test ;
-
-bool_test:
-          bool_pri IS TRUE_SYM
+	| NOT_SYM expr %prec NOT_SYM
+          { $$= negate_expression(YYTHD, $2); }
+        | bool_pri IS TRUE_SYM %prec IS
           { $$= new (YYTHD->mem_root) Item_func_istrue($1); }
-        | bool_pri IS not TRUE_SYM
+        | bool_pri IS not TRUE_SYM %prec IS
           { $$= new (YYTHD->mem_root) Item_func_isnottrue($1); }
-        | bool_pri IS FALSE_SYM
+        | bool_pri IS FALSE_SYM %prec IS
           { $$= new (YYTHD->mem_root) Item_func_isfalse($1); }
-        | bool_pri IS not FALSE_SYM
+        | bool_pri IS not FALSE_SYM %prec IS
           { $$= new (YYTHD->mem_root) Item_func_isnotfalse($1); }
-        | bool_pri IS UNKNOWN_SYM { $$= new Item_func_isnull($1); }
-        | bool_pri IS not UNKNOWN_SYM { $$= new Item_func_isnotnull($1); }
+        | bool_pri IS UNKNOWN_SYM %prec IS
+          { $$= new Item_func_isnull($1); }
+        | bool_pri IS not UNKNOWN_SYM %prec IS
+          { $$= new Item_func_isnotnull($1); }
         | bool_pri
         ;
 
 bool_pri:
-	bool_pri IS NULL_SYM	{ $$= new Item_func_isnull($1); }
-	| bool_pri IS not NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| bool_pri EQUAL_SYM predicate	{ $$= new Item_func_equal($1,$3); }
+	bool_pri IS NULL_SYM %prec IS
+          { $$= new Item_func_isnull($1); }
+	| bool_pri IS not NULL_SYM %prec IS
+          { $$= new Item_func_isnotnull($1); }
+	| bool_pri EQUAL_SYM predicate %prec EQUAL_SYM
+          { $$= new Item_func_equal($1,$3); }
 	| bool_pri comp_op predicate %prec EQ
 	  { $$= (*$2)(0)->create($1,$3); }
 	| bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
@@ -4630,11 +4629,11 @@ predicate:
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
 	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
-    {
-      Item_func_between *item= new Item_func_between($1,$4,$6);
-      item->negate();
-      $$= item;
-    }
+          {
+            Item_func_between *item= new Item_func_between($1,$4,$6);
+            item->negate();
+            $$= item;
+          }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
@@ -4648,40 +4647,36 @@ predicate:
 	| bit_expr ;
 
 bit_expr:
-	bit_expr '|' bit_term	{ $$= new Item_func_bit_or($1,$3); }
-	| bit_term ;
-
-bit_term:
-	bit_term '&' bit_factor	{ $$= new Item_func_bit_and($1,$3); }
-	| bit_factor ;
-
-bit_factor:
-	bit_factor SHIFT_LEFT value_expr
-	  { $$= new Item_func_shift_left($1,$3); }
-	| bit_factor SHIFT_RIGHT value_expr 
-	  { $$= new Item_func_shift_right($1,$3); }
-	| value_expr ;
-
-value_expr:
-	value_expr '+' term	{ $$= new Item_func_plus($1,$3); }
-	| value_expr '-' term	{ $$= new Item_func_minus($1,$3); }
-	| value_expr '+' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,0); }
-	| value_expr '-' interval_expr interval
-	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| term ;
-
-term:
-	term '*' factor		{ $$= new Item_func_mul($1,$3); }
-	| term '/' factor	{ $$= new Item_func_div($1,$3); }
-	| term '%' factor	{ $$= new Item_func_mod($1,$3); }
-	| term DIV_SYM factor	{ $$= new Item_func_int_div($1,$3); }
-	| term MOD_SYM factor	{ $$= new Item_func_mod($1,$3); }
-	| factor ;
-
-factor:
-        factor '^' simple_expr	{ $$= new Item_func_bit_xor($1,$3); }
-	| simple_expr ;
+          bit_expr '|' bit_expr %prec '|'
+          { $$= new Item_func_bit_or($1,$3); }
+        | bit_expr '&' bit_expr %prec '&'
+          { $$= new Item_func_bit_and($1,$3); }
+        | bit_expr SHIFT_LEFT bit_expr %prec SHIFT_LEFT
+          { $$= new Item_func_shift_left($1,$3); }
+        | bit_expr SHIFT_RIGHT bit_expr %prec SHIFT_RIGHT
+          { $$= new Item_func_shift_right($1,$3); }
+        | bit_expr '+' bit_expr %prec '+'
+          { $$= new Item_func_plus($1,$3); }
+        | bit_expr '-' bit_expr %prec '-'
+          { $$= new Item_func_minus($1,$3); }
+        | bit_expr '+' interval_expr interval %prec '+'
+          { $$= new Item_date_add_interval($1,$3,$4,0); }
+        | bit_expr '-' interval_expr interval %prec '-'
+          { $$= new Item_date_add_interval($1,$3,$4,1); }
+        | bit_expr '*' bit_expr %prec '*'
+          { $$= new Item_func_mul($1,$3); }
+        | bit_expr '/' bit_expr %prec '/'
+          { $$= new Item_func_div($1,$3); }
+        | bit_expr '%' bit_expr %prec '%'
+          { $$= new Item_func_mod($1,$3); }
+        | bit_expr DIV_SYM bit_expr %prec DIV_SYM
+          { $$= new Item_func_int_div($1,$3); }
+        | bit_expr MOD_SYM bit_expr %prec MOD_SYM
+          { $$= new Item_func_mod($1,$3); }
+        | bit_expr '^' bit_expr
+          { $$= new Item_func_bit_xor($1,$3); }
+        | simple_expr
+        ;
 
 or:	OR_SYM | OR2_SYM;
 and:	AND_SYM | AND_AND_SYM;
