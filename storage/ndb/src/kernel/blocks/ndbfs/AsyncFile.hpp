@@ -224,6 +224,8 @@ private:
 #else
   int theFd;
 #endif
+
+  Uint32 m_open_flags; // OM_ flags from request to open file
   
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request>* theMemoryChannelPtr;
