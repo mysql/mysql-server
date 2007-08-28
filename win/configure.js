@@ -47,7 +47,7 @@ try
             case "__NT__":
             case "CYBOZU":
             case "EMBED_MANIFESTS":
-            case "EMBEDDED_ONLY":
+            case "WITH_EMBEDDED_SERVER":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
                     break;
             case "MYSQL_SERVER_SUFFIX":

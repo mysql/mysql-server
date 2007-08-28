@@ -76,7 +76,7 @@ int mi_log(int activate_log)
 void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
 		 const uchar *buffert, uint length)
 {
-  char buff[11];
+  uchar buff[11];
   int error,old_errno;
   ulong pid=(ulong) GETPID();
   old_errno=my_errno;
@@ -100,7 +100,7 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
 void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
 			 const uchar *buffert, uint length, int result)
 {
-  char buff[9];
+  uchar buff[9];
   int error,old_errno;
   ulong pid=(ulong) GETPID();
 
@@ -124,7 +124,7 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
 void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
 			const uchar *record, my_off_t filepos, int result)
 {
-  char buff[21],*pos;
+  uchar buff[21],*pos;
   int error,old_errno;
   uint length;
   ulong pid=(ulong) GETPID();
@@ -134,7 +134,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
     length=info->s->base.reclength;
   else
     length=info->s->base.reclength+ _my_calc_total_blob_length(info,record);
-  buff[0]=(char) command;
+  buff[0]=(uchar) command;
   mi_int2store(buff+1,info->dfile);
   mi_int4store(buff+3,pid);
   mi_int2store(buff+7,result);
@@ -142,8 +142,8 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   mi_int4store(buff+17,length);
   pthread_mutex_lock(&THR_LOCK_myisam);
   error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
-  VOID(my_write(myisam_log_file,buff,sizeof(buff),MYF(0)));
-  VOID(my_write(myisam_log_file,(uchar*) record,info->s->base.reclength,MYF(0)));
+  VOID(my_write(myisam_log_file, buff,sizeof(buff),MYF(0)));
+  VOID(my_write(myisam_log_file, record,info->s->base.reclength,MYF(0)));
   if (info->s->base.blobs)
   {
     MI_BLOB *blob,*end;
@@ -152,7 +152,8 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
 	 blob != end ;
 	 blob++)
     {
-      memcpy_fixed(&pos,record+blob->offset+blob->pack_length,sizeof(char*));
+      memcpy_fixed((uchar*) &pos, record+blob->offset+blob->pack_length,
+                   sizeof(char*));
       VOID(my_write(myisam_log_file,pos,blob->length,MYF(0)));
     }
   }

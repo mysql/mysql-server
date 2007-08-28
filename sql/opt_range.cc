@@ -7815,8 +7815,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->min_keypart_map= range->max_keypart_map=
     make_prev_keypart_map(ref->key_parts);
   range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-		 HA_NOSAME) ? EQ_RANGE : 0);
+		 (key_info->flags & HA_END_SPACE_KEY) == 0) ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
@@ -8375,7 +8374,8 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
       DBUG_ASSERT(cur_prefix != 0);
-      result= file->index_read(record, cur_prefix, keypart_map, HA_READ_AFTER_KEY);
+      result= file->index_read_map(record, cur_prefix, keypart_map,
+                                   HA_READ_AFTER_KEY);
       if (result || (file->compare_key(file->end_range) <= 0))
         DBUG_RETURN(result);
     }
@@ -8446,9 +8446,10 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
     }
     last_range= *(cur_range++);
 
-    result= file->index_read(record, last_range->min_key,
-			     last_range->min_keypart_map,
-			     (ha_rkey_function)(last_range->flag ^ GEOM_FLAG));
+    result= file->index_read_map(record, last_range->min_key,
+                                 last_range->min_keypart_map,
+                                 (ha_rkey_function)(last_range->flag ^
+                                                    GEOM_FLAG));
     if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
       DBUG_RETURN(result);
     last_range= 0;				// Not found, to next range
@@ -8579,18 +8580,19 @@ int QUICK_SELECT_DESC::get_next()
 
     if (last_range->flag & EQ_RANGE)
     {
-      result = file->index_read(record, last_range->max_key,
-				last_range->max_keypart_map, HA_READ_KEY_EXACT);
+      result = file->index_read_map(record, last_range->max_key,
+                                    last_range->max_keypart_map,
+                                    HA_READ_KEY_EXACT);
     }
     else
     {
       DBUG_ASSERT(last_range->flag & NEAR_MAX ||
                   range_reads_after_key(last_range));
-      result=file->index_read(record, last_range->max_key,
-			      last_range->max_keypart_map,
-			      ((last_range->flag & NEAR_MAX) ?
-			       HA_READ_BEFORE_KEY :
-                               HA_READ_PREFIX_LAST_OR_PREV));
+      result=file->index_read_map(record, last_range->max_key,
+                                  last_range->max_keypart_map,
+                                  ((last_range->flag & NEAR_MAX) ?
+                                   HA_READ_BEFORE_KEY :
+                                   HA_READ_PREFIX_LAST_OR_PREV));
     }
     if (result)
     {
@@ -10446,9 +10448,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       first sub-group with the extended prefix.
     */
     if (!have_min && !have_max && key_infix_len > 0)
-      result= file->index_read(record, group_prefix,
-                               make_prev_keypart_map(real_key_parts),
-                               HA_READ_KEY_EXACT);
+      result= file->index_read_map(record, group_prefix,
+                                   make_prev_keypart_map(real_key_parts),
+                                   HA_READ_KEY_EXACT);
 
     result= have_min ? min_res : have_max ? max_res : result;
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -10510,9 +10512,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     /* Apply the constant equality conditions to the non-group select fields */
     if (key_infix_len > 0)
     {
-      if ((result= file->index_read(record, group_prefix,
-                                    make_prev_keypart_map(real_key_parts),
-                                    HA_READ_KEY_EXACT)))
+      if ((result= file->index_read_map(record, group_prefix,
+                                        make_prev_keypart_map(real_key_parts),
+                                        HA_READ_KEY_EXACT)))
         DBUG_RETURN(result);
     }
 
@@ -10527,9 +10529,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     {
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
       key_copy(tmp_record, record, index_info, 0);
-      result= file->index_read(record, tmp_record,
-                               make_keypart_map(real_key_parts),
-                               HA_READ_AFTER_KEY);
+      result= file->index_read_map(record, tmp_record,
+                                   make_keypart_map(real_key_parts),
+                                   HA_READ_AFTER_KEY);
       /*
         Check if the new record belongs to the current group by comparing its
         prefix with the group's prefix. If it is from the next group, then the
@@ -10584,9 +10586,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max()
   if (min_max_ranges.elements > 0)
     result= next_max_in_range();
   else
-    result= file->index_read(record, group_prefix,
-                             make_prev_keypart_map(real_key_parts),
-                             HA_READ_PREFIX_LAST);
+    result= file->index_read_map(record, group_prefix,
+                                 make_prev_keypart_map(real_key_parts),
+                                 HA_READ_PREFIX_LAST);
   DBUG_RETURN(result);
 }
 
@@ -10637,9 +10639,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
     else
     {
       /* Load the first key in this group into record. */
-      result= file->index_read(record, group_prefix,
-                               make_prev_keypart_map(group_key_parts),
-                               HA_READ_AFTER_KEY);
+      result= file->index_read_map(record, group_prefix,
+                                   make_prev_keypart_map(group_key_parts),
+                                   HA_READ_AFTER_KEY);
       if (result)
         DBUG_RETURN(result);
     }
@@ -10716,7 +10718,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
                  HA_READ_AFTER_KEY : HA_READ_KEY_OR_NEXT;
     }
 
-    result= file->index_read(record, group_prefix, keypart_map, find_flag);
+    result= file->index_read_map(record, group_prefix, keypart_map, find_flag);
     if (result)
     {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -10849,7 +10851,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
                  HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV;
     }
 
-    result= file->index_read(record, group_prefix, keypart_map, find_flag);
+    result= file->index_read_map(record, group_prefix, keypart_map, find_flag);
 
     if (result)
     {

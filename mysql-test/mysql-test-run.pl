@@ -4135,7 +4135,7 @@ sub stop_all_servers () {
   my $pid;
 
   # Start shutdown of all started masters
-  foreach my $mysqld (@{$master}, @{$slave})
+  foreach my $mysqld (@{$slave}, @{$master})
   {
     if ( $mysqld->{'pid'} )
     {

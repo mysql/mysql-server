@@ -624,7 +624,7 @@ void Item_exists_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit_arg)
+bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 {
   if (unit_arg->fake_select_lex &&
       unit_arg->fake_select_lex->test_limit())
@@ -2129,10 +2129,10 @@ int subselect_uniquesubquery_engine::exec()
  
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 0);
-  error= table->file->index_read(table->record[0],
-                                 tab->ref.key_buff,
-                                 make_prev_keypart_map(tab->ref.key_parts),
-                                 HA_READ_KEY_EXACT);
+  error= table->file->index_read_map(table->record[0],
+                                     tab->ref.key_buff,
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
@@ -2239,10 +2239,10 @@ int subselect_indexsubquery_engine::exec()
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 1);
-  error= table->file->index_read(table->record[0],
-                                 tab->ref.key_buff,
-                                 make_prev_keypart_map(tab->ref.key_parts),
-                                 HA_READ_KEY_EXACT);
+  error= table->file->index_read_map(table->record[0],
+                                     tab->ref.key_buff,
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
