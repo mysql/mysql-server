@@ -4376,11 +4376,11 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
   else if (result_type() == DECIMAL_RESULT)
   {
     my_decimal decimal_value;
-    my_decimal *value= entry->val_decimal(&null_value, &decimal_value);
+    my_decimal *val= entry->val_decimal(&null_value, &decimal_value);
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    error=field->store_decimal(value);
+    error=field->store_decimal(val);
   }
   else
   {

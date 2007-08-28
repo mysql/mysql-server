@@ -177,6 +177,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
                   record on the master side
    @param rw_set  Pointer to bitmap that holds either the read_set or the
                   write_set of the table
+   @param event_type
 
 
    @retval 0 No error

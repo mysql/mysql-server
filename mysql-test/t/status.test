@@ -59,10 +59,6 @@ connection con1;
 reap;
 # ++Immediate = 16 + $wait_condition_reps
 show status like 'Table_locks_waited';
-# ++Immediate = 17 + $wait_condition_reps
---disable_query_log
-eval select variable_value - $wait_condition_reps as Immediate from information_schema.session_status where variable_name like 'Table_locks_immediate';
---enable_query_log
 drop table t1;
 
 disconnect con2;

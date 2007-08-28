@@ -1479,8 +1479,8 @@ sopno pos;
 	}
 	{
           int length=(HERE()-pos-1)*sizeof(sop);
-          bmove_upp((char *) &p->strip[pos+1]+length,
-                    (char *) &p->strip[pos]+length,
+          bmove_upp((uchar *) &p->strip[pos+1]+length,
+                    (uchar *) &p->strip[pos]+length,
                     length);
         }
 #ifdef OLD_CODE

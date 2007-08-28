@@ -1047,6 +1047,31 @@ alter database;
 --error ER_PARSE_ERROR
 alter database test;
 
+#
+# Bug#27629 Possible security flaw in INFORMATION_SCHEMA and SHOW statements
+#
+
+create database mysqltest;
+create table mysqltest.t1(a int, b int, c int);
+create trigger mysqltest.t1_ai after insert on mysqltest.t1
+  for each row set @a = new.a + new.b + new.c;
+grant select(b) on mysqltest.t1 to mysqltest_1@localhost;
+
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+show triggers from mysqltest;
+
+connect (con27629,localhost,mysqltest_1,,mysqltest);
+show columns from t1;
+select column_name from information_schema.columns where table_name='t1';
+
+show triggers;
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+connection default;
+drop user mysqltest_1@localhost;
+drop database mysqltest;
+
 --echo End of 5.0 tests.
 #
 # Show engines
@@ -1120,4 +1145,20 @@ explain select b.table_name
 from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 
+#
+# Bug#30310 wrong result on SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE ..
+#
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'mysqltest';
+
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = '';
+
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'test';
+
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='nonexisting';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='';
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
 --echo End of 5.1 tests.

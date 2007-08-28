@@ -693,7 +693,7 @@ struct st_VioSSLFd *ssl_acceptor_fd;
 pthread_handler_t signal_hand(void *arg);
 static void mysql_init_variables(void);
 static void get_options(int *argc,char **argv);
-static my_bool get_one_option(int, const struct my_option *, char *);
+extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
@@ -746,14 +746,16 @@ static void close_connections(void)
   (void) pthread_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing manager thread: 0x%lx",manager_thread));
+    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
+                        (ulong)manager_thread));
    (void) pthread_cond_signal(&COND_manager);
   }
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
-  DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
+  DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
+                      (ulong) select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
@@ -1141,6 +1143,7 @@ void unireg_end(void)
 extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
+
   if (exit_code)
     sql_print_error("Aborting\n");
   else if (opt_help)
@@ -1287,7 +1290,7 @@ static void wait_for_signal_thread_to_end()
   */
   for (i= 0 ; i < 100 && signal_thread_in_use; i++)
   {
-    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
+    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL) != ESRCH)
       break;
     my_sleep(100);				// Give it time to die
   }
@@ -2353,7 +2356,7 @@ static void init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   if (thd_lib_detected != THD_LIB_LT)
-  sigaddset(&set,THR_SERVER_ALARM);
+    sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     // May be SIGINT
@@ -2549,7 +2552,9 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-static int my_message_sql(uint error, const char *str, myf MyFlags)
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags);
+
+int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2612,13 +2617,16 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
 
 
 #ifndef EMBEDDED_LIBRARY
-static void *my_str_malloc_mysqld(size_t size)
+extern "C" void *my_str_malloc_mysqld(size_t size);
+extern "C" void my_str_free_mysqld(void *ptr);
+
+void *my_str_malloc_mysqld(size_t size)
 {
   return my_malloc(size, MYF(MY_FAE));
 }
 
 
-static void my_str_free_mysqld(void *ptr)
+void my_str_free_mysqld(void *ptr)
 {
   my_free((uchar*)ptr, MYF(MY_FAE));
 }
@@ -3418,7 +3426,7 @@ server.");
     my_getopt_skip_unknown= 0;
 
     if ((ho_error= handle_options(&defaults_argc, &tmp_argv, no_opts,
-                                  get_one_option)))
+                                  mysqld_get_one_option)))
       unireg_abort(ho_error);
 
     if (defaults_argc)
@@ -3902,7 +3910,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   if (init_slave() && !active_mi)
   {
-    end_thr_alarm(1);				// Don't allow alarms
     unireg_abort(1);
   }
 
@@ -3910,16 +3917,12 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
     bootstrap(stdin);
-    end_thr_alarm(1);				// Don't allow alarms
     unireg_abort(bootstrap_error ? 1 : 0);
   }
   if (opt_init_file)
   {
     if (read_init_file(opt_init_file))
-    {
-      end_thr_alarm(1);				// Don't allow alarms
       unireg_abort(1);
-    }
   }
   execute_ddl_log_recovery();
 
@@ -4354,6 +4357,11 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    The initialization of thread_id is done in create_embedded_thd() for
+    the embedded library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
   /* Start a new thread to handle connection */
@@ -6879,6 +6887,7 @@ SHOW_VAR status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
   {"Open_table_definitions",   (char*) &show_table_definitions, SHOW_FUNC},
   {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
+  {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
@@ -7246,9 +7255,10 @@ static void mysql_init_variables(void)
 }
 
 
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+my_bool
+mysqld_get_one_option(int optid,
+                      const struct my_option *opt __attribute__((unused)),
+                      char *argument)
 {
   switch(optid) {
   case '#':
@@ -7744,7 +7754,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 /* Handle arguments for multiple key caches */
 
-static uchar* *
+extern "C" uchar **mysql_getopt_value(const char *keyname, uint key_length,
+                                      const struct my_option *option);
+
+uchar* *
 mysql_getopt_value(const char *keyname, uint key_length,
 		   const struct my_option *option)
 {
@@ -7773,11 +7786,19 @@ mysql_getopt_value(const char *keyname, uint key_length,
 }
 
 
-static void option_error_reporter(enum loglevel level, const char *format, ...)
+extern "C" void option_error_reporter(enum loglevel level, const char *format, ...);
+
+void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
   va_start(args, format);
-  vprint_msg_to_log(level, format, args);
+
+  /* Don't print warnings for --loose options during bootstrap */
+  if (level == ERROR_LEVEL || !opt_bootstrap ||
+      global_system_variables.log_warnings)
+  {
+    vprint_msg_to_log(level, format, args);
+  }
   va_end(args);
 }
 
@@ -7795,7 +7816,7 @@ static void get_options(int *argc,char **argv)
   my_getopt_skip_unknown= TRUE;
 
   if ((ho_error= handle_options(argc, &argv, my_long_options,
-                                get_one_option)))
+                                mysqld_get_one_option)))
     exit(ho_error);
   (*argc)++; /* add back one for the progname handle_options removes */
              /* no need to do this for argv as we are discarding it. */
@@ -8156,7 +8177,7 @@ void refresh_status(THD *thd)
   add_to_status(&global_status_var, &thd->status_var);
 
   /* Reset thread's status variables */
-  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+  bzero((uchar*) &thd->status_var, sizeof(thd->status_var));
 
   /* Reset some global variables */
   reset_status_vars();

@@ -145,33 +145,33 @@ Insert into t1  values (500,9866);
     --enable_warnings
     CREATE VIEW v1 AS select f59,f60,f61
     FROM test.tb2 where f59=250;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f60,f61 limit 0,10;
 
 #(02)
     Drop view if exists v1 ;
     CREATE VIEW v1 AS select f59,f60,f61
     FROM test.tb2 limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59,f60,f61 limit 0,10;
 
 #(03)
     CREATE or REPLACE VIEW v1 AS select f59,f60,f61
     FROM test.tb2 limit 4,3;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59,f60,f61 limit 0,10;
 
 #(04)
     CREATE or REPLACE VIEW v1 AS select distinct f59
     FROM test.tb2 limit 4,3;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(05)
     ALTER VIEW v1 AS select f59
     FROM test.tb2 limit 6,2;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(06)
     CREATE or REPLACE VIEW v1 AS select f59
     from tb2 order by f59 limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(07)
     CREATE or REPLACE VIEW v1 AS select f59
@@ -186,32 +186,32 @@ Insert into t1  values (500,9866);
 #(09)
     CREATE or REPLACE VIEW v1 AS select f59
     from tb2 group by f59 limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(10)
     CREATE or REPLACE VIEW v1 AS select f59
     from tb2 group by f59 asc limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(11)
     CREATE or REPLACE VIEW v1 AS select f59
     from tb2 group by f59 desc limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(12)
     CREATE or REPLACE VIEW v1 AS (select f59 from tb2)
     union (select f59 from t1) limit 100;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(13)
     CREATE or REPLACE VIEW v1 AS (select f59 FROM tb2)
     UNION DISTINCT(select f59 FROM t1) ;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(14)
     CREATE or REPLACE VIEW v1 AS (select f59 FROM tb2)
     UNION ALL(select f59 FROM t1) ;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59 limit 0,10;
 
 #(15)
 if ($have_bug_11589)
@@ -220,24 +220,24 @@ if ($have_bug_11589)
 }
     CREATE or REPLACE VIEW v1 AS select *
     FROM test.tb2 WITH LOCAL CHECK OPTION ;
-    select * FROM v1 limit 0,50;
+    select * FROM v1 order by f59,f60,f61,f62,f63,f64 limit 0,50;
 
     #(16)
 CREATE or REPLACE VIEW v1 AS select *
     FROM test.tb2 WITH CASCADED CHECK OPTION ;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f59,f60,f61,f62,f63,f64 limit 0,10;
 --enable_ps_protocol
 
 #(17)
     CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
     FROM test.tb2 WITH CASCADED CHECK OPTION;
-    SELECT * FROM v1 limit 0,10;
+    SELECT * FROM v1 order by f59,f60 limit 0,10;
 
 
 #(18)
     CREATE or REPLACE VIEW v1 AS select f59, f60
     from test.tb2 where f59=3330 ;
-    select * FROM v1 limit 0,10;
+    select * FROM v1 order by f60 limit 0,10;
 
     DROP VIEW  v1 ;
     DROP TABLE t1 ;
@@ -816,18 +816,18 @@ AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
 SELECT * FROM test.v1;
 # Switch the base table
-CREATE OR REPLACE VIEW test.v1 AS SELECT * FROM tb2 limit 2;
+CREATE OR REPLACE VIEW test.v1 AS SELECT * FROM tb2 order by f59 limit 2;
 SHOW CREATE VIEW test.v1;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by f59,f60,f61,f62,f63,f64,f65;
 --enable_ps_protocol
 # Switch the SELECT but not the base table
 CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2 limit 10,100;
 SHOW CREATE VIEW test.v1;
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 order by F59;
 Drop table test.t1 ;
 Drop view  test.v1 ;
 
@@ -1020,7 +1020,7 @@ let $message= Testcase 3.3.1.21 ;
 DROP VIEW  IF EXISTS v1;
 --enable_warnings
 CREATE VIEW test.v1( F59, F60 ) AS SELECT F59, F60 From tb2 LIMIT 2;
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 order by F59, F60 desc;
 Drop view if exists test.v1 ;
 
 
@@ -1175,7 +1175,7 @@ Drop VIEW  IF EXISTS test.v1_1 ;
 --enable_warnings
 Create view test.v1 AS Select * from test.tb2 limit 2 ;
 Create view test.v1_1 AS Select F59 from test.v1 ;
-Select * from test.v1_1 limit 20 ;
+Select * from test.v1_1 order by F59 limit 20 ;
 Drop view test.v1 ;
 Drop view test.v1_1 ;
 
@@ -1197,7 +1197,7 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-Select * from v1 ;
+Select * from v1 order by f59,f60,f61,f62,f63,f64,f65;
 --enable_ps_protocol
 Select * from test2.v2 ;
 Drop view if exists test2.v1 ;
@@ -1287,7 +1287,7 @@ CREATE VIEW test.v1
 AS SELECT test.v1_firstview.f59, test.v1_firstview.f60
 FROM test.v1_firstview INNER JOIN test.v1_secondview
 ON test.v1_firstview.f59 = test.v1_secondview.f59 ;
-SELECT * FROM test.v1 limit 0,10;
+SELECT * FROM test.v1 order by f59,f60 limit 0,10;
 Drop view if exists test.v1_firstview  ;
 Drop view if exists test.v1_secondview ;
 Drop view if exists test.v1 ;
@@ -1314,7 +1314,7 @@ CREATE VIEW v1
 AS SELECT test.v1_firstview.F59, test.v1_firstview.F60
 FROM test.v1_firstview INNER JOIN test.v1_secondview
 ON test.v1_firstview.f59 = test.v1_secondview.f59 ;
-SELECT * FROM v1 limit 0,10;
+SELECT * FROM v1 order by f59,f60 limit 0,10;
 Drop view v1 ;
 Drop view test.v1_firstview ;
 Drop view test.v1_secondview ;
@@ -1339,7 +1339,7 @@ CREATE VIEW test.v1
 AS SELECT test.v1_firstview.f59, test.v1_firstview.f60
 FROM test.v1_firstview INNER JOIN test.tb2
 ON test.v1_firstview.f59 = test.tb2.f59;
-SELECT * FROM test.v1 limit 0,10;
+SELECT * FROM test.v1 order by f59,f60 limit 0,10;
 Drop view test.v1 ;
 Drop view test.v1_firstview;
 
@@ -1360,7 +1360,7 @@ CREATE VIEW v1_firstview AS SELECT * FROM test.tb2 ;
 CREATE VIEW v1
 AS SELECT v1_firstview.f59, v1_firstview.f60
 FROM v1_firstview INNER JOIN test.tb2 ON v1_firstview.f59 = test.tb2.f59 ;
-SELECT * FROM v1 limit 0,10;
+SELECT * FROM v1 order by f59,f60 limit 0,10;
 
 Drop database test2 ;
 
@@ -1385,7 +1385,7 @@ Drop view  if exists test.v1_1 ;
 Drop view  if exists test.v1_main ;
 --enable_warnings
 Create view test.v1 as Select f59, f60 FROM test.tb2;
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59,f60 limit 0,10;
 
 Create table t1(f59 int, f60 int);
 Insert into t1 values (90,507) ;
@@ -1396,7 +1396,7 @@ Select * from v1_1 ;
 Create view v1_main
 as SELECT test.tb2.f59 FROM test.tb2 JOIN test.v1
 ON test.tb2.f59 = test.v1.f59;
-Select * from v1_main limit 0,10;
+Select * from v1_main order by f59 limit 0,10;
 
 Drop table t1;
 Drop view  test.v1 ;
@@ -1505,7 +1505,7 @@ Drop view  if exists test1.v1_1 ;
 Drop database if exists test3 ;
 --enable_warnings
 Create view test.v1 as Select f59, f60 FROM test.tb2 limit 20 ;
-Select * from test.v1 ;
+Select * from test.v1 order by f59,f60;
 
 Create table test1.t1 (f59 int,f60 int)  ;
 Insert into test1.t1 values (199,507) ;
@@ -1550,7 +1550,7 @@ Drop view if exists test.v1 ;
 CREATE VIEW test.v1
 AS Select f59 from (Select * FROM tb2 limit 20) tx ;
 --error 1146
-SELECT * FROM test.v1      ;
+SELECT * FROM test.v1 order by f59 ;
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
@@ -1709,7 +1709,7 @@ CREATE VIEW test.v1 AS SELECT * FROM test.tb2 where f59 = 04;
 --enable_info
 UPDATE test.v1 SET f59 = 30 where F59 = 04 ;
 --disable_info
-SELECT * FROM test.v1   where f59 = 30 ;
+SELECT * FROM test.v1   where f59 = 30 order by f59;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
@@ -1726,7 +1726,7 @@ if ($have_bug_11589)
 }
 SELECT * FROM tb2 where f59 = 100 ;
 --enable_ps_protocol
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by f59 ;
 
 drop view if exists test.v1 ;
 
@@ -1772,7 +1772,8 @@ SELECT * FROM v1 ORDER BY f1;
 --enable_info
 # 1.   The record to be inserted will be within the scope of the view.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error ER_DUP_ENTRY_WITH_KEY_NAME
+# OBN change for 5.1.21 --error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO v1 VALUES(2,'two');
 # 2.   The record to be inserted will be within the scope of the view.
 #      There is no already existing record with the PRIMARY KEY f1 = 3 .
@@ -1789,7 +1790,8 @@ SELECT * FROM v1 ORDER BY f1;
 # 1.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
 #      But there is already a record with the PRIMARY KEY f1 = 2 .
---error ER_DUP_ENTRY_WITH_KEY_NAME
+# OBN change for 5.1.21 --error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 UPDATE v1 SET f1 = 2 WHERE f1 = 3;
 # 2.   The record to be updated is within the scope of the view
 #      and will stay inside the scope.
@@ -1819,7 +1821,7 @@ FROM test.tb2 where f59 = 195 WITH CHECK OPTION ;
 
 --error 1369
 UPDATE test.v1 SET f59 = 198 where f59=195 ;
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by f59 ;
 
 drop view if exists test.v1 ;
 
@@ -1844,7 +1846,7 @@ CREATE VIEW test.v2 as SELECT * FROM test.v1 ;
 # This UPDATE violates the definition of VIEW test.v1.
 --error 1369
 UPDATE test.v1 SET F59 = 919 where f59 = 0987 ;
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by f59 ;
 
 # ML: This UPDATE violates the definition of VIEW test.v1, but this
 #     does not count, because the UPDATE runs on test.v2, which
@@ -2297,7 +2299,7 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by f59 ;
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2308,7 +2310,7 @@ drop view test.v1 ;
 #                    AS SELECT col1, col3 FROM <table name>.
 ###############################################################################
 CREATE VIEW test.v1 AS SELECT F59,F61 FROM test.tb2 limit 50 ;
-SELECT * FROM test.v1 ;
+SELECT * FROM test.v1 order by F59, F61 ;
 drop view test.v1 ;
 ###############################################################################
 # Testcase 3.3.1.52: Ensure that a view that is a subset of every column and
@@ -2317,12 +2319,12 @@ drop view test.v1 ;
 #                    that is semantically equivalent to CREATE VIEW <view name>
 #                    AS SELECT * FROM <table name> WHERE ....
 ###############################################################################
-CREATE VIEW test.v1 AS SELECT * FROM test.tb2 limit 20 ;
+CREATE VIEW test.v1 AS SELECT * FROM test.tb2 order by f59, f60, f61 limit 20 ;
 if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1;
+SELECT * FROM test.v1 order by f59,f60,f61 ;
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2333,7 +2335,7 @@ drop view test.v1 ;
 #                    <view name> AS SELECT col1, col3 FROM <table name> WHERE ..
 ###############################################################################
 CREATE VIEW test.v1 AS SELECT F59,f61 FROM test.tb2 limit 20 ;
-SELECT * FROM test.v1 limit 50;
+SELECT * FROM test.v1 order by f59,f61 desc limit 50;
 drop view test.v1 ;
 
 
@@ -2361,7 +2363,7 @@ Insert into t2 values (2,2000) ;
 Insert into t2 values (31,97)  ;
 Create view test.v1 as select t1.f59, t1.f60
 from t1,t2 where t1.f59=t2.f59 ;
-Select * from test.v1 limit 50 ;
+Select * from test.v1 order by f59 limit 50 ;
 
 drop table test.t1 ;
 drop table test.t2 ;
@@ -2455,7 +2457,7 @@ create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 from t1 inner join t2 where t1.f59 = t2.f59 ;
-select * from test.v1;
+select * from test.v1 order by t1_f59 ;
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 from t1 inner join t2 where t1.f59 = t2.f59;
@@ -2464,7 +2466,7 @@ from t1 inner join t2 where t1.f59 = t2.f59;
 Create or replace view test.v1 as
 Select t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2 cross join t1;
-Select * from v1;
+Select * from v1 order by t1_f59,t2_f59;
 Select t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2 cross join t1;
 
@@ -2472,7 +2474,7 @@ FROM t2 cross join t1;
 Create or replace view test.v1 as
 Select straight_join t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2,t1;
-Select * from v1;
+Select * from v1 order by t1_f59,t2_f59;
 Select straight_join t1.f59 AS t1_f59, t2.f59 AS t2_f59
 FROM t2,t1;
 
@@ -2480,7 +2482,7 @@ FROM t2,t1;
 Create or replace view test.v1 as
 Select f59, f60, f61, a, b
 FROM t2 natural join t1;
-Select * from v1;
+Select * from v1 order by f59;
 Select f59, f60, f61, a, b
 FROM t2 natural join t1;
 
@@ -2489,7 +2491,7 @@ Create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 left outer join t1 on t2.f59=t1.f59;
-Select * from v1;
+Select * from v1 order by t1_f59;
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 left outer join t1 on t2.f59=t1.f59;
@@ -2498,7 +2500,7 @@ FROM t2 left outer join t1 on t2.f59=t1.f59;
 Create or replace view test.v1 as
 Select f59, f60, f61, t1.a, t2.b
 FROM t2 natural left outer join t1;
-Select * from v1;
+Select * from v1 order by f59;
 Select f59, f60, f61, t1.a, t2.b
 FROM t2 natural left outer join t1;
 
@@ -2507,7 +2509,7 @@ Create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 right outer join t1 on t2.f59=t1.f59;
-Select * from v1;
+Select * from v1 order by t1_f59;
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 right outer join t1 on t2.f59=t1.f59;
@@ -2516,7 +2518,7 @@ FROM t2 right outer join t1 on t2.f59=t1.f59;
 Create or replace view test.v1 as
 Select f59, f60, a, b
 FROM t2 natural right outer join t1;
-Select * from v1;
+Select * from v1 order by f59 desc;
 Select f59, f60, a, b
 FROM t2 natural right outer join t1;
 
@@ -2549,7 +2551,7 @@ Insert into t1 values (901,801,401)  ;
 
 Create or replace view test.v1 as
 Select tb2.f59 FROM tb2 LEFT JOIN t1 on tb2.f59 = t1.f59 ;
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 Drop view if exists test.v1 ;
 
 # Testcase 3.3.1.A2 ;
@@ -2564,7 +2566,7 @@ Insert into t1 values (201,201,201)  ;
 
 Create or replace view test.v1
 as Select tb2.f59 FROM tb2 INNER JOIN t1 on tb2.f59 = t1.f59 ;
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 Drop view if exists test.v1 ;
 
 # Testcase 3.3.1.A3 ;
@@ -2579,7 +2581,7 @@ Insert into t1 values (21,21,21)  ;
 
 Create or replace view test.v1
 as Select tb2.f59 FROM tb2 CROSS JOIN t1 on tb2.f59 = t1.f59 ;
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 
 Drop view test.v1 ;
 
@@ -2605,15 +2607,15 @@ Insert into t1 values (91,81,41)  ;
 
 Create or replace view test.v1 as  (Select f59 FROM tb2 where f59=17 )
 Union  ALL (Select f59 from t1 where f59=17 );
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 
 Create or replace view test.v1 as  (Select f59 FROM tb2 where f59=17 )
 Union  (Select f59 from t1 where f59=17 );
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 
 Create or replace view test.v1 as  (Select f59 FROM tb2 where f59=17 )
 Union Distinct (Select f59 from t1 where f60=17 );
-Select * from test.v1 limit 0,10;
+Select * from test.v1 order by f59 limit 0,10;
 
 Drop view test.v1 ;
 
@@ -2629,25 +2631,25 @@ insert into t1 values (901,801,401);
 
 create or replace view test.v1 as
 select tb2.f59 from tb2  join t1 on tb2.f59 = t1.f59;
-select * from test.v1 limit 0,10;
+select * from test.v1 order by f59 limit 0,10;
 
 create or replace view test.v1 as
 (select f59 from tb2 where f59=107 )
 union all
 (select f59 from t1 where f59=107 );
-select * from test.v1 limit 0,10;
+select * from test.v1 order by f59 limit 0,10;
 
 create or replace view test.v1 as
 (select f59 from tb2 where f59=107 )
 union
 (select f59 from t1 where f59=107 );
-select * from test.v1 limit 0,10;
+select * from test.v1 order by f59 limit 0,10;
 
 create or replace view test.v1 as
 (select f59 from tb2 where f59=107 )
 union distinct
 (select f59 from t1 where f59=107 );
-select * from test.v1 limit 0,10;
+select * from test.v1 order by f59 limit 0,10;
 
 drop view if exists test.v1 ;
 drop table t1;
@@ -2666,7 +2668,7 @@ Drop view if exists test.v1 ;
 CREATE VIEW test.v1 AS SELECT F59
 FROM test.tb2 where test.tb2.F59 = 109;
 
-SELECT * FROM test.v1 limit 0,10;
+SELECT * FROM test.v1 order by f59 limit 0,10;
 
 ALTER VIEW test.v1 AS  SELECT *
 FROM test.tb2 WHERE test.tb2.f59 = 242 ;
@@ -2674,7 +2676,7 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 limit 0,10;
+SELECT * FROM test.v1 order by f59 limit 0,10;
 --enable_ps_protocol
 
 Drop view test.v1 ;
@@ -2897,10 +2899,14 @@ eval EXPLAIN SELECT * FROM test3.v$toplevel;
 #                   and OBN's box performs excessive paging.
 #                   (RAM: OBN ~384MB RAM, ML 1 GB)
 #++++++++++++++++++++++++++++++++++++++++++++++
-let $message= FIXME - Setting join_limit to 30 - hangs for higher values;
+let $message= FIXME - Setting join_limit to 28 - hangs for higher values;
 --source include/show_msg.inc
+# OBN - Reduced from 30 in 5.1.21 to avoid hitting the ndbcluster limit
+#       of "ERROR HY000:RROR HY000: Got temporary error 4006 'Connect failure 
+#           - out of connection objects (increase MaxNoOfConcurrentTransactions)' 
+#           from NDBCLUSTER " to early;
 #SET @join_limit = 61;
-SET @join_limit = 30;
+SET @join_limit = 28; # OBN - see above 
 SET @max_level = @join_limit - 1;
 --enable_query_log
 
@@ -3182,7 +3188,7 @@ if ($have_bug_11589)
 }
 SELECT * FROM tb2 where f59 = 8 and f60 = 105;
 --enable_ps_protocol
-SELECT f59,f60 FROM test.v1 where f59 = 8 and f60 = 105;
+SELECT f59,f60 FROM test.v1 where f59 = 8 and f60 = 105 ;
 
 Drop view test.v1 ;
 
@@ -3210,7 +3216,7 @@ if ($have_bug_11589)
 }
 SELECT * FROM tb2 where f59 = 891 and f60 = 105;
 --enable_ps_protocol
-SELECT f59,f60 FROM test.v1 where f59 = 891 and f60 = 105;
+SELECT f59,f60 FROM test.v1 where f59 = 891 and f60 = 105 ;
 
 Drop view test.v1 ;
 
@@ -3231,7 +3237,7 @@ CREATE VIEW test.v1 AS SELECT f59,f60,f61 FROM tb2 where f59 = 789 ;
 DELETE FROM test.v1 where f59 = 789 ;
 --disable_info
 SELECT * FROM tb2 where f59 = 789 ;
-SELECT f59,f60 FROM test.v1 where f59 = 789;
+SELECT f59,f60 FROM test.v1 where f59 = 789 order by f60 ;
 
 Drop view test.v1 ;
 
@@ -3254,7 +3260,7 @@ DELETE FROM test.v1 where f59 = 711 ;
 --disable_info
 
 SELECT * FROM tb2 where f59 = 711 ;
-SELECT f59,f60 FROM test.v1 where f59 = 711;
+SELECT f59,f60 FROM test.v1 where f59 = 711 order by f60 ;
 
 Drop view test.v1 ;
 
@@ -3287,7 +3293,8 @@ DELETE FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0, but this value is already exists
---error ER_DUP_ENTRY_WITH_KEY_NAME
+# OBN change for 5.1.21 --error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;
@@ -3375,7 +3382,8 @@ CREATE VIEW v1 AS SELECT f2, f3 FROM t1;
 #           f1 gets the default 0, because we are in the native sql_mode
 INSERT INTO v1 SET f2 = 'ABC';
 #           f1 gets the default 0 and this value is already exists
---error ER_DUP_ENTRY_WITH_KEY_NAME
+# OBN change for 5.1.21 --error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO v1 SET f2 = 'ABC';
 SELECT * from t1;
 DELETE FROM t1;

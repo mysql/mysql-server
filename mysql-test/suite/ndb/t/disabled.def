@@ -22,4 +22,4 @@ ndb_partition_error2	 : HF is not sure if the test can work as internded on all 
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
 #ndb_binlog_discover      : bug#21806 2006-08-24
 #ndb_autodiscover3        : bug#21806
-ndb_autodiscover3         : Bug#20872 2007-07-15 ingo master*.err: miscellaneous error messages
+#ndb_autodiscover3         : Bug#20872 2007-07-15 ingo master*.err: miscellaneous error messages
