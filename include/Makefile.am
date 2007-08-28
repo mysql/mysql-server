@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		$(HEADERS_GEN) link_sources abi_check
+BUILT_SOURCES =		$(HEADERS_GEN) link_sources
 HEADERS_GEN =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h
