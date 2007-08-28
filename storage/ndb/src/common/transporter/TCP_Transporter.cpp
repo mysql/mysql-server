@@ -99,7 +99,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 71540);
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
 
-  overloadedPct = 90; // make configurable in next patch
+  overloadedPct = 80; // make configurable in next patch
 }
 
 TCP_Transporter::~TCP_Transporter() {
