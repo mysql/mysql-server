@@ -196,7 +196,6 @@ t1	a	select
 show columns from mysqltest.t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	varchar(30)	YES	MUL	NULL	
 select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1';
 table_name	column_name	privileges
@@ -1410,6 +1409,31 @@ alter database;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 alter database test;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+create database mysqltest;
+create table mysqltest.t1(a int, b int, c int);
+create trigger mysqltest.t1_ai after insert on mysqltest.t1
+for each row set @a = new.a + new.b + new.c;
+grant select(b) on mysqltest.t1 to mysqltest_1@localhost;
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+trigger_name
+t1_ai
+show triggers from mysqltest;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+b	int(11)	YES		NULL	
+select column_name from information_schema.columns where table_name='t1';
+column_name
+b
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+select trigger_name from information_schema.triggers
+where event_object_table='t1';
+trigger_name
+drop user mysqltest_1@localhost;
+drop database mysqltest;
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
@@ -1463,4 +1487,26 @@ where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
 1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'mysqltest';
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = '';
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = 'test';
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	test	latin1	latin1_swedish_ci	NULL
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='nonexisting';
+count(*)
+0
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='';
+count(*)
+0
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='';
+count(*)
+0
+select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
+count(*)
+0
 End of 5.1 tests.

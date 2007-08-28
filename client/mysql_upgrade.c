@@ -460,7 +460,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");
 
-  if (my_write(fd, query, strlen(query),
+  if (my_write(fd, (uchar*) query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
     die("Failed to write to '%s'", query_file_path);
 

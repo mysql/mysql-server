@@ -462,7 +462,8 @@ ibuf_data_init_for_space(
 	page_t*		root;
 	page_t*		header_page;
 	mtr_t		mtr;
-	char		buf[50];
+	char*		buf;
+	mem_heap_t*	heap;
 	dict_table_t*	table;
 	dict_index_t*	index;
 	ulint		n_used;
@@ -516,16 +517,20 @@ ibuf_data_init_for_space(
 
 	ibuf_exit();
 
+	heap = mem_heap_create(450);
+	buf = mem_heap_alloc(heap, 50);
+
 	sprintf(buf, "SYS_IBUF_TABLE_%lu", (ulong) space);
 	/* use old-style record format for the insert buffer */
 	table = dict_mem_table_create(buf, space, 2, 0);
 
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "TYPES", DATA_BINARY, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
-	dict_table_add_to_cache(table);
+	dict_table_add_to_cache(table, heap);
+	mem_heap_free(heap);
 
 	index = dict_mem_index_create(
 		buf, "CLUST_IND", space,
@@ -1139,7 +1144,7 @@ ibuf_dummy_index_add_col(
 	ulint		len)	/* in: length of the column */
 {
 	ulint	i	= index->table->n_def;
-	dict_mem_table_add_col(index->table, "DUMMY",
+	dict_mem_table_add_col(index->table, NULL, NULL,
 			       dtype_get_mtype(type),
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
@@ -1160,11 +1165,6 @@ ibuf_dummy_index_free(
 	dict_mem_index_free(index);
 	dict_mem_table_free(table);
 }
-
-void
-dict_index_print_low(
-/*=================*/
-	dict_index_t*	index);	/* in: index */
 
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
