@@ -969,6 +969,33 @@ ROLLBACK;
 ROLLBACK;
 DROP TABLE t1;
 
+#
+# Bug#30596: GROUP BY optimization gives wrong result order
+#  
+CREATE TABLE t1(
+  a INT, 
+  b INT NOT NULL, 
+  c INT NOT NULL, 
+  d INT, 
+  UNIQUE KEY (c,b)
+) engine=innodb;
+
+INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
+
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
+SELECT c,b,d FROM t1 GROUP BY c,b,d;
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
+EXPLAIN SELECT c,b,d FROM t1 ORDER BY c,b,d;
+SELECT c,b,d FROM t1 ORDER BY c,b,d;
+
+EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
+SELECT c,b,d FROM t1 GROUP BY c,b;
+EXPLAIN SELECT c,b   FROM t1 GROUP BY c,b;
+SELECT c,b   FROM t1 GROUP BY c,b;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
