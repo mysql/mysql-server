@@ -8017,8 +8017,6 @@ void Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   signal->theData[1] = cnewgcp;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  NdbTick_getMicroTimer(&gcp_timer_start);
-
   CRASH_INSERTION(7000);
   cnewgcp++;
   signal->setTrace(TestOrd::TraceGlobalCheckpoint);
@@ -8544,18 +8542,6 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     signal->theData[0] = NDB_LE_GlobalCheckpointCompleted; //Event type
     signal->theData[1] = coldgcp;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
-
-    {
-      MicroSecondTimer stop;
-      NdbTick_getMicroTimer(&stop);
-      NDB_TICKS ticks = NdbTick_getMicrosPassed(gcp_timer_start, stop);
-      Uint32 ms = ticks / 1000;
-      // random formula to report excessive duration
-      bool report = ms > 3000 * (1 + cgcpDelay / 1000);
-      if (report)
-        infoEvent("GCP %u duration %u ms (config %u ms)",
-                  coldgcp, ms, cgcpDelay);
-    }
 
     c_newest_restorable_gci = coldgcp;
 
