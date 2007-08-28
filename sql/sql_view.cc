@@ -397,7 +397,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     {
       Item_field *field;
       if ((field= item->filed_for_view_update()))
+      {
+        /*
+         any_privileges may be reset later by the Item_field::set_field
+         method in case of a system temporary table.
+        */
         field->any_privileges= 1;
+      }
     }
   }
 #endif

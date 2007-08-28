@@ -263,11 +263,11 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
   my_time_t timestamp;
 
   *in_dst_time_gap= 0;
+  thd->time_zone_used= 1;
 
   timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
   if (timestamp)
   {
-    thd->time_zone_used= 1;
     return timestamp;
   }
 
