@@ -136,7 +136,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   uint i,trees,huff_tree_bits,rec_reflength,length;
   uint16 *decode_table,*tmp_buff;
   ulong elements,intervall_length;
-  char *disk_cache;
+  uchar *disk_cache;
   uchar *intervall_buff;
   uchar header[HEAD_LENGTH];
   MYISAM_SHARE *share=info->s;
@@ -216,7 +216,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
                   MYF(MY_WME | MY_ZEROFILL))))
     goto err1;
   tmp_buff=share->decode_tables+length;
-  disk_cache=(uchar*) (tmp_buff+OFFSET_TABLE_SIZE);
+  disk_cache= (uchar*) (tmp_buff+OFFSET_TABLE_SIZE);
 
   if (my_read(file,disk_cache,
 	      (uint) (share->pack.header_length-sizeof(header)),
@@ -224,7 +224,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     goto err2;
 
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
-  init_bit_buffer(&bit_buff, (uchar*) disk_cache,
+  init_bit_buffer(&bit_buff, disk_cache,
 		  (uint) (share->pack.header_length-sizeof(header)));
   /* Read new info for each field */
   for (i=0 ; i < share->base.fields ; i++)
@@ -1368,7 +1368,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
       position is ok
     */
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
-    if (my_read(file,(char*) header,ref_length,MYF(MY_NABP)))
+    if (my_read(file, header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
     DBUG_DUMP("header",(uchar*) header,ref_length);
   }
@@ -1507,7 +1507,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(my_munmap(info->s->file_map, 
+  VOID(my_munmap((char*) info->s->file_map, 
                  (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
 }
 

@@ -19,8 +19,6 @@ unlock tables;
 show status like 'Table_locks_waited';
 Variable_name	Value
 Table_locks_waited	1
-Immediate
-17
 drop table t1;
 select 1;
 1

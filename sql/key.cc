@@ -480,6 +480,7 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
     rec0                        Pointer to table->record[0]
     first_rec                   Pointer to record compare with
     second_rec                  Pointer to record compare against first_rec
+
   DESCRIPTION
     This method is set-up such that it can be called directly from the
     priority queue and it is attempted to be optimised as much as possible

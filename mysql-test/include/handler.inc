@@ -465,3 +465,17 @@ select * from t1;
 # Just to be sure and not confuse the next test case writer.
 drop table if exists t1;
 
+#
+# Bug#25856 - HANDLER table OPEN in one connection lock DROP TABLE in another one
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+eval create table t1 (a int) ENGINE=$other_engine_type;
+--echo --> client 2
+connection con2;
+--error 1031
+handler t1 open;
+--echo --> client 1
+connection default;
+drop table t1;

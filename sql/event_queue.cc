@@ -17,6 +17,10 @@
 #include "event_queue.h"
 #include "event_data_objects.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
 
 #define EVENT_QUEUE_INITIAL_SIZE 30
 #define EVENT_QUEUE_EXTENT       30
@@ -52,8 +56,9 @@
     execute_at.second_part is not considered during comparison
 */
 
-static int
-event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
+extern "C" int event_queue_element_compare_q(void *, uchar *, uchar *);
+
+int event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
 {
   my_time_t lhs = ((Event_queue_element *)a)->execute_at;
   my_time_t rhs = ((Event_queue_element *)b)->execute_at;
@@ -749,3 +754,7 @@ Event_queue::dump_internal_status()
 
   DBUG_VOID_RETURN;
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

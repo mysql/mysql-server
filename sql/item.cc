@@ -1801,6 +1801,8 @@ void Item_field::set_field(Field *field_par)
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), field_par->derivation());
   fixed= 1;
+  if (field->table->s->tmp_table == SYSTEM_TMP_TABLE)
+    any_privileges= 0;
 }
 
 
@@ -2398,7 +2400,7 @@ default_set_param_func(Item_param *param,
 }
 
 
-Item_param::Item_param(unsigned pos_in_query_arg) :
+Item_param::Item_param(uint pos_in_query_arg) :
   strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
@@ -3869,15 +3871,15 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
           if ((*res)->type() == Item::FIELD_ITEM)
           {
             /*
-             It's an Item_field referencing another Item_field in the select
-             list.
-             use the field from the Item_field in the select list and leave
-             the Item_field instance in place.
+              It's an Item_field referencing another Item_field in the select
+              list.
+              Use the field from the Item_field in the select list and leave
+              the Item_field instance in place.
             */
 
-            Field *field= (*((Item_field**)res))->field;
+            Field *new_field= (*((Item_field**)res))->field;
 
-            if (field == NULL)
+            if (new_field == NULL)
             {
               /* The column to which we link isn't valid. */
               my_error(ER_BAD_FIELD_ERROR, MYF(0), (*res)->name, 
@@ -3885,7 +3887,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               return(1);
             }
 
-            set_field(field);
+            set_field(new_field);
             return 0;
           }
           else
