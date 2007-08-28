@@ -23,6 +23,10 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+#ifndef MYSQL_CLIENT
+#include "rpl_record.h"
+#include "rpl_reporting.h"
+#endif
 
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
@@ -2180,7 +2184,13 @@ public:
     NO_FOREIGN_KEY_CHECKS_F = (1U << 1),
 
     /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
-    RELAXED_UNIQUE_CHECKS_F = (1U << 2)
+    RELAXED_UNIQUE_CHECKS_F = (1U << 2),
+
+    /** 
+      Indicates that rows in this event are complete, that is contain
+      values for all columns of the table.
+     */
+    COMPLETE_ROWS_F = (1U << 3)
   };
 
   typedef uint16 flag_set;
@@ -2284,7 +2294,26 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  flag_set m_flags;		/* Flags for row-level events */
+  flag_set m_flags;	  /* Flags for row-level events */
+
+  /* helper functions */
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  const uchar *m_curr_row;     /* Start of the row being processed */
+  const uchar *m_curr_row_end; /* One-after the end of the current row */
+  uchar    *m_key;      /* Buffer to keep key value during searches */
+
+  int find_row(const RELAY_LOG_INFO *const);
+  int write_row(const RELAY_LOG_INFO *const, const bool);
+
+  // Unpack the current row into m_table->record[0]
+  int unpack_current_row(const RELAY_LOG_INFO *const rli)
+  { 
+    DBUG_ASSERT(m_table);
+    return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols, 
+                        &m_curr_row_end, &m_master_reclength);
+  }
+#endif
 
 private:
 
@@ -2309,7 +2338,8 @@ private:
       The member function will return 0 if all went OK, or a non-zero
       error code otherwise.
   */
-  virtual int do_before_row_operations(TABLE *table) = 0;
+  virtual 
+  int do_before_row_operations(const Slave_reporting_capability *const log) = 0;
 
   /*
     Primitive to clean up after a sequence of row executions.
@@ -2319,45 +2349,33 @@ private:
       After doing a sequence of do_prepare_row() and do_exec_row(),
       this member function should be called to clean up and release
       any allocated buffers.
+      
+      The error argument, if non-zero, indicates an error which happened during
+      row processing before this function was called. In this case, even if 
+      function is successful, it should return the error code given in the argument.
   */
-  virtual int do_after_row_operations(TABLE *table, int error) = 0;
-
-  /*
-    Primitive to prepare for handling one row in a row-level event.
-    
-    DESCRIPTION 
-
-      The member function prepares for execution of operations needed for one
-      row in a row-level event by reading up data from the buffer containing
-      the row. No specific interpretation of the data is normally done here,
-      since SQL thread specific data is not available: that data is made
-      available for the do_exec function.
-
-      A pointer to the start of the next row, or NULL if the preparation
-      failed. Currently, preparation cannot fail, but don't rely on this
-      behavior. 
-
-    RETURN VALUE
-      Error code, if something went wrong, 0 otherwise.
-   */
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             uchar const *row_start,
-                             uchar const **row_end) = 0;
+  virtual 
+  int do_after_row_operations(const Slave_reporting_capability *const log,
+                              int error) = 0;
 
   /*
     Primitive to do the actual execution necessary for a row.
 
     DESCRIPTION
       The member function will do the actual execution needed to handle a row.
+      The row is located at m_curr_row. When the function returns, 
+      m_curr_row_end should point at the next row (one byte after the end
+      of the current row).    
 
     RETURN VALUE
       0 if execution succeeded, 1 if execution failed.
       
   */
-  virtual int do_exec_row(TABLE *table) = 0;
+  virtual int do_exec_row(const RELAY_LOG_INFO *const rli) = 0;
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
-};
 
+  friend class Old_rows_log_event;
+};
 
 /*****************************************************************************
 
@@ -2407,14 +2425,9 @@ private:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  uchar *m_memory;
-  uchar *m_after_image;
-
-  virtual int do_before_row_operations(TABLE *table);
-  virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             uchar const *row_start, uchar const **row_end);
-  virtual int do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(const Slave_reporting_capability *const);
+  virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
+  virtual int do_exec_row(const RELAY_LOG_INFO *const);
 #endif
 };
 
@@ -2486,15 +2499,9 @@ protected:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  uchar *m_memory;
-  uchar *m_key;
-  uchar *m_after_image;
-
-  virtual int do_before_row_operations(TABLE *table);
-  virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             uchar const *row_start, uchar const **row_end);
-  virtual int do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(const Slave_reporting_capability *const);
+  virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
+  virtual int do_exec_row(const RELAY_LOG_INFO *const);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
@@ -2557,15 +2564,9 @@ protected:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  uchar *m_memory;
-  uchar *m_key;
-  uchar *m_after_image;
-
-  virtual int do_before_row_operations(TABLE *table);
-  virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
-                             uchar const *row_start, uchar const **row_end);
-  virtual int do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(const Slave_reporting_capability *const);
+  virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
+  virtual int do_exec_row(const RELAY_LOG_INFO *const);
 #endif
 };
 

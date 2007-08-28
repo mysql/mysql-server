@@ -4355,6 +4355,11 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    The initialization of thread_id is done in create_embedded_thd() for
+    the embedded library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
   /* Start a new thread to handle connection */
@@ -5081,7 +5086,8 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_OLD_MODE
+  OPT_OLD_MODE,
+  OPT_KEEP_FILES_ON_CREATE
 };
 
 
@@ -5951,6 +5957,11 @@ log and this option does nothing anymore.",
    (uchar**) &max_system_variables.join_buff_size, 0, GET_ULONG,
    REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD,
    IO_SIZE, 0},
+  {"keep_files_on_create", OPT_KEEP_FILES_ON_CREATE,
+   "Don't overwrite stale .MYD and .MYI even if no directory is specified.",
+   (uchar**) &global_system_variables.keep_files_on_create,
+   (uchar**) &max_system_variables.keep_files_on_create,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (uchar**) &dflt_key_cache_var.param_buff_size,
