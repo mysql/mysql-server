@@ -7662,7 +7662,7 @@ const uchar *Field_blob::unpack(uchar *to,
 
 const uchar *Field_blob::unpack(uchar *to, const uchar *from)
 {
-  uint32 length=get_length(from);
+  uint32 length=get_length(from,TRUE);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
