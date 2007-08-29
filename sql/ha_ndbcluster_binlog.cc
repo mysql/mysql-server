@@ -1625,7 +1625,6 @@ ndb_remove_old_event_op(NDB_SHARE *share, NdbEventOperation *pOp)
 void
 ndb_remove_old_event_ops(NDB_SHARE *share)
 {
-  safe_mutex_assert_owner(&share->mutex);
   List_iterator<NdbEventOperation> it(share->old_ops);
   NdbEventOperation *op;
   if (share->old_ops.is_empty())
@@ -3847,7 +3846,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
 
       if (share->flags & NSF_BLOB_FLAG)
       {
-        my_ptrdiff_t ptrdiff= event_data->record[n] - event_data->record[0];
+        my_ptrdiff_t ptrdiff= event_data->record[n] - table->record[0];
         IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[n],
                                                blobs_buffer[n],
                                                blobs_buffer_size[n],
@@ -3898,7 +3897,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         */
         if (share->flags & NSF_BLOB_FLAG)
         {
-          my_ptrdiff_t ptrdiff= event_data->record[1] - event_data->record[0];
+          my_ptrdiff_t ptrdiff= event_data->record[1] - table->record[0];
           IF_DBUG(int ret =) get_ndb_blobs_value(table, event_data->ndb_value[1],
                                                  blobs_buffer[1],
                                                  blobs_buffer_size[1],
@@ -4717,11 +4716,11 @@ err:
       (void) pthread_mutex_lock(&share->mutex);
       share->op= 0;
       ndb_remove_old_event_op(share, op);
+      (void) pthread_mutex_unlock(&share->mutex);
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));
       free_share(&share);
-      (void) pthread_mutex_unlock(&share->mutex);
       s_ndb->dropEventOperation(op);
     }
     delete s_ndb;
@@ -4749,11 +4748,11 @@ err:
       (void) pthread_mutex_lock(&share->mutex);
       share->op= 0;
       ndb_remove_old_event_op(share, op);
+      (void) pthread_mutex_unlock(&share->mutex);
       /* ndb_share reference binlog free */
       DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                                share->key, share->use_count));
       free_share(&share);
-      (void) pthread_mutex_unlock(&share->mutex);
       i_ndb->dropEventOperation(op);
     }
     delete i_ndb;
