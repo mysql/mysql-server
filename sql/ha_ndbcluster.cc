@@ -8995,9 +8995,9 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 
   hash_delete(&ndbcluster_open_tables, (byte*) *share);
   thr_lock_delete(&(*share)->lock);
-  pthread_mutex_destroy(&(*share)->mutex);
 
 #ifdef HAVE_NDB_BINLOG
+  (void) pthread_mutex_lock(&(*share)->mutex);
   if ((*share)->table)
   {
     // (*share)->table->mem_root is freed by closefrm
@@ -9021,7 +9021,9 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     (*share)->table= 0;
 #endif
   }
+  (void) pthread_mutex_unlock(&(*share)->mutex);
 #endif
+  pthread_mutex_destroy(&(*share)->mutex);
   free_root(&(*share)->mem_root, MYF(0));
   my_free((gptr) *share, MYF(0));
   *share= 0;
