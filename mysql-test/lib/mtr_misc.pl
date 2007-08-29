@@ -30,7 +30,7 @@ sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
 sub mtr_copy_dir($$);
-sub mtr_rmtree($$);
+sub mtr_rmtree($);
 sub mtr_same_opts($$);
 sub mtr_cmp_opts($$);
 
