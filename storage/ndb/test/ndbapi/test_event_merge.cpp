@@ -2291,7 +2291,7 @@ my_long_options[] =
     (uchar **)&g_opts.use_table, (uchar **)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "blob-version", 1018, "Blob version 1 or 2 (default 2)",
-    (gptr*)&g_opts.blob_version, (gptr*)&g_opts.blob_version, 0,
+    (uchar**)&g_opts.blob_version, (uchar**)&g_opts.blob_version, 0,
     GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,
