@@ -526,9 +526,8 @@ row_purge_parse_undo_rec(
 
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
-
+err_exit:
 		row_mysql_unfreeze_data_dictionary(trx);
-
 		return(FALSE);
 	}
 
@@ -537,9 +536,7 @@ row_purge_parse_undo_rec(
 
 		node->table = NULL;
 
-		row_mysql_unfreeze_data_dictionary(trx);
-
-		return(FALSE);
+		goto err_exit;
 	}
 
 	clust_index = dict_table_get_first_index(node->table);
@@ -547,9 +544,7 @@ row_purge_parse_undo_rec(
 	if (clust_index == NULL) {
 		/* The table was corrupt in the data dictionary */
 
-		row_mysql_unfreeze_data_dictionary(trx);
-
-		return(FALSE);
+		goto err_exit;
 	}
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),

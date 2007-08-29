@@ -107,6 +107,7 @@ row_upd_index_is_referenced(
 	dict_table_t*	table		= index->table;
 	dict_foreign_t*	foreign;
 	ibool		froze_data_dict	= FALSE;
+	ibool		is_referenced	= FALSE;
 
 	if (!UT_LIST_GET_FIRST(table->referenced_list)) {
 
@@ -123,21 +124,19 @@ row_upd_index_is_referenced(
 	while (foreign) {
 		if (foreign->referenced_index == index) {
 
-			if (froze_data_dict) {
-				row_mysql_unfreeze_data_dictionary(trx);
-			}
-
-			return(TRUE);
+			is_referenced = TRUE;
+			goto func_exit;
 		}
 
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
+func_exit:
 	if (froze_data_dict) {
 		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
-	return(FALSE);
+	return(is_referenced);
 }
 
 /*************************************************************************
@@ -237,27 +236,24 @@ row_upd_check_references_constraints(
 			}
 
 			if (err != DB_SUCCESS) {
-				if (got_s_lock) {
-					row_mysql_unfreeze_data_dictionary(
-						trx);
-				}
 
-				mem_heap_free(heap);
-
-				return(err);
+				goto func_exit;
 			}
 		}
 
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
+	err = DB_SUCCESS;
+
+func_exit:
 	if (got_s_lock) {
 		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	mem_heap_free(heap);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*************************************************************************
