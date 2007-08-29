@@ -90,43 +90,38 @@ pars_func_get_class(
 			/* out: function class: PARS_FUNC_ARITH, ... */
 	int	func)	/* in: function code: '=', PARS_GE_TOKEN, ... */
 {
-	if ((func == '+') || (func == '-') || (func == '*') || (func == '/')) {
-
+	switch (func) {
+	case '+': case '-': case '*': case '/':
 		return(PARS_FUNC_ARITH);
 
-	} else if ((func == '=') || (func == '<') || (func == '>')
-		   || (func == PARS_GE_TOKEN) || (func == PARS_LE_TOKEN)
-		   || (func == PARS_NE_TOKEN)) {
-
+	case '=': case '<': case '>':
+	case PARS_GE_TOKEN: case PARS_LE_TOKEN: case PARS_NE_TOKEN:
 		return(PARS_FUNC_CMP);
 
-	} else if ((func == PARS_AND_TOKEN) || (func == PARS_OR_TOKEN)
-		   || (func == PARS_NOT_TOKEN)) {
-
+	case PARS_AND_TOKEN: case PARS_OR_TOKEN: case PARS_NOT_TOKEN:
 		return(PARS_FUNC_LOGICAL);
 
-	} else if ((func == PARS_COUNT_TOKEN) || (func == PARS_SUM_TOKEN)) {
-
+	case PARS_COUNT_TOKEN: case PARS_SUM_TOKEN:
 		return(PARS_FUNC_AGGREGATE);
 
-	} else if ((func == PARS_TO_CHAR_TOKEN)
-		   || (func == PARS_TO_NUMBER_TOKEN)
-		   || (func == PARS_TO_BINARY_TOKEN)
-		   || (func == PARS_BINARY_TO_NUMBER_TOKEN)
-		   || (func == PARS_SUBSTR_TOKEN)
-		   || (func == PARS_CONCAT_TOKEN)
-		   || (func == PARS_LENGTH_TOKEN)
-		   || (func == PARS_INSTR_TOKEN)
-		   || (func == PARS_SYSDATE_TOKEN)
-		   || (func == PARS_NOTFOUND_TOKEN)
-		   || (func == PARS_PRINTF_TOKEN)
-		   || (func == PARS_ASSERT_TOKEN)
-		   || (func == PARS_RND_TOKEN)
-		   || (func == PARS_RND_STR_TOKEN)
-		   || (func == PARS_REPLSTR_TOKEN)) {
-
+	case PARS_TO_CHAR_TOKEN:
+	case PARS_TO_NUMBER_TOKEN:
+	case PARS_TO_BINARY_TOKEN:
+	case PARS_BINARY_TO_NUMBER_TOKEN:
+	case PARS_SUBSTR_TOKEN:
+	case PARS_CONCAT_TOKEN:
+	case PARS_LENGTH_TOKEN:
+	case PARS_INSTR_TOKEN:
+	case PARS_SYSDATE_TOKEN:
+	case PARS_NOTFOUND_TOKEN:
+	case PARS_PRINTF_TOKEN:
+	case PARS_ASSERT_TOKEN:
+	case PARS_RND_TOKEN:
+	case PARS_RND_STR_TOKEN:
+	case PARS_REPLSTR_TOKEN:
 		return(PARS_FUNC_PREDEFINED);
-	} else {
+
+	default:
 		return(PARS_FUNC_OTHER);
 	}
 }
@@ -232,18 +227,14 @@ pars_resolve_func_data_type(
 	func_node_t*	node)	/* in: function node */
 {
 	que_node_t*	arg;
-	ulint		func;
 
 	ut_a(que_node_get_type(node) == QUE_NODE_FUNC);
 
 	arg = node->args;
 
-	func = node->func;
-
-	if ((func == PARS_SUM_TOKEN)
-	    || (func == '+') || (func == '-') || (func == '*')
-	    || (func == '/') || (func == '+')) {
-
+	switch (node->func) {
+	case PARS_SUM_TOKEN:
+	case '+': case '-': case '*': case '/':
 		/* Inherit the data type from the first argument (which must
 		not be the SQL null literal whose type is DATA_ERROR) */
 
@@ -252,15 +243,21 @@ pars_resolve_func_data_type(
 
 		ut_a(dtype_get_mtype(que_node_get_data_type(node))
 		     == DATA_INT);
-	} else if (func == PARS_COUNT_TOKEN) {
+		break;
+
+	case PARS_COUNT_TOKEN:
 		ut_a(arg);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
 
-	} else if (func == PARS_TO_CHAR_TOKEN) {
+	case PARS_TO_CHAR_TOKEN:
+	case PARS_RND_STR_TOKEN:
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 			  DATA_ENGLISH, 0);
-	} else if (func == PARS_TO_BINARY_TOKEN) {
+		break;
+
+	case PARS_TO_BINARY_TOKEN:
 		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
 			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 				  DATA_ENGLISH, 0);
@@ -268,61 +265,49 @@ pars_resolve_func_data_type(
 			dtype_set(que_node_get_data_type(node), DATA_BINARY,
 				  0, 0);
 		}
-	} else if (func == PARS_TO_NUMBER_TOKEN) {
+		break;
+
+	case PARS_TO_NUMBER_TOKEN:
+	case PARS_BINARY_TO_NUMBER_TOKEN:
+	case PARS_LENGTH_TOKEN:
+	case PARS_INSTR_TOKEN:
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
 
-	} else if (func == PARS_BINARY_TO_NUMBER_TOKEN) {
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-
-	} else if (func == PARS_LENGTH_TOKEN) {
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-
-	} else if (func == PARS_INSTR_TOKEN) {
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-
-	} else if (func == PARS_SYSDATE_TOKEN) {
+	case PARS_SYSDATE_TOKEN:
 		ut_a(arg == NULL);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
 
-	} else if ((func == PARS_SUBSTR_TOKEN)
-		   || (func == PARS_CONCAT_TOKEN)) {
-
+	case PARS_SUBSTR_TOKEN:
+	case PARS_CONCAT_TOKEN:
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 			  DATA_ENGLISH, 0);
+		break;
 
-	} else if ((func == '>') || (func == '<') || (func == '=')
-		   || (func == PARS_GE_TOKEN)
-		   || (func == PARS_LE_TOKEN)
-		   || (func == PARS_NE_TOKEN)
-		   || (func == PARS_AND_TOKEN)
-		   || (func == PARS_OR_TOKEN)
-		   || (func == PARS_NOT_TOKEN)
-		   || (func == PARS_NOTFOUND_TOKEN)) {
+	case '>': case '<': case '=':
+	case PARS_GE_TOKEN:
+	case PARS_LE_TOKEN:
+	case PARS_NE_TOKEN:
+	case PARS_AND_TOKEN:
+	case PARS_OR_TOKEN:
+	case PARS_NOT_TOKEN:
+	case PARS_NOTFOUND_TOKEN:
 
 		/* We currently have no iboolean type: use integer type */
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
 
-	} else if (func == PARS_RND_TOKEN) {
+	case PARS_RND_TOKEN:
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
-
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
 
-	} else if (func == PARS_RND_STR_TOKEN) {
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
-
-		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0);
-	} else {
+	default:
 		ut_error;
 	}
 }
