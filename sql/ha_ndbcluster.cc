@@ -832,11 +832,11 @@ ha_ndbcluster::get_row_buffer()
 }
 
 /* Return a row buffer, valid until next execute(). */
-char *
+uchar *
 ha_ndbcluster::get_buffer(uint size)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
-  return alloc_root(&(thd_ndb->m_batch_mem_root), size);
+  return (uchar*)alloc_root(&(thd_ndb->m_batch_mem_root), size);
 }
 
 /*
@@ -3574,7 +3574,9 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 */
 
 int
-ha_ndbcluster::update_row_timestamp_resolve(const byte *old_data, byte *new_data, NdbInterpretedCode *code)
+ha_ndbcluster::update_row_timestamp_resolve(const uchar *old_data,
+                                            uchar *new_data,
+                                            NdbInterpretedCode *code)
 {
   const int do_before_image_check= 0;
   uint32 resolve_column= m_share->m_resolve_column;
@@ -3597,7 +3599,7 @@ ha_ndbcluster::update_row_timestamp_resolve(const byte *old_data, byte *new_data
     uint64 new_value_64;
   };
   {
-    const byte* field_ptr= field->ptr + (new_data - table->record[0]);
+    const uchar *field_ptr= field->ptr + (new_data - table->record[0]);
     if (resolve_size == 4)
     {
       memcpy(&new_value_32, field_ptr, resolve_size);
@@ -3646,7 +3648,7 @@ ha_ndbcluster::update_row_timestamp_resolve(const byte *old_data, byte *new_data
       uint64 old_value_64;
     };
     {
-      const byte* field_ptr= field->ptr + (old_data - table->record[0]);
+      const uchar *field_ptr= field->ptr + (old_data - table->record[0]);
       if (resolve_size == 4)
       {
         memcpy(&old_value_32, field_ptr, resolve_size);
@@ -3888,7 +3890,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       */
       uint code_size= 16;
       uint struct_size= sizeof(*code);
-      char *mem= get_buffer(struct_size + code_size*sizeof(Uint32));
+      uchar *mem= get_buffer(struct_size + code_size*sizeof(Uint32));
       Uint32* buffer= (Uint32 *)(mem + struct_size);
       code= new(mem) NdbInterpretedCode(buffer, code_size, 2);
       if (update_row_timestamp_resolve(old_data, new_data, code))
