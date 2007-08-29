@@ -297,6 +297,8 @@ select * from t2 where a = 6;
 a	b
 6	203
 alter table t2 add c int;
+Warnings:
+Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 insert into t2 (b) values (301),(302),(303);
 select * from t2 where a = 9;
 a	b	c

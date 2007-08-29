@@ -265,32 +265,53 @@ Dbtup::commit_operation(Signal* signal,
     ref->assign(&tmp);
 
     PagePtr vpagePtr;
-    Uint32 *dst= get_ptr(&vpagePtr, *ref);
-    Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
-    Varpart_copy* vp = (Varpart_copy*)copy->get_end_of_fix_part_ptr(regTabPtr);
-    ndbassert(!(copy_bits & Tuple_header::CHAINED_ROW));
-    /* The first word of shrunken tuple holds the lenght in words. */
-    Uint32 len = vp->m_len;
-    memcpy(dst, vp->m_data, 4*len);
-    copy_bits |= Tuple_header::CHAINED_ROW;
     
-    if(copy_bits & Tuple_header::MM_SHRINK)
+    if (copy_bits & Tuple_header::VAR_PART)
     {
-      ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
-      vpagePtrP->shrink_entry(tmp.m_page_idx, len);
-      update_free_page_list(regFragPtr, vpagePtr);
+      ndbassert(tmp.m_page_no != RNIL);
+      ndbassert(bits & Tuple_header::VAR_PART);
+      Uint32 *dst= get_ptr(&vpagePtr, *ref);
+      Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
+      Varpart_copy*vp =(Varpart_copy*)copy->get_end_of_fix_part_ptr(regTabPtr);
+      ndbassert(copy_bits & Tuple_header::COPY_TUPLE);
+      /* The first word of shrunken tuple holds the lenght in words. */
+      Uint32 len = vp->m_len;
+      memcpy(dst, vp->m_data, 4*len);
+
+      if(copy_bits & Tuple_header::MM_SHRINK)
+      {
+        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
+        if (len)
+        {
+          vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+        }
+        else
+        {
+          vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          tmp.m_page_no == RNIL;
+          ref->assign(&tmp);
+          copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
+        }
+        update_free_page_list(regFragPtr, vpagePtr);
+      }
+      else
+      {
+        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) == len);
+      }
+
+      /**
+       * Find disk part after
+       * header + fixed MM part + length word + varsize part.
+       */
+      disk_ptr = (Tuple_header*)(vp->m_data + len);
     }
     else
     {
-      ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) == len);
+      ndbassert(tmp.m_page_no == RNIL);
+      disk_ptr = (Tuple_header*)copy->get_end_of_fix_part_ptr(regTabPtr);
     }
-    
-    /*
-      Find disk part after header + fixed MM part + length word + varsize part.
-    */
-    disk_ptr = (Tuple_header*)(vp->m_data + len);
-  } 
-  
+  }
+
   if (regTabPtr->m_no_of_disk_attributes &&
       (copy_bits & Tuple_header::DISK_INLINE))
   {
@@ -345,7 +366,7 @@ Dbtup::commit_operation(Signal* signal,
   }
   
   Uint32 clear= 
-    Tuple_header::ALLOC | Tuple_header::FREE |
+    Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
     Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
     Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN;
   copy_bits &= ~(Uint32)clear;

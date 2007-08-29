@@ -150,7 +150,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
         Uint32 *var_part;
 
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
+	ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
 	
 	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(regTabPtr.p);
 
@@ -170,7 +170,17 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         ndbassert(len > 0);
         Uint32 sz= var_part[len-1];
         ndbassert(sz < len);
-        pageP->shrink_entry(idx, sz);
+        if (sz)
+        {
+          pageP->shrink_entry(idx, sz);
+        }
+        else
+        {
+          pageP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          tmp.m_page_no == RNIL;
+          ref->assign(&tmp);
+          bits &= ~(Uint32)Tuple_header::VAR_PART;
+        }
         update_free_page_list(regFragPtr.p, vpage);
         tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
       } 
