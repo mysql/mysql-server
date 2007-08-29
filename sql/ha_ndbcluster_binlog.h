@@ -58,7 +58,7 @@ public:
   NDB_SHARE *share;
   uint no_fields;
   NdbValue *ndb_value[2];
-  byte *record[2]; // pointer to allocated records for receiving data
+  uchar *record[2]; // pointer to allocated records for receiving data
 };
 
 /*
