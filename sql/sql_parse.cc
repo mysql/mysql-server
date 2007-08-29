@@ -1732,8 +1732,7 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
     Don't reset warnings when executing a stored routine.
   */
-  if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont)
+  if ((all_tables || !lex->is_single_level_stmt()) && !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
