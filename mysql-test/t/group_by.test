@@ -828,6 +828,11 @@ EXPLAIN SELECT a FROM t1 USE INDEX (i2) USE INDEX ();
 EXPLAIN SELECT a FROM t1 FORCE INDEX ();
 --error ER_PARSE_ERROR
 EXPLAIN SELECT a FROM t1 IGNORE INDEX ();
+# disable the columns irrelevant to this test here. On some systems 
+# without support for large files the rowid is shorter and its size affects 
+# the cost calculations. This causes the optimizer to choose loose index
+# scan over normal index access.
+--replace_column 4 # 7 # 9 # 10 #
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
   USE INDEX FOR GROUP BY (i2) GROUP BY a;
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
