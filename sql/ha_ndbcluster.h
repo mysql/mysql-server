@@ -458,7 +458,7 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
 #ifdef HAVE_NDB_BINLOG
-  int update_row_timestamp_resolve(const byte *old_data, byte *new_data,
+  int update_row_timestamp_resolve(const uchar *old_data, uchar *new_data,
                                    NdbInterpretedCode *);
 #endif
   friend int ndbcluster_drop_database_impl(const char *path);

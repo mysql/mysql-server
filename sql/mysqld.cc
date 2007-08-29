@@ -5557,16 +5557,16 @@ master-ssl",
    "For efficiency log only after image as a write event."
    "Ignore before image.  This may cause compatability problems if"
    "replicating to other storage engines than ndbcluster",
-   (gptr*) &opt_ndb_log_update_as_write,
-   (gptr*) &opt_ndb_log_update_as_write,
+   (uchar**) &opt_ndb_log_update_as_write,
+   (uchar**) &opt_ndb_log_update_as_write,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb-log-updated-only", OPT_NDB_LOG_UPDATED_ONLY,
    "For efficiency log only updated columns. Columns are considered "
    "as \"updated\" even if they are updated with the same value. "
    "This may cause compatability problems if"
    "replicating to other storage engines than ndbcluster",
-   (gptr*) &opt_ndb_log_updated_only,
-   (gptr*) &opt_ndb_log_updated_only,
+   (uchar**) &opt_ndb_log_updated_only,
+   (uchar**) &opt_ndb_log_updated_only,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
