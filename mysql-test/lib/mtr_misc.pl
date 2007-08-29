@@ -19,6 +19,7 @@
 # same name.
 
 use strict;
+use File::Find;
 
 sub mtr_native_path($);
 sub mtr_init_args ($);
@@ -29,6 +30,7 @@ sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
 sub mtr_copy_dir($$);
+sub mtr_rmtree($$);
 sub mtr_same_opts($$);
 sub mtr_cmp_opts($$);
 
@@ -197,6 +199,64 @@ sub mtr_copy_dir($$) {
   }
   closedir(DIR);
 
+}
+
+
+sub mtr_rmtree($) {
+  my ($dir)= @_;
+  my $need_file_find= 0;
+  mtr_verbose("mtr_rmtree: $dir");
+
+  {
+    # Try to use File::Path::rmtree. Recent versions
+    # handles removal of directories and files that don't
+    # have full permissions, while older versions
+    # may have a problem with that and we use our own version
+
+    local $SIG{__WARN__}= sub {
+      $need_file_find= 1;
+      mtr_warning($_[0]);
+    };
+    rmtree($dir);
+  }
+  if ( $need_file_find ) {
+    mtr_warning("rmtree($dir) failed, trying with File::Find...");
+
+    my $errors= 0;
+
+    # chmod
+    find( {
+	   no_chdir => 1,
+	   wanted => sub {
+	     chmod(0777, $_)
+	       or mtr_warning("couldn't chmod(0777, $_): $!") and $errors++;
+	   }
+	  },
+	  $dir
+	);
+
+    # rm
+    finddepth( {
+	   no_chdir => 1,
+	   wanted => sub {
+	     my $file= $_;
+	     # Use special underscore (_) filehandle, caches stat info
+	     if (!-l $file and -d _ ) {
+	       rmdir($file) or
+		 mtr_warning("couldn't rmdir($file): $!") and $errors++;
+	     } else {
+	       unlink($file)
+		 or mtr_warning("couldn't unlink($file): $!") and $errors++;
+	     }
+	   }
+	  },
+	  $dir
+	);
+
+    mtr_error("Failed to remove '$dir'") if $errors;
+
+    mtr_report("OK, that worked!");
+  }
 }
 
 
