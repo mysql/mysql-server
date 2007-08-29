@@ -138,12 +138,11 @@ typedef struct st_ndbcluster_share {
   uint32 flags;
   NdbEventOperation *op;
   Uint64 op_gci;
-  List<NdbEventOperation> old_ops; // for on-line alter table
   char *old_names; // for rename table
   TABLE_SHARE *table_share;
   TABLE *table;
-  byte *record[2]; // pointer to allocated records for receiving data
   MY_BITMAP *subscriber_bitmap;
+  List<NdbEventOperation> old_ops; // for on-line alter table
 #endif
 } NDB_SHARE;
 
