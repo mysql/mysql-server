@@ -7220,7 +7220,7 @@ ulong
 ha_innobase::innobase_get_auto_increment(
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulint		error;
+	ulong		error;
 
 	do {
 		error = innobase_autoinc_lock();
@@ -7323,7 +7323,7 @@ ha_innobase::get_auto_increment(
 		/* Called for the first time ? */
 		if (prebuilt->trx->n_autoinc_rows == 0) {
 
-			prebuilt->trx->n_autoinc_rows = nb_desired_values;
+			prebuilt->trx->n_autoinc_rows = (ulint) nb_desired_values;
 
 			/* It's possible for nb_desired_values to be 0:
 			e.g., INSERT INTO T1(C) SELECT C FROM T2; */

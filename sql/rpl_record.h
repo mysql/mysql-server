@@ -16,6 +16,8 @@
 #ifndef RPL_RECORD_H
 #define RPL_RECORD_H
 
+#include <rpl_reporting.h>
+
 #if !defined(MYSQL_CLIENT)
 size_t pack_row(TABLE* table, MY_BITMAP const* cols,
                 uchar *row_data, const uchar *data);
@@ -25,9 +27,11 @@ size_t pack_row(TABLE* table, MY_BITMAP const* cols,
 int unpack_row(Relay_log_info const *rli,
                TABLE *table, uint const colcnt,
                uchar const *const row_data, MY_BITMAP const *cols,
-               uchar const **const row_end, ulong *const master_reclength,
-               MY_BITMAP* const rw_set,
-               Log_event_type const event_type);
+               uchar const **const row_end, ulong *const master_reclength);
+
+// Fill table's record[0] with default values.
+int prepare_record(const Slave_reporting_capability *const, TABLE *const, 
+                   const uint =0, const bool =FALSE);
 #endif
 
 #endif
