@@ -41,6 +41,10 @@
 #define CONTROL_FILE_SIZE (CONTROL_FILE_FILENO_OFFSET + CONTROL_FILE_FILENO_SIZE)
 
 /* This module owns these two vars. */
+/**
+   This LSN serves for the two-checkpoint rule, and also to find the
+   checkpoint record when doing a recovery.
+*/
 LSN    last_checkpoint_lsn= LSN_IMPOSSIBLE;
 uint32 last_logno=          FILENO_IMPOSSIBLE;
 
@@ -68,8 +72,6 @@ static int control_file_fd= -1;
   the last_checkpoint_lsn and last_logno global variables.
   Called at engine's start.
 
-  @param  create_if_missing
-
   @note
   The format of the control file is:
   4 bytes: magic string
@@ -78,11 +80,13 @@ static int control_file_fd= -1;
   4 bytes: offset in log where last checkpoint is
   4 bytes: number of last log
 
+  @note If in recovery, file is not created
+
   @return Operation status
     @retval 0      OK
     @retval 1      Error (in which case the file is left closed)
 */
-CONTROL_FILE_ERROR ma_control_file_create_or_open(my_bool create_if_missing)
+CONTROL_FILE_ERROR ma_control_file_create_or_open()
 {
   char buffer[CONTROL_FILE_SIZE];
   char name[FN_REFLEN];
@@ -111,7 +115,8 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open(my_bool create_if_missing)
 
   if (create_file)
   {
-    if (!create_if_missing)
+    /* in a recovery, we expect to find a control file */
+    if (maria_in_recovery)
       DBUG_RETURN(CONTROL_FILE_MISSING);
     if ((control_file_fd= my_create(name, 0,
                                     open_flags, MYF(MY_SYNC_DIR))) < 0)

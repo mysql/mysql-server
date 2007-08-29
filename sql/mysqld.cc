@@ -3418,6 +3418,17 @@ server.");
     using_update_log=1;
   }
 
+  /* call ha_init_key_cache() on all key caches to init them */
+  process_key_caches(&ha_init_key_cache);
+  /*
+    Maria's pagecache needs to be ready before Maria engine (Recovery uses
+    pagecache, and Checkpoint may happen at startup). Maria engine is taken up
+    in plugin_init().
+  */
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  process_pagecaches(&ha_init_pagecache);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
+
   /* Allow storage engine to give real error messages */
   if (ha_init_errors())
     DBUG_RETURN(1);
@@ -3587,12 +3598,6 @@ server.");
 
   if (opt_myisam_log)
     (void) mi_log(1);
-
-  /* call ha_init_key_cache() on all key caches to init them */
-  process_key_caches(&ha_init_key_cache);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  process_pagecaches(&ha_init_pagecache);
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())

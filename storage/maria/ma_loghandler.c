@@ -5636,7 +5636,7 @@ static my_bool write_hook_for_redo(enum translog_record_type type
     non-transactional log records (REPAIR, CREATE, RENAME, DROP) should not
     call this hook; we trust them but verify ;)
   */
-  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
+  DBUG_ASSERT(trn->trid != 0);
   /*
     If the hook stays so simple, it would be faster to pass
     !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
@@ -5665,7 +5665,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
-  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
+  DBUG_ASSERT(trn->trid != 0);
   trn->undo_lsn= *lsn;
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=
@@ -5775,6 +5775,17 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
+}
+
+
+void translog_assign_id_to_share_from_recovery(MARIA_SHARE *share,
+                                               uint16 id)
+{
+  DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
+  DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
+  DBUG_ASSERT(share->id == 0);
+  DBUG_ASSERT(id_to_share[id] == NULL);
+  id_to_share[share->id= id]= share;
 }
 
 

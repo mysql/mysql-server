@@ -171,7 +171,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
     share->delay_key_write=1;
 
   info.state= &share->state.state;	/* Change global values by default */
-  info.trn=   &dummy_transaction_object;
+  if (!share->base.born_transactional)   /* but for transactional ones ... */
+    info.trn= &dummy_transaction_object; /* ... force crash if no trn given */
   pthread_mutex_unlock(&share->intern_lock);
 
   /* Allocate buffer for one record */
@@ -601,15 +602,30 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     {
       share->page_type= PAGECACHE_LSN_PAGE;
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
-      if (unlikely((share->state.create_rename_lsn == (LSN)ULONGLONG_MAX) &&
-                   (open_flags & HA_OPEN_FROM_SQL_LAYER)))
+      if (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK)
       {
         /*
-          This table was repaired with maria_chk. Past log records should be
-          ignored, future log records should not: we define the present.
+          Was repaired with maria_chk, maybe later maria_pack-ed. Some sort of
+          import into the server. It starts its existence (from the point of
+          view of the server, including server's recovery) now.
         */
-        share->state.create_rename_lsn= translog_get_horizon();
-        _ma_update_create_rename_lsn_on_disk(share, TRUE);
+        if ((open_flags & HA_OPEN_FROM_SQL_LAYER) || maria_in_recovery)
+        {
+          share->state.create_rename_lsn= translog_get_horizon();
+          _ma_update_create_rename_lsn_on_disk(share, TRUE);
+        }
+      }
+      else if (!LSN_VALID(share->state.create_rename_lsn) &&
+               !(open_flags & HA_OPEN_FOR_REPAIR))
+      {
+        /*
+          If in Recovery, it will not work. If LSN is invalid and not
+          LSN_REPAIRED_BY_MARIA_CHK, header must be corrupted.
+          In both cases, must repair.
+        */
+        my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
+                  HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
+        goto err;
       }
     }
     else
@@ -699,6 +715,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       {
 	share->lock.get_status=_ma_get_status;
 	share->lock.copy_status=_ma_copy_status;
+        /**
+           @todo RECOVERY
+           INSERT DELAYED and concurrent inserts are currently disabled for
+           transactional tables; when enabled again, we should re-evaluate
+           what problems the call to _ma_update_status() by
+           thr_reschedule_write_lock() can do (it may hurt Checkpoint as it
+           would be without intern_lock, and it modifies the state).
+        */
 	share->lock.update_status=_ma_update_status;
 	share->lock.restore_status=_ma_restore_status;
 	share->lock.check_status=_ma_check_status;
@@ -958,6 +982,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys;
+  size_t res;
   DBUG_ENTER("_ma_state_info_write");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
@@ -1013,11 +1038,12 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
     }
   }
 
-  if (pWrite & 1)
-    DBUG_RETURN(my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
-			  MYF(MY_NABP | MY_THREADSAFE)) != 0);
-  DBUG_RETURN(my_write(file, buff, (size_t) (ptr-buff),
-		       MYF(MY_NABP)) != 0);
+  res= (pWrite & 1) ?
+    my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
+              MYF(MY_NABP | MY_THREADSAFE)) :
+    my_write(file,  buff, (size_t) (ptr-buff),
+             MYF(MY_NABP));
+  DBUG_RETURN(res != 0);
 }
 
 
@@ -1071,6 +1097,16 @@ uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   return ptr;
 }
 
+
+/**
+   @brief Fills the state by reading its copy on disk.
+
+   @note Does nothing in single user mode.
+
+   @param  file            file to read from
+   @param  state           state which will be filled
+   @param  pRead           if true, use my_pread(), otherwise my_read()
+*/
 
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state, my_bool pRead)
 {

@@ -61,7 +61,7 @@ extern "C" {
   If present, reads it to find out last checkpoint's LSN and last log.
   Called at engine's start.
 */
-CONTROL_FILE_ERROR ma_control_file_create_or_open(my_bool);
+CONTROL_FILE_ERROR ma_control_file_create_or_open();
 /*
   Write information durably to the control file.
   Called when we have created a new log (after syncing this log's creation)

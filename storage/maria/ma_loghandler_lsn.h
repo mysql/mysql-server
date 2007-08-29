@@ -82,6 +82,9 @@ typedef LSN LSN_WITH_FLAGS;
 #define LOG_OFFSET_IMPOSSIBLE 0 /**< log always has a header */
 #define LSN_IMPOSSIBLE        0
 
+/** @brief some impossible LSN serve as markers */
+#define LSN_REPAIRED_BY_MARIA_CHK ((LSN)1)
+
 /**
    @brief the maximum valid LSN.
    Unlike ULONGLONG_MAX, it can be safely used in comparison with valid LSNs
