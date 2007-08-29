@@ -1812,9 +1812,6 @@ row_create_table_for_mysql(
 	ulint		table_name_len;
 	ulint		err;
 	ulint		i;
-	ibool		retry;
-
-	retry = FALSE;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -1934,7 +1931,6 @@ row_create_table_for_mysql(
 
 	heap = mem_heap_create(512);
 
-retry_create:
 	trx->dict_operation = TRUE;
 
 	node = tab_create_graph_create(table, heap);
@@ -1946,82 +1942,55 @@ retry_create:
 
 	err = trx->error_state;
 
-	if (err != DB_SUCCESS) {
-		/* We have special error handling here */
+	switch (err) {
+	case DB_OUT_OF_FILE_SPACE:
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		trx->error_state = DB_SUCCESS;
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Warning: cannot create table ",
+		      stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs(" because tablespace full\n", stderr);
 
+		if (dict_table_get_low(table->name)) {
 
-		if (err == DB_OUT_OF_FILE_SPACE) {
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
-
-			ut_print_timestamp(stderr);
-
-			fputs("  InnoDB: Warning: cannot create table ",
-			      stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs(" because tablespace full\n", stderr);
-
-			if (dict_table_get_low(table->name)) {
-
-				row_drop_table_for_mysql(table->name, trx,
-							 FALSE);
-			}
-
-		} else if (err == DB_DUPLICATE_KEY) {
-			ut_print_timestamp(stderr);
-
-			if (*table->name != TEMP_TABLE_PREFIX) {
-				trx_general_rollback_for_mysql(
-					trx, FALSE, NULL);
-
-				fputs("  InnoDB: Error: table ", stderr);
-				ut_print_name(stderr, trx, TRUE, table->name);
-				fputs(" already exists in InnoDB internal\n"
-				"InnoDB: data dictionary. Have you deleted"
-				" the .frm file\n"
-				"InnoDB: and not used DROP TABLE?"
-				" Have you used DROP DATABASE\n"
-				"InnoDB: for InnoDB tables in"
-				" MySQL version <= 3.23.43?\n"
-				"InnoDB: See the Restrictions section"
-				" of the InnoDB manual.\n"
-				"InnoDB: You can drop the orphaned table"
-				" inside InnoDB by\n"
-				"InnoDB: creating an InnoDB table with"
-				" the same name in another\n"
-				"InnoDB: database and copying the .frm file"
-				" to the current database.\n"
-				"InnoDB: Then MySQL thinks the table exists,"
-				" and DROP TABLE will\n"
-				"InnoDB: succeed.\n"
-				"InnoDB: You can look for further help from\n"
-				"InnoDB: "
-				"http://dev.mysql.com/doc/refman/5.1/en/"
-				"innodb-troubleshooting.html\n", 
-				stderr);
-			} else if (!retry) {
-				fputs("  InnoDB: Warning: table ", stderr);
-				ut_print_name(stderr, trx, TRUE, table->name);
-				fputs(" already exists in InnoDB internal\n"
-				"InnoDB: dropping old temporary table\n",
-				stderr);
-
-				row_drop_table_for_mysql(table->name, trx,
-							 FALSE);
-
-				retry = TRUE;
-				goto retry_create;
-			} else {
-				trx_general_rollback_for_mysql(
-					trx, FALSE, NULL);
-			}
+			row_drop_table_for_mysql(table->name, trx, FALSE);
 		}
+		break;
+
+	case DB_DUPLICATE_KEY:
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: table ", stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs(" already exists in InnoDB internal\n"
+		      "InnoDB: data dictionary. Have you deleted"
+		      " the .frm file\n"
+		      "InnoDB: and not used DROP TABLE?"
+		      " Have you used DROP DATABASE\n"
+		      "InnoDB: for InnoDB tables in"
+		      " MySQL version <= 3.23.43?\n"
+		      "InnoDB: See the Restrictions section"
+		      " of the InnoDB manual.\n"
+		      "InnoDB: You can drop the orphaned table"
+		      " inside InnoDB by\n"
+		      "InnoDB: creating an InnoDB table with"
+		      " the same name in another\n"
+		      "InnoDB: database and copying the .frm file"
+		      " to the current database.\n"
+		      "InnoDB: Then MySQL thinks the table exists,"
+		      " and DROP TABLE will\n"
+		      "InnoDB: succeed.\n"
+		      "InnoDB: You can look for further help from\n"
+		      "InnoDB: "
+		      "http://dev.mysql.com/doc/refman/5.1/en/"
+		      "innodb-troubleshooting.html\n", stderr);
 
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
 
-		trx->error_state = DB_SUCCESS;
+		break;
 	}
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
