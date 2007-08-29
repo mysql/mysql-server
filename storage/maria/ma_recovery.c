@@ -53,6 +53,7 @@ prototype_exec_hook(REDO_PURGE_BLOCKS);
 prototype_exec_hook(REDO_DELETE_ALL);
 prototype_exec_hook(UNDO_ROW_INSERT);
 prototype_exec_hook(UNDO_ROW_DELETE);
+prototype_exec_hook(UNDO_ROW_UPDATE);
 prototype_exec_hook(UNDO_ROW_PURGE);
 prototype_exec_hook(COMMIT);
 static int  end_of_redo_phase();
@@ -197,6 +198,7 @@ int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file)
   install_exec_hook(REDO_DELETE_ALL);
   install_exec_hook(UNDO_ROW_INSERT);
   install_exec_hook(UNDO_ROW_DELETE);
+  install_exec_hook(UNDO_ROW_UPDATE);
   install_exec_hook(UNDO_ROW_PURGE);
   install_exec_hook(COMMIT);
 
@@ -512,9 +514,6 @@ prototype_exec_hook(REDO_CREATE_TABLE)
   ptr+= 2;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
   lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
-  /* we also set is_of_lsn, like maria_create() does */
-  lsn_store(ptr + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
-            rec->lsn);
   if (my_pwrite(kfile, ptr,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
@@ -766,7 +765,7 @@ end:
 prototype_exec_hook(REDO_INSERT_ROW_TAIL)
 {
   int error= 1;
-  uchar *buff= NULL;
+  uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;
@@ -834,11 +833,24 @@ end:
 prototype_exec_hook(REDO_PURGE_BLOCKS)
 {
   int error= 1;
+  uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;
+  enlarge_buffer(rec);
+
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    fprintf(tracef, "Failed to read record\n");
+    goto end;
+  }
+
+  buff= log_record_buffer.str;
   if (_ma_apply_redo_purge_blocks(info, current_group_end_lsn,
-                                  rec->header + FILEID_STORE_SIZE))
+                                  buff + FILEID_STORE_SIZE))
     goto end;
   error= 0;
 end:
@@ -905,6 +917,23 @@ prototype_exec_hook(UNDO_ROW_DELETE)
     info->s->state.state.records--;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  error= 0;
+end:
+  return error;
+}
+
+
+prototype_exec_hook(UNDO_ROW_UPDATE)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  if (info == NULL)
+    goto end;
+  all_active_trans[rec->short_trid].undo_lsn= rec->lsn;
+  /*
+    todo: instead of above, call write_hook_for_undo, it will also set
+    first_undo_lsn
+  */
   error= 0;
 end:
   return error;

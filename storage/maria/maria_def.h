@@ -894,6 +894,7 @@ void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
 void _ma_reset_status(MARIA_HA *maria);
+int ma_commit(struct st_transaction *trn);
 
 extern MARIA_HA *_ma_test_if_reopen(char *filename);
 my_bool _ma_check_table_is_closed(const char *name, const char *where);

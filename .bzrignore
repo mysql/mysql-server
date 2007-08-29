@@ -3045,3 +3045,6 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+maria_log_control
+storage/maria/tmp/*
+storage/maria/tmp/*

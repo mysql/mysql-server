@@ -530,6 +530,21 @@ static inline uint start_of_next_entry(uchar *dir)
 }
 
 
+static inline uint end_of_previous_entry(uchar *dir, uchar *end)
+{
+  uchar *pos;
+  for (pos= dir + DIR_ENTRY_SIZE ; pos < end ; pos+= DIR_ENTRY_SIZE)
+  {
+    uint offset;
+    if ((offset= uint2korr(pos)))
+    {
+      return offset + uint2korr(pos+2);
+    }
+  }
+  return PAGE_HEADER_SIZE;
+}
+
+
 /*
   Check that a region is all zero
 
@@ -1438,7 +1453,7 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
                             log_data))
     DBUG_RETURN(1);
 
-  DBUG_RETURN (_ma_bitmap_free_full_pages(info, row->extents,
+  DBUG_RETURN(_ma_bitmap_free_full_pages(info, row->extents,
                                           row->extents_count));
 }
 
@@ -1457,6 +1472,7 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
 static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
 {
   my_bool res= 0;
+  DBUG_ENTER("free_full_page_range");
 
   if (pagecache_delete_pages(info->s->pagecache, &info->dfile,
                              page, count, PAGECACHE_LOCK_WRITE, 0))
@@ -1490,7 +1506,7 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
                                count))
     res= 1;
   pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -2470,7 +2486,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
     /* Update cur_row, if someone calls update at once again */
     cur_row->head_length= new_row->total_length;
 
-    if (free_full_pages(info, cur_row))
+    if (cur_row->extents_count && free_full_pages(info, cur_row))
       goto err;
     DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks,
                                    1, &row_pos));
@@ -2492,9 +2508,9 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   }
 
   /* Delete old row */
-  if (delete_tails(info, cur_row->tail_positions))
+  if (*cur_row->tail_positions && delete_tails(info, cur_row->tail_positions))
     goto err;
-  if (free_full_pages(info, cur_row))
+  if (cur_row->extents_count && free_full_pages(info, cur_row))
     goto err;
   if (_ma_bitmap_find_new_place(info, new_row, page, head_length, blocks))
     goto err;
@@ -4207,7 +4223,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
             PAGE_SUFFIX_SIZE);
       empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
         
-      if (max_entry >= rownr)
+      if (max_entry <= rownr)
       {
         /* Add directory entry first in directory and data last on page */
         DBUG_ASSERT(max_entry == rownr);
@@ -4232,40 +4248,27 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       }
       else
       {
-        /* reuse old empty entry */
-        uchar *pos, *end, *end_data;
-        DBUG_ASSERT(uint2korr(dir) == 0);
-        if (uint2korr(dir))
-          goto err;                      /* Should have been empty */
+        /*
+          reuse old entry. This is empty if the command was an insert and
+          possible used if the command was an update.
+        */
+        uchar *end_data;
+        uint rec_end;
 
-        /* Find start of where we can put data */
-        end= (buff + block_size - DIR_ENTRY_SIZE * max_entry -
-              PAGE_SUFFIX_SIZE);
-        for (pos= dir ; pos >= end ; pos-= DIR_ENTRY_SIZE)
-        {
-          if ((rec_offset= uint2korr(pos)))
-          {
-            rec_offset+= uint2korr(pos+2);
-            break;
-          }
-        }
-        DBUG_ASSERT(pos >= end);
-        if (pos < end)                            /* Wrong directory */
-          goto err;
+        /* Add back space if we are reusing entry */
+        empty_space+= uint2korr(dir+2);
 
-        /* find end data */
-        end_data= end;                            /* Start of directory */
-        end= (buff + block_size - PAGE_SUFFIX_SIZE);
-        for (pos= dir ; pos < end ; pos+= DIR_ENTRY_SIZE)
-        {
-          uint offset;
-          if ((offset= uint2korr(pos)))
-          {
-            end_data= buff + offset;
-            break;
-          }
-        }
-        if ((uint) (end_data - (buff + rec_offset)) < data_length)
+        /* Find first possible position where to put new data */
+        end_data= (buff + block_size - PAGE_SUFFIX_SIZE -
+                   DIR_ENTRY_SIZE * max_entry);
+        rec_offset= end_of_previous_entry(dir, end_data);
+        if (rownr != max_entry -1)
+          rec_end= start_of_next_entry(dir);
+        else
+          rec_end= (uint) (buff - end_data);
+        DBUG_ASSERT(rec_end > rec_offset);
+
+        if ((uint) (rec_end - rec_offset) < data_length)
         {
           uint length;
           /* Not enough continues space, compact page to get more */
@@ -4397,70 +4400,53 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
 {
   MARIA_SHARE *share= info->s;
   ulonglong page;
-  uint      page_range;
-  uint      res;
+  uint      page_range, ranges;
+  uint      res= 0;
   uchar     *buff= info->keyread_buff;
-  uint      block_size= share->block_size;
   DBUG_ENTER("_ma_apply_redo_purge_blocks");
 
   info->keyread_buff_used= 1;  
-  page_range= pagerange_korr(header);
-  /* works only for a one-page range for now */
-  DBUG_ASSERT(page_range == 1); // for now
+  ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
-  page= page_korr(header);
-  header+= PAGE_STORE_SIZE;
-  page_range= pagerange_korr(header);
-  DBUG_ASSERT(page_range == 1); // for now
 
-  if (!(buff= pagecache_read(share->pagecache,
-                             &info->dfile,
-                             page, 0,
-                             buff, PAGECACHE_PLAIN_PAGE,
-                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
-    DBUG_RETURN(my_errno);
-
-  if (lsn_korr(buff) >= lsn)
+  while (ranges--)
   {
-    /* Already applied */
-    goto mark_free_in_bitmap;
+    uint i;
+    page= page_korr(header);
+    header+= PAGE_STORE_SIZE;
+    page_range= pagerange_korr(header);
+    header+= PAGERANGE_STORE_SIZE;
+
+    for (i= 0; i < page_range ; i++)
+    {
+      if (!(buff= pagecache_read(share->pagecache,
+                                 &info->dfile,
+                                 page+i, 0,
+                                 buff, PAGECACHE_PLAIN_PAGE,
+                                 PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+        DBUG_RETURN(my_errno);
+
+      if (lsn_korr(buff) >= lsn)
+      {
+        /* Already applied */
+        continue;
+      }
+      buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
+      lsn_store(buff, lsn);
+      if (pagecache_write(share->pagecache,
+                          &info->dfile, page+i, 0,
+                          buff, PAGECACHE_PLAIN_PAGE,
+                          PAGECACHE_LOCK_LEFT_UNLOCKED,
+                          PAGECACHE_PIN_LEFT_UNPINNED,
+                          PAGECACHE_WRITE_DELAY, 0))
+        DBUG_RETURN(my_errno);
+    }
+    /** @todo leave bitmap lock to the bitmap code... */
+    pthread_mutex_lock(&share->bitmap.bitmap_lock);
+    res= _ma_reset_full_page_bits(info, &share->bitmap, page, page_range);
+    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+    if (res)
+      DBUG_RETURN(res);
   }
-
-  buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
-
-  /*
-    Strictly speaking, we don't need to zero the last directory entry of this
-    page; setting the directory's count to zero is enough (it makes the last
-    directory entry invisible, irrelevant).
-    But as the "runtime" code (delete_head_or_tail()) called
-    delete_dir_entry() which zeroed the entry, if we don't do it here, we get
-    a difference between runtime and log-applying. Irrelevant, but it's
-    time-consuming to differentiate irrelevant differences from relevant
-    ones. So we remove the difference by zeroing the entry.
-  */
-  {
-    uint rownr= ((uint) ((uchar *) buff)[DIR_COUNT_OFFSET]) - 1;
-    uchar *dir= (buff + block_size - DIR_ENTRY_SIZE * rownr -
-                 DIR_ENTRY_SIZE - PAGE_SUFFIX_SIZE);
-    dir[0]= dir[1]= 0;                            /* Delete entry */
-  }
-
-  buff[DIR_COUNT_OFFSET]= 0;
-  
-  lsn_store(buff, lsn);
-  if (pagecache_write(share->pagecache,
-                      &info->dfile, page, 0,
-                      buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_LEFT_UNLOCKED,
-                      PAGECACHE_PIN_LEFT_UNPINNED,
-                      PAGECACHE_WRITE_DELAY, 0))
-    DBUG_RETURN(my_errno);
-
-mark_free_in_bitmap:
-  /** @todo leave bitmap lock to the bitmap code... */
-  pthread_mutex_lock(&share->bitmap.bitmap_lock);
-  res= _ma_reset_full_page_bits(info, &share->bitmap, page, 1);
-  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(0);
 }

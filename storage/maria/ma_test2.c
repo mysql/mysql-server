@@ -244,13 +244,15 @@ int main(int argc, char *argv[])
   if (opt_quick_mode)
     maria_extra(file,HA_EXTRA_QUICK,0);
 
+  maria_begin(file);
+
   for (i=0 ; i < recant ; i++)
   {
     ulong blob_length;
 #if 0
     /*
       Starting from i==72, there was a difference between runtime and
-      log-appplying. This is now fixed, by not using non_header_data_len in
+      log-applying. This is now fixed, by not using non_header_data_len in
       log-applying.
     */
     if (i == 72) goto end;
@@ -890,6 +892,8 @@ int main(int argc, char *argv[])
     goto err;
   }
 end:
+  if (maria_commit(file))
+    goto err;
   if (maria_close(file))
     goto err;
   maria_panic(HA_PANIC_CLOSE);			/* Should close log */

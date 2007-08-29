@@ -113,6 +113,8 @@ end:
 
 static struct my_option my_long_options[] =
 {
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"only-display", 'o', "display brief info about records's header",
    (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
@@ -161,6 +163,9 @@ get_one_option(int optid __attribute__((unused)),
                char *argument __attribute__((unused)))
 {
   switch (optid) {
+  case '?':
+    usage();
+    exit(0);
 #ifndef DBUG_OFF
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);

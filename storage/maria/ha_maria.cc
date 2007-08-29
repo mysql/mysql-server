@@ -27,10 +27,11 @@
 #include "ha_maria.h"
 #include "trnman_public.h"
 
+C_MODE_START
 #include "maria_def.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
-#include "ma_commit.h"
+C_MODE_END
 
 #define MARIA_CANNOT_ROLLBACK HA_NO_TRANSACTIONS
 #ifdef MARIA_CANNOT_ROLLBACK

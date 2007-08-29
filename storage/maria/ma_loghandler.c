@@ -299,13 +299,9 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-/* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
-{LOGRECTYPE_VARIABLE_LENGTH,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
- PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
- PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
@@ -5288,8 +5284,9 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
    @param page_offset     Offset of the first chunk in the page
    @param buff            Buffer to be filled with header data
    @param scanner         If present should be moved to the header page if
-                         it differ from LSN page
-   @return Length of header or operation status
+                          it differ from LSN page
+
+   @return                Length of header or operation status
      @retval RECHEADER_READ_ERROR  error
      @retval #                     number of bytes in
                                    TRANSLOG_HEADER_BUFFER::header where
@@ -5311,7 +5308,6 @@ int translog_variable_length_header(uchar *page, translog_size_t page_offset,
   uint16 buffer_length= length;
   uint16 body_len;
   TRANSLOG_SCANNER_DATA internal_scanner;
-
   DBUG_ENTER("translog_variable_length_header");
 
   buff->record_length= translog_variable_record_1group_decode_len(&src);
