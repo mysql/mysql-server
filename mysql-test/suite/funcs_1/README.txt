@@ -112,6 +112,7 @@ Carsten 16.09.2005
 ===================================================================
 Matthias 25.08.2007
 -------------------
+Data dictionary tests:
 Fixes for Bugs 30418,30420,30438,30440 
 1. Replace error numbers with error names
 2. Replace static "InnoDB" (not all time available) used within an
@@ -125,10 +126,16 @@ Fixes for Bugs 30418,30420,30438,30440
 5. Add two help table related tests (one for build, one for developer)
    to ensure that informations about help tables within
    INFORMATION_SCHEMA.TABLES/STATISTICS are checked.
+6. Note about new Bug#30689 at the beginning of the test.
+   The files with expected results contain incomplete result sets.
+7. Fix the NDB variant of the data dictionary test (ndb__datadict) as far as
+   it was necessary for the bug fixes mentioned above.
+
+
 General note:
    Most INFORMATION_SCHEMA properties (table layout, permissions etc.)
    are not affected by our variation of the storage engines except
    that some properties of our tables using a specific storage
    engine become visible. So it makes sense to decompose
-   this test into a storage engine specific part and a non
-   storage engine specific part in future.
+   the data dictionary test into a storage engine specific part and
+   a non storage engine specific part in future.
