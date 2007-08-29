@@ -1387,6 +1387,21 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create user 'mysqltest
 CREATE FUNCTION bug_13627_f() returns int BEGIN create user 'mysqltest_1'; return 1; END |
 
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN grant select on t1 to 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN grant select on t1 to 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke select on t1 from 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN revoke select on t1 from 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke all privileges on *.* from 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug21975() returns int BEGIN revoke all privileges on *.* from 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop user 'mysqltest_1'; END |
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION bug_13627_f() returns int BEGIN drop user 'mysqltest_1'; return 1; END |
