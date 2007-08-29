@@ -82,8 +82,6 @@ hash_create(
 	hash_cell_t*	array;
 	ulint		prime;
 	hash_table_t*	table;
-	ulint		i;
-	hash_cell_t*	cell;
 
 	prime = ut_find_prime(n);
 
