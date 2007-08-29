@@ -67,7 +67,6 @@ int ma_commit(TRN *trn)
                               log_array, NULL) ||
         translog_flush(commit_lsn) ||
         trnman_commit_trn(trn));
-  trn->undo_lsn= 0;
   /*
     Note: if trnman_commit_trn() fails above, we have already
     written the COMMIT record, so Checkpoint and Recovery will see the
