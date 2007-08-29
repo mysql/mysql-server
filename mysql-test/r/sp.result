@@ -6569,4 +6569,56 @@ rl_acquirer	old
 drop procedure p1;
 drop table t1;
 set session low_priority_updates=default;
+
+# Bug#13675.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TABLE IF EXISTS t1;
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p1('text');
+Warnings:
+Warning	1264	Out of range value for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2(10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2('text');
+Warnings:
+Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
 End of 5.0 tests
