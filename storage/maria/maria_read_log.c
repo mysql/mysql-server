@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     goto err;
   }
   /* we don't want to create a control file, it MUST exist */
-  if (ma_control_file_create_or_open(FALSE))
+  if (ma_control_file_create_or_open())
   {
     fprintf(stderr, "Can't open control file (%d)\n", errno);
     goto err;
@@ -93,7 +93,8 @@ int main(int argc, char **argv)
   */
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_display_and_apply, stdout))
+  /* Until we have UNDO records, no UNDO phase */
+  if (maria_apply_log(lsn, opt_display_and_apply, stdout, FALSE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname);
 

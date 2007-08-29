@@ -84,6 +84,9 @@ typedef LSN LSN_WITH_FLAGS;
 /* following LSN also is impossible */
 #define LSN_ERROR             1
 
+/** @brief some impossible LSN serve as markers */
+#define LSN_REPAIRED_BY_MARIA_CHK ((LSN)1)
+
 /**
    @brief the maximum valid LSN.
    Unlike ULONGLONG_MAX, it can be safely used in comparison with valid LSNs

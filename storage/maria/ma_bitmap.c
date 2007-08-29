@@ -512,15 +512,19 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
                                     ulonglong page)
 {
-  my_off_t position= page * bitmap->block_size;
+  my_off_t end_of_page= (page + 1) * bitmap->block_size;
   my_bool res;
   DBUG_ENTER("_ma_read_bitmap_page");
   DBUG_ASSERT(page % bitmap->pages_covered == 0);
 
   bitmap->page= page;
-  if (position >= share->state.state.data_file_length)
+  if (end_of_page > share->state.state.data_file_length)
   {
-    share->state.state.data_file_length= position + bitmap->block_size;
+    /*
+      Inexistent or half-created page (could be crash in the middle of
+      _ma_bitmap_create_first(), before appending maria_bitmap_marker).
+    */
+    share->state.state.data_file_length= end_of_page;
     bzero(bitmap->map, bitmap->block_size);
     memcpy(bitmap->map + bitmap->block_size - sizeof(maria_bitmap_marker),
            maria_bitmap_marker, sizeof(maria_bitmap_marker));
@@ -2047,7 +2051,8 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 { 
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
-  if (my_chsize(file, block_size, 0, MYF(MY_WME)) ||
+  if (my_chsize(file, block_size - sizeof(maria_bitmap_marker),
+                0, MYF(MY_WME)) ||
       my_pwrite(file, maria_bitmap_marker, sizeof(maria_bitmap_marker),
                 block_size - sizeof(maria_bitmap_marker),
                 MYF(MY_NABP | MY_WME)))

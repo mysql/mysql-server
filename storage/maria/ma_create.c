@@ -664,6 +664,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.base.keystart = share.state.state.key_file_length=
     MY_ALIGN(info_length, maria_block_size);
+  if (share.data_file_type == BLOCK_RECORD)
+  {
+    /*
+      we are going to create a first bitmap page, set data_file_length
+      to reflect this, before the state goes to disk
+    */
+    share.state.state.data_file_length= maria_block_size;
+  }
   share.base.max_key_block_length= maria_block_size;
   share.base.max_key_length=ALIGN_SIZE(max_key_length+4);
   share.base.records=ci->max_rows;
@@ -1041,36 +1049,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       goto err;
     errpos=3;
 
-    /**
-       @todo ASK_MONTY
-      QQ: this sets data_file_length from 0 to 8192, but we wrote the state
-      already to the index file (because:
-      - log record is built from index header so state must be written before
-      log record
-      - data file must be created after log record, so that "missing log
-      record" implies "unusable table").
-      When we wrote the state, we hadn't called ma_initialize_data_file(), so
-      the data_file_length is 0!
-      Thus, we below create a 8192-byte data file, but its recorded size is 0,
-      so next time we read the bitmap (a maria_write() for example) we'll
-      overwrite the bitmap we just created below.
-      It's not very efficient.
-      It also makes maria_chk_size() print
-      Size of datafile is: 8192       Should be: 0
-      on a freshly created table (run "check.test" with a Maria table).
-
-      Why do we absolutely want to create a 8192-byte page for a freshly
-      created, empty table? Why don't we leave the data file empty?
-      Removing the call below at least removes the maria_chk_size() issue.
-
-      Monty wrote on IRC, about a size of 0:
-      "This basically ok;  The first block is a bitmap that may or may not
-      exists", but later he asked that the first block always exists.???
-    */
-#ifdef ASK_MONTY
     if (_ma_initialize_data_file(&share, dfile))
       goto err;
-#endif
   }
 
 	/* Enlarge files */

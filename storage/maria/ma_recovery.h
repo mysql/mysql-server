@@ -25,5 +25,6 @@
 
 C_MODE_START
 int maria_recover();
-int maria_apply_log(LSN lsn, my_bool applyn, FILE *trace_file);
+int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file,
+                    my_bool execute_undo_phase);
 C_MODE_END

@@ -4178,9 +4178,6 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     empty_space= (block_size - PAGE_OVERHEAD_SIZE);
     rec_offset= PAGE_HEADER_SIZE;
     dir= buff+ block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE;
-
-    /* Update that file is extended */
-    info->state->data_file_length= (page + 1) * info->s->block_size;
   }
   else
   {
@@ -4303,6 +4300,16 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   /* Fix bitmap */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
     DBUG_RETURN(my_errno);
+
+  /*
+    Data page and bitmap page are in place, we can update data_file_length in
+    case we extended the file. We could not do it earlier: bitmap code tests
+    data_file_length to know if it has to create a new page or not.
+  */
+  {
+    my_off_t end_of_page= (page + 1) * info->s->block_size;
+    set_if_bigger(info->state->data_file_length, end_of_page);
+  }
 
   DBUG_RETURN(0);
 

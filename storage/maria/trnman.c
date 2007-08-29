@@ -18,6 +18,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include "trnman.h"
+#include "ma_control_file.h"
 
 /*
   status variables:
@@ -707,4 +708,30 @@ end:
   DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
   DBUG_RETURN(error);
+}
+
+
+TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
+{
+  TrID old_trid_generator= global_trid_generator;
+  TRN *trn;
+  DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
+  if (unlikely((trn= trnman_new_trn(NULL, NULL, NULL)) == NULL))
+    return NULL;
+  /* deallocate excessive allocations of trnman_new_trn() */
+  global_trid_generator= old_trid_generator;
+  set_if_bigger(global_trid_generator, longid);
+  short_trid_to_active_trn[trn->short_id]= 0;
+  DBUG_ASSERT(short_trid_to_active_trn[shortid] == NULL);
+  short_trid_to_active_trn[shortid]= trn;
+  trn->trid= longid;
+  trn->short_id= shortid;
+  return trn;
+}
+
+
+TRN *trnman_get_any_trn()
+{
+  TRN *trn= active_list_min.next;
+  return (trn != &active_list_max) ? trn : NULL;
 }

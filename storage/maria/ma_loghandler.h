@@ -258,6 +258,9 @@ extern TRANSLOG_ADDRESS translog_get_horizon();
 extern int translog_assign_id_to_share(struct st_maria_share *share,
                                        struct st_transaction *trn);
 extern void translog_deassign_id_from_share(struct st_maria_share *share);
+extern void
+translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
+                                          uint16 id);
 extern my_bool translog_inited;
 
 /*
