@@ -4032,6 +4032,9 @@ sub mysqld_start ($$$) {
     $wait_for_pid_file= 0;
   }
 
+  # Remove the pidfile
+  unlink($mysqld->{'path_pid'});
+
   if ( defined $exe )
   {
     $pid= mtr_spawn($exe, $args, "",
