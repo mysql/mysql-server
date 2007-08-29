@@ -132,10 +132,6 @@ bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
 			     bool skip_lock = 0);
-int terminate_slave_thread(THD* thd, pthread_mutex_t* term_mutex,
-			   pthread_mutex_t* cond_lock,
-			   pthread_cond_t* term_cond,
-			   volatile uint* slave_running);
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			Master_info* mi, const char* master_info_fname,
 			const char* slave_info_fname, int thread_mask);
