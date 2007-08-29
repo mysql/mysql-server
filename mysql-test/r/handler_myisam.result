@@ -522,3 +522,16 @@ handler t1 open;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 --> client 1
 drop table t1;
+drop table if exists t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read a next;
+ERROR HY000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias read a next;
+ERROR HY000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias close;
+drop table t1;
