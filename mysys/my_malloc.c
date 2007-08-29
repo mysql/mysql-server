@@ -23,11 +23,11 @@
 
 	/* My memory allocator */
 
-gptr my_malloc(unsigned int size, myf my_flags)
+gptr my_malloc(size_t size, myf my_flags)
 {
   gptr point;
   DBUG_ENTER("my_malloc");
-  DBUG_PRINT("my",("size: %u  my_flags: %d",size, my_flags));
+  DBUG_PRINT("my",("size: %lu  my_flags: %d", (ulong) size, my_flags));
 
   if (!size)
     size=1;					/* Safety */
@@ -63,11 +63,11 @@ void my_no_flags_free(gptr ptr)
 
 	/* malloc and copy */
 
-gptr my_memdup(const byte *from, uint length, myf my_flags)
+gptr my_memdup(const byte *from, size_t length, myf my_flags)
 {
   gptr ptr;
   if ((ptr=my_malloc(length,my_flags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    memcpy((byte*) ptr, (byte*)from, length);
   return(ptr);
 }
 
@@ -75,19 +75,19 @@ gptr my_memdup(const byte *from, uint length, myf my_flags)
 char *my_strdup(const char *from, myf my_flags)
 {
   gptr ptr;
-  uint length=(uint) strlen(from)+1;
+  size_t length= strlen(from)+1;
   if ((ptr=my_malloc(length,my_flags)) != 0)
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    memcpy((byte*) ptr, (byte*) from, length);
   return((my_string) ptr);
 }
 
 
-char *my_strdup_with_length(const char *from, uint length, myf my_flags)
+char *my_strdup_with_length(const char *from, size_t length, myf my_flags)
 {
   gptr ptr;
   if ((ptr=my_malloc(length+1,my_flags)) != 0)
   {
-    memcpy((byte*) ptr, (byte*) from,(size_t) length);
+    memcpy((byte*) ptr, (byte*) from, length);
     ((char*) ptr)[length]=0;
   }
   return((char*) ptr);

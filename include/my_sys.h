@@ -147,14 +147,14 @@ extern ulonglong sf_malloc_mem_limit;
 #define TERMINATE(A) {}
 #define QUICK_SAFEMALLOC
 #define NORMAL_SAFEMALLOC
-extern gptr my_malloc(uint Size,myf MyFlags);
+extern gptr my_malloc(size_t Size, myf MyFlags);
 #define my_malloc_ci(SZ,FLAG) my_malloc( SZ, FLAG )
 extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
-extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
+extern gptr my_memdup(const byte *from, size_t length, myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strdup_with_length(const char *from, uint length,
-				   myf MyFlags);
+extern char *my_strdup_with_length(const char *from, size_t length,
+                                   myf MyFlags);
 /* we do use FG (as a no-op) in below so that a typo on FG is caught */
 #define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
 #define CALLER_INFO_PROTO   /* nothing */
@@ -165,7 +165,7 @@ extern char *my_strdup_with_length(const char *from, uint length,
 
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
-extern gptr my_large_malloc(uint size, myf my_flags);
+extern gptr my_large_malloc(size_t size, myf my_flags);
 extern void my_large_free(gptr ptr, myf my_flags);
 #else
 #define my_get_large_page_size() (0)
@@ -590,18 +590,18 @@ extern uint my_fwrite(FILE *stream,const byte *Buffer,uint Count,
 		      myf MyFlags);
 extern my_off_t my_fseek(FILE *stream,my_off_t pos,int whence,myf MyFlags);
 extern my_off_t my_ftell(FILE *stream,myf MyFlags);
-extern gptr _mymalloc(uint uSize,const char *sFile,
-		      uint uLine, myf MyFlag);
-extern gptr _myrealloc(gptr pPtr,uint uSize,const char *sFile,
-		       uint uLine, myf MyFlag);
+extern gptr _mymalloc(size_t uSize, const char *sFile,
+                       uint uLine, myf MyFlag);
+extern gptr _myrealloc(gptr pPtr, size_t uSize, const char *sFile,
+                        uint uLine, myf MyFlag);
 extern gptr my_multi_malloc _VARARGS((myf MyFlags, ...));
-extern void _myfree(gptr pPtr,const char *sFile,uint uLine, myf MyFlag);
+extern void _myfree(gptr pPtr, const char *sFile, uint uLine, myf MyFlag);
 extern int _sanity(const char *sFile,unsigned int uLine);
-extern gptr _my_memdup(const byte *from,uint length,
-		       const char *sFile, uint uLine,myf MyFlag);
+extern gptr _my_memdup(const byte *from, size_t length,
+                        const char *sFile, uint uLine, myf MyFlag);
 extern my_string _my_strdup(const char *from, const char *sFile, uint uLine,
 			    myf MyFlag);
-extern char *_my_strdup_with_length(const char *from, uint length,
+extern char *_my_strdup_with_length(const char *from, size_t length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
