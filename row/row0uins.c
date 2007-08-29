@@ -53,24 +53,7 @@ row_undo_ins_remove_clust_rec(
 	ut_a(success);
 
 	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
-		trx_t*	trx;
-		ibool	thawed_dictionary = FALSE;
-		ibool	locked_dictionary = FALSE;
-
-		trx = node->trx;
-
-		if (trx->dict_operation_lock_mode == RW_S_LATCH) {
-			row_mysql_unfreeze_data_dictionary(trx);
-
-			thawed_dictionary = TRUE;
-		}
-
-		if (trx->dict_operation_lock_mode != RW_X_LATCH) {
-
-			row_mysql_lock_data_dictionary(trx);
-
-			locked_dictionary = TRUE;
-		}
+		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
@@ -84,14 +67,6 @@ row_undo_ins_remove_clust_rec(
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF,
 						    &(node->pcur), &mtr);
 		ut_a(success);
-
-		if (locked_dictionary) {
-			row_mysql_unlock_data_dictionary(trx);
-		}
-
-		if (thawed_dictionary) {
-			row_mysql_freeze_data_dictionary(trx);
-		}
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
@@ -288,31 +263,7 @@ row_undo_ins_parse_undo_rec(
 
 	if (node->rec_type == TRX_UNDO_INSERT_REC) {
 
-		trx_t*	trx;
-		ibool	thawed_dictionary = FALSE;
-		ibool	locked_dictionary = FALSE;
-
-		trx = node->trx;
-
-		/* If it is a system table, acquire the
-		dictionary lock in exclusive mode. */
-
-		if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0) {
-			if (trx->dict_operation_lock_mode == RW_S_LATCH) {
-				row_mysql_unfreeze_data_dictionary(trx);
-
-				thawed_dictionary = TRUE;
-			}
-
-			if (trx->dict_operation_lock_mode != RW_X_LATCH) {
-
-				row_mysql_lock_data_dictionary(trx);
-
-				locked_dictionary = TRUE;
-			}
-		}
-
-		node->table = dict_table_get_on_id(table_id, trx);
+		node->table = dict_table_get_on_id(table_id, node->trx);
 
 		/* If we can't find the table or .ibd file is missing,
 		we skip the UNDO.*/
@@ -326,14 +277,6 @@ row_undo_ins_parse_undo_rec(
 
 			ptr = trx_undo_rec_get_row_ref(
 				ptr, clust_index, &node->ref, node->heap);
-		}
-
-		if (locked_dictionary) {
-			row_mysql_unlock_data_dictionary(trx);
-		}
-
-		if (thawed_dictionary) {
-			row_mysql_freeze_data_dictionary(trx);
 		}
 	}
 }
