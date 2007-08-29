@@ -1,0 +1,1 @@
+--innodb --log-slave-updates=0 
