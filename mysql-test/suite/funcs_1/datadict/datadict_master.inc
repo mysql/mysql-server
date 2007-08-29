@@ -48,9 +48,11 @@ let $message=
    # and otherwise some extra statements needs to be executed as long as the bug is not
    # fixed:
    let $have_bug_11589= 1;
+   let $have_bug_30689= 1;
 
    #seems not to work: --vertical_results
    eval SELECT $have_bug_11589 AS "have_bug_11589";
+   eval SELECT $have_bug_30689 AS "have_bug_30689";
    #seems not to work: --horizontal_results
 
    # As long as
@@ -65,6 +67,15 @@ let $message=
       let $message= There are some statements where the ps-protocol is switched off.
                     This may come from the bug listed below, ir from other problems.
                     Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill;
+      --source include/show_msg80.inc
+   }
+   if ($have_bug_30689)
+   {
+      let $message= Selects on INFORMATION_SCHEMA.VIEWS present incomplete
+                    content for the column VIEW_DEFINITION in cases where
+                    the view selects(=is based) on an INFORMATION_SCHEMA table.
+                    ---> VIEWS vu and vu1
+                    Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S;
       --source include/show_msg80.inc
    }
 #
