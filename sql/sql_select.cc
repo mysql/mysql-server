@@ -4505,8 +4505,12 @@ choose_plan(JOIN *join, table_map join_tables)
 
   /* 
     Store the cost of this query into a user variable
+    Don't update last_query_cost for statements that are not "flat joins" :
+    i.e. they have subqueries, unions or call stored procedures.
+    TODO: calculate a correct cost for a query with subqueries and UNIONs.
   */
-  join->thd->status_var.last_query_cost= join->best_read;
+  if (join->thd->lex->is_single_level_stmt())
+    join->thd->status_var.last_query_cost= join->best_read;
   DBUG_RETURN(FALSE);
 }
 
