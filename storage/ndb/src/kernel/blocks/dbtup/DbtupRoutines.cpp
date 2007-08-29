@@ -920,10 +920,10 @@ Dbtup::readDynFixedSizeShrunkenNULLable(Uint8* outBuffer,
 {
   Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
   Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
-  Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
   /* Check for NULL (including the case of an empty bitmap). */
-  if(dynCheckNull(dyn_len, bm_len, bm_ptr, pos))
+  if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
+                                  bm_ptr, pos))
   {
     jam();
     ahOut->setNULL();
@@ -1065,9 +1065,9 @@ Dbtup::readDynBigFixedSizeShrunkenNULLable(Uint8* outBuffer,
   Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
   Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
-  Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
-  if(dynCheckNull(dyn_len, bm_len, bm_ptr, pos))
+  if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
+                                  bm_ptr, pos))
   {
     jam();
     ahOut->setNULL();
@@ -1137,9 +1137,9 @@ Dbtup::readDynBitsShrunkenNULLable(Uint8* outBuffer,
   Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
   Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
-  Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
-  if(dynCheckNull(dyn_len, bm_len, bm_ptr, pos))
+  if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
+                                  bm_ptr, pos))
   {
     jam();
     ahOut->setNULL();
@@ -1314,9 +1314,9 @@ Dbtup::readDynVarSizeShrunkenNULLable(Uint8* outBuffer,
   Uint32 *bm_ptr= (Uint32 *)(req_struct->m_var_data[MM].m_dyn_data_ptr);
   Uint32 dyn_len= req_struct->m_var_data[MM].m_dyn_part_len;
   /* Check for NULL (including the case of an empty bitmap). */
-  Uint32 bm_len = (* bm_ptr) & DYN_BM_LEN_MASK;
   Uint32 pos = AttributeOffset::getNullFlagPos(attrDes2);
-  if(dynCheckNull(dyn_len, bm_len, bm_ptr, pos))
+  if(dyn_len == 0 || dynCheckNull(dyn_len, (* bm_ptr) & DYN_BM_LEN_MASK,
+                                  bm_ptr, pos))
   {
     jam();
     ahOut->setNULL();

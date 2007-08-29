@@ -1403,7 +1403,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
      varpart until commit.
     */
     STATIC_CONST( TUP_VERSION_MASK = 0xFFFF );
-    STATIC_CONST( CHAINED_ROW = 0x00010000 ); // Is var part on different page
+    STATIC_CONST( COPY_TUPLE  = 0x00010000 ); // Is this a copy tuple
     STATIC_CONST( DISK_PART   = 0x00020000 ); // Is there a disk part
     STATIC_CONST( DISK_ALLOC  = 0x00040000 ); // Is disk part allocated
     STATIC_CONST( DISK_INLINE = 0x00080000 ); // Is disk inline
@@ -1414,7 +1414,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
     STATIC_CONST( FREE        = 0x02800000 ); // Is free
-    
+    STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
+
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
       return m_header_bits & TUP_VERSION_MASK;
@@ -1477,6 +1478,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   {
     Uint32 m_len;
     Uint32 m_data[1]; // Only used for easy offset handling
+
+    STATIC_CONST( SZ32 = 1 );
   };
 
 struct KeyReqStruct {
