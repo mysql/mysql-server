@@ -3339,6 +3339,7 @@ Create_func_found_rows Create_func_found_rows::s_singleton;
 Item*
 Create_func_found_rows::create(THD *thd)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_found_rows();
 }
@@ -4234,6 +4235,7 @@ Create_func_row_count Create_func_row_count::s_singleton;
 Item*
 Create_func_row_count::create(THD *thd)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_row_count();
 }
