@@ -218,6 +218,25 @@ pars_order_by(
 }
 
 /*************************************************************************
+Determine if a data type is a built-in string data type of the InnoDB
+SQL parser. */
+static
+ibool
+pars_is_string_type(
+/*================*/
+			/* out: TRUE if string data type */
+	ulint	mtype)	/* in: main data type */
+{
+	switch (mtype) {
+	case DATA_VARCHAR: case DATA_CHAR:
+	case DATA_FIXBINARY: case DATA_BINARY:
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
 Resolves the data type of a function in an expression. The argument data
 types must already be resolved. */
 static
@@ -271,8 +290,7 @@ pars_resolve_func_data_type(
 	case PARS_BINARY_TO_NUMBER_TOKEN:
 	case PARS_LENGTH_TOKEN:
 	case PARS_INSTR_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-		     == DATA_VARCHAR);
+		ut_a(pars_is_string_type(que_node_get_data_type(arg)->mtype));
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
@@ -283,8 +301,7 @@ pars_resolve_func_data_type(
 
 	case PARS_SUBSTR_TOKEN:
 	case PARS_CONCAT_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-		     == DATA_VARCHAR);
+		ut_a(pars_is_string_type(que_node_get_data_type(arg)->mtype));
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 			  DATA_ENGLISH, 0);
 		break;
