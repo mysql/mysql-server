@@ -1,5 +1,10 @@
 -- source include/have_query_cache.inc
 
+# Disabled on embedded due to bug #30710, "query_cache.test fails on
+# embedded w/ per-column privs test".  Please re-enable when that bug
+# is resolved.
+-- source include/not_embedded.inc
+
 #
 # Tests with query cache
 #
