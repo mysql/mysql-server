@@ -1053,6 +1053,14 @@ JOIN::optimize()
                                  find_field_in_order_list,
                                  (void *) group_list))
     {
+      /*
+        We have found that grouping can be removed since groups correspond to
+        only one row anyway, but we still have to guarantee correct result
+        order. The line below effectively rewrites the query from GROUP BY
+        <fields> to ORDER BY <fields>. One exception is if skip_sort_order is
+        set (see above), then we can simply skip GROUP BY.
+       */
+      order= skip_sort_order ? 0 : group_list;
       group_list= 0;
       group= 0;
     }
