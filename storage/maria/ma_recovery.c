@@ -67,6 +67,7 @@ prototype_exec_hook(REDO_PURGE_BLOCKS);
 prototype_exec_hook(REDO_DELETE_ALL);
 prototype_exec_hook(UNDO_ROW_INSERT);
 prototype_exec_hook(UNDO_ROW_DELETE);
+prototype_exec_hook(UNDO_ROW_UPDATE);
 prototype_exec_hook(UNDO_ROW_PURGE);
 prototype_exec_hook(COMMIT);
 static int run_redo_phase(LSN lsn, my_bool apply);
@@ -176,7 +177,16 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (from_lsn == LSN_IMPOSSIBLE)
   {
     if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
-      from_lsn= first_lsn_in_log();
+    {
+      from_lsn= translog_first_theoretical_lsn();
+      /*
+        as far as we have not yet any checkpoint then the very first
+        log file should be present.
+      */
+      if (unlikely((from_lsn == LSN_IMPOSSIBLE) ||
+                   (from_lsn == LSN_ERROR)))
+        goto err;
+    }
     else
     {
       DBUG_ASSERT(0); /* not yet implemented */
@@ -694,7 +704,7 @@ end:
 prototype_exec_hook(REDO_INSERT_ROW_TAIL)
 {
   int error= 1;
-  uchar *buff= NULL;
+  uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;
@@ -762,11 +772,24 @@ end:
 prototype_exec_hook(REDO_PURGE_BLOCKS)
 {
   int error= 1;
+  uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
     goto end;
+  enlarge_buffer(rec);
+
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    fprintf(tracef, "Failed to read record\n");
+    goto end;
+  }
+
+  buff= log_record_buffer.str;
   if (_ma_apply_redo_purge_blocks(info, current_group_end_lsn,
-                                  rec->header + FILEID_STORE_SIZE))
+                                  buff + FILEID_STORE_SIZE))
     goto end;
   error= 0;
 end:
@@ -811,6 +834,12 @@ prototype_exec_hook(UNDO_ROW_INSERT)
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records++;
     /** @todo RECOVERY BUG Also update the table's checksum */
+    /**
+       @todo some bits below will rather be set when executing UNDOs related
+       to keys
+    */
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   error= 0;
@@ -829,8 +858,27 @@ prototype_exec_hook(UNDO_ROW_DELETE)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  error= 0;
+end:
+  return error;
+}
+
+
+prototype_exec_hook(UNDO_ROW_UPDATE)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  if (info == NULL)
+    goto end;
+  set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  {
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+  }
   error= 0;
 end:
   return error;
@@ -848,6 +896,8 @@ prototype_exec_hook(UNDO_ROW_PURGE)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   error= 0;
@@ -914,6 +964,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_exec_hook(REDO_DELETE_ALL);
   install_exec_hook(UNDO_ROW_INSERT);
   install_exec_hook(UNDO_ROW_DELETE);
+  install_exec_hook(UNDO_ROW_UPDATE);
   install_exec_hook(UNDO_ROW_PURGE);
   install_exec_hook(COMMIT);
 
@@ -1228,13 +1279,6 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     record's we will modify the page
   */
   fprintf(tracef, ", applying record\n");
-  /* A future CHECK/OPTIMIZE/REPAIR should not be fooled: */
-  /**
-     @todo but the ones about keys should be set only if REDO for keys. Same
-     in ..._from_UNDO_record
-  */
-  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   return info;
 }
 
@@ -1256,9 +1300,6 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   fprintf(tracef, ", '%s'", info->s->open_file_name);
   DBUG_ASSERT(info->s->last_version != 0);
   fprintf(tracef, ", applying record\n");
-  /* execution of UNDOs may increment the records' count: */
-  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   return info;
 }
 
