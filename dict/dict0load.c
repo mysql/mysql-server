@@ -693,15 +693,13 @@ dict_load_indexes(
 		if ((type & DICT_CLUSTERED) == 0
 		    && NULL == dict_table_get_first_index(table)) {
 
-			if (*table->name != TEMP_TABLE_PREFIX) {
-
-				fprintf(stderr,
-					"InnoDB: Error: trying to"
-					" load index %s for table %s\n"
-					"InnoDB: but the first index"
-					" is not clustered!\n",
-					name_buf, table->name);
-			}
+			fputs("InnoDB: Error: trying to load index ",
+			      stderr);
+			ut_print_name(stderr, NULL, FALSE, name_buf);
+			fputs(" for table ", stderr);
+			ut_print_name(stderr, NULL, TRUE, table->name);
+			fputs("\nInnoDB: but the first index"
+			      " is not clustered!\n", stderr);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);

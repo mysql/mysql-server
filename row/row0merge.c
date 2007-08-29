@@ -1761,6 +1761,7 @@ row_merge_rename_tables(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx->op_info = "renaming tables";
 	trx_start_if_not_started(trx);
