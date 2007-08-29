@@ -8405,8 +8405,7 @@ err_exit:
 		heap, num_of_idx * sizeof *index);
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during an index create operation.
-	Drop table etc. do this latching in row0mysql.c. */
+	or lock waits can happen in it during an index create operation. */
 
 	if (UNIV_LIKELY(!dict_locked)) {
 	  	row_mysql_lock_data_dictionary(trx);
