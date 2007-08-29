@@ -180,6 +180,11 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t3_c | grep ForceVarPart
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
 
+# Bug #30667
+# ndb table discovery does not work correcly with information schema
+# - prior to bug fix this would yeild no output and a warning
+select * from information_schema.columns where table_name = "t1_c";
+
 # random output order??
 #show tables;
 
