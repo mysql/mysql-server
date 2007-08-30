@@ -265,7 +265,7 @@ static void run_query(THD *thd, char *buf, char *end,
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     for (i= 0; no_print_error[i]; i++)
       if ((thd_ndb->m_error_code == no_print_error[i]) ||
-          (thd->net.last_errno == no_print_error[i]))
+          (thd->net.last_errno == (unsigned)no_print_error[i]))
         break;
     if (!no_print_error[i])
       sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
@@ -325,18 +325,14 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)))
   {
-    sql_print_error("Unable to get table share for %s, error=%d",
-                    share->key, error);
-    DBUG_PRINT("error", ("open_table_def failed %d", error));
+    DBUG_PRINT("error", ("open_table_def failed: %d my_errno: %d", error, my_errno));
     free_table_share(table_share);
     DBUG_RETURN(error);
   }
   if ((error= open_table_from_share(thd, table_share, "", 0 /* fon't allocate buffers */, 
                                     (uint) READ_ALL, 0, table, FALSE)))
   {
-    sql_print_error("Unable to open table for %s, error=%d(%d)",
-                    share->key, error, my_errno);
-    DBUG_PRINT("error", ("open_table_from_share failed %d", error));
+    DBUG_PRINT("error", ("open_table_from_share failed %d my_errno: %d", error, my_errno));
     free_table_share(table_share);
     DBUG_RETURN(error);
   }
@@ -382,11 +378,12 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
 /*
   Initialize the binlog part of the NDB_SHARE
 */
-void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
+int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
 {
   THD *thd= current_thd;
   MEM_ROOT *mem_root= &share->mem_root;
   int do_event_op= ndb_binlog_running;
+  int error= 0;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
   share->connect_count= g_ndb_cluster_connection->get_connect_count();
@@ -429,7 +426,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     {
       share->flags|= NSF_NO_BINLOG;
     }
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(error);
   }
   while (1) 
   {
@@ -456,7 +453,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
       share->flags|= NSF_BLOB_FLAG;
     break;
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 /*****************************************************************

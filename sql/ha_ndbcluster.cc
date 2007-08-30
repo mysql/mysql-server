@@ -8277,7 +8277,15 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       share->table_name= share->db + strlen(share->db) + 1;
       ha_ndbcluster::set_tabname(key, share->table_name);
 #ifdef HAVE_NDB_BINLOG
-      ndbcluster_binlog_init_share(share, table);
+      if (ndbcluster_binlog_init_share(share, table))
+      {
+        DBUG_PRINT("error", ("get_share: %s could not init share", key));
+        ndbcluster_real_free_share(&share);
+        *root_ptr= old_root;
+        if (!have_lock)
+          pthread_mutex_unlock(&ndbcluster_mutex);
+        DBUG_RETURN(0);
+      }
 #endif
       *root_ptr= old_root;
     }
