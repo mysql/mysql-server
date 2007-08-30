@@ -33,6 +33,7 @@
 #include "ha_ndbcluster_cond.h"
 #include <../util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
+#include <ndbapi/NdbInterpretedCode.hpp>
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
@@ -269,76 +270,92 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   return error;
 }
 
-int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
+static int
+check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
 {
-  int res= trans->execute(NdbTransaction::NoCommit,
-                          NdbOperation::AO_IgnoreError,
-                          h->m_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-  thd_ndb->m_unsent_bytes= 0;
-  if (res == -1)
-    return -1;
-
-  const NdbError &err= trans->getNdbError();
-  if (err.classification != NdbError::NoError &&
-      err.classification != NdbError::ConstraintViolation &&
-      err.classification != NdbError::NoDataFound)
-    return -1;
-
-  return 0;
+  DBUG_ENTER("check_completed_operations");
+  /*
+    Check that all errors are "accepted" errors
+  */
+  while (first)
+  {
+    const NdbError &err= first->getNdbError();
+    if (err.classification != NdbError::NoError &&
+        err.classification != NdbError::ConstraintViolation &&
+        err.classification != NdbError::NoDataFound &&
+        err.code != 9999)
+      DBUG_RETURN(err.code);
+    first= trans->getNextCompletedOperation(first);
+  }
+  DBUG_RETURN(0);
 }
 
 inline
 int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
+  DBUG_ENTER("execute_no_commit");
   h->release_completed_operations(trans, force_release);
-  if (h->m_ignore_no_key)
-    return execute_no_commit_ignore_no_key(h,trans);
-  else
+  const NdbOperation *first= trans->getFirstDefinedOperation();
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  if (trans->execute(NdbTransaction::NoCommit,
+                      NdbOperation::AO_IgnoreError,
+                      h->m_force_send))
   {
-    int res= trans->execute(NdbTransaction::NoCommit,
-                            NdbOperation::AbortOnError,
-                            h->m_force_send);
-    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
     thd_ndb->m_unsent_bytes= 0;
-    return res;
+    DBUG_RETURN(-1);
   }
+  thd_ndb->m_unsent_bytes= 0;
+  if (!h->m_ignore_no_key || trans->getNdbError().code == 0)
+    DBUG_RETURN(trans->getNdbError().code);
+
+  DBUG_RETURN(check_completed_operations(trans, first));
+}
+
+inline
+int execute_commit(NdbTransaction *trans, int force_send, int ignore_error)
+{
+  DBUG_ENTER("execute_commit");
+  const NdbOperation *first= trans->getFirstDefinedOperation();
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  if (trans->execute(NdbTransaction::Commit,
+                     NdbOperation::AO_IgnoreError,
+                     force_send))
+  {
+    thd_ndb->m_unsent_bytes= 0;
+    DBUG_RETURN(-1);
+  }
+  thd_ndb->m_unsent_bytes= 0;
+  if (!ignore_error || trans->getNdbError().code == 0)
+    DBUG_RETURN(trans->getNdbError().code);
+  DBUG_RETURN(check_completed_operations(trans, first));
 }
 
 inline
 int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
 {
-  int res= trans->execute(NdbTransaction::Commit,
-                          NdbOperation::AbortOnError,
-                          h->m_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-  thd_ndb->m_unsent_bytes= 0;
+  int res= execute_commit(trans, h->m_force_send, h->m_ignore_no_key);
   return res;
 }
 
 inline
 int execute_commit(THD *thd, NdbTransaction *trans)
 {
-  int res= trans->execute(NdbTransaction::Commit,
-                          NdbOperation::AbortOnError,
-                          thd->variables.ndb_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-  thd_ndb->m_unsent_bytes= 0;
-  return res;
+  return execute_commit(trans, thd->variables.ndb_force_send, FALSE);
 }
 
 inline
 int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
+  DBUG_ENTER("execute_no_commit_ie");
   h->release_completed_operations(trans, force_release);
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           h->m_force_send);
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   thd_ndb->m_unsent_bytes= 0;
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*
@@ -812,6 +829,14 @@ ha_ndbcluster::get_row_buffer()
   Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
   return (uchar*)alloc_root(&(thd_ndb->m_batch_mem_root),
                             table->s->reclength + m_extra_reclength);
+}
+
+/* Return a row buffer, valid until next execute(). */
+uchar *
+ha_ndbcluster::get_buffer(uint size)
+{
+  Thd_ndb *thd_ndb= get_thd_ndb(table->in_use);
+  return (uchar*)alloc_root(&(thd_ndb->m_batch_mem_root), size);
 }
 
 /*
@@ -3537,6 +3562,139 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
   return 0;
 }
 
+#ifdef HAVE_NDB_BINLOG
+
+/*
+  To perform conflict resolution, an interpreted program is used to read
+  the timestamp stored loaclly and compare to what is going to be applied.
+  If timestamp is lower, an error for this operation (9999) will be raised,
+  and new row will not be applied. The error codes for the operations will
+  be checked on return.  For this to work is is vital that the operation
+  is run with ignore error option.
+*/
+
+int
+ha_ndbcluster::update_row_timestamp_resolve(const uchar *old_data,
+                                            uchar *new_data,
+                                            NdbInterpretedCode *code)
+{
+  const int do_before_image_check= 0;
+  uint32 resolve_column= m_share->m_resolve_column;
+  uint32 resolve_size= m_share->m_resolve_size;
+
+  DBUG_ASSERT(resolve_size == 4 || resolve_size == 8);
+
+  const uint error_wrong_before_image= 9998;
+  const uint error_lower_timestamp= 9999;
+  const uint label_0= 0, label_1= 1;
+  const Uint32 RegNewValue= 1, RegCurrentValue= 2;
+  int r;
+  Field *field= table->field[resolve_column];
+  DBUG_PRINT("info", ("interpreted update post equal"));
+  /*
+   * read new value from record
+   */
+  union {
+    uint32 new_value_32;
+    uint64 new_value_64;
+  };
+  {
+    const uchar *field_ptr= field->ptr + (new_data - table->record[0]);
+    if (resolve_size == 4)
+    {
+      memcpy(&new_value_32, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("new_value_32: %u", new_value_32));
+    }
+    else
+    {
+      memcpy(&new_value_64, field_ptr, resolve_size);
+      DBUG_PRINT("info", ("new_value_64: %llu",
+                          (unsigned long long) new_value_64));
+    }
+  }
+  /*
+   * Load registers RegNewValue and RegCurrentValue
+   */
+  if (resolve_size == 4)
+    r= code->load_const_u32(RegNewValue, new_value_32);
+  else
+    r= code->load_const_u64(RegNewValue, new_value_64);
+  DBUG_ASSERT(r == 0);
+  r= code->read_attr(m_table, resolve_column, RegCurrentValue);
+  DBUG_ASSERT(r == 0);
+  /*
+   * if RegNewValue > RegCurrentValue goto label_0
+   * else raise error for this row
+   */
+  r= code->branch_gt(RegCurrentValue, RegNewValue, label_0);
+  DBUG_ASSERT(r == 0);
+  r= code->interpret_exit_nok(error_lower_timestamp);
+  DBUG_ASSERT(r == 0);
+  r= code->def_label(label_0);
+  DBUG_ASSERT(r == 0);
+  if (do_before_image_check)
+  {
+    /* reuse register, new value not needed */
+    const Uint32 RegOldValue= RegNewValue;
+    /*
+     * Now also check that old values are the same
+     */
+
+    /*
+     * read old value from record
+     */
+    union {
+      uint32 old_value_32;
+      uint64 old_value_64;
+    };
+    {
+      const uchar *field_ptr= field->ptr + (old_data - table->record[0]);
+      if (resolve_size == 4)
+      {
+        memcpy(&old_value_32, field_ptr, resolve_size);
+        DBUG_PRINT("info", ("old_value_32: %u", old_value_32));
+      }
+      else
+      {
+        memcpy(&old_value_64, field_ptr, resolve_size);
+        DBUG_PRINT("info", ("old_value_64: %llu",
+                            (unsigned long long) old_value_64));
+      }
+    }
+    /*
+     * Load register RegOldValue
+     */
+    if (resolve_size == 4)
+      r= code->load_const_u32(RegOldValue, old_value_32);
+    else
+      r= code->load_const_u64(RegOldValue, old_value_64);
+    DBUG_ASSERT(r == 0);
+    // RegCurrentValue already stored
+    /*
+     * if RegOldValue == RegCurrentValue goto label label_1
+     * else raise error for this row
+     */
+    r= code->branch_eq(RegOldValue, RegCurrentValue, label_1);
+    DBUG_ASSERT(r == 0);
+    if (error_wrong_before_image)
+      r= code->interpret_exit_nok(error_wrong_before_image);
+    else
+      r= code->interpret_exit_nok(0);
+    DBUG_ASSERT(r == 0);
+    /*
+     * Exit ok and let transaction continue without error
+     */
+    r= code->def_label(label_1);
+    DBUG_ASSERT(r == 1);
+  }
+  r= code->interpret_exit_ok();
+  DBUG_ASSERT(r == 0);
+  r= code->backpatch();
+  DBUG_ASSERT(r == 0);
+  return r;
+}
+#endif
+
 /*
   Update one record in NDB using primary key
 */
@@ -3594,7 +3752,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    int read_res, insert_res, delete_res, undo_res;
+    int read_res, insert_res, delete_res;
 
     DBUG_PRINT("info", ("primary key update or partition change, "
                         "doing read+delete+insert"));
@@ -3621,6 +3779,9 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       DBUG_PRINT("info", ("insert failed"));
       if (trans->commitStatus() == NdbConnection::Started)
       {
+        trans->execute(NdbTransaction::Rollback);
+#ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
+        int undo_res;
         // Undo delete_row(old_data)
         undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
         if (undo_res)
@@ -3628,6 +3789,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
                        MYSQL_ERROR::WARN_LEVEL_WARN, 
                        undo_res, 
                        "NDB failed undoing delete at primary key update");
+#endif
       }
       DBUG_RETURN(insert_res);
     }
@@ -3716,8 +3878,31 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       key_row= (const uchar *)(&m_ref);
     }
 
+    NdbInterpretedCode *code= NULL;
+#ifdef HAVE_NDB_BINLOG
+    if (m_share->m_resolve_size)
+    {
+      DBUG_PRINT("info", ("interpreted update pre equal on column %u",
+                          m_share->m_resolve_column));
+      /*
+        Room for 10 instruction words, two labels, and two jumps.
+        + 2 extra words for the case of resolve_size == 8
+      */
+      uint code_size= 16;
+      uint struct_size= sizeof(*code);
+      uchar *mem= get_buffer(struct_size + code_size*sizeof(Uint32));
+      Uint32* buffer= (Uint32 *)(mem + struct_size);
+      code= new(mem) NdbInterpretedCode(buffer, code_size, 2);
+      if (update_row_timestamp_resolve(old_data, new_data, code))
+      {
+        /* ToDo error handling */
+        abort();
+      }
+    }
+#endif
     if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
-                                 m_ndb_record, (const char*)row, mask)))
+                                 m_ndb_record, (const char*)row, mask,
+                                 NULL, NULL, code)))
       ERR_RETURN(trans->getNdbError());  
   }
 
@@ -5177,18 +5362,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (thd->slave_thread)
   {
-    if ((res= trans->execute(Commit, AO_IgnoreError, 1)) != 0)
-    {
-      const NdbError err= trans->getNdbError();
-      if (err.classification == NdbError::ConstraintViolation ||
-	  err.classification == NdbError::NoDataFound)
-      {
-	/*
-	  This is ok...
-	*/
-	res= 0;
-      }
-    }
+    res= execute_commit(trans, 1, TRUE);
   }
   else
   {
@@ -6057,8 +6231,11 @@ int ha_ndbcluster::create(const char *name,
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
+      if (share)
+        ndbcluster_read_binlog_replication(thd, ndb, share, m_table, ::server_id);
       String event_name(INJECTOR_EVENT_LEN);
-      ndb_rep_event_name(&event_name,m_dbname,m_tabname);
+      ndb_rep_event_name(&event_name, m_dbname, m_tabname,
+                         get_binlog_full(share));
       int do_event_op= ndb_binlog_running;
 
       if (!ndb_schema_share &&
@@ -6090,7 +6267,7 @@ int ha_ndbcluster::create(const char *name,
         and (share && do_event_op)
       */
       if (share && !do_event_op)
-        share->flags|= NSF_NO_BINLOG;
+        set_binlog_nologging(share);
       ndbcluster_log_schema_op(thd, share,
                                thd->query, thd->query_length,
                                share->db, share->table_name,
@@ -6427,19 +6604,22 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (!IS_TMP_PREFIX(m_tabname))
   {
     is_old_table_tmpfile= 0;
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0);
-    ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share,
-                                 "rename table");
+    ndbcluster_handle_drop_table(ndb, share, "rename table",
+                                 from + sizeof(share_prefix) - 1);
   }
 
   if (!result && !IS_TMP_PREFIX(new_tabname))
   {
-    /* always create an event for the table */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0);
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
+
+    if (share)
+      ndbcluster_read_binlog_replication(current_thd, ndb, share, ndbtab, ::server_id);
+
+    /* always create an event for the table */
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0,
+                       get_binlog_full(share));
 
     if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
@@ -6666,11 +6846,10 @@ retry_temporary_error1:
 
   if (!IS_TMP_PREFIX(table_name))
   {
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);
     ndbcluster_handle_drop_table(ndb,
-                                 table_dropped ? event_name.c_ptr() : 0,
-                                 share, "delete table");
+                                 share, "delete table",
+                                 table_dropped ?
+                                 (path + sizeof(share_prefix) - 1) : 0);
   }
 
   if (share)

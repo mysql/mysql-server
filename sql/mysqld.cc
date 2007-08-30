@@ -396,6 +396,8 @@ ulong ndb_extra_logging;
 #ifdef HAVE_NDB_BINLOG
 ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
+my_bool opt_ndb_log_update_as_write;
+my_bool opt_ndb_log_updated_only;
 #endif
 
 extern const char *ndb_distribution_names[];
@@ -4988,6 +4990,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
+  OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -5550,6 +5553,21 @@ master-ssl",
    (uchar**) &ndb_report_thresh_binlog_mem_usage,
    (uchar**) &ndb_report_thresh_binlog_mem_usage,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, 100, 0, 0, 0},
+  {"ndb-log-update-as-write", OPT_NDB_LOG_UPDATE_AS_WRITE,
+   "For efficiency log only after image as a write event."
+   "Ignore before image.  This may cause compatability problems if"
+   "replicating to other storage engines than ndbcluster",
+   (uchar**) &opt_ndb_log_update_as_write,
+   (uchar**) &opt_ndb_log_update_as_write,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-log-updated-only", OPT_NDB_LOG_UPDATED_ONLY,
+   "For efficiency log only updated columns. Columns are considered "
+   "as \"updated\" even if they are updated with the same value. "
+   "This may cause compatability problems if"
+   "replicating to other storage engines than ndbcluster",
+   (uchar**) &opt_ndb_log_updated_only,
+   (uchar**) &opt_ndb_log_updated_only,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
