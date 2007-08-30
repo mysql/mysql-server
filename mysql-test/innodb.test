@@ -345,6 +345,9 @@ CREATE TABLE t1 (
   UNIQUE ggid (ggid)
 ) ENGINE=innodb;
 
+# Set to old style locking
+set global innodb_autoinc_lock_mode = 0;
+
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 -- error ER_DUP_ENTRY
