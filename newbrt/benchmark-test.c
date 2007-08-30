@@ -94,7 +94,7 @@ int main (int argc, char *argv[]) {
     if (argc==2) {
 	char *end;
 	errno=0;
-	total_n_items = ITEMS_TO_INSERT_PER_ITERATION * strtoll(argv[1], &end, 10);
+	total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long) strtol(argv[1], &end, 10);
 	assert(errno==0);
 	assert(*end==0);
 	assert(end!=argv[1]);
