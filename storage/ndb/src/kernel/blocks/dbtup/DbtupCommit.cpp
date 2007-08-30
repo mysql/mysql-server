@@ -288,7 +288,7 @@ Dbtup::commit_operation(Signal* signal,
         else
         {
           vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
-          tmp.m_page_no == RNIL;
+          tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
