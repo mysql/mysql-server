@@ -4555,6 +4555,15 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
+#ifdef WORDS_BIGENDIAN
+	/* Copy integer data and restore sign bit */
+
+	memcpy((ptr = dest), data, len);
+
+	if (!unsigned_type) {
+		dest[0] ^= 128;
+	}
+#else
 	/* Convert integer data from Innobase to a little-endian format,
 	sign bit restored to normal */
 
@@ -4566,6 +4575,7 @@ row_search_autoinc_read_column(
 	if (!unsigned_type) {
 		dest[len - 1] ^= 128;
 	}
+#endif
 
 	/* The assumption here is that the AUTOINC value can't be negative.*/
 	switch (len) {
