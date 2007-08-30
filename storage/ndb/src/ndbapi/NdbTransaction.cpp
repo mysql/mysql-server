@@ -453,12 +453,27 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
     while (1) {
       int noOfComp = tNdb->sendPollNdb(3 * timeout, 1, forceSend);
       if (noOfComp == 0) {
-        /** 
-         * This timeout situation can occur if NDB crashes.
+        /*
+         * Just for fun, this is only one of two places where
+         * we could hit this error... It's quite possible we
+         * hit it in Ndbif.cpp in Ndb::check_send_timeout()
+         *
+         * We behave rather similarly in both places.
+         * Hitting this is certainly a bug though...
          */
-        ndbout << "This timeout should never occur, execute(..)" << endl;
-	theError.code = 4012;
-        setOperationErrorCodeAbort(4012);  // Error code for "Cluster Failure"
+        g_eventLogger.error("WARNING: Timeout in executeNoBlobs() waiting for "
+                            "response from NDB data nodes. This should NEVER "
+                            "occur. You have likely hit a NDB Bug. Please "
+                            "file a bug.");
+        DBUG_PRINT("error",("This timeout should never occure, execute()"));
+        g_eventLogger.error("Forcibly trying to rollback txn (%p"
+                            ") to try to clean up data node resources.",
+                            this);
+        executeNoBlobs(NdbTransaction::Rollback);
+        theError.code = 4012;
+        theError.status= NdbError::PermanentError;
+        theError.classification= NdbError::TimeoutExpired;
+        setOperationErrorCodeAbort(4012); // ndbd timeout
         DBUG_RETURN(-1);
       }//if
 
@@ -522,7 +537,12 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
    */
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
-  theError.code = 0;
+  /**
+   * for timeout (4012) we want sendROLLBACK to behave differently.
+   * Else, normal behaviour of reset errcode
+   */
+  if (theError.code != 4012)
+    theError.code = 0;
   NdbScanOperation* tcOp = m_theFirstScanOperation;
   if (tcOp != 0){
     // Execute any cursor operations
@@ -843,6 +863,12 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
     tSignal.setData(theTCConPtr, 1);
     tSignal.setData(tTransId1, 2);
     tSignal.setData(tTransId2, 3);
+    if(theError.code == 4012)
+    {
+      g_eventLogger.error("Sending TCROLLBACKREQ with Bad flag");
+      tSignal.setLength(tSignal.getLength() + 1); // + flags
+      tSignal.setData(0x1, 4); // potentially bad data
+    }
     tReturnCode = tp->sendSignal(&tSignal,theDBnode);
     if (tReturnCode != -1) {
       theSendStatus = sendTC_ROLLBACK;

@@ -189,6 +189,7 @@ ErrorBundle ErrorCodes[] = {
   { 4032, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
+  {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
 
   /**
    * InsufficientSpace
