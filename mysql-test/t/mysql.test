@@ -276,6 +276,6 @@ EOF
 #
 # bug #30164: Using client side macro inside server side comments generates broken queries
 #
---exec $MYSQL test -e '/*! \C latin1 */ select 1;'
+--exec $MYSQL test -e "/*! \C latin1 */ select 1;"
 
 --echo End of 5.0 tests
