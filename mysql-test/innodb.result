@@ -479,6 +479,7 @@ passwd varchar(32) binary DEFAULT '' NOT NULL,
 PRIMARY KEY (id),
 UNIQUE ggid (ggid)
 ) ENGINE=innodb;
+set global innodb_autoinc_lock_mode = 0;
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');
