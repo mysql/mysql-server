@@ -1617,7 +1617,12 @@ NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
   DBUG_ENTER("NdbBlob::readTablePart");
   NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
   if (tOp == NULL ||
-      tOp->committedRead() == -1 ||
+      /*
+       * This was committedRead() before.  However lock on main
+       * table tuple does not fully protect blob parts since DBTUP
+       * commits each tuple separately.
+       */
+      tOp->readTuple() == -1 ||
       setPartKeyValue(tOp, part) == -1 ||
       getPartDataValue(tOp, buf, &len) == -1) {
     setErrorCode(tOp);
