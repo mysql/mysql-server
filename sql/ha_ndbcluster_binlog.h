@@ -151,7 +151,7 @@ void ndbcluster_binlog_init_handlerton();
 /*
   Initialize the binlog part of the NDB_SHARE
 */
-void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
+int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
 
 void ndb_remove_old_event_ops(NDB_SHARE *share);
 
