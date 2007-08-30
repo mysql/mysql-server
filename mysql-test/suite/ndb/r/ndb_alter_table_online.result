@@ -69,9 +69,9 @@ insert into t1 values (6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
@@ -102,9 +102,9 @@ insert into t1 values (6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1466	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
