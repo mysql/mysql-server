@@ -98,7 +98,7 @@ trx_undo_mem_create(
 				TRX_UNDO_UPDATE */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is created */
-	XID*		xid,	/* in: X/Open XA transaction identification*/
+	const XID*	xid,	/* in: X/Open XA transaction identification*/
 	ulint		page_no,/* in: undo log header page number */
 	ulint		offset);/* in: undo log header byte offset on page */
 /*******************************************************************
@@ -1410,7 +1410,7 @@ trx_undo_mem_create(
 				TRX_UNDO_UPDATE */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is created */
-	XID*		xid,	/* in: X/Open transaction identification */
+	const XID*	xid,	/* in: X/Open transaction identification */
 	ulint		page_no,/* in: undo log header page number */
 	ulint		offset)	/* in: undo log header byte offset on page */
 {
@@ -1465,7 +1465,7 @@ trx_undo_mem_init_for_reuse(
 	trx_undo_t*	undo,	/* in: undo log to init */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is created */
-	XID*		xid,	/* in: X/Open XA transaction identification*/
+	const XID*	xid,	/* in: X/Open XA transaction identification*/
 	ulint		offset)	/* in: undo log header byte offset on page */
 {
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
@@ -1524,7 +1524,7 @@ trx_undo_create(
 				TRX_UNDO_UPDATE */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is created */
-	XID*		xid,	/* in: X/Open transaction identification*/
+	const XID*	xid,	/* in: X/Open transaction identification*/
 	trx_undo_t**	undo,	/* out: the new undo log object, undefined
 				 * if did not succeed */
 	mtr_t*		mtr)	/* in: mtr */
@@ -1594,7 +1594,7 @@ trx_undo_reuse_cached(
 				TRX_UNDO_UPDATE */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is used */
-	XID*		xid,	/* in: X/Open XA transaction identification */
+	const XID*	xid,	/* in: X/Open XA transaction identification */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	trx_undo_t*	undo;
