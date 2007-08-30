@@ -969,6 +969,18 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create user 'mysqltest
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN create user 'mysqltest_1'; return 1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN grant select on t1 to 'mysqltest_1'; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE FUNCTION bug21975() returns int BEGIN grant select on t1 to 'mysqltest_1'; return 1; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke select on t1 from 'mysqltest_1'; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE FUNCTION bug21975() returns int BEGIN revoke select on t1 from 'mysqltest_1'; return 1; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER bug21975 BEFORE INSERT ON t1 FOR EACH ROW BEGIN revoke all privileges on *.* from 'mysqltest_1'; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE FUNCTION bug21975() returns int BEGIN revoke all privileges on *.* from 'mysqltest_1'; return 1; END |
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop user 'mysqltest_1'; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN drop user 'mysqltest_1'; return 1; END |

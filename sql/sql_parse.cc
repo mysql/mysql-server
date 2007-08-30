@@ -3381,6 +3381,8 @@ end_with_restore_list:
   }
   case SQLCOM_REVOKE_ALL:
   {
+    if (end_active_trans(thd))
+      goto error;
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
@@ -3392,6 +3394,9 @@ end_with_restore_list:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
+    if (end_active_trans(thd))
+      goto error;
+
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
 		     first_table ?  first_table->db : select_lex->db,
 		     first_table ? &first_table->grant.privilege : 0,
