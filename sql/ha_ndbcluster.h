@@ -41,6 +41,7 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
+class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 
 // connectstring to cluster if given by mysqld
@@ -136,6 +137,8 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
+  uint32 m_resolve_column;
+  uint32 m_resolve_size;
   NdbEventOperation *op;
   Uint64 op_gci;
   char *old_names; // for rename table
@@ -181,9 +184,30 @@ struct Ndb_tuple_id_range_guard {
 
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
-#define NSF_HIDDEN_PK 1 /* table has hidden primary key */
-#define NSF_BLOB_FLAG 2 /* table has blob attributes */
-#define NSF_NO_BINLOG 4 /* table should not be binlogged */
+#define NSF_HIDDEN_PK   1u /* table has hidden primary key */
+#define NSF_BLOB_FLAG   2u /* table has blob attributes */
+#define NSF_NO_BINLOG   4u /* table should not be binlogged */
+#define NSF_BINLOG_FULL 8u /* table should be binlogged with full rows */
+#define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
+                                     update log event */
+inline void set_binlog_logging(NDB_SHARE *share)
+{ share->flags&= ~NSF_NO_BINLOG; }
+inline void set_binlog_nologging(NDB_SHARE *share)
+{ share->flags|= NSF_NO_BINLOG; }
+inline my_bool get_binlog_nologging(NDB_SHARE *share)
+{ return (share->flags & NSF_NO_BINLOG) != 0; }
+inline void set_binlog_updated_only(NDB_SHARE *share)
+{ share->flags&= ~NSF_BINLOG_FULL; }
+inline void set_binlog_full(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_FULL; }
+inline my_bool get_binlog_full(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_FULL) != 0; }
+inline void set_binlog_use_write(NDB_SHARE *share)
+{ share->flags&= ~NSF_BINLOG_USE_UPDATE; }
+inline void set_binlog_use_update(NDB_SHARE *share)
+{ share->flags|= NSF_BINLOG_USE_UPDATE; }
+inline my_bool get_binlog_use_update(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 #endif
 
 typedef enum ndb_query_state_bits {
@@ -433,6 +457,10 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_ALTER_FLAGS *alter_flags);
 
 private:
+#ifdef HAVE_NDB_BINLOG
+  int update_row_timestamp_resolve(const uchar *old_data, uchar *new_data,
+                                   NdbInterpretedCode *);
+#endif
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,
@@ -539,6 +567,7 @@ private:
                                   uint op_batch_size, bool & batch_full);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
   uchar *get_row_buffer();
+  uchar *get_buffer(uint size);
   void clear_extended_column_set(uchar *mask);
   uchar *copy_column_set(MY_BITMAP *bitmap);
 
@@ -579,6 +608,7 @@ private:
   void release_completed_operations(NdbTransaction*, bool);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_commit(NdbTransaction *, int, int);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);

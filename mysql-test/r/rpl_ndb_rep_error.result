@@ -1,0 +1,34 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Error	1588	Bad schema for mysql.ndb_replication table. Message: Missing or wrong type for column 'server_id'
+drop table t1;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Error	1589	Error in parsing conflict function. Message: NDB$X(X), unknown conflict resolution function at 'NDB$X(X)'
+drop table t1;
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Error	1589	Error in parsing conflict function. Message: column 'X' has wrong datatype
+drop table t1;
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Error	1589	Error in parsing conflict function. Message: NDB$MAX(), missing function argument at ')'
+drop table t1;
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Error	1589	Error in parsing conflict function. Message: NDB$MAX(X Y), missing ')' at 'Y)'
+drop table t1;
+delete from mysql.ndb_replication;

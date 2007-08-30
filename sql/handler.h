@@ -1831,7 +1831,6 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
-
 private:
   /*
     Row-level primitives for storage engines.  These should be
