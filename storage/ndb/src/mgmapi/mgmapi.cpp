@@ -408,7 +408,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     }
     else
     {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
       if(ctx.m_status==Parser_t::Eof
 	 || ctx.m_status==Parser_t::NoLine)
       {
