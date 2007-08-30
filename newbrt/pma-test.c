@@ -214,8 +214,8 @@ static void test_smooth_region (void) {
 
 static void test_calculate_parameters (void) {
     struct pma pma;
-    pma.N=4; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==2); assert(pma.densitystep==0.5);
-    pma.N=8; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==4); assert(pma.densitystep==0.5);
+    pma.N=4; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==2); assert(pma.udt_step==0.5);
+    pma.N=8; pmainternal_calculate_parameters(&pma); assert(pma.uplgN==4); assert(pma.udt_step==0.5);
     
 }
 
@@ -855,9 +855,9 @@ void test_pma_split_cursor(void) {
     /* insert some kv pairs */
     for (i=1; i<=16; i += 1) {
         DBT dbtk, dbtv;
-        char k[5]; int v;
+        char k[11]; int v;
 
-        sprintf(k, "%4.4d", i);
+        snprintf(k, sizeof k, "%.10d", i);
         fill_dbt(&dbtk, &k, strlen(k)+1);
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
@@ -946,6 +946,11 @@ void test_pma_split(void) {
     test_pma_split_cursor(); memory_check_all_free();
 }
 
+/*
+ * test the pma_bulk_insert function by creating n kv pairs and bulk 
+ * inserting them into an empty pma.  verify that the pma contains all
+ * of the kv pairs.
+ */
 void test_pma_bulk_insert_n(int n) {
     PMA pma;
     int error;
@@ -965,11 +970,11 @@ void test_pma_bulk_insert_n(int n) {
 
     /* init n kv pairs */
     for (i=0; i<n; i++) {
-        char kstring[5];
+        char kstring[11];
         char *k; int klen;
         int *v; int vlen;
 
-        sprintf(kstring, "%4.4d", i);
+        snprintf(kstring, sizeof kstring, "%.10d", i);
         klen = strlen(kstring) + 1;
         k = toku_malloc(klen);
         assert(k);
@@ -988,8 +993,17 @@ void test_pma_bulk_insert_n(int n) {
     assert(error == 0);
 
     /* verify */
-    print_pma(pma);
+    if (0) print_pma(pma);
     assert(n == pma_n_entries(pma));
+    for (i=0; i<n; i++) {
+        DBT val;
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        error = pma_lookup(pma, &keys[i], &val, 0);
+        assert(error == 0);
+        assert(vals[i].size == val.size);
+        assert(memcmp(vals[i].data, val.data, val.size) == 0);
+        toku_free(val.data);
+    }
 
     /* cleanup */
     for (i=0; i<n; i++) {
@@ -1050,6 +1064,191 @@ void test_pma_insert_or_replace(void) {
     assert(r==0);
 }
 
+/*
+ * test that the pma shrinks back to its minimum size.
+ */
+void test_pma_delete_shrink(int n) {
+    PMA pma;
+    int r;
+    int i;
+
+    printf("test_pma_delete_shrink:%d\n", n);
+
+    r = pma_create(&pma, default_compare_fun);
+    assert(r == 0);
+
+    /* insert */
+    for (i=0; i<n; i++) {
+        char k[11];
+        int v;
+        DBT key, val;
+
+        snprintf(k, sizeof k, "%.10d", i);
+        fill_dbt(&key, k, strlen(k)+1);
+        v = i;
+        fill_dbt(&val, &v, sizeof v);
+        r = pma_insert(pma, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    /* delete */
+    for (i=0; i<n; i++) {
+        char k[11]; 
+        DBT key;
+
+        snprintf(k, sizeof k, "%.10d", i);
+        fill_dbt(&key, k, strlen(k)+1);
+        r = pma_delete(pma, &key, 0);
+        assert(r == 0);
+    }
+    assert(pma->N == PMA_MIN_ARRAY_SIZE);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+/*
+ * test that the pma shrinks to its minimum size after inserting
+ * random keys and then deleting them.
+ */
+void test_pma_delete_random(int n) {
+    PMA pma;
+    int r;
+    int i;
+    int keys[n];
+
+    printf("test_pma_delete_random:%d\n", n);
+
+    r = pma_create(&pma, default_compare_fun);
+    assert(r == 0);
+
+    for (i=0; i<n; i++) {
+        keys[i] = random();
+    }
+
+    /* insert */
+    for (i=0; i<n; i++) {
+        char k[11];
+        int v;
+        DBT key, val;
+
+        snprintf(k, sizeof k, "%.10d", keys[i]);
+        fill_dbt(&key, k, strlen(k)+1);
+        v = keys[i];
+        fill_dbt(&val, &v, sizeof v);
+        r = pma_insert(pma, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    /* delete */
+    for (i=0; i<n; i++) {
+        char k[11]; 
+        DBT key;
+
+        snprintf(k, sizeof k, "%.10d", keys[i]);
+        fill_dbt(&key, k, strlen(k)+1);
+        r = pma_delete(pma, &key, 0);
+        assert(r == 0);
+    }
+    assert(pma->N == PMA_MIN_ARRAY_SIZE);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+void assert_cursor_equal(PMA_CURSOR pmacursor, int v) {
+    DBT key, val;
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    int r;
+    r = pma_cget_current(pmacursor, &key, &val);
+    assert(r == 0);
+    if (0) printf("key %s\n", (char*) key.data);
+    int thev;
+    assert(val.size == sizeof thev);
+    memcpy(&thev, val.data, val.size);
+    assert(thev == v);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+void assert_cursor_nokey(PMA_CURSOR pmacursor) {
+   DBT key, val;
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    int r;
+    r = pma_cget_current(pmacursor, &key, &val);
+    assert(r != 0);
+}
+
+/*
+ * test that pma delete ops update pma cursors
+ * - insert n keys
+ * - point the cursor at the last key in the pma
+ * - delete keys sequentially.  the cursor should be stuck at the
+ * last key until the last key is deleted.
+ */
+void test_pma_delete_cursor(int n) {
+    printf("test_delete_cursor:%d\n", n);
+
+    PMA pma;
+    int r;
+
+    r = pma_create(&pma, default_compare_fun);
+    assert(r == 0);
+
+    int i;
+    for (i=0; i<n; i++) {
+        char k[11];
+        int v;
+        DBT key, val;
+
+        snprintf(k, sizeof k, "%.10d", i);
+        fill_dbt(&key, k, strlen(k)+1);
+        v = i;
+        fill_dbt(&val, &v, sizeof v);
+        r = pma_insert(pma, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    PMA_CURSOR pmacursor;
+
+    r = pma_cursor(pma, &pmacursor);
+    assert(r == 0);
+
+    r = pma_cursor_set_position_last(pmacursor);
+    assert(r == 0);
+
+    assert_cursor_equal(pmacursor, n-1);
+
+    for (i=0; i<n; i++) {
+        char k[11]; 
+        DBT key;
+
+        snprintf(k, sizeof k, "%.10d", i);
+        fill_dbt(&key, k, strlen(k)+1);
+        r = pma_delete(pma, &key, 0);
+        assert(r == 0);
+        if (i == n-1)
+            assert_cursor_nokey(pmacursor);
+        else
+            assert_cursor_equal(pmacursor, n-1);
+    }
+    assert(pma->N == PMA_MIN_ARRAY_SIZE);
+
+    r = pma_cursor_free(&pmacursor);
+    assert(r == 0);
+
+    r = pma_free(&pma);
+    assert(r == 0);
+}
+
+void test_pma_delete() {
+    test_pma_delete_shrink(256);  memory_check_all_free();
+    test_pma_delete_random(256);  memory_check_all_free();
+    test_pma_delete_cursor(32);   memory_check_all_free();
+}
+
 void pma_tests (void) {
     memory_check=1;
     test_keycompare();            memory_check_all_free();
@@ -1068,6 +1267,7 @@ void pma_tests (void) {
     test_pma_split();             memory_check_all_free();
     test_pma_bulk_insert();       memory_check_all_free();
     test_pma_insert_or_replace(); memory_check_all_free();
+    test_pma_delete();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
