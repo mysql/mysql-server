@@ -174,9 +174,7 @@ rw_lock_free(
 /*=========*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-#ifdef UNIV_DEBUG
-	ut_a(rw_lock_validate(lock));
-#endif /* UNIV_DEBUG */
+	ut_ad(rw_lock_validate(lock));
 	ut_a(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
 	ut_a(rw_lock_get_waiters(lock) == 0);
 	ut_a(rw_lock_get_reader_count(lock) == 0);
@@ -199,6 +197,7 @@ rw_lock_free(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks. */
@@ -226,6 +225,7 @@ rw_lock_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
