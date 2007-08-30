@@ -656,6 +656,7 @@ trx_sys_update_mysql_binlog_offset(
 			 MLOG_4BYTES, mtr);
 }
 
+#ifdef UNIV_HOTBACKUP
 /*********************************************************************
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
@@ -688,6 +689,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /*********************************************************************
 Stores the MySQL binlog offset info in the trx system header if

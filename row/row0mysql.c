@@ -1793,10 +1793,11 @@ row_mysql_unlock_data_dictionary(
 
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
-Does a table creation operation for MySQL.  If the name of the table
-to be created is equal with one of the predefined magic table names,
-then this also starts printing the corresponding monitor output by
-the master thread. */
+Drops a table for MySQL. If the name of the table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also start the printing of monitor
+output by the master thread. If the table name ends in "innodb_mem_validate",
+InnoDB will try to invoke mem_validate(). */
 
 int
 row_create_table_for_mysql(
@@ -3032,9 +3033,10 @@ funct_exit:
 }
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the table to be dropped is equal
-with one of the predefined magic table names, then this also stops printing
-the corresponding monitor output by the master thread. */
+Drops a table for MySQL. If the name of the dropped table ends in
+one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also stop the printing of monitor
+output by the master thread. */
 
 int
 row_drop_table_for_mysql(

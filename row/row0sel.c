@@ -4591,10 +4591,10 @@ row_search_autoinc_read_column(
 	ibool		unsigned_type)	/* in: signed or unsigned flag */
 {
 	ulint		len;
-	byte*		ptr;
 	const byte*	data;
 	ib_longlong	value;
 	mem_heap_t*	heap = NULL;
+	/* Our requirement is that dest should be word aligned. */
 	byte		dest[sizeof(value)];
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
@@ -4613,34 +4613,25 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
-	/* Convert integer data from Innobase to a little-endian format,
-	sign bit restored to normal */
+	mach_read_int_type(dest, data, len, unsigned_type);
 
-	for (ptr = dest + len; ptr != dest; ++data) {
-		--ptr;
-		*ptr = *data;
-	}
-
-	if (!unsigned_type) {
-		dest[len - 1] ^= 128;
-	}
-
-	/* The assumption here is that the AUTOINC value can't be negative.*/
+	/* The assumption here is that the AUTOINC value can't be negative
+	and that dest is word aligned. */
 	switch (len) {
 	case 8:
-		value = *(ib_longlong*) ptr;
+		value = *(ib_longlong*) dest;
 		break;
 
 	case 4:
-		value = *(ib_uint32_t*) ptr;
+		value = *(ib_uint32_t*) dest;
 		break;
 
 	case 2:
-		value = *(uint16 *) ptr;
+		value = *(uint16 *) dest;
 		break;
 
 	case 1:
-		value = *ptr;
+		value = *dest;
 		break;
 
 	default:
