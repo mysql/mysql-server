@@ -138,7 +138,7 @@ static struct my_option my_long_options[] =
     "(parallelism can be 1 to 1024)", 
     (uchar**) &ga_nParallelism, (uchar**) &ga_nParallelism, 0,
     GET_INT, REQUIRED_ARG, 128, 1, 1024, 0, 1, 0 },
-  { "print", OPT_PRINT, "Print data and log to stdout",
+  { "print", OPT_PRINT, "Print metadata, data and log to stdout",
     (uchar**) &_print, (uchar**) &_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "print_data", OPT_PRINT_DATA, "Print data to stdout", 
