@@ -105,7 +105,7 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # Added unless --with-debug=full
   debug_extra_cflags="-O1 -Wuninitialized"
 else
-  warnings="-W -Wall -ansi -pedantic -Wno-long-long -D_POSIX_SOURCE"
+  warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"
   cxx_warnings="$warnings -std=c++98"
 # NOTE: warning mode should not influence optimize/debug mode.
