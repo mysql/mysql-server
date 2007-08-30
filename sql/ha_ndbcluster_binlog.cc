@@ -264,12 +264,13 @@ static void run_query(THD *thd, char *buf, char *end,
     int i;
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     for (i= 0; no_print_error[i]; i++)
-      if (thd_ndb->m_error == no_print_error[i])
+      if ((thd_ndb->m_error_code == no_print_error[i]) ||
+          (thd->net.last_errno == no_print_error[i]))
         break;
     if (!no_print_error[i])
       sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
                       buf, thd->net.last_error, thd->net.last_errno,
-                      thd_ndb->m_error,
+                      thd_ndb->m_error_code,
                       thd->net.report_error, thd->query_error);
   }
 
@@ -779,7 +780,10 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB");
 
-  const int no_print_error[3]= {701, 4009, 0}; // do not print error 701 etc
+  const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
+                                701,
+                                4009,
+                                0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
@@ -836,7 +840,10 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB");
 
-  const int no_print_error[3]= {701, 4009, 0}; // do not print error 701 etc
+  const int no_print_error[4]= {ER_TABLE_EXISTS_ERROR,
+                                701,
+                                4009,
+                                0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
 
   DBUG_RETURN(0);
