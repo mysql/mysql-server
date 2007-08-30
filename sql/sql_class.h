@@ -1802,11 +1802,27 @@ public:
     }
   }
 
-  /*
-    Initialize the current database from a NULL-terminated string with length
-    If we run out of memory, we free the current database and return TRUE.
-    This way the user will notice the error as there will be no current
-    database selected (in addition to the error message set by malloc).
+  /**
+    Set the current database; use deep copy of C-string.
+
+    @param new_db     a pointer to the new database name.
+    @param new_db_len length of the new database name.
+
+    Initialize the current database from a NULL-terminated string with
+    length. If we run out of memory, we free the current database and
+    return TRUE.  This way the user will notice the error as there will be
+    no current database selected (in addition to the error message set by
+    malloc).
+
+    @note This operation just sets {thd->db, thd->db_length}. Switching the
+    current database usually involves other actions, like switching other
+    database attributes including security context. In the future, this
+    operation will be made private and more convenient interface will be
+    provided.
+
+    @return Operation status
+      @retval FALSE Success
+      @retval TRUE  Out-of-memory error
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
@@ -1821,6 +1837,19 @@ public:
     db_length= db ? new_db_len : 0;
     return new_db && !db;
   }
+
+  /**
+    Set the current database; use shallow copy of C-string.
+
+    @param new_db     a pointer to the new database name.
+    @param new_db_len length of the new database name.
+
+    @note This operation just sets {thd->db, thd->db_length}. Switching the
+    current database usually involves other actions, like switching other
+    database attributes including security context. In the future, this
+    operation will be made private and more convenient interface will be
+    provided.
+  */
   void reset_db(char *new_db, size_t new_db_len)
   {
     db= new_db;
