@@ -3771,9 +3771,9 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
 
   dbug_print_table("table", table);
 
-  TABLE_SHARE *table_s= table->s;
   uint n_fields= event_data->no_fields;
-  DBUG_PRINT("info", ("Assuming %u columns for table %s", n_fields, table_s->table_name.str));
+  DBUG_PRINT("info", ("Assuming %u columns for table %s",
+                      n_fields, table->s->table_name.str));
   MY_BITMAP b;
   /* Potential buffer for the bitmap */
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
@@ -3802,7 +3802,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   case NDBEVENT::TE_INSERT:
     row->n_inserts++;
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
-                        table_s->db.str, table_s->table_name.str));
+                        table->s->db.str, table->s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
@@ -3824,7 +3824,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   case NDBEVENT::TE_DELETE:
     row->n_deletes++;
     DBUG_PRINT("info",("DELETE FROM %s.%s",
-                       table_s->db.str, table_s->table_name.str));
+                       table->s->db.str, table->s->table_name.str));
     {
       /*
         table->record[0] contains only the primary key in this case
@@ -3864,7 +3864,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   case NDBEVENT::TE_UPDATE:
     row->n_updates++;
     DBUG_PRINT("info", ("UPDATE %s.%s",
-                        table_s->db.str, table_s->table_name.str));
+                        table->s->db.str, table->s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
@@ -4473,7 +4473,8 @@ restart:
               inj->new_trans(thd, &trans);
             }
             DBUG_PRINT("info", ("use_table: %.*s, cols %u",
-                                name.length, name.str, table->s->fields));
+                                (int) name.length, name.str,
+                                table->s->fields));
             injector::transaction::table tbl(table, TRUE);
             IF_DBUG(int ret=) trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
