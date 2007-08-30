@@ -331,6 +331,7 @@ Thd_ndb::Thd_ndb()
   all= NULL;
   stmt= NULL;
   m_error= FALSE;
+  m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
@@ -366,6 +367,7 @@ Thd_ndb::init_open_tables()
 {
   count= 0;
   m_error= FALSE;
+  m_error_code= 0;
   my_hash_reset(&open_tables);
 }
 
@@ -489,6 +491,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->m_error= TRUE;
+  get_thd_ndb(current_thd)->m_error_code= 0;
   DBUG_VOID_RETURN;
 }
 
