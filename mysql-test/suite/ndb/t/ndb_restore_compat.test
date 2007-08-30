@@ -58,4 +58,10 @@ SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 1 -m -p 1 -s -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 2 -p 1 -s -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+SELECT * FROM DESCRIPTION ORDER BY USERNAME;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK DESCRIPTION | grep SHORT_VAR
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK DESCRIPTION | grep MEDIUM_VAR
+
 DROP DATABASE BANK;
