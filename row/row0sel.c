@@ -4536,6 +4536,7 @@ row_search_autoinc_read_column(
 	const byte*	data;
 	ib_longlong	value;
 	mem_heap_t*	heap = NULL;
+	/* Our requirement is that dest should be word aligned. */
 	byte		dest[sizeof(value)];
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
@@ -4556,7 +4557,8 @@ row_search_autoinc_read_column(
 
 	mach_read_int_type(dest, data, len, unsigned_type);
 
-	/* The assumption here is that the AUTOINC value can't be negative.*/
+	/* The assumption here is that the AUTOINC value can't be negative
+	and that dest is word aligned. */
 	switch (len) {
 	case 8:
 		value = *(ib_longlong*) dest;
