@@ -574,7 +574,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     we'll update it later in switch_query_ctx().
   */
 
-  if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, name->m_db, &old_db, TRUE, &dbchanged)))
     goto end;
 
   thd->spcont= NULL;
@@ -2027,34 +2027,41 @@ create_string(THD *thd, String *buf,
 
 
 
-/*
+/**
   Change the current database if needed.
 
-  SYNOPSIS
-    sp_use_new_db()
-      thd            thread handle
-      new_db         new database name (a string and its length)
-      old_db         [IN] str points to a buffer where to store the old
-                          database, length contains the size of the buffer
-                     [OUT] if old db was not NULL, its name is copied
-                     to the buffer pointed at by str and length is updated
-                     accordingly. Otherwise str[0] is set to '\0' and length
-                     is set to 0. The out parameter should be used only if
-                     the database name has been changed (see dbchangedp).
-     dbchangedp      [OUT] is set to TRUE if the current database is changed,
-                     FALSE otherwise. A database is not changed if the old
-                     name is the same as the new one, both names are empty,
-                     or an error has occurred.
+  @param[in]      thd             thread handle
+  @param[in]      new_db          new database name
+  @param[in, out] old_db          IN: str points to a buffer where to store
+                                  the old database, length contains the
+                                  size of the buffer
+                                  OUT: if old db was not NULL, its name is
+                                  copied to the buffer pointed at by str
+                                  and length is updated accordingly.
+                                  Otherwise str[0] is set to '\0' and
+                                  length is set to 0. The out parameter
+                                  should be used only if the database name
+                                  has been changed (see dbchangedp).
+  @param[in]      force_switch    Flag to mysql_change_db(). For more information,
+                                  see mysql_change_db() comment.
+  @param[out]     dbchangedp      is set to TRUE if the current database is
+                                  changed, FALSE otherwise. The current
+                                  database is not changed if the old name
+                                  is equal to the new one, both names are
+                                  empty, or an error has occurred.
 
-  RETURN VALUE
-    0                success
-    1                access denied or out of memory (the error message is
-                     set in THD)
+  @return Operation status.
+    @retval 0 on success
+    @retval 1 access denied or out of memory
+              (the error message is set in THD)
 */
 
 int
-sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
-	      bool no_access_check, bool *dbchangedp)
+sp_use_new_db(THD *thd,
+              LEX_STRING new_db,
+              LEX_STRING *old_db,
+              bool force_switch,
+              bool *dbchangedp)
 {
   int ret;
   DBUG_ENTER("sp_use_new_db");
@@ -2085,7 +2092,7 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
     DBUG_RETURN(0);
   }
 
-  ret= mysql_change_db(thd, &new_db, no_access_check);
+  ret= mysql_change_db(thd, &new_db, force_switch);
 
   *dbchangedp= ret == 0;
   DBUG_RETURN(ret);

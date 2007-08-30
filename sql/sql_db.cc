@@ -39,6 +39,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
          
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
+static void mysql_change_db_impl(THD *thd,
+                                 LEX_STRING *new_db_name,
+                                 ulong new_db_access,
+                                 CHARSET_INFO *new_db_charset);
 
 
 /* Database lock hash */
@@ -988,7 +992,7 @@ exit:
     it to 0.
   */
   if (thd->db && !strcmp(thd->db, db))
-    thd->set_db(NULL, 0);
+    mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
@@ -1347,21 +1351,48 @@ static void mysql_change_db_impl(THD *thd,
 
 
 /**
-  @brief Change the current database.
+  @brief Change the current database and its attributes.
 
   @param thd          thread handle
   @param new_db_name  database name
-  @param force_switch if this flag is set (TRUE), mysql_change_db() will
-                      switch to NULL db if the specified database is not
-                      available anymore. Corresponding warning will be
-                      thrown in this case. This flag is used to change
-                      database in stored-routine-execution code.
+  @param force_switch if force_switch is FALSE, then the operation will fail if
 
-  @details Check that the database name corresponds to a valid and existent
-  database, check access rights (unless called with no_access_check), and
-  set the current database. This function is called to change the current
-  database upon user request (COM_CHANGE_DB command) or temporarily, to
-  execute a stored routine.
+                        - new_db_name is NULL or empty;
+
+                        - OR new database name is invalid
+                          (check_db_name() failed);
+
+                        - OR user has no privilege on the new database;
+
+                        - OR new database does not exist;
+
+                      if force_switch is TRUE, then
+
+                        - if new_db_name is NULL or empty, the current
+                          database will be NULL, @@collation_database will
+                          be set to @@collation_server, the operation will
+                          succeed.
+
+                        - if new database name is invalid
+                          (check_db_name() failed), the current database
+                          will be NULL, @@collation_database will be set to
+                          @@collation_server, but the operation will fail;
+
+                        - user privileges will not be checked
+                          (THD::db_access however is updated);
+
+                          TODO: is this really the intention?
+                                (see sp-security.test).
+
+                        - if new database does not exist,the current database
+                          will be NULL, @@collation_database will be set to
+                          @@collation_server, a warning will be thrown, the
+                          operation will succeed.
+
+  @details The function checks that the database name corresponds to a
+  valid and existent database, checks access rights and changes the current
+  database with database attributes (@@collation_database session variable,
+  THD::db_access).
 
   This function is not the only way to switch the database that is
   currently employed. When the replication slave thread switches the
@@ -1398,8 +1429,13 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     if (force_switch)
     {
       /*
-        This can only happen when we restore the old db in THD after
-        execution of a routine is complete. Change db to NULL.
+        This can happen only if we're switching the current database back
+        after loading stored program. The thing is that loading of stored
+        program can happen when there is no current database.
+
+        TODO: actually, new_db_name and new_db_name->str seem to be always
+        non-NULL. In case of stored program, new_db_name->str == "" and
+        new_db_name->length == 0.
       */
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
@@ -1417,7 +1453,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   if (my_strcasecmp(system_charset_info, new_db_name->str,
                     INFORMATION_SCHEMA_NAME.str) == 0)
   {
-    /* Switch database to INFORMATION_SCHEMA. */
+    /* Switch the current database to INFORMATION_SCHEMA. */
 
     mysql_change_db_impl(thd, &INFORMATION_SCHEMA_NAME, SELECT_ACL,
                          system_charset_info);
@@ -1444,8 +1480,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     even if we are called from sp_head::execute().
 
     It's next to impossible however to get this error when we are called
-    from sp_head::execute(). But let's switch database to NULL in this case
-    to be sure.
+    from sp_head::execute(). But let's switch the current database to NULL
+    in this case to be sure.
   */
 
   if (check_db_name(&new_db_file_name))
@@ -1454,10 +1490,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     my_free(new_db_file_name.str, MYF(0));
 
     if (force_switch)
-    {
-      /* Change db to NULL. */
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
-    }
+
     DBUG_RETURN(TRUE);
   }
 
@@ -1492,6 +1526,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   {
     if (force_switch)
     {
+      /* Throw a warning and free new_db_file_name. */
+
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
                           new_db_file_name.str);
@@ -1502,12 +1538,19 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
+      /* The operation succeed. */
+
       DBUG_RETURN(FALSE);
     }
     else
     {
+      /* Report an error and free new_db_file_name. */
+
       my_error(ER_BAD_DB_ERROR, MYF(0), new_db_file_name.str);
       my_free(new_db_file_name.str, MYF(0));
+
+      /* The operation failed. */
+
       DBUG_RETURN(TRUE);
     }
   }
@@ -1820,7 +1863,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
   /* Step9: Let's do "use newdb" if we renamed the current database */
   if (change_to_newdb)
-    error|= mysql_change_db(thd, new_db, 0);
+    error|= mysql_change_db(thd, new_db, FALSE);
 
 exit:
   pthread_mutex_lock(&LOCK_lock_db);
