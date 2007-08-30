@@ -177,7 +177,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         else
         {
           pageP->free_record(tmp.m_page_idx, Var_page::CHAIN);
-          tmp.m_page_no == RNIL;
+          tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
