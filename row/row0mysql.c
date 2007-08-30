@@ -1757,13 +1757,11 @@ row_create_table_for_mysql(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
@@ -2704,13 +2702,11 @@ row_truncate_table_for_mysql(
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		return(DB_ERROR);
 	}
@@ -2944,13 +2940,11 @@ row_drop_table_for_mysql(
 	ut_a(name != NULL);
 
 	if (srv_created_new_raw) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		fputs("InnoDB: A new raw disk partition was initialized:\n"
+		      "InnoDB: we do not allow database modifications"
+		      " by the user.\n"
+		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
+		      " is replaced with raw.\n", stderr);
 
 		return(DB_ERROR);
 	}
