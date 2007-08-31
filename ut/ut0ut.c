@@ -453,12 +453,13 @@ ut_print_namel(
 #ifdef UNIV_HOTBACKUP
 	fwrite(name, 1, namelen, f);
 #else
-	char*	slash = memchr(name, '/', namelen);
+	if (table_id) {
+		char*	slash;
 
-	if (UNIV_UNLIKELY(*name == TEMP_TABLE_PREFIX)) {
-		slash = memchr(name + 1, '/', namelen);
-		if (UNIV_LIKELY(slash && slash >= name + 2)) {
-			ut_ad(table_id);
+		if (UNIV_UNLIKELY(*name == TEMP_TABLE_PREFIX)) {
+			slash = memchr(name + 1, '/', namelen);
+
+			ut_ad(slash && slash >= name + 2);
 
 			/* Database */
 			innobase_print_identifier(f, trx, TRUE, name + 2,
@@ -470,23 +471,29 @@ ut_print_namel(
 						  - (slash - (name + 3)));
 			/* Identifier of temporary table */
 			fprintf(f, "--temporary %c--", name[1]);
-		} else {
-			ut_ad(!table_id);
-
-			/* Temporary index */
-			innobase_print_identifier(f, trx, table_id, name + 1,
-						  namelen - 1);
-			fputs("--temporary--", f);
+			return;
 		}
-	} else if (UNIV_LIKELY_NULL(slash)) {
+
+		slash = memchr(name, '/', namelen);
+
+		if (!slash) {
+
+			goto no_db_name;
+		}
+
 		/* Print the database name and table name separately. */
-		ut_ad(table_id);
 
 		innobase_print_identifier(f, trx, TRUE, name, slash - name);
 		putc('.', f);
 		innobase_print_identifier(f, trx, TRUE, slash + 1,
 					  namelen - (slash - name) - 1);
+	} else if (UNIV_UNLIKELY(*name == TEMP_INDEX_PREFIX)) {
+		/* Temporary index */
+		innobase_print_identifier(f, trx, table_id, name + 1,
+					  namelen - 1);
+		fputs("--temporary--", f);
 	} else {
+no_db_name:
 		innobase_print_identifier(f, trx, table_id, name, namelen);
 	}
 #endif

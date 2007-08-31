@@ -16,8 +16,9 @@ Created 1/20/1994 Heikki Tuuri
 #endif
 
 #define	TEMP_TABLE_PREFIX	'/'	/* Table name prefix for temporary
-					internal tables. Used in fast index
-					creation etc. */
+					tables used in fast index creation */
+#define	TEMP_INDEX_PREFIX	'\377'	/* Index name prefix in fast index
+					creation */
 
 typedef time_t	ib_time_t;
 
