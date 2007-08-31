@@ -6472,7 +6472,7 @@ view_err:
     }
     /* TODO need to check if changes can be handled as fast ALTER TABLE */
     if (!altered_table ||
-        !(altered_table->file->ha_table_flags() & HA_ONLINE_ALTER))
+        !(table->file->ha_table_flags() & HA_ONLINE_ALTER))
       need_copy_table= TRUE;
 
     if (!need_copy_table)
@@ -6489,7 +6489,7 @@ view_err:
         mysql_unlock_tables(thd, thd->lock);
         thd->lock=0;
       }
-      close_temporary_table(thd, altered_table, 1, 0);
+      close_temporary_table(thd, altered_table, 1, 1);
 
       if (error)
         goto err;
@@ -6498,7 +6498,7 @@ view_err:
     }
 
     if (altered_table)
-      close_temporary_table(thd, altered_table, 1, 0);
+      close_temporary_table(thd, altered_table, 1, 1);
   }
 
   my_snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%lx", tmp_file_prefix,
