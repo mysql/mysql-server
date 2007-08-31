@@ -517,7 +517,7 @@ MgmtSrvr::check_start()
 }
 
 bool 
-MgmtSrvr::start(BaseString &error_string)
+MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
 {
   int mgm_connect_result;
 
@@ -557,7 +557,7 @@ MgmtSrvr::start(BaseString &error_string)
     DBUG_RETURN(false);
   }
 
-  if((mgm_connect_result= connect_to_self()) < 0)
+  if((mgm_connect_result= connect_to_self(bindaddress)) < 0)
   {
     ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
              mgm_connect_result);
@@ -2985,12 +2985,12 @@ void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
   }
 }
 
-int MgmtSrvr::connect_to_self(void)
+int MgmtSrvr::connect_to_self(const char * bindaddress)
 {
   int r= 0;
   m_local_mgm_handle= ndb_mgm_create_handle();
   snprintf(m_local_mgm_connect_string,sizeof(m_local_mgm_connect_string),
-           "localhost:%u",getPort());
+           "%s:%u", bindaddress ? bindaddress : "localhost", getPort());
   ndb_mgm_set_connectstring(m_local_mgm_handle, m_local_mgm_connect_string);
 
   if((r= ndb_mgm_connect(m_local_mgm_handle, 0, 0, 0)) < 0)

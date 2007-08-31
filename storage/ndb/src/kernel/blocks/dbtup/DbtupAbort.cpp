@@ -124,6 +124,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
 
+  bool change = false;
   Uint32 bits= tuple_ptr->m_header_bits;  
   if(regOperPtr.p->op_struct.op_type != ZDELETE)
   {
@@ -137,9 +138,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       memcpy(&key, copy->get_disk_ref_ptr(regTabPtr.p), sizeof(key));
       disk_page_abort_prealloc(signal, regFragPtr.p, &key, key.m_page_idx);
     }
-    
 
-    Uint32 copy_bits= copy->m_header_bits;
     if(! (bits & Tuple_header::ALLOC))
     {
       if(bits & Tuple_header::MM_GROWN)
@@ -147,7 +146,6 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 	if (0) ndbout_c("abort grow");
 	Ptr<Page> vpage;
 	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
-        Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
         Uint32 *var_part;
 
 	ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
@@ -177,12 +175,13 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         else
         {
           pageP->free_record(tmp.m_page_idx, Var_page::CHAIN);
-          tmp.m_page_no == RNIL;
+          tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
         update_free_page_list(regFragPtr.p, vpage);
         tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
+        change = true;
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {
@@ -195,6 +194,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       /**
        * Aborting last operation that performed ALLOC
        */
+      change = true;
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
@@ -204,9 +204,16 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   {
     if (bits & Tuple_header::ALLOC)
     {
+      change = true;
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
+  }
+  
+  if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+  {
+    jam();
+    setChecksum(tuple_ptr, regTabPtr.p);
   }
   
   if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
