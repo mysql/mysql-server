@@ -1303,7 +1303,8 @@ int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
   int result= NDBT_OK;
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
-  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, *ctx->getTab());
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+                                                    ctx->getTab()->getName());
 
   HugoOperations ops(*ctx->getTab(), idx);
 
