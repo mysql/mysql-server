@@ -4737,15 +4737,15 @@ err:
                          op->getEvent()->getName()));
       Ndb_event_data *event_data= (Ndb_event_data *) op->getCustomData();
       NDB_SHARE *share= (event_data)?event_data->share:NULL;
-      DBUG_ASSERT(share != 0);
-      DBUG_ASSERT(share->op == op ||
-                  ndb_is_old_event_op(share, op));
       if (event_data)
       {
         delete event_data;
         op->setCustomData(NULL);
       }
+      DBUG_ASSERT(share != 0);
       (void) pthread_mutex_lock(&share->mutex);
+      DBUG_ASSERT(share->op == op ||
+                  ndb_is_old_event_op(share, op));
       share->op= 0;
       ndb_remove_old_event_op(share, op);
       (void) pthread_mutex_unlock(&share->mutex);
