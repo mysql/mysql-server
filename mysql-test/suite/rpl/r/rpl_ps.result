@@ -26,5 +26,44 @@ from-master-2-'',
 from-var-from-master-3
 drop table t1;
 stop slave;
+
+########################################################################
+#
+# BUG#25843: Changing default database between PREPARE and EXECUTE of
+# statement breaks binlog.
+#
+########################################################################
+
+#
+# Check that binlog is filled properly.
+#
+
+CREATE DATABASE mysqltest1;
+CREATE TABLE t1(c INT);
+
+RESET MASTER;
+RESET SLAVE;
+
+PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(1)';
+
+EXECUTE stmt_d_1;
+
+use mysqltest1;
+
+EXECUTE stmt_d_1;
+
+FLUSH LOGS;
+
+SHOW BINLOG EVENTS FROM 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	106	Query	2	193	use `test`; INSERT INTO t1 VALUES(1)
+slave-bin.000001	193	Query	2	280	use `test`; INSERT INTO t1 VALUES(1)
+slave-bin.000001	280	Rotate	2	323	slave-bin.000002;pos=4
+
+DROP DATABASE mysqltest1;
+
+use test;
+
+########################################################################
 reset master;
 reset slave;
