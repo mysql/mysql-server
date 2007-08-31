@@ -7747,6 +7747,9 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
     */
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
+  else
+    thd->restore_backup_open_tables_state(backup);
+
   thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);
 }
@@ -7762,24 +7765,25 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
 {
   bool found_old_table;
 
-  if (thd->lock)
-  {
-    /*
-      Note:
-      We do not create explicitly a separate transaction for the
-      performance table I/O, but borrow the current transaction.
-      lock + unlock will autocommit the change done in the
-      performance schema table: this is the expected result.
-      The current transaction should not be affected by this code.
-      TODO: Note that if a transactional engine is used for log tables,
-      this code will need to be revised, as a separate transaction
-      might be needed.
-    */
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock= 0;
-  }
+  /*
+    If open_performance_schema_table() fails,
+    this function should not be called.
+  */
+  DBUG_ASSERT(thd->lock != NULL);
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  /*
+    Note:
+    We do not create explicitly a separate transaction for the
+    performance table I/O, but borrow the current transaction.
+    lock + unlock will autocommit the change done in the
+    performance schema table: this is the expected result.
+    The current transaction should not be affected by this code.
+    TODO: Note that if a transactional engine is used for log tables,
+    this code will need to be revised, as a separate transaction
+    might be needed.
+  */
+  mysql_unlock_tables(thd, thd->lock);
+  thd->lock= 0;
 
   pthread_mutex_lock(&LOCK_open);
 
