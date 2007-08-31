@@ -1762,7 +1762,11 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
 
   free_io_cache(table);
   closefrm(table, 0);
-  if (delete_table)
+  /*
+     Check that temporary table has not been created with
+     frm_only because it has then not been created in any storage engine
+   */
+  if (table->s->tmp_table != TMP_TABLE_FRM_FILE_ONLY && delete_table)
     rm_temporary_table(table_type, table->s->path.str);
   if (free_share)
   {
@@ -4367,7 +4371,10 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
                             (open_mode == OTM_ALTER) ? 0 :
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX),
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            (open_mode == OTM_ALTER) ?
+                              (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                               OPEN_FRM_FILE_ONLY)
+                            : (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD),
                             ha_open_options,
                             tmp_table, open_mode))
   {
@@ -4378,8 +4385,17 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
-  share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
+  if (open_mode == OTM_ALTER)
+  {
+    /*
+       Temporary table has been created with frm_only
+       and has not been created in any storage engine
+    */
+    share->tmp_table= TMP_TABLE_FRM_FILE_ONLY;
+  }
+  else
+    share->tmp_table= (tmp_table->file->has_transactions() ?
+                       TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
   {
