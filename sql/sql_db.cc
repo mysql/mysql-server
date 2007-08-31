@@ -1350,8 +1350,67 @@ static void mysql_change_db_impl(THD *thd,
 }
 
 
+
 /**
-  @brief Change the current database and its attributes.
+  Backup the current database name before switch.
+
+  @param[in]      thd             thread handle
+  @param[in, out] saved_db_name   IN: "str" points to a buffer where to store
+                                  the old database name, "length" contains the
+                                  buffer size
+                                  OUT: if the current (default) database is
+                                  not NULL, its name is copied to the
+                                  buffer pointed at by "str"
+                                  and "length" is updated accordingly.
+                                  Otherwise "str" is set to NULL and
+                                  "length" is set to 0.
+*/
+
+static void backup_current_db_name(THD *thd,
+                                   LEX_STRING *saved_db_name)
+{
+  if (!thd->db)
+  {
+    /* No current (default) database selected. */
+
+    saved_db_name->str= NULL;
+    saved_db_name->length= 0;
+  }
+  else
+  {
+    strmake(saved_db_name->str, thd->db, saved_db_name->length);
+    saved_db_name->length= thd->db_length;
+  }
+}
+
+
+/**
+  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+
+  The function allows to compare database names according to the MySQL
+  rules. The database names db1 and db2 are equal if:
+     - db1 is NULL and db2 is NULL;
+     or
+     - db1 is not-NULL, db2 is not-NULL, db1 is equal (ignoring case) to
+       db2 in system character set (UTF8).
+*/
+
+static inline bool
+cmp_db_names(const char *db1_name,
+             const char *db2_name)
+{
+  return
+         /* db1 is NULL and db2 is NULL */
+         !db1_name && !db2_name ||
+
+         /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
+         db1_name && db2_name &&
+         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0;
+}
+
+
+/**
+  @brief Change the current database and its attributes unconditionally.
 
   @param thd          thread handle
   @param new_db_name  database name
@@ -1565,6 +1624,43 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   mysql_change_db_impl(thd, &new_db_file_name, db_access, db_default_cl);
 
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Change the current database and its attributes if needed.
+
+  @param          thd             thread handle
+  @param          new_db_name     database name
+  @param[in, out] saved_db_name   IN: "str" points to a buffer where to store
+                                  the old database name, "length" contains the
+                                  buffer size
+                                  OUT: if the current (default) database is
+                                  not NULL, its name is copied to the
+                                  buffer pointed at by "str"
+                                  and "length" is updated accordingly.
+                                  Otherwise "str" is set to NULL and
+                                  "length" is set to 0.
+  @param          force_switch    @see mysql_change_db()
+  @param[out]     cur_db_changed  out-flag to indicate whether the current
+                                  database has been changed (valid only if
+                                  the function suceeded)
+*/
+
+bool mysql_opt_change_db(THD *thd,
+                         const LEX_STRING *new_db_name,
+                         LEX_STRING *saved_db_name,
+                         bool force_switch,
+                         bool *cur_db_changed)
+{
+  *cur_db_changed= !cmp_db_names(thd->db, new_db_name->str);
+
+  if (!*cur_db_changed)
+    return FALSE;
+
+  backup_current_db_name(thd, saved_db_name);
+
+  return mysql_change_db(thd, new_db_name, force_switch);
 }
 
 

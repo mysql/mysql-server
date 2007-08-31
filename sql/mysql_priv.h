@@ -937,8 +937,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
+
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
+
+bool mysql_opt_change_db(THD *thd,
+                         const LEX_STRING *new_db_name,
+                         LEX_STRING *saved_db_name,
+                         bool force_switch,
+                         bool *cur_db_changed);
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
                  const char ** semicolon);
