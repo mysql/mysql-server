@@ -563,7 +563,7 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     be rolled back already
   */
   if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd->ha_data[hton->slot])
+      thd_get_ha_data(thd, hton))
     hton->close_connection(hton, thd);
   return FALSE;
 }
@@ -1511,7 +1511,7 @@ void handler::ha_statistic_increment(ulong SSV::*offset) const
 
 void **handler::ha_data(THD *thd) const
 {
-  return (void **) thd->ha_data + ht->slot;
+  return thd_ha_data(thd, ht);
 }
 
 THD *handler::ha_thd(void) const
