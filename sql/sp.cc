@@ -576,6 +576,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   if (mysql_opt_change_db(thd, &name->m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
   {
+    ret= SP_INTERNAL_ERROR;
     goto end;
   }
 
@@ -597,7 +598,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     if (cur_db_changed && mysql_change_db(thd, &saved_cur_db_name, TRUE))
     {
       delete newlex.sphead;
-      ret= -1;
+      ret= SP_INTERNAL_ERROR;
       goto end;
     }
 
