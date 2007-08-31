@@ -8395,8 +8395,20 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       (fld_type_modifier & NOT_NULL_FLAG) && fld_type != FIELD_TYPE_TIMESTAMP)
     flags|= NO_DEFAULT_VALUE_FLAG;
 
-  if (fld_length && !(length= (uint) atoi(fld_length)))
-    fld_length= 0; /* purecov: inspected */
+  if (fld_length != 0)
+  {
+    errno= 0;
+    length= strtoul(fld_length, NULL, 10);
+    if (errno != 0)
+    {
+      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
+      DBUG_RETURN(TRUE);
+    }
+
+    if (length == 0)
+      fld_length= 0; /* purecov: inspected */
+  }
+
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   switch (fld_type) {
