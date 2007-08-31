@@ -53,6 +53,8 @@ uint trnman_increment_locked_tables(TRN *trn);
 uint trnman_decrement_locked_tables(TRN *trn);
 my_bool trnman_has_locked_tables(TRN *trn);
 void trnman_reset_locked_tables(TRN *trn);
+TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
+TRN *trnman_get_any_trn();
 
 C_MODE_END
 #endif

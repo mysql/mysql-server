@@ -159,7 +159,7 @@ struct st_translog_descriptor
   LSN flushed;
   /* Last LSN sent to the disk (but maybe not written yet) */
   LSN sent_to_file;
-  /* All what is after this addess is not sent to disk yet */
+  /* All what is after this address is not sent to disk yet */
   TRANSLOG_ADDRESS in_buffers_only;
   pthread_mutex_t sent_to_file_lock;
 
@@ -306,13 +306,9 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-/* QQQ: TODO: variable and fixed size??? */
 static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
-{LOGRECTYPE_VARIABLE_LENGTH,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
- PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
- FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
- PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE,
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
@@ -682,7 +678,7 @@ static my_bool translog_max_lsn_to_header(File file, LSN lsn)
 typedef struct st_loghandler_file_info
 {
   /*
-    LSN_IPOSSIBLE for current file and max LSN which parts stored in the
+    LSN_IMPOSSIBLE for current file and max LSN which parts stored in the
     file for all other (finished) files.
   */
   LSN max_lsn;
@@ -824,7 +820,7 @@ static void translog_mark_file_unfinished(uint32 file)
     goto end;
   }
 
-  for (place= log_descriptor.unfinished_files.elements;
+  for (place= log_descriptor.unfinished_files.elements - 1;
        place >= 0;
        place--)
   {
@@ -5300,8 +5296,9 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
    @param page_offset     Offset of the first chunk in the page
    @param buff            Buffer to be filled with header data
    @param scanner         If present should be moved to the header page if
-                         it differ from LSN page
-   @return Length of header or operation status
+                          it differ from LSN page
+
+   @return                Length of header or operation status
      @retval RECHEADER_READ_ERROR  error
      @retval #                     number of bytes in
                                    TRANSLOG_HEADER_BUFFER::header where
@@ -5323,7 +5320,6 @@ int translog_variable_length_header(uchar *page, translog_size_t page_offset,
   uint16 buffer_length= length;
   uint16 body_len;
   TRANSLOG_SCANNER_DATA internal_scanner;
-
   DBUG_ENTER("translog_variable_length_header");
 
   buff->record_length= translog_variable_record_1group_decode_len(&src);
@@ -6174,7 +6170,7 @@ static my_bool write_hook_for_redo(enum translog_record_type type
     non-transactional log records (REPAIR, CREATE, RENAME, DROP) should not
     call this hook; we trust them but verify ;)
   */
-  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
+  DBUG_ASSERT(trn->trid != 0);
   /*
     If the hook stays so simple, it would be faster to pass
     !trn->rec_lsn ? trn->rec_lsn : some_dummy_lsn
@@ -6203,7 +6199,7 @@ static my_bool write_hook_for_undo(enum translog_record_type type
                                    struct st_translog_parts *parts
                                    __attribute__ ((unused)))
 {
-  DBUG_ASSERT(!(maria_multi_threaded && (trn->trid == 0)));
+  DBUG_ASSERT(trn->trid != 0);
   trn->undo_lsn= *lsn;
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=
@@ -6313,6 +6309,17 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
+}
+
+
+void translog_assign_id_to_share_from_recovery(MARIA_SHARE *share,
+                                               uint16 id)
+{
+  DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
+  DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
+  DBUG_ASSERT(share->id == 0);
+  DBUG_ASSERT(id_to_share[id] == NULL);
+  id_to_share[share->id= id]= share;
 }
 
 

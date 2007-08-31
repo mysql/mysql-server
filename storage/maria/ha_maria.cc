@@ -27,11 +27,16 @@
 #include "ha_maria.h"
 #include "trnman_public.h"
 
+C_MODE_START
 #include "maria_def.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
-#include "ma_commit.h"
+C_MODE_END
 
+/*
+  Note that in future versions, only *transactional* Maria tables can
+  rollback, so this flag should be up or down conditionally.
+*/
 #define MARIA_CANNOT_ROLLBACK HA_NO_TRANSACTIONS
 #ifdef MARIA_CANNOT_ROLLBACK
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
@@ -2384,7 +2389,7 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_data_root= mysql_real_data_home;
-  res= maria_init() || ma_control_file_create_or_open(TRUE) ||
+  res= maria_init() || ma_control_file_create_or_open() ||
     (init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE) == 0) ||

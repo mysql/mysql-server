@@ -1,8 +1,17 @@
+#!/bin/sh
+
 set -e
 silent="-s"
 if [ -z "$maria_path" ]
 then
     maria_path="."
+fi
+
+tmp=$maria_path/tmp
+
+if test '!' -d $tmp
+then
+  mkdir $tmp
 fi
 
 echo "MARIA RECOVERY TESTS - success is if exit code is 0"
@@ -12,30 +21,44 @@ echo "MARIA RECOVERY TESTS - success is if exit code is 0"
 # identical to the saved original.
 # Does not test the index file as we don't have logging for it yet.
 
-for prog in "$maria_path/ma_test1 $silent -M -T --skip-update -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -g -c"
+for prog in "$maria_path/ma_test1 $silent -M -T -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -c" "$maria_path/ma_test2 $silent -M -T -c -b"
 do
-  rm -f maria_log*
+  rm -f maria_log.* maria_log_control
   echo "TEST WITH $prog"
   $prog
   # derive table's name from program's name
   table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
-  $maria_path/maria_chk -dvv $table > maria_chk_message.good.txt 2>&1
-  mv -f $table.MAD $table.MAD.good
+  $maria_path/maria_chk -dvv $table > $tmp/maria_chk_message.good.txt 2>&1
+  checksum=`$maria_path/maria_chk -dss $table`
+  mv -f $table.MAD $tmp/$table.MAD.good
   rm $table.MAI
   echo "applying log"
-  $maria_path/maria_read_log -a > maria_read_log_$table.txt
-  cmp $table.MAD $table.MAD.good
-  $maria_path/maria_chk -dvv $table > maria_chk_message.txt 2>&1
+  $maria_path/maria_read_log -a > $tmp/maria_read_log_$table.txt
+  $maria_path/maria_chk -dvv $table > $tmp/maria_chk_message.txt 2>&1
+
+  cmp $table.MAD $tmp/$table.MAD.good
+
+  # QQ: Remove the following line when we also can recovert the index file
+  $maria_path/maria_chk -s -r $table
+
+  $maria_path/maria_chk -s -e $table
+  checksum2=`$maria_path/maria_chk -dss $table`
+  if test "$checksum" != "$checksum2"
+  then
+   echo "checksum differs for $table before and after recovery"
+   exit 1;
+  fi
+
 # When "recovery of the table's state" is ready, we can test it like this:
-#  diff maria_chk_message.good.txt maria_chk_message.txt >maria_chk_diff.txt || true
-#  if [ -s maria_chk_diff.txt ]
+#  diff $tmp/maria_chk_message.good.txt $tmp/maria_chk_message.txt > $tmp/maria_chk_diff.txt || true
+#  if [ -s $tmp/maria_chk_diff.txt ]
 #      then
 #      echo "Differences in maria_chk -dvv, recovery not yet perfect !"
 #      echo "========DIFF START======="
-#      cat maria_chk_diff.txt
+#      cat $tmp/maria_chk_diff.txt
 #      echo "========DIFF END======="
 #  fi
-  rm -f $table.* maria_chk_*.txt maria_read_log_$table.txt
+  rm -f $table.* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
 done
 
 echo "ALL RECOVERY TESTS OK"

@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
 				   T_SORT_INDEX))))
     {
-      uint old_testflag=check_param.testflag;
+      ulonglong old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
 	check_param.testflag|= T_REP_BY_SORT;
       check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
@@ -126,7 +126,8 @@ int main(int argc, char **argv)
     }
     else
       error|=new_error;
-    if (argc && (!(check_param.testflag & T_SILENT) || check_param.testflag & T_INFO))
+    if (argc && (!(check_param.testflag & T_SILENT) ||
+                 check_param.testflag & T_INFO))
     {
       puts("\n---------\n");
       VOID(fflush(stdout));
@@ -1034,7 +1035,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
         that it will have to find and store it.
       */
       if (share->base.born_transactional)
-        share->state.create_rename_lsn= (LSN)ULONGLONG_MAX;
+        share->state.create_rename_lsn= LSN_REPAIRED_BY_MARIA_CHK;
       if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
           (maria_is_any_key_active(share->state.key_map) ||
            (rep_quick && !param->keys_in_use && !recreate)) &&
@@ -1235,6 +1236,16 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   MARIA_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("describe");
+
+  if (param->testflag & T_VERY_SILENT)
+  {
+    longlong checksum= info->state->checksum;
+    if (!(share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD)))
+      checksum= 0;
+    printf("%s %s %s\n", name, llstr(info->state->records,llbuff),
+           llstr(checksum, llbuff2));
+    DBUG_VOID_RETURN;
+  }
 
   printf("\nMARIA file:          %s\n",name);
   printf("Record format:       %s\n", record_formats[share->data_file_type]);

@@ -28,8 +28,13 @@
 
 int ma_commit(TRN *trn)
 {
+  int res;
+  LSN commit_lsn;
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS];
+  DBUG_ENTER("ma_commit");
+
   if (trn->undo_lsn == 0) /* no work done, rollback (cheaper than commit) */
-    return trnman_rollback_trn(trn);
+    DBUG_RETURN(trnman_rollback_trn(trn));
   /*
     - if COMMIT record is written before trnman_commit_trn():
     if Checkpoint comes in the middle it will see trn is not committed,
@@ -45,27 +50,75 @@ int ma_commit(TRN *trn)
     issue (transaction's updates were made visible to other transactions).
     So we need to go the first way.
   */
+
   /**
      @todo RECOVERY share's state is written to disk only in
      maria_lock_database(), so COMMIT record is not the last record of the
      transaction! It is probably an issue. Recovery of the state is a problem
      not yet solved.
   */
-  LSN commit_lsn;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS];
   /*
     We do not store "thd->transaction.xid_state.xid" for now, it will be
     needed only when we support XA.
   */
-  return
-    translog_write_record(&commit_lsn, LOGREC_COMMIT,
-                          trn, NULL, 0,
-                          sizeof(log_array)/sizeof(log_array[0]),
-                          log_array, NULL) ||
-    translog_flush(commit_lsn) || trnman_commit_trn(trn);
+  res= (translog_write_record(&commit_lsn, LOGREC_COMMIT,
+                              trn, NULL, 0,
+                              sizeof(log_array)/sizeof(log_array[0]),
+                              log_array, NULL) ||
+        translog_flush(commit_lsn) ||
+        trnman_commit_trn(trn));
   /*
     Note: if trnman_commit_trn() fails above, we have already
     written the COMMIT record, so Checkpoint and Recovery will see the
     transaction as committed.
   */
+  DBUG_RETURN(res);
+}
+
+
+/**
+   @brief Writes a COMMIT record for a transaciton associated with a file
+
+   @param  info              Maria handler
+
+   @return Operation status
+     @retval 0      ok
+     @retval #      error (disk error or out of memory)
+*/
+
+int maria_commit(MARIA_HA *info)
+{
+  return info->s->now_transactional ? ma_commit(info->trn) : 0;
+}
+
+
+/**
+   @brief Starts a transaction on a file handle
+
+   @param  info              Maria handler
+
+   @return Operation status
+     @retval 0      ok
+     @retval #      Error code.
+*/
+
+
+int maria_begin(MARIA_HA *info)
+{
+  DBUG_ENTER("maria_begin");
+
+  if (info->s->now_transactional)
+  {
+    TRN *trn;
+    struct st_my_thread_var *mysys_var= my_thread_var;
+    trn= trnman_new_trn(&mysys_var->mutex,
+                        &mysys_var->suspend,
+                        (char*) &mysys_var + STACK_DIRECTION *1024*128);
+    if (unlikely(!trn))
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+    DBUG_PRINT("info", ("TRN set to 0x%lx", (ulong) trn));
+    info->trn= trn;
+  }
+  DBUG_RETURN(0);
 }

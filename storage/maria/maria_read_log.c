@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     goto err;
   }
   /* we don't want to create a control file, it MUST exist */
-  if (ma_control_file_create_or_open(FALSE))
+  if (ma_control_file_create_or_open())
   {
     fprintf(stderr, "Can't open control file (%d)\n", errno);
     goto err;
@@ -93,7 +93,8 @@ int main(int argc, char **argv)
   */
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_display_and_apply, stdout))
+  /* Until we have UNDO records, no UNDO phase */
+  if (maria_apply_log(lsn, opt_display_and_apply, stdout, FALSE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname);
 
@@ -113,6 +114,8 @@ end:
 
 static struct my_option my_long_options[] =
 {
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"only-display", 'o', "display brief info about records's header",
    (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
@@ -161,6 +164,9 @@ get_one_option(int optid __attribute__((unused)),
                char *argument __attribute__((unused)))
 {
   switch (optid) {
+  case '?':
+    usage();
+    exit(0);
 #ifndef DBUG_OFF
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);

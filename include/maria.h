@@ -300,7 +300,8 @@ extern ha_rows maria_records_in_range(struct st_maria_info *info, int inx,
 extern int maria_is_changed(struct st_maria_info *info);
 extern int maria_delete_all_rows(struct st_maria_info *info);
 extern uint maria_get_pointer_length(ulonglong file_length, uint def);
-
+extern int maria_commit(struct st_maria_info *info);
+extern int maria_begin(struct st_maria_info *info);
 
 /* this is used to pass to mysql_mariachk_table */
 

@@ -66,7 +66,8 @@ int main(int argc,char *argv[])
                       TRANSLOG_PAGE_SIZE) == 0) ||
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache,
-                    TRANSLOG_DEFAULT_FLAGS))
+                    TRANSLOG_DEFAULT_FLAGS) ||
+      (transactional && trnman_init()))
   {
     fprintf(stderr, "Error in initialization");
     exit(1);
@@ -180,6 +181,8 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Writing key:s\n");
 
+  if (maria_begin(file))
+    goto err;
   my_errno=0;
   row_count=deleted=0;
   for (i=49 ; i>=1 ; i-=2 )
@@ -266,8 +269,14 @@ static int run_test(const char *filename)
 
   if (!silent)
     printf("- Reopening file\n");
-  if (maria_close(file)) goto err;
-  if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED))) goto err;
+  if (maria_commit(file))
+    goto err;
+  if (maria_close(file))
+    goto err;
+  if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
+    goto err;
+  if (maria_begin(file))
+    goto err;
   if (!skip_delete)
   {
     if (!silent)
@@ -354,6 +363,8 @@ static int run_test(const char *filename)
 	     i-1,error,my_errno,read_record+1);
     }
   }
+  if (maria_commit(file))
+    goto err;
   if (maria_close(file))
     goto err;
   maria_end();
@@ -622,7 +633,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"unique", 'C', "Undocumented", (uchar**) &opt_unique,
    (uchar**) &opt_unique, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"update-rows", 'u', "Undocumented", (uchar**) &update_count,
+  {"update-rows", 'u', "Max number of rows to update", (uchar**) &update_count,
    (uchar**) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be more verbose", (uchar**) &verbose,
    (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
