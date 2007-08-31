@@ -895,7 +895,11 @@ end:
   if (maria_commit(file))
     goto err;
   if (maria_close(file))
+  {
+    file= 0;
     goto err;
+  }
+  file= 0;
   maria_panic(HA_PANIC_CLOSE);			/* Should close log */
   if (!silent)
   {
@@ -937,7 +941,11 @@ reads:      %10lu\n",
 err:
   printf("got error: %d when using MARIA-database\n",my_errno);
   if (file)
+  {
+    if (maria_commit(file))
+      goto err;
     VOID(maria_close(file));
+  }
   maria_end();
   return(1);
 } /* main */
