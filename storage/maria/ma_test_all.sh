@@ -143,6 +143,10 @@ run_repair_tests()
   $maria_path/maria_chk$suffix -se test2
   $maria_path/maria_chk$suffix -s --parallel-recover --quick test2
   $maria_path/maria_chk$suffix -se test2
+  $maria_path/ma_test2$suffix $silent -c $row_type
+  $maria_path/maria_chk$suffix -se test2
+  $maria_path/maria_chk$suffix -sr test2
+  $maria_path/maria_chk$suffix -se test2
 }
 
 run_pack_tests()
