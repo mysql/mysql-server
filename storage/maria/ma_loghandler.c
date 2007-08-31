@@ -159,7 +159,7 @@ struct st_translog_descriptor
   LSN flushed;
   /* Last LSN sent to the disk (but maybe not written yet) */
   LSN sent_to_file;
-  /* All what is after this addess is not sent to disk yet */
+  /* All what is after this address is not sent to disk yet */
   TRANSLOG_ADDRESS in_buffers_only;
   pthread_mutex_t sent_to_file_lock;
 
@@ -671,7 +671,7 @@ static my_bool translog_max_lsn_to_header(File file, LSN lsn)
 typedef struct st_loghandler_file_info
 {
   /*
-    LSN_IPOSSIBLE for current file and max LSN which parts stored in the
+    LSN_IMPOSSIBLE for current file and max LSN which parts stored in the
     file for all other (finished) files.
   */
   LSN max_lsn;
@@ -813,7 +813,7 @@ static void translog_mark_file_unfinished(ulong file)
     goto end;
   }
 
-  for (place= log_descriptor.unfinished_files.elements;
+  for (place= log_descriptor.unfinished_files.elements - 1;
        place >= 0;
        place--)
   {
