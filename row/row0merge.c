@@ -1698,7 +1698,7 @@ row_merge_rename_index(
 	pars_info_t*	info = pars_info_create();
 
 	/* Only rename from temp names */
-	ut_a(*index->name == TEMP_TABLE_PREFIX);
+	ut_a(*index->name == TEMP_INDEX_PREFIX);
 
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming index. */

@@ -427,7 +427,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	mtr_start(&mtr);
 
 	/* Ignore indexes that are being created. */
-	if (UNIV_UNLIKELY(*index->name == TEMP_TABLE_PREFIX)) {
+	if (UNIV_UNLIKELY(*index->name == TEMP_INDEX_PREFIX)) {
 
 		return(DB_SUCCESS);
 	}

@@ -8022,7 +8022,7 @@ innobase_create_index_def(
 							  len + !new_primary);
 
 	if (UNIV_LIKELY(!new_primary)) {
-		*index_name++ = TEMP_TABLE_PREFIX;
+		*index_name++ = TEMP_INDEX_PREFIX;
 	}
 
 	memcpy(index_name, key->name, len);
