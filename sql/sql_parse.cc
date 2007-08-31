@@ -3990,6 +3990,8 @@ end_with_restore_list:
   }
   case SQLCOM_SHOW_CREATE_DB:
   {
+    DBUG_EXECUTE_IF("4x_server_emul",
+                    my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
