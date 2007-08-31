@@ -1252,8 +1252,7 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Display an SQL identifier.
-This definition must match the one in innobase/ut/ut0ut.c! */
+Display an SQL identifier. */
 extern "C"
 void
 innobase_print_identifier(

@@ -18,6 +18,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "ut0sort.h"
 #include "trx0trx.h"
+#include "ha_prototypes.h"
 
 ibool	ut_always_false	= FALSE;
 
@@ -69,22 +70,6 @@ ut_gettimeofday(
 #else
 #define	ut_gettimeofday		gettimeofday
 #endif
-
-#ifndef UNIV_HOTBACKUP
-/*********************************************************************
-Display an SQL identifier.
-This definition must match the one in sql/ha_innodb.cc! */
-extern
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen);/* in: length of name */
-#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
