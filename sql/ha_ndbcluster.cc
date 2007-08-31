@@ -385,6 +385,7 @@ Thd_ndb::Thd_ndb()
   all= NULL;
   stmt= NULL;
   m_error= FALSE;
+  m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
@@ -423,6 +424,7 @@ Thd_ndb::init_open_tables()
 {
   count= 0;
   m_error= FALSE;
+  m_error_code= 0;
   my_hash_reset(&open_tables);
 }
 
@@ -548,6 +550,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->m_error= TRUE;
+  get_thd_ndb(current_thd)->m_error_code= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2496,8 +2499,13 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   if (execute_no_commit_ie(this,trans,FALSE) != 0 ||
       op->getNdbError().code) 
   {
-    table->status= STATUS_NOT_FOUND;
-    DBUG_RETURN(ndb_err(trans));
+    int err= ndb_err(trans);
+    if(err==HA_ERR_KEY_NOT_FOUND)
+      table->status= STATUS_NOT_FOUND;
+    else
+      table->status= STATUS_GARBAGE;
+
+    DBUG_RETURN(err);
   }
 
   if (table_share->primary_key == MAX_KEY)
@@ -9212,7 +9220,15 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       share->table_name= share->db + strlen(share->db) + 1;
       ha_ndbcluster::set_tabname(key, share->table_name);
 #ifdef HAVE_NDB_BINLOG
-      ndbcluster_binlog_init_share(share, table);
+      if (ndbcluster_binlog_init_share(share, table))
+      {
+        DBUG_PRINT("error", ("get_share: %s could not init share", key));
+        ndbcluster_real_free_share(&share);
+        *root_ptr= old_root;
+        if (!have_lock)
+          pthread_mutex_unlock(&ndbcluster_mutex);
+        DBUG_RETURN(0);
+      }
 #endif
       *root_ptr= old_root;
     }

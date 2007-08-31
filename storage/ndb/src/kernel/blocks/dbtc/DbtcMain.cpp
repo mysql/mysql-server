@@ -1802,9 +1802,18 @@ start_failure:
   }//switch
 }
 
+static
+inline
+bool
+compare_transid(Uint32* val0, Uint32* val1)
+{
+  Uint32 tmp0 = val0[0] ^ val1[0];
+  Uint32 tmp1 = val0[1] ^ val1[1];
+  return (tmp0 | tmp1) == 0;
+}
+
 void Dbtc::execKEYINFO(Signal* signal) 
 {
-  UintR compare_transid1, compare_transid2;
   jamEntry();
   apiConnectptr.i = signal->theData[0];
   tmaxData = 20;
@@ -1814,10 +1823,8 @@ void Dbtc::execKEYINFO(Signal* signal)
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
   ttransid_ptr = 1;
-  compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
-  compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
-  compare_transid1 = compare_transid1 | compare_transid2;
-  if (compare_transid1 != 0) {
+  if (compare_transid(apiConnectptr.p->transid, signal->theData+1) == false) 
+  {
     TCKEY_abort(signal, 19);
     return;
   }//if
@@ -2118,7 +2125,6 @@ void Dbtc::saveAttrbuf(Signal* signal)
 
 void Dbtc::execATTRINFO(Signal* signal) 
 {
-  UintR compare_transid1, compare_transid2;
   UintR Tdata1 = signal->theData[0];
   UintR Tlength = signal->length();
   UintR TapiConnectFilesize = capiConnectFilesize;
@@ -2133,17 +2139,13 @@ void Dbtc::execATTRINFO(Signal* signal)
     return;
   }//if
 
-  UintR Tdata2 = signal->theData[1];
-  UintR Tdata3 = signal->theData[2];
   ApiConnectRecord * const regApiPtr = &localApiConnectRecord[Tdata1];
-  compare_transid1 = regApiPtr->transid[0] ^ Tdata2;
-  compare_transid2 = regApiPtr->transid[1] ^ Tdata3;
   apiConnectptr.p = regApiPtr;
-  compare_transid1 = compare_transid1 | compare_transid2;
 
-  if (compare_transid1 != 0) {
+  if (compare_transid(regApiPtr->transid, signal->theData+1) == false)
+  {
     DEBUG("Drop ATTRINFO, wrong transid, lenght="<<Tlength
-	  << " transid("<<hex<<Tdata2<<", "<<Tdata3);
+	  << " transid("<<hex<<signal->theData[1]<<", "<<signal->theData[2]);
     TCKEY_abort(signal, 19);
     return;
   }//if
@@ -5445,11 +5447,32 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
   }
 }//Dbtc::execTC_COMMITREQ()
 
+/**
+ * TCROLLBACKREQ
+ *
+ * Format is:
+ *
+ * thedata[0] = apiconnectptr
+ * thedata[1] = transid[0]
+ * thedata[2] = transid[1]
+ * OPTIONAL thedata[3] = flags
+ *
+ * Flags:
+ *    0x1  =  potentiallyBad data from API (try not to assert)
+ */
 void Dbtc::execTCROLLBACKREQ(Signal* signal) 
 {
+  bool potentiallyBad= false;
   UintR compare_transid1, compare_transid2;
 
   jamEntry();
+
+  if(unlikely((signal->getLength() >= 4) && (signal->theData[3] & 0x1)))
+  {
+    ndbout_c("Trying to roll back potentially bad txn\n");
+    potentiallyBad= true;
+  }
+
   apiConnectptr.i = signal->theData[0];
   if (apiConnectptr.i >= capiConnectFilesize) {
     goto TC_ROLL_warning;
@@ -5536,12 +5559,14 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
 
 TC_ROLL_warning:
   jam();
-  warningHandlerLab(signal, __LINE__);
+  if(likely(potentiallyBad==false))
+    warningHandlerLab(signal, __LINE__);
   return;
 
 TC_ROLL_system_error:
   jam();
-  systemErrorLab(signal, __LINE__);
+  if(likely(potentiallyBad==false))
+    systemErrorLab(signal, __LINE__);
   return;
 }//Dbtc::execTCROLLBACKREQ()
 
@@ -11888,6 +11913,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     // This is a newly started transaction, clean-up
     releaseAllSeizedIndexOperations(regApiPtr);
 
+    regApiPtr->apiConnectstate = CS_STARTED;
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
   }//if
@@ -11928,20 +11954,29 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   Uint32 includedIndexLength = MIN(indexLength, indexBufSize);
   indexOp->expectedAttrInfo = attrLength;
   Uint32 includedAttrLength = MIN(attrLength, attrBufSize);
-  if (saveINDXKEYINFO(signal, 
-                      indexOp, 
-                      dataPtr, 
-                      includedIndexLength)) {
+
+  int ret;
+  if ((ret = saveINDXKEYINFO(signal, 
+                             indexOp, 
+                             dataPtr, 
+                             includedIndexLength)) == 0) 
+  {
     jam();
     // We have received all we need
     readIndexTable(signal, regApiPtr, indexOp);
     return;
   }
+  else if (ret == -1)
+  {
+    jam();
+    return;
+  }
+  
   dataPtr += includedIndexLength;
   if (saveINDXATTRINFO(signal, 
                        indexOp, 
                        dataPtr, 
-                       includedAttrLength)) {
+                       includedAttrLength) == 0) {
     jam();
     // We have received all we need
     readIndexTable(signal, regApiPtr, indexOp);
@@ -12044,13 +12079,25 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
 
+  if (compare_transid(regApiPtr->transid, indxKeyInfo->transId) == false)
+  {
+    TCKEY_abort(signal, 19);
+    return;
+  }
+
+  if (regApiPtr->apiConnectstate == CS_ABORTING)
+  {
+    jam();
+    return;
+  }
+
   if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
   {
     indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
     if (saveINDXKEYINFO(signal,
 			indexOp, 
 			src, 
-			keyInfoLength)) {
+			keyInfoLength) == 0) {
       jam();
       // We have received all we need
       readIndexTable(signal, regApiPtr, indexOp);
@@ -12077,17 +12124,31 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
 
+  if (compare_transid(regApiPtr->transid, indxAttrInfo->transId) == false)
+  {
+    TCKEY_abort(signal, 19);
+    return;
+  }
+
+  if (regApiPtr->apiConnectstate == CS_ABORTING)
+  {
+    jam();
+    return;
+  }
+
   if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
   {
     indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
     if (saveINDXATTRINFO(signal,
 			 indexOp, 
 			 src, 
-			 attrInfoLength)) {
+			 attrInfoLength) == 0) {
       jam();
       // We have received all we need
       readIndexTable(signal, regApiPtr, indexOp);
+      return;
     }
+    return;
   }
 }
 
@@ -12095,12 +12156,13 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
  * Save signal INDXKEYINFO
  * Return true if we have received all needed data
  */
-bool Dbtc::saveINDXKEYINFO(Signal* signal,
-                           TcIndexOperation* indexOp,
-                           const Uint32 *src, 
-                           Uint32 len)
+int 
+Dbtc::saveINDXKEYINFO(Signal* signal,
+                      TcIndexOperation* indexOp,
+                      const Uint32 *src, 
+                      Uint32 len)
 {
-  if (!indexOp->keyInfo.append(src, len)) {
+  if (ERROR_INSERTED(8039) || !indexOp->keyInfo.append(src, len)) {
     jam();
     // Failed to seize keyInfo, abort transaction
 #ifdef VM_TRACE
@@ -12110,15 +12172,17 @@ bool Dbtc::saveINDXKEYINFO(Signal* signal,
     apiConnectptr.i = indexOp->connectionIndex;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     releaseIndexOperation(apiConnectptr.p, indexOp);
-    terrorCode = 4000;
+    terrorCode = 289;
+    if(TcKeyReq::getExecuteFlag(indexOp->tcIndxReq.requestInfo))
+      apiConnectptr.p->m_exec_flag= 1;
     abortErrorLab(signal);
-    return false;
+    return -1;
   }
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
-    return true;
+    return 0;
   }
-  return false;
+  return 1;
 }
 
 bool Dbtc::receivedAllINDXKEYINFO(TcIndexOperation* indexOp)
@@ -12130,12 +12194,13 @@ bool Dbtc::receivedAllINDXKEYINFO(TcIndexOperation* indexOp)
  * Save signal INDXATTRINFO
  * Return true if we have received all needed data
  */
-bool Dbtc::saveINDXATTRINFO(Signal* signal,
-                            TcIndexOperation* indexOp,
-                            const Uint32 *src, 
-                            Uint32 len)
+int 
+Dbtc::saveINDXATTRINFO(Signal* signal,
+                       TcIndexOperation* indexOp,
+                       const Uint32 *src, 
+                       Uint32 len)
 {
-  if (!indexOp->attrInfo.append(src, len)) {
+  if (ERROR_INSERTED(8051) || !indexOp->attrInfo.append(src, len)) {
     jam();
 #ifdef VM_TRACE
     ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize attrInfo\n");
@@ -12143,15 +12208,17 @@ bool Dbtc::saveINDXATTRINFO(Signal* signal,
     apiConnectptr.i = indexOp->connectionIndex;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     releaseIndexOperation(apiConnectptr.p, indexOp);
-    terrorCode = 4000;
+    terrorCode = 289;
+    if(TcKeyReq::getExecuteFlag(indexOp->tcIndxReq.requestInfo))
+      apiConnectptr.p->m_exec_flag= 1;
     abortErrorLab(signal);
-    return false;
+    return -1;
   }
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
-    return true;
+    return 0;
   }
-  return false;
+  return 1;
 }
 
 bool Dbtc::receivedAllINDXATTRINFO(TcIndexOperation* indexOp)
@@ -12335,6 +12402,9 @@ void Dbtc::execTCKEYREF(Signal* signal)
     tcIndxRef->transId[0] = tcKeyRef->transId[0];
     tcIndxRef->transId[1] = tcKeyRef->transId[1];
     tcIndxRef->errorCode = tcKeyRef->errorCode;
+
+    releaseIndexOperation(regApiPtr, indexOp);
+
     sendSignal(regApiPtr->ndbapiBlockref, 
                GSN_TCINDXREF, signal, TcKeyRef::SignalLength, JBB);
     return;
@@ -12879,7 +12949,18 @@ void Dbtc::executeIndexOperation(Signal* signal,
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 			       TcIndexOperationPtr& indexOpPtr)
 {
-  return regApiPtr->theSeizedIndexOperations.seize(indexOpPtr);
+  if (regApiPtr->theSeizedIndexOperations.seize(indexOpPtr))
+  {
+    ndbassert(indexOpPtr.p->expectedKeyInfo == 0);
+    ndbassert(indexOpPtr.p->keyInfo.getSize() == 0);
+    ndbassert(indexOpPtr.p->expectedAttrInfo == 0);
+    ndbassert(indexOpPtr.p->attrInfo.getSize() == 0);
+    ndbassert(indexOpPtr.p->expectedTransIdAI == 0);
+    ndbassert(indexOpPtr.p->transIdAI.getSize() == 0);
+    return true;
+  }
+  
+  return false;
 }
 
 void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,

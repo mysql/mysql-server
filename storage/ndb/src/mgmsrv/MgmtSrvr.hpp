@@ -168,7 +168,7 @@ public:
    *   @return true if succeeded, otherwise false
    */
   bool check_start(); // may be run before start to check that some things are ok
-  bool start(BaseString &error_string);
+  bool start(BaseString &error_string, const char * bindaddress = 0);
 
   ~MgmtSrvr();
 
@@ -442,7 +442,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  int connect_to_self(void);
+  int connect_to_self(const char* bindaddress = 0);
 
   void transporter_connect(NDB_SOCKET_TYPE sockfd);
 
