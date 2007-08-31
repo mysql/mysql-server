@@ -46,6 +46,74 @@ stop slave;
 
 # End of 4.1 tests
 
+#
+# Bug #25843 Changing default database between PREPARE and EXECUTE of statement
+# breaks binlog.
+#
+# There were actually two problems discovered by this bug:
+#
+#   1. Default (current) database is not fixed at the creation time.
+#      That leads to wrong output of DATABASE() function.
+#
+#   2. Database attributes (@@collation_database) are not fixed at the creation
+#      time. That leads to wrong resultset.
+#
+# Binlog breakage and Query Cache wrong output happened because of the first
+# problem.
+#
+
+--echo
+--echo ########################################################################
+--echo #
+--echo # BUG#25843: Changing default database between PREPARE and EXECUTE of
+--echo # statement breaks binlog.
+--echo #
+--echo ########################################################################
+
+###############################################################################
+
+--echo
+--echo #
+--echo # Check that binlog is filled properly.
+--echo #
+
+--echo
+CREATE DATABASE mysqltest1;
+CREATE TABLE t1(c INT);
+
+--echo
+RESET MASTER;
+RESET SLAVE;
+
+--echo
+PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(1)';
+
+--echo
+EXECUTE stmt_d_1;
+
+--echo
+use mysqltest1;
+
+--echo
+EXECUTE stmt_d_1;
+
+--echo
+FLUSH LOGS;
+
+--echo
+SHOW BINLOG EVENTS FROM 106;
+
+--echo
+DROP DATABASE mysqltest1;
+
+--echo
+use test;
+
+--echo
+--echo ########################################################################
+
+###############################################################################
+
 reset master;
 reset slave;
 disconnect master;
