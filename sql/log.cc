@@ -656,8 +656,14 @@ int Log_to_csv_event_handler::
 
   table= open_performance_schema_table(thd, & table_list,
                                        & open_tables_backup);
-  result= (table ? 0 : 1);
-  close_performance_schema_table(thd, & open_tables_backup);
+  if (table)
+  {
+    result= 0;
+    close_performance_schema_table(thd, & open_tables_backup);
+  }
+  else
+    result= 1;
+
   DBUG_RETURN(result);
 }
 
