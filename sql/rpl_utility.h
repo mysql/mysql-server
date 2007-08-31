@@ -241,8 +241,8 @@ public:
 private:
   ulong m_size;           // Number of elements in the types array
   field_type *m_type;                     // Array of type descriptors
-  uint16 *m_field_metadata;
   uint m_field_metadata_size;
+  uint16 *m_field_metadata;
   uchar *m_null_bits;
   uchar *m_memory;
 };
