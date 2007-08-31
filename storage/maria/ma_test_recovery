@@ -21,7 +21,7 @@ echo "MARIA RECOVERY TESTS - success is if exit code is 0"
 # identical to the saved original.
 # Does not test the index file as we don't have logging for it yet.
 
-for prog in "$maria_path/ma_test1 $silent -M -T --skip-update -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -g -c"
+for prog in "$maria_path/ma_test1 $silent -M -T -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -c" "$maria_path/ma_test2 $silent -M -T -c -b"
 do
   rm -f maria_log.* maria_log_control
   echo "TEST WITH $prog"
@@ -36,6 +36,8 @@ do
   $maria_path/maria_read_log -a > $tmp/maria_read_log_$table.txt
   $maria_path/maria_chk -dvv $table > $tmp/maria_chk_message.txt 2>&1
 
+  cmp $table.MAD $tmp/$table.MAD.good
+
   # QQ: Remove the following line when we also can recovert the index file
   $maria_path/maria_chk -s -r $table
 
@@ -46,7 +48,7 @@ do
    echo "checksum differs for $table before and after recovery"
    exit 1;
   fi
-# cmp $table.MAD $tmp/$table.MAD.good
+
 # When "recovery of the table's state" is ready, we can test it like this:
 #  diff $tmp/maria_chk_message.good.txt $tmp/maria_chk_message.txt > $tmp/maria_chk_diff.txt || true
 #  if [ -s $tmp/maria_chk_diff.txt ]

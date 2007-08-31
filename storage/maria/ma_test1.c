@@ -633,7 +633,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"unique", 'C', "Undocumented", (uchar**) &opt_unique,
    (uchar**) &opt_unique, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"update-rows", 'u', "Undocumented", (uchar**) &update_count,
+  {"update-rows", 'u', "Max number of rows to update", (uchar**) &update_count,
    (uchar**) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be more verbose", (uchar**) &verbose,
    (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},

@@ -601,7 +601,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if (share->base.born_transactional)
     {
       share->page_type= PAGECACHE_LSN_PAGE;
+#ifdef ENABLE_WHEN_WE_HAVE_TRANS_ROW_ID         /* QQ */
       share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
+#endif
       if (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK)
       {
         /*
