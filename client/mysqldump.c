@@ -3848,7 +3848,7 @@ int init_dumping_tables(char *qdatabase)
       /* Old server version, dump generic CREATE DATABASE */
       if (opt_drop_database)
         fprintf(md_result_file,
-                "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
+                "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                 qdatabase);
       fprintf(md_result_file,
               "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
