@@ -453,7 +453,8 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 
 --echo "Should have only 2 processes: the scheduler and the locked event"
 let $wait_condition= select count(*) = 2 from information_schema.processlist
-  where (info like "select get_lock%" OR user='event_scheduler');
+  where ( (state like 'User lock%' AND info like 'select get_lock%')
+       OR (command='Daemon' AND user='event_scheduler'));
 --source include/wait_condition.inc
 
 select /*2*/ user, host, db, command, state, info
@@ -463,6 +464,13 @@ select /*2*/ user, host, db, command, state, info
 --echo "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 drop event закачка;
+
+# Wait for release_lock("test_lock2") to complete,
+# to avoid polluting the next test information_schema.processlist
+let $wait_condition= select count(*) = 0 from information_schema.processlist
+  where (state like 'User lock%' AND info like 'select get_lock%');
+--source include/wait_condition.inc
+
 
 ##
 ## 1. get a lock
@@ -478,7 +486,8 @@ create event закачка21 on schedule every 10 hour do select get_lock("test
 
 --echo "Should have only 2 processes: the scheduler and the locked event"
 let $wait_condition= select count(*) = 2 from information_schema.processlist
-  where (info like "select get_lock%" OR user='event_scheduler');
+  where ( (state like 'User lock%' AND info like 'select get_lock%')
+       OR (command='Daemon' AND user='event_scheduler'));
 --source include/wait_condition.inc
 
 select /*3*/ user, host, db, command, state, info
