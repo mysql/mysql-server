@@ -204,22 +204,15 @@ sub mtr_copy_dir($$) {
 
 sub mtr_rmtree($) {
   my ($dir)= @_;
-  my $need_file_find= 0;
   mtr_verbose("mtr_rmtree: $dir");
 
-  {
-    # Try to use File::Path::rmtree. Recent versions
-    # handles removal of directories and files that don't
-    # have full permissions, while older versions
-    # may have a problem with that and we use our own version
+  # Try to use File::Path::rmtree. Recent versions
+  # handles removal of directories and files that don't
+  # have full permissions, while older versions
+  # may have a problem with that and we use our own version
 
-    local $SIG{__WARN__}= sub {
-      $need_file_find= 1;
-      mtr_warning($_[0]);
-    };
-    rmtree($dir);
-  }
-  if ( $need_file_find ) {
+  eval { rmtree($dir); };
+  if ( $@ ) {
     mtr_warning("rmtree($dir) failed, trying with File::Find...");
 
     my $errors= 0;
