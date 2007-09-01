@@ -459,17 +459,20 @@ ut_print_namel(
 #ifdef UNIV_HOTBACKUP
 	fwrite(name, 1, namelen, f);
 #else
-	char*	slash = memchr(name, '/', namelen);
+	if (table_id) {
+		char*	slash = memchr(name, '/', namelen);
+		if (!slash) {
 
-	if (UNIV_LIKELY_NULL(slash)) {
+			goto no_db_name;
+		}
+
 		/* Print the database name and table name separately. */
-		ut_ad(table_id);
-
 		innobase_print_identifier(f, trx, TRUE, name, slash - name);
 		putc('.', f);
 		innobase_print_identifier(f, trx, TRUE, slash + 1,
 					  namelen - (slash - name) - 1);
 	} else {
+no_db_name:
 		innobase_print_identifier(f, trx, table_id, name, namelen);
 	}
 #endif
