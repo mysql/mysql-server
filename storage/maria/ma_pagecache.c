@@ -96,7 +96,7 @@
 #define PCBLOCK_INFO(B) \
   DBUG_PRINT("info", \
              ("block: 0x%lx  file: %lu  page: %lu  s: %0x  hshL: 0x%lx  req: %u/%u " \
-              "wrlock: %c", \
+              "wrlocks: %u", \
               (ulong)(B), \
               (ulong)((B)->hash_link ? \
                       (B)->hash_link->file.file : \
@@ -110,7 +110,7 @@
               (uint)((B)->hash_link ? \
                      (B)->hash_link->requests : \
                        0), \
-              ((block->status & PCBLOCK_WRLOCK)?'Y':'N')))
+              block->wlocks))
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
@@ -160,7 +160,6 @@ struct st_pagecache_hash_link
 #define PCBLOCK_REASSIGNED  8 /* block does not accept requests for old page */
 #define PCBLOCK_IN_FLUSH   16 /* block is in flush operation                 */
 #define PCBLOCK_CHANGED    32 /* block buffer contains a dirty page          */
-#define PCBLOCK_WRLOCK     64 /* write locked block                          */
 
 /* page status, returned by find_block */
 #define PAGE_READ               0
@@ -313,6 +312,7 @@ struct st_pagecache_block_link
   uint requests;          /* number of requests for the block                */
   uint status;            /* state of the block                              */
   uint pins;              /* pin counter                                     */
+  uint wlocks;            /* write locks counter                             */
   enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot  */
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
@@ -1884,7 +1884,7 @@ restart:
           pagecache->blocks_used++;
         }
         pagecache->blocks_unused--;
-        DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
+        DBUG_ASSERT(block->wlocks == 0);
         DBUG_ASSERT(block->pins == 0);
         block->status= 0;
 #ifndef DBUG_OFF
@@ -1949,16 +1949,16 @@ restart:
           hash_link->block= block;
         }
         PCBLOCK_INFO(block);
-        DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
+        DBUG_ASSERT(block->wlocks == 0);
         DBUG_ASSERT(block->pins == 0);
 
         if (block->hash_link != hash_link &&
 	    ! (block->status & PCBLOCK_IN_SWITCH) )
         {
 	  /* this is a primary request for a new page */
-          DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
+          DBUG_ASSERT(block->wlocks == 0);
           DBUG_ASSERT(block->pins == 0);
-          block->status|= (PCBLOCK_IN_SWITCH | PCBLOCK_WRLOCK);
+          block->status|= PCBLOCK_IN_SWITCH;
 
           KEYCACHE_DBUG_PRINT("find_block",
                               ("got block %u for new page",
@@ -2170,7 +2170,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
                           file.file, block->hash_link->file.file,
                           pageno, block->hash_link->pageno));
   PCBLOCK_INFO(block);
-  while ((block->status & PCBLOCK_WRLOCK) && block->write_locker != user_file)
+  while (block->wlocks && block->write_locker != user_file)
   {
     /* Lock failed we will wait */
 #ifdef THREAD
@@ -2203,7 +2203,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
     }
   }
   /* we are doing it by global cache mutex protection, so it is OK */
-  block->status|= PCBLOCK_WRLOCK;
+  block->wlocks++;
   block->write_locker= user_file;
   DBUG_PRINT("info", ("WR lock set, block 0x%lx", (ulong)block));
   DBUG_RETURN(0);
@@ -2226,11 +2226,11 @@ static void release_wrlock(PAGECACHE_BLOCK_LINK *block)
 {
   DBUG_ENTER("release_wrlock");
   PCBLOCK_INFO(block);
-  DBUG_ASSERT(block->status & PCBLOCK_WRLOCK);
+  DBUG_ASSERT(block->wlocks > 0);
   DBUG_ASSERT(block->pins > 0);
-  if (block->pins > 1)
+  block->wlocks--;
+  if (block->wlocks > 0)
     DBUG_VOID_RETURN;                      /* Multiple write locked */
-  block->status&= ~PCBLOCK_WRLOCK;
   DBUG_PRINT("info", ("WR lock reset, block 0x%lx", (ulong)block));
 #ifdef THREAD
   /* release all threads waiting for write lock */
@@ -2270,9 +2270,9 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
 #ifndef DBUG_OFF
   if (block)
   {
-    DBUG_PRINT("enter", ("block: 0x%lx (%u)  wrlock: %c  pins: %u  lock: %s  pin: %s",
+    DBUG_PRINT("enter", ("block: 0x%lx (%u)  wrlocks: %u  pins: %u  lock: %s  pin: %s",
                          (ulong)block, PCBLOCK_NUMBER(pagecache, block),
-                         ((block->status & PCBLOCK_WRLOCK)?'Y':'N'),
+                         block->wlocks,
                          block->pins,
                          page_cache_page_lock_str[lock],
                          page_cache_page_pin_str[pin]));
@@ -2406,7 +2406,7 @@ static void read_block(PAGECACHE *pagecache,
     if (got_length < pagecache->block_size)
       block->status|= PCBLOCK_ERROR;
     else
-      block->status= (PCBLOCK_READ | (block->status & PCBLOCK_WRLOCK));
+      block->status= PCBLOCK_READ;
 
     if (validator != NULL &&
         (*validator)(block->buffer, validator_data))
@@ -3284,7 +3284,7 @@ restart:
           bmove512(block->buffer + offset, buff, size);
         else
           memcpy(block->buffer + offset, buff, size);
-        block->status= (PCBLOCK_READ | (block->status & PCBLOCK_WRLOCK));
+        block->status= PCBLOCK_READ;
         /*
           The validator can change the page content (removing page
           protection) so it have to be called
@@ -3399,7 +3399,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   }
 
   unlink_changed(block);
-  DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
+  DBUG_ASSERT(block->wlocks == 0);
   DBUG_ASSERT(block->pins == 0);
   block->status= 0;
 #ifndef DBUG_OFF
@@ -3480,7 +3480,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       continue;
     }
     /* if the block is not pinned then it is not write locked */
-    DBUG_ASSERT((block->status & PCBLOCK_WRLOCK) == 0);
+    DBUG_ASSERT(block->wlocks == 0);
     DBUG_ASSERT(block->pins == 0);
     if (make_lock_and_pin(pagecache, block,
                           PAGECACHE_LOCK_WRITE, PAGECACHE_PIN, 0))
