@@ -34,17 +34,18 @@ stop slave;
 #
 ########################################################################
 
-#
-# Check that binlog is filled properly.
-#
+# Connection: slave
+
+
+START SLAVE;
+
+# Connection: master
+
 
 CREATE DATABASE mysqltest1;
-CREATE TABLE t1(c INT);
+CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));
 
-RESET MASTER;
-RESET SLAVE;
-
-PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(1)';
+PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(DATABASE(), @@collation_database)';
 
 EXECUTE stmt_d_1;
 
@@ -52,17 +53,27 @@ use mysqltest1;
 
 EXECUTE stmt_d_1;
 
-FLUSH LOGS;
 
-SHOW BINLOG EVENTS FROM 106;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	106	Query	2	193	use `test`; INSERT INTO t1 VALUES(1)
-slave-bin.000001	193	Query	2	280	use `test`; INSERT INTO t1 VALUES(1)
-slave-bin.000001	280	Rotate	2	323	slave-bin.000002;pos=4
+# Connection: slave
+
+
+SELECT * FROM t1;
+db_name	db_col_name
+test	latin1_swedish_ci
+test	latin1_swedish_ci
+
+# Connection: master
+
 
 DROP DATABASE mysqltest1;
 
 use test;
+
+
+# Connection: slave
+
+
+STOP SLAVE;
 
 ########################################################################
 reset master;
