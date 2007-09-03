@@ -1864,7 +1864,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
 			&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
-    if (thd->copy_db_to(&table_list.db, 0))
+    if (thd->copy_db_to(&table_list.db, &table_list.db_length))
       break;
     pend= strend(packet);
     thd->convert_string(&conv_name, system_charset_info,
