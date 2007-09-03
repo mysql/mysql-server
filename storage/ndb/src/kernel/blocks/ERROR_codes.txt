@@ -308,7 +308,7 @@ ABORT OF TCKEYREQ
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
 
-8039 : Simulate failure of TransactionBufferMemory allocation for OI lookup
+8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
 
