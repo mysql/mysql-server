@@ -72,17 +72,6 @@ lock_get_type(
 				/* out: LOCK_TABLE or LOCK_REC */
 	const lock_t*	lock);	/* in: lock */
 
-/**************************************************************************
-Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
-if none found. */
-
-ulint
-lock_rec_find_set_bit(
-/*==================*/
-				/* out: bit index == heap number of
-				the record, or ULINT_UNDEFINED if none found */
-	const lock_t*	lock);	/* in: record lock with at least one bit set */
-
 /*************************************************************************
 Gets the previous record lock set on a record. */
 
