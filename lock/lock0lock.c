@@ -5360,3 +5360,156 @@ lock_clust_rec_read_check_and_lock_alt(
 	}
 	return(ret);
 }
+
+/***********************************************************************
+Gets the id of the transaction owning a lock. */
+
+ullint
+lock_get_trx_id(
+/*============*/
+				/* out: transaction id */
+	const lock_t*	lock)	/* in: lock */
+{
+	return(trx_get_id(lock->trx));
+}
+
+/***********************************************************************
+Gets the mode of a lock in a human readable string.
+The string should not be free()'d or modified. */
+
+const char*
+lock_get_mode_str(
+/*==============*/
+				/* out: lock mode */
+	const lock_t*	lock)	/* in: lock */
+{
+	switch (lock_get_mode(lock)) {
+	case LOCK_S:
+		return("S");
+	case LOCK_X:
+		return("X");
+	case LOCK_IS:
+		return("IS");
+	case LOCK_IX:
+		return("IX");
+	case LOCK_AUTO_INC:
+		return("AUTO_INC");
+	default:
+		return("UNKNOWN");
+	}
+}
+
+/***********************************************************************
+Gets the type of a lock in a human readable string.
+The string should not be free()'d or modified. */
+
+const char*
+lock_get_type_str(
+/*==============*/
+				/* out: lock type */
+	const lock_t*	lock)	/* in: lock */
+{
+	switch (lock_get_type(lock)) {
+	case LOCK_REC:
+		return("RECORD");
+	case LOCK_TABLE:
+		return("TABLE");
+	default:
+		return("UNKNOWN");
+	}
+}
+
+/***********************************************************************
+Gets the table on which the lock is. */
+UNIV_INLINE
+dict_table_t*
+lock_get_table(
+/*===========*/
+				/* out: table */
+	const lock_t*	lock)	/* in: lock */
+{
+	switch (lock_get_type(lock)) {
+	case LOCK_REC:
+		return(lock->index->table);
+	case LOCK_TABLE:
+		return(lock->un_member.tab_lock.table);
+	default:
+		ut_error;
+	}
+}
+
+/***********************************************************************
+Gets the id of the table on which the lock is. */
+
+ullint
+lock_get_table_id(
+/*==============*/
+				/* out: id of the table */
+	const lock_t*	lock)	/* in: lock */
+{
+	dict_table_t*	table;
+
+	table = lock_get_table(lock);
+
+	return((ullint)ut_conv_dulint_to_longlong(table->id));
+}
+
+/***********************************************************************
+Gets the name of the table on which the lock is.
+The string should not be free()'d or modified. */
+
+const char*
+lock_get_table_name(
+/*================*/
+				/* out: name of the table */
+	const lock_t*	lock)	/* in: lock */
+{
+	dict_table_t*	table;
+
+	table = lock_get_table(lock);
+
+	return(table->name);
+}
+
+/***********************************************************************
+For a record lock, gets the name of the index on which the lock is.
+The string should not be free()'d or modified. */
+
+const char*
+lock_rec_get_index_name(
+/*====================*/
+				/* out: name of the index */
+	const lock_t*	lock)	/* in: lock */
+{
+	ut_a(lock_get_type(lock) == LOCK_REC);
+
+	return(lock->index->name);
+}
+
+/***********************************************************************
+For a record lock, gets the tablespace number on which the lock is. */
+
+ulint
+lock_rec_get_space_id(
+/*==================*/
+				/* out: tablespace number */
+	const lock_t*	lock)	/* in: lock */
+{
+	ut_a(lock_get_type(lock) == LOCK_REC);
+
+	return(lock->un_member.rec_lock.space);
+}
+
+/***********************************************************************
+For a record lock, gets the page number on which the lock is. */
+
+ulint
+lock_rec_get_page_no(
+/*=================*/
+				/* out: page number */
+	const lock_t*	lock)	/* in: lock */
+{
+	ut_a(lock_get_type(lock) == LOCK_REC);
+
+	return(lock->un_member.rec_lock.page_no);
+}
