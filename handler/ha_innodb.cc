@@ -3906,6 +3906,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 	}
 }
 
+#ifdef ROW_MERGE_IS_INDEX_USABLE
 /**********************************************************************
 Check if an index can be used by the optimizer. */
 
@@ -3915,11 +3916,11 @@ ha_innobase::is_index_available(
 					/* out: true if available else false*/
 	uint		keynr)		/* in: index number to check */
 {
-	DBUG_ENTER("is_index_available");
+	DBUG_ENTER("ha_innobase::is_index_available");
 
 	if (table && keynr != MAX_KEY && table->s->keys > 0) {
-		dict_index_t*	index;
-		KEY*		key = table->key_info + keynr;
+		const dict_index_t*	index;
+		const KEY*		key = table->key_info + keynr;
 
 		ut_ad(user_thd == ha_thd());
 		ut_a(prebuilt->trx == thd_to_trx(user_thd));
@@ -3935,6 +3936,7 @@ ha_innobase::is_index_available(
 
 	DBUG_RETURN(true);
 }
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
 
 /**********************************************************************
 Initializes a handle to use an index. */

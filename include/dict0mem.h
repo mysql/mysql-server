@@ -239,9 +239,11 @@ struct dict_index_struct{
 				index tree */
 	rw_lock_t	lock;	/* read-write lock protecting the upper levels
 				of the index tree */
+#ifdef ROW_MERGE_IS_INDEX_USABLE
 	dulint		trx_id; /* id of the transaction that created this
-				index. It can be zero which implies that
-				it was created on database startup.*/
+				index, or ut_dulint_zero if the index existed
+				when InnoDB was started up */
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_INDEX_MAGIC_N	76789786
