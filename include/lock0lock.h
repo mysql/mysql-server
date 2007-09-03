@@ -569,6 +569,18 @@ lock_rec_hash(
 			/* out: hashed value */
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
+
+/**************************************************************************
+Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
+if none found. */
+
+ulint
+lock_rec_find_set_bit(
+/*==================*/
+				/* out: bit index == heap number of
+				the record, or ULINT_UNDEFINED if none found */
+	const lock_t*	lock);	/* in: record lock with at least one bit set */
+
 /*************************************************************************
 Gets the source table of an ALTER TABLE transaction.  The table must be
 covered by an IX or IS table lock. */
