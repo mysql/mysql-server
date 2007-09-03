@@ -135,7 +135,7 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
-  HA_EXTRA_PREPARE_FOR_DELETE,
+  HA_EXTRA_PREPARE_FOR_DROP,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
   /*
@@ -185,7 +185,9 @@ enum ha_extra_function {
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
-  HA_EXTRA_INSERT_WITH_UPDATE
+  HA_EXTRA_INSERT_WITH_UPDATE,
+  /* Inform handler that we will do a rename */
+  HA_EXTRA_PREPARE_FOR_RENAME
 };
 
 	/* The following is parameter to ha_panic() */

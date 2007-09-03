@@ -1706,8 +1706,13 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                               full_dir ? 0 : empty_space,
                               &bitmap_pattern))
     {
+      if (bitmap_pattern == ~(uint) 0)
+        _ma_check_print_error(param,
+                              "Page: %9s: Wrong bitmap for data on page",
+                              llstr(pos, llbuff));
+      else
       _ma_check_print_error(param,
-                            "Page %9s:  Wrong data in bitmap.  Page_type: %d  empty_space: %u  Bitmap: %d",
+                            "Page %9s:  Wrong data in bitmap.  Page_type: %d  empty_space: %u  Bitmap-bits: %d",
                             llstr(pos, llbuff), page_type, empty_space,
                             bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))

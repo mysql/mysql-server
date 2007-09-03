@@ -1324,7 +1324,10 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   }
   thd->proc_info= old_proc_info;
   if (!thd->locked_tables)
+  {
+    _ma_reenable_logging_for_table(file->s);
     maria_lock_database(file, F_UNLCK);
+  }
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
               !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }
@@ -1624,10 +1627,8 @@ void ha_maria::start_bulk_insert(ha_rows rows)
   if (!rows || (rows > MARIA_MIN_ROWS_TO_USE_WRITE_CACHE))
     maria_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
-  can_enable_indexes= maria_is_all_keys_active(file->s->state.key_map,
-                                               file->s->base.keys);
-  /* TODO: Remove when we have repair() working */
-  can_enable_indexes= 0;
+  can_enable_indexes= (maria_is_all_keys_active(file->s->state.key_map,
+                                                file->s->base.keys));
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
@@ -1640,9 +1641,8 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     if (file->state->records == 0 && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
       maria_disable_non_unique_index(file, rows);
-    else
-      if (!file->bulk_insert &&
-          (!rows || rows >= MARIA_MIN_ROWS_TO_USE_BULK_INSERT))
+    else if (!file->bulk_insert &&
+             (!rows || rows >= MARIA_MIN_ROWS_TO_USE_BULK_INSERT))
     {
       maria_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }

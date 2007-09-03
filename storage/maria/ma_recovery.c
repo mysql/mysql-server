@@ -507,7 +507,7 @@ prototype_exec_hook(REDO_DROP_TABLE)
       this table should not be used anymore, and (only on Windows) to close
       open files so they can be deleted
     */
-    if (maria_extra(info, HA_EXTRA_PREPARE_FOR_DELETE, NULL) ||
+    if (maria_extra(info, HA_EXTRA_PREPARE_FOR_DROP, NULL) ||
         maria_close(info))
       goto end;
     info= NULL;

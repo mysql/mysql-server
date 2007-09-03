@@ -264,8 +264,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
-  case HA_EXTRA_PREPARE_FOR_DELETE:
-    /*  QQ: suggest to rename it to "PREPARE_FOR_DROP" */
+  case HA_EXTRA_PREPARE_FOR_DROP:
+  case HA_EXTRA_PREPARE_FOR_RENAME:
     pthread_mutex_lock(&THR_LOCK_maria);
     share->last_version= 0L;			/* Impossible version */
 #ifdef __WIN__
@@ -284,7 +284,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       Does ENABLE KEYS rebuild them too?
     */
     if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                               FLUSH_IGNORE_CHANGED))
+                               (function == HA_EXTRA_PREPARE_FOR_DROP ?
+                                FLUSH_IGNORE_CHANGED : FLUSH_RELEASE)))
     {
       error=my_errno;
       share->changed=1;

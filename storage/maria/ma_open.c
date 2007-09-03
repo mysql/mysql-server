@@ -1110,18 +1110,13 @@ uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
    @param  pRead           if true, use my_pread(), otherwise my_read()
 */
 
-uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state, my_bool pRead)
+uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
 {
   char	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
   if (!maria_single_user)
   {
-    if (pRead)
-    {
-      if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
-	return 1;
-    }
-    else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
+    if (my_pread(file, buff, state->state_length, 0L, MYF(MY_NABP)))
       return 1;
     _ma_state_info_read(buff, state);
   }

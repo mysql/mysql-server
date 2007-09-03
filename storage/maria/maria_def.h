@@ -864,8 +864,7 @@ extern uint _ma_nommap_pwrite(MARIA_HA *info, uchar *Buffer,
 
 uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite);
 uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
-uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state,
-                             my_bool pRead);
+uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
 int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
 char *_ma_keyseg_read(char *ptr, HA_KEYSEG *keyseg);

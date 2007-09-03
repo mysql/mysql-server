@@ -65,6 +65,7 @@ int maria_close(register MARIA_HA *info)
 
   if (flag)
   {
+    /* Last close of file; Flush everything */
     if (share->kfile.file >= 0)
     {
       if ((*share->once_end)(share))
@@ -87,7 +88,7 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
         IF using --external-locking, which does not apply to Maria.
       */
-      if (share->mode != O_RDONLY)
+      if (share->changed)
 	_ma_state_info_write(share->kfile.file, &share->state, 1);
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
