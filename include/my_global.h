@@ -863,6 +863,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifndef SSIZE_MAX
 #define SSIZE_MAX ((~((size_t) 0)) / 2)
 #endif
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ~((size_t) 0)
+#endif
 
 #ifndef HAVE_FINITE
 #define finite(x) (1.0 / fabs(x) > 0.0)
