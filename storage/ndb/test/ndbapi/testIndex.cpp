@@ -1386,7 +1386,7 @@ int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
 int
 runBug28804(NDBT_Context* ctx, NDBT_Step* step)
 {
-  return tcSaveINDX_test(ctx, step, 8039);
+  return tcSaveINDX_test(ctx, step, 8052);
 }
 
 int
