@@ -1694,7 +1694,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
       {						/* Check if changed */
 	info_read=1;
 	info->rec_cache.seek_not_done=1;
-	if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
+	if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
 	  goto panic;
       }
       if (filepos >= info->state->data_file_length)

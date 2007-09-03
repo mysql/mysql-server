@@ -451,6 +451,10 @@ static void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap)
   fprintf(DBUG_FILE,"\nBitmap page changes at page %lu\n",
           (ulong) bitmap->page);
 
+  DBUG_ASSERT(memcmp(bitmap->map + bitmap->block_size -
+                     sizeof(maria_bitmap_marker),
+                     maria_bitmap_marker, sizeof(maria_bitmap_marker)) == 0);
+
   page= (ulong) bitmap->page+1;
   for (pos= bitmap->map, org_pos= bitmap->map + bitmap->block_size ;
        pos < end ;
@@ -536,14 +540,14 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   }
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
-  res= (pagecache_read(share->pagecache,
+  res= ((pagecache_read(share->pagecache,
                        (PAGECACHE_FILE*)&bitmap->file, page, 0,
                        (uchar*) bitmap->map,
                        PAGECACHE_PLAIN_PAGE,
-                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL) |
-    memcmp(bitmap->map + bitmap->block_size -
-           sizeof(maria_bitmap_marker),
-           maria_bitmap_marker, sizeof(maria_bitmap_marker));
+                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL) ||
+        memcmp(bitmap->map + bitmap->block_size -
+               sizeof(maria_bitmap_marker),
+               maria_bitmap_marker, sizeof(maria_bitmap_marker)));
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -1838,11 +1842,15 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   /* Handle all full pages and tail pages (for head page and blob) */
   for (block++; block < end; block++)
   {
+    uint page_count;
     if (!block->page_count)
       continue;                               /* Skip 'filler blocks' */
 
+    page_count= block->page_count;
     if (block->used & BLOCKUSED_TAIL)
     {
+      /* The bitmap page is only one page */
+      page_count= 1;
       if (block->used & BLOCKUSED_USED)
       {
         DBUG_PRINT("info", ("tail empty_space: %u", block->empty_space));
@@ -1861,7 +1869,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
     }
     if (!(block->used & BLOCKUSED_USED) &&
         _ma_reset_full_page_bits(info, bitmap,
-                                 block->page, block->page_count))
+                                 block->page, page_count))
       goto err;
   }
   pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);

@@ -31,8 +31,8 @@
       This is followed by a call to thr_multi_lock() for all tables.
 
   - When statement is done, we call mysql_unlock_tables().
-    This will call thr_multi_unlock() followed by
-    table_handler->external_lock(thd, F_UNLCK) for each table.
+    table_handler->external_lock(thd, F_UNLCK) followed by
+    thr_multi_unlock() for each table.
 
   - Note that mysql_unlock_tables() may be called several times as
     MySQL in some cases can free some tables earlier than others.

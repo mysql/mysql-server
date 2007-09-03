@@ -153,7 +153,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       if (!share->r_locks && !share->w_locks)
       {
-	if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
+	if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
 	{
 	  error=my_errno;
 	  break;
@@ -181,7 +181,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	{
 	  if (!share->r_locks)
 	  {
-	    if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
+	    if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
 	    {
 	      error=my_errno;
 	      break;
@@ -364,7 +364,7 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
     MARIA_SHARE *share=info->s;
     if (!share->tot_locks)
     {
-      if (_ma_state_info_read_dsk(share->kfile.file, &share->state, 1))
+      if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
       {
 	int error=my_errno ? my_errno : -1;
 	my_errno=error;

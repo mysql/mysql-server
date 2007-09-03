@@ -711,6 +711,7 @@ analyze table t1;
 show index from t1;
 
 set maria_stats_method=DEFAULT;
+
 drop table t1;
 
 #
@@ -952,6 +953,7 @@ create table t1 (a int, key(a));
 
 insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
 analyze table t1;
+analyze table t1;
 show keys from t1;
 
 alter table t1 disable keys;
@@ -1155,16 +1157,102 @@ drop table t1;
 
 # CHECK TABLE was reporting
 # "Size of datafile is: 0         Should be: 16384"
+#
+
 create table `t1` (
     t1_name varchar(255) default null,
     t1_id int(10) unsigned not null auto_increment,
     key (t1_name),
     primary key (t1_id)
-) auto_increment = 1000 default charset=latin1;
+) engine=maria auto_increment = 1000 default charset=latin1;
 lock tables t1 write;
 INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
 check table t1;
 unlock tables;
+
+#
+# Check that an empty table uses fast recreate of index when we fill it
+# with insert ... select.
+
+create table t2 like t1;
+insert into t2 select * from t1;
+
+# This should say that the table is already up to date
+analyze table t2;
+delete from t2;
+insert into t2 select * from t1;
+analyze table t2;
+
+drop table t1,t2;
+
+#
+# Test when expanding a row so that it doesn't fit into the same page
+#
+
+create table t1 (a bigint auto_increment, primary key(a), b char(255), c varchar(20000));
+
+let $1=1000;
+--disable_query_log
+--disable_warnings
+while ($1)
+{
+  insert into t1 () values();
+  dec $1;
+}
+--enable_query_log
+update t1 set b=repeat('a',100) where a between 1 and 100;
+check table t1;
+update t1 set c=repeat('a',8192*2) where a between 200 and 202;
+check table t1;
+drop table t1;
+
+#
+# Test tail pages for blobs
+#
+
+CREATE TABLE t1 (
+  auto int(5) unsigned NOT NULL auto_increment,
+  string char(10) default "hello",
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  time_stamp timestamp,
+  date_field date,	
+  time_field time,	
+  date_time datetime,
+  blob_col blob,
+  tinyblob_col tinyblob,
+  mediumblob_col mediumblob  not null default '',
+  longblob_col longblob  not null default '',
+  options enum('one','two','tree') not null ,
+  flags set('one','two','tree') not null default '',
+  PRIMARY KEY (auto),
+  KEY (utiny),
+  KEY (tiny),
+  KEY (short),
+  KEY any_name (medium),
+  KEY (longlong),
+  KEY (real_float),
+  KEY (ushort),
+  KEY (umedium),
+  KEY (ulong),
+  KEY (ulonglong,ulong),
+  KEY (options,flags)
+) engine=maria;
+insert into t1 values (10,1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
+create table t2 (primary key (auto)) engine=maria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t1,t2;
+select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
+drop table t1,t2;
 
 # End of 5.2 tests
 
