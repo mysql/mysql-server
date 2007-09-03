@@ -1084,7 +1084,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     spin_count++;
     if (spin_count%5)
       new_time= my_clock();
-    pthread_yield();
+    my_sleep(0);
   }
 
   if (lock_status != 0)
