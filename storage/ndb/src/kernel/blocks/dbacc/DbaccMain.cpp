@@ -2137,6 +2137,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr)
   if (same && (lastbits & Operationrec::OP_ACC_LOCK_MODE))
   {
     jam();
+    opbits |= Operationrec::OP_LOCK_MODE; // Upgrade to X-lock
     goto checkop;
   }
   
