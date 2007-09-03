@@ -11840,7 +11840,7 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
                       const Uint32 *src, 
                       Uint32 len)
 {
-  if (ERROR_INSERTED(8039) || !indexOp->keyInfo.append(src, len)) {
+  if (ERROR_INSERTED(8052) || !indexOp->keyInfo.append(src, len)) {
     jam();
     // Failed to seize keyInfo, abort transaction
 #ifdef VM_TRACE
