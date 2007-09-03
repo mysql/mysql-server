@@ -122,6 +122,7 @@ row_merge_create_index(
 	dict_table_t*	table,		/* in: the index is on this table */
 	const merge_index_def_t*	/* in: the index definition */
 			index_def);
+#ifdef ROW_MERGE_IS_INDEX_USABLE
 /*************************************************************************
 Check if a transaction can use an index. */
 
@@ -132,6 +133,7 @@ row_merge_is_index_usable(
 					the transaction else FALSE*/
 	const trx_t*		trx,	/* in: transaction */
 	const dict_index_t*	index);	/* in: index to check */
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
 /*************************************************************************
 If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately. */

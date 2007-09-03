@@ -1876,10 +1876,12 @@ row_merge_create_index(
 
 			ut_a(index);
 
+#ifdef ROW_MERGE_IS_INDEX_USABLE
 			/* Note the id of the transaction that created this
 			index, we use it to restrict readers from accessing
 			this index, to ensure read consistency. */
 			index->trx_id = trx->id;
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
 
 			/* Create element and append to list in trx. So that
 			we can rename from temp name to real name. */
@@ -1899,6 +1901,7 @@ row_merge_create_index(
 	return(index);
 }
 
+#ifdef ROW_MERGE_IS_INDEX_USABLE
 /*************************************************************************
 Check if a transaction can use an index. */
 
@@ -1914,6 +1917,7 @@ row_merge_is_index_usable(
 
 	return(ut_dulint_cmp(index->trx_id, trx->read_view->low_limit_id) < 0);
 }
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
 
 /*************************************************************************
 Drop the old table. */
