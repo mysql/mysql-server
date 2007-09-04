@@ -281,9 +281,11 @@ typedef struct st_maria_extent_cursor
   /* Position to all tails in the row. Updated when reading a row */
   MARIA_RECORD_POS *tail_positions;
   /* Current page */
-  my_off_t page;
+  ulonglong page;
   /* How many pages in the page region */
   uint page_count;
+  /* What kind of lock to use for tail pages */
+  enum pagecache_page_lock lock_for_tail_pages;
   /* Total number of extents (i.e., entries in the 'extent' slot) */
   uint extent_count;
   /* <> 0 if current extent is a tail page; Set while using cursor */
@@ -2435,7 +2437,7 @@ my_bool _ma_write_block_record(MARIA_HA *info __attribute__ ((unused)),
 
 
 /**
-   @brief Remove row written by _ma_write_block_record()
+   @brief Remove row written by _ma_write_block_record() and log undo
 
    @param  info            Maria handler
 
@@ -2466,8 +2468,8 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
     if (block->used & BLOCKUSED_TAIL)
     {
       /*
-         block->page_count is set to the tail directory entry number in
-         write_block_record()
+        block->page_count is set to the tail directory entry number in
+        write_block_record()
       */
       if (delete_head_or_tail(info, block->page, block->page_count & ~TAIL_BIT,
                               0, 0))
@@ -2894,8 +2896,6 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
       delete_tails(info, info->cur_row.tail_positions))
     goto err;
 
-  info->s->state.split--;
-
   if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
     goto err;
 
@@ -3023,6 +3023,7 @@ static void init_extent(MARIA_EXTENT_CURSOR *extent, uchar *extent_info,
   else
     extent->page_count=   page_count;
   extent->tail_positions= tail_positions;
+  extent->lock_for_tail_pages= PAGECACHE_LOCK_LEFT_UNLOCKED;
 }
 
 
@@ -3050,6 +3051,8 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
 {
   MARIA_SHARE *share= info->s;
   uchar *buff, *data;
+  MARIA_PINNED_PAGE page_link;
+  enum pagecache_page_lock lock;
   DBUG_ENTER("read_next_extent");
 
   if (!extent->page_count)
@@ -3073,17 +3076,22 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   }
   extent->first_extent= 0;
 
+  lock= PAGECACHE_LOCK_LEFT_UNLOCKED;
+  if (extent->tail)
+    lock= extent->lock_for_tail_pages;
+
   DBUG_ASSERT(share->pagecache->block_size == share->block_size);
   if (!(buff= pagecache_read(share->pagecache,
                              &info->dfile, extent->page, 0,
                              info->buff, share->page_type,
-                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+                             lock, &page_link.link)))
   {
     /* check if we tried to read over end of file (ie: bad data in record) */
     if ((extent->page + 1) * share->block_size > info->state->data_file_length)
       goto crashed;
     DBUG_RETURN(0);
   }
+
   if (!extent->tail)
   {
     /* Full data page */
@@ -3095,7 +3103,14 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
     info->cur_row.full_page_count++;            /* For maria_chk */
     DBUG_RETURN(extent->data_start= buff + LSN_SIZE + PAGE_TYPE_SIZE);
   }
+
   /* Found tail */
+  if (lock != PAGECACHE_LOCK_LEFT_UNLOCKED)
+  {
+    /* Read during redo */
+    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    push_dynamic(&info->pinned_pages, (void*) &page_link);
+  }
 
   if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != TAIL_PAGE)
     goto crashed;
@@ -3490,6 +3505,105 @@ err:
   DBUG_PRINT("error", ("Found record with wrong data"));
   DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
 }
+
+
+/** @brief Read positions to tail blocks and full blocks
+
+  @fn    read_row_extent_info()
+  @param info	Handler
+
+  @notes
+    This function is a simpler version of _ma_read_block_record2()
+    The data about the used pages is stored in info->cur_row.
+
+  @return
+  @retval 0   ok
+  @retval 1   Error. my_errno contains error number
+*/
+
+static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
+                                    uint record_number)
+{
+  MARIA_SHARE *share= info->s;
+  uchar *data, *end_of_data;
+  uint flag, row_extents, field_lengths;
+  MARIA_EXTENT_CURSOR extent;
+  DBUG_ENTER("read_row_extent_info");
+
+  if (!(data= get_record_position(buff, share->block_size,
+                                  record_number, &end_of_data)))
+    DBUG_RETURN(1);                             /* Wrong in record */
+
+  flag= (uint) (uchar) data[0];
+  /* Skip trans header */
+  data+= total_header_size[(flag & PRECALC_HEADER_BITMASK)];
+
+  row_extents= 0;
+  if (flag & ROW_FLAG_EXTENTS)
+  {
+    uint row_extent_size;
+    /*
+      Record is split over many data pages.
+      Get number of extents and first extent
+    */
+    get_key_length(row_extents, data);
+    row_extent_size= row_extents * ROW_EXTENT_SIZE;
+    if (info->cur_row.extents_buffer_length < row_extent_size &&
+        _ma_alloc_buffer(&info->cur_row.extents,
+                         &info->cur_row.extents_buffer_length,
+                         row_extent_size))
+      DBUG_RETURN(1);
+    memcpy(info->cur_row.extents, data, ROW_EXTENT_SIZE);
+    data+= ROW_EXTENT_SIZE;
+    init_extent(&extent, info->cur_row.extents, row_extents,
+                info->cur_row.tail_positions);
+    extent.first_extent= 1;
+  }
+  else
+    (*info->cur_row.tail_positions)= 0;
+  info->cur_row.extents_count= row_extents;
+
+  if (share->base.max_field_lengths)
+    get_key_length(field_lengths, data);
+
+  if (share->calc_checksum)
+    info->cur_row.checksum= (uint) (uchar) *data++;
+  if (row_extents > 1)
+  {
+    MARIA_RECORD_POS *tail_pos;
+    uchar *extents, *end;
+
+    data+= share->base.null_bytes;
+    data+= share->base.pack_bytes;
+    data+= share->base.field_offsets * FIELD_OFFSET_SIZE;
+
+    /*
+      Read row extents (note that first extent was already read into
+      info->cur_row.extents above)
+      Lock tails with write lock as we will delete them later.
+    */
+    extent.lock_for_tail_pages= PAGECACHE_LOCK_LEFT_WRITELOCKED;
+    if (read_long_data(info, info->cur_row.extents + ROW_EXTENT_SIZE,
+                       (row_extents - 1) * ROW_EXTENT_SIZE,
+                       &extent, &data, &end_of_data))
+      DBUG_RETURN(1);
+
+    /* Update tail_positions with pointer to tails */
+    tail_pos= info->cur_row.tail_positions;
+    for (extents= info->cur_row.extents, end= extents+ row_extents;
+         extents < end;
+         extents += ROW_EXTENT_SIZE)
+    {
+      ulonglong page=  uint5korr(extents);
+      uint page_count= uint2korr(extents + ROW_EXTENT_PAGE_SIZE);
+      if (page_count & TAIL_BIT)
+        *(tail_pos++)= ma_recordpos(page, (page_count & ~TAIL_BIT));
+    }
+    *tail_pos= 0;                               /* End marker */
+  }
+  DBUG_RETURN(0);
+}
+
 
 
 /*
@@ -4574,4 +4688,63 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
       DBUG_RETURN(res);
   }
   DBUG_RETURN(0);
+}
+
+/****************************************************************************
+ Applying of UNDO entries
+****************************************************************************/
+
+my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
+                                  const uchar *header)
+{
+  ulonglong page;
+  uint record_number;
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE], *buff;
+  my_bool res= 1;
+  MARIA_PINNED_PAGE page_link;
+  LSN lsn;
+  DBUG_ENTER("_ma_apply_undo_row_insert");
+
+  page=  page_korr(header);
+  record_number= dirpos_korr(header + PAGE_STORE_SIZE);
+  DBUG_PRINT("enter", ("Page: %lu  record_number: %u", (ulong) page,
+                       record_number));
+
+  if (!(buff= pagecache_read(info->s->pagecache,
+                             &info->dfile, page, 0,
+                             info->buff, info->s->page_type,
+                             PAGECACHE_LOCK_WRITE,
+                             &page_link.link)))
+    DBUG_RETURN(1);
+
+
+  page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+  push_dynamic(&info->pinned_pages, (void*) &page_link);
+
+  if (read_row_extent_info(info, buff, record_number))
+    DBUG_RETURN(1);
+
+  if (delete_head_or_tail(info, page, record_number, 1, 1) ||
+      delete_tails(info, info->cur_row.tail_positions))
+    goto err;
+
+  if (info->cur_row.extents && free_full_pages(info, &info->cur_row))
+    goto err;
+
+  lsn_store(log_data + FILEID_STORE_SIZE, undo_lsn);
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+
+  if (translog_write_record(&lsn, LOGREC_CLR_END,
+                            info->trn, info, sizeof(log_data),
+                            TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                            log_data))
+    goto err;
+
+  info->s->state.state.records--;
+  res= 0;
+err:
+  _ma_unpin_all_pages(info, lsn);
+  DBUG_RETURN(res);
 }

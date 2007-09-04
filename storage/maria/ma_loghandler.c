@@ -329,7 +329,7 @@ static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
  "redo_undelete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CLR_END=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, 5, 5, NULL, write_hook_for_redo, NULL, 1,
+{LOGRECTYPE_FIXEDLENGTH, 9, 9, NULL, write_hook_for_redo, NULL, 0,
  "clr_end", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PURGE_END=
@@ -6211,7 +6211,6 @@ static my_bool write_hook_for_undo(enum translog_record_type type
   */
 }
 
-
 /**
    @brief Gives a 2-byte-id to MARIA_SHARE and logs this fact
 
@@ -6353,7 +6352,6 @@ my_bool translog_is_file(uint file_no)
 
 static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
 {
-  TRANSLOG_ADDRESS addr;
   uint min_file= 1, max_file;
   DBUG_ENTER("translog_first_file");
   if (!is_protected)

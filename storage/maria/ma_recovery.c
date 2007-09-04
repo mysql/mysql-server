@@ -49,27 +49,34 @@ static LSN current_group_end_lsn,
   checkpoint_start= LSN_IMPOSSIBLE;
 static FILE *tracef; /**< trace file for debugging */
 
-#define prototype_exec_hook(R)                                          \
-  static int exec_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
-#define prototype_exec_hook_dummy(R)                                    \
-  static int exec_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec        \
+#define prototype_redo_exec_hook(R)                                          \
+  static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
+
+#define prototype_redo_exec_hook_dummy(R)                                    \
+  static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec        \
                                __attribute ((unused)))
-prototype_exec_hook(LONG_TRANSACTION_ID);
-prototype_exec_hook_dummy(CHECKPOINT);
-prototype_exec_hook(REDO_CREATE_TABLE);
-prototype_exec_hook(REDO_DROP_TABLE);
-prototype_exec_hook(FILE_ID);
-prototype_exec_hook(REDO_INSERT_ROW_HEAD);
-prototype_exec_hook(REDO_INSERT_ROW_TAIL);
-prototype_exec_hook(REDO_PURGE_ROW_HEAD);
-prototype_exec_hook(REDO_PURGE_ROW_TAIL);
-prototype_exec_hook(REDO_PURGE_BLOCKS);
-prototype_exec_hook(REDO_DELETE_ALL);
-prototype_exec_hook(UNDO_ROW_INSERT);
-prototype_exec_hook(UNDO_ROW_DELETE);
-prototype_exec_hook(UNDO_ROW_UPDATE);
-prototype_exec_hook(UNDO_ROW_PURGE);
-prototype_exec_hook(COMMIT);
+
+#define prototype_undo_exec_hook(R)                                          \
+  static int exec_UNDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec, TRN *trn)
+
+prototype_redo_exec_hook(LONG_TRANSACTION_ID);
+prototype_redo_exec_hook_dummy(CHECKPOINT);
+prototype_redo_exec_hook(REDO_CREATE_TABLE);
+prototype_redo_exec_hook(REDO_DROP_TABLE);
+prototype_redo_exec_hook(FILE_ID);
+prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
+prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
+prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD);
+prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL);
+prototype_redo_exec_hook(REDO_PURGE_BLOCKS);
+prototype_redo_exec_hook(REDO_DELETE_ALL);
+prototype_redo_exec_hook(UNDO_ROW_INSERT);
+prototype_redo_exec_hook(UNDO_ROW_DELETE);
+prototype_redo_exec_hook(UNDO_ROW_UPDATE);
+prototype_redo_exec_hook(UNDO_ROW_PURGE);
+prototype_redo_exec_hook(COMMIT);
+prototype_undo_exec_hook(UNDO_ROW_INSERT);
+
 static int run_redo_phase(LSN lsn, my_bool apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
 static int run_undo_phase(uint unfinished);
@@ -159,6 +166,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
                     my_bool should_run_undo_phase)
 {
   int error= 0;
+  uint unfinished_trans;
   DBUG_ENTER("maria_apply_log");
 
   DBUG_ASSERT(apply || !should_run_undo_phase);
@@ -199,7 +207,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (run_redo_phase(from_lsn, apply))
     goto err;
 
-  uint unfinished_trans= end_of_redo_phase(should_run_undo_phase);
+  unfinished_trans= end_of_redo_phase(should_run_undo_phase);
   if (unfinished_trans == (uint)-1)
     goto err;
   if (should_run_undo_phase)
@@ -270,12 +278,12 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
-    fprintf(tracef, "Got error when executing record\n");
+    fprintf(tracef, "Got error when executing redo on record\n");
   return error;
 }
 
 
-prototype_exec_hook(LONG_TRANSACTION_ID)
+prototype_redo_exec_hook(LONG_TRANSACTION_ID)
 {
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
@@ -325,14 +333,14 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
 }
 
 
-prototype_exec_hook_dummy(CHECKPOINT)
+prototype_redo_exec_hook_dummy(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
   return 0;
 }
 
 
-prototype_exec_hook(REDO_CREATE_TABLE)
+prototype_redo_exec_hook(REDO_CREATE_TABLE)
 {
   File dfile= -1, kfile= -1;
   char *linkname_ptr, filename[FN_REFLEN];
@@ -458,7 +466,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_DROP_TABLE)
+prototype_redo_exec_hook(REDO_DROP_TABLE)
 {
   char *name;
   int error= 1;
@@ -528,7 +536,7 @@ end:
 }
 
 
-prototype_exec_hook(FILE_ID)
+prototype_redo_exec_hook(FILE_ID)
 {
   uint16 sid;
   int error= 1;
@@ -656,7 +664,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_INSERT_ROW_HEAD)
+prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
 {
   int error= 1;
   uchar *buff= NULL;
@@ -701,7 +709,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_INSERT_ROW_TAIL)
+prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
 {
   int error= 1;
   uchar *buff;
@@ -737,7 +745,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_PURGE_ROW_HEAD)
+prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
@@ -753,7 +761,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_PURGE_ROW_TAIL)
+prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
@@ -769,7 +777,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_PURGE_BLOCKS)
+prototype_redo_exec_hook(REDO_PURGE_BLOCKS)
 {
   int error= 1;
   uchar *buff;
@@ -797,7 +805,7 @@ end:
 }
 
 
-prototype_exec_hook(REDO_DELETE_ALL)
+prototype_redo_exec_hook(REDO_DELETE_ALL)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
@@ -813,12 +821,12 @@ end:
 }
 
 
-#define set_undo_lsn_for_active_trans(I, L) do {  \
-    all_active_trans[I].undo_lsn= L;                            \
-    if (all_active_trans[I].first_undo_lsn == LSN_IMPOSSIBLE)   \
-      all_active_trans[I].first_undo_lsn= L; } while (0)
+#define set_undo_lsn_for_active_trans(TRID, LSN) do {  \
+    all_active_trans[TRID].undo_lsn= LSN;                            \
+    if (all_active_trans[TRID].first_undo_lsn == LSN_IMPOSSIBLE)   \
+      all_active_trans[TRID].first_undo_lsn= LSN; } while (0)
 
-prototype_exec_hook(UNDO_ROW_INSERT)
+prototype_redo_exec_hook(UNDO_ROW_INSERT)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -843,12 +851,13 @@ prototype_exec_hook(UNDO_ROW_INSERT)
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   error= 0;
+
 end:
   return error;
 }
 
 
-prototype_exec_hook(UNDO_ROW_DELETE)
+prototype_redo_exec_hook(UNDO_ROW_DELETE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -868,7 +877,7 @@ end:
 }
 
 
-prototype_exec_hook(UNDO_ROW_UPDATE)
+prototype_redo_exec_hook(UNDO_ROW_UPDATE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -885,7 +894,7 @@ end:
 }
 
 
-prototype_exec_hook(UNDO_ROW_PURGE)
+prototype_redo_exec_hook(UNDO_ROW_PURGE)
 {
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -906,7 +915,7 @@ end:
 }
 
 
-prototype_exec_hook(COMMIT)
+prototype_redo_exec_hook(COMMIT)
 {
   uint16 sid= rec->short_trid;
   TrID long_trid= all_active_trans[sid].long_trid;
@@ -945,28 +954,55 @@ prototype_exec_hook(COMMIT)
 }
 
 
+prototype_undo_exec_hook(UNDO_ROW_INSERT)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+
+  if (info == NULL)
+    return 1;
+
+  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+
+  /* Set undo to point to previous undo record */
+  info->trn= trn;
+  info->trn->undo_lsn= lsn_korr(rec->header);
+
+  error= _ma_apply_undo_row_insert(info, rec->lsn,
+                                   rec->header + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE);
+  info->trn= 0;
+  return error;
+}
+
+
 static int run_redo_phase(LSN lsn, my_bool apply)
 {
   /* install hooks for execution */
-#define install_exec_hook(R)                                            \
+#define install_redo_exec_hook(R)                                        \
   log_record_type_descriptor[LOGREC_ ## R].record_execute_in_redo_phase= \
-    exec_LOGREC_ ## R;
-  install_exec_hook(LONG_TRANSACTION_ID);
-  install_exec_hook(CHECKPOINT);
-  install_exec_hook(REDO_CREATE_TABLE);
-  install_exec_hook(REDO_DROP_TABLE);
-  install_exec_hook(FILE_ID);
-  install_exec_hook(REDO_INSERT_ROW_HEAD);
-  install_exec_hook(REDO_INSERT_ROW_TAIL);
-  install_exec_hook(REDO_PURGE_ROW_HEAD);
-  install_exec_hook(REDO_PURGE_ROW_TAIL);
-  install_exec_hook(REDO_PURGE_BLOCKS);
-  install_exec_hook(REDO_DELETE_ALL);
-  install_exec_hook(UNDO_ROW_INSERT);
-  install_exec_hook(UNDO_ROW_DELETE);
-  install_exec_hook(UNDO_ROW_UPDATE);
-  install_exec_hook(UNDO_ROW_PURGE);
-  install_exec_hook(COMMIT);
+    exec_REDO_LOGREC_ ## R;
+#define install_undo_exec_hook(R)                                        \
+  log_record_type_descriptor[LOGREC_ ## R].record_execute_in_undo_phase= \
+    exec_UNDO_LOGREC_ ## R;
+  install_redo_exec_hook(LONG_TRANSACTION_ID);
+  install_redo_exec_hook(CHECKPOINT);
+  install_redo_exec_hook(REDO_CREATE_TABLE);
+  install_redo_exec_hook(REDO_DROP_TABLE);
+  install_redo_exec_hook(FILE_ID);
+  install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
+  install_redo_exec_hook(REDO_INSERT_ROW_TAIL);
+  install_redo_exec_hook(REDO_PURGE_ROW_HEAD);
+  install_redo_exec_hook(REDO_PURGE_ROW_TAIL);
+  install_redo_exec_hook(REDO_PURGE_BLOCKS);
+  install_redo_exec_hook(REDO_DELETE_ALL);
+  install_redo_exec_hook(UNDO_ROW_INSERT);
+  install_redo_exec_hook(UNDO_ROW_DELETE);
+  install_redo_exec_hook(UNDO_ROW_UPDATE);
+  install_redo_exec_hook(UNDO_ROW_PURGE);
+  install_redo_exec_hook(COMMIT);
+  install_undo_exec_hook(UNDO_ROW_INSERT);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 
@@ -1178,10 +1214,6 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
     }
   }
 
-  /* we don't need all_tables anymore, maria_open_list is enough */
-  my_free(all_tables, MYF(MY_ALLOW_ZERO_PTR));
-  all_tables= NULL;
-
   /*
     We could take a checkpoint here, in case of a crash during the UNDO
     phase. The drawback is that a page which got a REDO (thus, flushed
@@ -1207,7 +1239,23 @@ static int run_undo_phase(uint unfinished)
       DBUG_ASSERT(trn != NULL);
       llstr(trn->trid, llbuf);
       fprintf(tracef, "Rolling back transaction of long id %s\n", llbuf);
-      /* of course we miss execution of UNDOs here */
+
+      /* Execute all undo entries */
+      while (trn->undo_lsn)
+      {
+        TRANSLOG_HEADER_BUFFER rec;
+        LOG_DESC *log_desc;
+        if (translog_read_record_header(trn->undo_lsn, &rec) ==
+            RECHEADER_READ_ERROR)
+          return 1;
+        log_desc= &log_record_type_descriptor[rec.type];
+        if (log_desc->record_execute_in_undo_phase(&rec, trn))
+        {
+          fprintf(tracef, "Got error when executing undo\n");
+          return 1;
+        }
+      }
+
       if (trnman_rollback_trn(trn))
         return 1;
       /* We could want to span a few threads (4?) instead of 1 */

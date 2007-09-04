@@ -342,8 +342,8 @@ typedef struct st_log_record_type_descriptor
   /* HOOK for reading headers */
   read_rec_hook read_hook;
   /*
-     For pseudo fixed records number of compressed LSNs followed by
-     system header
+    For pseudo fixed records number of compressed LSNs followed by
+    system header
   */
   int16 compressed_LSN;
   /*  the rest is for maria_read_log & Recovery */
@@ -353,7 +353,7 @@ typedef struct st_log_record_type_descriptor
   /* a function to execute when we see the record during the REDO phase */
   int (*record_execute_in_redo_phase)(const TRANSLOG_HEADER_BUFFER *);
   /* a function to execute when we see the record during the UNDO phase */
-  int (*record_execute_in_undo_phase)(const TRANSLOG_HEADER_BUFFER *);
+  int (*record_execute_in_undo_phase)(const TRANSLOG_HEADER_BUFFER *, TRN *);
 } LOG_DESC;
 
 extern LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
