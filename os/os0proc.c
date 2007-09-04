@@ -15,6 +15,14 @@ Created 9/30/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0byte.h"
 
+/* FreeBSD for example has only MAP_ANON, Linux has MAP_ANONYMOUS and
+MAP_ANON but MAP_ANON is marked as deprecated */
+#if defined(MAP_ANONYMOUS)
+#define OS_MAP_ANON	MAP_ANONYMOUS
+#elif defined(MAP_ANON)
+#define OS_MAP_ANON	MAP_ANON
+#endif
+
 ibool os_use_large_pages;
 /* Large page size. This may be a boot-time option on some platforms */
 ulint os_large_page_size;
@@ -127,7 +135,7 @@ skip:
 			(ulong) size, (ulong) GetLastError());
 	}
 
-#elif defined __NETWARE__
+#elif defined __NETWARE__ || !defined OS_MAP_ANON
 	size = *n;
 	ptr = ut_malloc_low(size, TRUE, FALSE);
 #else
@@ -139,7 +147,7 @@ skip:
 	/* Align block size to system page size */
 	size = *n = ut_2pow_round(*n + size - 1, size);
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
 		fprintf(stderr, "InnoDB: mmap(%lu bytes) failed;"
 			" errno %lu\n",
@@ -172,7 +180,7 @@ os_mem_free_large(
 			" Windows error %lu\n",
 			ptr, (ulong) size, (ulong) GetLastError());
 	}
-#elif defined __NETWARE__
+#elif defined __NETWARE__ || !defined OS_MAP_ANON
 	ut_free(ptr);
 #else
 	if (munmap(ptr, size)) {
