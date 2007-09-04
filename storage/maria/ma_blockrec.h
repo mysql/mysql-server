@@ -187,3 +187,5 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            const uchar *header);
 uint _ma_apply_redo_purge_blocks(MARIA_HA *info, LSN lsn,
                                  const uchar *header);
+my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
+                                  const uchar *header);

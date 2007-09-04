@@ -38,7 +38,7 @@ static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
 static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique,
-  verbose, skip_delete, transactional;
+  verbose, skip_delete, transactional, die_in_middle_of_transaction;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -49,6 +49,19 @@ static void get_options(int argc, char *argv[]);
 static void create_key(char *key,uint rownr);
 static void create_record(char *record,uint rownr);
 static void update_record(char *record);
+
+
+/*
+  These are here only for testing of recovery with undo. We are not
+  including maria_def.h here as this test is also to be an example of
+  how to use maria outside of the maria directory
+*/
+
+extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
+                                 enum flush_type flush_type_for_data,
+                                 enum flush_type flush_type_for_index);
+#define MARIA_FLUSH_DATA  1
+
 
 int main(int argc,char *argv[])
 {
@@ -85,6 +98,9 @@ static int run_test(const char *filename)
   char record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
   MARIA_UNIQUEDEF uniquedef;
   MARIA_CREATE_INFO create_info;
+
+  if (die_in_middle_of_transaction)
+    null_fields= 1;
 
   bzero((char*) recinfo,sizeof(recinfo));
   bzero((char*) &create_info,sizeof(create_info));
@@ -198,6 +214,9 @@ static int run_test(const char *filename)
       printf("J= %2d  maria_write: %d  errno: %d\n", j,error,my_errno);
   }
 
+  if (maria_commit(file) || maria_begin(file))
+    goto err;
+
   /* Insert 2 rows with null values */
   if (null_fields)
   {
@@ -213,6 +232,17 @@ static int run_test(const char *filename)
     if (verbose || error)
       printf("J= NULL  maria_write: %d  errno: %d\n", error,my_errno);
     flags[0]=2;
+  }
+
+  if (die_in_middle_of_transaction)
+  {
+    /*
+      Ensure we get changed pages and log to disk
+      As commit record is not done, the undo entries needs to be rolled back.
+    */
+    _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                          FLUSH_RELEASE);
+    exit(1);
   }
 
   if (!skip_update)
@@ -627,6 +657,11 @@ static struct my_option my_long_options[] =
    (uchar**) &skip_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-update", 'D', "Don't test updates", (uchar**) &skip_update,
    (uchar**) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"test-undo", 'A',
+   "Abort hard after doing inserts. Used for testing recovery with undo",
+   (uchar**) &die_in_middle_of_transaction,
+   (uchar**) &die_in_middle_of_transaction,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"transactional", 'T',
    "Test in transactional mode. (Only works with block format)",
    (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,

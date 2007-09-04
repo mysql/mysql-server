@@ -93,8 +93,7 @@ int main(int argc, char **argv)
   */
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  /* Until we have UNDO records, no UNDO phase */
-  if (maria_apply_log(lsn, opt_display_and_apply, stdout, FALSE))
+  if (maria_apply_log(lsn, opt_display_and_apply, stdout, TRUE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname);
 
