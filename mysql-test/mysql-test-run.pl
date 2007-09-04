@@ -61,7 +61,6 @@ use File::Copy;
 use File::Temp qw /tempdir/;
 use Cwd;
 use Getopt::Long;
-use Sys::Hostname;
 use IO::Socket;
 use IO::Socket::INET;
 use strict;
@@ -83,7 +82,6 @@ require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_report.pl";
-require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_stress.pl";
@@ -101,7 +99,6 @@ $Devel::Trace::TRACE= 1;
 our $mysql_version_id;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
-our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
 our $glob_use_embedded_server=    0;
@@ -234,7 +231,6 @@ my $opt_report_features;
 our $opt_check_testcases;
 our $opt_mark_progress;
 
-our $opt_skip;
 our $opt_skip_rpl;
 our $max_slave_num= 0;
 our $max_master_num= 1;
@@ -277,12 +273,7 @@ our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
-our $opt_wait_for_master;
-our $opt_wait_for_slave;
-
 our $opt_warnings;
-
-our $opt_udiff;
 
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
@@ -307,7 +298,6 @@ our @data_dir_lst;
 our $used_binlog_format;
 our $used_default_engine;
 our $debug_compiled_binaries;
-our $glob_tot_real_time= 0;
 
 our %mysqld_variables;
 
@@ -619,7 +609,6 @@ sub command_line_setup () {
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
              'timer!'                   => \$opt_timer,
-             'unified-diff|udiff'       => \$opt_udiff,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -654,8 +643,6 @@ sub command_line_setup () {
   {
     $source_dist=  1;
   }
-
-  $glob_hostname=  mtr_short_hostname();
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir=  cwd();
@@ -2209,7 +2196,7 @@ sub remove_stale_vardir () {
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
-	rmtree(readlink($opt_vardir));
+	mtr_rmtree(readlink($opt_vardir));
 
 	# Remove the "var" symlink
 	mtr_verbose("unlink($opt_vardir)");
@@ -2237,7 +2224,7 @@ sub remove_stale_vardir () {
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
-	  rmtree($bin);
+	  mtr_rmtree($bin);
 	}
       }
     }
@@ -2245,7 +2232,7 @@ sub remove_stale_vardir () {
     {
       # Remove the entire "var" dir
       mtr_verbose("Removing $opt_vardir/");
-      rmtree("$opt_vardir/");
+      mtr_rmtree("$opt_vardir/");
     }
 
     if ( $opt_mem )
@@ -2254,7 +2241,7 @@ sub remove_stale_vardir () {
       # remove the $opt_mem dir to assure the symlink
       # won't point at an old directory
       mtr_verbose("Removing $opt_mem");
-      rmtree($opt_mem);
+      mtr_rmtree($opt_mem);
     }
 
   }
@@ -2267,11 +2254,11 @@ sub remove_stale_vardir () {
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
     mtr_verbose("Removing $default_vardir");
-    rmtree($default_vardir);
+    mtr_rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
-    rmtree("$opt_vardir/");
+    mtr_rmtree("$opt_vardir/");
   }
 }
 
@@ -2924,13 +2911,16 @@ sub initialize_servers () {
     }
   }
   check_running_as_root();
+
+  mtr_log_init("$opt_vardir/log/mysql-test-run.log");
+
 }
 
 sub mysql_install_db () {
 
   install_db('master', $master->[0]->{'path_myddir'});
 
-  if ($max_master_num)
+  if ($max_master_num > 1)
   {
     copy_install_db('master', $master->[1]->{'path_myddir'});
   }
@@ -3092,10 +3082,14 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  mtr_tofile($bootstrap_sql_file,
+	     "DELETE FROM mysql.user where user= '';");
+
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
+
 
   if ( mtr_run($exe_mysqld_bootstrap, $args, $bootstrap_sql_file,
                $path_bootstrap_log, $path_bootstrap_log,
@@ -3221,7 +3215,7 @@ sub restore_slave_databases ($) {
     {
       my $data_dir= $slave->[$idx]->{'path_myddir'};
       my $name= basename($data_dir);
-      rmtree($data_dir);
+      mtr_rmtree($data_dir);
       mtr_copy_dir("$path_snapshot/$name", $data_dir);
     }
   }
@@ -3394,56 +3388,6 @@ sub find_testcase_skipped_reason($)
 }
 
 
-sub analyze_testcase_failure_sync_with_master($)
-{
-  my ($tinfo)= @_;
-
-  my $args;
-  mtr_init_args(\$args);
-
-  mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
-  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
-  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
-
-  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
-  mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
-  mtr_add_arg($args, "--database=test");
-  mtr_add_arg($args, "--user=%s", $opt_user);
-  mtr_add_arg($args, "--password=");
-
-  # Run the test file and append output to log file
-  mtr_run_test($exe_mysqltest,$args,
-	       "include/analyze_failure_sync_with_master.test",
-	       "$path_timefile", "$path_timefile","",
-	       { append_log_file => 1 });
-
-}
-
-sub analyze_testcase_failure($)
-{
-  my ($tinfo)= @_;
-
-  # Open mysqltest.log
-  my $F= IO::File->new($path_timefile)
-    or return;
-
-  while ( my $line= <$F> )
-  {
-    # Look for "mysqltest: At line nnn: <error>
-    if ( $line =~ /mysqltest: At line [0-9]*: (.*)/ )
-    {
-      my $error= $1;
-      # Look for "could not sync with master"
-      if ( $error =~ /could not sync with master/ )
-      {
-	analyze_testcase_failure_sync_with_master($tinfo);
-      }
-    }
-  }
-}
-
 ##############################################################################
 #
 #  Run a single test case
@@ -3543,10 +3487,6 @@ sub run_testcase ($) {
     }
     elsif ( $res == 1 )
     {
-      if ( $opt_force )
-      {
-	analyze_testcase_failure($tinfo);
-      }
       # Test case failure reported by mysqltest
       report_failure_and_restart($tinfo);
     }
@@ -3580,7 +3520,7 @@ sub run_testcase ($) {
 sub save_installed_db () {
 
   mtr_report("Saving snapshot of installed databases");
-  rmtree($path_snapshot);
+  mtr_rmtree($path_snapshot);
 
   foreach my $data_dir (@data_dir_lst)
   {
@@ -3627,7 +3567,7 @@ sub restore_installed_db ($) {
     {
       my $name= basename($data_dir);
       save_files_before_restore($test_name, $data_dir);
-      rmtree("$data_dir");
+      mtr_rmtree("$data_dir");
       mtr_copy_dir("$path_snapshot/$name", "$data_dir");
     }
 
@@ -3637,7 +3577,7 @@ sub restore_installed_db ($) {
     {
       foreach my $ndbd (@{$cluster->{'ndbds'}})
       {
-	rmtree("$ndbd->{'path_fs'}" );
+	mtr_rmtree("$ndbd->{'path_fs'}" );
       }
     }
   }
@@ -3652,7 +3592,6 @@ sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
   mtr_report_test_failed($tinfo);
-  mtr_show_failed_diff($tinfo);
   print "\n";
   if ( $opt_force )
   {
@@ -3661,13 +3600,13 @@ sub report_failure_and_restart ($) {
 
     # Restore the snapshot of the installed test db
     restore_installed_db($tinfo->{'name'});
-    print "Resuming Tests\n\n";
+    mtr_report("Resuming Tests\n");
     return;
   }
 
   my $test_mode= join(" ", @::glob_test_mode) || "default";
-  print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
-  print "To continue, re-run with '--force'.\n";
+  mtr_report("Aborting: $tinfo->{'name'} failed in $test_mode mode. ");
+  mtr_report("To continue, re-run with '--force'.");
   if ( ! $glob_debugger and
        ! $opt_extern and
        ! $glob_use_embedded_server )
@@ -4093,6 +4032,9 @@ sub mysqld_start ($$$) {
     $wait_for_pid_file= 0;
   }
 
+  # Remove the pidfile
+  unlink($mysqld->{'path_pid'});
+
   if ( defined $exe )
   {
     $pid= mtr_spawn($exe, $args, "",
@@ -4126,11 +4068,11 @@ sub mysqld_start ($$$) {
 
 sub stop_all_servers () {
 
-  print  "Stopping All Servers\n";
+  mtr_report("Stopping All Servers");
 
   if ( ! $opt_skip_im )
   {
-    print  "Shutting-down Instance Manager\n";
+    mtr_report("Shutting-down Instance Manager");
     unless (mtr_im_stop($instance_manager, "stop_all_servers"))
     {
       mtr_error("Failed to stop Instance Manager.")
@@ -4840,6 +4782,9 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
+  # Number of lines of resut to include in failure report
+  mtr_add_arg($args, "--tail-lines=20");
+
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
@@ -5253,7 +5198,6 @@ Misc options
   fast                  Don't try to clean up from earlier runs
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
-  unified-diff | udiff  When presenting differences, use unified diff
 
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
   suite-timeout=MINUTES Max test suite run time (default $default_suite_timeout)

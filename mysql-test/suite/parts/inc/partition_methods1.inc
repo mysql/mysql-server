@@ -44,9 +44,9 @@ let $partitioning= ;
 if ($with_partitioning)
 {
 let $partitioning= PARTITION BY HASH(f_int1) PARTITIONS 2;
+--disable_query_log
 if ($with_directories)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY HASH(f_int1) PARTITIONS 2
 (PARTITION p1 
@@ -56,7 +56,6 @@ PARTITION p2
 $data_directory 
 $index_directory)';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 }
 eval CREATE TABLE t1 (
@@ -64,6 +63,7 @@ $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -71,15 +71,14 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY KEY
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY KEY(f_int1) PARTITIONS 5';
 let $partitioning= `SELECT @aux`;
 if ($with_directories)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY HASH(f_int1) PARTITIONS 5
 (PARTITION p1
@@ -98,7 +97,6 @@ PARTITION p5
 $data_directory
 $index_directory)';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 }
 eval CREATE TABLE t1 (
@@ -106,6 +104,7 @@ $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -113,9 +112,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY LIST(MOD(f_int1,4))
 (PARTITION part_3 VALUES IN (-3)
@@ -141,6 +140,7 @@ $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -148,9 +148,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE
+--disable_query_log
 if ($with_partitioning)
 {
-#--disable_query_log
 eval SET @aux = 'PARTITION BY RANGE(f_int1)
 (PARTITION parta VALUES LESS THAN (0)
 $data_directory
@@ -171,13 +171,13 @@ PARTITION partf VALUES LESS THAN $MAX_VALUE
 $data_directory
 $index_directory)';
 let $partitioning= `SELECT @aux`;
-#--enable_query_log
 }
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -185,9 +185,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY HASH
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0)
@@ -203,13 +203,13 @@ PARTITION partd VALUES LESS THAN $MAX_VALUE
 $data_directory
 $index_directory)';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -217,9 +217,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux = 'PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
 $data_directory
@@ -238,13 +238,13 @@ $data_directory
 $index_directory
 (SUBPARTITION subpart41, SUBPARTITION subpart42))';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -252,9 +252,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY HASH
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
 (PARTITION part1 VALUES IN (0)
@@ -290,13 +290,13 @@ eval SET @aux =
      $data_directory
      $index_directory))';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc
@@ -304,9 +304,9 @@ DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY KEY
+--disable_query_log
 if ($with_partitioning)
 {
---disable_query_log
 eval SET @aux =
 'PARTITION BY LIST(ABS(MOD(f_int1,2)))
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS $sub_part_no
@@ -320,13 +320,13 @@ SUBPARTITION BY KEY(f_int1) SUBPARTITIONS $sub_part_no
   $data_directory
   $index_directory)';
 let $partitioning= `SELECT @aux`;
---enable_query_log
 }
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
+--enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 # --source include/partition_check.inc

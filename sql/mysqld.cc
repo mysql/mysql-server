@@ -746,14 +746,16 @@ static void close_connections(void)
   (void) pthread_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing manager thread: 0x%lx",manager_thread));
+    DBUG_PRINT("quit", ("killing manager thread: 0x%lx",
+                        (ulong)manager_thread));
    (void) pthread_cond_signal(&COND_manager);
   }
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__NETWARE__)
-  DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
+  DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
+                      (ulong) select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
@@ -4355,6 +4357,11 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    The initialization of thread_id is done in create_embedded_thd() for
+    the embedded library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
   /* Start a new thread to handle connection */
