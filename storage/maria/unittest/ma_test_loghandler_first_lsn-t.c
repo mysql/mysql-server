@@ -72,6 +72,8 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   example_loghandler_init();
+  /* Suppressing of automatic record writing */
+  dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
   theor_lsn= translog_first_theoretical_lsn();
   if (theor_lsn == 1)

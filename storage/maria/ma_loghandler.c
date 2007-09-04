@@ -224,6 +224,84 @@ static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr);
 
 LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 
+
+#ifndef DBUG_OFF
+/**
+  @brief check the description table validity
+
+  @param num             how many records should be filled
+*/
+
+static void check_translog_description_table(int num)
+{
+  int i;
+  DBUG_ENTER("check_translog_description_table");
+  DBUG_PRINT("enter", ("last record: %d", num));
+  DBUG_ASSERT(num > 0);
+  /* last is reserved for extending the table */
+  DBUG_ASSERT(num < LOGREC_NUMBER_OF_TYPES - 1);
+  DBUG_PRINT("info", ("records number: OK"));
+  DBUG_PRINT("info",
+             ("record type: %d  class: %d  fixed: %u  header: %u  LSNs: %u  "
+              "name: %s",
+              0,
+              log_record_type_descriptor[0].class,
+              (uint)log_record_type_descriptor[0].fixed_length,
+              (uint)log_record_type_descriptor[0].read_header_len,
+              (uint)log_record_type_descriptor[0].compressed_LSN,
+              log_record_type_descriptor[0].name));
+  DBUG_ASSERT(log_record_type_descriptor[0].class == LOGRECTYPE_NOT_ALLOWED);
+  DBUG_PRINT("info", ("record type 0: OK"));
+  for (i= 1; i <= num; i++)
+  {
+    DBUG_PRINT("info",
+               ("record type: %d  class: %d  fixed: %u  header: %u  LSNs: %u  "
+                "name: %s",
+                i, log_record_type_descriptor[i].class,
+                (uint)log_record_type_descriptor[i].fixed_length,
+                (uint)log_record_type_descriptor[i].read_header_len,
+                (uint)log_record_type_descriptor[i].compressed_LSN,
+                log_record_type_descriptor[i].name));
+    switch (log_record_type_descriptor[i].class) {
+    case LOGRECTYPE_NOT_ALLOWED:
+      DBUG_ASSERT(0);
+      break;
+    case LOGRECTYPE_VARIABLE_LENGTH:
+      DBUG_ASSERT(log_record_type_descriptor[i].fixed_length == 0);
+      DBUG_ASSERT((log_record_type_descriptor[i].compressed_LSN == 0) ||
+                  ((log_record_type_descriptor[i].compressed_LSN == 1) &&
+                   (log_record_type_descriptor[i].read_header_len >=
+                    LSN_STORE_SIZE)) ||
+                  ((log_record_type_descriptor[i].compressed_LSN == 2) &&
+                   (log_record_type_descriptor[i].read_header_len >=
+                    LSN_STORE_SIZE * 2)));
+      break;
+    case LOGRECTYPE_PSEUDOFIXEDLENGTH:
+      DBUG_ASSERT(log_record_type_descriptor[i].fixed_length ==
+                  log_record_type_descriptor[i].read_header_len);
+      DBUG_ASSERT(log_record_type_descriptor[i].compressed_LSN > 0);
+      DBUG_ASSERT(log_record_type_descriptor[i].compressed_LSN <= 2);
+      break;
+    case LOGRECTYPE_FIXEDLENGTH:
+      DBUG_ASSERT(log_record_type_descriptor[i].fixed_length ==
+                  log_record_type_descriptor[i].read_header_len);
+      DBUG_ASSERT(log_record_type_descriptor[i].compressed_LSN == 0);
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+    DBUG_PRINT("info", ("record type %d: OK", i));
+  }
+  DBUG_PRINT("info", ("All filled records are OK"));
+  for (i= num + 1; i < LOGREC_NUMBER_OF_TYPES; i++)
+  {
+    DBUG_ASSERT(log_record_type_descriptor[i].class == LOGRECTYPE_NOT_ALLOWED);
+    DBUG_PRINT("info", ("record type %d: OK", i));
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
 static LOG_DESC INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE=
 {LOGRECTYPE_FIXEDLENGTH, 6, 6, NULL, NULL, NULL, 0,
  "fixed0example", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
@@ -251,6 +329,7 @@ static LOG_DESC INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE=
 
 void example_loghandler_init()
 {
+  int i;
   log_record_type_descriptor[LOGREC_FIXED_RECORD_0LSN_EXAMPLE]=
     INIT_LOGREC_FIXED_RECORD_0LSN_EXAMPLE;
   log_record_type_descriptor[LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE]=
@@ -263,6 +342,12 @@ void example_loghandler_init()
     INIT_LOGREC_FIXED_RECORD_2LSN_EXAMPLE;
   log_record_type_descriptor[LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE]=
     INIT_LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE;
+  for (i= LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE + 1;
+       i < LOGREC_NUMBER_OF_TYPES;
+       i++)
+    log_record_type_descriptor[i].class= LOGRECTYPE_NOT_ALLOWED;
+  DBUG_EXECUTE("info",
+               check_translog_description_table(LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE););
 }
 
 
@@ -374,7 +459,7 @@ static LOG_DESC INIT_LOGREC_PREPARE=
  "prepare", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PREPARE_WITH_UNDO_PURGE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 5, NULL, NULL, NULL, 1,
+{LOGRECTYPE_VARIABLE_LENGTH, 0, LSN_STORE_SIZE, NULL, NULL, NULL, 1,
  "prepare_with_undo_purge", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_COMMIT=
@@ -424,6 +509,7 @@ const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
 static void loghandler_init()
 {
+  int i;
   log_record_type_descriptor[LOGREC_RESERVED_FOR_CHUNKS23]=
     INIT_LOGREC_RESERVED_FOR_CHUNKS23;
   log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_HEAD]=
@@ -488,6 +574,12 @@ static void loghandler_init()
     INIT_LOGREC_FILE_ID;
   log_record_type_descriptor[LOGREC_LONG_TRANSACTION_ID]=
     INIT_LOGREC_LONG_TRANSACTION_ID;
+  for (i= LOGREC_LONG_TRANSACTION_ID + 1;
+       i < LOGREC_NUMBER_OF_TYPES;
+       i++)
+    log_record_type_descriptor[i].class= LOGRECTYPE_NOT_ALLOWED;
+  DBUG_EXECUTE("info",
+               check_translog_description_table(LOGREC_LONG_TRANSACTION_ID););
 };
 
 
@@ -2257,7 +2349,7 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
         {
           int is_last_unfinished_page;
           uint last_protected_sector= 0;
-          uchar *from, *table;
+          uchar *from, *table= NULL;
           translog_wait_for_writers(curr_buffer);
           DBUG_ASSERT(LSN_FILE_NO(addr) ==  LSN_FILE_NO(curr_buffer->offset));
           from= curr_buffer->buffer + (addr - curr_buffer->offset);

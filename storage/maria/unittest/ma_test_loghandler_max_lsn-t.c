@@ -66,6 +66,8 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   example_loghandler_init();
+  /* Suppressing of automatic record writing */
+  dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
   max_lsn= translog_get_file_max_lsn_stored(1);
   if (max_lsn == 1)

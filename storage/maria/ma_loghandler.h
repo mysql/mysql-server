@@ -159,7 +159,7 @@ typedef struct st_translog_header_buffer
   /* in multi-group number of chunk0 pages (valid only if groups_no > 0) */
   uint chunk0_pages;
   /* type of the read record */
-   enum translog_record_type type;
+  enum translog_record_type type;
   /* chunk 0 data address (valid only if groups_no > 0) */
   TRANSLOG_ADDRESS chunk0_data_addr;
    /*

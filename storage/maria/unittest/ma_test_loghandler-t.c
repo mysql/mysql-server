@@ -183,6 +183,8 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   example_loghandler_init();
+  /* Suppressing of automatic record writing */
+  trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
   plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1);
 
