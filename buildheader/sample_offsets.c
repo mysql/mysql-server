@@ -3,6 +3,7 @@
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 DB db_dummy;
@@ -30,11 +31,17 @@ int compare_fields (const void *av, const void *bv) {
 	    db_fields[db_field_counter].size = sizeof(db_dummy.name); \
 	    db_field_counter++; })
 
+FILE *outf;
+void open_file (void) {
+    char fname[100];
+    snprintf(fname, 100, "sample_offsets_%d.h", __WORDSIZE);
+    outf = fopen(fname, "w");
+    assert(outf);
+
+}
+
 void sample_offsets (void) {
     int i;
-    unsigned int current_offset=0;
-    int dummy_counter=0;
-    int did_toku_internal=0;
     /* Do these in alphabetical order. */
     DB_STRUCT_SETUP(app_private,    "void *%s");
     DB_STRUCT_SETUP(close,          "int (*%s) (DB*, u_int32_t)");
@@ -50,27 +57,17 @@ void sample_offsets (void) {
     DB_STRUCT_SETUP(set_flags,      "int (*%s) (DB *, u_int32_t)");
     DB_STRUCT_SETUP(stat,           "int (*%s) (DB *, void *, u_int32_t)");
     qsort(db_fields, db_field_counter, sizeof(db_fields[0]), compare_fields);
-    printf("struct __toku_db {\n");
+    fprintf(outf, "struct fieldinfo fields%d[] = {\n", __WORDSIZE);
     for (i=0; i<db_field_counter; i++) {
-	unsigned int this_offset = db_fields[i].off;
-	if (!did_toku_internal && this_offset+sizeof(void*)>current_offset) {
-	    printf("  struct __tokudb_internal *i;\n");
-	    current_offset+=sizeof(void*);
-	    did_toku_internal=1;
-	}
-	if (this_offset>current_offset) {
-	    printf("  char dummy%d[%d];\n", dummy_counter++, this_offset-current_offset);
-	    current_offset=this_offset;
-	}
-	if (this_offset<current_offset) {
-	    printf("Whoops\n");
-	}
-	printf("  %s; /* offset=%d size=%d */\n", db_fields[i].decl, db_fields[i].off, db_fields[i].size);
-	current_offset+=db_fields[i].size;
+	fprintf(outf, "  {\"%s\", %d, %d}", db_fields[i].decl, db_fields[i].off, db_fields[i].size);
+	if (i+1<db_field_counter) fprintf(outf, ",");
+	fprintf(outf, "\n");
     }
-    printf("}\n");
+    fprintf(outf, "};\n");
 }
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+    open_file();
+    fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
     sample_offsets();
     return 0;
 }
