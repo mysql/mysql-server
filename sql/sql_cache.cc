@@ -1032,6 +1032,13 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+  const uint spin_treshold= 50000;
+  const double lock_time_treshold= 0.1; /* Time in seconds */
+  uint spin_count= 0;
+  int lock_status= 0;
+  ulong new_time= 0;
+  ulong stop_time= 0;
+
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1078,7 +1085,29 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     }
   }
 
-  STRUCT_LOCK(&structure_guard_mutex);
+  stop_time= my_clock()+(ulong)lock_time_treshold*CLOCKS_PER_SEC;
+  while ((lock_status= pthread_mutex_trylock(&structure_guard_mutex)) == EBUSY
+         && spin_count < spin_treshold
+         && new_time < stop_time)
+  {
+    spin_count++;
+    if (spin_count%5)
+      new_time= my_clock();
+    my_sleep(0);
+  }
+
+  if (lock_status != 0)
+  {
+    /*
+      Query cache is too busy doing something else.
+      Fall back on ordinary statement execution. We also mark this
+      query as unsafe to cache because otherwise this thread will
+      still be halted when the result set is stored to the cache.
+    */
+    thd->lex->safe_to_cache_query= FALSE; 
+    goto err;
+  }
+
   if (query_cache_size == 0 || flush_in_progress)
   {
     DBUG_PRINT("qcache", ("query cache disabled"));
