@@ -139,11 +139,6 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
-	trx->mysql_master_log_file_name = "";
-	trx->mysql_master_log_pos = 0;
-
-	trx->repl_wait_binlog_name = NULL;
-	trx->repl_wait_binlog_pos = 0;
 
 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
 
@@ -194,6 +189,8 @@ trx_create(
 	/* Set X/Open XA transaction identification to NULL */
 	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
+
+	trx->n_autoinc_rows = 0;
 
 	trx_reset_new_rec_lock_info(trx);
 
@@ -321,11 +318,6 @@ trx_free(
 
 	if (trx->undo_no_arr) {
 		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
-	if (trx->repl_wait_binlog_name != NULL) {
-
-		mem_free(trx->repl_wait_binlog_name);
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
@@ -805,14 +797,6 @@ trx_commit_off_kernel(
 				trx->mysql_log_offset,
 				TRX_SYS_MYSQL_LOG_INFO, &mtr);
 			trx->mysql_log_file_name = NULL;
-		}
-
-		if (trx->mysql_master_log_file_name[0] != '\0') {
-			/* This database server is a MySQL replication slave */
-			trx_sys_update_mysql_binlog_offset(
-				trx->mysql_master_log_file_name,
-				trx->mysql_master_log_pos,
-				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 		}
 
 		/* The following call commits the mini-transaction, making the

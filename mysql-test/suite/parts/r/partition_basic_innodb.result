@@ -59,15 +59,6 @@ SET @@session.sql_mode= '';
 #------------------------------------------------------------------------
 #  1.1 The partitioning function contains one column.
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -513,6 +504,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -956,6 +949,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -1399,52 +1394,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-
-,
-PARTITION partb VALUES LESS THAN (5)
-
-,
-PARTITION partc VALUES LESS THAN (10)
-
-,
-PARTITION partd VALUES LESS THAN (10 + 5)
-
-,
-PARTITION parte VALUES LESS THAN (20)
-
-,
-PARTITION partf VALUES LESS THAN (2147483646)
-
-)';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-
-,
-PARTITION partb VALUES LESS THAN (5)
-
-,
-PARTITION partc VALUES LESS THAN (10)
-
-,
-PARTITION partd VALUES LESS THAN (10 + 5)
-
-,
-PARTITION parte VALUES LESS THAN (20)
-
-,
-PARTITION partf VALUES LESS THAN (2147483646)
-
-);
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -1888,27 +1837,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-
-,
-PARTITION partb VALUES LESS THAN (5)
-
-,
-PARTITION partc VALUES LESS THAN (10)
-
-,
-PARTITION partd VALUES LESS THAN (2147483646)
-
-);
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -2354,31 +2282,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-
-
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-
-
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-
-
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-
-
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -2822,47 +2725,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  
-  
-  (SUBPARTITION sp11 
-     
-     ,
-   SUBPARTITION sp12
-     
-     ),
- PARTITION part2 VALUES IN (1)
-  
-  
-  (SUBPARTITION sp21 
-     
-     ,
-   SUBPARTITION sp22
-     
-     ),
- PARTITION part3 VALUES IN (2)
-  
-  
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  
-  
-  (SUBPARTITION sp41 
-     
-     ,
-   SUBPARTITION sp42
-     
-     ));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -3308,25 +3170,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY LIST(ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
-(PARTITION part1 VALUES IN (0)
-  
-  ,
- PARTITION part2 VALUES IN (1)
-  
-  ,
- PARTITION part3 VALUES IN (NULL)
-  
-  );
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -3773,25 +3616,6 @@ DROP TABLE t1;
 unified filelist
 --- not determined ---
 # 1.1.1 with DATA DIECTORY/INDEX DIRECTORY
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2
-(PARTITION p1 
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' 
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION p2 
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' 
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -3804,7 +3628,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION p1 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION p2 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4237,40 +4061,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY HASH(f_int1) PARTITIONS 5
-(PARTITION p1
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION p2
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION p3
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION p4
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION p5
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -4283,7 +4073,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION p1 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION p2 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION p3 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION p4 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION p5 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION p4 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION p5 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4716,6 +4506,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -4726,7 +4518,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5159,76 +4951,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'')';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -5241,7 +4963,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5672,35 +5394,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -5713,7 +5406,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6146,39 +5839,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -6191,7 +5851,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6622,67 +6282,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp11 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp12
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp21 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp22
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part3 VALUES IN (2)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp41 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp42
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -6695,7 +6294,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7128,31 +6727,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY LIST(ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part3 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -7165,7 +6739,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7599,15 +7173,6 @@ DROP TABLE t1;
 unified filelist
 --- not determined ---
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -8053,6 +7618,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -8496,6 +8063,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -8506,7 +8075,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8939,52 +8508,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partd VALUES LESS THAN (10 + 5),
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'',
-PARTITION partf VALUES LESS THAN (2147483646)
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'')';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (10 + 5),
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data',
-PARTITION partf VALUES LESS THAN (2147483646)
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -8997,7 +8520,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9428,27 +8951,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data',
-PARTITION partc VALUES LESS THAN (10),
-PARTITION partd VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -9461,7 +8963,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9894,31 +9396,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -9931,7 +9408,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10362,51 +9839,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp11 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data',
-   SUBPARTITION sp12
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  (SUBPARTITION sp21 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data',
-   SUBPARTITION sp22
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part3 VALUES IN (2)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  (SUBPARTITION sp41 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp42
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -10419,7 +9851,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14476,15 +13908,6 @@ DROP TABLE t1;
 #------------------------------------------------------------------------
 #  2.5 PRIMARY KEY + UNIQUE INDEX consisting of two columns
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -14967,6 +14390,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -15447,6 +14872,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -15459,7 +14886,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15927,76 +15354,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'')';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -16011,7 +15368,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16477,35 +15834,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -16520,7 +15848,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16988,39 +16316,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -17035,7 +16330,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17501,67 +16796,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp11 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp12
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp21 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp22
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part3 VALUES IN (2)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp41 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp42
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -17576,7 +16810,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18044,31 +17278,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), PRIMARY KEY(f_int2,f_int1)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part3 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -18083,7 +17292,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18552,15 +17761,6 @@ DROP TABLE t1;
 unified filelist
 --- not determined ---
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -19043,6 +18243,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -19523,6 +18725,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -19535,7 +18739,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20003,76 +19207,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'')';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -20087,7 +19221,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20553,35 +19687,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -20596,7 +19701,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21064,39 +20169,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -21111,7 +20183,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21577,67 +20649,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp11 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp12
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp21 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp22
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part3 VALUES IN (2)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp41 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp42
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -21652,7 +20663,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22120,31 +21131,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int2,f_int1), PRIMARY KEY(f_int1,f_int2)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part3 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -22159,7 +21145,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22628,15 +21614,6 @@ DROP TABLE t1;
 unified filelist
 --- not determined ---
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY HASH(f_int1) PARTITIONS 2;
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -23135,6 +22112,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -23631,6 +22610,8 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
 create_command
 SHOW CREATE TABLE t1;
@@ -23643,7 +22624,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part0 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part1 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (3) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24127,76 +23108,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-SET @aux = 'PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data''
-INDEX DIRECTORY =
-   ''/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'')';
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1)
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (10 + 5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION parte VALUES LESS THAN (20)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partf VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -24211,7 +23122,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24693,35 +23604,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
-(PARTITION parta VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partb VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partc VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-PARTITION partd VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -24736,7 +23618,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25220,39 +24102,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
-(PARTITION part1 VALUES LESS THAN (0)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart11, SUBPARTITION subpart12),
-PARTITION part2 VALUES LESS THAN (5)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart21, SUBPARTITION subpart22),
-PARTITION part3 VALUES LESS THAN (10)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart31, SUBPARTITION subpart32),
-PARTITION part4 VALUES LESS THAN (2147483646)
-DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-(SUBPARTITION subpart41, SUBPARTITION subpart42));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -25267,7 +24116,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION subpart42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25749,67 +24598,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp11 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp12
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp21 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp22
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'),
- PARTITION part3 VALUES IN (2)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp31, 
-   SUBPARTITION sp32),
- PARTITION part4 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'
-  (SUBPARTITION sp41 
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
-   SUBPARTITION sp42
-     DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-     INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index'));
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -25824,7 +24612,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB)) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp12 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp22 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp32 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, SUBPARTITION sp42 DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB)) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26308,31 +25096,6 @@ DROP TABLE t1;
 # We found:
 unified filelist
 --- not determined ---
-CREATE TABLE t1 (
-f_int1 INTEGER,
-f_int2 INTEGER,
-f_char1 CHAR(20),
-f_char2 CHAR(20),
-f_charbig VARCHAR(1000)
-, UNIQUE INDEX uidx1 (f_int1,f_int2), UNIQUE INDEX uidx2 (f_int2,f_int1)
-)
-PARTITION BY LIST(ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY(f_int1) SUBPARTITIONS 3
-(PARTITION part1 VALUES IN (0)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part2 VALUES IN (1)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index',
- PARTITION part3 VALUES IN (NULL)
-  DATA DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data'
-  INDEX DIRECTORY =
-   '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index');
 INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 # Start usability test (include/partition_check.inc)
@@ -26347,7 +25110,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/data' INDEX DIRECTORY = '/data0/mysql/mysql-5.1-build/mysql-test/var/master-data/test/index' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part2 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) DATA DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/data' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/master-data/test/index' ENGINE = InnoDB) */
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
