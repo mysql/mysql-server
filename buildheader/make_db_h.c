@@ -3,6 +3,8 @@
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
 
 void print_dbtype(void) {
@@ -13,71 +15,63 @@ void print_dbtype(void) {
 }
 
 
-DB db_dummy;
-
 #define DECL_LIMIT 100
-#define FIELD_LIMIT 100
 struct fieldinfo {
     char decl[DECL_LIMIT];
     unsigned int off;
     unsigned int size;
-} db_fields[FIELD_LIMIT];
-int db_field_counter=0;
+};
 
-
-int compare_fields (const void *av, const void *bv) {
-    const struct fieldinfo *a = av;
-    const struct fieldinfo *b = bv;
-    if (a->off < b->off) return -1;
-    if (a->off > b->off) return 1;
-    return 0;
-}				      
-
-#define DB_STRUCT_SETUP(name, fstring) ({ snprintf(db_fields[db_field_counter].decl, DECL_LIMIT, fstring, #name); \
-	    db_fields[db_field_counter].off = offsetof(DB, name); \
-	    db_fields[db_field_counter].size = sizeof(db_dummy.name); \
-	    db_field_counter++; })
+#include "sample_offsets_32.h"
+#include "sample_offsets_64.h"
 
 void print_db_struct (void) {
-    int i;
-    unsigned int current_offset=0;
+    unsigned int i;
+    unsigned int current_32 = 0;
+    unsigned int current_64 = 0;
     int dummy_counter=0;
-    int did_toku_internal=0;
-    /* Do these in alphabetical order. */
-    DB_STRUCT_SETUP(app_private,    "void *%s");
-    DB_STRUCT_SETUP(close,          "int (*%s) (DB*, u_int32_t)");
-    DB_STRUCT_SETUP(cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
-    DB_STRUCT_SETUP(del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
-    DB_STRUCT_SETUP(get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
-    DB_STRUCT_SETUP(key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
-    DB_STRUCT_SETUP(open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
-    DB_STRUCT_SETUP(put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
-    DB_STRUCT_SETUP(remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
-    DB_STRUCT_SETUP(rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
-    DB_STRUCT_SETUP(set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
-    DB_STRUCT_SETUP(set_flags,      "int (*%s) (DB *, u_int32_t)");
-    DB_STRUCT_SETUP(stat,           "int (*%s) (DB *, void *, u_int32_t)");
-    qsort(db_fields, db_field_counter, sizeof(db_fields[0]), compare_fields);
+//    int did_toku_internal=0;
     printf("struct __toku_db {\n");
-    for (i=0; i<db_field_counter; i++) {
-	unsigned int this_offset = db_fields[i].off;
+    assert(sizeof(fields32)==sizeof(fields64));
+    for (i=0; i<sizeof(fields32)/sizeof(fields32[0]); i++) {
+	unsigned int this_32 = fields32[i].off;
+	unsigned int this_64 = fields64[i].off;
+	assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
+#if 0
 	if (!did_toku_internal && this_offset+sizeof(void*)>current_offset) {
 	    printf("  struct __tokudb_internal *i;\n");
 	    current_offset+=sizeof(void*);
 	    did_toku_internal=1;
 	}
-	if (this_offset>current_offset) {
-	    printf("  char dummy%d[%d];\n", dummy_counter++, this_offset-current_offset);
-	    current_offset=this_offset;
+#endif
+	if (this_32 > current_32 || this_64 > current_64) {
+	    unsigned int diff32 = this_32-current_32;
+	    unsigned int diff64 = this_64-current_64;
+	    assert(this_32 > current_32 && this_64 > current_64);
+	    if (diff32!=diff64) {
+		unsigned int diff = diff64-diff32;
+		printf("  void* dummy%d[%d];\n", dummy_counter++, diff/4);
+		diff64-=diff*2;
+		diff32-=diff;
+		
+	    }
+	    assert(diff32==diff64);
+	    if (diff32>0) {
+		printf("  char dummy%d[%d];\n", dummy_counter++, diff32);
+	    }
+	    current_32 = this_32;
+	    current_64 = this_64;
 	}
-	if (this_offset<current_offset) {
+	if (this_32<current_32 || this_64<current_64) {
 	    printf("Whoops\n");
 	}
-	printf("  %s; /* offset=%d size=%d */\n", db_fields[i].decl, db_fields[i].off, db_fields[i].size);
-	current_offset+=db_fields[i].size;
+	printf("  %s; /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */\n", fields32[i].decl, fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	current_32 += fields32[i].size;
+	current_64 += fields64[i].size;
     }
-    printf("}\n");
+    printf("};\n");
 }
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     printf("#ifndef _DB_H\n");
     printf("#define _DB_H\n");
