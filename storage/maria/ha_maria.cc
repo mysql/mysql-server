@@ -1219,7 +1219,9 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   }
 
   if (!do_optimize ||
-      ((file->state->del || share->state.split != file->state->records) &&
+      ((file->state->del ||
+        ((file->s->data_file_type != BLOCK_RECORD) &&
+         share->state.split != file->state->records)) &&
        (!(param.testflag & T_QUICK) ||
         (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
                                  STATE_NOT_OPTIMIZED_ROWS)))))

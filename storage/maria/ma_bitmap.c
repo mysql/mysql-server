@@ -1421,6 +1421,8 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
 
   RETURN
     0  ok
+       row->space_on_head_page contains minimum number of bytes we
+       expect to put on the head page.
     1  error
 */
 
@@ -1457,6 +1459,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
     position= ELEMENTS_RESERVED_FOR_MAIN_PART - 1;
     if (find_head(info, (uint) row->total_length, position))
       goto abort;
+    row->space_on_head_page= row->total_length;
     goto end;
   }
 
@@ -1474,6 +1477,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
     position= ELEMENTS_RESERVED_FOR_MAIN_PART - 1;
     if (find_head(info, head_length, position))
       goto abort;
+    row->space_on_head_page= head_length;
     goto end;
   }
 
@@ -1490,6 +1494,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   if (find_head(info, row_length, position))
     goto abort;
+  row->space_on_head_page= row_length;
   rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;

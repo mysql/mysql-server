@@ -3258,7 +3258,9 @@ restart:
 
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
                 block->type == PAGECACHE_READ_UNKNOWN_PAGE ||
-                block->type == type);
+                block->type == type ||
+                (block->type == PAGECACHE_PLAIN_PAGE &&
+                 type == PAGECACHE_LSN_PAGE));
     block->type= type;
 
     if (make_lock_and_pin(pagecache, block,
