@@ -7300,4 +7300,58 @@ CALL p1();
 SET NAMES default;
 DROP PROCEDURE p1;
 
+#
+# Bug#13675: DATETIME/DATE type in store proc param seems to be converted as
+# varbinary
+#
+
+--echo
+--echo # Bug#13675.
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+--echo
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p1('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2(10);
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
 --echo End of 5.0 tests

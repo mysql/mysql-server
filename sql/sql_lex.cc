@@ -526,6 +526,7 @@ static inline uint int_token(const char *str,uint length)
 int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
+  bool comment_closed;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
@@ -961,15 +962,34 @@ int MYSQLlex(void *arg, void *yythd)
 	  break;
 	}
       }
-      while (lip->ptr != lip->end_of_query &&
-	     ((c=yyGet()) != '*' || yyPeek() != '/'))
+      /*
+        Discard:
+        - regular '/' '*' comments,
+        - special comments '/' '*' '!' for a future version,
+        by scanning until we find a closing '*' '/' marker.
+        Note: There is no such thing as nesting comments,
+        the first '*' '/' sequence seen will mark the end.
+      */
+      comment_closed= FALSE;
+      while (lip->ptr != lip->end_of_query)
       {
-	if (c == '\n')
-	  lip->yylineno++;
+        c= yyGet();
+        if (c == '*')
+        {
+          if (yyPeek() == '/')
+          {
+            yySkip();
+            comment_closed= TRUE;
+            state = MY_LEX_START;
+            break;
+          }
+        }
+        else if (c == '\n')
+          lip->yylineno++;
       }
-      if (lip->ptr != lip->end_of_query)
-	yySkip();			// remove last '/'
-      state = MY_LEX_START;		// Try again
+      /* Unbalanced comments with a missing '*' '/' are a syntax error */
+      if (! comment_closed)
+        return (ABORT_SYM);
       break;
     case MY_LEX_END_LONG_COMMENT:
       if (lex->in_comment && yyPeek() == '/')
@@ -1009,6 +1029,9 @@ int MYSQLlex(void *arg, void *yythd)
       if (lip->ptr >= lip->end_of_query)
       {
 	lip->next_state=MY_LEX_END;	// Mark for next loop
+        /* Unbalanced comments with a missing '*' '/' are a syntax error */
+        if (lex->in_comment)
+          return (ABORT_SYM);
 	return(END_OF_INPUT);
       }
       state=MY_LEX_CHAR;
