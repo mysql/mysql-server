@@ -520,9 +520,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  bool cur_db_changed;
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
@@ -567,16 +568,17 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   }
 
   /*
-    Change current database if needed.
+    Change the current database (if needed).
 
-    collation_database will be updated here. However, it can be wrong,
-    because it will contain the current value of the database collation.
-    We need collation_database to be fixed at the creation time -- so
-    we'll update it later in switch_query_ctx().
+    TODO: why do we force switch here?
   */
 
-  if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
+  if (mysql_opt_change_db(thd, &name->m_db, &saved_cur_db_name, TRUE,
+                          &cur_db_changed))
+  {
+    ret= SP_INTERNAL_ERROR;
     goto end;
+  }
 
   thd->spcont= NULL;
 
@@ -585,34 +587,42 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
     lex_start(thd);
 
-    if (parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL)
-    {
-      sp_head *sp= newlex.sphead;
+    ret= parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL;
 
-      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-        goto end;
-      delete sp;
-      ret= SP_PARSE_ERROR;
-    }
-    else
+    /*
+      Force switching back to the saved current database (if changed),
+      because it may be NULL. In this case, mysql_change_db() would
+      generate an error.
+    */
+
+    if (cur_db_changed && mysql_change_db(thd, &saved_cur_db_name, TRUE))
     {
-      if (dbchanged && (ret= mysql_change_db(thd, &old_db, TRUE)))
-        goto end;
-      *sphp= newlex.sphead;
-      (*sphp)->set_definer(&definer_user_name, &definer_host_name);
-      (*sphp)->set_info(created, modified, &chistics, sql_mode);
-      (*sphp)->set_creation_ctx(creation_ctx);
-      (*sphp)->optimize();
-      /*
-        Not strictly necessary to invoke this method here, since we know
-        that we've parsed CREATE PROCEDURE/FUNCTION and not an
-        UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
-        maintain the invariant that this method is called for each
-        distinct statement, in case its logic is extended with other
-        types of analyses in future.
-      */
-      newlex.set_trg_event_type_for_tables();
+      delete newlex.sphead;
+      ret= SP_INTERNAL_ERROR;
+      goto end;
     }
+
+    if (ret)
+    {
+      delete newlex.sphead;
+      ret= SP_PARSE_ERROR;
+      goto end;
+    }
+
+    *sphp= newlex.sphead;
+    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
+    (*sphp)->set_info(created, modified, &chistics, sql_mode);
+    (*sphp)->set_creation_ctx(creation_ctx);
+    (*sphp)->optimize();
+    /*
+      Not strictly necessary to invoke this method here, since we know
+      that we've parsed CREATE PROCEDURE/FUNCTION and not an
+      UPDATE/DELETE/INSERT/REPLACE/LOAD/CREATE TABLE, but we try to
+      maintain the invariant that this method is called for each
+      distinct statement, in case its logic is extended with other
+      types of analyses in future.
+    */
+    newlex.set_trg_event_type_for_tables();
   }
 
 end:
@@ -2024,70 +2034,4 @@ create_string(THD *thd, String *buf,
   }
   buf->append(body, bodylen);
   return TRUE;
-}
-
-
-
-/*
-  Change the current database if needed.
-
-  SYNOPSIS
-    sp_use_new_db()
-      thd            thread handle
-      new_db         new database name (a string and its length)
-      old_db         [IN] str points to a buffer where to store the old
-                          database, length contains the size of the buffer
-                     [OUT] if old db was not NULL, its name is copied
-                     to the buffer pointed at by str and length is updated
-                     accordingly. Otherwise str[0] is set to '\0' and length
-                     is set to 0. The out parameter should be used only if
-                     the database name has been changed (see dbchangedp).
-     dbchangedp      [OUT] is set to TRUE if the current database is changed,
-                     FALSE otherwise. A database is not changed if the old
-                     name is the same as the new one, both names are empty,
-                     or an error has occurred.
-
-  RETURN VALUE
-    0                success
-    1                access denied or out of memory (the error message is
-                     set in THD)
-*/
-
-int
-sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
-	      bool no_access_check, bool *dbchangedp)
-{
-  int ret;
-  DBUG_ENTER("sp_use_new_db");
-  DBUG_PRINT("enter", ("newdb: %s", new_db.str));
-
-  /*
-    A stored routine always belongs to some database. The
-    old database (old_db) might be NULL, but to restore the
-    old database we will use mysql_change_db.
-  */
-  DBUG_ASSERT(new_db.str && new_db.length);
-
-  if (thd->db)
-  {
-    old_db->length= (strmake(old_db->str, thd->db, old_db->length) -
-                     old_db->str);
-  }
-  else
-  {
-    old_db->str[0]= '\0';
-    old_db->length= 0;
-  }
-
-  /* Don't change the database if the new name is the same as the old one. */
-  if (my_strcasecmp(system_charset_info, old_db->str, new_db.str) == 0)
-  {
-    *dbchangedp= FALSE;
-    DBUG_RETURN(0);
-  }
-
-  ret= mysql_change_db(thd, &new_db, no_access_check);
-
-  *dbchangedp= ret == 0;
-  DBUG_RETURN(ret);
 }

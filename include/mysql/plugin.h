@@ -785,5 +785,28 @@ void mysql_query_cache_invalidate4(MYSQL_THD thd,
 }
 #endif
 
+#ifdef __cplusplus
+/**
+  Provide a handler data getter to simplify coding
+*/
+inline
+void *
+thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
+{
+  return *thd_ha_data(thd, hton);
+}
+
+/**
+  Provide a handler data setter to simplify coding
+*/
+inline
+void
+thd_set_ha_data(const MYSQL_THD thd, const struct handlerton *hton,
+                const void *ha_data)
+{
+  *thd_ha_data(thd, hton)= (void*) ha_data;
+}
+#endif
+
 #endif
 
