@@ -60,6 +60,17 @@ void __pma_update_my_cursors(PMA pma, struct kv_pair_tag *tpairs, int n);
  */
 void __pma_delete_at(PMA pma, int here);
 
+/*
+ * finish a deletion from the pma. called when there are no cursor references
+ * to the kv pair.
+ */
+void __pma_delete_finish(PMA pma, int here);
+
+/*
+ * count the number of cursors that reference a pma pair
+ */
+int __pma_count_cursor_refs(PMA pma, int here);
+
 /* density thresholds */
 #define PMA_LDT_HIGH  0.25
 #define PMA_LDT_LOW  0.40
