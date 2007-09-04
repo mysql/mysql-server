@@ -67,8 +67,8 @@ struct lock_struct {
 Gets the type of a lock. */
 UNIV_INLINE
 ulint
-lock_get_type(
-/*==========*/
+lock_get_type_low(
+/*==============*/
 				/* out: LOCK_TABLE or LOCK_REC */
 	const lock_t*	lock);	/* in: lock */
 

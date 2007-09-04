@@ -41,7 +41,7 @@ lock_queue_iterator_reset(
 		iter->bit_no = bit_no;
 	} else {
 
-		switch (lock_get_type(lock)) {
+		switch (lock_get_type_low(lock)) {
 		case LOCK_TABLE:
 			iter->bit_no = ULINT_UNDEFINED;
 			break;
@@ -68,7 +68,7 @@ lock_queue_iterator_get_prev(
 {
 	const lock_t*	prev_lock;
 
-	switch (lock_get_type(iter->current_lock)) {
+	switch (lock_get_type_low(iter->current_lock)) {
 	case LOCK_REC:
 		prev_lock = lock_rec_get_prev(
 			iter->current_lock, iter->bit_no);

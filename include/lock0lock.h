@@ -675,6 +675,16 @@ lock_number_of_rows_locked(
 	trx_t*	trx);	/* in: transaction */
 
 /***********************************************************************
+Gets the type of a lock. Non-inline version for using outside of the
+lock module. */
+
+ulint
+lock_get_type(
+/*==========*/
+				/* out: LOCK_TABLE or LOCK_REC */
+	const lock_t*	lock);	/* in: lock */
+
+/***********************************************************************
 Gets the id of the transaction owning a lock. */
 
 ullint
