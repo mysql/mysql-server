@@ -3458,7 +3458,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   /*
      As all blocks referred in 'cache' are marked by PCBLOCK_IN_FLUSH
-     we are guarunteed no thread will change them
+     we are guarantied no thread will change them
   */
   qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
 
@@ -3633,7 +3633,7 @@ restart:
         /*
            Mark the block with BLOCK_IN_FLUSH in order not to let
            other threads to use it for new pages and interfere with
-           our sequence ot flushing dirty file pages
+           our sequence of flushing dirty file pages
         */
         block->status|= PCBLOCK_IN_FLUSH;
 
@@ -3790,7 +3790,7 @@ restart:
       flush_type          type of the flush
 
   RETURN
-    0   ok
+    0  OK
     1  error
 */
 
@@ -3907,7 +3907,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
          block= block->next_changed)
     {
       /*
-        Q: is there somthing subtle with block->hash_link: can it be NULL?
+        Q: is there something subtle with block->hash_link: can it be NULL?
         does it have to be == hash_link->block... ?
       */
       DBUG_ASSERT(block->hash_link != NULL);
