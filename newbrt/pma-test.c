@@ -609,12 +609,94 @@ void test_pma_cursor_4 (void) {
     assert(error == 0);
 }
 
+void test_pma_cursor_delete(int n) {
+    printf("test_pma_cursor_delete:%d\n", n);
+
+    PMA pma;
+    int error;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    /* insert 1 -> 42 */
+    DBT key, val; int k, v;
+    int i;
+    for (i=0; i<n; i++) {
+        k = i; v = -i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        error = pma_insert(pma, &key, &val, 0);
+        assert(error == 0);
+    }
+
+    /* point the cursor to the first kv */
+    PMA_CURSOR cursor;
+    error = pma_cursor(pma, &cursor);
+    assert(error == 0);
+
+    DBT cursorkey, cursorval;
+    init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
+    init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
+    error = pma_cget_current(cursor, &cursorkey, &cursorval);
+    assert(error != 0);
+
+    error = pma_cursor_set_position_first(cursor);
+    assert(error == 0);
+
+    int kk;
+    init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
+    init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
+    error = pma_cget_current(cursor, &cursorkey, &cursorval);
+    assert(error == 0);
+    assert(cursorkey.size == sizeof kk);
+    kk = 0;
+    assert(0 == memcmp(cursorkey.data, &kk, sizeof kk));
+    toku_free(cursorkey.data);
+    toku_free(cursorval.data);
+
+    /* delete the first key */
+    k = 0; 
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == 0);
+  
+    /* cursor get should fail */
+    init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
+    init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
+    error = pma_cget_current(cursor, &cursorkey, &cursorval);
+    assert(error != 0);
+
+    error = pma_cursor_set_position_next(cursor);
+    if (n <= 1)
+        assert(error != 0);
+    else {
+        assert(error == 0);
+        init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
+        init_dbt(&cursorval); cursorval.flags = DB_DBT_MALLOC;
+        error = pma_cget_current(cursor, &cursorkey, &cursorval);
+        assert(error == 0);
+        assert(cursorkey.size == sizeof kk);
+        kk = 1;
+        assert(0 == memcmp(cursorkey.data, &kk, sizeof kk));
+        toku_free(cursorkey.data);
+        toku_free(cursorval.data);
+    }
+
+    error = pma_cursor_free(&cursor);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
 void test_pma_cursor (void) {
     test_pma_cursor_0();
     test_pma_cursor_1();
     test_pma_cursor_2();
     test_pma_cursor_3();
     test_pma_cursor_4();
+    test_pma_cursor_delete(1);
+    test_pma_cursor_delete(2);
 }
 
 int wrong_endian_compare_fun (DB *ignore __attribute__((__unused__)),
@@ -1243,10 +1325,74 @@ void test_pma_delete_cursor(int n) {
     assert(r == 0);
 }
 
+/*
+ * insert k,1
+ * place cursor at k
+ * delete k
+ * cursor get current
+ * lookup k
+ * insert k,2
+ * lookup k
+ * cursor get current 
+ */
+void test_pma_delete_insert() {
+    printf("test_pma_delete_insert\n");
+
+    PMA pma;
+    int error;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    PMA_CURSOR pmacursor;
+
+    error = pma_cursor(pma, &pmacursor);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    k = 1; v = 1;
+    fill_dbt(&key, &k, sizeof k);
+    fill_dbt(&val, &v, sizeof v);
+    error = pma_insert(pma, &key, &val, 0);
+    assert(error == 0);
+
+    error = pma_cursor_set_position_first(pmacursor);
+    assert(error == 0);
+    assert_cursor_equal(pmacursor, 1);
+
+    k = 1;
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == 0);
+    assert_cursor_nokey(pmacursor);
+
+    k = 1;
+    fill_dbt(&key, &k, sizeof k);
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    error = pma_lookup(pma, &key, &val, 0);
+    assert(error != 0);
+
+    k = 1; v = 2;
+    fill_dbt(&key, &k, sizeof k);
+    fill_dbt(&val, &v, sizeof v);
+    error = pma_insert(pma, &key, &val, 0);
+    assert(error == 0);
+    assert_cursor_equal(pmacursor, 2);
+
+    error = pma_cursor_free(&pmacursor);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
 void test_pma_delete() {
     test_pma_delete_shrink(256);  memory_check_all_free();
     test_pma_delete_random(256);  memory_check_all_free();
     test_pma_delete_cursor(32);   memory_check_all_free();
+    test_pma_delete_insert();     memory_check_all_free();
 }
 
 void pma_tests (void) {

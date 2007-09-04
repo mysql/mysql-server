@@ -53,6 +53,28 @@ static inline int kv_pair_vallen(struct kv_pair *pair) {
     return pair->vallen;
 }
 
+/* use the low bit to indicate an inuse pair that is deleted */
+
+static inline int kv_pair_inuse(struct kv_pair *pair) {
+    return pair != 0;
+}
+
+static inline int kv_pair_deleted(struct kv_pair *pair) {
+    return ((long) pair & 1) != 0;
+}
+
+static inline int kv_pair_valid(struct kv_pair *pair) {
+    return kv_pair_inuse(pair) && !kv_pair_deleted(pair);
+}
+
+static inline struct kv_pair *kv_pair_set_deleted(struct kv_pair *pair) {
+    return (struct kv_pair *) ((long) pair | 1);
+}
+
+static inline struct kv_pair *kv_pair_ptr(struct kv_pair *pair) {
+    return (struct kv_pair *) ((long) pair & ~1);
+}
+
 struct kv_pair_tag {
     struct kv_pair *pair;
     int oldtag, newtag;
