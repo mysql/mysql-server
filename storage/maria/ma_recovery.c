@@ -76,6 +76,8 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE);
 prototype_redo_exec_hook(UNDO_ROW_PURGE);
 prototype_redo_exec_hook(COMMIT);
 prototype_undo_exec_hook(UNDO_ROW_INSERT);
+prototype_undo_exec_hook(UNDO_ROW_DELETE);
+prototype_undo_exec_hook(UNDO_ROW_UPDATE);
 
 static int run_redo_phase(LSN lsn, my_bool apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
@@ -977,6 +979,88 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
 }
 
 
+prototype_undo_exec_hook(UNDO_ROW_DELETE)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+
+  if (info == NULL)
+    return 1;
+
+  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    fprintf(tracef, "Failed to read record\n");
+    return 1;
+  }
+
+  /* Set undo to point to previous undo record */
+  info->trn= trn;
+  info->trn->undo_lsn= lsn_korr(rec->header);
+
+  /*
+    For now we skip the page and directory entry. This is to be used
+    later when we mark rows as deleted.
+  */
+  error= _ma_apply_undo_row_delete(info, rec->lsn,
+                                   log_record_buffer.str + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE + PAGE_STORE_SIZE +
+                                   DIRPOS_STORE_SIZE,
+                                   rec->record_length -
+                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                                    PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
+  info->trn= 0;
+  return error;
+}
+
+
+prototype_undo_exec_hook(UNDO_ROW_UPDATE)
+{
+  my_bool error;
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+
+  if (info == NULL)
+    return 1;
+
+  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    fprintf(tracef, "Failed to read record\n");
+    return 1;
+  }
+
+  /* Set undo to point to previous undo record */
+  info->trn= trn;
+  info->trn->undo_lsn= lsn_korr(rec->header);
+
+  /*
+    For now we skip the page and directory entry. This is to be used
+    later when we mark rows as deleted.
+  */
+  error= _ma_apply_undo_row_update(info, rec->lsn,
+                                   log_record_buffer.str + LSN_STORE_SIZE +
+                                   FILEID_STORE_SIZE + PAGE_STORE_SIZE +
+                                   DIRPOS_STORE_SIZE,
+                                   rec->record_length -
+                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                                    PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
+  info->trn= 0;
+  return error;
+}
+
+
 static int run_redo_phase(LSN lsn, my_bool apply)
 {
   /* install hooks for execution */
@@ -1003,6 +1087,8 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(UNDO_ROW_PURGE);
   install_redo_exec_hook(COMMIT);
   install_undo_exec_hook(UNDO_ROW_INSERT);
+  install_undo_exec_hook(UNDO_ROW_DELETE);
+  install_undo_exec_hook(UNDO_ROW_UPDATE);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 

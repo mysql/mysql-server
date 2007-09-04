@@ -369,10 +369,11 @@ typedef struct st_maria_row
   ulong *blob_lengths;                  /* Length for each blob */
   ulong base_length, normal_length, char_length, varchar_length, blob_length;
   ulong head_length, total_length;
-  size_t extents_buffer_length;      /* Size of 'extents' buffer */
+  size_t extents_buffer_length;         /* Size of 'extents' buffer */
   uint field_lengths_length;            /* Length of data in field_lengths */
   uint extents_count;                   /* number of extents in 'extents' */
   uint full_page_count, tail_count;     /* For maria_chk */
+  uint space_on_head_page;
 } MARIA_ROW;
 
 /* Data to scan row in blocked format */
@@ -434,6 +435,8 @@ struct st_maria_info
   ulong packed_length, blob_length;	/* Length of found, packed record */
   size_t rec_buff_size;
   PAGECACHE_FILE dfile;			/* The datafile */
+  IO_CACHE rec_cache;			/* When cacheing records */
+  LIST open_list;
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
@@ -449,8 +452,6 @@ struct st_maria_info
   uint data_changed;			/* Somebody has changed data */
   uint save_update;			/* When using KEY_READ */
   int save_lastinx;
-  LIST open_list;
-  IO_CACHE rec_cache;			/* When cacheing records */
   uint preload_buff_size;		/* When preloading indexes */
   myf lock_wait;			/* is 0 or MY_DONT_WAIT */
   my_bool was_locked;			/* Was locked in panic */
@@ -468,6 +469,7 @@ struct st_maria_info
   THR_LOCK_DATA lock;
 #endif
   uchar *maria_rtree_recursion_state;	/* For RTREE */
+  uchar length_buff[5];			/* temp buff to store blob lengths */
   int maria_rtree_recursion_depth;
 };
 

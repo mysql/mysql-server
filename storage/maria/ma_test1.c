@@ -37,8 +37,9 @@ static enum data_file_type record_type= DYNAMIC_RECORD;
 static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
-static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique,
-  verbose, skip_delete, transactional, die_in_middle_of_transaction;
+static uint die_in_middle_of_transaction;
+static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique;
+static my_bool verbose, skip_delete, transactional;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -94,6 +95,7 @@ static int run_test(const char *filename)
 {
   MARIA_HA *file;
   int i,j,error,deleted,rec_length,uniques=0;
+  uint offset_to_key;
   ha_rows found,row_count;
   char record[MAX_REC_LENGTH],key[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
   MARIA_UNIQUEDEF uniquedef;
@@ -182,6 +184,10 @@ static int run_test(const char *filename)
   else
     uniques=0;
 
+  offset_to_key= test(null_fields);
+  if (key_field == FIELD_BLOB)
+    offset_to_key+= 2;
+
   if (!silent)
     printf("- Creating maria file\n");
   create_info.max_rows=(ulong) (rec_pointer_size ?
@@ -234,7 +240,7 @@ static int run_test(const char *filename)
     flags[0]=2;
   }
 
-  if (die_in_middle_of_transaction)
+  if (die_in_middle_of_transaction == 1)
   {
     /*
       Ensure we get changed pages and log to disk
@@ -242,6 +248,7 @@ static int run_test(const char *filename)
     */
     _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
                           FLUSH_RELEASE);
+    printf("Dying on request after insert without maria_close()\n");
     exit(1);
   }
 
@@ -333,20 +340,32 @@ static int run_test(const char *filename)
 	if (verbose || (flags[j] >= 1 ||
 			(error && my_errno != HA_ERR_KEY_NOT_FOUND)))
 	  printf("key: '%.*s'  maria_rkey:  %3d  errno: %3d\n",
-		 (int) key_length,key+test(null_fields),error,my_errno);
+		 (int) key_length,key+offset_to_key,error,my_errno);
       }
       else
       {
 	error=maria_delete(file,read_record);
 	if (verbose || error)
 	  printf("key: '%.*s'  maria_delete: %3d  errno: %3d\n",
-		 (int) key_length, key+test(null_fields), error, my_errno);
+		 (int) key_length, key+offset_to_key, error, my_errno);
 	if (! error)
 	{
 	  deleted++;
 	  flags[j]--;
 	}
       }
+    }
+
+    if (die_in_middle_of_transaction == 2)
+    {
+      /*
+        Ensure we get changed pages and log to disk
+        As commit record is not done, the undo entries needs to be rolled back.
+      */
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      printf("Dying on request after delete without maria_close()\n");
+      exit(1);
     }
   }
   if (!silent)
@@ -362,7 +381,7 @@ static int run_test(const char *filename)
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
     {
       printf("key: '%.*s'  maria_rkey: %3d  errno: %3d  record: %s\n",
-	     (int) key_length,key+test(null_fields),error,my_errno,record+1);
+	     (int) key_length,key+offset_to_key,error,my_errno,record+1);
     }
   }
 
@@ -661,7 +680,7 @@ static struct my_option my_long_options[] =
    "Abort hard after doing inserts. Used for testing recovery with undo",
    (uchar**) &die_in_middle_of_transaction,
    (uchar**) &die_in_middle_of_transaction,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_INT, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"transactional", 'T',
    "Test in transactional mode. (Only works with block format)",
    (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,
@@ -748,6 +767,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'K':                                     /* Use key cacheing */
     pagecacheing=1;
+    break;
+  case 'A':
+    if (!argument)
+      die_in_middle_of_transaction= 1;
+    else
+      die_in_middle_of_transaction= atoi(argument);
     break;
   case 'V':
     printf("test1 Ver 1.2 \n");
