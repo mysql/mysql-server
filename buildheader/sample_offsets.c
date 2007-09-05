@@ -50,48 +50,11 @@ void sort_and_dump_fields (const char *structname, unsigned int sizeofstruct) {
     fprintf(outf, "};\n");
 }
 
-void sample_db_offsets (void) {
-    /* Do these in alphabetical order. */
+void sample_db_btree_stat_offsets (void) {
     field_counter=0;
-    STRUCT_SETUP(DB,app_private,    "void *%s");
-    STRUCT_SETUP(DB,close,          "int (*%s) (DB*, u_int32_t)");
-    STRUCT_SETUP(DB,cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
-    STRUCT_SETUP(DB,del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DB,get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DB,key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
-    STRUCT_SETUP(DB,open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
-    STRUCT_SETUP(DB,put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
-    STRUCT_SETUP(DB,remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
-    STRUCT_SETUP(DB,rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
-    STRUCT_SETUP(DB,set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
-    STRUCT_SETUP(DB,set_flags,      "int (*%s) (DB *, u_int32_t)");
-    STRUCT_SETUP(DB,stat,           "int (*%s) (DB *, void *, u_int32_t)");
-    sort_and_dump_fields("db", sizeof(DB));
-}
-
-void sample_dbt_offsets (void) {
-    field_counter=0;
-    STRUCT_SETUP(DBT,app_private, "void*%s");
-    STRUCT_SETUP(DBT,data,        "void*%s");
-    STRUCT_SETUP(DBT,flags,       "u_int32_t %s");
-    STRUCT_SETUP(DBT,size,        "u_int32_t %s");
-    STRUCT_SETUP(DBT,ulen,        "u_int32_t %s");
-    sort_and_dump_fields("dbt", sizeof(DBT));
-}
-
-void sample_db_txn_offsets (void) {
-    field_counter=0;
-    STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
-    STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
-    sort_and_dump_fields("db_txn", sizeof(DB_TXN));
-}
-
-void sample_dbc_offsets (void) {
-    field_counter=0;
-    STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
-    STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
-    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
-    sort_and_dump_fields("dbc", sizeof(DBC));
+    STRUCT_SETUP(DB_BTREE_STAT, bt_ndata, "u_int32_t %s");
+    STRUCT_SETUP(DB_BTREE_STAT, bt_nkeys, "u_int32_t %s");
+    sort_and_dump_fields("db_btree_stat", sizeof(DB_BTREE_STAT));
 }
 
 void sample_db_env_offsets (void) {
@@ -133,11 +96,37 @@ void sample_db_lsn_offsets (void) {
     sort_and_dump_fields("db_lsn", sizeof(DB_LSN));
 }
 
+void sample_db_offsets (void) {
+    /* Do these in alphabetical order. */
+    field_counter=0;
+    STRUCT_SETUP(DB,app_private,    "void *%s");
+    STRUCT_SETUP(DB,close,          "int (*%s) (DB*, u_int32_t)");
+    STRUCT_SETUP(DB,cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
+    STRUCT_SETUP(DB,del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB,get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB,key_range,      "int (*%s) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t)");
+    STRUCT_SETUP(DB,open,           "int (*%s) (DB *, DB_TXN *, const char *, const char *, DBTYPE, u_int32_t, int)");
+    STRUCT_SETUP(DB,put,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB,remove,         "int (*%s) (DB *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB,rename,         "int (*%s) (DB *, const char *, const char *, const char *, u_int32_t)");
+    STRUCT_SETUP(DB,set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
+    STRUCT_SETUP(DB,set_flags,      "int (*%s) (DB *, u_int32_t)");
+    STRUCT_SETUP(DB,stat,           "int (*%s) (DB *, void *, u_int32_t)");
+    sort_and_dump_fields("db", sizeof(DB));
+}
+
 void sample_db_txn_active_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN_ACTIVE, lsn, "DB_LSN %s");
     STRUCT_SETUP(DB_TXN_ACTIVE, txnid, "u_int32_t %s");
     sort_and_dump_fields("db_txn_active", sizeof(DB_TXN_ACTIVE));
+}
+
+void sample_db_txn_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
+    STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
+    sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
 void sample_db_txn_stat_offsets (void) {
@@ -147,12 +136,24 @@ void sample_db_txn_stat_offsets (void) {
     sort_and_dump_fields("db_txn_stat", sizeof(DB_TXN_STAT));
 }
 
-void sample_db_btree_stat_offsets (void) {
+void sample_dbc_offsets (void) {
     field_counter=0;
-    STRUCT_SETUP(DB_BTREE_STAT, bt_ndata, "u_int32_t %s");
-    STRUCT_SETUP(DB_BTREE_STAT, bt_nkeys, "u_int32_t %s");
-    sort_and_dump_fields("db_btree_stat", sizeof(DB_BTREE_STAT));
+    STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
+    STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
+    sort_and_dump_fields("dbc", sizeof(DBC));
 }
+
+void sample_dbt_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DBT,app_private, "void*%s");
+    STRUCT_SETUP(DBT,data,        "void*%s");
+    STRUCT_SETUP(DBT,flags,       "u_int32_t %s");
+    STRUCT_SETUP(DBT,size,        "u_int32_t %s");
+    STRUCT_SETUP(DBT,ulen,        "u_int32_t %s");
+    sort_and_dump_fields("dbt", sizeof(DBT));
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
