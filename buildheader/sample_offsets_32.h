@@ -13,7 +13,7 @@ struct fieldinfo db_fields32[] = {
   {"int (*set_flags) (DB *, u_int32_t)", 380, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 396, 4},
   {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 412, 4},
-  {0, 0, 484} /* size of whole struct */
+  {0, 484, 484} /* size of whole struct */
 };
 struct fieldinfo dbt_fields32[] = {
   {"void*data", 0, 4},
@@ -21,18 +21,18 @@ struct fieldinfo dbt_fields32[] = {
   {"u_int32_t ulen", 8, 4},
   {"void*app_private", 20, 4},
   {"u_int32_t flags", 24, 4},
-  {0, 0, 28} /* size of whole struct */
+  {0, 28, 28} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields32[] = {
   {"int (*commit) (DB_TXN*, u_int32_t)", 80, 4},
   {"u_int32_t (*id) (DB_TXN *)", 88, 4},
-  {0, 0, 104} /* size of whole struct */
+  {0, 104, 104} /* size of whole struct */
 };
 struct fieldinfo dbc_fields32[] = {
   {"int (*c_close) (DBC *)", 204, 4},
   {"int (*c_del) (DBC *, u_int32_t)", 212, 4},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 220, 4},
-  {0, 0, 268} /* size of whole struct */
+  {0, 268, 268} /* size of whole struct */
 };
 struct fieldinfo db_env_fields32[] = {
   {"int  (*close) (DB_ENV *, u_int32_t)", 248, 4},
@@ -55,5 +55,5 @@ struct fieldinfo db_env_fields32[] = {
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 460, 4},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 552, 4},
   {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 564, 4},
-  {0, 0, 584} /* size of whole struct */
+  {0, 584, 584} /* size of whole struct */
 };

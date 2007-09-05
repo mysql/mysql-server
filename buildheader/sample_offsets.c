@@ -46,7 +46,7 @@ void sort_and_dump_fields (const char *structname, unsigned int sizeofstruct) {
     for (i=0; i<field_counter; i++) {
 	fprintf(outf, "  {\"%s\", %d, %d},\n", fields[i].decl, fields[i].off, fields[i].size);
     }
-    fprintf(outf, "  {0, 0, %d} /* size of whole struct */\n", sizeofstruct);
+    fprintf(outf, "  {0, %d, %d} /* size of whole struct */\n", sizeofstruct, sizeofstruct);
     fprintf(outf, "};\n");
 }
 
