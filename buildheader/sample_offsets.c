@@ -88,10 +88,35 @@ void sample_db_txn_offsets (void) {
 
 void sample_dbc_offsets (void) {
     field_counter=0;
-    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
     STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
     STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
     sort_and_dump_fields("dbc", sizeof(DBC));
+}
+
+void sample_db_env_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_ENV, close, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, err, "void (*%s) (const DB_ENV *, int, const char *, ...)");
+    STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
+    STRUCT_SETUP(DB_ENV, log_flush, "int  (*%s) (DB_ENV *, const DB_LSN *)");
+    STRUCT_SETUP(DB_ENV, open, "int  (*%s) (DB_ENV *, const char *, u_int32_t, int)");
+    STRUCT_SETUP(DB_ENV, set_cachesize, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, int)");
+    STRUCT_SETUP(DB_ENV, set_data_dir, "int  (*%s) (DB_ENV *, const char *)");
+    STRUCT_SETUP(DB_ENV, set_errcall, "void (*%s) (DB_ENV *, void (*)(const char *, char *))");
+    STRUCT_SETUP(DB_ENV, set_errpfx, "void (*%s) (DB_ENV *, const char *)");
+    STRUCT_SETUP(DB_ENV, set_flags, "int  (*%s) (DB_ENV *, u_int32_t, int)");
+    STRUCT_SETUP(DB_ENV, set_lg_bsize, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lg_dir, "int  (*%s) (DB_ENV *, const char *)");
+    STRUCT_SETUP(DB_ENV, set_lg_max, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lk_detect, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
+    STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
+    STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
+    STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, txn_stat, "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
+    sort_and_dump_fields("db_env", sizeof(DB_ENV));
 }
 
 
@@ -103,5 +128,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     sample_dbt_offsets();
     sample_db_txn_offsets();
     sample_dbc_offsets();
+    sample_db_env_offsets();
     return 0;
 }

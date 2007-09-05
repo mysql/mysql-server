@@ -34,3 +34,26 @@ struct fieldinfo dbc_fields32[] = {
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 220, 4},
   {0, 0, 268} /* size of whole struct */
 };
+struct fieldinfo db_env_fields32[] = {
+  {"int  (*close) (DB_ENV *, u_int32_t)", 248, 4},
+  {"void (*err) (const DB_ENV *, int, const char *, ...)", 260, 4},
+  {"int  (*open) (DB_ENV *, const char *, u_int32_t, int)", 268, 4},
+  {"int  (*set_data_dir) (DB_ENV *, const char *)", 276, 4},
+  {"void (*set_errcall) (DB_ENV *, void (*)(const char *, char *))", 292, 4},
+  {"void (*set_errpfx) (DB_ENV *, const char *)", 300, 4},
+  {"int  (*set_flags) (DB_ENV *, u_int32_t, int)", 308, 4},
+  {"void (*set_noticecall) (DB_ENV *, void (*)(DB_ENV *, db_notices))", 312, 4},
+  {"int  (*set_tmp_dir) (DB_ENV *, const char *)", 332, 4},
+  {"int  (*set_verbose) (DB_ENV *, u_int32_t, int)", 336, 4},
+  {"int  (*set_lg_bsize) (DB_ENV *, u_int32_t)", 344, 4},
+  {"int  (*set_lg_dir) (DB_ENV *, const char *)", 348, 4},
+  {"int  (*set_lg_max) (DB_ENV *, u_int32_t)", 352, 4},
+  {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 360, 4},
+  {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 372, 4},
+  {"int  (*set_lk_detect) (DB_ENV *, u_int32_t)", 392, 4},
+  {"int  (*set_lk_max) (DB_ENV *, u_int32_t)", 396, 4},
+  {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 460, 4},
+  {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 552, 4},
+  {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 564, 4},
+  {0, 0, 584} /* size of whole struct */
+};
