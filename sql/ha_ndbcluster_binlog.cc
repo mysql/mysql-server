@@ -3579,7 +3579,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
   /* make sure to flush any pending events as they can be dependent
      on one of the tables being changed below
   */
-  thd->binlog_flush_pending_rows_event(TRUE);
+  thd->binlog_flush_pending_rows_event(FALSE);
 
   switch (type)
   {
