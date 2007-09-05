@@ -1,16 +1,22 @@
 #############################################################
+# Author: Chuck
+#############################################################
 # Purpose: To test having extra columns on the master WL#3915
 # engine inspecific sourced part
 #############################################################
-
+# Change Author: Jeb
+# Change: Cleanup and extend testing
+#############################################################
 # TODO: partition specific
 # -- source include/have_partition.inc
+# Note: Will be done in different test due to NDB using this
+#       test case.
+############################################################
 
 ########### Clean up ################
 --disable_warnings
 --disable_query_log
-DROP TABLE IF EXISTS  t1,t2,t3,t4,t31;
-
+DROP TABLE IF EXISTS  t1,t2,t3,t4,t5,t10,t11,t12,t13,t14,t15,t16,t17,t18,t31;
 --enable_query_log
 --enable_warnings
 
@@ -70,154 +76,87 @@ DROP TABLE IF EXISTS  t1,t2,t3,t4,t31;
 #VARCHAR(M)    
 #
 
-
+let $binformat = `SHOW VARIABLES LIKE '%binlog_format%'`;
+--echo
+--echo ***********************************************************
+--echo ***********************************************************
+--echo ***************** Start of Testing ************************
+--echo ***********************************************************
+--echo ***********************************************************
+--echo * This test format == $binformat and engine == $engine_type
+--echo ***********************************************************
+--echo ***********************************************************
+--echo
+--echo ***** Testing more columns on the Master *****
+--echo
 connection master;
 eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                      f5 FLOAT DEFAULT '2.00')
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0);
-
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST')
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5, drop f6;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi');
-
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST',
-                       f7 INT DEFAULT '0')
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5, drop f6, drop f7;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1);
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST',
-                       f7 INT DEFAULT '0',
-                       f8 TEXT)
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5, drop f6, drop f7, drop f8;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness');
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST',
-                       f7 INT DEFAULT '0',
-                       f8 TEXT,
-                       f9 LONGBLOB)
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob');
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST',
-                       f7 INT DEFAULT '0',
-                       f8 TEXT,
-                       f9 LONGBLOB,
-                       f10 BIT(63))
-                      ENGINE=$engine_type;
-
-sync_slave_with_master;
-alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10;
-
-connection master;
-INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob', b'01010101010101');
-   sync_slave_with_master;
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
---query_vertical show slave status;
-   select * from t1 order by f3;
-
-connection master;
-DROP TABLE t1;
-    eval CREATE TABLE t1 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
                       /* extra */
-                       f5 FLOAT DEFAULT '2.00', 
-                       f6 CHAR(4) DEFAULT 'TEST',
-		       f7 INT DEFAULT '0',
-		       f8 TEXT,
-		       f9 LONGBLOB,
-           f10 BIT(63),
-		       f11 VARBINARY(64))
-                      ENGINE=$engine_type;
+                      f5 FLOAT DEFAULT '2.00', 
+                      f6 CHAR(4) DEFAULT 'TEST',
+                      f7 INT DEFAULT '0',
+                      f8 TEXT,
+                      f9 LONGBLOB,
+                      f10 BIT(63),
+                      f11 VARBINARY(64))ENGINE=$engine_type;
+--echo
+--echo * Alter Table on Slave and drop columns f5 through f11 *
+--echo
+sync_slave_with_master;
+alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
 
-#connection slave;
-   sync_slave_with_master;
-   alter table t1 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11;
-
+--echo
+--echo * Insert data in Master then update and delete some rows*
+--echo
 connection master;
+let $j= 50;
+--disable_query_log
+while ($j)
+{
+  eval INSERT INTO t1 VALUES ($j, $j, $j, 'second', 2.0, 'kaks', 2, 
+                              'got stolen from the paradise', 
+                              'very fat blob', b'01010101010101', 
+                              0x123456);
+  dec $j;
+}
+let $j= 30;
+while ($j)
+{
+ eval update t1 set f4= 'next' where f1=$j; 
+ dec $j;
+ dec $j;
+ eval delete from t1 where f1=$j;
+ dec $j;
+}
+--enable_query_log
 
-   INSERT into t1 values (1, 1, 1, 'first', 1.0, 'yksi', 1, 'lounge of happiness', 'very fat blob', b'01010101010101', 0x123456);
-   INSERT into t1 values (2, 2, 2, 'second', 2.0, 'kaks', 2, 'got stolen from the paradise', 'very fat blob', b'01010101010101', 0x123456), (3, 3, 3, 'third', 3.0, 'kolm', 3, 'got stolen from the paradise', 'very fat blob', b'01010101010101', 0x123456);
-   update t1 set f4= 'next' where f1=1;
-   delete from t1 where f1=1;
-
-   select * from t1 order by f3;
-
+--echo * Select count and 20 rows from Master *
+--echo
+SELECT COUNT(*) FROM t1;
+--echo
+SELECT f1,f2,f3,f4,f5,f6,f7,f8,f9,
+       hex(f10),hex(f11) FROM t1 ORDER BY f3 LIMIT 20;
 
 #connection slave;
-   sync_slave_with_master;
+sync_slave_with_master;
+--echo
+--echo * Select count and 20 rows from Slave *
+--echo
+SELECT COUNT(*) FROM t1;
+--echo
+SELECT * FROM t1 ORDER BY f3 LIMIT 20;
+
+--echo
+--echo * Show Slave Status *
+--echo
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
 --query_vertical show slave status;
-   select * from t1 order by f3;
-
+--echo
 
 ### Altering table def scenario
+--echo
+--echo ***** Testing Altering table def scenario *****
+--echo
 
 connection master;
 
@@ -232,7 +171,7 @@ connection master;
 		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 		       f12 SET('a', 'b', 'c') default 'b')
                        ENGINE=$engine_type;
-
+--echo
    eval CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
                       /* extra */
                        f5 DOUBLE DEFAULT '2.00', 
@@ -243,7 +182,7 @@ connection master;
 		       f12 SET('a', 'b', 'c') default 'b')
                        ENGINE=$engine_type;
 
-
+--echo
 # no ENUM and SET
     eval CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
                       /* extra */
@@ -256,7 +195,7 @@ connection master;
 		       f11 CHAR(255))
                        ENGINE=$engine_type;
 
-
+--echo
     eval CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
                        
                        /* extra */
@@ -293,7 +232,9 @@ connection master;
 		       f34 VARBINARY(1025),
 		       f35 VARCHAR(257)       
                        ) ENGINE=$engine_type;
-
+--echo
+--echo ** Alter tables on slave and drop columns **
+--echo
 #connection slave;
     sync_slave_with_master;
     alter table t2 drop f5, drop f6, drop f7, drop f8, drop f9, drop f10, drop f11, drop
@@ -308,8 +249,8 @@ f12;
        drop f26, drop f27, drop f28, drop f29, drop f30, drop f31, drop f32,
        drop f33, drop f34, drop f35;
                  
-
-
+--echo
+--echo ** Insert Data into Master **
 connection master;
    INSERT into t2 set f1=1, f2=1, f3=1, f4='first', f8='f8: medium size blob', f10='f10:
 some var char';
@@ -458,7 +399,10 @@ binary data';
        /*f34 VARBINARY(1025),*/      '3333 minus 3',
        /*f35 VARCHAR(257),*/         NULL
        );
-   
+--echo 
+--echo ** Sync slave with master ** 
+--echo ** Do selects from tables **
+--echo  
 #connection slave;
    sync_slave_with_master;
 
@@ -469,11 +413,17 @@ binary data';
    select * from t31 order by f1;
    
 connection master;
-
+--echo
+--echo ** Do updates master **
+--echo
    update t31 set f5=555555555555555 where f3=6;
    update t31 set f2=2 where f3=2;
    update t31 set f1=NULL where f3=1;
    update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+
+--echo
+--echo ** Delete from Master **
+--echo
 
    delete from t1;
    delete from t2;
@@ -481,6 +431,9 @@ connection master;
    delete from t4;
    delete from t31;
 
+--echo
+--echo ** Check slave status **
+--echo
 #connection slave;
    sync_slave_with_master;
    select * from t31;
@@ -496,11 +449,600 @@ connection master;
 --disable_query_log
   DROP TABLE t1,t2,t3,t4,t31;
 
+######################################################
 #connection slave;
   sync_slave_with_master;
 --enable_query_log
 --enable_warnings
+--echo
+--echo ****************************************
+--echo * columns in master at middle of table *
+--echo * Expect: Proper error message         *
+--echo ****************************************
+--echo
+--echo ** Stop and Reset Slave **
+--echo
+STOP SLAVE;
+RESET SLAVE;
+--echo
+--echo ** create table slave side **
+eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+                       ) ENGINE=$engine_type;
 
-# END of the tests
+--echo
+--echo ** Connect to master and create table **
+--echo
+--connection master
+eval CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
+                      c CHAR(5), e INT DEFAULT '1')ENGINE=$engine_type;
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
+                         (2,@b1,DEFAULT,'JOE',DEFAULT),
+                         (3,@b1,DEFAULT,'QA',DEFAULT);
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1523 ***
+--echo ********************************************
+--echo
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+--echo
+--echo *** Drop t10  ***
+connection master;
+DROP TABLE t10;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo *********************************************
+--echo * More columns in master at middle of table *
+--echo * Expect: Proper error message              *
+--echo *********************************************
+--echo
+--echo  *** Create t11 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+
+eval CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t11 on Master ***
+connection master;
+eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+                      c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
+                         (2,@b1,'Testing is cool','JOE',DEFAULT),
+                         (3,@b1,DEFAULT,'QA',DEFAULT);
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1523 ***
+--echo ********************************************
+--echo
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+--echo
+--echo *** Drop t11  ***
+connection master;
+DROP TABLE t11;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo *********************************************
+--echo * More columns in master at middle of table *
+--echo * Expect: This one should pass blob-text    *
+--echo *********************************************
+--echo
+--echo  *** Create t12 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t12 on Master ***
+connection master;
+eval CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
+                      c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t12 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                         (2,@b1,'JOE',DEFAULT,DEFAULT),
+                         (3,@b1,'QA',DEFAULT,DEFAULT);
+--echo
+SELECT a,hex(b),f,c,e FROM t12 ORDER BY a;
+
+--echo
+--echo *** Select on Slave ***
+sync_slave_with_master;
+SELECT a,hex(b),c FROM t12 ORDER BY a;
+
+--echo
+--echo *** Drop t12  ***
+connection master;
+DROP TABLE t12;
+sync_slave_with_master;
+
+############################################
+############## Continued ###################
+############################################
+--echo
+--echo ****************************************************
+--echo * - Alter Master adding columns at middle of table *
+--echo *   Expect: columns added                          *
+--echo ****************************************************
+--echo
+--echo
+--echo *** Create t14 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t14 on Master ***
+connection master;
+eval CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
+ALTER TABLE t14 ADD COLUMN c3 TEXT AFTER c2;
+--echo
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,2.00,'This Test Should work',@b1,'JOE',DEFAULT,DEFAULT),
+                        (3,3.00,'If is does not, I will open a bug',@b1,'QA',DEFAULT,DEFAULT);
+--echo
+--replace_column 7 CURRENT_TIMESTAMP
+SELECT c1,c2,c3,hex(c4),c5,c6,c7 FROM t14 ORDER BY c1;
+
+--echo
+--echo *** Select on Slave ****
+sync_slave_with_master;
+SELECT c1,c2,c3,hex(c4),c5 FROM t14 ORDER BY c1;
+
+####################################################
+--echo
+--echo ****************************************************
+--echo * - Alter Master Dropping columns from the middle. *
+--echo *   Expect: columns dropped                        *
+--echo ****************************************************
+--echo
+--echo *** connect to master and drop columns ***
+connection master;
+ALTER TABLE t14 DROP COLUMN c2;
+ALTER TABLE t14 DROP COLUMN c7;
+--echo
+--echo *** Select from Master ***
+SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
+--echo
+
+--echo ************
+--echo * Bug30415 *
+--echo ************
+# Uncomment below once fixed
+
+#--echo *** Select from Slave ***
+#sync_slave_with_master;
+#SELECT c1,c2,c3,hex(c4),c5 FROM t14 ORDER BY c1;
+
+# Bug30415
+# Remove below once fixed
+#***************************
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+#***************************
+
+STOP SLAVE;
+RESET SLAVE;
+
+--echo
+--echo *** Drop t14  ***
+DROP TABLE t14;
+
+connection master;
+DROP TABLE t14;
+RESET MASTER;
+
+connection slave;
+START SLAVE;
+
+#################################################
+--echo
+--echo *************************************************
+--echo * - Alter Master adding columns at end of table *
+--echo *   Expect: Error 1054                          *
+--echo *************************************************
+--echo
+--echo *** Create t15 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t15 on Master ***
+connection master;
+eval CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
+                        (2,@b1,'JOE',DEFAULT,DEFAULT,3.00),
+                        (3,@b1,'QA',DEFAULT,DEFAULT,3.00);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
+
+--echo
+--echo ********************************************
+--echo *** Expect slave to fail with Error 1054 ***
+--echo ********************************************
+--echo
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+STOP SLAVE;
+RESET SLAVE;
+
+--echo
+--echo *** Drop t15  ***
+DROP TABLE t15;
+
+connection master;
+DROP TABLE t15;
+RESET MASTER;
+
+connection slave;
+START SLAVE;
+
+####################################################
+--echo
+--echo ************************************************
+--echo * - Create index on Master column not on slave *
+--echo *   Expect:Warning                             *
+--echo ************************************************
+--echo
+--echo *** Create t16 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t16 on Master ***
+connection master;
+eval CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Create Index and Data Insert ***
+connection master;
+CREATE INDEX part_of_c6 ON t16 (c6);
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t16 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
+
+# Uncomment the below when bug 30434 is patched
+
+#--echo *** Select on Slave ****
+#sync_slave_with_master;
+#SELECT c1,hex(c4),c5 FROM t16 ORDER BY c1;
+#
+#--echo *** Drop t16  ***
+#connection master;
+#DROP TABLE t16;
+#sync_slave_with_master;
+
+# Remove the below when bug 30434 is patched
+#*******************************************
+--echo
+--echo *****************
+--echo *** BUG 30434 ***
+--echo *****************
+--echo
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+STOP SLAVE;
+RESET SLAVE;
+
+--echo
+--echo *** Drop t16  ***
+DROP TABLE t16;
+
+connection master;
+DROP TABLE t16;
+RESET MASTER;
+
+connection slave;
+START SLAVE;
+#*******************************************
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Delete rows using column on Master not on slave *
+--echo *   Expect: Rows Deleted                            *
+--echo *****************************************************
+--echo
+--echo *** Create t17 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t17 on Master ***
+connection master;
+eval CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t17 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+
+--echo
+--echo ** Delete from master **
+connection master;
+DELETE FROM t17 WHERE c6 = 3;
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t17 ORDER BY c1;
+
+--echo 
+--echo ** Check slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t17 ORDER BY c1;
+
+
+connection master;
+DROP TABLE t17;
+sync_slave_with_master;
+--echo
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Update row using column on Master not on slave *
+--echo *   Expect: Rows updated                           *
+--echo *****************************************************
+--echo
+--echo ** Bug30674 **
+--echo
+--echo *** Create t18 on slave  ***
+--echo 
+
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t18 on Master ***
+connection master;
+eval CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 INT DEFAULT '1',
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+
+INSERT INTO t18 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT),
+                        (2,@b1,'JOE',2,DEFAULT),
+                        (3,@b1,'QA',3,DEFAULT);
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** update from master **
+connection master;
+#######################################
+# This test should be uncommented
+# once bug30674 is patched
+#######################################
+
+#***************************
+#UPDATE t18 SET c5 = 'TEST' WHERE c6 = 3;
+#***************************
+
+--replace_column 5 CURRENT_TIMESTAMP
+SELECT c1,hex(c4),c5,c6,c7 FROM t18 ORDER BY c1;
+
+--echo
+--echo ** Check slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t18 ORDER BY c1;
+
+connection master;
+DROP TABLE t18;
+sync_slave_with_master;
+--echo
+
+####################################################
+--echo
+--echo *****************************************************
+--echo * - Insert UUID  column on Master not on slave *
+--echo *   Expect: Rows inserted                      *
+--echo *****************************************************
+--echo
+--echo *** Create t5 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+eval CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+                       ) ENGINE=$engine_type;
+
+--echo
+--echo *** Create t5 on Master ***
+connection master;
+eval CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+                      c6 LONG, 
+                      c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                      )ENGINE=$engine_type;
+
+RESET MASTER;
+
+--echo
+--echo *** Start Slave ***
+connection slave;
+START SLAVE;
+
+--echo
+--echo *** Master Data Insert ***
+connection master;
+set @b1 = 'b1b1b1b1';
+INSERT INTO t5 () VALUES(1,@b1,'Kyle',UUID(),DEFAULT),
+                        (2,@b1,'JOE',UUID(),DEFAULT),
+                        (3,@b1,'QA',UUID(),DEFAULT);
+--replace_column 4 UUID 5 TIME 
+SELECT c1,hex(c4),c5,c6,c7 FROM t5 ORDER BY c1;
+
+--echo
+--echo ** Select * from Slave **
+sync_slave_with_master;
+SELECT c1,hex(c4),c5 FROM t5 ORDER BY c1;
+
+connection master;
+DROP TABLE t5;
+sync_slave_with_master;
+--echo
+
+# END of 5.1 tests case
 
 
