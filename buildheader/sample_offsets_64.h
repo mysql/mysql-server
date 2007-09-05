@@ -53,7 +53,22 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*set_lk_detect) (DB_ENV *, u_int32_t)", 720, 8},
   {"int  (*set_lk_max) (DB_ENV *, u_int32_t)", 728, 8},
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 856, 8},
+  {"int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)", 1032, 8},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 1040, 8},
   {"int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t)", 1064, 8},
   {0, 1096, 1096} /* size of whole struct */
+};
+struct fieldinfo db_key_range_fields64[] = {
+  {"double less", 0, 8},
+  {"double equal", 8, 8},
+  {"double greater", 16, 8},
+  {0, 1096, 1096} /* size of whole struct */
+};
+struct fieldinfo db_lsn_fields64[] = {
+  {0, 8, 8} /* size of whole struct */
+};
+struct fieldinfo db_txn_active_fields64[] = {
+  {"u_int32_t txnid", 0, 4},
+  {"DB_LSN lsn", 8, 8},
+  {0, 16, 16} /* size of whole struct */
 };
