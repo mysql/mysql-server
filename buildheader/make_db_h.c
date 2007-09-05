@@ -47,7 +47,7 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		unsigned int diff = diff64-diff32;
 		unsigned int n_dummys = diff/4;
 		if (need_internal && !did_toku_internal) {
-		    printf("  struct __toku%s_internal *i;\n", structname);
+		    printf("  struct __toku_%s_internal *i;\n", structname);
 		    n_dummys--;
 		    did_toku_internal=1;
 		}
@@ -89,7 +89,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
 
     assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
-    print_struct("db_txn", 0, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
+    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
+
+    assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
+    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]));
 
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");

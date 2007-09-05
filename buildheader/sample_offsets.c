@@ -86,6 +86,16 @@ void sample_db_txn_offsets (void) {
     sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
+void sample_dbc_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DBC, c_get,   "int (*%s) (DBC *, DBT *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DBC, c_close, "int (*%s) (DBC *)");
+    STRUCT_SETUP(DBC, c_del,   "int (*%s) (DBC *, u_int32_t)");
+    sort_and_dump_fields("dbc", sizeof(DBC));
+}
+
+
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
