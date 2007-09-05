@@ -25,15 +25,14 @@ struct fieldinfo {
 #include "sample_offsets_32.h"
 #include "sample_offsets_64.h"
 
-void print_db_struct (void) {
+void print_struct (const char *structname, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N) {
     unsigned int i;
     unsigned int current_32 = 0;
     unsigned int current_64 = 0;
     int dummy_counter=0;
 //    int did_toku_internal=0;
-    printf("struct __toku_db {\n");
-    assert(sizeof(fields32)==sizeof(fields64));
-    for (i=0; i<sizeof(fields32)/sizeof(fields32[0]); i++) {
+    printf("struct __toku_%s {\n", structname);
+    for (i=0; i<N; i++) {
 	unsigned int this_32 = fields32[i].off;
 	unsigned int this_64 = fields64[i].off;
 	assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
@@ -79,7 +78,13 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("#if defined(__cplusplus)\nextern \"C\" {\n#endif\n");
     printf("typedef struct __toku_db DB;\n");
     print_dbtype();
-    print_db_struct();
+
+    assert(sizeof(db_fields32)==sizeof(db_fields64));
+    print_struct("db", db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
+
+    assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
+    print_struct("dbt", dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
+
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
