@@ -140,16 +140,31 @@ void sample_db_txn_active_offsets (void) {
     sort_and_dump_fields("db_txn_active", sizeof(DB_TXN_ACTIVE));
 }
 
+void sample_db_txn_stat_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_TXN_STAT, st_nactive, "u_int32_t %s");
+    STRUCT_SETUP(DB_TXN_STAT, st_txnarray, "DB_TXN_ACTIVE *%s");
+    sort_and_dump_fields("db_txn_stat", sizeof(DB_TXN_STAT));
+}
+
+void sample_db_btree_stat_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_BTREE_STAT, bt_ndata, "u_int32_t %s");
+    STRUCT_SETUP(DB_BTREE_STAT, bt_nkeys, "u_int32_t %s");
+    sort_and_dump_fields("db_btree_stat", sizeof(DB_BTREE_STAT));
+}
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
-    sample_db_offsets();
-    sample_dbt_offsets();
-    sample_db_txn_offsets();
-    sample_dbc_offsets();
+    sample_db_btree_stat_offsets();
     sample_db_env_offsets();
     sample_db_key_range_offsets();
     sample_db_lsn_offsets();
+    sample_db_offsets();
     sample_db_txn_active_offsets();
+    sample_db_txn_offsets();
+    sample_db_txn_stat_offsets();
+    sample_dbc_offsets();
+    sample_dbt_offsets();
     return 0;
 }
