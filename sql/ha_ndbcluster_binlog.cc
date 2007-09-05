@@ -2185,6 +2185,10 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         {
           if (share->op)
           {
+            Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
+            if (event_data)
+              delete event_data;
+            share->op->setCustomData(NULL);
             injector_ndb->dropEventOperation(share->op);
             share->op= 0;
             free_share(&share);
@@ -2353,10 +2357,14 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           (void) pthread_mutex_lock(&share->mutex);
           if (share->op && share->new_op)
           {
+            Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
+            if (event_data)
+              delete event_data;
+            share->op->setCustomData(NULL);
             injector_ndb->dropEventOperation(share->op);
-            free_share(&share);
             share->op= share->new_op;
             share->new_op= 0;
+            free_share(&share);
           }
           (void) pthread_mutex_unlock(&share->mutex);
         }
