@@ -121,6 +121,20 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
     print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]));
 
+    assert(sizeof(db_key_range_fields32)==sizeof(db_key_range_fields64));
+    print_struct("db_key_range", 0, db_key_range_fields32, db_key_range_fields64, sizeof(db_key_range_fields32)/sizeof(db_key_range_fields32[0]));
+
+    assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
+    print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]));
+
+    assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
+    print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]));
+    assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
+    print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]));
+
+    assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
+    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]));
+
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
