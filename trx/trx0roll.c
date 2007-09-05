@@ -447,7 +447,6 @@ trx_rollback_active(
 
 	trx->mysql_process_no = os_proc_get_number();
 
-	/* TODO: Doesn't seem right */
 	if (trx->dict_operation) {
 		row_mysql_lock_data_dictionary(trx);
 		dictionary_locked = TRUE;
@@ -495,23 +494,6 @@ trx_rollback_active(
 
 			ut_a(err == (int) DB_SUCCESS);
 		}
-	} else if (trx->dict_undo_list) {
-
-		dict_undo_t*	dict_undo;
-
-		ut_a(trx->dict_undo_list);
-
-		for (dict_undo = UT_LIST_GET_FIRST(*trx->dict_undo_list);
-		     dict_undo;
-		     dict_undo = UT_LIST_GET_NEXT(node, dict_undo)) {
-			row_undo_dictionary(trx, dict_undo);
-		}
-
-		dict_undo_free_list(trx);
-
-		mutex_enter(&kernel_mutex);
-		trx_commit_off_kernel(trx);
-		mutex_exit(&kernel_mutex);
 	}
 
 	if (dictionary_locked) {
@@ -1239,11 +1221,7 @@ trx_finish_rollback_off_kernel(
 	}
 #endif /* UNIV_DEBUG */
 
-	/* If there are dict UNDO records that need to be undone then
-	we commit the transaction after these dictionary changes are undone.*/
-	if (!trx->dict_undo_list) {
-		trx_commit_off_kernel(trx);
-	}
+	trx_commit_off_kernel(trx);
 
 	/* Remove all TRX_SIG_TOTAL_ROLLBACK signals from the signal queue and
 	send reply messages to them */

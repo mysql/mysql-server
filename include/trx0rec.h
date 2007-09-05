@@ -212,31 +212,6 @@ trx_undo_report_row_operation(
 					inserted undo log record,
 					ut_dulint_zero if BTR_NO_UNDO_LOG
 					flag was specified */
-/***************************************************************************
-Writes information to an undo log about dictionary operation e.g.
-rename_table, create_table, create_index, drop table. This information
-is used in a rollback of the transaction. */
-
-ulint
-trx_undo_report_dict_operation(
-/*===========================*/
-					/* out: DB_SUCCESS or error code */
-	ulint		op_type,	/* in: TRX_UNDO_TABLE_CREATE_OP,
-					TRX_UNDO_TABLE_RENAME_OP,
-					TRX_UNDO_TABLE_DROP_OP, or
-					TRX_UNDO_INDEX_CREATE_OP */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index,		/* in:
-					if TRX_UNDO_INDEX_CREATE_OP
-					index to be created*/
-	const char*	table_name,	/* in: table name or NULL, used in
-					create table, rename table and
-					drop table*/
-	const char*	old_table_name,	/* in: old table name or NULL.
-					used in rename table */
-	const char*	tmp_table_name,	/* in: the intermediate name used */
-	dulint*		roll_ptr);	/* out: rollback pointer to the
-					inserted undo log record */
 /**********************************************************************
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists. */
@@ -324,9 +299,6 @@ record */
 					fields of the record can change */
 #define	TRX_UNDO_DEL_MARK_REC	14	/* delete marking of a record; fields
 					do not change */
-#define	TRX_UNDO_DICTIONARY_REC 15	/* dictionary operation, detailed
-					operation type can be found from
-					undo log records subtype */
 #define	TRX_UNDO_CMPL_INFO_MULT	16	/* compilation info is multiplied by
 					this and ORed to the type above */
 #define	TRX_UNDO_UPD_EXTERN	128	/* This bit can be ORed to type_cmpl
@@ -334,21 +306,9 @@ record */
 					storage fields: used by purge to
 					free the external storage */
 
-/* Operation type flags used in trx_undo_report_row_operation
-and trx_undo_report_dict_operation */
+/* Operation type flags used in trx_undo_report_row_operation */
 #define	TRX_UNDO_INSERT_OP		1
 #define	TRX_UNDO_MODIFY_OP		2
-#define	TRX_UNDO_INDEX_CREATE_OP	3	/* alter table add index */
-#define	TRX_UNDO_TABLE_CREATE_OP	4	/* create table */
-#define	TRX_UNDO_TABLE_RENAME_OP	5	/* rename table */
-#define	TRX_UNDO_TABLE_DROP_OP		6	/* drop table */
-
-/* Subtypes for dictionary operation */
-#define	TRX_UNDO_NULL_REC		0	/* No subtype */
-#define	TRX_UNDO_INDEX_CREATE_REC	1	/* index create record */
-#define	TRX_UNDO_TABLE_CREATE_REC	2	/* table create record */
-#define	TRX_UNDO_TABLE_RENAME_REC	3	/* table rename record */
-#define	TRX_UNDO_TABLE_DROP_REC		4	/* table drop record */
 
 #ifndef UNIV_NONINL
 #include "trx0rec.ic"

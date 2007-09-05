@@ -439,35 +439,13 @@ ut_print_namel(
 	fwrite(name, 1, namelen, f);
 #else
 	if (table_id) {
-		char*	slash;
-
-		if (UNIV_UNLIKELY(*name == TEMP_TABLE_PREFIX)) {
-			slash = memchr(name + 1, '/', namelen);
-
-			ut_ad(slash && slash >= name + 2);
-
-			/* Database */
-			innobase_print_identifier(f, trx, TRUE, name + 2,
-						  slash - (name + 2));
-			putc('.', f);
-			/* Table */
-			innobase_print_identifier(f, trx, TRUE, slash + 1,
-						  namelen
-						  - (slash - (name + 3)));
-			/* Identifier of temporary table */
-			fprintf(f, "--temporary %c--", name[1]);
-			return;
-		}
-
-		slash = memchr(name, '/', namelen);
-
+		char*	slash = memchr(name, '/', namelen);
 		if (!slash) {
 
 			goto no_db_name;
 		}
 
 		/* Print the database name and table name separately. */
-
 		innobase_print_identifier(f, trx, TRUE, name, slash - name);
 		putc('.', f);
 		innobase_print_identifier(f, trx, TRUE, slash + 1,

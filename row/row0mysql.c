@@ -732,7 +732,6 @@ row_prebuilt_free(
 	references to it now.*/
 	if (prebuilt->table->to_be_dropped
 	    && prebuilt->table->n_mysql_handles_opened == 0) {
-		ut_a(*prebuilt->table->name == TEMP_TABLE_PREFIX);
 
 		if (!row_add_table_to_background_drop_list(prebuilt->table)) {
 			ut_print_timestamp(stderr);
@@ -3045,18 +3044,17 @@ row_drop_table_for_mysql(
 	ulint		err;
 
 	err = row_drop_table_for_mysql_no_commit(name, trx, drop_db);
+	trx_commit_for_mysql(trx);
 
-	if (!srv_created_new_raw) {
-		trx_commit_for_mysql(trx);
-	}
-
-	return err;
+	return(err);
 }
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the table to be dropped is equal
-with one of the predefined magic table names, then this also stops printing
-the corresponding monitor output by the master thread. */
+Drops a table for MySQL but does not commit the transaction.  If the
+name of the dropped table ends in one of "innodb_monitor",
+"innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also stop the printing of
+monitor output by the master thread. */
 
 int
 row_drop_table_for_mysql_no_commit(
@@ -3212,7 +3210,7 @@ check_next_foreign:
 		if (added) {
 			/* Temporary tables can have read views and we don't
 			print any warning. */
-			if (*table->name != TEMP_TABLE_PREFIX) {
+			if (!table->to_be_dropped) {
 				ut_print_timestamp(stderr);
 				fputs("  InnoDB: Warning: MySQL is"
 				      " trying to drop table ", stderr);
@@ -3223,8 +3221,6 @@ check_next_foreign:
 				      "InnoDB: Adding the table to the"
 				      " background drop queue.\n",
 				      stderr);
-			} else {
-				ut_a(table->to_be_dropped);
 			}
 
 			/* We return DB_SUCCESS to MySQL though the drop will
@@ -4171,99 +4167,6 @@ row_check_table_for_mysql(
 	return(ret);
 }
 
-/***************************************************************************
-Writes information to an undo log about dictionary operation e.g.
-rename_table, create_table, create_index, drop table. This information
-is used in a rollback of the transaction. */
-static
-ulint
-row_undo_report_dict_operation(
-/*===========================*/
-					/* out: DB_SUCCESS or error code */
-	ulint		op_type,	/* in: TRX_UNDO_TABLE_CREATE_OP,
-					TRX_UNDO_TABLE_RENAME_OP,
-					TRX_UNDO_TABLE_DROP_OP, or
-					TRX_UNDO_INDEX_CREATE_OP */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index,		/* in:
-					if TRX_UNDO_INDEX_CREATE_OP
-					index to be created*/
-	const char*	table_name,	/* in: table name or NULL, used in
-					create table, rename table and
-					drop table*/
-	const char*	old_table_name,	/* in: old table name or NULL. */
-	const char*	tmp_table_name)	/* in: the intermediate name or NULL */
-{
-	dulint		roll_ptr;
-
-	return trx_undo_report_dict_operation(
-		op_type, trx, index, table_name, old_table_name,
-		tmp_table_name, &roll_ptr);
-}
-
-/***************************************************************************
-Writes information to an undo log about dictionary operation, create_table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_create_table_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	table_name)	/* in: table name to create. */
-{
-	return row_undo_report_dict_operation(
-		TRX_UNDO_TABLE_CREATE_OP, trx, NULL, table_name, NULL, NULL);
-}
-
-/***************************************************************************
-Writes information to an undo log about dictionary operation, create_index.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_create_index_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index)		/* in: index created. */
-{
-	return row_undo_report_dict_operation(
-		TRX_UNDO_INDEX_CREATE_OP, trx, index, NULL, NULL, NULL);
-}
-
-/***************************************************************************
-Writes information to an undo log about dictionary operation, rename_table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_rename_table_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	from_table_name,/* in: rename from table table. */
-	const char*	to_table_name,	/* in: rename to table name. */
-	const char*	tmp_table_name)	/* in: intermediate name for table */
-{
-	return row_undo_report_dict_operation(
-		TRX_UNDO_TABLE_RENAME_OP, trx, NULL,
-		to_table_name, from_table_name, tmp_table_name);
-}
-
-/***************************************************************************
-Writes information to an undo log about dictionary operation, drop table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_drop_table_dict_operation(
-/*======================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: query thread */
-	const char*	table_name)	/* in: table name dropped */
-{
-	return row_undo_report_dict_operation(
-		TRX_UNDO_TABLE_DROP_OP, trx, NULL, table_name, NULL, NULL);
-}
-
 /*************************************************************************
 Create query graph for an index creation */
 
@@ -4278,7 +4181,7 @@ row_create_index_graph_for_mysql(
 	ind_node_t*	node;		/* Index creation node */
 	mem_heap_t*	heap;		/* Memory heap */
 	que_thr_t*	thr;		/* Query thread */
-	ulint		err = DB_SUCCESS;
+	ulint		err;
 
 	ut_ad(trx && index);
 
