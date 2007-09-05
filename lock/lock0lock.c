@@ -1787,8 +1787,8 @@ lock_rec_enqueue_waiting(
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: a record lock wait happens"
 		      " in a dictionary operation!\n"
-		      "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, trx, TRUE, index->table_name);
+		      "InnoDB: ", stderr);
+		dict_index_name_print(stderr, trx, index);
 		fputs(".\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n",
