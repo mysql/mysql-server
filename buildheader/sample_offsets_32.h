@@ -12,12 +12,14 @@ struct fieldinfo db_fields32[] = {
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 332, 4},
   {"int (*set_flags) (DB *, u_int32_t)", 380, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 396, 4},
-  {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 412, 4}
+  {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 412, 4},
+  {0, 0, 484} /* size of whole struct */
 };
 struct fieldinfo dbt_fields32[] = {
   {"void*data", 0, 4},
   {"u_int32_t size", 4, 4},
   {"u_int32_t ulen", 8, 4},
   {"void*app_private", 20, 4},
-  {"u_int32_t flags", 24, 4}
+  {"u_int32_t flags", 24, 4},
+  {0, 0, 28} /* size of whole struct */
 };

@@ -15,9 +15,9 @@ void print_dbtype(void) {
 }
 
 
-#define DECL_LIMIT 100
+//#define DECL_LIMIT 100
 struct fieldinfo {
-    char decl[DECL_LIMIT];
+    char *decl;
     unsigned int off;
     unsigned int size;
 };
@@ -25,31 +25,31 @@ struct fieldinfo {
 #include "sample_offsets_32.h"
 #include "sample_offsets_64.h"
 
-void print_struct (const char *structname, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N) {
+void print_struct (const char *structname, int need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N) {
     unsigned int i;
     unsigned int current_32 = 0;
     unsigned int current_64 = 0;
     int dummy_counter=0;
-//    int did_toku_internal=0;
+    int did_toku_internal=0;
     printf("struct __toku_%s {\n", structname);
     for (i=0; i<N; i++) {
 	unsigned int this_32 = fields32[i].off;
 	unsigned int this_64 = fields64[i].off;
 	assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
-#if 0
-	if (!did_toku_internal && this_offset+sizeof(void*)>current_offset) {
-	    printf("  struct __tokudb_internal *i;\n");
-	    current_offset+=sizeof(void*);
-	    did_toku_internal=1;
-	}
-#endif
+	//fprintf(stderr, "this32=%d current32=%d this64=%d current64=%d\n", this_32, current_32, this_64, current_64);
 	if (this_32 > current_32 || this_64 > current_64) {
 	    unsigned int diff32 = this_32-current_32;
 	    unsigned int diff64 = this_64-current_64;
 	    assert(this_32 > current_32 && this_64 > current_64);
 	    if (diff32!=diff64) {
 		unsigned int diff = diff64-diff32;
-		printf("  void* dummy%d[%d];\n", dummy_counter++, diff/4);
+		unsigned int n_dummys = diff/4;
+		if (need_internal && !did_toku_internal) {
+		    printf("  struct __toku%s_internal *i;\n", structname);
+		    n_dummys--;
+		    did_toku_internal=1;
+		}
+		if (n_dummys>0) printf("  void* dummy%d[%d];\n", dummy_counter++, n_dummys);
 		diff64-=diff*2;
 		diff32-=diff;
 		
@@ -68,6 +68,7 @@ void print_struct (const char *structname, struct fieldinfo *fields32, struct fi
 	current_32 += fields32[i].size;
 	current_64 += fields64[i].size;
     }
+    assert(did_toku_internal || !need_internal);
     printf("};\n");
 }
 
@@ -80,10 +81,10 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_dbtype();
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
-    print_struct("db", db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
+    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
-    print_struct("dbt", dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
+    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
 
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");

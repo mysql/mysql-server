@@ -39,15 +39,14 @@ void open_file (void) {
 
 }
 
-void sort_and_dump_fields (const char *structname) {
+void sort_and_dump_fields (const char *structname, unsigned int sizeofstruct) {
     int i;
     qsort(fields, field_counter, sizeof(fields[0]), compare_fields);
     fprintf(outf, "struct fieldinfo %s_fields%d[] = {\n", structname, __WORDSIZE);
     for (i=0; i<field_counter; i++) {
-	fprintf(outf, "  {\"%s\", %d, %d}", fields[i].decl, fields[i].off, fields[i].size);
-	if (i+1<field_counter) fprintf(outf, ",");
-	fprintf(outf, "\n");
+	fprintf(outf, "  {\"%s\", %d, %d},\n", fields[i].decl, fields[i].off, fields[i].size);
     }
+    fprintf(outf, "  {0, 0, %d} /* size of whole struct */\n", sizeofstruct);
     fprintf(outf, "};\n");
 }
 
@@ -67,8 +66,9 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB,set_bt_compare, "int (*%s) (DB *, int (*)(DB *, const DBT *, const DBT *))");
     STRUCT_SETUP(DB,set_flags,      "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB,stat,           "int (*%s) (DB *, void *, u_int32_t)");
-    sort_and_dump_fields("db");
+    sort_and_dump_fields("db", sizeof(DB));
 }
+
 void sample_dbt_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DBT,app_private, "void*%s");
@@ -76,8 +76,16 @@ void sample_dbt_offsets (void) {
     STRUCT_SETUP(DBT,flags,       "u_int32_t %s");
     STRUCT_SETUP(DBT,size,        "u_int32_t %s");
     STRUCT_SETUP(DBT,ulen,        "u_int32_t %s");
-    sort_and_dump_fields("dbt");
+    sort_and_dump_fields("dbt", sizeof(DBT));
 }
+
+void sample_db_txn_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
+    STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
+    sort_and_dump_fields("db_txn", sizeof(DB_TXN));
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
