@@ -4003,13 +4003,16 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
     TcKeyConf::setNoOfOperations(confInfo, 1);
     tcKeyConf->apiConnectPtr = regApiPtr->indexOp;
-    tcKeyConf->gci = regApiPtr->globalcheckpointid;
+    tcKeyConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
+    Uint32* gci_lo = (Uint32*)&tcKeyConf->operations[1];
+    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
     tcKeyConf->confInfo = confInfo;
     tcKeyConf->transId1 = regApiPtr->transid[0];
     tcKeyConf->transId2 = regApiPtr->transid[1];
     tcKeyConf->operations[0].apiOperationPtr = regApiPtr->clientData;
     tcKeyConf->operations[0].attrInfoLen = regApiPtr->attrInfoLen;
-    Uint32 sigLen = TcKeyConf::StaticLength + TcKeyConf::OperationLength;
+    Uint32 sigLen = 1 /** gci_lo */ +
+      TcKeyConf::StaticLength + TcKeyConf::OperationLength;
     EXECUTE_DIRECT(DBTC, GSN_TCKEYCONF, signal, sigLen);
     regApiPtr->indexOpReturn = false;
     if (TopWords == 0) {
@@ -4022,12 +4025,14 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     regApiPtr->m_exec_flag = 0;
   }
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
-  if ((TpacketLen > 25) || !is_api){
+  if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
     
     jam();
     tcKeyConf->apiConnectPtr = regApiPtr->ndbapiConnect;
-    tcKeyConf->gci = regApiPtr->globalcheckpointid;;
+    tcKeyConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
+    Uint32* gci_lo = (Uint32*)&tcKeyConf->operations[TopWords >> 1];
+    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
     tcKeyConf->confInfo = confInfo;
     tcKeyConf->transId1 = regApiPtr->transid[0];
     tcKeyConf->transId2 = regApiPtr->transid[1];
@@ -4035,9 +4040,10 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
 		  (UintR*)&tcKeyConf->operations,
 		  (UintR)ZTCOPCONF_SIZE);
     sendSignal(regApiPtr->ndbapiBlockref,
-	       GSN_TCKEYCONF, signal, (TpacketLen - 1), JBB);
+	       GSN_TCKEYCONF, signal, (TpacketLen - 1) + 1 /** gci_lo */, JBB);
     return;
-  } else if (((TcurrLen + TpacketLen) > 25) && (TcurrLen > 0)) {
+  } else if (((TcurrLen + TpacketLen + 1 /** gci_lo */) > 25) &&
+             (TcurrLen > 0)) {
     jam();
     sendPackedTCKEYCONF(signal, localHostptr.p, localHostptr.i);
     TcurrLen = 0;
@@ -4050,14 +4056,15 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   // length - 3, since we have the real signal length plus one additional word
   // for the header we have to do - 4.
   // -------------------------------------------------------------------------
-  UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4);
+  UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4 + 1 /** gci_lo */);
   UintR Tpack1 = regApiPtr->ndbapiConnect;
-  UintR Tpack2 = regApiPtr->globalcheckpointid;
+  UintR Tpack2 = Uint32(regApiPtr->globalcheckpointid >> 32);
   UintR Tpack3 = confInfo;
   UintR Tpack4 = regApiPtr->transid[0];
   UintR Tpack5 = regApiPtr->transid[1];
+  UintR Tpack6 = Uint32(regApiPtr->globalcheckpointid);
   
-  localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen;
+  localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen + 1 /** gci_lo */;
   
   localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 0] = Tpack0;
   localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 1] = Tpack1;
@@ -4071,6 +4078,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     localHostptr.p->packedWordsTCKEYCONF[TcurrLen + Ti] = 
       regApiPtr->tcSendArray[Ti - 6];
   }//for
+  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + TpacketLen] = Tpack6;
 }//Dbtc::sendtckeyconf()
 
 void Dbtc::copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR Tlen)
@@ -4230,7 +4238,7 @@ void Dbtc::diverify010Lab(Signal* signal)
      * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
      *-----------------------------------------------------------------------*/
     EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
-    if (signal->theData[2] == 0) {
+    if (signal->theData[3] == 0) {
       execDIVERIFYCONF(signal);
     }
     return;
@@ -4275,7 +4283,9 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
 {
   UintR TapiConnectptrIndex = signal->theData[0];
   UintR TapiConnectFilesize = capiConnectFilesize;
-  UintR Tgci = signal->theData[1];
+  UintR Tgci_hi = signal->theData[1];
+  UintR Tgci_lo = signal->theData[2];
+  Uint64 Tgci = Tgci_lo | (Uint64(Tgci_hi) << 32);
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   jamEntry();
@@ -4336,7 +4346,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
 /*                             COMMIT_GCI_HANDLING                          */
 /*       SET UP GLOBAL CHECKPOINT DATA STRUCTURE AT THE COMMIT POINT.       */
 /*--------------------------------------------------------------------------*/
-void Dbtc::commitGciHandling(Signal* signal, UintR Tgci) 
+void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
 {
   GcpRecordPtr localGcpPointer;
 
@@ -4414,7 +4424,7 @@ void Dbtc::seizeGcp(Signal* signal)
   GcpRecordPtr localGcpPointer;
 
   UintR Tfirstgcp = cfirstgcp;
-  UintR Tglobalcheckpointid = apiConnectptr.p->globalcheckpointid;
+  Uint64 Tglobalcheckpointid = apiConnectptr.p->globalcheckpointid;
   UintR TgcpFilesize = cgcpFilesize;
   GcpRecord *localGcpRecord = gcpRecord;
 
@@ -4500,7 +4510,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
-  if (Thostptr.p->noOfPackedWordsLqh > 21) {
+  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
     jam();
     sendPackedSignalLqh(signal, Thostptr.p);
   } else {
@@ -4510,19 +4520,21 @@ void Dbtc::sendCommitLqh(Signal* signal,
   UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
   UintR Tdata1 = regTcPtr->lastLqhCon;
-  UintR Tdata2 = regApiPtr->globalcheckpointid;
+  UintR Tdata2 = regApiPtr->globalcheckpointid >> 32; // XXX Jonas
   UintR Tdata3 = regApiPtr->transid[0];
   UintR Tdata4 = regApiPtr->transid[1];
+  UintR Tdata5 = regApiPtr->globalcheckpointid & 0xFFFFFFFF;
 
   TDataPtr[0] = Tdata1 | (ZCOMMIT << 28);
   TDataPtr[1] = Tdata2;
   TDataPtr[2] = Tdata3;
   TDataPtr[3] = Tdata4;
-  Thostptr.p->noOfPackedWordsLqh = Tindex + 4;
+  TDataPtr[4] = Tdata5;
+  Thostptr.p->noOfPackedWordsLqh = Tindex + 5;
 }//Dbtc::sendCommitLqh()
 
 void
-Dbtc::DIVER_node_fail_handling(Signal* signal, UintR Tgci)
+Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci)
 {
   /*------------------------------------------------------------------------
    * AT LEAST ONE NODE HAS FAILED DURING THE TRANSACTION. WE NEED TO CHECK IF  
@@ -4667,7 +4679,8 @@ void Dbtc::sendApiCommit(Signal* signal)
     }
     commitConf->transId1 = regApiPtr->transid[0];
     commitConf->transId2 = regApiPtr->transid[1];
-    commitConf->gci = regApiPtr->globalcheckpointid;
+    commitConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
+    commitConf->gci_lo = Uint32(regApiPtr->globalcheckpointid);
 
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
 	       TcCommitConf::SignalLength, JBB);
@@ -5385,7 +5398,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
         commitConf->apiConnectPtr = apiConnectPtr;
         commitConf->transId1 = transId1;
         commitConf->transId2 = transId2;
-        commitConf->gci = 0;
+        commitConf->gci_hi = 0;
+        commitConf->gci_lo = 0;
         sendSignal(apiBlockRef, GSN_TC_COMMITCONF, signal, 
 		   TcCommitConf::SignalLength, JBB);
         
@@ -7033,7 +7047,9 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
   jamEntry();
   GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtr();
   c_gcp_ref = req->senderData;
-  tcheckGcpId = req->gci;
+  Uint32 gci_lo = req->gci_lo;
+  Uint32 gci_hi = req->gci_hi;
+  tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
   if (cfirstgcp != RNIL) {
     jam();
                                       /* A GLOBAL CHECKPOINT IS GOING ON */
@@ -7368,7 +7384,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   ttransid2    = lqhTransConf->transId2;
   ttcOprec     = lqhTransConf->oldTcOpRec;
   treqinfo     = lqhTransConf->requestInfo;
-  tgci         = lqhTransConf->gci;
+  tgci         = Uint64(lqhTransConf->gci) << 32;
   cnodes[0]    = lqhTransConf->nextNodeId1;
   cnodes[1]    = lqhTransConf->nextNodeId2;
   cnodes[2]    = lqhTransConf->nextNodeId3;
@@ -8015,12 +8031,13 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
           tcConnectptr.p->tcConnectstate = OS_WAIT_COMMIT_CONF;
           signal->theData[0] = tcConnectptr.i;
           signal->theData[1] = cownref;
-          signal->theData[2] = apiConnectptr.p->globalcheckpointid;
+          signal->theData[2] = apiConnectptr.p->globalcheckpointid >> 32; // XXX JON
           signal->theData[3] = apiConnectptr.p->transid[0];
           signal->theData[4] = apiConnectptr.p->transid[1];
           signal->theData[5] = apiConnectptr.p->tcBlockref;
           signal->theData[6] = tcConnectptr.p->tcOprec;
-          sendSignal(tblockref, GSN_COMMITREQ, signal, 7, JBB);
+          signal->theData[7] = apiConnectptr.p->globalcheckpointid& 0xFFFFFFFF;
+          sendSignal(tblockref, GSN_COMMITREQ, signal, 8, JBB);
           return;
         }//if
         break;
@@ -10186,7 +10203,8 @@ void Dbtc::gcpTcfinished(Signal* signal)
 {
   GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
   conf->senderData = c_gcp_ref;
-  conf->gci = tcheckGcpId;
+  conf->gci_hi = Uint32(tcheckGcpId >> 32);
+  conf->gci_lo = Uint32(tcheckGcpId);
   sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
@@ -12022,12 +12040,14 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
     regApiPtr->m_exec_flag = 0;
   }
 
-  if ((TpacketLen > 25) || !is_api){
+  if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
     TcIndxConf * const tcIndxConf = (TcIndxConf *)signal->getDataPtrSend();
     
     jam();
     tcIndxConf->apiConnectPtr = regApiPtr->ndbapiConnect;
-    tcIndxConf->gci = regApiPtr->globalcheckpointid;;
+    tcIndxConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
+    Uint32 *gci_lo = (Uint32*)&tcIndxConf->operations[TopWords >> 1];
+    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
     tcIndxConf->confInfo = confInfo;
     tcIndxConf->transId1 = regApiPtr->transid[0];
     tcIndxConf->transId2 = regApiPtr->transid[1];
@@ -12035,9 +12055,11 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
                   (UintR*)&tcIndxConf->operations,
                   (UintR)ZTCOPCONF_SIZE);
     sendSignal(regApiPtr->ndbapiBlockref,
-               GSN_TCINDXCONF, signal, (TpacketLen - 1), JBB);
+               GSN_TCINDXCONF, signal,
+               (TpacketLen - 1) + 1 /** gci_lo */, JBB);
     return;
-  } else if (((TcurrLen + TpacketLen) > 25) && (TcurrLen > 0)) {
+  } else if (((TcurrLen + TpacketLen + 1 /** gci_lo */) > 25) &&
+             (TcurrLen > 0)) {
     jam();
     sendPackedTCINDXCONF(signal, localHostptr.p, localHostptr.i);
     TcurrLen = 0;
@@ -12050,14 +12072,15 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
 // length - 3, since we have the real signal length plus one additional word
 // for the header we have to do - 4.
 // -------------------------------------------------------------------------
-  UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4);
+  UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4 + 1 /** gci_lo */);
   UintR Tpack1 = regApiPtr->ndbapiConnect;
-  UintR Tpack2 = regApiPtr->globalcheckpointid;
+  UintR Tpack2 = Uint32(regApiPtr->globalcheckpointid >> 32);
   UintR Tpack3 = confInfo;
   UintR Tpack4 = regApiPtr->transid[0];
   UintR Tpack5 = regApiPtr->transid[1];
+  UintR Tpack6 = Uint32(regApiPtr->globalcheckpointid >> 32);
 
-  localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen;
+  localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen + 1 /* gci_lo */;
 
   localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 0] = Tpack0;
   localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 1] = Tpack1;
@@ -12071,6 +12094,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
     localHostptr.p->packedWordsTCINDXCONF[TcurrLen + Ti] = 
           regApiPtr->tcIndxSendArray[Ti - 6];
   }//for
+  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + TpacketLen] = Tpack6;
 }//Dbtc::sendTcIndxConf()
 
 void Dbtc::execINDXKEYINFO(Signal* signal)

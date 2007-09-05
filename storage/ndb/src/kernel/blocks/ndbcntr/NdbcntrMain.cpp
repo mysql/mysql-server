@@ -1851,7 +1851,7 @@ void Ndbcntr::execTCKEYCONF(Signal* signal)
   const TcKeyConf * const keyConf = (TcKeyConf *)&signal->theData[0];
   
   jamEntry();
-  cgciSystab = keyConf->gci;
+  cgciSystab = keyConf->gci_hi;
   UintR confInfo = keyConf->confInfo;
   
   if (TcKeyConf::getMarkerFlag(confInfo)){
@@ -1904,8 +1904,10 @@ void Ndbcntr::execTCRELEASECONF(Signal* signal)
 
 void Ndbcntr::crSystab9Lab(Signal* signal) 
 {
+  signal->theData[0] = 0; // user ptr
   signal->theData[1] = reference();
-  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 2);
+  signal->theData[2] = 0;
+  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 3);
   return;
 }//Ndbcntr::crSystab9Lab()
 

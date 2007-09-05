@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
-Next DBDIH 7186
+Next DBDIH 7190
 Next DBTC 8052
 Next CMVMI 9000
 Next BACKUP 10038
@@ -47,6 +47,21 @@ all nodes in the cluster.
 7004:
 Insert system error in master after completing global checkpoint with
 all nodes in the cluster.
+
+7186:
+Master: Dont send GCP_PREPARE to all node(s)...and die after 1s
+
+7187:
+Master: Dont send GCP_COMMIT to all node(s)...and die after 1s
+
+7188:
+Master: Dont send GCP_SAVE_REQ to all node(s)...and die after 1s
+
+7189:
+Master: Dont send COPY_GCIREQ (GCP) to all node(s)...and die after 1s
+
+7190:
+Master Dont send SUB_GCP_COMPLETE_REP to all node(s) and dies after 1s
 
 7005:
 Insert system error in GCP participant when receiving GCP_PREPARE.

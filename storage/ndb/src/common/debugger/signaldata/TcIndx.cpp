@@ -38,8 +38,10 @@ printTCINDXCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
     while (i < len)
       fprintf(output, "H\'%.8x ", theData[i++]);
     fprintf(output,"\n");
-    fprintf(output, "apiConnectPtr: H'%.8x, gci: %u, transId:(H'%.8x, H'%.8x)\n",
-	    sig->apiConnectPtr, sig->gci, sig->transId1, sig->transId2);
+    fprintf(output, "apiConnectPtr: H'%.8x, gci: %u/%u, transId:(H'%.8x, H'%.8x)\n",
+	    sig->apiConnectPtr,
+            sig->gci_hi, *(Uint32*)&sig->operations[noOfOp],
+            sig->transId1, sig->transId2);
     
     fprintf(output, "noOfOperations: %u, commitFlag: %s, markerFlag: %s\n", 
 	    noOfOp,

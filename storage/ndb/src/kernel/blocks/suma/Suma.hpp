@@ -369,7 +369,7 @@ public:
   void sendSubSyncRef(Signal* signal, Uint32 errorCode);  
   void sendSubRemoveRef(Signal* signal, const SubRemoveReq& ref,
 			Uint32 errorCode);
-  void sendSubStartComplete(Signal*, SubscriberPtr, Uint32, 
+  void sendSubStartComplete(Signal*, SubscriberPtr, Uint64 gci,
 			    SubscriptionData::Part);
   void sendSubStopComplete(Signal*, SubscriberPtr);
   void sendSubStopReq(Signal* signal, bool unlock= false);
@@ -529,15 +529,15 @@ private:
 
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
-  bool check_switchover(Uint32 bucket, Uint32 gci);
+  bool check_switchover(Uint32 bucket, Uint64 gci);
 
 public:  
   struct Page_pos
   {
     Uint32 m_page_id;
     Uint32 m_page_pos;  
-    Uint32 m_max_gci;   // max gci on page
-    Uint32 m_last_gci;  // last gci on page
+    Uint64 m_max_gci;   // max gci on page
+    Uint64 m_last_gci;  // last gci on page
   };
 private:
   
@@ -552,15 +552,17 @@ private:
     Uint16 m_state;
     Uint16 m_switchover_node;
     Uint16 m_nodes[MAX_REPLICAS]; 
-    Uint32 m_switchover_gci;
-    Uint32 m_max_acked_gci;
     Uint32 m_buffer_tail;   // Page
+    Uint64 m_switchover_gci;
+    Uint64 m_max_acked_gci;
     Page_pos m_buffer_head;
   };
   
   struct Buffer_page 
   {
-    STATIC_CONST( DATA_WORDS = 8192 - 9);
+    STATIC_CONST( DATA_WORDS = 8192 - 10);
+    STATIC_CONST( GCI_SZ32 = 2 );
+
     Uint32 _tupdata1;
     Uint32 _tupdata2;
     Uint32 _tupdata3;
@@ -569,7 +571,8 @@ private:
     Uint32 m_page_chunk_ptr_i;
     Uint32 m_next_page;      
     Uint32 m_words_used;     // 
-    Uint32 m_max_gci;        //
+    Uint32 m_max_gci_hi;     //
+    Uint32 m_max_gci_lo;     //
     Uint32 m_data[DATA_WORDS];
   };
   
@@ -584,26 +587,28 @@ private:
   
   class Dbtup* m_tup;
   void init_buffers();
-  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint32 gci, Uint32 sz);
+  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
   Uint32 seize_page();
   void free_page(Uint32 page_id, Buffer_page* page);
   void out_of_buffer(Signal*);
   void out_of_buffer_release(Signal* signal, Uint32 buck);
 
   void start_resend(Signal*, Uint32 bucket);
-  void resend_bucket(Signal*, Uint32 bucket, Uint32 gci, 
-		     Uint32 page_pos, Uint32 last_gci);
-  void release_gci(Signal*, Uint32 bucket, Uint32 gci);
+  void resend_bucket(Signal*, Uint32 bucket, Uint64 gci,
+		     Uint32 page_pos, Uint64 last_gci);
+  void release_gci(Signal*, Uint32 bucket, Uint64 gci);
 
-  Uint32 m_max_seen_gci;      // FIRE_TRIG_ORD
-  Uint32 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
-  Uint32 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
-  Uint32 m_out_of_buffer_gci;
+  Uint64 get_current_gci(Signal*);
+
+  Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
+  Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
+  Uint64 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
+  Uint64 m_out_of_buffer_gci;
   Uint32 m_gcp_complete_rep_count;
 
   struct Gcp_record 
   {
-    Uint32 m_gci;
+    Uint64 m_gci;
     NodeBitmask m_subscribers;
     union {
       Uint32 nextPool;
@@ -628,6 +633,11 @@ private:
 
   Uint32 m_first_free_page;
   ArrayPool<Page_chunk> c_page_chunk_pool;
+
+#ifdef VM_TRACE
+  Uint64 m_gcp_monitor;
+#endif
+
 };
 
 #endif
