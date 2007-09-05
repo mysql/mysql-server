@@ -747,4 +747,20 @@ NdbRestarter::getConfig(){
   return m_config;
 }
 
+int
+NdbRestarter::getNode(NodeSelector type)
+{
+  switch(type){
+  case NS_RANDOM:
+    return getDbNodeId(rand() % getNumDbNodes());
+  case NS_MASTER:
+    return getMasterNodeId();
+  case NS_NON_MASTER:
+    return getRandomNotMasterNodeId(rand());
+  default:
+    abort();
+  }
+  return -1;
+}
+
 template class Vector<ndb_mgm_node_state>;
