@@ -15,8 +15,8 @@
 #include "kv-pair.h"
 #include "pma-internal.h"
 
-/* TODO get this from a include file */
-#define KEY_VALUE_OVERHEAD 8
+/* get KEY_VALUE_OVERHEAD */
+#include "brt-internal.h"
 
 int pma_n_entries (PMA pma) {
     return pma->n_pairs_present;
