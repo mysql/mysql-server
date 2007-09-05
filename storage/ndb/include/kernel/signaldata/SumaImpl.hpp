@@ -287,7 +287,7 @@ struct SubTableData {
   friend struct Grep;
   
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( ATTR_INFO = 0 );
   SECTION( AFTER_VALUES = 1 );
@@ -300,7 +300,7 @@ struct SubTableData {
   };
   
   Uint32 senderData;
-  Uint32 gci;
+  Uint32 gci_hi;
   Uint32 tableId;
   Uint32 requestInfo;
   Uint32 logType;
@@ -309,6 +309,7 @@ struct SubTableData {
     Uint32 anyValue;
   };
   Uint32 totalLen;
+  Uint32 gci_lo;
 
   static void setOperation(Uint32& ri, Uint32 val) { 
     ri = (ri & 0xFFFFFF00) | val;
@@ -389,11 +390,15 @@ struct SubGcpCompleteRep {
   friend struct Trix;
   
   friend bool printSUB_GCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
-  
-  Uint32 gci;
+  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( ON_DISK = 1 );
+  STATIC_CONST( IN_MEMORY = 2 );
+
+  Uint32 gci_hi;
   Uint32 senderRef;
   Uint32 gcp_complete_rep_count;
+  Uint32 gci_lo;
+  Uint32 flags;
 };
 
 struct SubGcpCompleteAck {

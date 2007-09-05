@@ -44,6 +44,7 @@ class FireTrigOrd {
   friend class Dbtc;
   friend class Backup;
   friend class SumaParticipant;
+  friend class Suma;
   
   /**
    * For printing
@@ -53,7 +54,7 @@ class FireTrigOrd {
 public:
   STATIC_CONST( SignalLength = 8 );
   STATIC_CONST( SignalWithGCILength = 9 );
-  STATIC_CONST( SignalLengthSuma = 11 );
+  STATIC_CONST( SignalLengthSuma = 12 );
 
 private:
   Uint32 m_connectionPtr;
@@ -64,9 +65,10 @@ private:
   Uint32 m_noBeforeValueWords;
   Uint32 m_noAfterValueWords;
   Uint32 fragId;
-  Uint32 m_gci;
+  Uint32 m_gci_hi;
   Uint32 m_hashValue;
   Uint32 m_any_value;
+  Uint32 m_gci_lo;
   // Public methods
 public:
   Uint32 getConnectionPtr() const;
@@ -178,13 +180,13 @@ void FireTrigOrd::setNoOfAfterValueWords(Uint32 noAfter)
 inline
 Uint32 FireTrigOrd::getGCI() const
 {
-  return m_gci;
+  return m_gci_hi;
 }
 
 inline
 void FireTrigOrd::setGCI(Uint32 aGCI)
 {
-  m_gci = aGCI;
+  m_gci_hi = aGCI;
 }
 
 inline

@@ -530,11 +530,17 @@ public:
    * @note Global Checkpoint Identity is undefined for scan transactions 
    *       (This is because no updates are performed in scan transactions.)
    *
-   * @return GCI of transaction or -1 if GCI is not available.
+   * @return 0 if GCI is available, and stored in <em>gciptr</em>
+             -1 if GCI is not available.
    *         (Note that there has to be an NdbTransaction::execute call 
    *         with Ndb::Commit for the GCI to be available.)
    */
-  int		getGCI();
+  int getGCI(Uint64 * gciptr);
+
+  /**
+   * Deprecated...in favor of getGCI(Uint64*)
+   */
+  int getGCI();
 			
   /**
    * Get transaction identity.
@@ -948,7 +954,7 @@ private:
   Uint32	theMyRef;				// Our block reference		
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
-  Uint32	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
+  Uint64	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
   Uint64 *p_latest_trans_gci;                           // Reference to latest gci for connection
   ConStatusType	theStatus;				// The status of the connection		
   enum CompletionStatus { 
@@ -1217,18 +1223,6 @@ NdbTransaction::Status( ConStatusType aStatus )
   theStatus = aStatus;
 }
 
-
-/******************************************************************************
- void    	setGCI();
-
-Remark:		Set global checkpoint identity of the transaction
-******************************************************************************/
-inline
-void
-NdbTransaction::setGCI(int aGlobalCheckpointId)
-{
-  theGlobalCheckpointId = aGlobalCheckpointId;
-}
 
 /******************************************************************************
 void OpSent();
