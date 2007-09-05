@@ -1,6 +1,6 @@
 /* Make a db.h that will be link-time compatible with Sleepycat's Berkeley DB. */
 
-#include "../../mysql-5.0.27/mysql-5.0.27/bdb/build_win32/db.h"
+#include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
