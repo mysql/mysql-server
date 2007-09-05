@@ -34,10 +34,9 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 //    int total32 = fields32[N-1].size;
 //    int total64 = fields32[N-1].size;
     printf("struct __toku_%s {\n", structname);
-    for (i=0; i<N-1; i++) {
+    for (i=0; i<N; i++) {
 	unsigned int this_32 = fields32[i].off;
 	unsigned int this_64 = fields64[i].off;
-	assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
 	//fprintf(stderr, "this32=%d current32=%d this64=%d current64=%d\n", this_32, current_32, this_64, current_64);
 	if (this_32 > current_32 || this_64 > current_64) {
 	    unsigned int diff32 = this_32-current_32;
@@ -64,9 +63,15 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	    current_64 = this_64;
 	}
 	if (this_32<current_32 || this_64<current_64) {
-	    printf("Whoops\n");
+	    printf("Whoops this_32=%d this_64=%d\n", this_32, this_64);
 	}
-	printf("  %s; /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */\n", fields32[i].decl, fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	if (i+1<N) {
+	    assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
+	    printf("  %s; /* 32-bit offset=%d size=%d, 64=bit offset=%d size=%d */\n", fields32[i].decl, fields32[i].off, fields32[i].size, fields64[i].off, fields64[i].size);
+	} else {
+	    assert(fields32[i].decl==0);
+	    assert(fields64[i].decl==0);
+	}
 	current_32 += fields32[i].size;
 	current_64 += fields64[i].size;
     }
@@ -93,6 +98,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
     print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]));
+
+    assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
+    print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]));
 
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
