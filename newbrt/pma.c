@@ -28,7 +28,7 @@ int pma_index_limit (PMA pma) {
 
 int pmanode_valid (PMA pma, int i) {
     assert(0<=i); assert(i<pma_index_limit(pma));
-    return kv_pair_inuse(pma->pairs[i]);
+    return kv_pair_valid(pma->pairs[i]);
 }
 
 bytevec pmanode_key (PMA pma, int i) {
