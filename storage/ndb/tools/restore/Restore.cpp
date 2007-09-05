@@ -667,6 +667,18 @@ RestoreDataIterator::getNextTuple(int  & res)
      */
     const Uint32 arraySize = sz / (attr_desc->size / 8);
     assert(arraySize <= attr_desc->arraySize);
+
+    //convert datetime type
+    if(!m_hostByteOrder
+        && attr_desc->m_column->getType() == NdbDictionary::Column::Datetime)
+    {
+      char* p = (char*)&attr_data->u_int64_value[0];
+      Uint64 x;
+      memcpy(&x, p, sizeof(Uint64));
+      x = Twiddle64(x);
+      memcpy(p, &x, sizeof(Uint64));
+    }
+
     if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
       {
 	res = -1;
