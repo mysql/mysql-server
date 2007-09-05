@@ -99,8 +99,6 @@ trx_create(
 
 	trx->dict_operation = FALSE;
 	trx->table_id = ut_dulint_zero;
-	trx->dict_undo_list = NULL;
-	trx->dict_redo_list = NULL;
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
@@ -306,8 +304,6 @@ trx_free(
 	trx->global_read_view = NULL;
 
 	ut_a(trx->read_view == NULL);
-	ut_a(trx->dict_undo_list == NULL);
-	ut_a(trx->dict_redo_list == NULL);
 
 	mem_free(trx);
 }
@@ -698,10 +694,6 @@ trx_commit_off_kernel(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&kernel_mutex));
-
-	/* Can't commit if we have dictionary UNDO records */
-	ut_a(!trx->dict_undo_list);
-	ut_a(!trx->dict_redo_list);
 
 	trx->must_flush_log_later = FALSE;
 

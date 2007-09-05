@@ -436,10 +436,11 @@ row_drop_table_for_mysql(
 	ibool		drop_db);/* in: TRUE=dropping whole database */
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the dropped table ends to
-characters INNODB_MONITOR, then this also stops printing of monitor
-output by the master thread. But does not commit the transaction, this
-is required for UNDOing dictionary records during recovery.*/
+Drops a table for MySQL but does not commit the transaction.  If the
+name of the dropped table ends in one of "innodb_monitor",
+"innodb_lock_monitor", "innodb_tablespace_monitor",
+"innodb_table_monitor", then this will also stop the printing of
+monitor output by the master thread. */
 
 int
 row_drop_table_for_mysql_no_commit(
@@ -509,48 +510,6 @@ row_create_index_graph_for_mysql(
 	trx_t*		trx,		/* in: trx */
 	dict_table_t*	table,		/* in: table */
 	dict_index_t*	index);		/* in: index */
-/***************************************************************************
-Writes information to an undo log about dictionary operation, create_table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_create_table_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	table_name);	/* in: table name created. */
-/***************************************************************************
-Writes information to an undo log about dictionary operation, rename_table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_create_index_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index);		/* in: index created. */
-/***************************************************************************
-Writes information to an undo log about dictionary operation, rename_table.
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_rename_table_dict_operation(
-/*========================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	from_table_name,/* in: rename from table name. */
-	const char*	to_table_name,	/* in: rename to table table. */
-	const char*	tmp_table_name);/* in: intermediate table name */
-/***************************************************************************
-Writes information to an undo log about dictionary operation, drop table. 
-This information is used in a rollback of the transaction. */
-
-ulint
-row_undo_report_drop_table_dict_operation(
-/*======================================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: query thread */
-	const char*	table_name);	/* in: table name dropped */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

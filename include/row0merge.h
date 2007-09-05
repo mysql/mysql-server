@@ -71,7 +71,12 @@ row_merge_drop_indexes(
 	dict_table_t*	table,		/* in: table containing the indexes */
 	dict_index_t**	index,		/* in: indexes to drop */
 	ulint		num_created);	/* in: number of elements in index[] */
+/*************************************************************************
+Drop all partially created indexes during crash recovery. */
 
+void
+row_merge_drop_temp_indexes(void);
+/*=============================*/
 /*************************************************************************
 Rename the tables in the data dictionary. */
 
@@ -102,15 +107,14 @@ row_merge_create_temporary_table(
 	trx_t*			trx);		/* in/out: transaction
 						(sets error_state) */
 /*************************************************************************
-Rename the indexes in the dictionary. */
+Rename the temporary indexes in the dictionary to permanent ones. */
 
 ulint
-row_merge_rename_index(
-/*===================*/
+row_merge_rename_indexes(
+/*=====================*/
 					/* out: DB_SUCCESS if all OK */
-	trx_t*		trx,		/* in: Transaction */
-	dict_table_t*	table,		/* in: Table for index */
-	dict_index_t*	index);		/* in: Index to rename */
+	trx_t*		trx,		/* in/out: transaction */
+	dict_table_t*	table);		/* in/out: table with new indexes */
 /*************************************************************************
 Create the index and load in to the dictionary. */
 

@@ -408,8 +408,8 @@ trx_get_que_state_str(
 
 /* Signal to a transaction */
 struct trx_sig_struct{
-	ulint		type;		/* signal type */
-	ulint		sender;		/* TRX_SIG_SELF or
+	unsigned	type:3;		/* signal type */
+	unsigned	sender:1;	/* TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
 	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
 					wants reply after the operation induced
@@ -437,66 +437,78 @@ struct trx_struct{
 					current operation, or an empty
 					string */
 	unsigned	is_purge:1;	/* 0=user transaction, 1=purge */
-	ulint		conc_state;	/* state of the trx from the point
+	unsigned	conc_state:2;	/* state of the trx from the point
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
-	time_t		start_time;	/* time the trx object was created
-					or the state last time became
-					TRX_ACTIVE */
-	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
-	ibool		check_foreigns;	/* normally TRUE, but if the user
+	unsigned	que_state:2;	/* valid when conc_state == TRX_ACTIVE:
+					TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
+					... */
+	unsigned	isolation_level:2;/* TRX_ISO_REPEATABLE_READ, ... */
+	unsigned	check_foreigns:1;/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
-	ibool		check_unique_secondary;
+	unsigned	check_unique_secondary:1;
 					/* normally TRUE, but if the user
 					wants to speed up inserts by
 					suppressing unique key checks
 					for secondary indexes when we decide
 					if we can use the insert buffer for
 					them, we set this FALSE */
-	dulint		id;		/* transaction id */
-	XID		xid;		/* X/Open XA transaction
-					identification to identify a
-					transaction branch */
-	ibool		support_xa;	/* normally we do the XA two-phase
+	unsigned	support_xa:1;	/* normally we do the XA two-phase
 					commit steps, but by setting this to
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
-	dulint		no;		/* transaction serialization number ==
-					max trx id when the transaction is
-					moved to COMMITTED_IN_MEMORY state */
-	ibool		flush_log_later;/* when we commit the transaction
+	unsigned	flush_log_later:1;/* when we commit the transaction
 					in MySQL's binlog write, we will
 					flush the log to disk later in
 					a separate call */
-	ibool		must_flush_log_later;/* this flag is set to TRUE in
+	unsigned	must_flush_log_later:1;/* this flag is set to TRUE in
 					trx_commit_off_kernel() if
 					flush_log_later was TRUE, and there
 					were modifications by the transaction;
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
-	ib_uint64_t	commit_lsn;	/* lsn at the time of the commit */
-	ibool		dict_operation;	/* TRUE if the trx is used to create
-					a table, create an index, or drop a
-					table.	This is a hint that the table
-					may need to be dropped in crash
+	unsigned	dict_operation:1;/* nonzero if the trx is used
+					to create a table, create an
+					index, or drop a table. This
+					is a hint that the table may
+					need to be dropped in crash
 					recovery. */
-	dict_undo_list_t*
-			dict_undo_list;	/* List of undo records created
-					during recovery. */
-	dict_redo_list_t*
-			dict_redo_list;	/* List of indexes created by this
-					transaction. */
-	dulint		table_id;	/* Table to drop iff dict_operation
-					is TRUE. */
-	/*------------------------------*/
 	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
+	unsigned	has_search_latch:1;
+					/* TRUE if this trx has latched the
+					search system latch in S-mode */
+	unsigned	declared_to_be_inside_innodb:1;
+					/* this is TRUE if we have declared
+					this transaction in
+					srv_conc_enter_innodb to be inside the
+					InnoDB engine */
+	unsigned	handling_signals:1;/* this is TRUE as long as the trx
+					is handling signals */
+	unsigned	dict_operation_lock_mode:2;
+					/* 0, RW_S_LATCH, or RW_X_LATCH:
+					the latch mode trx currently holds
+					on dict_operation_lock */
+	time_t		start_time;	/* time the trx object was created
+					or the state last time became
+					TRX_ACTIVE */
+	dulint		id;		/* transaction id */
+	XID		xid;		/* X/Open XA transaction
+					identification to identify a
+					transaction branch */
+	dulint		no;		/* transaction serialization number ==
+					max trx id when the transaction is
+					moved to COMMITTED_IN_MEMORY state */
+	ib_uint64_t	commit_lsn;	/* lsn at the time of the commit */
+	dulint		table_id;	/* Table to drop iff dict_operation
+					is TRUE, or ut_dulint_zero. */
+	/*------------------------------*/
 	void*		mysql_thd;	/* MySQL thread handle corresponding
 					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
@@ -523,13 +535,6 @@ struct trx_struct{
 					/* how many tables the current SQL
 					statement uses, except those
 					in consistent read */
-	ibool		dict_operation_lock_mode;
-					/* 0, RW_S_LATCH, or RW_X_LATCH:
-					the latch mode trx currently holds
-					on dict_operation_lock */
-	ibool		has_search_latch;
-					/* TRUE if this trx has latched the
-					search system latch in S-mode */
 	ulint		search_latch_timeout;
 					/* If we notice that someone is
 					waiting for our S-lock on the search
@@ -541,11 +546,6 @@ struct trx_struct{
 					to reduce contention on the search
 					latch */
 	/*------------------------------*/
-	ibool		declared_to_be_inside_innodb;
-					/* this is TRUE if we have declared
-					this transaction in
-					srv_conc_enter_innodb to be inside the
-					InnoDB engine */
 	ulint		n_tickets_to_enter_innodb;
 					/* this can be > 0 only when
 					declared_to_... is TRUE; when we come
@@ -587,8 +587,6 @@ struct trx_struct{
 					duplicate key error, a mysql key
 					number of that index is stored here */
 	sess_t*		sess;		/* session of the trx, NULL if none */
-	ulint		que_state;	/* TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
-					... */
 	que_t*		graph;		/* query currently run in the session,
 					or NULL if none; NOTE that the query
 					belongs to the session, and it can
@@ -596,8 +594,6 @@ struct trx_struct{
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
 	ulint		n_active_thrs;	/* number of active query threads */
-	ibool		handling_signals;/* this is TRUE as long as the trx
-					is handling signals */
 	que_t*		graph_before_signal_handling;
 					/* value of graph when signal handling
 					for this trx started: this is used to
@@ -631,7 +627,10 @@ struct trx_struct{
 					trx that are in the QUE_THR_LOCK_WAIT
 					state */
 	ulint		deadlock_mark;	/* a mark field used in deadlock
-					checking algorithm */
+					checking algorithm.  This must be
+					in its own machine word, because
+					it can be changed by other
+					threads while holding kernel_mutex. */
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/* memory heap for the locks of the
 					transaction */
@@ -701,19 +700,19 @@ struct trx_struct{
 					transaction, e.g., a parallel
 					query */
 /* Transaction concurrency states (trx->conc_state) */
-#define	TRX_NOT_STARTED		1
-#define	TRX_ACTIVE		2
-#define	TRX_COMMITTED_IN_MEMORY	3
-#define	TRX_PREPARED		4	/* Support for 2PC/XA */
+#define	TRX_NOT_STARTED		0
+#define	TRX_ACTIVE		1
+#define	TRX_COMMITTED_IN_MEMORY	2
+#define	TRX_PREPARED		3	/* Support for 2PC/XA */
 
 /* Transaction execution states when trx->conc_state == TRX_ACTIVE */
-#define TRX_QUE_RUNNING		1	/* transaction is running */
-#define TRX_QUE_LOCK_WAIT	2	/* transaction is waiting for a lock */
-#define TRX_QUE_ROLLING_BACK	3	/* transaction is rolling back */
-#define TRX_QUE_COMMITTING	4	/* transaction is committing */
+#define TRX_QUE_RUNNING		0	/* transaction is running */
+#define TRX_QUE_LOCK_WAIT	1	/* transaction is waiting for a lock */
+#define TRX_QUE_ROLLING_BACK	2	/* transaction is rolling back */
+#define TRX_QUE_COMMITTING	3	/* transaction is committing */
 
 /* Transaction isolation levels (trx->isolation_level) */
-#define TRX_ISO_READ_UNCOMMITTED	1	/* dirty read: non-locking
+#define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking
 						SELECTs are performed so that
 						we do not look at a possible
 						earlier version of a record;
@@ -722,7 +721,7 @@ struct trx_struct{
 						level; otherwise like level
 						2 */
 
-#define TRX_ISO_READ_COMMITTED		2	/* somewhat Oracle-like
+#define TRX_ISO_READ_COMMITTED		1	/* somewhat Oracle-like
 						isolation, except that in
 						range UPDATE and DELETE we
 						must block phantom rows
@@ -735,7 +734,7 @@ struct trx_struct{
 						each consistent read reads its
 						own snapshot */
 
-#define TRX_ISO_REPEATABLE_READ		3	/* this is the default;
+#define TRX_ISO_REPEATABLE_READ		2	/* this is the default;
 						all consistent reads in the
 						same trx read the same
 						snapshot;
@@ -743,7 +742,7 @@ struct trx_struct{
 						in locking reads to block
 						insertions into gaps */
 
-#define TRX_ISO_SERIALIZABLE		4	/* all plain SELECTs are
+#define TRX_ISO_SERIALIZABLE		3	/* all plain SELECTs are
 						converted to LOCK IN SHARE
 						MODE reads */
 
@@ -754,7 +753,7 @@ Multiple flags can be combined with bitwise OR. */
 
 
 /* Types of a trx signal */
-#define TRX_SIG_NO_SIGNAL		100
+#define TRX_SIG_NO_SIGNAL		0
 #define TRX_SIG_TOTAL_ROLLBACK		1
 #define TRX_SIG_ROLLBACK_TO_SAVEPT	2
 #define TRX_SIG_COMMIT			3
@@ -762,10 +761,10 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_SIG_BREAK_EXECUTION		5
 
 /* Sender types of a signal */
-#define TRX_SIG_SELF		1	/* sent by the session itself, or
+#define TRX_SIG_SELF		0	/* sent by the session itself, or
 					by an error occurring within this
 					session */
-#define TRX_SIG_OTHER_SESS	2	/* sent by another session (which
+#define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
 					must hold rights to this) */
 
 /* Commit command node in a query graph */

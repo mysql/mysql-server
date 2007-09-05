@@ -35,6 +35,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "dict0boot.h"
 #include "fil0fil.h"
 #include "sync0sync.h"
+#include "row0merge.h"
 
 #ifdef UNIV_HOTBACKUP
 /* This is set to FALSE if the backup was originally taken with the
@@ -2932,6 +2933,9 @@ recv_recovery_from_checkpoint_finish(void)
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
 #endif
+
+	/* Drop partially created indexes. */
+	row_merge_drop_temp_indexes();
 
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend

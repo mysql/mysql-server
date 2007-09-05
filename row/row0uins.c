@@ -28,7 +28,6 @@ Created 2/25/1997 Heikki Tuuri
 #include "que0que.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
-#include "row0mysql.h"
 
 /*******************************************************************
 Removes a clustered index record. The pcur in node was positioned on the
@@ -214,36 +213,6 @@ retry:
 }
 
 /***************************************************************
-Parses the rec_type undo record. */
-
-byte*
-row_undo_ins_parse_rec_type_and_table_id(
-/*=====================================*/
-					/* out: ptr to next field to parse */
-	undo_node_t*	node,		/* in: row undo node */
-	dulint*		table_id)	/* out: table id */
-{
-	byte*		ptr;
-	dulint		undo_no;
-	ulint		type;
-	ulint		dummy;
-	ibool		dummy_extern;
-
-	ut_ad(node && node->trx);
-
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
-				    &dummy_extern, &undo_no, table_id);
-
-	node->rec_type = type;
-
-	if (node->rec_type == TRX_UNDO_DICTIONARY_REC) {
-		node->trx->dict_operation = TRUE;
-	}
-
-	return ptr;
-}
-
-/***************************************************************
 Parses the row reference and other info in a fresh insert undo record. */
 static
 void
@@ -251,33 +220,32 @@ row_undo_ins_parse_undo_rec(
 /*========================*/
 	undo_node_t*	node)	/* in: row undo node */
 {
+	dict_index_t*	clust_index;
 	byte*		ptr;
+	dulint		undo_no;
 	dulint		table_id;
+	ulint		type;
+	ulint		dummy;
+	ibool		dummy_extern;
 
 	ut_ad(node);
 
-	ptr = row_undo_ins_parse_rec_type_and_table_id(node, &table_id);
+	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
+				    &dummy_extern, &undo_no, &table_id);
+	ut_ad(type == TRX_UNDO_INSERT_REC);
+	node->rec_type = type;
 
-	ut_ad(node->rec_type == TRX_UNDO_INSERT_REC
-	      || node->rec_type == TRX_UNDO_DICTIONARY_REC);
+	node->table = dict_table_get_on_id(table_id, node->trx);
 
-	if (node->rec_type == TRX_UNDO_INSERT_REC) {
+	/* Skip the UNDO if we can't find the table or the .ibd file. */
+	if (UNIV_UNLIKELY(node->table == NULL)) {
+	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+		node->table = NULL;
+	} else {
+		clust_index = dict_table_get_first_index(node->table);
 
-		node->table = dict_table_get_on_id(table_id, node->trx);
-
-		/* If we can't find the table or .ibd file is missing,
-		we skip the UNDO.*/
-		if (node->table == NULL || node->table->ibd_file_missing) {
-
-			node->table = NULL;
-		} else {
-			dict_index_t*	clust_index;
-
-			clust_index = dict_table_get_first_index(node->table);
-
-			ptr = trx_undo_rec_get_row_ref(
-				ptr, clust_index, &node->ref, node->heap);
-		}
+		ptr = trx_undo_rec_get_row_ref(
+			ptr, clust_index, &node->ref, node->heap);
 	}
 }
 
@@ -296,14 +264,6 @@ row_undo_ins(
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
 	row_undo_ins_parse_undo_rec(node);
-
-	/* Dictionary records are undone in a separate function */
-
-	if (node->rec_type == TRX_UNDO_DICTIONARY_REC) {
-
-		return(row_undo_build_dict_undo_list(node));
-
-	}
 
 	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
 		trx_undo_rec_release(node->trx, node->undo_no);
