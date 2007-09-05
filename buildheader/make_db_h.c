@@ -34,7 +34,7 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 //    int total32 = fields32[N-1].size;
 //    int total64 = fields32[N-1].size;
     printf("struct __toku_%s {\n", structname);
-    for (i=0; i<N; i++) {
+    for (i=0; i<N-1; i++) {
 	unsigned int this_32 = fields32[i].off;
 	unsigned int this_64 = fields64[i].off;
 	//fprintf(stderr, "this32=%d current32=%d this64=%d current64=%d\n", this_32, current_32, this_64, current_64);
@@ -50,14 +50,14 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		    n_dummys--;
 		    did_toku_internal=1;
 		}
-		if (n_dummys>0) printf("  void* dummy%d[%d];\n", dummy_counter++, n_dummys);
+		if (n_dummys>0) printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
 		diff64-=diff*2;
 		diff32-=diff;
 		
 	    }
 	    assert(diff32==diff64);
 	    if (diff32>0) {
-		printf("  char dummy%d[%d];\n", dummy_counter++, diff32);
+		printf("  char __toku_dummy%d[%d];\n", dummy_counter++, diff32);
 	    }
 	    current_32 = this_32;
 	    current_64 = this_64;
@@ -75,8 +75,27 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	current_32 += fields32[i].size;
 	current_64 += fields64[i].size;
     }
-    assert(did_toku_internal || !need_internal);
+    {
+	unsigned int this_32 = fields32[N-1].off;
+	unsigned int this_64 = fields64[N-1].off;
+	unsigned int diff32  = this_32-current_32;
+	unsigned int diff64  = this_64-current_64;
+	if (diff32>0 && diff32<diff64) {
+	    unsigned int diff = diff64-diff32;
+	    printf("  void* __toku_dummy%d[%d]; /* Padding at the end */ \n", dummy_counter++, diff/4);
+	    diff64-=diff*2;
+	    diff32-=diff;
+	}
+	if (diff32>0) {
+	    printf("  char __toku_dummy%d[%d];  /* Padding at the end */ \n", dummy_counter++, diff32);
+	    diff64-=diff32;
+	    diff32=0;
+	}
+	if (diff64>0) printf("  /* %d more bytes of alignment in the 64-bit case. */\n", diff64);
+	assert(diff64<8); /* there could be a few left from alignment. */ 
+    }
     printf("};\n");
+    assert(did_toku_internal || !need_internal);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
