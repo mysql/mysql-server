@@ -5497,6 +5497,11 @@ int mysql_fast_or_online_alter_table(THD *thd,
   broadcast_refresh();
   VOID(pthread_mutex_unlock(&LOCK_open));
 
+  if ((error= table->file->alter_table_phase3(thd, table)))
+  {
+    goto err;
+  }
+
   /*
     The ALTER TABLE is always in its own transaction.
     Commit must not be called while LOCK_open is locked. It could call

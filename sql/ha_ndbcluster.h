@@ -126,6 +126,7 @@ typedef struct st_ndbcluster_share {
   pthread_mutex_t mutex;
   char *key;
   uint key_length;
+  char *new_key;
   THD *util_lock;
   uint use_count;
   uint commit_count_lock;
@@ -142,7 +143,7 @@ typedef struct st_ndbcluster_share {
   TABLE_SHARE *table_share;
   TABLE *table;
   MY_BITMAP *subscriber_bitmap;
-  List<NdbEventOperation> old_ops; // for on-line alter table
+  NdbEventOperation *new_op;
 #endif
 } NDB_SHARE;
 
@@ -432,6 +433,8 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_ALTER_INFO *alter_info,
                          HA_ALTER_FLAGS *alter_flags);
 
+  int alter_table_phase3(THD *thd, TABLE *table);
+
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
@@ -491,7 +494,7 @@ private:
                     bool batched_update);
   int ndb_delete_row(const uchar *record, bool primary_key_update);
 
-  int alter_frm(const char *file, NDB_ALTER_DATA *alter_data);
+  int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
