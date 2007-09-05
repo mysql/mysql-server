@@ -31,8 +31,10 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
     unsigned int current_64 = 0;
     int dummy_counter=0;
     int did_toku_internal=0;
+//    int total32 = fields32[N-1].size;
+//    int total64 = fields32[N-1].size;
     printf("struct __toku_%s {\n", structname);
-    for (i=0; i<N; i++) {
+    for (i=0; i<N-1; i++) {
 	unsigned int this_32 = fields32[i].off;
 	unsigned int this_64 = fields64[i].off;
 	assert(strcmp(fields32[i].decl, fields64[i].decl)==0);
@@ -85,6 +87,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
+
+    assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
+    print_struct("db_txn", 0, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
 
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
