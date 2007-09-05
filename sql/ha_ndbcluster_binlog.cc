@@ -2331,7 +2331,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             Start subscribing to data changes to the new table definition
           */
           String event_name(INJECTOR_EVENT_LEN);
-          ndb_rep_event_name(&event_name, schema->db, schema->name);
+          ndb_rep_event_name(&event_name, schema->db, schema->name,
+                             get_binlog_full(share));
           NdbEventOperation *tmp_op= share->op;
           share->new_op= 0;
           share->op= 0;
