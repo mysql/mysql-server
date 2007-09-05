@@ -1673,6 +1673,7 @@ static int
 run_statements(MYSQL *mysql, statement *stmt) 
 {
   statement *ptr;
+  MYSQL_RES *result;
   DBUG_ENTER("run_statements");
 
   for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
@@ -1682,6 +1683,11 @@ run_statements(MYSQL *mysql, statement *stmt)
       fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
               my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
       exit(1);
+    }
+    if (mysql_field_count(mysql))
+    {
+      result= mysql_store_result(mysql);
+      mysql_free_result(result);
     }
   }
 
