@@ -8327,8 +8327,18 @@ err_exit:
 
 		if (!indexed_table) {
 
-			error = convert_error_code_to_mysql(trx->error_state,
-							    user_thd);
+			switch (trx->error_state) {
+			case DB_TABLESPACE_ALREADY_EXISTS:
+			case DB_DUPLICATE_KEY:
+				my_error(HA_ERR_TABLE_EXIST, MYF(0),
+					 new_table_name);
+				error = HA_ERR_TABLE_EXIST;
+				break;
+			default:
+				error = convert_error_code_to_mysql(
+					trx->error_state, user_thd);
+			}
+
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
@@ -8421,7 +8431,7 @@ error_handling:
 						       index, num_created);
 			}
 
-			break;
+			goto convert_error;
 		}
 
 		/* If a new primary key was defined for the table and
@@ -8443,6 +8453,17 @@ error_handling:
 		if (error != DB_SUCCESS) {
 
 			row_merge_drop_table(trx, indexed_table);
+
+			switch (error) {
+			case DB_TABLESPACE_ALREADY_EXISTS:
+			case DB_DUPLICATE_KEY:
+				my_error(HA_ERR_TABLE_EXIST, MYF(0), tmp_name);
+				error = HA_ERR_TABLE_EXIST;
+				break;
+			default:
+				error = convert_error_code_to_mysql(
+					trx->error_state, user_thd);
+			}
 			break;
 		}
 
@@ -8457,7 +8478,7 @@ error_handling:
 		are no more references to it. */
 
 		error = row_merge_drop_table(trx, innodb_table);
-		break;
+		goto convert_error;
 
 	case DB_PRIMARY_KEY_IS_NULL:
 		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
@@ -8473,6 +8494,9 @@ error_handling:
 			row_merge_drop_indexes(trx, indexed_table,
 					       index, num_created);
 		}
+
+convert_error:
+		error = convert_error_code_to_mysql(error, user_thd);
 	}
 
 	mem_heap_free(heap);
@@ -8485,7 +8509,7 @@ error_handling:
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
+	DBUG_RETURN(error);
 }
 
 /***********************************************************************
