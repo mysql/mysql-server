@@ -28,3 +28,9 @@ struct fieldinfo db_txn_fields64[] = {
   {"u_int32_t (*id) (DB_TXN *)", 152, 8},
   {0, 0, 184} /* size of whole struct */
 };
+struct fieldinfo dbc_fields64[] = {
+  {"int (*c_close) (DBC *)", 304, 8},
+  {"int (*c_del) (DBC *, u_int32_t)", 320, 8},
+  {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 336, 8},
+  {0, 0, 432} /* size of whole struct */
+};
