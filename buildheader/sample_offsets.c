@@ -91,5 +91,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
     sample_db_offsets();
     sample_dbt_offsets();
+    sample_db_txn_offsets();
     return 0;
 }
