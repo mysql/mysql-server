@@ -106,18 +106,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef struct __toku_db DB;\n");
     print_dbtype();
 
-    assert(sizeof(db_fields32)==sizeof(db_fields64));
-    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
-
-    assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
-    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
-
-    assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
-    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
-
-    assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
-    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]));
-
+    assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
+    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]));
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
     print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]));
 
@@ -127,13 +117,22 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
     print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]));
 
+    assert(sizeof(db_fields32)==sizeof(db_fields64));
+    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
+
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
     print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]));
+    assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
+    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
+
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
     print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]));
 
-    assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
-    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]));
+    assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
+    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]));
+
+    assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
+    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
 
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
