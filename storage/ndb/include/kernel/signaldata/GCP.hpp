@@ -20,50 +20,56 @@
 
 struct GCPPrepare // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 nodeId;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct GCPPrepareConf // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 nodeId;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct GCPCommit // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 nodeId;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct GCPNoMoreTrans // Local DIH/TC
 {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
   Uint32 senderData;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct GCPTCFinished // Local TC-DIH
 {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 senderData;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 struct GCPNodeFinished // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 nodeId;
-  Uint32 gci;
+  Uint32 gci_hi;
   Uint32 failno;
+  Uint32 gci_lo;
 };
 
 /**

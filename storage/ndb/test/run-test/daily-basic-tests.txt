@@ -970,6 +970,10 @@ max-time: 120
 cmd: testMgm
 args: -n ApiMgmStructEventTimeout T1
 
+max-time: 5000
+cmd: testNodeRestart
+args: -n GCP T1
+
 max-time: 180
 cmd: testIndex
 args: -n Bug28804 T1 T3
@@ -977,3 +981,4 @@ args: -n Bug28804 T1 T3
 max-time: 180
 cmd: testIndex
 args: -n Bug28804_ATTRINFO T1 T3
+

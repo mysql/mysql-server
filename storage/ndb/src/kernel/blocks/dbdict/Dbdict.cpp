@@ -10420,6 +10420,7 @@ busy:
     
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
+
     RequestTracker & p = subbPtr.p->m_reqTracker;
     if (!p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i))
     {
@@ -10437,7 +10438,24 @@ busy:
     ndbout_c("DBDICT(Coordinator) sending GSN_SUB_START_REQ to DBDICT participants subbPtr.i = (%d)", subbPtr.i);
 #endif
 
-    sendSignal(rg, GSN_SUB_START_REQ, signal, SubStartReq::SignalLength2, JBB);
+    if (ERROR_INSERTED(6011))
+    {
+      ndbout_c("sending delayed to self...");
+      if (ERROR_INSERTED(6011))
+      {
+        rg.m_nodes.clear(getOwnNodeId());
+      }
+      sendSignal(rg, GSN_SUB_START_REQ, signal,
+                 SubStartReq::SignalLength2, JBB);
+      sendSignalWithDelay(reference(),
+                          GSN_SUB_START_REQ,
+                          signal, 5000, SubStartReq::SignalLength2);
+    }
+    else
+    {
+      sendSignal(rg, GSN_SUB_START_REQ, signal,
+                 SubStartReq::SignalLength2, JBB);
+    }
     return;
   }
   /*

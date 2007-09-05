@@ -1807,7 +1807,10 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 int
 Ndb::flushIncompleteEvents(Uint64 gci)
 {
-  return theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->lock();
+  int ret = theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->unlock();
+  return ret;
 }
 
 NdbEventOperation *Ndb::nextEvent()

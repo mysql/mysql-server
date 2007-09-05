@@ -1643,10 +1643,13 @@ NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
   if(checkState_TransId(&commitConf->transId1)){
     theCommitStatus = Committed;
     theCompletionStatus = CompletedSuccess;
-    theGlobalCheckpointId = commitConf->gci;
+    Uint32 tGCI_hi = commitConf->gci_hi;
+    Uint32 tGCI_lo = commitConf->gci_lo;
+    Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
+    theGlobalCheckpointId = tGCI;
     // theGlobalCheckpointId == 0 if NoOp transaction
-    if (theGlobalCheckpointId)
-      *p_latest_trans_gci = theGlobalCheckpointId;
+    if (tGCI)
+      *p_latest_trans_gci = tGCI;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1821,7 +1824,9 @@ from other transactions.
     }//for
     Uint32 tNoSent = theNoOfOpSent;
     theNoOfOpCompleted = tNoComp;
-    Uint32 tGCI    = keyConf->gci;
+    Uint32 tGCI_hi = keyConf->gci_hi;
+    Uint32 tGCI_lo = * (Uint32*)&keyConf->operations[tNoOfOperations];
+    Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
@@ -1994,7 +1999,10 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
       }//if
     }//for
     Uint32 tNoSent = theNoOfOpSent;
-    Uint32 tGCI    = indxConf->gci;
+    Uint32 tGCI_hi = indxConf->gci_hi;
+    Uint32 tGCI_lo = * (Uint32*)&indxConf->operations[tNoOfOperations];
+    Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
+
     theNoOfOpCompleted = tNoComp;
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
@@ -2084,11 +2092,27 @@ Remark:		Get global checkpoint identity of the transaction
 int
 NdbTransaction::getGCI()
 {
-  if (theCommitStatus == NdbTransaction::Committed) {
-    return theGlobalCheckpointId;
-  }//if
-  return 0;
-}//NdbTransaction::getGCI()
+  Uint64 val;
+  if (getGCI(&val) == 0)
+  {
+    return (int)(val >> 32);
+  }
+  return -1;
+}
+
+int
+NdbTransaction::getGCI(Uint64 * val)
+{
+  if (theCommitStatus == NdbTransaction::Committed)
+  {
+    if (val)
+    {
+      * val = theGlobalCheckpointId;
+    }
+    return 0;
+  }
+  return -1;
+}
 
 /*******************************************************************************
 Uint64 getTransactionId(void);

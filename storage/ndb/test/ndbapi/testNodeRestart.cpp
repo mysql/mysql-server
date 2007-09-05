@@ -1762,6 +1762,92 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+f_master_failure [] = {
+  7000, 7001, 7002, 7003, 7004, 7186, 7187, 7188, 7189, 7190, 0
+};
+
+static
+int
+f_participant_failure [] = {
+  7005, 7006, 7007, 7008, 5000, 0
+};
+
+int
+runerrors(NdbRestarter& res, NdbRestarter::NodeSelector sel, const int* errors)
+{
+  for (Uint32 i = 0; errors[i]; i++)
+  {
+    int node = res.getNode(sel);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(node, val2, 2))
+      return NDBT_FAILED;
+
+    ndbout << "node " << node << " err: " << errors[i]<< endl;
+    if (res.insertErrorInNode(node, errors[i]))
+      return NDBT_FAILED;
+
+    if (res.waitNodesNoStart(&node, 1) != 0)
+      return NDBT_FAILED;
+
+    res.startNodes(&node, 1);
+
+    if (res.waitClusterStarted() != 0)
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
+runGCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter res;
+  int loops = ctx->getNumLoops();
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  if (res.getNumDbNodes() < 4)
+  {
+    /**
+     * 7186++ is only usable for 4 nodes and above
+     */
+    Uint32 i;
+    for (i = 0; f_master_failure[i] && f_master_failure[i] != 7186; i++);
+    f_master_failure[i] = 0;
+  }
+
+  while (loops >= 0 && !ctx->isTestStopped())
+  {
+    loops --;
+
+#if 0
+    if (runerrors(res, NdbRestarter::NS_NON_MASTER, f_participant_failure))
+    {
+      return NDBT_FAILED;
+    }
+
+    if (runerrors(res, NdbRestarter::NS_MASTER, f_participant_failure))
+    {
+      return NDBT_FAILED;
+    }
+#endif
+
+    if (runerrors(res, NdbRestarter::NS_MASTER, f_master_failure))
+    {
+      return NDBT_FAILED;
+    }
+  }
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2127,6 +2213,12 @@ TESTCASE("Bug28717", ""){
 }
 TESTCASE("Bug29364", ""){
   INITIALIZER(runBug29364);
+}
+TESTCASE("GCP", ""){
+  INITIALIZER(runLoadTable);
+  STEP(runGCP);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

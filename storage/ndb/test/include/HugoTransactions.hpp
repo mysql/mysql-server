@@ -108,7 +108,7 @@ public:
 
   void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
   
-  Uint32 m_latest_gci;
+  Uint64 m_latest_gci;
 protected:  
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;

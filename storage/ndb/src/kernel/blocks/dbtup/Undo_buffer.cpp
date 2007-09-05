@@ -54,7 +54,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   if(m_first_free == RNIL)
   {
     Uint32 count;
-    page= (UndoPage*)m_mm->alloc_page(RG_DISK_OPERATIONS, &m_first_free);
+    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, &m_first_free);
     if(page == 0)
       return 0;
     page->m_words_used= 0;
@@ -106,7 +106,7 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     else 
     {
       //ndbout_c("returning page");
-      m_mm->release_page(RG_DISK_OPERATIONS, key->m_page_no);
+      m_mm->release_page(RG_DATAMEM, key->m_page_no);
     }
   }
   key->setNull();

@@ -123,6 +123,10 @@ Suma::Suma(Block_context& ctx) :
 	       &Suma::execSUB_GCP_COMPLETE_REP);
 
   c_startup.m_restart_server_node_id = RNIL; // Server for my NR
+
+#ifdef VM_TRACE
+  m_gcp_monitor = 0;
+#endif
 }
 
 Suma::~Suma()
