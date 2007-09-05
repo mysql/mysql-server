@@ -4677,7 +4677,6 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_DATA *result= &stmt->result;
   MYSQL_ROWS *cur, **prev_ptr= &result->data;
   NET        *net;
-  DBUG_ENTER("cli_read_binary_rows");
 
   DBUG_ENTER("cli_read_binary_rows");
   
