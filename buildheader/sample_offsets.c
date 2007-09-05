@@ -116,10 +116,29 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
     STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
     STRUCT_SETUP(DB_ENV, txn_stat, "int  (*%s) (DB_ENV *, DB_TXN_STAT **, u_int32_t)");
+    STRUCT_SETUP(DB_ENV, txn_begin, "int  (*%s) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)");
     sort_and_dump_fields("db_env", sizeof(DB_ENV));
 }
 
+void sample_db_key_range_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_KEY_RANGE, less, "double %s");
+    STRUCT_SETUP(DB_KEY_RANGE, equal, "double %s");
+    STRUCT_SETUP(DB_KEY_RANGE, greater, "double %s");
+    sort_and_dump_fields("db_key_range", sizeof(DB_ENV));
+}
 
+void sample_db_lsn_offsets (void) {
+    field_counter=0;
+    sort_and_dump_fields("db_lsn", sizeof(DB_LSN));
+}
+
+void sample_db_txn_active_offsets (void) {
+    field_counter=0;
+    STRUCT_SETUP(DB_TXN_ACTIVE, lsn, "DB_LSN %s");
+    STRUCT_SETUP(DB_TXN_ACTIVE, txnid, "u_int32_t %s");
+    sort_and_dump_fields("db_txn_active", sizeof(DB_TXN_ACTIVE));
+}
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
@@ -129,5 +148,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     sample_db_txn_offsets();
     sample_dbc_offsets();
     sample_db_env_offsets();
+    sample_db_key_range_offsets();
+    sample_db_lsn_offsets();
+    sample_db_txn_active_offsets();
     return 0;
 }
