@@ -15,8 +15,6 @@ Created 1/20/1994 Heikki Tuuri
 #include <ctype.h>
 #endif
 
-#define	TEMP_TABLE_PREFIX	'/'	/* Table name prefix for temporary
-					tables used in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'	/* Index name prefix in fast index
 					creation */
 

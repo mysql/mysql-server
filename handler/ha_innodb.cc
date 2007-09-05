@@ -5372,17 +5372,8 @@ innobase_rename_table(
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
 	norm_from = (char*) my_malloc(strlen(from) + 64, MYF(0));
 
-	if (*to != TEMP_TABLE_PREFIX) {
-		normalize_table_name(norm_to, to);
-	} else {
-		strcpy(norm_to, to);
-	}
-
-	if (*from != TEMP_TABLE_PREFIX) {
-		normalize_table_name(norm_from, from);
-	} else {
-		strcpy(norm_from, from);
-	}
+	normalize_table_name(norm_to, to);
+	normalize_table_name(norm_from, from);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -8216,20 +8207,19 @@ innobase_create_temporary_tablename(
 /*================================*/
 					/* out: temporary tablename */
 	mem_heap_t*	heap,		/* in: memory heap */
-	char		id,		/* in: identifier */
+	char		id,		/* in: identifier [0-9a-zA-Z] */
 	const char*     table_name)	/* in: table name */
 {
-	char*	name;
-	ulint	len;
+	char*			name;
+	ulint			len;
+	static const char	suffix[] = "@0023 "; /* "# " */
 
-	len = strlen(table_name) + 3;
+	len = strlen(table_name);
 
-	name = (char*) mem_heap_alloc(heap, len);
-	/* The prefix must be 2 bytes, and the second byte must not be 'd'.
-	See fil_make_ibd_name(). */
-	name[0] = TEMP_TABLE_PREFIX;
-	name[1] = id;
-	memcpy(name + 2, table_name, len - 2);
+	name = (char*) mem_heap_alloc(heap, len + sizeof suffix);
+	memcpy(name, table_name, len);
+	memcpy(name + len, suffix, sizeof suffix);
+	name[len + (sizeof suffix - 2)] = id;
 
 	return(name);
 }
@@ -8304,11 +8294,26 @@ err_exit:
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx);
 
-	ut_a(!trx->dict_redo_list);
+	/* Allocate memory for dictionary index definitions */
+
+	index = (dict_index_t**) mem_heap_alloc(
+		heap, num_of_idx * sizeof *index);
+
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during an index create operation. */
+
+	row_mysql_lock_data_dictionary(trx);
+	dict_locked = TRUE;
+
+	/* Flag this transaction as a dictionary operation, so that the
+	data dictionary will be locked in crash recovery.  Clear the
+	table_id, so that no table will be dropped in crash recovery,
+	unless a new primary key is defined. */
+	trx->dict_operation = TRUE;
+	trx->table_id = ut_dulint_zero;
 
 	/* If a new primary key is defined for the table we need
-	to drop all original secondary indexes from the table. These
-	indexes will be rebuilt below. */
+	to drop the original table and rebuild all indexes. */
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
@@ -8316,10 +8321,7 @@ err_exit:
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', innodb_table->name);
 
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
-
-		/* Clone table and write UNDO log record */
+		/* Clone the table. */
 		indexed_table = row_merge_create_temporary_table(
 			new_table_name, index_defs, innodb_table, trx);
 
@@ -8330,26 +8332,13 @@ err_exit:
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
-	} else {
-		dict_redo_create_list(trx);
-	}
 
-	/* Allocate memory for dictionary index definitions */
-
-	index = (dict_index_t**) mem_heap_alloc(
-		heap, num_of_idx * sizeof *index);
-
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during an index create operation. */
-
-	if (UNIV_LIKELY(!dict_locked)) {
-	  	row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
+		trx->table_id = indexed_table->id;
 	}
 
 	num_created = 0;
 
-	/* Create the indexes in SYS_INDEXES and load into dictionary.*/
+	/* Create the indexes in SYS_INDEXES and load into dictionary. */
 
 	for (ulint i = 0; i < num_of_idx; i++) {
 
@@ -8419,61 +8408,42 @@ error_handling:
 	dictionary which were defined. */
 
 	switch (error) {
+		const char* old_name;
+		const char* tmp_name;
 	case DB_SUCCESS:
 		ut_ad(!dict_locked);
-		break;
-	case DB_PRIMARY_KEY_IS_NULL:
-	case DB_DUPLICATE_KEY:
-		prebuilt->trx->error_info = NULL;
-		prebuilt->trx->error_key_num = trx->error_key_num;
-		/* fall through */
-	default:
-		if (new_primary) {
-			row_merge_drop_table(trx, indexed_table);
-		} else {
-			row_merge_drop_indexes(trx, indexed_table,
-					       index, num_created);
+
+		if (!new_primary) {
+			error = row_merge_rename_indexes(trx, indexed_table);
+
+			if (error != DB_SUCCESS) {
+				row_merge_drop_indexes(trx, indexed_table,
+						       index, num_created);
+			}
+
+			break;
 		}
 
-		goto func_exit;
-	}
-
-	/* If a new primary key was defined for the table and
-	there was no error at this point, we can now rename the
-	old table as a temporary table, rename the new temporary
-	table as a old table and drop the old table. */
-
-	if (new_primary) {
-		const char*	old_name
-			= innodb_table->name;
-		const char*	tmp_name
-			= innobase_create_temporary_tablename(heap, '2',
-							      old_name);
-
-		trx_start_if_not_started(trx);
+		/* If a new primary key was defined for the table and
+		there was no error at this point, we can now rename
+		the old table as a temporary table, rename the new
+		temporary table as the old table and drop the old table. */
+		old_name = innodb_table->name;
+		tmp_name = innobase_create_temporary_tablename(heap, '2',
+							       old_name);
 
 		row_mysql_lock_data_dictionary(trx);
 		dict_locked = TRUE;
 
 		row_prebuilt_table_obsolete(innodb_table);
 
-		/* Write entry for UNDO */
-		error = row_undo_report_rename_table_dict_operation(
-			trx, old_name, indexed_table->name, tmp_name);
-
-		if (error != DB_SUCCESS) {
-
-			goto func_exit;
-		}
-
-		log_buffer_flush_to_disk();
-
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
 
 		if (error != DB_SUCCESS) {
 
-			goto func_exit;
+			row_merge_drop_table(trx, indexed_table);
+			break;
 		}
 
 		row_prebuilt_free(prebuilt, TRUE);
@@ -8487,15 +8457,25 @@ error_handling:
 		are no more references to it. */
 
 		error = row_merge_drop_table(trx, innodb_table);
+		break;
+
+	case DB_PRIMARY_KEY_IS_NULL:
+		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
+		/* fall through */
+	case DB_DUPLICATE_KEY:
+		prebuilt->trx->error_info = NULL;
+		prebuilt->trx->error_key_num = trx->error_key_num;
+		/* fall through */
+	default:
+		if (new_primary) {
+			row_merge_drop_table(trx, indexed_table);
+		} else {
+			row_merge_drop_indexes(trx, indexed_table,
+					       index, num_created);
+		}
 	}
 
-func_exit:
 	mem_heap_free(heap);
-	if (!new_primary) {
-		dict_rename_indexes(trx);
-	}
-	ut_ad(!trx->dict_redo_list);
-
 	trx_commit_for_mysql(trx);
 
 	if (dict_locked) {
@@ -8504,12 +8484,6 @@ func_exit:
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
-
-	switch (error) {
-	case DB_PRIMARY_KEY_IS_NULL:
-		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-		break;
-	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, user_thd));
 }

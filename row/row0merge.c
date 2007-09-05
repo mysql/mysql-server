@@ -1523,11 +1523,6 @@ row_merge_drop_index(
 	foreign key constraints on this table where this index is used */
 
 	dict_table_replace_index_in_foreign_list(table, index);
-
-	if (trx->dict_redo_list) {
-		dict_redo_remove_index(trx, index);
-	}
-
 	dict_index_remove_from_cache(table, index);
 
 	if (dict_lock) {
@@ -1554,6 +1549,53 @@ row_merge_drop_indexes(
 	for (key_num = 0; key_num < num_created; key_num++) {
 		row_merge_drop_index(index[key_num], table, trx);
 	}
+}
+
+/*************************************************************************
+Drop all partially created indexes during crash recovery. */
+
+void
+row_merge_drop_temp_indexes(void)
+/*=============================*/
+{
+	trx_t*		trx;
+	ulint		err;
+
+	/* We use the private SQL parser of Innobase to generate the
+	query graphs needed in deleting the dictionary data from system
+	tables in Innobase. Deleting a row from SYS_INDEXES table also
+	frees the file segments of the B-tree associated with the index. */
+#if TEMP_INDEX_PREFIX != '\377'
+# error "TEMP_INDEX_PREFIX != '\377'"
+#endif
+	static const char drop_temp_indexes[] =
+		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
+		"indexid CHAR;\n"
+		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
+		"WHERE SUBSTR(NAME,0,1)='\377' FOR UPDATE;\n"
+		"BEGIN\n"
+		"\tOPEN c;\n"
+		"\tWHILE 1 LOOP\n"
+		"\t\tFETCH c INTO indexid;\n"
+		"\t\tIF (SQL % NOTFOUND) THEN\n"
+		"\t\t\tEXIT;\n"
+		"\t\tEND IF;\n"
+		"\t\tDELETE FROM SYS_FIELDS WHERE INDEX_ID = indexid;\n"
+		"\t\tDELETE FROM SYS_INDEXES WHERE CURRENT OF c;\n"
+		"\tEND LOOP;\n"
+		"\tCLOSE c;\n"
+		"END;\n";
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "dropping partially created indexes";
+	row_mysql_lock_data_dictionary(trx);
+
+	err = que_eval_sql(NULL, drop_temp_indexes, FALSE, trx);
+	ut_a(err == DB_SUCCESS);
+
+	row_mysql_unlock_data_dictionary(trx);
+	trx_commit_for_mysql(trx);
+	trx_free_for_background(trx);
 }
 
 /*************************************************************************
@@ -1638,87 +1680,72 @@ row_merge_create_temporary_table(
 	dict_table_t*	new_table = NULL;
 	ulint		n_cols = dict_table_get_n_user_cols(table);
 	ulint		error;
+	mem_heap_t*	heap = mem_heap_create(1000);
 
 	ut_ad(table_name);
 	ut_ad(index_def);
 	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	error = row_undo_report_create_table_dict_operation(trx, table_name);
+	new_table = dict_mem_table_create(table_name, 0, n_cols, table->flags);
 
-	if (error == DB_SUCCESS) {
+	for (i = 0; i < n_cols; i++) {
+		const dict_col_t*	col;
+		const char*		col_name;
 
-		mem_heap_t*	heap = mem_heap_create(1000);
-		log_buffer_flush_to_disk();
+		col = dict_table_get_nth_col(table, i);
+		col_name = dict_table_get_col_name(table, i);
 
-		new_table = dict_mem_table_create(
-			table_name, 0, n_cols, table->flags);
-
-		for (i = 0; i < n_cols; i++) {
-			const dict_col_t*	col;
-			const char*		col_name;
-
-			col = dict_table_get_nth_col(table, i);
-			col_name = dict_table_get_col_name(table, i);
-
-			dict_mem_table_add_col(
-				new_table, heap, col_name, col->mtype,
-				row_merge_col_prtype(col, col_name, index_def),
-				col->len);
-		}
-
-		error = row_create_table_for_mysql(new_table, trx);
-		mem_heap_free(heap);
-
-		if (error != DB_SUCCESS) {
-			new_table = NULL;
-		}
+		dict_mem_table_add_col(new_table, heap, col_name, col->mtype,
+				       row_merge_col_prtype(col, col_name,
+							    index_def),
+				       col->len);
 	}
+
+	error = row_create_table_for_mysql(new_table, trx);
+	mem_heap_free(heap);
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
+		new_table = NULL;
 	}
 
 	return(new_table);
 }
 
 /*************************************************************************
-Rename the indexes in the dictionary. */
+Rename the temporary indexes in the dictionary to permanent ones. */
 
 ulint
-row_merge_rename_index(
-/*===================*/
+row_merge_rename_indexes(
+/*=====================*/
 					/* out: DB_SUCCESS if all OK */
-	trx_t*		trx,		/* in: Transaction */
-	dict_table_t*	table,		/* in: Table for index */
-	dict_index_t*	index)		/* in: Index to rename */
+	trx_t*		trx,		/* in/out: transaction */
+	dict_table_t*	table)		/* in/out: table with new indexes */
 {
 	ibool		dict_lock = FALSE;
 	ulint		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
 
-	/* Only rename from temp names */
-	ut_a(*index->name == TEMP_INDEX_PREFIX);
-
 	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in renaming index. */
+	query graphs needed in renaming indexes. */
 
-	static const char str1[] =
-		"PROCEDURE RENAME_INDEX_PROC () IS\n"
+#if TEMP_INDEX_PREFIX != '\377'
+# error "TEMP_INDEX_PREFIX != '\377'"
+#endif
+
+	static const char rename_indexes[] =
+		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
-		"UPDATE SYS_INDEXES SET NAME = :name\n"
-		" WHERE ID = :indexid AND TABLE_ID = :tableid;\n"
+		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
+		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='\377';\n"
 		"END;\n";
 
-	table = index->table;
-
-	ut_ad(index && table && trx);
+	ut_ad(table && trx);
 
 	trx_start_if_not_started(trx);
-	trx->op_info = "renaming index";
+	trx->op_info = "renaming indexes";
 
-	pars_info_add_str_literal(info, "name", index->name + 1);
-	pars_info_add_dulint_literal(info, "indexid", index->id);
 	pars_info_add_dulint_literal(info, "tableid", table->id);
 
 	if (trx->dict_operation_lock_mode == 0) {
@@ -1726,10 +1753,16 @@ row_merge_rename_index(
 		dict_lock = TRUE;
 	}
 
-	err = que_eval_sql(info, str1, FALSE, trx);
+	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
 	if (err == DB_SUCCESS) {
-		index->name++;
+		dict_index_t*	index = dict_table_get_first_index(table);
+		do {
+			if (*index->name == TEMP_INDEX_PREFIX) {
+				index->name++;
+			}
+			index = dict_table_get_next_index(index);
+		} while (index);
 	}
 
 	if (dict_lock) {
@@ -1826,8 +1859,9 @@ row_merge_create_index(
 			index_def)
 {
 	dict_index_t*	index;
-	ulint		err = DB_SUCCESS;
+	ulint		err;
 	ulint		n_fields = index_def->n_fields;
+	ulint		i;
 
 	/* Create the index prototype, using the passed in def, this is not
 	a persistent operation. We pass 0 as the space id, and determine at
@@ -1846,56 +1880,33 @@ row_merge_create_index(
 	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
 	index->table = table;
 
-	/* Write the UNDO record for the create index */
-	err = row_undo_report_create_index_dict_operation(trx, index);
+	for (i = 0; i < n_fields; i++) {
+		merge_index_field_t*	ifield = &index_def->fields[i];
 
-	if (err == DB_SUCCESS) {
-		ulint		i;
-
-		/* Make sure the UNDO record gets to disk */
-		log_buffer_flush_to_disk();
-
-		for (i = 0; i < n_fields; i++) {
-			merge_index_field_t* ifield;
-
-			ifield = &index_def->fields[i];
-
-			dict_mem_index_add_field(index,
-						 ifield->field_name,
-						 ifield->prefix_len);
-		}
-
-		/* Add the index to SYS_INDEXES, this will use the prototype
-		to create an entry in SYS_INDEXES. */
-		err = row_create_index_graph_for_mysql(trx, table, index);
-
-		if (err == DB_SUCCESS) {
-
-			index = row_merge_dict_table_get_index(
-				table, index_def);
-
-			ut_a(index);
-
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-			/* Note the id of the transaction that created this
-			index, we use it to restrict readers from accessing
-			this index, to ensure read consistency. */
-			index->trx_id = trx->id;
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
-
-			/* Create element and append to list in trx. So that
-			we can rename from temp name to real name. */
-			if (trx->dict_redo_list) {
-				dict_redo_t*	dict_redo;
-
-				dict_redo = dict_redo_create_element(trx);
-				dict_redo->index = index;
-			}
-		}
+		dict_mem_index_add_field(index, ifield->field_name,
+					 ifield->prefix_len);
 	}
 
-	if (err != DB_SUCCESS) {
+	/* Add the index to SYS_INDEXES, this will use the prototype
+	to create an entry in SYS_INDEXES. */
+	err = row_create_index_graph_for_mysql(trx, table, index);
+
+	if (err == DB_SUCCESS) {
+
+		index = row_merge_dict_table_get_index(
+			table, index_def);
+
+		ut_a(index);
+
+#ifdef ROW_MERGE_IS_INDEX_USABLE
+		/* Note the id of the transaction that created this
+		index, we use it to restrict readers from accessing
+		this index, to ensure read consistency. */
+		index->trx_id = trx->id;
+#endif /* ROW_MERGE_IS_INDEX_USABLE */
+	} else {
 		trx->error_state = err;
+		index = NULL;
 	}
 
 	return(index);
@@ -1936,8 +1947,6 @@ row_merge_drop_table(
 		row_mysql_lock_data_dictionary(trx);
 		dict_locked = TRUE;
 	}
-
-	ut_a(*table->name == TEMP_TABLE_PREFIX);
 
 	/* Drop the table immediately if it is not referenced by MySQL */
 	if (table->n_mysql_handles_opened == 0) {
