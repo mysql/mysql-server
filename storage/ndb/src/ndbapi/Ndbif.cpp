@@ -758,9 +758,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       ptr[i].p = NULL;
       ptr[i].sz = 0;
     }
-    DBUG_PRINT("info",("oid=senderData: %d, gci: %d, operation: %d, "
+    DBUG_PRINT("info",("oid=senderData: %d, gci{hi/lo}: %d/%d, operation: %d, "
 		       "tableId: %d",
-		       sdata->senderData, sdata->gci, 
+		       sdata->senderData, sdata->gci_hi, sdata->gci_lo,
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 

@@ -889,7 +889,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     true,
     ConfigInfo::CI_INT,
     "2000",
-    "10",
+    "20",
+    "32000" },
+
+  {
+    CFG_DB_MICRO_GCP_INTERVAL,
+    "TimeBetweenEpochs",
+    DB_TOKEN,
+    "Time bewteen eopchs (syncronization used e.g for replication)",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "100",
+    "0",
     "32000" },
 
   {

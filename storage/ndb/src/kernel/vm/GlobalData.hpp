@@ -26,7 +26,7 @@
 #include <NodeInfo.hpp>
 #include "ArrayPool.hpp"
 
-#define GCP_TIMER_HACK
+// #define GCP_TIMER_HACK
 #ifdef GCP_TIMER_HACK
 #include <NdbTick.h>
 #endif
