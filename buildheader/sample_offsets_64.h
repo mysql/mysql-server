@@ -23,3 +23,8 @@ struct fieldinfo dbt_fields64[] = {
   {"u_int32_t flags", 32, 4},
   {0, 0, 40} /* size of whole struct */
 };
+struct fieldinfo db_txn_fields64[] = {
+  {"int (*commit) (DB_TXN*, u_int32_t)", 136, 8},
+  {"u_int32_t (*id) (DB_TXN *)", 152, 8},
+  {0, 0, 184} /* size of whole struct */
+};
