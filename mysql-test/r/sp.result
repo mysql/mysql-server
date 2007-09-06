@@ -6559,8 +6559,8 @@ return x;
 end|
 create view v1 as select 1 as one, f1() as days;
 show create view test.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
 select column_name from information_schema.columns
 where table_name='v1' and table_schema='test';
 column_name
