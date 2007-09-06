@@ -1328,8 +1328,264 @@ void test_brt_cursor() {
     }
 }
 
+void test_large_kv(int bsize, int ksize, int vsize) {
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+
+    printf("test_large_kv: %d %d %d\n", bsize, ksize, vsize);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+    unlink(fname);
+    r = open_brt(fname, 0, 1, &t, bsize, ct, default_compare_fun);
+    assert(r==0);
+
+    DBT key, val;
+    char *k, *v;
+    k = toku_malloc(ksize); assert(k); memset(k, 0, ksize);
+    v = toku_malloc(vsize); assert(v); memset(v, 0, vsize);
+    fill_dbt(&key, k, ksize);
+    fill_dbt(&val, v, vsize);
+
+    r = brt_insert(t, &key, &val, 0);
+    assert(r == 0);
+
+    toku_free(k);
+    toku_free(v);
+
+    r = close_brt(t);              assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
+}
+
+/*
+ * test the key and value limits
+ * the current implementation crashes when kvsize == bsize/2 rather than fails
+ */
+void test_brt_limits() {
+    int bsize = 1024;
+    int kvsize = 4;
+    while (kvsize < bsize/2) {
+        test_large_kv(bsize, kvsize, kvsize);        memory_check_all_free();
+        kvsize *= 2;
+    }
+}
+
+/*
+ * verify that a delete on an empty tree fails
+ */
+void test_brt_delete_empty() {
+    printf("test_brt_delete_empty\n");
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+    unlink(fname);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    assert(r==0);
+
+    DBT key;
+    int k = 1;
+    fill_dbt(&key, &k, sizeof k);
+    r = brt_delete(t, &key, 0);
+    assert(r != 0);
+
+    r = close_brt(t);              assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
+}
+
+/*
+ * insert n keys, delete all n keys, verify that lookups for all the keys fail,
+ * verify that a cursor walk of the tree finds nothing
+ */
+void test_brt_delete_present(int n) {
+    printf("test_brt_delete_present:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+    unlink(fname);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = i; v = n + i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(t, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        k = i;
+        fill_dbt(&key, &k, sizeof k);
+        r = brt_delete(t, &key, 0);
+        assert(r == 0);
+    }
+
+    /* lookups should all fail */
+    for (i=0; i<n; i++) {
+        k = i;
+        fill_dbt(&key, &k, sizeof k);
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = brt_lookup(t, &key, &val, 0);
+        assert(r == DB_NOTFOUND);
+    }
+
+    /* cursor should not find anything */
+    BRT_CURSOR cursor;
+
+    r = brt_cursor(t, &cursor);
+    assert(r == 0);
+
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    r = brt_c_get(cursor, &key, &val, DB_FIRST);
+    assert(r != 0);
+
+    r = brt_cursor_close(cursor);
+    assert(r == 0);
+
+    r = close_brt(t);              assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
+}
+
+void test_brt_delete_not_present(int n) {
+    printf("test_brt_delete_not_present:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+    unlink(fname);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = i; v = n + i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(t, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        k = i;
+        fill_dbt(&key, &k, sizeof k);
+        r = brt_delete(t, &key, 0);
+        assert(r == 0);
+    }
+
+    k = n+1;
+    fill_dbt(&key, &k, sizeof k);
+    r = brt_delete(t, &key, 0);
+    printf("brt_delete k=%d %d\n", k, r);
+
+    r = close_brt(t);              assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
+}
+
+void test_brt_delete_cursor_first(int n) {
+    printf("test_brt_delete_cursor_first:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+    unlink(fname);
+    r = open_brt(fname, 0, 1, &t, 4096, ct, default_compare_fun);
+    assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = i; v = ~i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(t, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n-1; i++) {
+        k = i;
+        fill_dbt(&key, &k, sizeof k);
+        r = brt_delete(t, &key, 0);
+        assert(r == 0);
+    }
+
+    /* lookups should all fail */
+    for (i=0; i<n-1; i++) {
+        k = i;
+        fill_dbt(&key, &k, sizeof k);
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = brt_lookup(t, &key, &val, 0);
+        assert(r == DB_NOTFOUND);
+    }
+
+    /* cursor should find the last key */
+    BRT_CURSOR cursor;
+
+    r = brt_cursor(t, &cursor);
+    assert(r == 0);
+
+    init_dbt(&key); key.flags = DB_DBT_MALLOC;
+    init_dbt(&val); val.flags = DB_DBT_MALLOC;
+    r = brt_c_get(cursor, &key, &val, DB_FIRST);
+    assert(r == 0);
+    int vv;
+    assert(val.size == sizeof vv);
+    memcpy(&vv, val.data, val.size);
+    assert(vv == ~(n-1));
+    toku_free(key.data);
+    toku_free(val.data);
+
+    r = brt_cursor_close(cursor);
+    assert(r == 0);
+
+    r = close_brt(t);              assert(r==0);
+    r = cachetable_close(&ct);     assert(r==0);
+}
+
+void test_brt_delete() {
+    test_brt_delete_empty(); memory_check_all_free();
+    test_brt_delete_present(1); memory_check_all_free();
+    test_brt_delete_present(100); memory_check_all_free();
+    test_brt_delete_present(500); memory_check_all_free();
+    test_brt_delete_not_present(1); memory_check_all_free();
+    test_brt_delete_not_present(100); memory_check_all_free();
+    test_brt_delete_not_present(500); memory_check_all_free();
+    test_brt_delete_cursor_first(1); memory_check_all_free();
+    test_brt_delete_cursor_first(100); memory_check_all_free();
+    test_brt_delete_cursor_first(500); memory_check_all_free();
+}
+
 static void brt_blackbox_test (void) {
-    test_brt_cursor();
+    memory_check = 1;
     test_wrongendian_compare(0, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 257);        memory_check_all_free();
@@ -1377,7 +1633,11 @@ static void brt_blackbox_test (void) {
     // Once upon a time srandom(8) caused this test to fail.
     srandom(8); test4(2048, 1<<15, 1);
 
+    memory_check = 1;
 
+    test_brt_limits();
+    test_brt_cursor();
+    test_brt_delete();
 
 //    test3(1<<19, 1<<20, 0);
 //    test4(1<<19, 1<<20, 0);

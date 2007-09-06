@@ -12,10 +12,10 @@ int toku_hashtable_create (HASHTABLE*);
 
 /* Return 0 if the key is found in the hashtable, -1 otherwise. */
 /* Warning: The data returned points to the internals of the hashtable.  It is set to "const" to try to prevent you from messing it up. */
-int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen);
+int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec*data, ITEMLEN *datalen, int *type);
 
 /* Replace the key if it was already there. */
-int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen);
+int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type);
 
 /* It is OK to delete something that isn't there. */
 int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen);
@@ -24,15 +24,16 @@ int toku_hashtable_n_entries(HASHTABLE);
   
 void toku_hashtable_clear(HASHTABLE);
 
-int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, long int *randomnumber);
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type, long int *randomnumber);
 //int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
 typedef struct hashelt *HASHELT;
 struct hashelt {
-    ITEMLEN keylen;  
-    ITEMLEN vallen;
     unsigned int hash;
     HASHELT next;
+    int type;
+    ITEMLEN keylen;  
+    ITEMLEN vallen;
     char keyval[]; /* the first KEYLEN bytes are the key.  The next bytes are the value. */
 };
 
@@ -44,9 +45,9 @@ struct hashtable {
 };
 
 /* You cannot add or delete elements from the hashtable while iterating. */
-void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,void*), void*);
+void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, void*), void*);
 // If you don't want to use something, do something like use "key __attribute__((__unused__))" for keyvar.
-#define HASHTABLE_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,body) ({ \
+#define HASHTABLE_ITERATE(table,keyvar,keylenvar,datavar,datalenvar,typevar,body) ({ \
   unsigned int hi_counter;                                                   \
   for (hi_counter=0; hi_counter<table->arraysize; hi_counter++) {            \
     HASHELT hi_he;                                                           \
@@ -55,6 +56,7 @@ void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key,ITEMLEN keylen,
       ITEMLEN     keylenvar  = hi_he->keylen;                                \
       const char *datavar    = &hi_he->keyval[hi_he->keylen];                \
       ITEMLEN     datalenvar = hi_he->vallen;                                \
+      int         typevar    = hi_he->type;                                  \
       body;                                                                  \
   }}})
 

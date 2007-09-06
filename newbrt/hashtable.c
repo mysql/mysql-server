@@ -2,7 +2,7 @@
 #include "hashtable.h"
 #include "memory.h"
 #include "primes.h"
-#include "../include/db.h"
+// #include "../include/ydb-constants.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
@@ -41,7 +41,7 @@ static void hash_find_internal (HASHTABLE tab, unsigned int hash, const unsigned
     *hashelt = 0;
 }
     
-int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen) {
+int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen, int *type) {
     HASHELT he, *prev_ptr;
     hash_find_internal(tab, hash_key (key, keylen), key, keylen, &he, &prev_ptr);
     if (he==0) {
@@ -49,6 +49,7 @@ int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, I
     } else {
 	*data = &he->keyval[he->keylen];
 	*datalen = he->vallen;
+        *type = he->type;
 	return 0;
     }
 }
@@ -82,7 +83,7 @@ int toku_hash_rehash_everything (HASHTABLE tab, unsigned int primeindexdelta) {
     return 0;
 }
 
-int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *val, ITEMLEN vallen)
+int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void *val, ITEMLEN vallen, int type)
 {
     unsigned int hk = hash_key (key,keylen);
     unsigned int h = hk%tab->arraysize;
@@ -97,6 +98,7 @@ int toku_hash_insert (HASHTABLE tab, const void *key, ITEMLEN keylen, const void
 	/* Otherwise the key is not already present, so we need to add it. */
 	HASHELT he=toku_malloc(sizeof(*he)+keylen+vallen);
 	assert(he); // ?????
+        he->type = type;
 	he->keylen = keylen;
 	he->vallen = vallen;
 	memmove(&he->keyval[0], key, keylen);
@@ -134,7 +136,7 @@ int toku_hash_delete (HASHTABLE tab, const void *key, ITEMLEN keylen) {
 }
 
 
-int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, long int *randomnumber) {
+int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type, long int *randomnumber) {
     unsigned int i;
     unsigned int usei = (*randomnumber)%h->arraysize;
     for (i=0; i<h->arraysize; i++, usei++) {
@@ -145,6 +147,7 @@ int toku_hashtable_random_pick(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytev
 	    *keylen = he->keylen;
 	    *data = &he->keyval[he->keylen];
 	    *datalen = he->vallen;
+            *type = he->type;
 	    *randomnumber = usei;
 	    return 0;
 	}
@@ -177,7 +180,7 @@ int hashtable_find_last(HASHTABLE h, bytevec *key, ITEMLEN *keylen, bytevec *dat
 }
 #endif
 
-void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, void*args), void* args) {
+void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, int type, void*args), void* args) {
   /*
     int i;
     for (i=0; i<tab->arraysize; i++) {
@@ -187,7 +190,7 @@ void toku_hashtable_iterate (HASHTABLE tab, void(*f)(bytevec key, ITEMLEN keylen
 	}
     }
   */
-    HASHTABLE_ITERATE(tab, key, keylen, val, vallen, f(key,keylen,val,vallen,args));
+    HASHTABLE_ITERATE(tab, key, keylen, val, vallen, type, f(key,keylen,val,vallen,type,args));
 }
 
 int toku_hashtable_n_entries(HASHTABLE tab) {
