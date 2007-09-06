@@ -3660,7 +3660,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   // Create blob events
   if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
     int save_code = m_error.code;
-    (void)dropEvent(evnt.m_name.c_str());
+    (void)dropEvent(evnt.m_name.c_str(), 0);
     m_error.code = save_code;
     ERR_RETURN(getNdbError(), -1);
   }
@@ -4130,17 +4130,28 @@ NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
  * Drop event
  */
 int 
-NdbDictionaryImpl::dropEvent(const char * eventName)
+NdbDictionaryImpl::dropEvent(const char * eventName, int force)
 {
   DBUG_ENTER("NdbDictionaryImpl::dropEvent");
-  DBUG_PRINT("info", ("name=%s", eventName));
+  DBUG_PRINT("enter", ("name:%s  force: %d", eventName, force));
 
-  NdbEventImpl *evnt = getEvent(eventName); // allocated
-  if (evnt == NULL) {
-    if (m_error.code != 723 && // no such table
-        m_error.code != 241)   // invalid table
-      DBUG_RETURN(-1);
-    DBUG_PRINT("info", ("no table err=%d, drop by name alone", m_error.code));
+  NdbEventImpl *evnt = NULL;
+  if (!force)
+  {
+    evnt = getEvent(eventName); // allocated
+    if (evnt == NULL)
+    {
+      if (m_error.code != 723 && // no such table
+          m_error.code != 241)   // invalid table
+      {
+        DBUG_PRINT("info", ("no table err=%d", m_error.code));
+        DBUG_RETURN(-1);
+      }
+      DBUG_PRINT("info", ("no table err=%d, drop by name alone", m_error.code));   
+    }
+  }
+  if (evnt == NULL)
+  {
     evnt = new NdbEventImpl();
     evnt->setName(eventName);
   }
@@ -4178,20 +4189,37 @@ NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
       (void)dropEvent(*blob_evnt);
       delete blob_evnt;
     }
-  } else {
-    // loop over MAX_ATTRIBUTES_IN_TABLE ...
-    Uint32 i;
-    DBUG_PRINT("info", ("missing table definition, looping over "
-                        "MAX_ATTRIBUTES_IN_TABLE(%d)",
-                        MAX_ATTRIBUTES_IN_TABLE));
-    for (i = 0; i < MAX_ATTRIBUTES_IN_TABLE; i++) {
-      char bename[MAX_TAB_NAME_SIZE];
-      // XXX should get name from NdbBlob
-      sprintf(bename, "NDB$BLOBEVENT_%s_%u", evnt.getName(), i);
-      NdbEventImpl* bevnt = new NdbEventImpl();
-      bevnt->setName(bename);
-      (void)m_receiver.dropEvent(*bevnt);
-      delete bevnt;
+  }
+  else
+  {
+    DBUG_PRINT("info", ("no table definition, listing events"));
+    char bename[MAX_TAB_NAME_SIZE];
+    int val;
+    // XXX should get name from NdbBlob
+    sprintf(bename, "NDB$BLOBEVENT_%s_%s", evnt.getName(), "%d");
+    List list;
+    if (listEvents(list))
+      DBUG_RETURN(-1);
+    for (unsigned i = 0; i < list.count; i++)
+    {
+      NdbDictionary::Dictionary::List::Element& elt = list.elements[i];
+      switch (elt.type)
+      {
+      case NdbDictionary::Object::TableEvent:
+        if (sscanf(elt.name, bename, &val) == 1)
+        {
+          DBUG_PRINT("info", ("found blob event %s, removing...", elt.name));
+          NdbEventImpl* bevnt = new NdbEventImpl();
+          bevnt->setName(elt.name);
+          (void)m_receiver.dropEvent(*bevnt);
+          delete bevnt;
+        }
+        else
+          DBUG_PRINT("info", ("found event %s, skipping...", elt.name));
+        break;
+      default:
+        break;
+      }
     }
   }
   DBUG_RETURN(0);

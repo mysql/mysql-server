@@ -1845,7 +1845,7 @@ public:
      * @param eventName  Name of event to drop.
      * @return 0 if successful otherwise -1.
      */
-    int dropEvent(const char * eventName);
+    int dropEvent(const char * eventName, int force= 0);
     
     /**
      * Get event with given name.
