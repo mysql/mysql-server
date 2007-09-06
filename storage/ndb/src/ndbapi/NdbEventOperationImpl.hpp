@@ -323,8 +323,8 @@ struct Gci_container
     GC_COMPLETE = 0x1 // GCI is complete, but waiting for out of order
   };
   
-  Uint32 m_state;
-  Uint32 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
+  Uint16 m_state;
+  Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
   Uint64 m_gci;                    // GCI
   EventBufData_list m_data;
   EventBufData_hash m_data_hash;
@@ -488,7 +488,14 @@ public:
   ~NdbEventBuffer();
 
   const Uint32 &m_system_nodes;
+
+  Uint16 m_min_gci_index;
+  Uint16 m_max_gci_index;
+  Vector<Uint64> m_known_gci;
   Vector<Gci_container_pod> m_active_gci;
+  STATIC_CONST( ACTIVE_GCI_DIRECTORY_SIZE = 4 );
+  STATIC_CONST( ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1 );
+
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
   NdbEventOperationImpl *createEventOperationImpl(NdbEventImpl& evnt,
@@ -566,6 +573,7 @@ public:
   Ndb *m_ndb;
   Uint64 m_latestGCI;           // latest "handover" GCI
   Uint64 m_latest_complete_GCI; // latest complete GCI (in case of outof order)
+  bool m_startup_hack;
 
   NdbMutex *m_mutex;
   struct NdbCondition *p_cond;
@@ -624,6 +632,23 @@ private:
 
   Uint32 m_active_op_count;
   NdbMutex *m_add_drop_mutex;
+
+  inline Gci_container* find_bucket(Uint64 gci){
+    Uint32 pos = (gci & ACTIVE_GCI_MASK);
+    Gci_container *bucket= ((Gci_container*)(m_active_gci.getBase())) + pos;
+    if(likely(gci == bucket->m_gci))
+      return bucket;
+
+    return find_bucket_chained(gci);
+  }
+
+#ifdef VM_TRACE
+  void verify_known_gci(bool allowempty);
+#endif
+  Gci_container* find_bucket_chained(Uint64 gci);
+  void complete_bucket(Gci_container*);
+  bool find_max_known_gci(Uint64 * res) const;
+  void resize_known_gci();
 };
 
 inline

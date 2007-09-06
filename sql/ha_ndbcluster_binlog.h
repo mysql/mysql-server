@@ -72,7 +72,7 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_TABLE= 0,
   SOT_CREATE_TABLE= 1,
   SOT_RENAME_TABLE_NEW= 2,
-  SOT_ALTER_TABLE= 3,
+  SOT_ALTER_TABLE_COMMIT= 3,
   SOT_DROP_DB= 4,
   SOT_CREATE_DB= 5,
   SOT_ALTER_DB= 6,
@@ -80,7 +80,10 @@ enum SCHEMA_OP_TYPE
   SOT_TABLESPACE= 8,
   SOT_LOGFILE_GROUP= 9,
   SOT_RENAME_TABLE= 10,
-  SOT_TRUNCATE_TABLE= 11
+  SOT_TRUNCATE_TABLE= 11,
+  SOT_RENAME_TABLE_PREPARE= 12,
+  SOT_ONLINE_ALTER_TABLE_PREPARE= 13,
+  SOT_ONLINE_ALTER_TABLE_COMMIT= 14
 };
 
 const uint max_ndb_nodes= 256; /* multiple of 32 */
@@ -153,8 +156,6 @@ void ndbcluster_binlog_init_handlerton();
 */
 int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
 
-void ndb_remove_old_event_ops(NDB_SHARE *share);
-
 bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
@@ -170,7 +171,7 @@ int ndbcluster_create_event_ops(THD *thd,
                                 NDB_SHARE *share,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
-int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
+int ndbcluster_log_schema_op(THD *thd,
                              const char *query, int query_length,
                              const char *db, const char *table_name,
                              uint32 ndb_table_id,
@@ -179,10 +180,14 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *new_db,
                              const char *new_table_name,
                              int have_lock_open);
-int ndbcluster_handle_drop_table(Ndb *ndb,
-                                 NDB_SHARE *share,
+int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
+                          const char *type_str,
+                          const char *event_name_prefix);
+int ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share,
+                                  const char *type_str);
+int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
-                                 const char *event_name_postfix);
+                                 const char *event_name_prefix);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
 
@@ -231,7 +236,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(NDB_SHARE *share);
+int handle_trailing_share(NDB_SHARE *share, int have_lock_open= 1);
+int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
+int ndbcluster_rename_share(NDB_SHARE *share, int have_lock_open= 1);
+int ndbcluster_undo_rename_share(NDB_SHARE *share);
 inline NDB_SHARE *get_share(const char *key,
                             TABLE *table,
                             bool create_if_not_exists= TRUE,

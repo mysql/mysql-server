@@ -1053,9 +1053,10 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci);
+    fireTrigOrd->setGCI(req_struct->gci_hi);
     fireTrigOrd->setHashValue(req_struct->hash_value);
     fireTrigOrd->m_any_value = regOperPtr->m_any_value;
+    fireTrigOrd->m_gci_lo = req_struct->gci_lo;
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
@@ -1065,7 +1066,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci);
+    fireTrigOrd->setGCI(req_struct->gci_hi);
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,

@@ -1808,6 +1808,11 @@ public:
  {
    return HA_ERR_UNSUPPORTED;
  }
+ virtual int alter_table_phase3(THD *thd, TABLE *table)
+ {
+   return HA_ERR_UNSUPPORTED;
+ }
+
 
  /* These are only called from sql_select for internal temporary tables */
   virtual int write_row(uchar *buf __attribute__((unused)))
