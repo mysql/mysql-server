@@ -9052,9 +9052,9 @@ int handle_trailing_share(NDB_SHARE *share, int have_lock_open)
     }
   }
 
-  sql_print_error("NDB_SHARE: %s already exists  use_count=%d."
-                  " Moving away for safety, but possible memleak.",
-                  share->key, share->use_count);
+  sql_print_warning("NDB_SHARE: %s already exists  use_count=%d."
+                    " Moving away for safety, but possible memleak.",
+                    share->key, share->use_count);
   dbug_print_open_tables();
 
   /*
