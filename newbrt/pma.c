@@ -603,8 +603,8 @@ int pma_delete (PMA pma, DBT *k, DB *db) {
 
     l = pmainternal_find(pma, k, db);
     struct kv_pair *kv = pma->pairs[l];
-    if (!kv_pair_inuse(kv)) {
-	printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, l, DB_NOTFOUND);
+    if (!kv_pair_valid(kv)) {
+	if (0) printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, l, DB_NOTFOUND);
 	return DB_NOTFOUND;
     }
     pma->pairs[l] = kv_pair_set_deleted(kv);
