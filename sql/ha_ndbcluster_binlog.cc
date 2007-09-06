@@ -35,6 +35,7 @@
 
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
+extern my_bool opt_ndb_log_orig;
 
 /*
   defines for cluster replication table names
@@ -4256,49 +4257,50 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
                           uint orig_server_id, int flag)
 {
   ndb_binlog_index_row *row= *rows;
-#ifdef NOT_YET
-  ndb_binlog_index_row *first= row, *found_id= 0;
-  for (;;)
+  if (opt_ndb_log_orig)
   {
-    if (row->orig_server_id == orig_server_id)
+    ndb_binlog_index_row *first= row, *found_id= 0;
+    for (;;)
     {
-      /* */
-      if (!flag || !row->orig_epoch)
-        return row;
-      if (!found_id)
-        found_id= row;
-    }
-    if (row->orig_server_id == 0)
-      break;
-    row= row->next;
-    if (row == NULL)
-    {
-      row= (ndb_binlog_index_row*)sql_alloc(sizeof(ndb_binlog_index_row));
-      bzero((char*)row, sizeof(ndb_binlog_index_row));
-      row->next= first;
-      *rows= row;
-      if (found_id)
+      if (row->orig_server_id == orig_server_id)
       {
-        /*
-          If we found index_row with same server id already
-          that row will contain the current stats.
-          Copy stats over to new and reset old.
-        */
-        row->n_inserts= found_id->n_inserts;
-        row->n_updates= found_id->n_updates;
-        row->n_deletes= found_id->n_deletes;
-        found_id->n_inserts= 0;
-        found_id->n_updates= 0;
-        found_id->n_deletes= 0;
+        /* */
+        if (!flag || !row->orig_epoch)
+          return row;
+        if (!found_id)
+          found_id= row;
       }
-      /* keep track of schema ops only on "first" index_row */
-      row->n_schemaops= first->n_schemaops;
-      first->n_schemaops= 0;
-      break;
+      if (row->orig_server_id == 0)
+        break;
+      row= row->next;
+      if (row == NULL)
+      {
+        row= (ndb_binlog_index_row*)sql_alloc(sizeof(ndb_binlog_index_row));
+        bzero((char*)row, sizeof(ndb_binlog_index_row));
+        row->next= first;
+        *rows= row;
+        if (found_id)
+        {
+          /*
+            If we found index_row with same server id already
+            that row will contain the current stats.
+            Copy stats over to new and reset old.
+          */
+          row->n_inserts= found_id->n_inserts;
+          row->n_updates= found_id->n_updates;
+          row->n_deletes= found_id->n_deletes;
+          found_id->n_inserts= 0;
+          found_id->n_updates= 0;
+          found_id->n_deletes= 0;
+        }
+        /* keep track of schema ops only on "first" index_row */
+        row->n_schemaops= first->n_schemaops;
+        first->n_schemaops= 0;
+        break;
+      }
     }
+    row->orig_server_id= orig_server_id;
   }
-  row->orig_server_id= orig_server_id;
-#endif
   return row;
 }
 
@@ -4315,34 +4317,35 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   }
   if (share == ndb_apply_status_share)
   {
-#ifdef NOT_YET
-    switch(pOp->getEventType())
+    if (opt_ndb_log_orig)
     {
-    case NDBEVENT::TE_INSERT:
-      // fall through
-    case NDBEVENT::TE_UPDATE:
-    {
-      /* unpack data to fetch orig_server_id and orig_epoch */
-      TABLE *table= share->table;
-      uint n_fields= event_data->no_fields;
-      MY_BITMAP b;
-      uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-      bitmap_init(&b, bitbuf, n_fields, FALSE);
-      bitmap_set_all(&b);
-      ndb_unpack_record(table, event_data->ndb_value[0], &b, event_data->record[0]);
-      /* store */
-      ndb_binlog_index_row *row= ndb_find_binlog_index_row
-        (rows, ((Field_long *)table->field[0])->val_int(), 1);
-      row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
-      break;
+      switch(pOp->getEventType())
+      {
+      case NDBEVENT::TE_INSERT:
+        // fall through
+      case NDBEVENT::TE_UPDATE:
+      {
+        /* unpack data to fetch orig_server_id and orig_epoch */
+        TABLE *table= share->table;
+        uint n_fields= event_data->no_fields;
+        MY_BITMAP b;
+        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
+        bitmap_init(&b, bitbuf, n_fields, FALSE);
+        bitmap_set_all(&b);
+        ndb_unpack_record(table, event_data->ndb_value[0], &b, event_data->record[0]);
+        /* store */
+        ndb_binlog_index_row *row= ndb_find_binlog_index_row
+          (rows, ((Field_long *)table->field[0])->val_int(), 1);
+        row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
+        break;
+      }
+      case NDBEVENT::TE_DELETE:
+        break;
+      default:
+        /* We should REALLY never get here */
+        abort();
+      }
     }
-    case NDBEVENT::TE_DELETE:
-      break;
-    default:
-      /* We should REALLY never get here */
-      abort();
-    }
-#endif
     return 0;
   }
 
