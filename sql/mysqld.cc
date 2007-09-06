@@ -398,6 +398,7 @@ ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
 my_bool opt_ndb_log_update_as_write;
 my_bool opt_ndb_log_updated_only;
+my_bool opt_ndb_log_orig;
 #endif
 
 extern const char *ndb_distribution_names[];
@@ -4991,6 +4992,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
   OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
+  OPT_NDB_LOG_ORIG,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -5568,6 +5570,12 @@ master-ssl",
    (uchar**) &opt_ndb_log_updated_only,
    (uchar**) &opt_ndb_log_updated_only,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-log-orig", OPT_NDB_LOG_ORIG,
+   "Log originating server id and epoch in ndb_binlog_index.  Each epoch may in this case have "
+   "multiple rows in ndb_binlog_index, one for each originating epoch.",
+   (uchar**) &opt_ndb_log_orig,
+   (uchar**) &opt_ndb_log_orig,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
