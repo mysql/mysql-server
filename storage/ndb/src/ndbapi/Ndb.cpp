@@ -569,8 +569,6 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 	hashValue= buf[1];
       }
       
-      Uint32 partId;
-      int ret;
       const Uint16 *nodes;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       if(cnt)

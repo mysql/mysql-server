@@ -1303,10 +1303,9 @@ public:
 				   Uint32       keyLen = 0);
 
 
-
   /**
    * Structure for passing in pointers to startTransaction
-   *
+   * 
    */
   struct Key_part_ptr
   {
