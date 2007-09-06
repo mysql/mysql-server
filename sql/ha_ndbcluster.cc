@@ -3061,9 +3061,9 @@ guess_scan_flags(NdbOperation::LockMode lm,
  */
 
 int ha_ndbcluster::full_table_scan(const KEY* key_info, 
-                                   const byte *key, 
+                                   const uchar *key, 
                                    uint key_len,
-                                   byte *buf)
+                                   uchar *buf)
 {
   NdbScanOperation *op;
   NdbTransaction *trans= m_active_trans;
