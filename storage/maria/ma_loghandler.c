@@ -213,6 +213,9 @@ static my_bool write_hook_for_redo(enum translog_record_type type,
 static my_bool write_hook_for_undo(enum translog_record_type type,
                                    TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                    struct st_translog_parts *parts);
+static my_bool write_hook_for_clr_end(enum translog_record_type type,
+                                      TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                                      struct st_translog_parts *parts);
 
 static my_bool translog_page_validator(uchar *page_addr, uchar* data_ptr);
 
@@ -414,7 +417,8 @@ static LOG_DESC INIT_LOGREC_REDO_UNDELETE_ROW=
  "redo_undelete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_CLR_END=
-{LOGRECTYPE_FIXEDLENGTH, 9, 9, NULL, write_hook_for_redo, NULL, 0,
+{LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE + FILEID_STORE_SIZE + 1,
+ LSN_STORE_SIZE + FILEID_STORE_SIZE + 1, NULL, write_hook_for_clr_end, NULL, 1,
  "clr_end", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PURGE_END=
@@ -422,16 +426,16 @@ static LOG_DESC INIT_LOGREC_PURGE_END=
  "purge_end", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
-{LOGRECTYPE_FIXEDLENGTH,
+{LOGRECTYPE_PSEUDOFIXEDLENGTH,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 0,
+ NULL, write_hook_for_undo, NULL, 1,
  "undo_row_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 0,
+ NULL, write_hook_for_undo, NULL, 1,
  "undo_row_delete", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
@@ -451,8 +455,8 @@ static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
  "undo_key_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_DELETE=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 0,
- "undo_key_delete", LOGREC_LAST_IN_GROUP, NULL, NULL}; // QQ: why not compressed?
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 15, NULL, write_hook_for_undo, NULL, 1,
+ "undo_key_delete", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_PREPARE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
@@ -6303,6 +6307,46 @@ static my_bool write_hook_for_undo(enum translog_record_type type
   */
 }
 
+
+/**
+   @brief Sets transaction's undo_lsn, first_undo_lsn if needed
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_clr_end(enum translog_record_type type
+                                      __attribute__ ((unused)),
+                                      TRN *trn, MARIA_HA *tbl_info
+                                      __attribute__ ((unused)),
+                                      LSN *lsn
+                                      __attribute__ ((unused)),
+                                      struct st_translog_parts *parts)
+{
+  char *ptr= parts->parts[TRANSLOG_INTERNAL_PARTS + 0].str;
+  enum translog_record_type undone_record_type=
+    ptr[LSN_STORE_SIZE + FILEID_STORE_SIZE];
+
+  DBUG_ASSERT(trn->trid != 0);
+  /** @todo depending on what we are undoing, update "records" or not */
+  trn->undo_lsn= lsn_korr(ptr);
+  switch (undone_record_type) {
+  case LOGREC_UNDO_ROW_DELETE:
+    tbl_info->s->state.state.records++;
+    break;
+  case LOGREC_UNDO_ROW_INSERT:
+    tbl_info->s->state.state.records--;
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trn->undo_lsn == LSN_IMPOSSIBLE) /* has fully rolled back */
+    trn->first_undo_lsn= LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
+  return 0;
+}
+
+
 /**
    @brief Gives a 2-byte-id to MARIA_SHARE and logs this fact
 
@@ -6375,6 +6419,15 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, NULL)))
       return 1;
+    /*
+      Note that we first set share->id then write the record. The checkpoint
+      record does not include any share with id==0; this is ok because:
+      checkpoint_start_log_horizon is either before or after the above
+      record. If before, ok to not include the share, as the record will be
+      seen for sure during the REDO phase. If after, Checkpoint will see all
+      data as it was after this record was written, including the id!=0, so
+      share will be included.
+    */
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;
@@ -6400,6 +6453,7 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
+  share->id= 0;
 }
 
 

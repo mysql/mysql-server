@@ -1659,7 +1659,7 @@ static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
    @param  map_blocks      On which pages the record should be stored
    @param  row_pos         Position on head page where to put head part of
                            record
-   @param  undo_lsn	   <> 0 if we are in UNDO
+   @param  undo_lsn	   <> LSN_ERROR if we are executing an UNDO
 
    @note
      On return all pinned pages are released.
@@ -1729,7 +1729,10 @@ static my_bool write_block_record(MARIA_HA *info,
   if (share->base.pack_fields)
     store_key_length_inc(data, row->field_lengths_length);
   if (share->calc_checksum)
-    *(data++)= (uchar) info->cur_row.checksum;
+  {
+    row->checksum= (info->s->calc_checksum)(info, record);
+    *(data++)= (uchar) (row->checksum); /* store least significant byte */
+  }
   memcpy(data, record, share->base.null_bytes);
   data+= share->base.null_bytes;
   memcpy(data, row->empty_bits, share->base.pack_bytes);
@@ -2283,19 +2286,25 @@ static my_bool write_block_record(MARIA_HA *info,
   {
     LEX_STRING *log_array= info->log_row_parts;
 
-    if (undo_lsn)
+    if (undo_lsn != LSN_ERROR)
     {
-      uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
-
+      uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + 1];
       /* undo_lsn must be first for compression to work */
       lsn_store(log_data, undo_lsn);
+      /*
+        Store if this CLR is about an UNDO_INSERT, UNDO_DELETE or UNDO_UPDATE;
+        in the first/second case, Recovery, when it sees the CLR_END in the
+        REDO phase, may decrement/increment the records' count.
+      */
+      /** @todo when Monty has UNDO_UPDATE coded, revisit this */
+      log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE]= LOGREC_UNDO_ROW_DELETE;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
       if (translog_write_record(&lsn, LOGREC_CLR_END,
                                 info->trn, info, sizeof(log_data),
                                 TRANSLOG_INTERNAL_PARTS + 1, log_array,
-                                log_data+ FILEID_STORE_SIZE))
+                                log_data + LSN_STORE_SIZE))
         goto disk_err;
     }
     else
@@ -2425,7 +2434,7 @@ disk_err:
   @param info                Maria handler
   @param record              Record to write
   @param row		     Information about fields in 'record'
-  @param undo_lsn	     <> 0 if in undo
+  @param undo_lsn	     <> LSN_ERROR if we are executing an UNDO
 
   @return
   @retval 0	ok
@@ -2449,8 +2458,6 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
                             PAGECACHE_LOCK_WRITE, &row_pos))
     DBUG_RETURN(1);
   row->lastpos= ma_recordpos(blocks->block->page, row_pos.rownr);
-  if (info->s->calc_checksum)
-    row->checksum= (info->s->calc_checksum)(info,record);
   if (write_block_record(info, (uchar*) 0, record, row,
                          blocks, blocks->block->org_bitmap_value != 0,
                          &row_pos, undo_lsn))
@@ -2482,7 +2489,8 @@ MARIA_RECORD_POS _ma_write_init_block_record(MARIA_HA *info,
   DBUG_ENTER("_ma_write_init_block_record");
 
   calc_record_size(info, record, &info->cur_row);
-  if (allocate_and_write_block_record(info, record, &info->cur_row, 0))
+  if (allocate_and_write_block_record(info, record,
+                                      &info->cur_row, LSN_ERROR))
     DBUG_RETURN(HA_OFFSET_ERROR);
   DBUG_RETURN(info->cur_row.lastpos);
 }
@@ -2669,7 +2677,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
     if (cur_row->extents_count && free_full_pages(info, cur_row))
       goto err;
     DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks,
-                                   1, &row_pos, 0));
+                                   1, &row_pos, LSN_ERROR));
   }
   /*
     Allocate all size in block for record
@@ -2702,7 +2710,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   row_pos.data= buff + uint2korr(dir);
   row_pos.length= head_length;
   DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks, 1,
-                                 &row_pos, 0));
+                                 &row_pos, LSN_ERROR));
 
 err:
   _ma_unpin_all_pages(info, 0);
@@ -4825,7 +4833,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
   ulonglong page;
   uint rownr;
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE], *buff;
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + 1], *buff;
   my_bool res= 1;
   MARIA_PINNED_PAGE page_link;
   LSN lsn;
@@ -4858,16 +4866,16 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 
   /* undo_lsn must be first for compression to work */
   lsn_store(log_data, undo_lsn);
+  log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE]= LOGREC_UNDO_ROW_INSERT;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
   if (translog_write_record(&lsn, LOGREC_CLR_END,
                             info->trn, info, sizeof(log_data),
                             TRANSLOG_INTERNAL_PARTS + 1, log_array,
-                            log_data+ FILEID_STORE_SIZE))
+                            log_data + LSN_STORE_SIZE))
     goto err;
 
-  info->s->state.state.records--;
   res= 0;
 err:
   _ma_unpin_all_pages(info, lsn);

@@ -75,6 +75,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE);
 prototype_redo_exec_hook(UNDO_ROW_UPDATE);
 prototype_redo_exec_hook(UNDO_ROW_PURGE);
 prototype_redo_exec_hook(COMMIT);
+prototype_redo_exec_hook(CLR_END);
 prototype_undo_exec_hook(UNDO_ROW_INSERT);
 prototype_undo_exec_hook(UNDO_ROW_DELETE);
 prototype_undo_exec_hook(UNDO_ROW_UPDATE);
@@ -385,7 +386,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
     {
       fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
-              " record, ignoring",
+              " record, ignoring creation",
               LSN_IN_HEX(share->state.create_rename_lsn));
       error= 0;
       goto end;
@@ -502,7 +503,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
     {
       fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
-              " record, ignoring",
+              " record, ignoring removal",
               LSN_IN_HEX(share->state.create_rename_lsn));
       error= 0;
       goto end;
@@ -625,7 +626,7 @@ static int new_table(uint16 sid, const char *name,
   if (cmp_translog_addr(lsn, share->state.create_rename_lsn) <= 0)
   {
     fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
-            " record, ignoring",
+            " record, ignoring open request",
             LSN_IN_HEX(share->state.create_rename_lsn));
     error= -1;
     goto end;
@@ -652,9 +653,10 @@ static int new_table(uint16 sid, const char *name,
   all_tables[sid].info= info;
   all_tables[sid].org_kfile= org_kfile;
   all_tables[sid].org_dfile= org_dfile;
-  fprintf(tracef, ", opened\n");
+  fprintf(tracef, ", opened");
   error= 0;
 end:
+  fprintf(tracef, "\n");
   if (error)
   {
     if (info != NULL)
@@ -672,7 +674,14 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
   uchar *buff= NULL;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+  {
+    /*
+      Table was skipped at open time (because later dropped/renamed, not
+      transactional, or create_rename_lsn newer than LOGREC_FILE_ID); it is
+      not an error.
+    */
+    return 0;
+  }
   /*
     If REDO's LSN is > page's LSN (read from disk), we are going to modify the
     page and change its LSN. The normal runtime code stores the UNDO's LSN
@@ -717,7 +726,7 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
   uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -752,7 +761,7 @@ prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD)
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   if (_ma_apply_redo_purge_row_head_or_tail(info, current_group_end_lsn,
                                             HEAD_PAGE,
                                             rec->header + FILEID_STORE_SIZE))
@@ -768,7 +777,7 @@ prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL)
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   if (_ma_apply_redo_purge_row_head_or_tail(info, current_group_end_lsn,
                                             TAIL_PAGE,
                                             rec->header + FILEID_STORE_SIZE))
@@ -785,7 +794,7 @@ prototype_redo_exec_hook(REDO_PURGE_BLOCKS)
   uchar *buff;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   enlarge_buffer(rec);
 
   if (log_record_buffer.str == NULL ||
@@ -812,7 +821,7 @@ prototype_redo_exec_hook(REDO_DELETE_ALL)
   int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   fprintf(tracef, "   deleting all %lu rows\n",
          (ulong)info->s->state.state.records);
   if (maria_delete_all_rows(info))
@@ -830,10 +839,9 @@ end:
 
 prototype_redo_exec_hook(UNDO_ROW_INSERT)
 {
-  int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   /*
     in an upcoming patch ("recovery of the state"), we introduce
@@ -852,19 +860,15 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
-  error= 0;
-
-end:
-  return error;
+  return 0;
 }
 
 
 prototype_redo_exec_hook(UNDO_ROW_DELETE)
 {
-  int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
@@ -873,35 +877,29 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
-  error= 0;
-end:
-  return error;
+  return 0;
 }
 
 
 prototype_redo_exec_hook(UNDO_ROW_UPDATE)
 {
-  int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   {
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
-  error= 0;
-end:
-  return error;
+  return 0;
 }
 
 
 prototype_redo_exec_hook(UNDO_ROW_PURGE)
 {
-  int error= 1;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
-    goto end;
+    return 0;
   /* this a bit broken, but this log record type will be deleted soon */
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
   {
@@ -911,9 +909,7 @@ prototype_redo_exec_hook(UNDO_ROW_PURGE)
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
-  error= 0;
-end:
-  return error;
+  return 0;
 }
 
 
@@ -956,25 +952,67 @@ prototype_redo_exec_hook(COMMIT)
 }
 
 
+prototype_redo_exec_hook(CLR_END)
+{
+  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  if (info == NULL)
+    return 0;
+  LSN previous_undo_lsn= lsn_korr(rec->header);
+  enum translog_record_type undone_record_type=
+    (rec->header)[LSN_STORE_SIZE + FILEID_STORE_SIZE];
+  const LOG_DESC *log_desc= &log_record_type_descriptor[undone_record_type];
+
+  set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
+  fprintf(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
+          log_desc->name, LSN_IN_HEX(previous_undo_lsn));
+  {
+    fprintf(tracef, "   state older than record, updating rows' count\n");
+    switch (undone_record_type) {
+    case LOGREC_UNDO_ROW_DELETE:
+      info->s->state.state.records++;
+      break;
+    case LOGREC_UNDO_ROW_INSERT:
+      info->s->state.state.records--;
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+  }
+  fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  return 0;
+}
+
+
 prototype_undo_exec_hook(UNDO_ROW_INSERT)
 {
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
 
   if (info == NULL)
+  {
+    /*
+      Unlike for REDOs, if the table was skipped it is abnormal; we have a
+      transaction to rollback which used this table, as it is not rolled back
+      it was supposed to hold this table and so the table should still be
+      there.
+    */
     return 1;
-
+  }
   info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
     STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
 
-  /* Set undo to point to previous undo record */
   info->trn= trn;
-  info->trn->undo_lsn= lsn_korr(rec->header);
-
-  error= _ma_apply_undo_row_insert(info, rec->lsn,
+  error= _ma_apply_undo_row_insert(info, previous_undo_lsn,
                                    rec->header + LSN_STORE_SIZE +
                                    FILEID_STORE_SIZE);
   info->trn= 0;
+  /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
+  fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+          LSN_IN_HEX(previous_undo_lsn));
   return error;
 }
 
@@ -983,6 +1021,7 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
 {
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
 
   if (info == NULL)
     return 1;
@@ -1000,15 +1039,12 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
     return 1;
   }
 
-  /* Set undo to point to previous undo record */
   info->trn= trn;
-  info->trn->undo_lsn= lsn_korr(rec->header);
-
   /*
     For now we skip the page and directory entry. This is to be used
     later when we mark rows as deleted.
   */
-  error= _ma_apply_undo_row_delete(info, rec->lsn,
+  error= _ma_apply_undo_row_delete(info, previous_undo_lsn,
                                    log_record_buffer.str + LSN_STORE_SIZE +
                                    FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                                    DIRPOS_STORE_SIZE,
@@ -1016,6 +1052,9 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
                                    (LSN_STORE_SIZE + FILEID_STORE_SIZE +
                                     PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
   info->trn= 0;
+  fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+          LSN_IN_HEX(previous_undo_lsn));
   return error;
 }
 
@@ -1024,6 +1063,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
 {
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
+  LSN previous_undo_lsn= lsn_korr(rec->header);
 
   if (info == NULL)
     return 1;
@@ -1041,15 +1081,12 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
     return 1;
   }
 
-  /* Set undo to point to previous undo record */
   info->trn= trn;
-  info->trn->undo_lsn= lsn_korr(rec->header);
-
   /*
     For now we skip the page and directory entry. This is to be used
     later when we mark rows as deleted.
   */
-  error= _ma_apply_undo_row_update(info, rec->lsn,
+  error= _ma_apply_undo_row_update(info, previous_undo_lsn,
                                    log_record_buffer.str + LSN_STORE_SIZE +
                                    FILEID_STORE_SIZE + PAGE_STORE_SIZE +
                                    DIRPOS_STORE_SIZE,
@@ -1057,6 +1094,8 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
                                    (LSN_STORE_SIZE + FILEID_STORE_SIZE +
                                     PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
   info->trn= 0;
+  fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
+          LSN_IN_HEX(previous_undo_lsn));
   return error;
 }
 
@@ -1086,6 +1125,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(UNDO_ROW_UPDATE);
   install_redo_exec_hook(UNDO_ROW_PURGE);
   install_redo_exec_hook(COMMIT);
+  install_redo_exec_hook(CLR_END);
   install_undo_exec_hook(UNDO_ROW_INSERT);
   install_undo_exec_hook(UNDO_ROW_DELETE);
   install_undo_exec_hook(UNDO_ROW_UPDATE);
@@ -1265,6 +1305,8 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
         if ((trn= trnman_recreate_trn_from_recovery(sid, long_trid)) == NULL)
           return -1;
         trn->undo_lsn= all_active_trans[sid].undo_lsn;
+        trn->first_undo_lsn= all_active_trans[sid].first_undo_lsn |
+          TRANSACTION_LOGGED_LONG_ID; /* because trn is known in log */
       }
       /* otherwise we will just warn about it */
       unfinished++;
@@ -1335,6 +1377,7 @@ static int run_undo_phase(uint unfinished)
             RECHEADER_READ_ERROR)
           return 1;
         log_desc= &log_record_type_descriptor[rec.type];
+        display_record_position(log_desc, &rec, 0);
         if (log_desc->record_execute_in_undo_phase(&rec, trn))
         {
           fprintf(tracef, "Got error when executing undo\n");
@@ -1413,6 +1456,8 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     record's we will modify the page
   */
   fprintf(tracef, ", applying record\n");
+  /* to flush data/index pages and state on close: */
+  info->s->changed= 1;
   return info;
 }
 
@@ -1434,6 +1479,8 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   fprintf(tracef, ", '%s'", info->s->open_file_name);
   DBUG_ASSERT(info->s->last_version != 0);
   fprintf(tracef, ", applying record\n");
+  /* to flush data/index pages and state on close: */
+  info->s->changed= 1;
   return info;
 }
 

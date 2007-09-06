@@ -15,11 +15,12 @@
 
 /* Testing of the basic functions of a MARIA table */
 
-#include "maria.h"
+#include "maria_def.h"
 #include <my_getopt.h>
 #include <m_string.h>
 #include "ma_control_file.h"
 #include "ma_loghandler.h"
+#include "trnman.h"
 
 extern PAGECACHE *maria_log_pagecache;
 extern const char *maria_data_root;
@@ -28,7 +29,7 @@ extern const char *maria_data_root;
 
 static void usage();
 
-static int rec_pointer_size=0, flags[50];
+static int rec_pointer_size=0, flags[50], testflag;
 static int key_field=FIELD_SKIP_PRESPACE,extra_field=FIELD_SKIP_ENDSPACE;
 static int key_type=HA_KEYTYPE_NUM;
 static int create_flag=0;
@@ -223,6 +224,9 @@ static int run_test(const char *filename)
   if (maria_commit(file) || maria_begin(file))
     goto err;
 
+  if (testflag == 1)
+    goto end;
+
   /* Insert 2 rows with null values */
   if (null_fields)
   {
@@ -240,16 +244,10 @@ static int run_test(const char *filename)
     flags[0]=2;
   }
 
-  if (die_in_middle_of_transaction == 1)
+  if (testflag == 2)
   {
-    /*
-      Ensure we get changed pages and log to disk
-      As commit record is not done, the undo entries needs to be rolled back.
-    */
-    _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
-                          FLUSH_RELEASE);
-    printf("Dying on request after insert without maria_close()\n");
-    exit(1);
+    printf("terminating after inserts\n");
+    goto end;
   }
 
   if (!skip_update)
@@ -304,6 +302,8 @@ static int run_test(const char *filename)
     maria_scan_end(file);
   }
 
+  if (testflag == 3)
+    goto end;
   if (!silent)
     printf("- Reopening file\n");
   if (maria_commit(file))
@@ -321,6 +321,12 @@ static int run_test(const char *filename)
 
     for (i=0 ; i <= 10 ; i++)
     {
+      /*
+        If you want to debug the problem in ma_test_recovery with BLOBs
+        (see @todo there), you can break out of the loop after just one
+        delete, it is enough, like this:
+        if (i==1) break;
+      */
       /* testing */
       if (remove_count-- == 0)
       {
@@ -355,19 +361,14 @@ static int run_test(const char *filename)
 	}
       }
     }
-
-    if (die_in_middle_of_transaction == 2)
-    {
-      /*
-        Ensure we get changed pages and log to disk
-        As commit record is not done, the undo entries needs to be rolled back.
-      */
-      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
-                            FLUSH_RELEASE);
-      printf("Dying on request after delete without maria_close()\n");
-      exit(1);
-    }
   }
+
+  if (testflag == 4)
+  {
+    printf("terminating after deletes\n");
+    goto end;
+  }
+
   if (!silent)
     printf("- Reading rows with key\n");
   record[1]= 0;                                 /* For nicer printf */
@@ -412,6 +413,39 @@ static int run_test(const char *filename)
 	     i-1,error,my_errno,read_record+1);
     }
   }
+
+end:
+  if (die_in_middle_of_transaction)
+  {
+    /* As commit record is not done, UNDO entries needs to be rolled back */
+    switch (die_in_middle_of_transaction) {
+    case 1:
+      /*
+        Flush changed pages go to disk. That will also flush log. Recovery
+        will skip REDOs and apply UNDOs.
+      */
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      break;
+    case 2:
+      /*
+        Just flush log. Pages are likely to not be on disk. Recovery will
+        then execute REDOs and UNDOs.
+      */
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
+      break;
+    case 3:
+      /*
+        Flush nothing. Pages and log are likely to not be on disk. Recovery
+        will then do nothing.
+      */
+      break;
+    }
+    printf("Dying on request without maria_commit()/maria_close()\n");
+    exit(0);
+  }
+
   if (maria_commit(file))
     goto err;
   if (maria_close(file))
@@ -676,11 +710,13 @@ static struct my_option my_long_options[] =
    (uchar**) &skip_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-update", 'D', "Don't test updates", (uchar**) &skip_update,
    (uchar**) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"testflag", 't', "Stop test at specified stage", (uchar**) &testflag,
+   (uchar**) &testflag, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"test-undo", 'A',
-   "Abort hard after doing inserts. Used for testing recovery with undo",
+   "Abort hard. Used for testing recovery with undo",
    (uchar**) &die_in_middle_of_transaction,
    (uchar**) &die_in_middle_of_transaction,
-   0, GET_INT, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transactional", 'T',
    "Test in transactional mode. (Only works with block format)",
    (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,
@@ -767,12 +803,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'K':                                     /* Use key cacheing */
     pagecacheing=1;
-    break;
-  case 'A':
-    if (!argument)
-      die_in_middle_of_transaction= 1;
-    else
-      die_in_middle_of_transaction= atoi(argument);
     break;
   case 'V':
     printf("test1 Ver 1.2 \n");
