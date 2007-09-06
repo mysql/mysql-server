@@ -86,7 +86,6 @@ memory is read outside the allocated blocks. */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
-#define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_DEBUG_PRINT			/* Enable the compilation of
 						some debug print functions */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
