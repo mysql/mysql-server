@@ -223,6 +223,8 @@ mem_init_buf(
 {
 	byte*	ptr;
 
+	UNIV_MEM_ASSERT_W(buf, n);
+
 	for (ptr = buf; ptr < buf + n; ptr++) {
 
 		if (ut_rnd_gen_ibool()) {
@@ -231,6 +233,8 @@ mem_init_buf(
 			*ptr = 0xBE;
 		}
 	}
+
+	UNIV_MEM_INVALID(buf, n);
 }
 
 /*******************************************************************
@@ -245,6 +249,8 @@ mem_erase_buf(
 {
 	byte*	ptr;
 
+	UNIV_MEM_ASSERT_W(buf, n);
+
 	for (ptr = buf; ptr < buf + n; ptr++) {
 		if (ut_rnd_gen_ibool()) {
 			*ptr = 0xDE;
@@ -252,6 +258,8 @@ mem_erase_buf(
 			*ptr = 0xAD;
 		}
 	}
+
+	UNIV_MEM_FREE(buf, n);
 }
 
 /*******************************************************************
