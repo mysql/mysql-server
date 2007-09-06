@@ -1003,7 +1003,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING conv_name;
-    size_t dummy;
 
     /* used as fields initializator */
     lex_start(thd);
