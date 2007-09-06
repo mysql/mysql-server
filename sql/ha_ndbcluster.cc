@@ -6679,7 +6679,7 @@ retry_temporary_error1:
   */
   int table_dropped= dict->getNdbError().code != 709;
 
-  if (!IS_TMP_PREFIX(table_name))
+  if (share && (share->op || share->new_op))
   {
     String event_name(INJECTOR_EVENT_LEN);
     ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);

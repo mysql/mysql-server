@@ -367,7 +367,9 @@ sub mtr_report_stats ($) {
 
                 # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
                 #             from the internal data dictiona
-                /Cannot find table test\/BUG29839 from the internal data dictionary/
+                /Cannot find table test\/BUG29839 from the internal data dictionary/ or
+                # rpl_ndb_basic expects this error
+                /Slave: Got error 146 during COMMIT Error_code: 1180/
 	       )
             {
               next;                       # Skip these lines
