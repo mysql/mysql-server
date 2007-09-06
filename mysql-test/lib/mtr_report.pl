@@ -319,6 +319,9 @@ sub mtr_report_stats ($) {
 		/Slave: .*master may suffer from/ or
 		/Slave: According to the master's version/ or
 		/Slave: Column [0-9]* type mismatch/ or
+                /Slave: Can't DROP '*'; check that column/key exists/ or
+                /Slave: Unknown column '*' in '*'/ or
+                /Slave: Key column '*' doesn't exixt in table/ or
 		/Slave: Error .* doesn't exist/ or
 		/Slave: Error .*Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
