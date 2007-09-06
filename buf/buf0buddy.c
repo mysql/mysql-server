@@ -77,7 +77,7 @@ buf_buddy_add_to_free(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	if (b) UNIV_MEM_FREE(b, BUF_BUDDY_LOW << i);
-	UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
+	UNIV_MEM_ASSERT_AND_FREE(bpage, BUF_BUDDY_LOW << i);
 #endif /* UNIV_DEBUG_VALGRIND */
 }
 
@@ -682,7 +682,7 @@ buddy_free2:
 
 		{
 			buf_page_t*	next = UT_LIST_GET_NEXT(list, bpage);
-			UNIV_MEM_FREE(bpage, BUF_BUDDY_LOW << i);
+			UNIV_MEM_ASSERT_AND_FREE(bpage, BUF_BUDDY_LOW << i);
 			bpage = next;
 		}
 	}
