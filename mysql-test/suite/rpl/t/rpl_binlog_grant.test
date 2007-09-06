@@ -25,6 +25,7 @@ grant select on t to x@y;
 rollback;
 show grants for x@y;
 --replace_result $VERSION VERSION
+--replace_regex /\/\* xid=.* \*\//\/* XID *\//
 show binlog events;
 start transaction;
 insert into t values (2);
@@ -36,6 +37,7 @@ commit;
 select * from t;
 show grants for x@y;
 --replace_result $VERSION VERSION
+--replace_regex /\/\* xid=.* \*\//\/* XID *\//
 show binlog events;
 drop user x@y;
 drop database d1;
