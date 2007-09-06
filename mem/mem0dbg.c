@@ -223,6 +223,8 @@ mem_init_buf(
 {
 	byte*	ptr;
 
+	UNIV_MEM_ASSERT_W(buf, n);
+
 	for (ptr = buf; ptr < buf + n; ptr++) {
 
 		if (ut_rnd_gen_ibool()) {
@@ -246,6 +248,8 @@ mem_erase_buf(
 	ulint	 n)	 /* in: length of buffer */
 {
 	byte*	ptr;
+
+	UNIV_MEM_ASSERT_W(buf, n);
 
 	for (ptr = buf; ptr < buf + n; ptr++) {
 		if (ut_rnd_gen_ibool()) {
