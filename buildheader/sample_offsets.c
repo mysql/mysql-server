@@ -33,7 +33,11 @@ int compare_fields (const void *av, const void *bv) {
 FILE *outf;
 void open_file (void) {
     char fname[100];
+#ifdef LOCAL
+    snprintf(fname, 100, "sample_offsets_local.h");
+#else
     snprintf(fname, 100, "sample_offsets_%d.h", __WORDSIZE);
+#endif
     outf = fopen(fname, "w");
     assert(outf);
 
