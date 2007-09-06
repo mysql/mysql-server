@@ -128,8 +128,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 
@@ -504,8 +504,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 
@@ -547,7 +547,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -578,8 +578,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
@@ -622,7 +622,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -653,8 +653,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1532
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
@@ -773,7 +773,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -804,8 +804,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
 STOP SLAVE;
@@ -859,7 +859,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -890,8 +890,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
 STOP SLAVE;
@@ -945,7 +945,7 @@ SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	root
-Master_Port	MASTER_PORT
+Master_Port	#
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	#
@@ -976,8 +976,8 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Errno	#
+Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
 STOP SLAVE;
