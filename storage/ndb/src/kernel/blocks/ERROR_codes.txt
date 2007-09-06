@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5048
 Next DBDICT 6008
 Next DBDIH 7190
-Next DBTC 8052
+Next DBTC 8053
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -323,7 +323,7 @@ ABORT OF TCKEYREQ
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
 
-8039 : Simulate failure of TransactionBufferMemory allocation for OI lookup
+8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 
 8051 : Simulate failure of allocation for saveINDXKEYINFO
 
