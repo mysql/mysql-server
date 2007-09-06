@@ -120,7 +120,7 @@ struct yobi_db_env {
   struct db_env_ydb_internal *i;
 };
 struct yobi_db_key_range {
-  double less,equal,grater;
+  double less,equal,greater;
 };
 struct yobi_db_btree_stat {
   u_int32_t bt_ndata;
