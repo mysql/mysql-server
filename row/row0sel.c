@@ -531,12 +531,13 @@ row_sel_build_prev_vers(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
 	read_view_t*	read_view,	/* in: read view */
-	plan_t*		plan,		/* in: plan node for table */
+	dict_index_t*	index,		/* in: plan node for table */
 	rec_t*		rec,		/* in: record in a clustered index */
 	ulint**		offsets,	/* in/out: offsets returned by
 					rec_get_offsets(rec, plan->index) */
 	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
 					the offsets are allocated */
+	mem_heap_t**    old_vers_heap,  /* out: old version heap to use */
 	rec_t**		old_vers,	/* out: old version, or NULL if the
 					record does not exist in the view:
 					i.e., it was freshly inserted
@@ -545,15 +546,15 @@ row_sel_build_prev_vers(
 {
 	ulint	err;
 
-	if (plan->old_vers_heap) {
-		mem_heap_empty(plan->old_vers_heap);
+	if (*old_vers_heap) {
+		mem_heap_empty(*old_vers_heap);
 	} else {
-		plan->old_vers_heap = mem_heap_create(512);
+		*old_vers_heap = mem_heap_create(512);
 	}
 
 	err = row_vers_build_for_consistent_read(
-		rec, mtr, plan->index, offsets, read_view, offset_heap,
-		plan->old_vers_heap, old_vers);
+		rec, mtr, index, offsets, read_view, offset_heap,
+		*old_vers_heap, old_vers);
 	return(err);
 }
 
@@ -765,9 +766,11 @@ row_sel_get_clust_rec(
 		if (!lock_clust_rec_cons_read_sees(clust_rec, index, offsets,
 						   node->read_view)) {
 
-			err = row_sel_build_prev_vers(node->read_view, plan,
-						      clust_rec, &offsets,
-						      &heap, &old_vers, mtr);
+			err = row_sel_build_prev_vers(
+				node->read_view, index, clust_rec,
+				&offsets, &heap, &plan->old_vers_heap,
+				&old_vers, mtr);
+
 			if (err != DB_SUCCESS) {
 
 				goto err_exit;
@@ -1490,10 +1493,11 @@ skip_lock:
 			if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 							   node->read_view)) {
 
-				err = row_sel_build_prev_vers(node->read_view,
-							      plan, rec,
-							      &offsets, &heap,
-							      &old_vers, &mtr);
+				err = row_sel_build_prev_vers(
+					node->read_view, index, rec,
+					&offsets, &heap, &plan->old_vers_heap,
+					&old_vers, &mtr);
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
