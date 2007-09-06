@@ -2,7 +2,7 @@
 #include "hashtable.h"
 #include "memory.h"
 #include "primes.h"
-#include "../include/ydb-constants.h"
+#include "../include/db.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>

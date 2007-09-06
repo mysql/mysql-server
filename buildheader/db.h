@@ -51,6 +51,20 @@ typedef enum { /* This appears to be a mysql-specific addition to the api. */
 #define DB_INIT_LOG 8192
 #define DB_INIT_MPOOL 16384
 #define DB_INIT_TXN 32768
+#define DB_KEYEMPTY -30998
+#define DB_KEYEXIST -30997
+#define DB_LOCK_DEADLOCK -30996
+#define DB_NOTFOUND -30991
+#define DB_BADFORMAT -30500
+#define DB_FIRST 10
+#define DB_GET_BOTH 11
+#define DB_LAST 18
+#define DB_NEXT 19
+#define DB_NEXT_DUP 20
+#define DB_PREV 27
+#define DB_SET 30
+#define DB_SET_RANGE 32
+#define DB_RMW 1073741824
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
