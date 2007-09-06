@@ -1456,8 +1456,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     record's we will modify the page
   */
   fprintf(tracef, ", applying record\n");
-  /* to flush data/index pages and state on close: */
-  info->s->changed= 1;
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE); /* to flush state on close */
   return info;
 }
 
@@ -1476,11 +1475,10 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
     fprintf(tracef, ", table skipped, so skipping record\n");
     return NULL;
   }
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE); /* to flush state on close */
   fprintf(tracef, ", '%s'", info->s->open_file_name);
   DBUG_ASSERT(info->s->last_version != 0);
   fprintf(tracef, ", applying record\n");
-  /* to flush data/index pages and state on close: */
-  info->s->changed= 1;
   return info;
 }
 

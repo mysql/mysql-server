@@ -1142,7 +1142,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
       if ((info->s->data_file_type != STATIC_RECORD) ||
           (param->testflag & (T_EXTEND | T_MEDIUM)))
         error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
-      error|=_ma_flush_blocks(param, share->pagecache, &share->kfile);
+      error|= _ma_flush_table_files_after_repair(param, info);
       VOID(end_io_cache(&param->read_cache));
     }
     if (!error)
@@ -1658,8 +1658,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(_ma_flush_blocks(param, share->pagecache, &share->kfile) |
-	      got_error);
+  DBUG_RETURN(_ma_flush_table_files_after_repair(param, info) | got_error);
 } /* sort_records */
 
 

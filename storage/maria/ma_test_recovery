@@ -96,13 +96,13 @@ echo "Testing the REDO PHASE ALONE"
 # identical to the saved original.
 # Does not test the index file as we don't have logging for it yet.
 
-set -- "$maria_path/ma_test1 $silent -M -T -c" "$maria_path/ma_test2 $silent -L -K -W -P -M -T -c" "$maria_path/ma_test2 $silent -M -T -c -b"
+set -- "ma_test1 $silent -M -T -c" "ma_test2 $silent -L -K -W -P -M -T -c" "ma_test2 $silent -M -T -c -b"
 while [ $# != 0 ]
 do
   prog=$1
   rm maria_log.* maria_log_control
   echo "TEST WITH $prog"
-  $prog
+  $maria_path/$prog
   # derive table's name from program's name
   table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
   $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
@@ -131,7 +131,7 @@ do
   for test_undo in 1 2 3
   do
   # first iteration tests rollback of insert, second tests rollback of delete
-  set -- "$maria_path/ma_test1 $silent -M -T -c -N $blobs" "--testflag=1" "--testflag=2" "$maria_path/ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=3" "--testflag=4"
+  set -- "ma_test1 $silent -M -T -c -N $blobs" "--testflag=1" "--testflag=2" "ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=3" "--testflag=4"
   # -N (create NULL fields) is needed because --test-undo adds it anyway
   while [ $# != 0 ]
     do
@@ -140,7 +140,7 @@ do
     abort_run_args=$3;
     rm maria_log.* maria_log_control
     echo "TEST WITH $prog $commit_run_args (commit at end)"
-    $prog $commit_run_args
+    $maria_path/$prog $commit_run_args
     # derive table's name from program's name
     table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
     $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
@@ -149,7 +149,7 @@ do
     rm $table.MAI
     rm maria_log.* maria_log_control
     echo "TEST WITH $prog $abort_run_args --test-undo=$test_undo (additional aborted work)"
-    $prog $abort_run_args --test-undo=$test_undo
+    $maria_path/$prog $abort_run_args --test-undo=$test_undo
     cp $table.MAD $tmp/$table.MAD.before_undo
     if [ $test_undo -lt 3 ]
         then

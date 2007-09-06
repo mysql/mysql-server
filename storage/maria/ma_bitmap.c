@@ -265,6 +265,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
 my_bool _ma_flush_bitmap(MARIA_SHARE *share)
 {
   my_bool res= 0;
+  DBUG_ENTER("_ma_flush_bitmap");
   if (share->bitmap.changed)
   {
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
@@ -275,7 +276,7 @@ my_bool _ma_flush_bitmap(MARIA_SHARE *share)
     }
     pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 

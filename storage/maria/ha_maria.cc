@@ -1348,6 +1348,9 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_maria::assign_to_keycache");
 
+  /* for now, it is disabled */
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+
   table->keys_in_use_for_query.clear_all();
 
   if (table_list->process_index_hints(table))

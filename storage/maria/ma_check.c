@@ -1996,9 +1996,12 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   /*
     The physical size of the data file is sometimes used during repair (see
     sort_info.filelength further below); we need to flush to have it exact.
+    We flush the state because our maria_open(HA_OPEN_COPY) will want to read
+    it from disk. Index file will be recreated.
   */
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
-                            FLUSH_KEEP))
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED) ||
+      _ma_state_info_write(share->kfile.file, &share->state, 1|2))
     goto err;
 
   if (!rep_quick)
@@ -2025,13 +2028,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
          share->state.header.org_data_file_type == BLOCK_RECORD))
     {
       MARIA_HA *new_info;
-      /**
-         @todo RECOVERY it's a bit worrying to have two MARIA_SHARE on the
-         same index file:
-         - Checkpoint will see them as two tables
-         - are we sure that new_info never flushes an in-progress state
-         to the index file? And how to prevent Checkpoint from doing that?
-         - in the close future maria_close() will write the state...
+      /*
+        It's ok for Recovery to have two MARIA_SHARE on the same index file
+        because the one below is not transactional
       */
       if (!(sort_info.new_info= maria_open(info->s->open_file_name, O_RDWR,
                                            HA_OPEN_COPY | HA_OPEN_FOR_REPAIR)))
@@ -2264,6 +2263,11 @@ err:
   if (scan_inited)
     maria_scan_end(sort_info.info);
 
+  VOID(end_io_cache(&param->read_cache));
+  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+  /* this below could fail, shouldn't we detect error? */
+  VOID(end_io_cache(&info->rec_cache));
+  got_error|= _ma_flush_table_files_after_repair(param, info);
   if (got_error)
   {
     if (! param->error_printed)
@@ -2298,10 +2302,6 @@ err:
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
-  VOID(end_io_cache(&param->read_cache));
-  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-  VOID(end_io_cache(&info->rec_cache));
-  got_error|=_ma_flush_blocks(param, share->pagecache, &share->kfile);
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   share->state.changed|= (STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES |
@@ -2443,18 +2443,31 @@ void maria_lock_memory(HA_CHECK *param __attribute__((unused)))
 } /* maria_lock_memory */
 
 
-	/* Flush all changed blocks to disk */
+/**
+   Flush all changed blocks to disk so that we can say "at the end of repair,
+   the table is fully ok on disk".
 
-int _ma_flush_blocks(HA_CHECK *param, PAGECACHE *pagecache,
-                     PAGECACHE_FILE *file)
+   It is a requirement for transactional tables.
+   We release blocks as it's unlikely that they would all be needed soon.
+
+   @param  param           description of the repair operation
+   @param  info            table
+*/
+
+int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info)
 {
-  if (flush_pagecache_blocks(pagecache, file, FLUSH_RELEASE))
+  MARIA_SHARE *share= info->s;
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_RELEASE, FLUSH_RELEASE) ||
+      _ma_state_info_write(share->kfile.file, &share->state, 1) ||
+      (share->now_transactional && !share->temporary
+       && _ma_sync_table_files(info)))
   {
     _ma_check_print_error(param,"%d when trying to write bufferts",my_errno);
-    return(1);
+    return 1;
   }
   return 0;
-} /* _ma_flush_blocks */
+} /* _ma_flush_table_files_after_repair */
 
 
 	/* Sort index for more efficent reads */
@@ -3064,8 +3077,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     memcpy( &share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= _ma_flush_blocks(param, share->pagecache, &share->kfile);
   VOID(end_io_cache(&info->rec_cache));
+  VOID(end_io_cache(&param->read_cache));
+  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+  got_error|= _ma_flush_table_files_after_repair(param, info);
   if (!got_error)
   {
     /* Replace the actual file with the temporary file */
@@ -3105,8 +3120,6 @@ err:
   my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
-  VOID(end_io_cache(&param->read_cache));
-  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   DBUG_RETURN(got_error);
@@ -3581,13 +3594,14 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= _ma_flush_blocks(param, share->pagecache, &share->kfile);
   /*
     Destroy the write cache. The master thread did already detach from
     the share by remove_io_thread() or it was not yet started (if the
     error happend before creating the thread).
   */
   VOID(end_io_cache(&info->rec_cache));
+  VOID(end_io_cache(&param->read_cache));
+  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   /*
     Destroy the new data cache in case of non-quick repair. All slave
     threads did either detach from the share by remove_io_thread()
@@ -3596,6 +3610,7 @@ err:
   */
   if (!rep_quick)
     VOID(end_io_cache(&new_data_cache));
+  got_error|= _ma_flush_table_files_after_repair(param, info);
   if (!got_error)
   {
     /* Replace the actual file with the temporary file */
@@ -3637,8 +3652,6 @@ err:
   my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free((uchar*) sort_param,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
-  VOID(end_io_cache(&param->read_cache));
-  info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   DBUG_RETURN(got_error);
@@ -5587,13 +5600,13 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
                  translog_flush(share->state.create_rename_lsn)))
       return 1;
     /*
-      But this piece is really needed, to have the new table's content durable
-      and to not apply old REDOs to the new table. The table's existence was
-      made durable earlier (MY_SYNC_DIR passed to maria_change_to_newfile()).
+      The table's existence was made durable earlier (MY_SYNC_DIR passed to
+      maria_change_to_newfile()).
+      _ma_flush_table_files_after_repair() is later called by maria_repair(),
+      and makes sure to flush the data, index and state and sync, so
+      create_rename_lsn reaches disk, thus we won't apply old REDOs to the new
+      table.
     */
-    DBUG_ASSERT(info->dfile.file >= 0);
-    return (_ma_update_create_rename_lsn_on_disk(share, FALSE) ||
-            _ma_sync_table_files(info));
   }
   return 0;
 }

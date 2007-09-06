@@ -865,7 +865,6 @@ extern uint _ma_nommap_pwrite(MARIA_HA *info, uchar *Buffer,
                               uint Count, my_off_t offset, myf MyFlags);
 
 uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite);
-uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
 int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
@@ -927,8 +926,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_t _ma_thr_find_all_keys(void *arg);
 #endif
-int _ma_flush_blocks(HA_CHECK *param, PAGECACHE *pagecache,
-                     PAGECACHE_FILE *file);
+int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info);
 
 int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,

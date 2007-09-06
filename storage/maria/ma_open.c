@@ -39,6 +39,7 @@ static void maria_scan_end_dummy(MARIA_HA *info);
 static my_bool maria_once_init_dummy(MARIA_SHARE *, File);
 static my_bool maria_once_end_dummy(MARIA_SHARE *);
 static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base);
+static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
 
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
 					pos+=size;}
@@ -1049,7 +1050,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
 }
 
 
-uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
+static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 {
   uint i,keys,key_parts;
   memcpy_fixed(&state->header,ptr, sizeof(state->header));
@@ -1103,7 +1104,9 @@ uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 /**
    @brief Fills the state by reading its copy on disk.
 
-   @note Does nothing in single user mode.
+   Should not be called for transactional tables, as their state on disk is
+   rarely current and so is often misleading for a reader.
+   Does nothing in single user mode.
 
    @param  file            file to read from
    @param  state           state which will be filled
@@ -1114,6 +1117,8 @@ uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
 {
   char	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
+  /* trick to detect transactional tables */
+  DBUG_ASSERT(state->create_rename_lsn == LSN_IMPOSSIBLE);
   if (!maria_single_user)
   {
     if (my_pread(file, buff, state->state_length, 0L, MYF(MY_NABP)))

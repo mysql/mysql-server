@@ -73,11 +73,13 @@ int maria_delete_all_rows(MARIA_HA *info)
 
   /*
     If we are using delayed keys or if the user has done changes to the tables
-    since it was locked then there may be key blocks in the key cache
+    since it was locked then there may be key blocks in the page cache. Or
+    there may be data blocks there. We need to throw them away or they may
+    re-enter the emptied table later.
   */
-  flush_pagecache_blocks(share->pagecache, &share->kfile,
-                         FLUSH_IGNORE_CHANGED);
-  if (my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
+                            FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED) ||
+      my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
 

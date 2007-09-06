@@ -256,60 +256,107 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	}
       }
       share->state.state= *info->state;
+      /*
+        That state write to disk must be done, even for transactional tables;
+        indeed the table's share is going to be lost (there was a
+        HA_EXTRA_FORCE_REOPEN before, which set share->last_version to
+        0), and so the only way it leaves information (share->state.key_map)
+        for the posterity is by writing it to disk.
+      */
       error=_ma_state_info_write(share->kfile.file, &share->state, (1 | 2));
     }
     break;
   case HA_EXTRA_FORCE_REOPEN:
+    /*
+      Normally MySQL uses this case when it is going to close all open
+      instances of the table, thus going to flush all data/index/state.
+      We however do a flush here for additional safety.
+    */
+    /** @todo consider porting these flush-es to MyISAM */
+    error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                                 FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE) ||
+      _ma_state_info_write(share->kfile.file, &share->state, 1 | 2) ||
+      (share->changed= 0);
     pthread_mutex_lock(&THR_LOCK_maria);
+    /* this makes the share not be re-used next time the table is opened */
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
   case HA_EXTRA_PREPARE_FOR_RENAME:
+  {
+    my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
     pthread_mutex_lock(&THR_LOCK_maria);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__
-    /* Close the isam and data files as Win32 can't drop an open table */
-    pthread_mutex_lock(&share->intern_lock);
     /*
-      If this is Windows we remove blocks from pagecache. If not Windows we
-      don't do it, so these pages stay in the pagecache? So they may later be
-      flushed to a wrong file?
-      Or is it that this flush_pagecache_blocks() never finds any blocks? Then
-      why do we do it on Windows?
-      Don't we wait for all instances to be closed before dropping the table?
-      Do we ever do something useful here?
-      BUG?
-      FLUSH_IGNORE_CHANGED: we are also throwing away unique index blocks?
-      Does ENABLE KEYS rebuild them too?
+      This share, having last_version=0, needs to save all its data/index
+      blocks to disk if this is not for a DROP TABLE. Otherwise they would be
+      invisible to future openers; and they could even go to disk late and
+      cancel the work of future openers.
+      On Windows, which cannot delete an open file (cannot drop an open table)
+      we have to close the table's files.
     */
-    if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                               (function == HA_EXTRA_PREPARE_FOR_DROP ?
-                                FLUSH_IGNORE_CHANGED : FLUSH_RELEASE)))
+    if (info->lock_type != F_UNLCK && !info->was_locked)
+    {
+      info->was_locked= info->lock_type;
+      if (maria_lock_database(info, F_UNLCK))
+        error= my_errno;
+      info->lock_type= F_UNLCK;
+    }
+    if (share->kfile.file >= 0)
+      _ma_decrement_open_count(info);
+    pthread_mutex_lock(&share->intern_lock);
+    enum flush_type type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
+    if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                              type, type))
     {
       error=my_errno;
       share->changed=1;
-      maria_print_error(info->s, HA_ERR_CRASHED);
-      maria_mark_crashed(info);			/* Fatal error found */
     }
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-      error=end_io_cache(&info->rec_cache);
-    }
-    if (info->lock_type != F_UNLCK && ! info->was_locked)
-    {
-      info->was_locked=info->lock_type;
-      if (maria_lock_database(info,F_UNLCK))
-	error=my_errno;
-      info->lock_type = F_UNLCK;
+      if (end_io_cache(&info->rec_cache))
+        error= 1;
     }
     if (share->kfile.file >= 0)
     {
-      _ma_decrement_open_count(info);
-      if (my_close(share->kfile,MYF(0)))
+      if (do_flush)
+      {
+        /*
+          Save the state so that others can find it from disk.
+          We have to sync now, as on Windows we are going to close the file
+          (so cannot sync later).
+        */
+        if (_ma_state_info_write(share->kfile.file, &share->state, 1 | 2) ||
+            my_sync(share->kfile.file, MYF(0)))
+          error= my_errno;
+        else
+          share->changed= 0;
+      }
+      else
+      {
+        /* be sure that state is not tried for write as file may be closed */
+        share->changed= 0;
+      }
+#ifdef __WIN__
+      if (my_close(share->kfile, MYF(0)))
         error=my_errno;
+      share->kfile.file= -1;
+#endif
     }
+    if (share->data_file_type == BLOCK_RECORD &&
+        share->bitmap.file.file >= 0)
+    {
+      if (do_flush && my_sync(share->bitmap.file.file, MYF(0)))
+        error= my_errno;
+#ifdef __WIN__
+      if (my_close(share->bitmap.file.file, MYF(0)))
+        error= my_errno;
+      share->bitmap.file.file= -1;
+#endif
+    }
+#ifdef __WIN__
     {
       LIST *list_element ;
       for (list_element=maria_open_list ;
@@ -319,24 +366,23 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	MARIA_HA *tmpinfo=(MARIA_HA*) list_element->data;
 	if (tmpinfo->s == info->s)
 	{
-          /**
-             @todo RECOVERY BUG: flush of bitmap and sync of dfile are missing
-          */
-	  if (tmpinfo->dfile.file >= 0 &&
+	  if (share->data_file_type != BLOCK_RECORD &&
+              tmpinfo->dfile.file >= 0 &&
               my_close(tmpinfo->dfile.file, MYF(0)))
 	    error = my_errno;
 	  tmpinfo->dfile.file= -1;
 	}
       }
     }
-    share->kfile.file= -1;				/* Files aren't open anymore */
-    pthread_mutex_unlock(&share->intern_lock);
 #endif
+    pthread_mutex_unlock(&share->intern_lock);
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
+  }
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_KEEP);
+      error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                                   FLUSH_KEEP, FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _ma_decrement_open_count(info);
 #endif
@@ -489,8 +535,8 @@ int maria_reset(MARIA_HA *info)
 
 int _ma_sync_table_files(const MARIA_HA *info)
 {
-  return (my_sync(info->dfile.file, MYF(0)) ||
-          my_sync(info->s->kfile.file, MYF(0)));
+  return (my_sync(info->dfile.file, MYF(MY_WME)) ||
+          my_sync(info->s->kfile.file, MYF(MY_WME)));
 }
 
 
@@ -527,6 +573,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   {
     if (info->opt_flag & WRITE_CACHE_USED)
     {
+      /* normally any code which creates a WRITE_CACHE destroys it later */
+      DBUG_ASSERT(0);
       if (end_io_cache(&info->rec_cache))
         goto err;
       info->opt_flag&= ~WRITE_CACHE_USED;

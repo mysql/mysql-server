@@ -75,12 +75,10 @@ int maria_close(register MARIA_HA *info)
                                   FLUSH_IGNORE_CHANGED :
                                   FLUSH_RELEASE)))
         error= my_errno;
-      /*
-        File must be synced as it is going out of the maria_open_list and so
-        becoming unknown to Checkpoint.
-      */
-      if (share->now_transactional && my_sync(share->kfile.file, MYF(MY_WME)))
-        error= my_errno;
+#ifdef HAVE_MMAP
+      if (share->file_map)
+        _ma_unmap_file(info);
+#endif
       /*
         If we are crashed, we can safely flush the current state as it will
         not change the crashed state.
@@ -88,15 +86,21 @@ int maria_close(register MARIA_HA *info)
         may be using the file at this point
         IF using --external-locking, which does not apply to Maria.
       */
-      if (share->changed)
-	_ma_state_info_write(share->kfile.file, &share->state, 1);
+      if ((share->changed && share->base.born_transactional) ||
+          (share->mode != O_RDONLY && maria_is_crashed(info)))
+      {
+        /*
+          File must be synced as it is going out of the maria_open_list and so
+          becoming unknown to Checkpoint. State must be written to file as
+          it was not done at table's unlocking.
+        */
+        if (_ma_state_info_write(share->kfile.file, &share->state, 1) ||
+            my_sync(share->kfile.file, MYF(MY_WME)))
+          error= my_errno;
+      }
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
-#ifdef HAVE_MMAP
-    if (share->file_map)
-      _ma_unmap_file(info);
-#endif
 #ifdef THREAD
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->intern_lock));

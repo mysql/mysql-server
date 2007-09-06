@@ -76,14 +76,11 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
           /* Mark that table must be checked */
           maria_mark_crashed(info);
         }
-        if (share->data_file_type == BLOCK_RECORD &&
-            flush_pagecache_blocks(share->pagecache, &info->dfile, FLUSH_KEEP))
-        {
+        /* pages of transactional tables get flushed at Checkpoint */
+        if (!share->base.born_transactional &&
+            _ma_flush_table_files(info, MARIA_FLUSH_DATA,
+                                  FLUSH_KEEP, FLUSH_KEEP))
           error= my_errno;
-          maria_print_error(info->s, HA_ERR_CRASHED);
-          /* Mark that table must be checked */
-          maria_mark_crashed(info);
-        }
       }
       if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
       {
@@ -116,9 +113,17 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
-          if (_ma_state_info_write(share->kfile.file, &share->state, 1))
-	    error=my_errno;
-	  share->changed=0;
+          /* transactional tables rather flush their state at Checkpoint */
+          if (!share->base.born_transactional)
+          {
+            if (_ma_state_info_write(share->kfile.file, &share->state, 1))
+              error= my_errno;
+            else
+            {
+              /* A value of 0 means below means "state flushed" */
+              share->changed= 0;
+            }
+          }
 	  if (maria_flush)
 	  {
             if (_ma_sync_table_files(info))
@@ -135,6 +140,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       info->lock_type= F_UNLCK;
+      /* verify that user of the table cleaned up after itself */
       DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
       break;
     case F_RDLCK:
@@ -151,14 +157,17 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	info->lock_type=lock_type;
 	break;
       }
+#ifdef MARIA_EXTERNAL_LOCKING
       if (!share->r_locks && !share->w_locks)
       {
+        /* note that a transactional table should not do this */
 	if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
 	{
 	  error=my_errno;
 	  break;
 	}
       }
+#endif
       VOID(_ma_test_if_changed(info));
       share->r_locks++;
       share->tot_locks++;
@@ -175,12 +184,29 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  break;
 	}
       }
+#ifdef MARIA_EXTERNAL_LOCKING
       if (!(share->options & HA_OPTION_READ_ONLY_DATA))
       {
 	if (!share->w_locks)
 	{
 	  if (!share->r_locks)
 	  {
+            /*
+              Note that transactional tables should not do this.
+              If we enabled this code, we should make sure to skip it if
+              born_transactional is true. We should not test
+              now_transactional to decide if we can call
+              _ma_state_info_read_dsk(), because it can temporarily be 0
+              (TRUNCATE on a partitioned table) and thus it would make a state
+              modification below without mutex, confusing a concurrent
+              checkpoint running.
+              Even if this code was enabled only for non-transactional tables:
+              in scenario LOCK TABLE t1 WRITE; INSERT INTO t1; DELETE FROM t1;
+              state on disk read by DELETE is obsolete as it was not flushed
+              at the end of INSERT. MyISAM same. It however causes no issue as
+              maria_delete_all_rows() calls _ma_reset_status() thus is not
+              influenced by the obsolete read values.
+            */
 	    if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
 	    {
 	      error=my_errno;
@@ -189,6 +215,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  }
 	}
       }
+#endif /* defined(MARIA_EXTERNAL_LOCKING) */
       VOID(_ma_test_if_changed(info));
 
       info->lock_type=lock_type;
@@ -278,24 +305,15 @@ void _ma_update_status(void* param)
 			    (long) info->s->state.state.key_file_length,
 			    (long) info->s->state.state.data_file_length));
 #endif
+    /*
+      we are going to modify the state without lock's log, this would break
+      recovery if done with a transactional table.
+    */
+    DBUG_ASSERT(!info->s->base.born_transactional);
     info->s->state.state= *info->state;
     info->state= &info->s->state.state;
   }
   info->append_insert_at_end= 0;
-
-  /*
-    We have to flush the write cache here as other threads may start
-    reading the table before maria_lock_database() is called
-  */
-  if (info->opt_flag & WRITE_CACHE_USED)
-  {
-    if (end_io_cache(&info->rec_cache))
-    {
-      maria_print_error(info->s, HA_ERR_CRASHED);
-      maria_mark_crashed(info);
-    }
-    info->opt_flag&= ~WRITE_CACHE_USED;
-  }
 }
 
 
@@ -355,8 +373,11 @@ my_bool _ma_check_status(void *param)
  ** functions to read / write the state
 ****************************************************************************/
 
-int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
+int _ma_readinfo(register MARIA_HA *info __attribute__ ((unused)),
+                 int lock_type __attribute__ ((unused)),
+                 int check_keybuffer __attribute__ ((unused)))
 {
+#ifdef MARIA_EXTERNAL_LOCKING
   DBUG_ENTER("_ma_readinfo");
 
   if (info->lock_type == F_UNLCK)
@@ -364,6 +385,7 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
     MARIA_SHARE *share=info->s;
     if (!share->tot_locks)
     {
+      /* should not be done for transactional tables */
       if (_ma_state_info_read_dsk(share->kfile.file, &share->state))
       {
 	int error=my_errno ? my_errno : -1;
@@ -381,6 +403,9 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
     DBUG_RETURN(-1);				/* when have read_lock() */
   }
   DBUG_RETURN(0);
+#else
+  return 0;
+#endif /* defined(MARIA_EXTERNAL_LOCKING) */
 } /* _ma_readinfo */
 
 
@@ -398,8 +423,9 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
 		     share->tot_locks));
 
   error=0;
-  if (share->tot_locks == 0)
+  if (share->tot_locks == 0 && !share->base.born_transactional)
   {
+    /* transactional tables flush their state at Checkpoint */
     if (operation)
     {					/* Two threads can't be here */
       olderror= my_errno;               /* Remember last error */
@@ -459,7 +485,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
 
   state.open_count in the .MYI file is used the following way:
   - For the first change of the .MYI file in this process open_count is
-    incremented by maria_mark_file_change(). (We have a write lock on the file
+    incremented by _ma_mark_file_changed(). (We have a write lock on the file
     when this happens)
   - In maria_close() it's decremented by _ma_decrement_open_count() if it
     was incremented in the same process.
@@ -467,6 +493,8 @@ int _ma_test_if_changed(register MARIA_HA *info)
   This mean that if we are the only process using the file, the open_count
   tells us if the MARIA file wasn't properly closed. (This is true if
   my_disable_locking is set).
+
+  open_count is not maintained on disk for transactional or temporary tables.
 */
 
 
@@ -485,7 +513,12 @@ int _ma_mark_file_changed(MARIA_HA *info)
       share->global_changed=1;
       share->state.open_count++;
     }
-    if (!share->temporary)
+    /*
+      temp tables don't need an open_count as they are removed on crash;
+      transactional tables are fixed by log-based recovery, so don't need an
+      open_count either (and we thus avoid the disk write below).
+    */
+    if (!(share->temporary | share->base.born_transactional))
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
@@ -517,10 +550,13 @@ int _ma_decrement_open_count(MARIA_HA *info)
     if (share->state.open_count > 0)
     {
       share->state.open_count--;
-      mi_int2store(buff,share->state.open_count);
-      write_error= my_pwrite(share->kfile.file, buff, sizeof(buff),
-                             sizeof(share->state.header),
+      if (!(share->temporary | share->base.born_transactional))
+      {
+        mi_int2store(buff,share->state.open_count);
+        write_error= my_pwrite(share->kfile.file, buff, sizeof(buff),
+                               sizeof(share->state.header),
                              MYF(MY_NABP));
+      }
     }
     if (!lock_error)
       lock_error=maria_lock_database(info,old_lock);
