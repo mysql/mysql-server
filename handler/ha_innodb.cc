@@ -8260,9 +8260,11 @@ ha_innobase::add_index(
 
 	heap = mem_heap_create(1024);
 
-	trx = check_trx_exists(user_thd);
-	trx_search_latch_release_if_reserved(trx);
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads. */
+	trx_search_latch_release_if_reserved(check_trx_exists(user_thd));
 
+	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
 
 	innobase_register_stmt(ht, user_thd);
@@ -8282,6 +8284,7 @@ ha_innobase::add_index(
 err_exit:
 		mem_heap_free(heap);
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_free_for_mysql(trx);
 		DBUG_RETURN(error);
 	}
 
@@ -8505,6 +8508,8 @@ convert_error:
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
+
+	trx_free_for_mysql(trx);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
