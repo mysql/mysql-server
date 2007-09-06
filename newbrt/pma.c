@@ -6,7 +6,7 @@
 #include "key.h"
 #include "memory.h"
 #include "myassert.h"
-#include "../include/ydb-constants.h"
+#include "../include/db.h"
 #include <stdio.h>
 #include <errno.h>
 /* Only needed for testing. */

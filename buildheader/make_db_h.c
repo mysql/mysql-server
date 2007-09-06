@@ -54,6 +54,23 @@ void print_defines (void) {
     dodefine(DB_INIT_LOG);
     dodefine(DB_INIT_MPOOL);
     dodefine(DB_INIT_TXN);
+
+    dodefine(DB_KEYEMPTY);
+    dodefine(DB_KEYEXIST);
+    dodefine(DB_LOCK_DEADLOCK);
+    dodefine(DB_NOTFOUND);
+
+    printf("#define DB_BADFORMAT -30500\n"); // private tokudb
+
+    dodefine(DB_FIRST);
+    dodefine(DB_GET_BOTH);
+    dodefine(DB_LAST);
+    dodefine(DB_NEXT);
+    dodefine(DB_NEXT_DUP);
+    dodefine(DB_PREV);
+    dodefine(DB_SET);
+    dodefine(DB_SET_RANGE);
+    dodefine(DB_RMW);
 }
 
 //#define DECL_LIMIT 100

@@ -6,7 +6,7 @@
 #include "brttypes.h"
 
 #include "ybt.h"
-#include "../include/ydb-constants.h"
+#include "../include/db.h"
 #include "cachetable.h"
 typedef struct brt *BRT;
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,const DBT*,const DBT*));
