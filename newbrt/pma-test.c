@@ -1388,11 +1388,81 @@ void test_pma_delete_insert() {
     assert(error == 0);
 }
 
+void test_pma_double_delete() {
+    printf("test_pma_double_delete\n");
+
+    PMA pma;
+    int error;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    PMA_CURSOR pmacursor;
+
+    error = pma_cursor(pma, &pmacursor);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    k = 1; v = 1;
+    fill_dbt(&key, &k, sizeof k);
+    fill_dbt(&val, &v, sizeof v);
+    error = pma_insert(pma, &key, &val, 0);
+    assert(error == 0);
+
+    error = pma_cursor_set_position_first(pmacursor);
+    assert(error == 0);
+    assert_cursor_equal(pmacursor, 1);
+
+    k = 1;
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == 0);
+    assert_cursor_nokey(pmacursor);
+
+    k = 1;
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == DB_NOTFOUND);
+
+    error = pma_cursor_free(&pmacursor);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
 void test_pma_delete() {
     test_pma_delete_shrink(256);  memory_check_all_free();
     test_pma_delete_random(256);  memory_check_all_free();
     test_pma_delete_cursor(32);   memory_check_all_free();
     test_pma_delete_insert();     memory_check_all_free();
+    test_pma_double_delete();     memory_check_all_free();
+}
+
+void test_pma_double_insert() {
+    printf("test_pma_double_insert\n");
+
+    int error;
+    PMA pma;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    k = 1; v = 1;
+    fill_dbt(&key, &k, sizeof k);
+    fill_dbt(&val, &v, sizeof v);
+    error = pma_insert(pma, &key, &val, 0);
+    assert(error == 0);
+    error = pma_insert(pma, &key, &val, 0);
+    assert(error == BRT_ALREADY_THERE);
+
+    error = pma_free(&pma);
+    assert(error == 0);
 }
 
 void pma_tests (void) {
@@ -1414,6 +1484,7 @@ void pma_tests (void) {
     test_pma_bulk_insert();       memory_check_all_free();
     test_pma_insert_or_replace(); memory_check_all_free();
     test_pma_delete();
+    test_pma_double_insert();     memory_check_all_free();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
