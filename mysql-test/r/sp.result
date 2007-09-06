@@ -6546,4 +6546,26 @@ DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
+create function f1()
+returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+declare x int(11);
+set x=-1;
+return x;
+end|
+create view v1 as select 1 as one, f1() as days;
+show create view test.v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+column_name
+one
+days
+drop view v1;
+drop function f1;
 End of 5.0 tests
