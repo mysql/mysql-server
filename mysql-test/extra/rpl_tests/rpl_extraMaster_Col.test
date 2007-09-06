@@ -149,7 +149,7 @@ SELECT * FROM t1 ORDER BY f3 LIMIT 20;
 --echo
 --echo * Show Slave Status *
 --echo
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical show slave status;
 --echo
 
@@ -439,7 +439,7 @@ connection master;
    select * from t31;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical show slave status;
 
 #### Clean Up ####
@@ -499,7 +499,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -556,7 +556,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -699,7 +699,7 @@ SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
 #***************************
 
@@ -765,7 +765,7 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
 STOP SLAVE;
 RESET SLAVE;
@@ -842,7 +842,7 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
 STOP SLAVE;
 RESET SLAVE;

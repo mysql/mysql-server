@@ -3494,7 +3494,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
       trailing event from before; an error, but try to correct it
     */
     if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT &&
-        dict->dropEvent(my_event.getName()))
+        dict->dropEvent(my_event.getName(), 1))
     {
       if (push_warning > 1)
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
