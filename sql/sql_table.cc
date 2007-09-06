@@ -3641,7 +3641,6 @@ mysql_rename_table(handlerton *base, const char *old_db,
                          flags & FN_TO_IS_TMP);
     to_base= lc_to;
   }
-
   if (!file || !(error=file->rename_table(from_base, to_base)))
   {
     if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
@@ -5019,6 +5018,7 @@ compare_tables(THD *thd,
       !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
   {
+    *table_changes= IS_EQUAL_NO;
     /*
       Check what has changed and set alter_flags
     */
@@ -5078,7 +5078,7 @@ compare_tables(THD *thd,
         *alter_flags|= HA_ALTER_COLUMN_NAME;
       }
 
-      *table_changes|= table_changes_local;
+      *table_changes&= table_changes_local;
       if (table_changes_local == IS_EQUAL_PACK_LENGTH)
         *alter_flags|= HA_ALTER_COLUMN_TYPE;
 
@@ -5140,6 +5140,7 @@ compare_tables(THD *thd,
       }
       else
         *alter_flags|= HA_DROP_INDEX;
+      *table_changes= IS_EQUAL_NO;
       DBUG_PRINT("info", ("index dropped: '%s'", table_key->name));
       continue;
     }
@@ -5212,6 +5213,7 @@ compare_tables(THD *thd,
       if ((field= table->field[key_part->fieldnr]))
         field->flags|= FIELD_IN_ADD_INDEX;
     }
+    *table_changes= IS_EQUAL_NO;
     DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
   }
   /*end of for (; table_key < table_key_end;) */
@@ -5254,6 +5256,7 @@ compare_tables(THD *thd,
       }
       else
         *alter_flags|= HA_ADD_INDEX;
+      *table_changes= IS_EQUAL_NO;
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
@@ -5404,6 +5407,26 @@ int create_temporary_table(THD *thd,
   DBUG_RETURN(error);
 }
 
+/*
+  Create a temporary table that reflects what an alter table operation
+  will accomplish.
+
+  SYNOPSIS
+    create_altered_table()
+      thd              Thread handle
+      table            The original table
+      create_info      Information from the parsing phase about new
+                       table properties.
+      alter_info       Lists of fields, keys to be changed, added
+                       or dropped.
+      db_change        Specifies if the table is moved to another database
+  RETURN
+    A temporary table with all changes
+    NULL if error
+  NOTES
+    The temporary table is created without storing it in any storage engine
+    and is opened only to get the table struct and frm file reference.
+*/
 TABLE *create_altered_table(THD *thd,
                             TABLE *table,
                             char *new_db,
@@ -5440,47 +5463,80 @@ TABLE *create_altered_table(THD *thd,
 
 
 /*
-  If mysql_alter_table does not need to copy the table, it is
-  either a fast alter table where the storage engine does not
-  need to know about the change, only the frm will change,
-  or the storage engine supports performing the alter table
-  operation directly, on-line without mysql having to copy
-  the table.
+  Perform a fast or on-line alter table
+
+  SYNOPSIS
+    mysql_fast_or_online_alter_table()
+      thd              Thread handle
+      table            The original table
+      altered_table    A temporary table showing how we will change table
+      create_info      Information from the parsing phase about new
+                       table properties.
+      alter_info       Storage place for data used during different phases
+      ha_alter_flags   Bitmask that shows what will be changed
+      keys_onoff       Specifies if keys are to be enabled/disabled
+  RETURN
+     0  OK
+    >0  An error occured during the on-line alter table operation
+    -1  Error when re-opening table
+  NOTES
+    If mysql_alter_table does not need to copy the table, it is
+    either a fast alter table where the storage engine does not
+    need to know about the change, only the frm will change,
+    or the storage engine supports performing the alter table
+    operation directly, on-line without mysql having to copy
+    the table.
 */
 int mysql_fast_or_online_alter_table(THD *thd,
-                                     char *path,
                                      TABLE *table,
                                      TABLE *altered_table,
                                      HA_CREATE_INFO *create_info,
                                      HA_ALTER_INFO *alter_info,
-                                     HA_ALTER_FLAGS *ha_alter_flags)
+                                     HA_ALTER_FLAGS *ha_alter_flags,
+                                     enum enum_enable_or_disable keys_onoff)
 {
   int error= 0;
+  bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER);
+  TABLE *t_table;
+
   DBUG_ENTER(" mysql_fast_or_online_alter_table");
-  if ((error= table->file->alter_table_phase1(thd,
-                                              altered_table,
-                                              create_info,
-                                              alter_info,
-                                              ha_alter_flags)))
+  if (online)
   {
-    goto err;
-  }
+   /*
+      Tell the handler to prepare for the online alter
+    */
+    if ((error= table->file->alter_table_phase1(thd,
+                                                altered_table,
+                                                create_info,
+                                                alter_info,
+                                                ha_alter_flags)))
+    {
+      goto err;
+    }
 
-  if ((error= table->file->alter_table_phase2(thd,
-                                              altered_table,
-                                              create_info,
-                                              alter_info,
-                                              ha_alter_flags)))
-  {
-    goto err;
+    /*
+       Tell the storage engine to perform the online alter table
+       TODO: 
+       if check_if_supported_alter() returned HA_ALTER_SUPPORTED_WAIT_LOCK
+       we need to wrap the next call with a DDL lock.
+     */
+    if ((error= table->file->alter_table_phase2(thd,
+                                                altered_table,
+                                                create_info,
+                                                alter_info,
+                                                ha_alter_flags)))
+    {
+      goto err;
+    }
   }
-
   /*
     The final .frm file is already created as a temporary file
     and will be renamed to the original table name.
   */
   VOID(pthread_mutex_lock(&LOCK_open));
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+  alter_table_manage_keys(table, table->file->indexes_are_disabled(),
+                          keys_onoff);
   close_data_files_and_morph_locks(thd,
                                    table->pos_in_table_list->db,
                                    table->pos_in_table_list->table_name);
@@ -5490,17 +5546,12 @@ int mysql_fast_or_online_alter_table(THD *thd,
 			 table->s->db.str,
                          table->s->table_name.str, FN_FROM_IS_TMP))
   {
-     error= 1;
-     VOID(pthread_mutex_unlock(&LOCK_open));
-     goto err;
+    error= 1;
+    VOID(pthread_mutex_unlock(&LOCK_open));
+    goto err;
   }
   broadcast_refresh();
   VOID(pthread_mutex_unlock(&LOCK_open));
-
-  if ((error= table->file->alter_table_phase3(thd, table)))
-  {
-    goto err;
-  }
 
   /*
     The ALTER TABLE is always in its own transaction.
@@ -5509,13 +5560,46 @@ int mysql_fast_or_online_alter_table(THD *thd,
     with LOCK_open.
   */
   error= ha_commit_stmt(thd);
+
   if (ha_commit(thd))
     error=1;
   if (error)
     goto err;
-  thd->proc_info="end";
+  if (online)
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
+    if (reopen_table(table))
+    {
+      error= -1;
+      goto err;
+    }
+    VOID(pthread_mutex_unlock(&LOCK_open));
+    t_table= table;
+
+   /*
+      Tell the handler that the changed frm is on disk and table
+      has been re-opened
+   */
+    if ((error= t_table->file->alter_table_phase3(thd, t_table)))
+    {
+      goto err;
+    }
+
+    /*
+      We are going to reopen table down on the road, so we have to restore
+      state of the TABLE object which we used for obtaining of handler
+      object to make it suitable for reopening.
+    */
+    DBUG_ASSERT(t_table == table);
+    table->open_placeholder= 1;
+    VOID(pthread_mutex_lock(&LOCK_open));
+    close_handle_and_leave_table_as_lock(table);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
 
  err:
+  if (error)
+    DBUG_PRINT("info", ("Got error %u", error));
   DBUG_RETURN(error);
 }
 
@@ -6409,8 +6493,8 @@ view_err:
     {
       char dbug_string[HA_MAX_ALTER_FLAGS+1];
       ha_alter_flags.print(dbug_string);
-      DBUG_PRINT("info", ("need_copy_table: %u, Real alter_flags:  %s",
-                          need_copy_table,
+      DBUG_PRINT("info", ("need_copy_table: %u, table_changes: %u, Real alter_flags:  %s",
+                          need_copy_table, table_changes,
                           (char *) dbug_string));
     }
 #endif
@@ -6424,6 +6508,7 @@ view_err:
         ha_alter_flags.is_set())
     {
       Alter_info tmp_alter_info(*alter_info, thd->mem_root);
+
       /*
         If no table rename,
         check if table can be altered on-line
@@ -6435,6 +6520,7 @@ view_err:
                                                 &tmp_alter_info,
                                                 !strcmp(db, new_db))))
         goto err;
+
       switch (table->file->check_if_supported_alter(altered_table,
                                                     create_info,
                                                     &ha_alter_flags,
@@ -6468,27 +6554,26 @@ view_err:
       {
         char dbug_string[HA_MAX_ALTER_FLAGS+1];
         ha_alter_flags.print(dbug_string);
-        DBUG_PRINT("info", ("need_copy_table: %u, Real alter_flags:  %s",
-                            need_copy_table,
+        DBUG_PRINT("info", ("need_copy_table: %u, table_changes: %u, Real alter_flags:  %s",
+                            need_copy_table, table_changes,
                             (char *) dbug_string));
       }
 #endif
 
     }
     /* TODO need to check if changes can be handled as fast ALTER TABLE */
-    if (!altered_table ||
-        !(table->file->ha_table_flags() & HA_ONLINE_ALTER))
+    if (!altered_table)
       need_copy_table= TRUE;
 
     if (!need_copy_table)
     {
       error= mysql_fast_or_online_alter_table(thd,
-                                              path,
                                               table,
                                               altered_table,
                                               create_info,
                                               &ha_alter_info,
-                                              &ha_alter_flags);
+                                              &ha_alter_flags,
+                                              alter_info->keys_onoff);
       if (thd->lock)
       {
         mysql_unlock_tables(thd, thd->lock);
@@ -6497,9 +6582,19 @@ view_err:
       close_temporary_table(thd, altered_table, 1, 1);
 
       if (error)
-        goto err;
+      {
+        switch (error) {
+        case(-1):
+          goto err_with_placeholders;
+        default:
+          goto err;
+        }
+      }
       else
+      {
+        pthread_mutex_lock(&LOCK_open);
         goto end_online;
+      }
     }
 
     if (altered_table)
@@ -6674,6 +6769,8 @@ view_err:
 
   VOID(quick_rm_table(old_db_type, db, old_name, FN_IS_TMP));
 
+end_online:
+
   if (thd->locked_tables && new_name == table_name && new_db == db)
   {
     thd->in_lock_tables= 1;
@@ -6687,7 +6784,6 @@ view_err:
   thd->proc_info="end";
 
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
-end_online:
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
                       thd->query, thd->query_length,
