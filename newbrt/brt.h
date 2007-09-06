@@ -14,6 +14,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int n
 //int brt_open (BRT *, char *fname, char *dbname);
 int brt_insert (BRT brt, DBT *k, DBT *v, DB*db);
 int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);
+int brt_delete (BRT brt, DBT *k, DB *db);
 int close_brt (BRT);
 int dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */

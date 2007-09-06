@@ -28,7 +28,7 @@ void verify_hash_instance (bytevec kv_v, ITEMLEN kl, bytevec dv_v, ITEMLEN dl,
     fprintf(stderr, "%s isn't there\n", kv); abort();
 }
 
-void verify_htable_instance (bytevec kv_v, ITEMLEN kl, bytevec dv_v, ITEMLEN dl,
+void verify_htable_instance (bytevec kv_v, ITEMLEN kl, bytevec dv_v, ITEMLEN dl, int type,
 			    int N, int *data, char *saw) {
     char *kv = (char*)kv_v;
     char *dv = (char*)dv_v;
@@ -38,6 +38,7 @@ void verify_htable_instance (bytevec kv_v, ITEMLEN kl, bytevec dv_v, ITEMLEN dl,
     assert(strcmp(kv+1, dv+1)==0);
     assert(strlen(kv)+1==kl);
     assert(strlen(dv)+1==dl);
+    assert(type == 0);
     num = atoi(kv+1);
     for (k=0; k<N; k++) {
 	if (data[k]==num) {
@@ -54,8 +55,8 @@ void verify_htable (HASHTABLE htable, int N, int *data, char *saw) {
     for (j=0; j<N; j++) {
 	saw[j]=0;
     }
-    HASHTABLE_ITERATE(htable, kv, kl, dv, dl,
-		      verify_htable_instance (kv, kl, dv, dl,
+    HASHTABLE_ITERATE(htable, kv, kl, dv, dl, type,
+		      verify_htable_instance (kv, kl, dv, dl, type,
 					      N, data, saw));
     for (j=0; j<N; j++) {
 	assert(saw[j]);
@@ -99,7 +100,7 @@ void test0 (void) {
 		}
 		snprintf(kv, 99, "k%d", ra);
 		snprintf(dv, 99, "d%d", ra);
-		toku_hash_insert(htable, kv, strlen(kv)+1, dv, strlen(dv)+1);
+		toku_hash_insert(htable, kv, strlen(kv)+1, dv, strlen(dv)+1, 0);
 		data[data_n++]=ra;
 	    }
 	} else {
@@ -122,13 +123,14 @@ void test1(void) {
 	for (j=0; j<4; j++) {
 	    snprintf(keys[j], 100, "k%ld", (long)(random()));
 	    snprintf(vals[j], 100, "v%d", j);
-	    toku_hash_insert(table, keys[j], strlen(keys[j])+1, vals[j], strlen(vals[j])+1);
+	    toku_hash_insert(table, keys[j], strlen(keys[j])+1, vals[j], strlen(vals[j])+1, 0);
 	}
 	for (j=0; j<4; j++) {
 	    bytevec key, val;
 	    ITEMLEN keylen, vallen;
+            int type;
 	    long int randnum=random();
-	    r = toku_hashtable_random_pick(table, &key, &keylen, &val, &vallen, &randnum);
+	    r = toku_hashtable_random_pick(table, &key, &keylen, &val, &vallen, &type, &randnum);
 	    assert(r==0);
 	    r = toku_hash_delete(table, key, keylen);
 	    assert(r==0);

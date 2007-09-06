@@ -11,9 +11,10 @@ typedef long long diskoff;  /* Offset in a disk. -1 is the NULL pointer. */
 #endif
 enum { TREE_FANOUT = BRT_FANOUT }; //, NODESIZE=1<<20 };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
+enum { BRT_CMD_OVERHEAD = 1 };
+
 struct nodeheader_in_file {
     int n_in_buffer;
-    
 };
 enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + 4 // n_children
@@ -140,3 +141,23 @@ void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE r
 void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right);
 void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+
+enum brt_cmd_type {
+    BRT_NONE = 0,
+    BRT_INSERT = 1,
+    BRT_DELETE = 2,
+};
+
+struct brt_cmd {
+    enum brt_cmd_type type;
+    union {
+        /* insert or delete */
+        struct brt_cmd_insert_delete {
+            DBT *key;
+            DBT *val;
+            DB *db;
+        } id;
+    } u;
+};
+typedef struct brt_cmd BRT_CMD;
+

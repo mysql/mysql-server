@@ -34,7 +34,8 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
 	    HASHTABLE_ITERATE(node->u.n.htables[i],
 			      key __attribute__((__unused__)), keylen,
 			      data __attribute__((__unused__)), datalen,
-			      (hsize+=8+keylen+datalen));
+                              type __attribute__((__unused__)),
+			      (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
 	}
 	assert(hsize==node->u.n.n_bytes_in_hashtables);
 	assert(csize==node->u.n.totalchildkeylens);
@@ -44,12 +45,11 @@ static unsigned int serialize_brtnode_size_slow(BRTNODE node) {
 	PMA_ITERATE(node->u.l.buffer,
 		    key __attribute__((__unused__)), keylen,
 		    data __attribute__((__unused__)), datalen,
-		    (hsize+=8+keylen+datalen));
+		    (hsize+=KEY_VALUE_OVERHEAD+keylen+datalen));
 	assert(hsize==node->u.l.n_bytes_in_buffer);
 	hsize+=4; /* add n entries in buffer table. */
 	return size+hsize;
     }
-
 }
 
 unsigned int serialize_brtnode_size (BRTNODE node) {
@@ -101,8 +101,8 @@ int serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 	    for (i=0; i< n_hash_tables; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
 		wbuf_int(&w, toku_hashtable_n_entries(node->u.n.htables[i]));
-		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen,
-				  (wbuf_bytes(&w, key, keylen),
+		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen, type,
+				  (wbuf_char(&w, type), wbuf_bytes(&w, key, keylen),
 				   wbuf_bytes(&w, data, datalen)));
 	    }
 	}
@@ -220,17 +220,19 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
 		//printf("%d in hash\n", n_in_hash);
 		for (i=0; i<n_in_this_hash; i++) {
 		    int diff;
+                    int type;
 		    bytevec key; ITEMLEN keylen; 
 		    bytevec val; ITEMLEN vallen;
 		    verify_counts(result);
+                    type = rbuf_char(&rc);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
-		    //printf("Found %s,%s\n", key, val);
+		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			int r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen); /* Copies the data into the hash table. */
+			int r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
-		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD;
+		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
 		    result->u.n.n_bytes_in_hashtables += diff;
 		    result->u.n.n_bytes_in_hashtable[cnum] += diff;
 		    //printf("Inserted\n");
