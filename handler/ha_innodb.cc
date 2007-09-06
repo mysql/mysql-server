@@ -6535,9 +6535,6 @@ ha_innobase::external_lock(
 			innobase_register_stmt(ht, thd);
 		}
 
-		trx->n_mysql_tables_in_use++;
-		prebuilt->mysql_has_locked = TRUE;
-
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& thd_test_options(thd,
@@ -6585,6 +6582,9 @@ ha_innobase::external_lock(
 
 			trx->mysql_n_tables_locked++;
 		}
+
+		trx->n_mysql_tables_in_use++;
+		prebuilt->mysql_has_locked = TRUE;
 
 		DBUG_RETURN(0);
 	}
