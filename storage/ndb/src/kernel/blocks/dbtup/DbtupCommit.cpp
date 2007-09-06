@@ -74,7 +74,8 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   jamEntry();
   OperationrecPtr loopOpPtr;
   loopOpPtr.i= signal->theData[0];
-  Uint32 gci= signal->theData[1];
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
   c_operation_pool.getPtr(loopOpPtr);
   while (loopOpPtr.p->prevActiveOp != RNIL) {
     jam();
@@ -83,15 +84,16 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   }
   do {
     ndbrequire(get_trans_state(loopOpPtr.p) == TRANS_STARTED);
-    signal->theData[0]= loopOpPtr.p->userpointer;
-    signal->theData[1]= gci;
+    signal->theData[0] = loopOpPtr.p->userpointer;
+    signal->theData[1] = gci_hi;
+    signal->theData[2] = gci_lo;
     if (loopOpPtr.p->nextActiveOp == RNIL) {
       jam();
-      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
+      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
       return;
     }
     jam();
-    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
+    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
     jamEntry();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
     c_operation_pool.getPtr(loopOpPtr);
@@ -391,19 +393,20 @@ Dbtup::disk_page_commit_callback(Signal* signal,
 				 Uint32 opPtrI, Uint32 page_id)
 {
   Uint32 hash_value;
-  Uint32 gci;
+  Uint32 gci_hi, gci_lo;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
-  tupCommitReq->gci= gci;
+  tupCommitReq->gci_hi= gci_hi;
+  tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page_id;
 
   regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
@@ -428,20 +431,21 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 				     Uint32 unused)
 {
   Uint32 hash_value;
-  Uint32 gci;
+  Uint32 gci_hi, gci_lo;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
   Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
-  tupCommitReq->gci= gci;
+  tupCommitReq->gci_hi= gci_hi;
+  tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page;
 
   ndbassert(regOperPtr.p->op_struct.m_load_diskpage_on_commit == 0);
@@ -495,7 +499,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   TablerecPtr regTabPtr;
   KeyReqStruct req_struct;
   TransState trans_state;
-  Uint32 no_of_fragrec, no_of_tablerec, hash_value, gci;
+  Uint32 no_of_fragrec, no_of_tablerec, hash_value;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
 
@@ -523,11 +527,13 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   no_of_tablerec= cnoOfTablerec;
   regTabPtr.i= regFragPtr.p->fragTableId;
   hash_value= tupCommitReq->hashValue;
-  gci= tupCommitReq->gci;
+  Uint32 gci_hi = tupCommitReq->gci_hi;
+  Uint32 gci_lo = tupCommitReq->gci_lo;
 
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
-  req_struct.gci= gci;
+  req_struct.gci_hi = gci_hi;
+  req_struct.gci_lo = gci_lo;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
 #ifdef VM_TRACE
@@ -694,7 +700,7 @@ skip_disk:
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
       jam();
-      commit_operation(signal, gci, tuple_ptr, page,
+      commit_operation(signal, gci_hi, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
       removeActiveOpList(regOperPtr.p, tuple_ptr);
     }
@@ -704,7 +710,7 @@ skip_disk:
       removeActiveOpList(regOperPtr.p, tuple_ptr);
       if (get_page)
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      dealloc_tuple(signal, gci, page.p, tuple_ptr, 
+      dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
 		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
   } 

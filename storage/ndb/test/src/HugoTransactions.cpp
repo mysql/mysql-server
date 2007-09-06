@@ -476,7 +476,7 @@ restart:
       if(check != -1){
 	check = pTrans->execute(Commit, AbortOnError);   
 	if(check != -1)
-	  m_latest_gci = pTrans->getGCI();
+	  pTrans->getGCI(&m_latest_gci);
 	pTrans->restart();
       }
 
@@ -588,7 +588,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
       {
 	check = pTrans->execute(Commit, AbortOnError);
 	if(check != -1)
-	  m_latest_gci = pTrans->getGCI();
+	  pTrans->getGCI(&m_latest_gci);
 	pTrans->restart();
       }
       else
@@ -770,7 +770,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       }
     }
     else{      
-      m_latest_gci = pTrans->getGCI();
+      pTrans->getGCI(&m_latest_gci);
       closeTransaction(pNdb);
     }
     
@@ -1035,7 +1035,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     }
     else{
       updated += batch;
-      m_latest_gci = pTrans->getGCI();
+      pTrans->getGCI(&m_latest_gci);
     }
     
     closeTransaction(pNdb);
@@ -1201,7 +1201,7 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
     else{
       updated++;
-      m_latest_gci = pTrans->getGCI();
+      pTrans->getGCI(&m_latest_gci);
     }
     
 
@@ -1300,7 +1300,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     }
     else {
       deleted += batch;
-      m_latest_gci = pTrans->getGCI();
+      pTrans->getGCI(&m_latest_gci);
     }
     closeTransaction(pNdb);
     
@@ -1747,7 +1747,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     } else {
       updated += batch;
-      m_latest_gci = pTrans->getGCI();
+      pTrans->getGCI(&m_latest_gci);
     }
     
     closeTransaction(pNdb);

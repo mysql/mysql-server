@@ -1566,7 +1566,8 @@ struct KeyReqStruct {
   Uint32 no_fired_triggers;
   Uint32 frag_page_id;
   Uint32 hash_value;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
   Uint32 log_size;
   Uint32 read_length;
   Uint32 attrinfo_len;

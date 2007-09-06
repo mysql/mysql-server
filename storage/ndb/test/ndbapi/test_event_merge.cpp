@@ -657,7 +657,7 @@ struct Op { // single or composite
   uint num_com;
   Data data[2]; // 0-post 1-pre
   bool match; // matched to event
-  Uint32 gci; // defined for com op and event
+  Uint64 gci; // defined for com op and event
   void init(Kind a_kind, Type a_type = UNDEF) {
     kind = a_kind;
     assert(kind == OP || kind == EV);
@@ -1229,7 +1229,7 @@ static int
 waitgci(uint ngci)
 {
   ll1("waitgci " << ngci);
-  Uint32 gci[2];
+  Uint64 gci[2];
   uint i = 0;
   while (1) {
     chkdb((g_con = g_ndb->startTransaction()) != 0);
@@ -1247,7 +1247,7 @@ waitgci(uint ngci)
       chkdb(g_con->execute(Commit) == 0);
       g_op = 0;
     }
-    gci[i] = g_con->getGCI();
+    g_con->getGCI(&gci[i]);
     g_ndb->closeTransaction(g_con);
     g_con = 0;
     if (i == 1 && gci[0] + ngci <= gci[1]) {
@@ -1721,7 +1721,9 @@ runops()
       op = op->next_op;
     }
     chkdb(g_con->execute(Commit) == 0);
-    gci_op[i][pk1]->gci = com_op->gci = g_con->getGCI();
+    Uint64 val;
+    g_con->getGCI(&val);
+    gci_op[i][pk1]->gci = com_op->gci = val;
     ll2("commit: " << run(i).tabname << " gci=" << com_op->gci);
     g_ndb->closeTransaction(g_con);
     g_con = 0;

@@ -2475,13 +2475,15 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       sig1 = TpackedData[Tstep + 1];
       sig2 = TpackedData[Tstep + 2];
       sig3 = TpackedData[Tstep + 3];
+      sig4 = TpackedData[Tstep + 4];
       signal->theData[0] = sig0;
       signal->theData[1] = sig1;
       signal->theData[2] = sig2;
       signal->theData[3] = sig3;
-      signal->header.theLength = 4;
+      signal->theData[4] = sig4;
+      signal->header.theLength = 5;
       execCOMMIT(signal);
-      Tstep += 4;
+      Tstep += 5;
       break;
     case ZCOMPLETE:
       jam();
@@ -2809,7 +2811,7 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(alqhBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
-  if (Thostptr.p->noOfPackedWordsLqh > 21) {
+  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
     jam();
     sendPackedSignalLqh(signal, Thostptr.p);
   } else {
@@ -2818,14 +2820,16 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
   }//if
   Uint32 pos = Thostptr.p->noOfPackedWordsLqh;
   Uint32 ptrAndType = tcConnectptr.p->clientConnectrec | (ZCOMMIT << 28);
-  Uint32 gci = tcConnectptr.p->gci;
+  Uint32 gci_hi = tcConnectptr.p->gci_hi;
+  Uint32 gci_lo = tcConnectptr.p->gci_lo;
   Uint32 transid1 = tcConnectptr.p->transid[0];
   Uint32 transid2 = tcConnectptr.p->transid[1];
   Thostptr.p->packedWordsLqh[pos] = ptrAndType;
-  Thostptr.p->packedWordsLqh[pos + 1] = gci;
+  Thostptr.p->packedWordsLqh[pos + 1] = gci_hi;
   Thostptr.p->packedWordsLqh[pos + 2] = transid1;
   Thostptr.p->packedWordsLqh[pos + 3] = transid2;
-  Thostptr.p->noOfPackedWordsLqh = pos + 4;
+  Thostptr.p->packedWordsLqh[pos + 4] = gci_lo;
+  Thostptr.p->noOfPackedWordsLqh = pos + 5;
 }//Dblqh::sendCommitLqh()
 
 void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
@@ -3343,7 +3347,8 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->tcTimer = cLqhTimeOutCount;
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->savePointId = 0;
-  locTcConnectptr.p->gci = 0;
+  locTcConnectptr.p->gci_hi = 0;
+  locTcConnectptr.p->gci_lo = 0;
   cfirstfreeTcConrec = nextTc;
   tcConnectptr = locTcConnectptr;
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
@@ -3620,7 +3625,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   sig2 = lqhKeyReq->variableData[nextPos + 0];
   sig3 = cnewestGci;
-  regTcPtr->gci = LqhKeyReq::getGCIFlag(Treqinfo) ? sig2 : sig3;
+  regTcPtr->gci_hi = LqhKeyReq::getGCIFlag(Treqinfo) ? sig2 : sig3;
+  regTcPtr->gci_lo = 0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
   
   if (LqhKeyReq::getRowidFlag(Treqinfo))
@@ -4128,7 +4134,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
       jam();
       if (TRACENR_FLAG)
 	TRACENR(" UPDATE_GCI" << endl); 
-      c_tup->nr_update_gci(fragPtr, &regTcPtr.p->m_row_id, regTcPtr.p->gci);
+      c_tup->nr_update_gci(fragPtr, &regTcPtr.p->m_row_id, regTcPtr.p->gci_hi);
       goto update_gci_ignore;
     }
     
@@ -4332,7 +4338,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
   ndbrequire(regTcPtr.p->m_dealloc == 1);  
   int ret = c_tup->nr_delete(signal, regTcPtr.i, 
 			     fragPtr.p->tupFragptr, &regTcPtr.p->m_row_id, 
-			     regTcPtr.p->gci);
+			     regTcPtr.p->gci_hi);
   jamEntry();
   
   if (ret)
@@ -4365,7 +4371,8 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
   Ptr<Fragrecord> fragPtr;
   c_fragment_pool.getPtr(fragPtr, tcPtr.p->fragmentptr);  
 
-  op->m_gci = tcPtr.p->gci;
+  op->m_gci_hi = tcPtr.p->gci_hi;
+  op->m_gci_lo = tcPtr.p->gci_lo;
   op->m_tup_frag_ptr_i = fragPtr.p->tupFragptr;
 
   ndbrequire(tcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
@@ -5372,7 +5379,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
     nextPos += 4;
   }//if
 
-  sig0 = regTcPtr->gci;
+  sig0 = regTcPtr->gci_hi;
   Local_key tmp = regTcPtr->m_row_id;
   
   lqhKeyReq->variableData[nextPos + 0] = tmp.m_page_no;
@@ -5969,9 +5976,10 @@ void Dblqh::execCOMMIT(Signal* signal)
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
   Uint32 tcIndex = signal->theData[0];
-  Uint32 gci = signal->theData[1];
+  Uint32 gci_hi = signal->theData[1];
   Uint32 transid1 = signal->theData[2];
   Uint32 transid2 = signal->theData[3];
+  Uint32 gci_lo = signal->theData[4];
   jamEntry();
   if (tcIndex >= ttcConnectrecFileSize) {
     errorReport(signal, 0);
@@ -5979,12 +5987,12 @@ void Dblqh::execCOMMIT(Signal* signal)
   }//if
   if (ERROR_INSERTED(5011)) {
     CLEAR_ERROR_INSERT_VALUE;
-    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000, 4);
+    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000,signal->getLength());
     return;
   }//if
   if (ERROR_INSERTED(5012)) {
     SET_ERROR_INSERT_VALUE(5017);
-    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000, 4);
+    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000,signal->getLength());
     return;
   }//if
   tcConnectptr.i = tcIndex;
@@ -5995,7 +6003,7 @@ void Dblqh::execCOMMIT(Signal* signal)
     TcConnectionrec * const regTcPtr = tcConnectptr.p;
     TRACE_OP(regTcPtr, "COMMIT");
     
-    commitReqLab(signal, gci);
+    commitReqLab(signal, gci_hi, gci_lo);
     return;
   }//if
   warningReport(signal, 1);
@@ -6013,16 +6021,18 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   jamEntry();
   Uint32 reqPtr = signal->theData[0];
   BlockReference reqBlockref = signal->theData[1];
-  Uint32 gci = signal->theData[2];
+  Uint32 gci_hi = signal->theData[2];
   Uint32 transid1 = signal->theData[3];
   Uint32 transid2 = signal->theData[4];
   Uint32 tcOprec = signal->theData[6];
+  Uint32 gci_lo = signal->theData[7];
   if (ERROR_INSERTED(5004)) {
     systemErrorLab(signal, __LINE__);
   }
   if (ERROR_INSERTED(5017)) {
     CLEAR_ERROR_INSERT_VALUE;
-    sendSignalWithDelay(cownref, GSN_COMMITREQ, signal, 2000, 7);
+    sendSignalWithDelay(cownref, GSN_COMMITREQ, signal, 2000,
+                        signal->getLength());
     return;
   }//if
   if (findTransaction(transid1,
@@ -6043,7 +6053,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
     regTcPtr->reqBlockref = reqBlockref;
     regTcPtr->reqRef = reqPtr;
     regTcPtr->abortState = TcConnectionrec::REQ_FROM_TC;
-    commitReqLab(signal, gci);
+    commitReqLab(signal, gci_hi, gci_lo);
     return;
     break;
   case TcConnectionrec::COMMITTED:
@@ -6269,12 +6279,13 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
 /* -------                       COMMIT PHASE                        ------- */
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
-void Dblqh::commitReqLab(Signal* signal, Uint32 gci) 
+void Dblqh::commitReqLab(Signal* signal, Uint32 gci_hi, Uint32 gci_lo)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   TcConnectionrec::LogWriteState logWriteState = regTcPtr->logWriteState;
   TcConnectionrec::TransactionState transState = regTcPtr->transactionState;
-  regTcPtr->gci = gci; 
+  regTcPtr->gci_hi = gci_hi;
+  regTcPtr->gci_lo = gci_lo;
   if (transState == TcConnectionrec::PREPARED) {
     if (logWriteState == TcConnectionrec::WRITTEN) {
       jam();
@@ -6282,8 +6293,9 @@ void Dblqh::commitReqLab(Signal* signal, Uint32 gci)
       TcConnectionrecPtr saveTcPtr = tcConnectptr;
       Uint32 blockNo = refToBlock(regTcPtr->tcTupBlockref);
       signal->theData[0] = regTcPtr->tupConnectrec;
-      signal->theData[1] = gci;
-      EXECUTE_DIRECT(blockNo, GSN_TUP_WRITELOG_REQ, signal, 2);
+      signal->theData[1] = gci_hi;
+      signal->theData[2] = gci_lo;
+      EXECUTE_DIRECT(blockNo, GSN_TUP_WRITELOG_REQ, signal, 3);
       jamEntry();
       if (regTcPtr->transactionState == TcConnectionrec::LOG_COMMIT_QUEUED) {
         jam();
@@ -6340,17 +6352,19 @@ void Dblqh::execLQH_WRITELOG_REQ(Signal* signal)
   tcConnectptr.i = signal->theData[0];
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  Uint32 gci = signal->theData[1];
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
   Uint32 newestGci = cnewestGci;
   TcConnectionrec::LogWriteState logWriteState = regTcPtr->logWriteState;
   TcConnectionrec::TransactionState transState = regTcPtr->transactionState;
-  regTcPtr->gci = gci;
-  if (gci > newestGci) {
+  regTcPtr->gci_hi = gci_hi;
+  regTcPtr->gci_lo = gci_lo;
+  if (gci_hi > newestGci) {
     jam();
 /* ------------------------------------------------------------------------- */
 /*       KEEP TRACK OF NEWEST GLOBAL CHECKPOINT THAT LQH HAS HEARD OF.       */
 /* ------------------------------------------------------------------------- */
-    cnewestGci = gci;
+    cnewestGci = gci_hi;
   }//if
   if (logWriteState == TcConnectionrec::WRITTEN) {
 /*---------------------------------------------------------------------------*/
@@ -6461,9 +6475,10 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       Uint32 tup = refToBlock(regTcPtr.p->tcTupBlockref);
       jam();
       tupCommitReq->opPtr = sig0;
-      tupCommitReq->gci = regTcPtr.p->gci;
+      tupCommitReq->gci_hi = regTcPtr.p->gci_hi;
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
       tupCommitReq->diskpage = RNIL;
+      tupCommitReq->gci_lo = regTcPtr.p->gci_lo;
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
@@ -6568,13 +6583,13 @@ Dblqh::tupcommit_conf(Signal* signal,
   Uint32 dirtyOp = tcPtrP->dirtyOp;
   Uint32 seqNoReplica = tcPtrP->seqNoReplica;
   Uint32 activeCreat = tcPtrP->activeCreat;
-  if (tcPtrP->gci > regFragptr->newestGci) {
+  if (tcPtrP->gci_hi > regFragptr->newestGci) {
     jam();
 /* ------------------------------------------------------------------------- */
 /*IT IS THE FIRST TIME THIS GLOBAL CHECKPOINT IS INVOLVED IN UPDATING THIS   */
 /*FRAGMENT. UPDATE THE VARIABLE THAT KEEPS TRACK OF NEWEST GCI IN FRAGMENT   */
 /* ------------------------------------------------------------------------- */
-    regFragptr->newestGci = tcPtrP->gci;
+    regFragptr->newestGci = tcPtrP->gci_hi;
   }//if
   if (dirtyOp != ZTRUE) 
   {
@@ -10499,8 +10514,9 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
     ndbrequire(nextScanConf->accOperationPtr == RNIL);
     initCopyTc(signal, ZDELETE);
     set_acc_ptr_in_scan_record(scanptr.p, 0, RNIL);
-    tcConP->gci = nextScanConf->gci;
-    
+    tcConP->gci_hi = nextScanConf->gci;
+    tcConP->gci_lo = 0;
+
     tcConP->primKeyLen = 0;
     tcConP->totSendlenAi = 0;
     tcConP->connectState = TcConnectionrec::COPY_CONNECTED;
@@ -10650,7 +10666,8 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   Uint32* tmp = signal->getDataPtrSend()+24;
   Uint32 len= tcConnectptr.p->primKeyLen = readPrimaryKeys(scanP, tcConP, tmp);
   
-  tcConP->gci = tmp[len];
+  tcConP->gci_hi = tmp[len];
+  tcConP->gci_lo = 0;
   // Calculate hash (no need to linearies key)
   if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
   {
@@ -12108,14 +12125,17 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
 /* *************** */
 /*  GCP_SAVEREQ  > */
 /* *************** */
+
+#if defined VM_TRACE || defined ERROR_INSERT
+static Uint32 m_gcp_monitor = 0;
+#endif
+
 void Dblqh::execGCP_SAVEREQ(Signal* signal) 
 {
   jamEntry();
   const GCPSaveReq * const saveReq = (GCPSaveReq *)&signal->theData[0];
 
-  if (ERROR_INSERTED(5000)) {
-    systemErrorLab(signal, __LINE__);
-  }
+  CRASH_INSERTION(5000);
 
   if (ERROR_INSERTED(5007)){
     CLEAR_ERROR_INSERT_VALUE;
@@ -12128,6 +12148,13 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   const Uint32 dihPtr = saveReq->dihPtr;
   const Uint32 gci = saveReq->gci;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbrequire(m_gcp_monitor == 0 || 
+             (m_gcp_monitor == gci) || 
+             (m_gcp_monitor + 1) == gci);
+  m_gcp_monitor = gci;
+#endif
+  
   if(getNodeState().startLevel >= NodeState::SL_STOPPING_4){
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
@@ -15283,7 +15310,7 @@ void Dblqh::execSr(Signal* signal)
       tcConnectptr.i = logPartPtr.p->logTcConrec;
       ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
       readCommitLog(signal, &commitLogRecord);
-      if (tcConnectptr.p->gci > crestartNewestGci) {
+      if (tcConnectptr.p->gci_hi > crestartNewestGci) {
         jam();
 /*---------------------------------------------------------------------------*/
 /* THIS LOG RECORD MUST BE IGNORED. IT IS PART OF A GLOBAL CHECKPOINT WHICH  */
@@ -16558,8 +16585,8 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
 	     i < fragptr.p->execSrNoReplicas; 
 	     i++) {
           jam();
-          if (tcConnectptr.p->gci >= fragptr.p->execSrStartGci[i]) {
-            if (tcConnectptr.p->gci <= fragptr.p->execSrLastGci[i]) {
+          if (tcConnectptr.p->gci_hi >= fragptr.p->execSrStartGci[i]) {
+            if (tcConnectptr.p->gci_hi <= fragptr.p->execSrLastGci[i]) {
               jam();
               logPartPtr.p->execSrExecuteIndex = i;
               return ZOK;
@@ -17825,7 +17852,8 @@ void Dblqh::readCommitLog(Signal* signal, CommitLogRecord* commitLogRecord)
     commitLogRecord->startPageNo = logPagePtr.p->logPageWord[trclPageIndex + 4];
     commitLogRecord->startPageIndex = logPagePtr.p->logPageWord[trclPageIndex + 5];
     commitLogRecord->stopPageNo = logPagePtr.p->logPageWord[trclPageIndex + 6];
-    tcConnectptr.p->gci = logPagePtr.p->logPageWord[trclPageIndex + 7];
+    tcConnectptr.p->gci_hi = logPagePtr.p->logPageWord[trclPageIndex + 7];
+    tcConnectptr.p->gci_lo = 0;
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = 
                             (trclPageIndex + ZCOMMIT_LOG_SIZE) - 1;
   } else {
@@ -17837,7 +17865,8 @@ void Dblqh::readCommitLog(Signal* signal, CommitLogRecord* commitLogRecord)
     commitLogRecord->startPageNo = readLogword(signal);
     commitLogRecord->startPageIndex = readLogword(signal);
     commitLogRecord->stopPageNo = readLogword(signal);
-    tcConnectptr.p->gci = readLogword(signal);
+    tcConnectptr.p->gci_hi = readLogword(signal);
+    tcConnectptr.p->gci_lo = 0;
   }//if
   tcConnectptr.p->transid[0] = logPartPtr.i + 65536;  
   tcConnectptr.p->transid[1] = (DBLQH << 20) + (cownNodeid << 8);  
@@ -18442,7 +18471,7 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
   lqhTransConf->transId2        = tcConnectptr.p->transid[1];
   lqhTransConf->oldTcOpRec      = tcConnectptr.p->tcOprec;
   lqhTransConf->requestInfo     = reqInfo;
-  lqhTransConf->gci             = tcConnectptr.p->gci;
+  lqhTransConf->gci             = tcConnectptr.p->gci_hi;
   lqhTransConf->nextNodeId1     = tcConnectptr.p->nextReplica;
   lqhTransConf->nextNodeId2     = tcConnectptr.p->nodeAfterNext[0];
   lqhTransConf->nextNodeId3     = tcConnectptr.p->nodeAfterNext[1];
@@ -18550,7 +18579,7 @@ void Dblqh::writeCommitLog(Signal* signal, LogPartRecordPtr regLogPartPtr)
   Uint32 startPageNo = regTcPtr->logStartPageNo;
   Uint32 pageIndex = regTcPtr->logStartPageIndex;
   Uint32 stopPageNo = regTcPtr->logStopPageNo;
-  Uint32 gci = regTcPtr->gci;
+  Uint32 gci = regTcPtr->gci_hi;
   logFilePtr.p->remainingWordsInMbyte = twclTmp - ZCOMMIT_LOG_SIZE;
 
   if ((twclLogPos + ZCOMMIT_LOG_SIZE) >= ZPAGE_SIZE) {
@@ -19431,7 +19460,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	   << " lastTupkeybuf = " << tcRec.p->lastTupkeybuf
 	   << " hashValue = " << tcRec.p->hashValue
 	   << endl;
-    ndbout << " gci = " << tcRec.p->gci
+    ndbout << " gci_hi = " << tcRec.p->gci_hi
+           << " gci_lo = " << tcRec.p->gci_lo
 	   << " fragmentptr = " << tcRec.p->fragmentptr
 	   << " fragmentid = " << tcRec.p->fragmentid
 	   << " firstTupkeybuf = " << tcRec.p->firstTupkeybuf

@@ -3748,7 +3748,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
     
   if (0) ndbout << "PAGE CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   disk_page_free(signal, tablePtr.p, fragPtr.p,
-		 &op.m_disk_ref, pagePtr, op.m_gci);
+		 &op.m_disk_ref, pagePtr, op.m_gci_hi);
   
   c_lqh->nr_delete_complete(signal, &op);
   return;
@@ -3781,7 +3781,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
   if (0) ndbout << "LOGBUFFER CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   
   disk_page_free(signal, tablePtr.p, fragPtr.p,
-		 &op.m_disk_ref, pagePtr, op.m_gci);
+		 &op.m_disk_ref, pagePtr, op.m_gci_hi);
   
   c_lqh->nr_delete_complete(signal, &op);
 }

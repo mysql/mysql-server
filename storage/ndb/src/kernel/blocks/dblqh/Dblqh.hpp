@@ -1955,7 +1955,8 @@ public:
     UintR firstTupkeybuf;
     UintR fragmentid;
     UintR fragmentptr;
-    UintR gci;
+    UintR gci_hi;
+    UintR gci_lo;
     UintR hashValue;
     UintR lastTupkeybuf;
     UintR lastAttrinbuf;
@@ -2467,7 +2468,7 @@ private:
   void closeScanLab(Signal* signal);
   void nextScanConfLoopLab(Signal* signal);
   void scanNextLoopLab(Signal* signal);
-  void commitReqLab(Signal* signal, Uint32 gci);
+  void commitReqLab(Signal* signal, Uint32 gci_hi, Uint32 gci_lo);
   void completeTransLastLab(Signal* signal);
   void tupScanCloseConfLab(Signal* signal);
   void tupCopyCloseConfLab(Signal* signal);
@@ -2590,7 +2591,8 @@ public:
   {
     Uint32 m_ptr_i;
     Uint32 m_tup_frag_ptr_i;
-    Uint32 m_gci;
+    Uint32 m_gci_hi;
+    Uint32 m_gci_lo;
     Uint32 m_page_id;
     Local_key m_disk_ref;
   };
@@ -2902,7 +2904,7 @@ private:
   
 public:
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
-  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci);
+  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo);
   void accminupdate(Signal*, Uint32 opPtrI, const Local_key*);
 
   /**
@@ -3001,13 +3003,14 @@ Dblqh::is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2)
 
 inline
 void
-Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci)
+Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo)
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-  *hash= regTcPtr.p->hashValue;
-  *gci= regTcPtr.p->gci;
+  *hash = regTcPtr.p->hashValue;
+  *gci_hi = regTcPtr.p->gci_hi;
+  *gci_lo = regTcPtr.p->gci_lo;
 }
 
 #include "../dbacc/Dbacc.hpp"
