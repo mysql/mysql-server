@@ -1776,10 +1776,41 @@ public:
      Pops the top if condition stack, if stack is not empty
  */
  virtual void cond_pop() { return; };
+ /*
+    Part of old fast alter table, to be depricated
+  */
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                          uint table_changes)
  { return COMPATIBLE_DATA_NO; }
 
+
+ /*
+    On-line ALTER TABLE interface
+  */
+
+ /*
+    Check if a storage engine supports a particular alter table on-line
+    SYNOPSIS
+      check_if_supported_alter()
+        altered_table     A temporary table show what table is to change to
+        create_info       Information from the parsing phase about new
+                          table properties.
+        alter_flags       Bitmask that shows what will be changed
+        table_changes     Shows if table layout has changed (for backwards
+                          compatibility with check_if_incompatible_data
+    RETURN
+        HA_ALTER_ERROR                Unexpected error
+        HA_ALTER_SUPPORTED_WAIT_LOCK  Supported, but requires DDL lock
+        HA_ALTER_SUPPORTED_NO_LOCK    Supported
+        HA_ALTER_NOT_SUPPORTED        Not supported
+
+      
+    NOTES
+      The default implementation is implemented to support fast
+      alter table (storage engines that support some changes by
+      just changing the frm file) without any change in the handler
+      implementation.    
+  */
  virtual int check_if_supported_alter(TABLE *altered_table,
                                       HA_CREATE_INFO *create_info,
                                       HA_ALTER_FLAGS *alter_flags,
@@ -1792,6 +1823,19 @@ public:
    else
      DBUG_RETURN(HA_ALTER_SUPPORTED_WAIT_LOCK);
  }
+ /*
+    Tell storage engine to prepare for the on-line alter table (pre-alter)
+    SYNOPSIS
+      alter_table_phase1()
+        thd               The thread handle
+        altered_table     A temporary table show what table is to change to
+        alter_info        Storage place for data used during phase1 and phase2
+        alter_flags       Bitmask that shows what will be changed
+    RETURN
+      0      OK
+      error  error code passed from storage engine
+    NOTES
+  */
  virtual int alter_table_phase1(THD *thd,
                                 TABLE *altered_table,
                                 HA_CREATE_INFO *create_info,
@@ -1800,6 +1844,22 @@ public:
  {
    return HA_ERR_UNSUPPORTED;
  }
+ /*
+    Tell storage engine to perform the on-line alter table (alter)
+    SYNOPSIS
+      alter_table_phase2()
+        thd               The thread handle
+        altered_table     A temporary table show what table is to change to
+        alter_info        Storage place for data used during phase1 and phase2
+        alter_flags       Bitmask that shows what will be changed
+    RETURN
+      0      OK
+      error  error code passed from storage engine
+    NOTES
+      If check_if_supported_alter returns HA_ALTER_SUPPORTED_WAIT_LOCK
+      this call is to be wrapped with a DDL lock. This is currently NOT
+      supported.
+  */
  virtual int alter_table_phase2(THD *thd,
                                 TABLE *altered_table,
                                 HA_CREATE_INFO *create_info,
@@ -1808,6 +1868,15 @@ public:
  {
    return HA_ERR_UNSUPPORTED;
  }
+ /*
+    Tell storage engine that changed frm file is now on disk and table
+    has been re-opened (post-alter)
+    SYNOPSIS
+      alter_table_phase3()
+        thd               The thread handle
+        table             The altered table, re-opened
+    NOTES
+  */
  virtual int alter_table_phase3(THD *thd, TABLE *table)
  {
    return HA_ERR_UNSUPPORTED;

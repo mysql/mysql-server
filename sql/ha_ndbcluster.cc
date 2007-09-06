@@ -10940,11 +10940,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     if (field->flags & FIELD_IN_ADD_INDEX)
       ai=1;
   }
-  if (table_changes != IS_EQUAL_YES)
-  {
-    DBUG_PRINT("info", ("table_changes != IS_EQUAL_YES"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
-  }
 
   if (alter_flags->is_set(HA_ADD_COLUMN) && !any_var_dyn_attr)
   {
@@ -11138,7 +11133,8 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data)
+int ha_ndbcluster::alter_frm(THD *thd, const char *file, 
+                             NDB_ALTER_DATA *alter_data)
 {
   uchar *data= NULL, *pack_data= NULL;
   size_t length, pack_length;
