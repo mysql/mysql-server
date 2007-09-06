@@ -1814,9 +1814,9 @@ NdbDictionary::Dictionary::createEvent(const Event & ev)
 }
 
 int 
-NdbDictionary::Dictionary::dropEvent(const char * eventName)
+NdbDictionary::Dictionary::dropEvent(const char * eventName, int force)
 {
-  return m_impl.dropEvent(eventName);
+  return m_impl.dropEvent(eventName, force);
 }
 
 const NdbDictionary::Event *
