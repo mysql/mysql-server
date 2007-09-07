@@ -2720,7 +2720,7 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
     const Uint64 gci = get_current_gci(signal);
     SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
     data->gci_hi         = Uint32(gci >> 32);
-    data->gci_lo         = gci;
+    data->gci_lo         = Uint32(gci);
     data->tableId        = 0;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, 
@@ -2765,7 +2765,7 @@ Suma::reportAllSubscribers(Signal *signal,
       !c_startup.m_restart_server_node_id)
   {
     data->gci_hi         = Uint32(gci >> 32);
-    data->gci_lo         = Uint32(32);
+    data->gci_lo         = Uint32(gci);
     data->tableId        = subPtr.p->m_tableId;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, 
@@ -3550,7 +3550,13 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
       {
 	Uint32 state = c_buckets[i].m_state;
 	m_switchover_buckets.clear(i);
-	printf("switchover complete bucket %d state: %x", i, state);
+	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x", 
+	       Uint32(gci >> 32),
+	       Uint32(gci),
+	       Uint32(c_buckets[i].m_switchover_gci >> 32),
+	       Uint32(c_buckets[i].m_switchover_gci),
+	       i, state);
+
 	if(state & Bucket::BUCKET_STARTING)
 	{
 	  /**
@@ -3893,7 +3899,8 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   
   if(gcp.isNull())
   {
-    ndbout_c("ACK wo/ gcp record (gci: %llu)", gci);
+    ndbout_c("ACK wo/ gcp record (gci: %u/%u)", 
+	     Uint32(gci >> 32), Uint32(gci));
   }
   else
   {
@@ -4894,7 +4901,11 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     jam();
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket(RNIL) -> active");
+    ndbout_c("empty bucket(RNIL) -> active max_acked: %u/%u max_gci: %u/%u",
+	     Uint32(bucket->m_max_acked_gci >> 32),
+	     Uint32(bucket->m_max_acked_gci),
+	     Uint32(pos.m_max_gci >> 32),
+	     Uint32(pos.m_max_gci));
     return;
   }
 
@@ -4929,7 +4940,9 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   signal->theData[6] = 0;
   sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
   
-  ndbout_c("min: %llu - max: %llu) page: %d", min, max, bucket->m_buffer_tail);
+  ndbout_c("min: %u/%u - max: %u/%u) page: %d", 
+	   Uint32(min >> 32), Uint32(min), Uint32(max >> 32), Uint32(max), 
+	   bucket->m_buffer_tail);
   ndbrequire(max >= min);
 }
 
@@ -4965,7 +4978,9 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   {
     free_page(tail, page);
     tail = bucket->m_buffer_tail = next_page;
-    ndbout_c("pos==0 && min_gci(%llu) > max_gci(%llu) resend switching page to %d", min_gci, max_gci, tail);
+    ndbout_c("pos==0 && min_gci(%u/%u) > max_gci(%u/%u) resend switching page to %d", 
+	     Uint32(min_gci >> 32), Uint32(min_gci), 
+	     Uint32(max_gci >> 32), Uint32(max_gci), tail);
     goto next;
   }
   
@@ -5019,7 +5034,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   
       char buf[255];
       c_subscriber_nodes.getText(buf);
-      ndbout_c("resending GCI: %llu rows: %d -> %s", last_gci, g_cnt, buf);
+      ndbout_c("resending GCI: %u/%u rows: %d -> %s", 
+	       Uint32(last_gci >> 32), Uint32(last_gci), g_cnt, buf);
       g_cnt = 0;
       
       NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
