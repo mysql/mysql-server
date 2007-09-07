@@ -15531,7 +15531,7 @@ crash:
   char buf[255];
   BaseString::snprintf(buf, sizeof(buf), 
 		       "Error while reading REDO log. from %d\n"
-		       "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s",
+		       "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s gci: %u",
 		       signal->theData[8],
 		       signal->theData[2], 
 		       signal->theData[3], 
@@ -15539,7 +15539,8 @@ crash:
 		       signal->theData[5], 
 		       signal->theData[6], 
 		       signal->theData[7],
-		       crash_msg ? crash_msg : "");
+		       crash_msg ? crash_msg : "",
+		       logPartPtr.p->logLastGci);
   
   progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 }//Dblqh::execSr()
