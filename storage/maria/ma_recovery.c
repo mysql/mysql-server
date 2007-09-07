@@ -47,6 +47,7 @@ static HASH all_dirty_pages;
 static struct st_dirty_page *dirty_pages_pool;
 static LSN current_group_end_lsn,
   checkpoint_start= LSN_IMPOSSIBLE;
+static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
 
 #define prototype_redo_exec_hook(R)                                          \
@@ -143,9 +144,6 @@ int maria_recover()
       fprintf(trace_file, "SUCCESS\n");
     fclose(trace_file);
   }
-  // @todo set global_trid_generator from checkpoint or default value of 1/0,
-  // and also update it when seeing LOGREC_LONG_TRANSACTION_ID
-  // suggestion: add an arg to trnman_init
   maria_in_recovery= FALSE;
   DBUG_RETURN(res);
 }
@@ -336,10 +334,7 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
           llbuf, sid);
   all_active_trans[sid].undo_lsn= undo_lsn;
   all_active_trans[sid].first_undo_lsn= first_undo_lsn;
-  // @todo set_if_bigger(global_trid_generator, long_id)
-  // indeed not only uncommitted transactions should bump generator,
-  // committed ones too (those not seen by undo phase so not
-  // into trnman_recreate)
+  set_if_bigger(max_long_trid, long_id);
 }
 
 
@@ -1278,6 +1273,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 {
   uint sid, unfinished= 0;
+  char llbuf[22];
 
   hash_free(&all_dirty_pages);
   /*
@@ -1288,7 +1284,9 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
   my_free(dirty_pages_pool, MYF(MY_ALLOW_ZERO_PTR));
   dirty_pages_pool= NULL;
 
-  if (prepare_for_undo_phase && trnman_init())
+  llstr(max_long_trid, llbuf);
+  printf("Maximum transaction long id seen: %s\n", llbuf);
+  if (prepare_for_undo_phase && trnman_init(max_long_trid))
     return -1;
 
   for (sid= 0; sid <= SHORT_TRID_MAX; sid++)

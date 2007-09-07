@@ -102,7 +102,18 @@ static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
   return (uchar *) & ((*((TRN **)trn))->trid);
 }
 
-int trnman_init()
+
+/**
+   @brief Initializes transaction manager.
+
+   @param  initial_trid        Generated TrIDs will start from initial_trid+1.
+
+   @return Operation status
+     @retval 0      OK
+     @retval !=0    Error
+*/
+
+int trnman_init(TrID initial_trid)
 {
   DBUG_ENTER("trnman_init");
 
@@ -138,7 +149,7 @@ int trnman_init()
   trnman_allocated_transactions= 0;
 
   pool= 0;
-  global_trid_generator= 0; /* set later by the recovery code */
+  global_trid_generator= initial_trid;
   lf_hash_init(&trid_to_committed_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
   DBUG_PRINT("info", ("pthread_mutex_init LOCK_trn_list"));

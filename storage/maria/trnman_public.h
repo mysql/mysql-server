@@ -34,7 +34,7 @@ typedef struct st_transaction TRN;
 extern uint trnman_active_transactions, trnman_allocated_transactions;
 extern TRN dummy_transaction_object;
 
-int trnman_init(void);
+int trnman_init(TrID);
 void trnman_destroy(void);
 TRN *trnman_new_trn(pthread_mutex_t *, pthread_cond_t *, void *);
 int trnman_end_trn(TRN *trn, my_bool commit);

@@ -174,7 +174,7 @@ int main()
 #define CYCLES 10000
 #define THREADS 10
 
-  trnman_init();
+  trnman_init(0);
 
   test_trnman_read_from();
   run_test("trnman", test_trnman, THREADS, CYCLES);

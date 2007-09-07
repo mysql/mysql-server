@@ -2403,7 +2403,7 @@ static int ha_maria_init(void *p)
     translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
-    trnman_init();
+    trnman_init(0);
   maria_multi_threaded= TRUE;
   return res;
 }
