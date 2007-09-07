@@ -7384,13 +7384,15 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   ttransid2    = lqhTransConf->transId2;
   ttcOprec     = lqhTransConf->oldTcOpRec;
   treqinfo     = lqhTransConf->requestInfo;
-  tgci         = Uint64(lqhTransConf->gci) << 32;
+  tgci         = Uint64(lqhTransConf->gci_hi) << 32;
   cnodes[0]    = lqhTransConf->nextNodeId1;
   cnodes[1]    = lqhTransConf->nextNodeId2;
   cnodes[2]    = lqhTransConf->nextNodeId3;
   const Uint32 ref = tapplRef = lqhTransConf->apiRef;
   tapplOprec   = lqhTransConf->apiOpRec;
   const Uint32 tableId = lqhTransConf->tableId;
+  Uint32 gci_lo = lqhTransConf->gci_lo;
+  tgci |= gci_lo;
 
   if (ttransStatus == LqhTransConf::LastTransConf){
     jam();
