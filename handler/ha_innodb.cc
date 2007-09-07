@@ -814,6 +814,40 @@ innobase_convert_from_filename(
 }
 
 /**********************************************************************
+Removes the filename encoding of a database and table name. */
+static
+void
+innobase_convert_tablename(
+/*=======================*/
+	char*		s)	/* in: identifier; out: decoded identifier */
+{
+	uint	errors;
+
+	char*	slash = strchr(s, '/');
+
+	if (slash) {
+		char*	t;
+		/* Temporarily replace the '/' with NUL. */
+		*slash = 0;
+		/* Convert the database name. */
+		strconvert(&my_charset_filename, s, system_charset_info,
+			   s, slash - s + 1, &errors);
+
+		t = s + strlen(s);
+		ut_ad(slash >= t);
+		/* Append a  '.' after the database name. */
+		*t++ = '.';
+		slash++;
+		/* Convert the table name. */
+		strconvert(&my_charset_filename, slash, system_charset_info,
+			   t, slash - t + strlen(slash), &errors);
+	} else {
+		strconvert(&my_charset_filename, s,
+			   system_charset_info, s, strlen(s), &errors);
+	}
+}
+
+/**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
 NOTE that the exact prototype of this function has to be in
@@ -8333,6 +8367,7 @@ err_exit:
 			switch (trx->error_state) {
 			case DB_TABLESPACE_ALREADY_EXISTS:
 			case DB_DUPLICATE_KEY:
+				innobase_convert_tablename(new_table_name);
 				my_error(HA_ERR_TABLE_EXIST, MYF(0),
 					 new_table_name);
 				error = HA_ERR_TABLE_EXIST;
@@ -8421,8 +8456,8 @@ error_handling:
 	dictionary which were defined. */
 
 	switch (error) {
-		const char* old_name;
-		const char* tmp_name;
+		const char*	old_name;
+		char*		tmp_name;
 	case DB_SUCCESS:
 		ut_ad(!dict_locked);
 
@@ -8460,6 +8495,7 @@ error_handling:
 			switch (error) {
 			case DB_TABLESPACE_ALREADY_EXISTS:
 			case DB_DUPLICATE_KEY:
+				innobase_convert_tablename(tmp_name);
 				my_error(HA_ERR_TABLE_EXIST, MYF(0), tmp_name);
 				error = HA_ERR_TABLE_EXIST;
 				break;
