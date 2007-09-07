@@ -1441,8 +1441,8 @@ void test_pma_delete() {
     test_pma_double_delete();     memory_check_all_free();
 }
 
-void test_pma_double_insert() {
-    printf("test_pma_double_insert\n");
+void test_pma_already_there() {
+    printf("test_pma_already_there\n");
 
     int error;
     PMA pma;
@@ -1484,7 +1484,7 @@ void pma_tests (void) {
     test_pma_bulk_insert();       memory_check_all_free();
     test_pma_insert_or_replace(); memory_check_all_free();
     test_pma_delete();
-    test_pma_double_insert();     memory_check_all_free();
+    test_pma_already_there();     memory_check_all_free();
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
