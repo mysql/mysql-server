@@ -106,6 +106,7 @@ struct brt_cursor {
     int pathcnum[CURSOR_PATHLEN_LIMIT]; /* which child did we descend to from here? */
     PMA_CURSOR pmacurs; /* The cursor into the leaf.  NULL if the cursor doesn't exist. */
     BRT_CURSOR prev,next;
+    int op;
 };
 
 /* print the cursor path */

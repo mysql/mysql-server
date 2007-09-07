@@ -1804,13 +1804,18 @@ void brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unused)),
         if (cursor->pathcnum[i] < childnum)
             return;
         if (cursor->pathcnum[i] > childnum) {
-            setnewchild:
+        setnewchild:
             oldchildnum = cursor->pathcnum[i];
             newchildnum = oldchildnum + 1;
             brt_node_remove_cursor(node, oldchildnum, cursor);
             brt_node_add_cursor(node, newchildnum, cursor);
             cursor->pathcnum[i] = newchildnum;
-        } else if (i+1 < cursor->path_len) {
+            return;
+        } 
+        if (i == cursor->path_len-1 && cursor->op == DB_PREV) {
+            goto setnewchild;
+        }
+        if (i+1 < cursor->path_len) {
             assert(cursor->path[i+1] == left || cursor->path[i+1] == right);
             if (cursor->path[i+1] == right) {
                 goto setnewchild;
@@ -2105,6 +2110,64 @@ int brtcurs_set_position_next (BRT_CURSOR cursor) {
     return 0;
 }
 
+int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
+    BRTNODE node;
+    int childnum;
+    int r;
+    int more;
+
+    assert(cursor->path_len > 0);
+
+    /* pop the node and childnum from the cursor path */
+    node = cursor->path[cursor->path_len-1];
+    childnum = cursor->pathcnum[cursor->path_len-1];
+    cursor->path_len -= 1;
+    cachetable_unpin(cursor->brt->cf, node->thisnodename, 0);
+
+    if (brt_cursor_path_empty(cursor))
+        return DB_NOTFOUND;
+
+    /* set position last in the next left tree */
+    node = cursor->path[cursor->path_len-1];
+    childnum = cursor->pathcnum[cursor->path_len-1];
+    assert(node->height > 0);
+    brt_node_remove_cursor(node, childnum, cursor);
+
+    childnum -= 1;
+    while (childnum >= 0) {
+        cursor->pathcnum[cursor->path_len-1] = childnum;
+        brt_node_add_cursor(node, childnum, cursor);
+        for (;;) {
+            more = node->u.n.n_bytes_in_hashtable[childnum];
+            if (more == 0)
+                break;
+            brt_flush_child(cursor->brt, node, childnum, cursor);
+            node = cursor->path[cursor->path_len-1];
+            childnum = cursor->pathcnum[cursor->path_len-1];
+        }
+        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum]);
+        if (r == 0)
+            return 0;
+        assert(node == cursor->path[cursor->path_len-1]);
+        brt_node_remove_cursor(node, childnum, cursor);
+        childnum -= 1;
+    }
+
+    return brtcurs_set_position_prev2(cursor);
+}
+
+int brtcurs_set_position_prev (BRT_CURSOR cursor) {
+    int r = pma_cursor_set_position_prev(cursor->pmacurs);
+    if (r==DB_NOTFOUND) {
+	if (cursor->path_len==1) 
+            return DB_NOTFOUND;
+        r = pma_cursor_free(&cursor->pmacurs);
+        assert(r == 0);
+        return brtcurs_set_position_prev2(cursor);
+    }
+    return 0;
+}
+
 static int unpin_cursor (BRT_CURSOR cursor) {
     BRT brt=cursor->brt;
     int i;
@@ -2157,12 +2220,13 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	do_rmw=1;
 	flags &= ~DB_RMW;
     }
+    cursor->op = flags;
     switch (flags) {
     case DB_LAST:
+    do_db_last:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_last(cursor, *rootp); if (r!=0) goto died0;
-	if (0) brt_cursor_print(cursor);
         r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
@@ -2171,18 +2235,23 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_first(cursor, *rootp); if (r!=0) goto died0;
-	if (0) brt_cursor_print(cursor);
         r=pma_cget_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
-	if (cursor->path_len<=0) {
+	if (cursor->path_len<=0)
 	    goto do_db_first;
-	}
-	assert(cursor->path_len>0);
 	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
 	r=pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
-	break;
+	if (r == 0) assert_cursor_path(cursor);
+        break;
+    case DB_PREV:
+        if (cursor->path_len<= 0)
+            goto do_db_last;
+        r = brtcurs_set_position_prev(cursor); if (r!=0) goto died0;
+        r = pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+        if (r == 0) assert_cursor_path(cursor);
+        break;
     default:
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
 	abort();
