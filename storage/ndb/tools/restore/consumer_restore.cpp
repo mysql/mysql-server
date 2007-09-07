@@ -1061,7 +1061,7 @@ BackupRestore::table(const TableS & table){
 	{
 	  info << "Event for table " << table.getTableName()
 	       << " already exists, removing.\n";
-	  if (!dict->dropEvent(my_event.getName()))
+	  if (!dict->dropEvent(my_event.getName(), 1))
 	    continue;
 	}
 	err << "Create table event for " << table.getTableName() << " failed: "

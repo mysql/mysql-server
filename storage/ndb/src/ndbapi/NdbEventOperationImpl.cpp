@@ -1969,7 +1969,7 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
   SubTableData::setNdbdNodeId(data.requestInfo, node_id);
   data.logType = SubTableData::LOG;
 
-  Uint64 gci = m_latestGCI + 1;
+  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   find_max_known_gci(&gci);
 
   data.gci_hi = Uint32(gci >> 32);
@@ -2004,7 +2004,7 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
   SubTableData::setNdbdNodeId(data.requestInfo, node_id);
   data.logType = SubTableData::LOG;
 
-  Uint64 gci = m_latestGCI + 1;
+  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   find_max_known_gci(&gci);
 
   data.gci_hi = Uint32(gci >> 32);
@@ -2028,7 +2028,7 @@ NdbEventBuffer::completeClusterFailed()
   DBUG_ENTER("NdbEventBuffer::completeClusterFailed");
 
 
-  Uint64 gci = m_latestGCI + 1;
+  Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   bool found = find_max_known_gci(&gci);
 
   Uint64 * array = m_known_gci.getBase();

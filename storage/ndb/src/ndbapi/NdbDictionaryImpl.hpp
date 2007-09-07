@@ -628,7 +628,7 @@ public:
 
   int createEvent(NdbEventImpl &);
   int createBlobEvents(NdbEventImpl &);
-  int dropEvent(const char * eventName);
+  int dropEvent(const char * eventName, int force);
   int dropEvent(const NdbEventImpl &);
   int dropBlobEvents(const NdbEventImpl &);
   int listEvents(List& list);
