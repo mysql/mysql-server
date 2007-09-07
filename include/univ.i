@@ -343,7 +343,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\
-	UNIV_MEM_ASSERT_RW(addr, size);			\
+	UNIV_MEM_ASSERT_W(addr, size);			\
 	UNIV_MEM_FREE(addr, size);			\
 } while (0)
 
