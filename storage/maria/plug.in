@@ -1,4 +1,4 @@
-MYSQL_STORAGE_ENGINE(maria, no, [Maria Storage Engine],
+MYSQL_STORAGE_ENGINE(maria,, [Maria Storage Engine],
         [Traditional transactional MySQL tables], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
 MYSQL_PLUGIN_ACTIONS(maria, [AC_CONFIG_FILES(storage/maria/unittest/Makefile)])
