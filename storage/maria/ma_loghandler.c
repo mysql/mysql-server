@@ -6243,7 +6243,7 @@ my_bool translog_flush(LSN lsn)
   }
   log_descriptor.flushed= sent_to_file;
   /** @todo LOG decide if syncing of directory is needed */
-  rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME));
+  rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
   translog_unlock();
   DBUG_RETURN(rc);
 }
