@@ -48,10 +48,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
 alter table t1 add unique index (c), add index (d);
-ERROR HY000: Table 'test/t1@00231' already exists
+ERROR HY000: Table 'test.t1#1' already exists
 rename table `t1#1` to `t1#2`;
 alter table t1 add unique index (c), add index (d);
-ERROR HY000: Table 'test/t1@00232' already exists
+ERROR HY000: Table 'test.t1#2' already exists
 drop table `t1#2`;
 alter table t1 add unique index (c), add index (d);
 show create table t1;
