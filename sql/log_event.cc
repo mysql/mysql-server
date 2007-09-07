@@ -7509,8 +7509,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
                                  table->s->reclength) == 0);
 
     */
-    table->file->position(table->record[0]);
-    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    int error= table->file->rnd_pos_by_record(table->record[0]);
     /*
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
