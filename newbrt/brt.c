@@ -822,7 +822,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 
 #define INSERT_ALL_AT_ONCE
 
-static int brt_leaf_insertm (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			    int debug) {
     if  (cmd->type == BRT_INSERT) {
@@ -901,7 +901,7 @@ static unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
 }
 
 
-static int brt_nonleaf_insertm (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			       int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 			       DBT *splitk,
 			       int debug) {
@@ -1032,11 +1032,11 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			   int debug) {
     if (node->height==0) {
-	return brt_leaf_insertm(t, node, cmd,
+	return brt_leaf_put_cmd(t, node, cmd,
 			       did_split, nodea, nodeb, splitk,
 			       debug);
     } else {
-	return brt_nonleaf_insertm(t, node, cmd,
+	return brt_nonleaf_put_cmd(t, node, cmd,
 				  did_split, nodea, nodeb, splitk,
 				  debug);
     }
