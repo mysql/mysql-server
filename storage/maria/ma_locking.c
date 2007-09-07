@@ -116,7 +116,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
           /* transactional tables rather flush their state at Checkpoint */
           if (!share->base.born_transactional)
           {
-            if (_ma_state_info_write(share->kfile.file, &share->state, 1))
+            if (_ma_state_info_write_sub(share->kfile.file, &share->state, 1))
               error= my_errno;
             else
             {
@@ -287,6 +287,7 @@ void _ma_get_status(void* param, int concurrent_insert)
 void _ma_update_status(void* param)
 {
   MARIA_HA *info=(MARIA_HA*) param;
+  MARIA_SHARE *share= info->s;
   /*
     Because someone may have closed the table we point at, we only
     update the state if its our own state.  This isn't a problem as
@@ -299,19 +300,19 @@ void _ma_update_status(void* param)
     DBUG_PRINT("info",("updating status:  key_file: %ld  data_file: %ld",
 		       (long) info->state->key_file_length,
 		       (long) info->state->data_file_length));
-    if (info->state->key_file_length < info->s->state.state.key_file_length ||
-	info->state->data_file_length < info->s->state.state.data_file_length)
+    if (info->state->key_file_length < share->state.state.key_file_length ||
+	info->state->data_file_length < share->state.state.data_file_length)
       DBUG_PRINT("warning",("old info:  key_file: %ld  data_file: %ld",
-			    (long) info->s->state.state.key_file_length,
-			    (long) info->s->state.state.data_file_length));
+			    (long) share->state.state.key_file_length,
+			    (long) share->state.state.data_file_length));
 #endif
     /*
       we are going to modify the state without lock's log, this would break
       recovery if done with a transactional table.
     */
     DBUG_ASSERT(!info->s->base.born_transactional);
-    info->s->state.state= *info->state;
-    info->state= &info->s->state.state;
+    share->state.state= *info->state;
+    info->state= &share->state.state;
   }
   info->append_insert_at_end= 0;
 }
@@ -432,7 +433,8 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
       share->state.process= share->last_process=   share->this_process;
       share->state.unique=  info->last_unique=	   info->this_unique;
       share->state.update_count= info->last_loop= ++info->this_loop;
-      if ((error= _ma_state_info_write(share->kfile.file, &share->state, 1)))
+      if ((error= _ma_state_info_write_sub(share->kfile.file,
+                                           &share->state, 1)))
 	olderror=my_errno;
 #ifdef __WIN__
       if (maria_flush)

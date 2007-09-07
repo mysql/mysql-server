@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
   if (maria_init() ||
       (init_pagecache(maria_pagecache, pagecache_size, 0, 0,
 		      maria_block_size) == 0) ||
-      ma_control_file_create_or_open(TRUE) ||
+      ma_control_file_create_or_open() ||
       (init_pagecache(maria_log_pagecache,
 		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
 		      TRANSLOG_PAGE_SIZE) == 0) ||

@@ -690,8 +690,6 @@ static my_bool check_if_zero(uchar *pos, uint length)
     We unpin pages in the reverse order as they where pinned; This may not
     be strictly necessary but may simplify things in the future.
 
-    info->trn->rec_lsn contains the lsn for the first REDO
-
   RETURN
     0   ok
     1   error (fatal disk error)
@@ -717,7 +715,6 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
                              pinned_page->unlock, PAGECACHE_UNPIN,
                              info->trn->rec_lsn, undo_lsn);
 
-  info->trn->rec_lsn= 0;
   info->pinned_pages.elements= 0;
   DBUG_VOID_RETURN;
 }
@@ -738,6 +735,22 @@ static uint empty_space_on_page(uchar *buff, uint block_size)
   return 0;                                     /* Blob page */
 }
 #endif
+
+/**
+   When we have finished the write/update/delete of a row, we have cleanups to
+   do. For now it is signalling to Checkpoint that all dirtied pages have
+   their rec_lsn set and page LSN set (_ma_unpin_all_pages() has been called),
+   and that bitmap pages are correct (_ma_bitmap_release_unused() has been
+   called).
+*/
+#define _ma_finalize_row(info)                          \
+  do { info->trn->rec_lsn= LSN_IMPOSSIBLE; } while(0)
+/** unpinning is often the last operation before finalizing: */
+#define _ma_unpin_all_pages_and_finalize_row(info,undo_lsn)  do         \
+  {                                                                     \
+    _ma_unpin_all_pages(info, undo_lsn);                                \
+    _ma_finalize_row(info);                                             \
+  } while(0)
 
 
 /*
@@ -1729,10 +1742,7 @@ static my_bool write_block_record(MARIA_HA *info,
   if (share->base.pack_fields)
     store_key_length_inc(data, row->field_lengths_length);
   if (share->calc_checksum)
-  {
-    row->checksum= (info->s->calc_checksum)(info, record);
     *(data++)= (uchar) (row->checksum); /* store least significant byte */
-  }
   memcpy(data, record, share->base.null_bytes);
   data+= share->base.null_bytes;
   memcpy(data, row->empty_bits, share->base.pack_bytes);
@@ -2387,6 +2397,8 @@ static my_bool write_block_record(MARIA_HA *info,
   /* Release not used space in used pages */
   if (_ma_bitmap_release_unused(info, bitmap_blocks))
     goto disk_err;
+
+  _ma_finalize_row(info);
   DBUG_RETURN(0);
 
 crashed:
@@ -2421,7 +2433,7 @@ disk_err:
     Unpin all pinned pages to not cause problems for disk cache. This is
     safe to call even if we already called _ma_unpin_all_pages() above.
   */
-  _ma_unpin_all_pages(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, 0);
 
   DBUG_RETURN(1);
 }
@@ -2458,6 +2470,8 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
                             PAGECACHE_LOCK_WRITE, &row_pos))
     DBUG_RETURN(1);
   row->lastpos= ma_recordpos(blocks->block->page, row_pos.rownr);
+  if (info->s->calc_checksum)
+    row->checksum= (info->s->calc_checksum)(info, record);
   if (write_block_record(info, (uchar*) 0, record, row,
                          blocks, blocks->block->org_bitmap_value != 0,
                          &row_pos, undo_lsn))
@@ -2595,7 +2609,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                               log_data + LSN_STORE_SIZE))
       res= 1;
   }
-  _ma_unpin_all_pages(info, info->trn->undo_lsn);
+  _ma_unpin_all_pages_and_finalize_row(info, info->trn->undo_lsn);
   DBUG_RETURN(res);
 }
 
@@ -2625,6 +2639,8 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   DBUG_ENTER("_ma_update_block_record");
   DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
 
+  /* checksum was computed by maria_update() already and put into cur_row */
+  new_row->checksum= cur_row->checksum;
   calc_record_size(info, record, new_row);
   page= ma_recordpos_to_page(record_pos);
 
@@ -2713,7 +2729,7 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
                                  &row_pos, LSN_ERROR));
 
 err:
-  _ma_unpin_all_pages(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, 0);
   DBUG_RETURN(1);
 }
 
@@ -3001,11 +3017,11 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   }
 
-  _ma_unpin_all_pages(info, info->trn->undo_lsn);
+  _ma_unpin_all_pages_and_finalize_row(info, info->trn->undo_lsn);
   DBUG_RETURN(0);
 
 err:
-  _ma_unpin_all_pages(info, 0);
+  _ma_unpin_all_pages_and_finalize_row(info, 0);
   DBUG_RETURN(1);
 }
 
@@ -4878,7 +4894,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 
   res= 0;
 err:
-  _ma_unpin_all_pages(info, lsn);
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
 

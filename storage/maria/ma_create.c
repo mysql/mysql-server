@@ -634,7 +634,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-  share.state.create_rename_lsn= LSN_IMPOSSIBLE;
+  share.state.create_rename_lsn= share.state.is_of_lsn= LSN_IMPOSSIBLE;
   share.state.process=	(ulong) getpid();
   share.state.unique=	(ulong) 0;
   share.state.update_count=(ulong) 0;
@@ -792,7 +792,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   errpos=1;
 
   DBUG_PRINT("info", ("write state info and base info"));
-  if (_ma_state_info_write(file, &share.state, 2) ||
+  if (_ma_state_info_write_sub(file, &share.state, 2) ||
       _ma_base_info_write(file, &share.base))
     goto err;
   DBUG_PRINT("info", ("base_pos: %d  base_info_size: %d",
@@ -933,6 +933,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
     uint total_rec_length= 0;
     uint i;
+    LSN lsn;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +
       kfile_size_before_extension;
     /* we are needing maybe 64 kB, so don't use the stack */
@@ -991,20 +992,20 @@ int maria_create(const char *name, enum data_file_type datafile_type,
        called external_lock(), so have no TRN. It does not matter, as all
        these operations are non-transactional and sync their files.
     */
-    if (unlikely(translog_write_record(&share.state.create_rename_lsn,
+    if (unlikely(translog_write_record(&lsn,
                                        LOGREC_REDO_CREATE_TABLE,
                                        &dummy_transaction_object, NULL,
                                        total_rec_length,
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, NULL) ||
-                 translog_flush(share.state.create_rename_lsn)))
+                 translog_flush(lsn)))
       goto err;
     /*
       store LSN into file, needed for Recovery to not be confused if a
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
-    if (_ma_update_create_rename_lsn_on_disk(&share, FALSE))
+    if (_ma_update_create_rename_lsn_on_disk_sub(&share, lsn, FALSE))
       goto err;
     my_free(log_data, MYF(0));
   }
@@ -1205,13 +1206,14 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 
 
 /**
-   @brief Writes create_rename_lsn to disk, optionally forces
+   @brief Writes create_rename_lsn and is_of_lsn to disk, optionally forces.
 
    This is for special cases where:
    - we don't want to write the full state to disk (so, not call
    _ma_state_info_write()) because some parts of the state may be
    currently inconsistent, or because it would be overkill
-   - we must sync this LSN immediately for correctness.
+   - we must sync these LSNs immediately for correctness.
+   It acquires intern_lock to protect the two LSNs and state write.
 
    @param  share           table's share
    @param  do_sync         if the write should be forced to disk
@@ -1221,13 +1223,42 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
      @retval 1      error (disk problem)
 */
 
-int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync)
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share,
+                                         LSN lsn, my_bool do_sync)
 {
-  char buf[LSN_STORE_SIZE];
+  int res;
+  pthread_mutex_lock(&share->intern_lock);
+  res= _ma_update_create_rename_lsn_on_disk_sub(share, lsn, do_sync);
+  pthread_mutex_unlock(&share->intern_lock);
+  return res;
+}
+
+
+/**
+   @brief Writes create_rename_lsn and is_of_lsn to disk, optionally forces.
+
+   Shortcut of _ma_update_create_rename_lsn_on_disk() when we know that
+   intern_lock is not needed (when creating a table or opening it for the
+   first time).
+
+   @param  share           table's share
+   @param  do_sync         if the write should be forced to disk
+
+   @return Operation status
+     @retval 0      ok
+     @retval 1      error (disk problem)
+*/
+
+int _ma_update_create_rename_lsn_on_disk_sub(MARIA_SHARE *share,
+                                             LSN lsn, my_bool do_sync)
+{
+  char buf[LSN_STORE_SIZE*2], *ptr;
   File file= share->kfile.file;
   DBUG_ASSERT(file >= 0);
-  lsn_store(buf, share->state.create_rename_lsn);
-  return (my_pwrite(file, buf, sizeof(buf),
-                    sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
-          (do_sync && my_sync(file, MYF(0))));
+  for (ptr= buf; ptr < (buf + sizeof(buf)); ptr+= LSN_STORE_SIZE)
+    lsn_store(ptr, lsn);
+  share->state.is_of_lsn= share->state.create_rename_lsn= lsn;
+  return my_pwrite(file, buf, sizeof(buf),
+                   sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
+    (do_sync && my_sync(file, MYF(0)));
 }

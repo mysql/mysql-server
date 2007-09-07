@@ -85,7 +85,7 @@ typedef LSN LSN_WITH_FLAGS;
 #define LSN_ERROR             1
 
 /** @brief some impossible LSN serve as markers */
-#define LSN_REPAIRED_BY_MARIA_CHK ((LSN)1)
+#define LSN_REPAIRED_BY_MARIA_CHK ((LSN)2)
 
 /**
    @brief the maximum valid LSN.

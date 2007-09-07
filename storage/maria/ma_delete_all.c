@@ -69,6 +69,10 @@ int maria_delete_all_rows(MARIA_HA *info)
       goto err;
   }
 
+  /*
+    For recovery it matters that this is called after writing the log record,
+    so that resetting state.records actually happens under log's mutex.
+  */
   _ma_reset_status(info);
 
   /*
@@ -143,6 +147,10 @@ void _ma_reset_status(MARIA_HA *info)
   info->state->key_file_length= share->base.keystart;
   info->state->data_file_length= 0;
   info->state->empty= info->state->key_empty= 0;
+  /**
+     @todo RECOVERY BUG
+     the line below must happen under log's mutex when writing the REDO
+  */
   info->state->checksum= 0;
 
   /* Drop the delete key chain. */

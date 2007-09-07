@@ -143,6 +143,9 @@ int maria_recover()
       fprintf(trace_file, "SUCCESS\n");
     fclose(trace_file);
   }
+  // @todo set global_trid_generator from checkpoint or default value of 1/0,
+  // and also update it when seeing LOGREC_LONG_TRANSACTION_ID
+  // suggestion: add an arg to trnman_init
   maria_in_recovery= FALSE;
   DBUG_RETURN(res);
 }
@@ -224,7 +227,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
 
   /*
     we don't use maria_panic() because it would maria_end(), and Recovery does
-    not want that (we want to keep modules initialized for runtime).
+    not want that (we want to keep some modules initialized for runtime).
   */
   if (close_all_tables())
     goto err;
@@ -333,6 +336,10 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
           llbuf, sid);
   all_active_trans[sid].undo_lsn= undo_lsn;
   all_active_trans[sid].first_undo_lsn= first_undo_lsn;
+  // @todo set_if_bigger(global_trid_generator, long_id)
+  // indeed not only uncommitted transactions should bump generator,
+  // committed ones too (those not seen by undo phase so not
+  // into trnman_recreate)
 }
 
 
@@ -424,6 +431,9 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   ptr+= 2;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
   lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
+  /* we also set is_of_lsn, like maria_create() does */
+  lsn_store(ptr + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
+            rec->lsn);
   if (my_pwrite(kfile, ptr,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
@@ -843,11 +853,7 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  /*
-    in an upcoming patch ("recovery of the state"), we introduce
-    state.is_of_lsn. For now, we just assume the state is old (true when we
-    recreate tables from scratch - but not idempotent).
-  */
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records++;
@@ -870,6 +876,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
@@ -887,6 +894,7 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
   {
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
@@ -902,6 +910,7 @@ prototype_redo_exec_hook(UNDO_ROW_PURGE)
     return 0;
   /* this a bit broken, but this log record type will be deleted soon */
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
@@ -965,6 +974,7 @@ prototype_redo_exec_hook(CLR_END)
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   fprintf(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
           log_desc->name, LSN_IN_HEX(previous_undo_lsn));
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     switch (undone_record_type) {
@@ -1395,11 +1405,23 @@ static int run_undo_phase(uint unfinished)
 }
 
 
-static void prepare_table_for_close(MARIA_HA *info,
-                                    LSN at_lsn __attribute__ ((unused)))
+/**
+   @brief re-enables transactionality, updates is_of_lsn
+
+   @param  info                table
+   @param  at_lsn              LSN to set is_of_lsn
+*/
+
+static void prepare_table_for_close(MARIA_HA *info, LSN at_lsn)
 {
   MARIA_SHARE *share= info->s;
-  /* we will soon use at_lsn here */
+  /*
+    State is now at least as new as the LSN of the current record. It may be
+    newer, in case we are seeing a LOGREC_FILE_ID which tells us to close a
+    table, but that table was later modified further in the log.
+  */
+  if (cmp_translog_addr(share->state.is_of_lsn, at_lsn) < 0)
+    share->state.is_of_lsn= at_lsn;
   _ma_reenable_logging_for_table(share);
 }
 
@@ -1637,11 +1659,18 @@ static int close_all_tables()
   if (maria_open_list == NULL)
     goto end;
   fprintf(tracef, "Closing all tables\n");
+  /*
+    Since the end of end_of_redo_phase(), we may have written new records
+    (if UNDO phase ran)  and thus the state is newer than at
+    end_of_redo_phase(), we need to bump is_of_lsn again.
+  */
+  LSN addr= translog_get_horizon();
   for (list_element= maria_open_list ; list_element ; list_element= next_open)
   {
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
     pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
+    prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);
   }
@@ -1649,6 +1678,100 @@ end:
   pthread_mutex_unlock(&THR_LOCK_maria);
   return error;
 }
+
+#ifdef MARIA_EXTERNAL_LOCKING
+#error Maria's Recovery is really not ready for it
+#endif
+
+/*
+Recovery of the state :  how it works
+=====================================
+
+Ignoring Checkpoints for a start.
+
+The state (MARIA_HA::MARIA_SHARE::MARIA_STATE_INFO) is updated in
+memory frequently (at least at every row write/update/delete) but goes
+to disk at few moments: maria_close() when closing the last open
+instance, and a few rare places like CHECK/REPAIR/ALTER
+(non-transactional tables also do it at maria_lock_database() but we
+needn't cover them here).
+
+In case of crash, state on disk is likely to be older than what it was
+in memory, the REDO phase needs to recreate the state as it was in
+memory at the time of crash. When we say Recovery here we will always
+mean "REDO phase".
+
+For example MARIA_STATUS_INFO::records (count of records). It is updated at
+the end of every row write/update/delete/delete_all. When Recovery sees the
+sign of such row operation (UNDO or REDO), it may need to update the records'
+count if that count does not reflect that operation (is older). How to know
+the age of the state compared to the log record: every time the state
+goes to disk at runtime, its member "is_of_lsn" is updated to the
+current end-of-log LSN. So Recovery just needs to compare is_of_lsn
+and the record's LSN to know if it should modify "records".
+
+Other operations like ALTER TABLE DISABLE KEYS update the state but
+don't write log records, thus the REDO phase cannot repeat their
+effect on the state in case of crash. But we make them sync the state
+as soon as they have finished. This reduces the window for a problem.
+
+It looks like only one thread at a time updates the state in memory or
+on disk. However there is not 100% certainty when it comes to
+HA_EXTRA_(FORCE_REOPEN|PREPARE_FOR_RENAME): can they read the state
+from memory while some other thread is updating "records" in memory?
+If yes, they may write a corrupted state to disk.
+We assume that no for now: ASK_MONTY.
+
+With checkpoints
+================
+
+Checkpoint module needs to read the state in memory and write it to
+disk. This may happen while some other thread is modifying the state
+in memory or on disk. Checkpoint thus may be reading changing data, it
+needs a mutex to not have it corrupted, and concurrent modifiers of
+the state need that mutex too for the same reason.
+"records" is modified for every row write/update/delete, we don't want
+to add a mutex lock/unlock there. So we re-use the mutex lock/unlock
+which is already present in these moments, namely the log's mutex which is
+taken when UNDO_ROW_INSERT|UPDATE|DELETE is written: we update "records" in
+under-log-mutex hooks when writing these records (thus "records" is
+not updated at the end of maria_write/update/delete() anymore).
+Thus Checkpoint takes the log's lock and can read "records" from
+memory an write it to disk and release log's lock.
+We however want to avoid having the disk write under the log's
+lock. So it has to be under another mutex, natural choice is
+intern_lock (as Checkpoint needs it anyway to read MARIA_SHARE::kfile,
+and as maria_close() takes it too). All state writes to disk are
+changed to be protected with intern_lock.
+So Checkpoint takes intern_lock, log's lock, reads "records" from
+memory, releases log's lock, updates is_of_lsn and writes "records" to
+disk, release intern_lock.
+In practice, not only "records" needs to be written but the full
+state. So, Checkpoint reads the full state from memory. Some other
+thread may at this moment be modifying in memory some pieces of the
+state which are not protected by the lock's log (see ma_extra.c
+HA_EXTRA_NO_KEYS), and Checkpoint would be reading a corrupted state
+from memory; to guard against that we extend the intern_lock-zone to
+changes done to the state in memory by HA_EXTRA_NO_KEYS et al, and
+also any change made in memory to create_rename_lsn/state_is_of_lsn.
+Last, we don't want in Checkpoint to do
+ log lock; read state from memory; release log lock;
+for each table, it may hold the log's lock too much in total.
+So, we instead do
+ log lock; read N states from memory; release log lock;
+Thus, the sequence above happens outside of any intern_lock.
+But this re-introduces the problem that some other thread may be changing the
+state in memory and on disk under intern_lock, without log's lock, like
+HA_EXTRA_NO_KEYS, while we read the N states. However, when Checkpoint later
+comes to handling the table under intern_lock, which is serialized with
+HA_EXTRA_NO_KEYS, it can see that is_of_lsn is higher then when the state was
+read from memory under log's lock, and thus can decide to not flush the
+obsolete state it has, knowing that the other thread flushed a more recent
+state already. If on the other hand is_of_lsn is not higher, the read state is
+current and can be flushed. So we have a per-table sequence:
+ lock intern_lock; test if is_of_lsn is higher than when we read the state
+ under log's lock; if no then flush the read state to disk.
+*/
 
 /* some comments and pseudo-code which we keep for later */
 #if 0

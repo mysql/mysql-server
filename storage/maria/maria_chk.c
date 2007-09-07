@@ -1035,7 +1035,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
         that it will have to find and store it.
       */
       if (share->base.born_transactional)
-        share->state.create_rename_lsn= LSN_REPAIRED_BY_MARIA_CHK;
+        share->state.create_rename_lsn= share->state.is_of_lsn=
+          LSN_REPAIRED_BY_MARIA_CHK;
       if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
           (maria_is_any_key_active(share->state.key_map) ||
            (rep_quick && !param->keys_in_use && !recreate)) &&

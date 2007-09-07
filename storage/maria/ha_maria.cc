@@ -1287,6 +1287,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     }
   }
   thd->proc_info= "Saving state";
+  pthread_mutex_lock(&share->intern_lock);
   if (!error)
   {
     if ((share->state.changed & STATE_CHANGED) || maria_is_crashed(file))
@@ -1324,6 +1325,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     maria_update_state_info(&param, file, 0);
   }
+  pthread_mutex_unlock(&share->intern_lock);
   thd->proc_info= old_proc_info;
   if (!thd->locked_tables)
   {

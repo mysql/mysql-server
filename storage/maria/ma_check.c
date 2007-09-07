@@ -2001,7 +2001,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   */
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                             FLUSH_FORCE_WRITE, FLUSH_IGNORE_CHANGED) ||
-      _ma_state_info_write(share->kfile.file, &share->state, 1|2))
+      _ma_state_info_write(share, 1|2|4))
     goto err;
 
   if (!rep_quick)
@@ -2459,9 +2459,8 @@ int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info)
   MARIA_SHARE *share= info->s;
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                             FLUSH_RELEASE, FLUSH_RELEASE) ||
-      _ma_state_info_write(share->kfile.file, &share->state, 1) ||
-      (share->now_transactional && !share->temporary
-       && _ma_sync_table_files(info)))
+      _ma_state_info_write(share, 1|4) ||
+      (share->base.born_transactional && _ma_sync_table_files(info)))
   {
     _ma_check_print_error(param,"%d when trying to write bufferts",my_errno);
     return 1;
@@ -2540,8 +2539,10 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
 	/* Put same locks as old file */
   share->r_locks= share->w_locks= share->tot_locks= 0;
   (void) _ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
+  pthread_mutex_lock(&share->intern_lock);
   VOID(my_close(share->kfile.file, MYF(MY_WME)));
   share->kfile.file = -1;
+  pthread_mutex_unlock(&share->intern_lock);
   VOID(my_close(new_file,MYF(MY_WME)));
   if (maria_change_to_newfile(share->index_file_name, MARIA_NAME_IEXT,
                               INDEX_TMP_EXT, sync_dir) ||
@@ -5087,7 +5088,7 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
     */
     if (info->lock_type == F_WRLCK)
       share->state.state= *info->state;
-    if (_ma_state_info_write(share->kfile.file, &share->state, 1 + 2))
+    if (_ma_state_info_write(share, 1|2))
       goto err;
     share->changed=0;
   }
@@ -5540,6 +5541,7 @@ read_next_page:
 
 /**
    @brief Writes a LOGREC_REPAIR_TABLE record and updates create_rename_lsn
+   and is_of_lsn
 
    REPAIR/OPTIMIZE have replaced the data/index file with a new file
    and so, in this scenario:
@@ -5560,8 +5562,8 @@ read_next_page:
 
 static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 {
-  MARIA_SHARE *share= info->s;
-  if (translog_inited) /* test it in case this is maria_chk */
+  /* in case this is maria_chk or recovery... */
+  if (translog_inited && !maria_in_recovery)
   {
     /*
       For now this record is only informative. It could serve when applying
@@ -5582,6 +5584,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[LSN_STORE_SIZE];
+    LSN lsn;
     compile_time_assert(LSN_STORE_SIZE >= (FILEID_STORE_SIZE + 4));
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE + 4;
@@ -5590,22 +5593,21 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       or not: did it touch the data file or not?).
     */
     int4store(log_data + FILEID_STORE_SIZE, param->testflag);
-    if (unlikely(translog_write_record(&share->state.create_rename_lsn,
-                                       LOGREC_REDO_REPAIR_TABLE,
+    if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data) ||
-                 translog_flush(share->state.create_rename_lsn)))
+                 translog_flush(lsn)))
       return 1;
     /*
       The table's existence was made durable earlier (MY_SYNC_DIR passed to
       maria_change_to_newfile()).
       _ma_flush_table_files_after_repair() is later called by maria_repair(),
-      and makes sure to flush the data, index and state and sync, so
-      create_rename_lsn reaches disk, thus we won't apply old REDOs to the new
-      table.
+      and makes sure to flush the data, index, update is_of_lsn, flush state
+      and sync, so create_rename_lsn reaches disk, thus we won't apply old
+      REDOs to the new table.
     */
   }
   return 0;

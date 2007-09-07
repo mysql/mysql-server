@@ -100,7 +100,7 @@ set -- "ma_test1 $silent -M -T -c" "ma_test2 $silent -L -K -W -P -M -T -c" "ma_t
 while [ $# != 0 ]
 do
   prog=$1
-  rm maria_log.* maria_log_control
+  rm -f maria_log.* maria_log_control
   echo "TEST WITH $prog"
   $maria_path/$prog
   # derive table's name from program's name
@@ -138,7 +138,7 @@ do
     prog=$1
     commit_run_args=$2
     abort_run_args=$3;
-    rm maria_log.* maria_log_control
+    rm -f maria_log.* maria_log_control
     echo "TEST WITH $prog $commit_run_args (commit at end)"
     $maria_path/$prog $commit_run_args
     # derive table's name from program's name
@@ -193,7 +193,7 @@ done
 done
 rm -f $table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
 
-) > $tmp/ma_test_recovery.output
+) 2>&1 > $tmp/ma_test_recovery.output
 
 diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output > /dev/null || diff_failed=1
 if [ "$diff_failed" == "1" ]

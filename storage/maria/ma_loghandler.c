@@ -213,6 +213,22 @@ static my_bool write_hook_for_redo(enum translog_record_type type,
 static my_bool write_hook_for_undo(enum translog_record_type type,
                                    TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                    struct st_translog_parts *parts);
+static my_bool write_hook_for_redo_delete_all(enum translog_record_type type,
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts);
+static my_bool write_hook_for_undo_row_insert(enum translog_record_type type,
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts);
+static my_bool write_hook_for_undo_row_delete(enum translog_record_type type,
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts);
+static my_bool write_hook_for_undo_row_purge(enum translog_record_type type,
+                                             TRN *trn, MARIA_HA *tbl_info,
+                                             LSN *lsn,
+                                             struct st_translog_parts *parts);
 static my_bool write_hook_for_clr_end(enum translog_record_type type,
                                       TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                       struct st_translog_parts *parts);
@@ -429,13 +445,13 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_INSERT=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 1,
+ NULL, write_hook_for_undo_row_insert, NULL, 1,
  "undo_row_insert", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_DELETE=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 1,
+ NULL, write_hook_for_undo_row_delete, NULL, 1,
  "undo_row_delete", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
@@ -447,7 +463,7 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
 static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
 {LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE + FILEID_STORE_SIZE,
  LSN_STORE_SIZE + FILEID_STORE_SIZE,
- NULL, write_hook_for_undo, NULL, 1,
+ NULL, write_hook_for_undo_row_purge, NULL, 1,
  "undo_row_purge", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
@@ -493,7 +509,7 @@ static LOG_DESC INIT_LOGREC_REDO_DROP_TABLE=
 
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ALL=
 {LOGRECTYPE_FIXEDLENGTH, FILEID_STORE_SIZE, FILEID_STORE_SIZE,
- NULL, write_hook_for_redo, NULL, 0,
+ NULL, write_hook_for_redo_delete_all, NULL, 0,
  "redo_delete_all", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_REPAIR_TABLE=
@@ -6305,6 +6321,88 @@ static my_bool write_hook_for_undo(enum translog_record_type type
     when we implement purging, we will specialize this hook: UNDO_PURGE
     records will additionally set trn->undo_purge_lsn
   */
+}
+
+
+/**
+   @brief Sets the table's records count to 0, then calls the generic REDO
+   hook.
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_redo_delete_all(enum translog_record_type type
+                                              __attribute__ ((unused)),
+                                              TRN *trn, MARIA_HA *tbl_info
+                                              __attribute__ ((unused)),
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts
+                                              __attribute__ ((unused)))
+{
+  tbl_info->s->state.state.records= 0;
+  return write_hook_for_redo(type, trn, tbl_info, lsn, parts);
+}
+
+
+/**
+   @brief Upates "records" and calls the generic UNDO hook
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_undo_row_insert(enum translog_record_type type
+                                              __attribute__ ((unused)),
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts
+                                              __attribute__ ((unused)))
+{
+  tbl_info->s->state.state.records++;
+  return write_hook_for_undo(type, trn, tbl_info, lsn, parts);
+}
+
+
+/**
+   @brief Upates "records" and calls the generic UNDO hook
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_undo_row_delete(enum translog_record_type type
+                                              __attribute__ ((unused)),
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn,
+                                              struct st_translog_parts *parts
+                                              __attribute__ ((unused)))
+{
+  tbl_info->s->state.state.records--;
+  return write_hook_for_undo(type, trn, tbl_info, lsn, parts);
+}
+
+
+/**
+   @brief Upates "records" and calls the generic UNDO hook
+
+   @todo we will get rid of this record soon.
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_undo_row_purge(enum translog_record_type type
+                                             __attribute__ ((unused)),
+                                             TRN *trn, MARIA_HA *tbl_info,
+                                             LSN *lsn,
+                                             struct st_translog_parts *parts
+                                             __attribute__ ((unused)))
+{
+  tbl_info->s->state.state.records--;
+  return write_hook_for_undo(type, trn, tbl_info, lsn, parts);
 }
 
 

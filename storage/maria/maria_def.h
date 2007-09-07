@@ -95,6 +95,7 @@ typedef struct st_maria_state_info
   uint open_count;
   uint8 changed;			/* Changed since mariachk */
   LSN create_rename_lsn;    /**< LSN when table was last created/renamed */
+  LSN is_of_lsn;            /**< LSN when state was last updated on disk */
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -104,7 +105,7 @@ typedef struct st_maria_state_info
 
 
 #define MARIA_STATE_INFO_SIZE	\
-  (24 + LSN_STORE_SIZE + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
+  (24 + LSN_STORE_SIZE*2 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
 #define MARIA_STATE_KEY_SIZE	8
 #define MARIA_STATE_KEYBLOCK_SIZE  8
 #define MARIA_STATE_KEYSEG_SIZE	4
@@ -214,6 +215,8 @@ typedef struct st_maria_file_bitmap
   ulong pages_covered;                /* Pages covered by bitmap + 1 */
 } MARIA_FILE_BITMAP;
 
+#define MARIA_CHECKPOINT_LOOKS_AT_ME 1
+#define MARIA_CHECKPOINT_SHOULD_FREE_ME 2
 
 typedef struct st_maria_share
 {					/* Shared between opens */
@@ -300,6 +303,7 @@ typedef struct st_maria_share
   myf write_flag;
   enum data_file_type data_file_type;
   enum pagecache_page_type page_type;   /* value depending transactional */
+  uint8 in_checkpoint;               /**< if Checkpoint looking at table */
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
@@ -864,7 +868,8 @@ extern uint _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
 extern uint _ma_nommap_pwrite(MARIA_HA *info, uchar *Buffer,
                               uint Count, my_off_t offset, myf MyFlags);
 
-uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite);
+uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite);
+uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite);
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
 int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
@@ -933,7 +938,10 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
-int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share, my_bool do_sync);
+int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share,
+                                         LSN lsn, my_bool do_sync);
+int _ma_update_create_rename_lsn_on_disk_sub(MARIA_SHARE *share,
+                                             LSN lsn, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 #define _ma_tmp_disable_logging_for_table(S) \

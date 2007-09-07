@@ -227,8 +227,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     info->lock_wait=MY_DONT_WAIT;
     break;
   case HA_EXTRA_NO_KEYS:
+    /* we're going to modify pieces of the state, stall Checkpoint */
+    pthread_mutex_lock(&share->intern_lock);
     if (info->lock_type == F_UNLCK)
     {
+      pthread_mutex_unlock(&share->intern_lock);
       error=1;					/* Not possibly if not lock */
       break;
     }
@@ -263,8 +266,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         0), and so the only way it leaves information (share->state.key_map)
         for the posterity is by writing it to disk.
       */
-      error=_ma_state_info_write(share->kfile.file, &share->state, (1 | 2));
+      DBUG_ASSERT(!maria_in_recovery);
+      error= _ma_state_info_write(share, 1|2);
     }
+    pthread_mutex_unlock(&share->intern_lock);
     break;
   case HA_EXTRA_FORCE_REOPEN:
     /*
@@ -275,8 +280,22 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     /** @todo consider porting these flush-es to MyISAM */
     error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                  FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE) ||
-      _ma_state_info_write(share->kfile.file, &share->state, 1 | 2) ||
-      (share->changed= 0);
+      _ma_state_info_write(share, 1|2|4);
+#ifdef ASK_MONTY
+      || (share->changed= 0);
+#endif
+    /**
+       @todo RECOVERY BUG
+       Though we flushed the state, IF some other thread may have the same
+       table (same MARIA_SHARE) open at this time then it may have a
+       more recent state to flush when it closes, thus we don't set
+       share->changed to 0 here. On the other hand, this means that when our
+       thread closes its table, it will flush the state again, then it would
+       overwrite any state written by yet another thread which may have opened
+       the table (new MARIA_SHARE) and done some updates.
+       ASK_MONTY about the IF above. See also same tag in
+       HA_EXTRA_PREPARE_FOR_DROP|RENAME.
+    */
     pthread_mutex_lock(&THR_LOCK_maria);
     /* this makes the share not be re-used next time the table is opened */
     share->last_version= 0L;			/* Impossible version */
@@ -328,11 +347,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
           We have to sync now, as on Windows we are going to close the file
           (so cannot sync later).
         */
-        if (_ma_state_info_write(share->kfile.file, &share->state, 1 | 2) ||
+        if (_ma_state_info_write(share, 1 | 2) ||
             my_sync(share->kfile.file, MYF(0)))
           error= my_errno;
+#ifdef ASK_MONTY /* see same tag in HA_EXTRA_FORCE_REOPEN */
         else
           share->changed= 0;
+#endif
       }
       else
       {

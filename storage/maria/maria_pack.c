@@ -3000,7 +3000,8 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   VOID(my_chsize(share->kfile.file, share->base.keystart, 0, MYF(0)));
   if (share->base.keys)
     isamchk_neaded=1;
-  DBUG_RETURN(_ma_state_info_write(share->kfile.file, &share->state, (1 + 2)));
+  DBUG_RETURN(_ma_state_info_write_sub(share->kfile.file,
+                                       &share->state, (1 + 2)));
 }
 
 
@@ -3033,7 +3034,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   if (isam_file->s->base.keys)
     isamchk_neaded=1;
   state.changed=STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */
-  DBUG_RETURN (_ma_state_info_write(file,&state,1+2));
+  DBUG_RETURN (_ma_state_info_write_sub(file,&state,1+2));
 }
 
 

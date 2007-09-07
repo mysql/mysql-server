@@ -103,7 +103,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   }
 
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
-  info->state->records--;
+  info->state->records-= !share->now_transactional;
   share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
   
   mi_sizestore(lastpos, info->cur_row.lastpos);

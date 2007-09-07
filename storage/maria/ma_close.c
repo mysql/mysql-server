@@ -25,6 +25,7 @@
 int maria_close(register MARIA_HA *info)
 {
   int error=0,flag;
+  my_bool share_can_be_freed= FALSE;
   MARIA_SHARE *share=info->s;
   DBUG_ENTER("maria_close");
   DBUG_PRINT("enter",("base: 0x%lx  reopen: %u  locks: %u",
@@ -58,7 +59,6 @@ int maria_close(register MARIA_HA *info)
   }
   flag= !--share->reopen;
   maria_open_list=list_delete(maria_open_list,&info->open_list);
-  pthread_mutex_unlock(&share->intern_lock);
 
   my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   (*share->end)(info);
@@ -90,20 +90,23 @@ int maria_close(register MARIA_HA *info)
           (share->mode != O_RDONLY && maria_is_crashed(info)))
       {
         /*
-          File must be synced as it is going out of the maria_open_list and so
-          becoming unknown to Checkpoint. State must be written to file as
-          it was not done at table's unlocking.
+          State must be written to file as it was not done at table's
+          unlocking.
         */
-        if (_ma_state_info_write(share->kfile.file, &share->state, 1) ||
-            my_sync(share->kfile.file, MYF(MY_WME)))
+        if (_ma_state_info_write(share, 1))
           error= my_errno;
       }
+      /*
+        File must be synced as it is going out of the maria_open_list and so
+        becoming unknown to future Checkpoints.
+      */
+      if (my_sync(share->kfile.file, MYF(MY_WME)))
+        error= my_errno;
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
-    VOID(pthread_mutex_destroy(&share->intern_lock));
     {
       int i,keys;
       keys = share->state.header.keys;
@@ -114,16 +117,36 @@ int maria_close(register MARIA_HA *info)
     }
 #endif
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
-    my_free((uchar*) share, MYF(0));
+    if (share->in_checkpoint == MARIA_CHECKPOINT_LOOKS_AT_ME)
+    {
+      share->kfile.file= -1; /* because Checkpoint does not need to flush */
+      /* we cannot my_free() the share, Checkpoint would see a bad pointer */
+      share->in_checkpoint|= MARIA_CHECKPOINT_SHOULD_FREE_ME;
+    }
+    else
+      share_can_be_freed= TRUE;
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
+  pthread_mutex_unlock(&share->intern_lock);
+  if (share_can_be_freed)
+  {
+    VOID(pthread_mutex_destroy(&share->intern_lock));
+    my_free((uchar *)share, MYF(0));
+  }
   if (info->ftparser_param)
   {
     my_free((uchar*)info->ftparser_param, MYF(0));
     info->ftparser_param= 0;
   }
-  if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
-    error = my_errno;
+  if (info->dfile.file >= 0)
+  {
+    /*
+      This is outside of mutex so would confuse a concurrent
+      Checkpoint. Fortunately in BLOCK_RECORD we close earlier under mutex.
+    */
+    if (my_close(info->dfile.file, MYF(0)))
+      error = my_errno;
+  }
 
   my_free((uchar*) info,MYF(0));
 

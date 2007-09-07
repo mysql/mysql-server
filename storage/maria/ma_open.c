@@ -613,12 +613,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           view of the server, including server's recovery) now.
         */
         if ((open_flags & HA_OPEN_FROM_SQL_LAYER) || maria_in_recovery)
-        {
-          share->state.create_rename_lsn= translog_get_horizon();
-          _ma_update_create_rename_lsn_on_disk(share, TRUE);
-        }
+          _ma_update_create_rename_lsn_on_disk_sub(share,
+                                                   translog_get_horizon(),
+                                                   TRUE);
       }
-      else if (!LSN_VALID(share->state.create_rename_lsn) &&
+      else if ((!LSN_VALID(share->state.create_rename_lsn) ||
+                !LSN_VALID(share->state.is_of_lsn) ||
+                (cmp_translog_addr(share->state.create_rename_lsn,
+                                   share->state.is_of_lsn) > 0)) &&
                !(open_flags & HA_OPEN_FOR_REPAIR))
       {
         /*
@@ -968,18 +970,64 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
 /**
    @brief Function to save and store the header in the index file (.MYI)
 
-   @param  file            descriptor of the index file to write
-   @param  state           state information to write to the file
-   @param  pWrite          bitmap (determines the amount of information to
-                           write, and if my_write() or my_pwrite() should be
-                           used)
+   Operates under MARIA_SHARE::intern_lock if requested.
+   Sets MARIA_SHARE::MARIA_STATE_INFO::is_of_lsn if table is transactional.
+   Then calls _ma_state_info_write_sub().
+
+   @param  share           table
+   @param  pWrite          bitmap: if 1 is set my_pwrite() is used otherwise
+                           my_write(); if 2 is set, info about keys is written
+                           (should only be needed after ALTER TABLE
+                           ENABLE/DISABLE KEYS, and REPAIR/OPTIMIZE); if 4 is
+                           set, MARIA_SHARE::intern_lock is taken.
 
    @return Operation status
      @retval 0      OK
      @retval 1      Error
 */
 
-uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
+uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
+{
+  uint res= 0;
+  if (pWrite & 4)
+    pthread_mutex_lock(&share->intern_lock);
+  else if (maria_multi_threaded)
+    safe_mutex_assert_owner(&share->intern_lock);
+  if (share->base.born_transactional && translog_inited &&
+      !maria_in_recovery)
+  {
+    /*
+      In a recovery, we want to set is_of_lsn to the LSN of the last
+      record executed by Recovery, not the current EOF of the log (which
+      is too new). Recovery does it by itself.
+    */
+    share->state.is_of_lsn= translog_get_horizon();
+  }
+  res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
+  if (pWrite & 4)
+    pthread_mutex_unlock(&share->intern_lock);
+  return res;
+}
+
+
+/**
+   @brief Function to save and store the header in the index file (.MYI).
+
+   Shortcut to use instead of _ma_state_info_write() when appropriate.
+
+   @param  file            descriptor of the index file to write
+   @param  state           state information to write to the file
+   @param  pWrite          bitmap: if 1 is set my_pwrite() is used otherwise
+                           my_write(); if 2 is set, info about keys is written
+                           (should only be needed after ALTER TABLE
+                           ENABLE/DISABLE KEYS, and REPAIR/OPTIMIZE).
+
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
+*/
+
+uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 {
   /** @todo RECOVERY write it only at checkpoint time */
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
@@ -994,10 +1042,11 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   /* open_count must be first because of _ma_mark_file_changed ! */
   mi_int2store(ptr,state->open_count);			ptr+= 2;
   /*
-    if you change the offset of this LSN inside the file, fix
-    ma_create + ma_rename + ma_delete_all + backward-compatibility.
+    if you change the offset of create_rename_lsn/is_of_lsn inside the file,
+    fix ma_create + ma_rename + ma_delete_all + backward-compatibility.
   */
   lsn_store(ptr, state->create_rename_lsn);		ptr+= LSN_STORE_SIZE;
+  lsn_store(ptr, state->is_of_lsn);			ptr+= LSN_STORE_SIZE;
   *ptr++= (uchar)state->changed;
   *ptr++= state->sortkey;
   mi_rowstore(ptr,state->state.records);		ptr+= 8;
@@ -1022,7 +1071,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   {
     mi_sizestore(ptr,state->key_root[i]);		ptr+= 8;
   }
-  /** @todo RECOVERY key_del is a problem for recovery */
+  /** @todo RECOVERY BUG key_del is a problem for recovery */
   mi_sizestore(ptr,state->key_del);	        	ptr+= 8;
   if (pWrite & 2)				/* From maria_chk */
   {
@@ -1060,6 +1109,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 
   state->open_count = mi_uint2korr(ptr);		ptr+= 2;
   state->create_rename_lsn= lsn_korr(ptr);		ptr+= LSN_STORE_SIZE;
+  state->is_of_lsn= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
   state->changed= 					(my_bool) *ptr++;
   state->sortkey= 					(uint) *ptr++;
   state->state.records= mi_rowkorr(ptr);		ptr+= 8;
@@ -1382,11 +1432,16 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share,
 
 int _ma_open_keyfile(MARIA_SHARE *share)
 {
-  if ((share->kfile.file= my_open(share->unique_file_name,
-                                  share->mode | O_SHARE,
-			    MYF(MY_WME))) < 0)
-    return 1;
-  return 0;
+  /*
+    Modifications to share->kfile should be under intern_lock to protect
+    against a concurrent checkpoint.
+  */
+  pthread_mutex_lock(&share->intern_lock);
+  share->kfile.file= my_open(share->unique_file_name,
+                             share->mode | O_SHARE,
+                             MYF(MY_WME));
+  pthread_mutex_unlock(&share->intern_lock);
+  return (share->kfile.file < 0);
 }
 
 
