@@ -5499,7 +5499,7 @@ int mysql_fast_or_online_alter_table(THD *thd,
                                      enum enum_enable_or_disable keys_onoff)
 {
   int error= 0;
-  bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER);
+  bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER)?true:false;
   TABLE *t_table;
 
   DBUG_ENTER(" mysql_fast_or_online_alter_table");
