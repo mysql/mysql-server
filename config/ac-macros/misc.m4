@@ -648,11 +648,8 @@ case $CXX_VERSION in
     ARFLAGS="-xar -o"
   ;;
   *)
-    if test -z "$AR"
-    then
-      AC_CHECK_PROG([AR], [ar], [ar])
-    fi
-    if test -z "$AR"
+    AC_CHECK_PROG([AR], [ar], [ar])
+    if test -z "$AR" || test "$AR" = "false"
     then
       AC_MSG_ERROR([You need ar to build the library])
     fi
