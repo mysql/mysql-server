@@ -4319,7 +4319,7 @@ static int scanEventTable(Ndb* pNdb,
 
     Uint64 row_count = 0;
     {
-      if ((pOp = pTrans->getNdbScanOperation(pTab->getName())) == NULL)
+      if ((pOp = pTrans->getNdbScanOperation(pTab)) == NULL)
         goto error;
       if (pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 1) != 0)
         goto error;
@@ -4343,7 +4343,7 @@ static int scanEventTable(Ndb* pNdb,
       }
     }
 
-    if ((pOp = pTrans->getNdbScanOperation(pTab->getName())) == NULL)
+    if ((pOp = pTrans->getNdbScanOperation(pTab)) == NULL)
       goto error;
 
     if (pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 1) != 0)
@@ -4427,14 +4427,18 @@ NdbDictionaryImpl::listEvents(List& list)
 
   m_ndb.setDatabaseName("sys");
   m_ndb.setDatabaseSchemaName("def");
+  {
+    const NdbDictionary::Table* pTab =
+      m_facade->getTableGlobal("NDB$EVENTS_0");
 
-  const NdbDictionary::Table* pTab =
-    m_facade->getTable("NDB$EVENTS_0");
-
-  if(pTab == NULL)
-    error_code = m_facade->getNdbError().code;
-  else
-    error_code = scanEventTable(&m_ndb, pTab, list);
+    if(pTab == NULL)
+      error_code = m_facade->getNdbError().code;
+    else
+    {     
+      error_code = scanEventTable(&m_ndb, pTab, list);
+      m_facade->removeTableGlobal(*pTab, 0);
+    }
+  }
 
   m_ndb.setDatabaseName(currentDb.c_str());
   m_ndb.setDatabaseSchemaName(currentSchema.c_str());
