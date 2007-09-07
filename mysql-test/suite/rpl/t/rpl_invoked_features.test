@@ -280,8 +280,8 @@ ALTER TABLE t13 ORDER BY a;
 
 # Remove dumps
 --echo
-#--exec rm $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_master.sql
-#--exec rm $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_slave.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_slave.sql
 
 # Remove tables,views,procedures,functions
 --connection master
