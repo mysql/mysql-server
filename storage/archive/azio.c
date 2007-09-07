@@ -510,7 +510,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
   Writes the given number of uncompressed bytes into the compressed file.
   azwrite returns the number of bytes actually written (0 in case of error).
 */
-unsigned int azwrite (azio_stream *s, voidpc buf, unsigned int len)
+unsigned int azwrite (azio_stream *s, const voidp buf, unsigned int len)
 {
   s->stream.next_in = (Bytef*)buf;
   s->stream.avail_in = len;
