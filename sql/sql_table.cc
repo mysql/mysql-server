@@ -5085,7 +5085,10 @@ compare_tables(THD *thd,
       /* Check that NULL behavior is same for old and new fields */
       if ((new_field->flags & NOT_NULL_FLAG) !=
           (uint) (field->flags & NOT_NULL_FLAG))
+      {
+        *table_changes= IS_EQUAL_NO;
         *alter_flags|= HA_ALTER_COLUMN_NULLABLE;
+      }
     }
 
     /* Clear indexed marker */
