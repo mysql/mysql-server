@@ -3855,7 +3855,7 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
       /* ToDo; handle error? */
       if (share && share->op &&
           share->op->getState() == NdbEventOperation::EO_EXECUTING &&
-          dict->getNdbError().code != 4009)
+          dict->getNdbError().mysql_code != HA_ERR_NO_CONNECTION)
       {
         DBUG_ASSERT(FALSE);
         DBUG_RETURN(-1);

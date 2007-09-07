@@ -202,9 +202,10 @@ Ndb::NDB_connect(Uint32 tNode)
     DBUG_PRINT("info",
 	       ("unsuccessful connect tReturnCode %d, tNdbCon->Status() %d",
 		tReturnCode, tNdbCon->Status()));
-    if (theError.code == 299)
+    if (theError.code == 299 || // single user mode
+        theError.code == 281 )  // cluster shutdown in progress
     {
-      // single user mode so no need to retry with other node
+      // no need to retry with other node
       DBUG_RETURN(-1);
     }
     DBUG_RETURN(3);
