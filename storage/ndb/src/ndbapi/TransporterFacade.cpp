@@ -175,11 +175,25 @@ setSignalLog(){
   }
   return false;
 }
-#ifdef TRACE_APIREGREQ
-#define TRACE_GSN(gsn) true
-#else
-#define TRACE_GSN(gsn) (gsn != GSN_API_REGREQ && gsn != GSN_API_REGCONF)
+inline
+bool
+TRACE_GSN(Uint32 gsn)
+{
+  switch(gsn){
+#ifndef TRACE_APIREGREQ
+  case GSN_API_REGREQ:
+  case GSN_API_REGCONF:
+    return false;
 #endif
+#if 0
+  case GSN_SUB_GCP_COMPLETE_REP:
+  case GSN_SUB_GCP_COMPLETE_ACK:
+    return true;
+#endif
+  default:
+    return true;
+  }
+}
 #endif
 
 /**
