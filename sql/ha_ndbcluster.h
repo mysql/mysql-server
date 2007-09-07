@@ -333,6 +333,7 @@ class ha_ndbcluster: public handler
     { return HA_POS_ERROR; }
   int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
+  uint32 calculate_key_hash_value(Field **field_array);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -348,7 +349,7 @@ class ha_ndbcluster: public handler
   int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
   int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
   int final_drop_index(TABLE *table_arg);
-  void set_part_info(partition_info *part_info);
+  void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
@@ -512,11 +513,10 @@ private:
                          part_id_range *part_spec);
   int unique_index_read(const uchar *key, uint key_len, 
                         uchar *buf);
-  int unique_index_scan(const KEY* key_info, 
-			const uchar *key, 
-			uint key_len,
-			uchar *buf);
-  int full_table_scan(uchar * buf);
+  int full_table_scan(const KEY* key_info, 
+                      const uchar *key, 
+                      uint key_len,
+                      uchar *buf);
   int flush_bulk_insert();
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
@@ -680,7 +680,8 @@ private:
   Uint64 m_ref;
   partition_info *m_part_info;
   uint32 m_part_id;
-  bool m_use_partition_function;
+  bool m_user_defined_partitioning;
+  bool m_use_partition_pruning;
   bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
