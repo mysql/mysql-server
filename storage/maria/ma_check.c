@@ -5604,6 +5604,10 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     /*
       The table's existence was made durable earlier (MY_SYNC_DIR passed to
       maria_change_to_newfile()).
+    */
+    if (_ma_update_create_rename_lsn_on_disk(info->s, lsn, FALSE))
+      return 1;
+    /*
       _ma_flush_table_files_after_repair() is later called by maria_repair(),
       and makes sure to flush the data, index, update is_of_lsn, flush state
       and sync, so create_rename_lsn reaches disk, thus we won't apply old

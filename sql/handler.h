@@ -23,7 +23,9 @@
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
 #include "../storage/maria/ma_pagecache.h"
+#endif
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -859,7 +861,9 @@ typedef struct st_ha_check_opt
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   KEY_CACHE *key_cache; /* new key cache when changing key cache */
+#ifdef WITH_MARIA_STORAGE_ENGINE
   PAGECACHE *pagecache;	/* new pagecache when changing pagecache */
+#endif
   void init();
 } HA_CHECK_OPT;
 
@@ -1818,6 +1822,7 @@ int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
+#ifdef WITH_MARIA_STORAGE_ENGINE
 /* pagecache */
 int ha_init_pagecache(const char *name, PAGECACHE *pagecache);
 /*
@@ -1827,6 +1832,7 @@ int ha_resize_pagecache(PAGECACHE *pagecache);
 int ha_change_pagecache_param(PAGECACHE *pagecache);
 int ha_change_pagecache(PAGECACHE *old_pagecache, PAGECACHE *new_pagecache);
 int ha_end_pagecache(PAGECACHE *pagecache);
+#endif
 
 /* report to InnoDB that control passes to the client */
 int ha_release_temporary_latches(THD *thd);
