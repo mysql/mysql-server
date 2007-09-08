@@ -4572,6 +4572,11 @@ row_search_autoinc_read_column(
 		value = *(ib_uint32_t*) dest;
 		break;
 
+	case 3:
+		value = *(ib_uint32_t*) dest;
+		value &= 0xFFFFFF;
+		break;
+
 	case 2:
 		value = *(uint16 *) dest;
 		break;
