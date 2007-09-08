@@ -59,7 +59,11 @@ delimiter ;|
 
 CALL test.proc_norm();
 
-#--source include/master-slave-end.inc
 --sync_slave_with_master
-connection slave;
+
+connection master;
+DROP PROCEDURE test.proc_norm;
+DROP TABLE test.regular_tbl;
+
+--source include/master-slave-end.inc
 
