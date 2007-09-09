@@ -413,6 +413,9 @@ int _ma_readinfo(register MARIA_HA *info __attribute__ ((unused)),
 /*
   Every isam-function that uppdates the isam-database MUST end with this
   request
+
+  NOTES
+    my_errno is not changed if this succeeds!
 */
 
 int _ma_writeinfo(register MARIA_HA *info, uint operation)

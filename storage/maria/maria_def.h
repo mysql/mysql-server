@@ -16,8 +16,9 @@
 /* This file is included by all internal maria files */
 
 #include "maria.h"				/* Structs & some defines */
-#include "myisampack.h"				/* packing of keys */
+#include <myisampack.h>				/* packing of keys */
 #include <my_tree.h>
+#include <my_bitmap.h>
 #ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
@@ -441,6 +442,7 @@ struct st_maria_info
   PAGECACHE_FILE dfile;			/* The datafile */
   IO_CACHE rec_cache;			/* When cacheing records */
   LIST open_list;
+  MY_BITMAP changed_fields;
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */

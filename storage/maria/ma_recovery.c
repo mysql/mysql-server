@@ -1087,17 +1087,11 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
   }
 
   info->trn= trn;
-  /*
-    For now we skip the page and directory entry. This is to be used
-    later when we mark rows as deleted.
-  */
   error= _ma_apply_undo_row_update(info, previous_undo_lsn,
                                    log_record_buffer.str + LSN_STORE_SIZE +
-                                   FILEID_STORE_SIZE + PAGE_STORE_SIZE +
-                                   DIRPOS_STORE_SIZE,
+                                   FILEID_STORE_SIZE,
                                    rec->record_length -
-                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                                    PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
+                                   (LSN_STORE_SIZE + FILEID_STORE_SIZE));
   info->trn= 0;
   fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
           LSN_IN_HEX(previous_undo_lsn));

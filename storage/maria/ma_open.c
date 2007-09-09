@@ -95,6 +95,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   int save_errno;
   uint errpos;
   MARIA_HA info,*m_info;
+  my_bitmap_map *changed_fields_bitmap;
   DBUG_ENTER("maria_clone_internal");
 
   errpos= 0;
@@ -121,6 +122,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
+                       &changed_fields_bitmap,
+                       bitmap_buffer_size(share->base.fields),
 		       NullS))
     goto err;
   errpos= 6;
@@ -145,6 +148,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   info.errkey= -1;
   info.page_changed=1;
   info.keyread_buff= info.buff + share->base.max_key_block_length;
+  bitmap_init(&info.changed_fields, changed_fields_bitmap,
+              share->base.fields, 0);
   if ((*share->init)(&info))
     goto err;
 

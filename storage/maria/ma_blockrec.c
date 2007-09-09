@@ -678,6 +678,46 @@ static my_bool check_if_zero(uchar *pos, uint length)
 
 
 /*
+  @brief Copy not changed fields from 'from' to 'to'
+
+  @notes
+  Assumption is that most fields are not changed!
+  (Which is why we don't test if all bits are set for some bytes in bitmap)
+*/
+
+void copy_not_changed_fields(MARIA_HA *info, MY_BITMAP *changed_fields,
+                             uchar *to, uchar *from)
+{
+  MARIA_COLUMNDEF *column, *end_column;
+  uchar *bitmap= (uchar*) changed_fields->bitmap;
+  MARIA_SHARE *share= info->s;
+  uint bit= 1;
+
+  for (column= share->columndef, end_column= column+ share->base.fields;
+       column < end_column; column++)
+  {
+    if (!(*bitmap & bit))
+    {
+      uint field_length= column->length;
+      if (column->type == FIELD_VARCHAR)
+      {
+        if (column->fill_length == 1)
+          field_length= (uint) from[column->offset] + 1;
+        else
+          field_length= uint2korr(from + column->offset) + 2;
+      }
+      memcpy(to + column->offset, from + column->offset, field_length);
+    }
+    if ((bit= (bit << 1)) == 256)
+    {
+      bitmap++;
+      bit= 1;
+    }
+  }
+}
+
+
+/*
   Unpin all pinned pages
 
   SYNOPSIS
@@ -891,7 +931,7 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
         *blob_lengths++= 0;
       continue;
     }
-    switch ((enum en_fieldtype) column->type) {
+    switch (column->type) {
     case FIELD_CHECK:
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_ZERO:
@@ -1334,8 +1374,8 @@ static my_bool write_tail(MARIA_HA *info,
     LSN lsn;
 
     /* Log REDO changes of tail page */
-    page_store(log_data+ FILEID_STORE_SIZE, block->page);
-    dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+    page_store(log_data + FILEID_STORE_SIZE, block->page);
+    dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos.rownr);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
@@ -1817,7 +1857,7 @@ static my_bool write_block_record(MARIA_HA *info,
       continue;
 
     field_pos= record + column->offset;
-    switch ((enum en_fieldtype) column->type) {
+    switch (column->type) {
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_SKIP_PRESPACE:
     case FIELD_SKIP_ZERO:                       /* Fixed length field */
@@ -2324,9 +2364,9 @@ static my_bool write_block_record(MARIA_HA *info,
 
       /* LOGREC_UNDO_ROW_INSERT & LOGREC_UNDO_ROW_INSERT share same header */
       lsn_store(log_data, info->trn->undo_lsn);
-      page_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE,
+      page_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                  head_block->page);
-      dirpos_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE +
+      dirpos_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    PAGE_STORE_SIZE,
                    row_pos->rownr);
 
@@ -2348,12 +2388,13 @@ static my_bool write_block_record(MARIA_HA *info,
         size_t row_length;
         uint row_parts_count;
         row_length= fill_update_undo_parts(info, old_record, record,
-                                           info->log_row_parts +
+                                           log_array +
                                            TRANSLOG_INTERNAL_PARTS + 1,
                                            &row_parts_count);
         if (translog_write_record(&lsn, LOGREC_UNDO_ROW_UPDATE, info->trn,
                                   info, sizeof(log_data) + row_length,
-                                  TRANSLOG_INTERNAL_PARTS + 1 + row_parts_count,
+                                  TRANSLOG_INTERNAL_PARTS + 1 +
+                                  row_parts_count,
                                   log_array, log_data + LSN_STORE_SIZE))
           goto disk_err;
       }
@@ -2623,8 +2664,11 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
     for rows split into many extents.
 */
 
-my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
-                                const uchar *oldrec, const uchar *record)
+static my_bool _ma_update_block_record2(MARIA_HA *info,
+                                        MARIA_RECORD_POS record_pos,
+                                        const uchar *oldrec,
+                                        const uchar *record,
+                                        LSN undo_lsn)
 {
   MARIA_BITMAP_BLOCKS *blocks= &info->cur_row.insert_blocks;
   uchar *buff;
@@ -2636,8 +2680,13 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   ulonglong page;
   struct st_row_pos_info row_pos;
   MARIA_SHARE *share= info->s;
-  DBUG_ENTER("_ma_update_block_record");
+  DBUG_ENTER("_ma_update_block_record2");
   DBUG_PRINT("enter", ("rowid: %lu", (long) record_pos));
+
+#ifdef ENABLE_IF_PROBLEM_WITH_UPDATE
+  DBUG_DUMP("oldrec", oldrec, share->base.reclength);
+  DBUG_DUMP("newrec", record, share->base.reclength);
+#endif
 
   /* checksum was computed by maria_update() already and put into cur_row */
   new_row->checksum= cur_row->checksum;
@@ -2693,11 +2742,12 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
     if (cur_row->extents_count && free_full_pages(info, cur_row))
       goto err;
     DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks,
-                                   1, &row_pos, LSN_ERROR));
+                                   1, &row_pos, undo_lsn));
   }
   /*
     Allocate all size in block for record
-    QQ: Need to improve this to do compact if we can fit one more blob into
+    TODO:
+    Need to improve this to do compact if we can fit one more blob into
     the head page
   */
   head_length= uint2korr(dir + 2);
@@ -2726,11 +2776,21 @@ my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
   row_pos.data= buff + uint2korr(dir);
   row_pos.length= head_length;
   DBUG_RETURN(write_block_record(info, oldrec, record, new_row, blocks, 1,
-                                 &row_pos, LSN_ERROR));
+                                 &row_pos, undo_lsn));
 
 err:
   _ma_unpin_all_pages_and_finalize_row(info, 0);
   DBUG_RETURN(1);
+}
+
+
+/* Wrapper for _ma_update_block_record2() used by ma_update() */
+
+
+my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
+                                const uchar *orig_rec, const uchar *new_rec)
+{
+  return _ma_update_block_record2(info, record_pos, orig_rec, new_rec, 0);
 }
 
 
@@ -2872,8 +2932,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     if (info->s->now_transactional)
     {
       /* Log REDO data */
-      page_store(log_data+ FILEID_STORE_SIZE, page);
-      dirpos_store(log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+      page_store(log_data + FILEID_STORE_SIZE, page);
+      dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                    record_number);
 
       log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -2901,7 +2961,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                      PAGE_STORE_SIZE + PAGERANGE_STORE_SIZE];
       LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
       pagerange_store(log_data + FILEID_STORE_SIZE, 1);
-      page_store(log_data+ FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
+      page_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE, page);
       pagerange_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
                       PAGE_STORE_SIZE, 1);
       log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -2999,8 +3059,8 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
     /* Write UNDO record */
     lsn_store(log_data, info->trn->undo_lsn);
-    page_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE, page);
-    dirpos_store(log_data+ LSN_STORE_SIZE + FILEID_STORE_SIZE +
+    page_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, page);
+    dirpos_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE +
                  PAGE_STORE_SIZE, record_number);
 
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS].str= (char*) log_data;
@@ -3445,16 +3505,14 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   for (end_column= share->columndef + share->base.fields;
        column < end_column; column++)
   {
-    enum en_fieldtype type= (enum en_fieldtype) column->type;
+    enum en_fieldtype type= column->type;
     uchar *field_pos= record + column->offset;
     /* First check if field is present in record */
     if ((record[column->null_pos] & column->null_bit) ||
         (cur_row->empty_bits[column->empty_pos] & column->empty_bit))
     {
-      if (type == FIELD_SKIP_ENDSPACE)
-        bfill(record + column->offset, column->length, ' ');
-      else
-        bzero(record + column->offset, column->fill_length);
+      bfill(record + column->offset, column->fill_length,
+            type == FIELD_SKIP_ENDSPACE ? ' ' : 0);
       continue;
     }
     switch (type) {
@@ -3610,7 +3668,7 @@ err:
     This function is a simpler version of _ma_read_block_record2()
     The data about the used pages is stored in info->cur_row.
 
-  @return
+  @return Status
   @retval 0   ok
   @retval 1   Error. my_errno contains error number
 */
@@ -3703,11 +3761,14 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
 /*
   Read a record based on record position
 
-  SYNOPSIS
-    _ma_read_block_record()
-    info                Maria handler
-    record              Store record here
-    record_pos          Record position
+  @fn     _ma_read_block_record()
+  @param info                Maria handler
+  @param record              Store record here
+  @param record_pos          Record position
+
+  @return Status
+  @retval 0  ok
+  @retval #  Error number
 */
 
 int _ma_read_block_record(MARIA_HA *info, uchar *record,
@@ -3726,13 +3787,13 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
                              &info->dfile, ma_recordpos_to_page(record_pos), 0,
                              info->buff, info->s->page_type,
                              PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(my_errno);
   DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == HEAD_PAGE);
   if (!(data= get_record_position(buff, block_size, offset, &end_of_data)))
   {
-    my_errno= HA_ERR_WRONG_IN_RECORD;           /* File crashed */
     DBUG_PRINT("error", ("Wrong directory entry in data block"));
-    DBUG_RETURN(1);
+    my_errno= HA_ERR_WRONG_IN_RECORD;           /* File crashed */
+    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
   }
   DBUG_RETURN(_ma_read_block_record2(info, record, data, end_of_data));
 }
@@ -4228,7 +4289,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     column_pos=    record+ column->offset;
     column_length= column->length;
 
-    switch ((enum en_fieldtype) column->type) {
+    switch (column->type) {
     case FIELD_CHECK:
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_ZERO:
@@ -4312,7 +4373,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
 
     Fields are stored in same order as the field array.
 
-    Number of changed fields (packed)
+    Offset to changed field data (packed)
 
     For each changed field
       Fieldnumber (packed)
@@ -4347,7 +4408,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
   uchar *old_field_lengths= old_row->field_lengths;
   uchar *new_field_lengths= new_row->field_lengths;
   size_t row_length= 0;
-  uint field_count= 0;
+  uint field_lengths;
   LEX_STRING *start_log_parts;
   my_bool new_column_is_empty;
   DBUG_ENTER("fill_update_undo_parts");
@@ -4365,7 +4426,6 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
   {
     /* Store changed null bits */
     *field_data++=       (uchar) 255;           /* Special case */
-    field_count++;
     log_parts->str=      (char*) oldrec;
     log_parts->length=   share->base.null_bytes;
     row_length=          log_parts->length;
@@ -4383,10 +4443,9 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     {
       field_data= ma_store_length(field_data,
                                   (uint) (column - share->columndef));
-      field_count++;
       log_parts->str= (char*) oldrec + column->offset;
       log_parts->length= column->length;
-      row_length+= log_parts->length;
+      row_length+=       column->length;
       log_parts++;
     }
   }
@@ -4418,7 +4477,6 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
       field_data= ma_store_length(field_data,
                                   (uint) (column - share->columndef));
       field_data= ma_store_length(field_data, 0);
-      field_count++;
       continue;
     }
     /*
@@ -4433,7 +4491,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     new_column_pos=      newrec + column->offset;
     old_column_length= new_column_length= column->length;
 
-    switch ((enum en_fieldtype) column->type) {
+    switch (column->type) {
     case FIELD_CHECK:
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_ZERO:
@@ -4442,6 +4500,8 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
       break;
     case FIELD_VARCHAR:
       new_column_length--;                      /* Skip length prefix */
+      old_column_pos+= column->fill_length;
+      new_column_pos+= column->fill_length;
       /* Fall through */
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
     {
@@ -4489,22 +4549,22 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
       field_data= ma_store_length(field_data,
                                   (uint) (column - share->columndef));
       field_data= ma_store_length(field_data, old_column_length);
-      field_count++;
 
       log_parts->str=     (char*) old_column_pos;
       log_parts->length=  old_column_length;
-      row_length+=        log_parts->length;
+      row_length+=        old_column_length;
       log_parts++;
     }
   }
 
   *log_parts_count= (log_parts - start_log_parts);
 
-  /* Store number of fields before the field/field_lengths */
+  /* Store length of field length data before the field/field_lengths */
+  field_lengths= (field_data - start_field_data);
   start_log_parts->str=  ((char*)
                           (start_field_data -
-                           ma_calc_length_for_store_length(field_count)));
-  ma_store_length(start_log_parts->str, field_count);
+                           ma_calc_length_for_store_length(field_lengths)));
+  ma_store_length(start_log_parts->str, field_lengths);
   start_log_parts->length= (size_t) ((char*) field_data -
                                      start_log_parts->str);
   row_length+= start_log_parts->length;
@@ -4976,10 +5036,11 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
       else
         *blob_lengths++= 0;
       if (share->calc_checksum)
-        bzero(record + column->offset, column->length);
+        bfill(record + column->offset, column->fill_length,
+              column->type == FIELD_SKIP_ENDSPACE ? ' ' : 0);
       continue;
     }
-    switch ((enum en_fieldtype) column->type) {
+    switch (column->type) {
     case FIELD_CHECK:
     case FIELD_NORMAL:                          /* Fixed length field */
     case FIELD_ZERO:
@@ -5065,15 +5126,147 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
 }
 
 
-/* Execute undo of a row update */
+/*
+  Execute undo of a row update
 
-my_bool _ma_apply_undo_row_update(MARIA_HA *info __attribute__ ((unused)),
-                                  LSN undo_lsn __attribute__ ((unused)),
-                                  const uchar *header __attribute__ ((unused)),
-                                  size_t length __attribute__ ((unused)))
+  @fn _ma_apply_undo_row_update()
+
+  @return Operation status
+    @retval 0      OK
+    @retval 1      Error
+*/
+
+my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
+                                  const uchar *header,
+                                  size_t header_length __attribute__((unused)))
 {
+  ulonglong page;
+  uint rownr, field_length_header;
+  MARIA_SHARE *share= info->s;
+  const uchar *field_length_data, *field_length_data_end;
+  uchar *current_record, *orig_record;
+  int error= 1;
+  MARIA_RECORD_POS record_pos;
   DBUG_ENTER("_ma_apply_undo_row_update");
-  fprintf(stderr, "Undo of row update is not yet done\n");
-  exit(1);
-  DBUG_RETURN(0);
+
+  page=  page_korr(header);
+  rownr= dirpos_korr(header + PAGE_STORE_SIZE);
+  record_pos= ma_recordpos(page, rownr);
+  DBUG_PRINT("enter", ("Page: %lu  rownr: %u", (ulong) page, rownr));
+
+  /*
+    Set header to point to old field values, generated by
+    fill_update_undo_parts()
+  */
+  header+= PAGE_STORE_SIZE + DIRPOS_STORE_SIZE;
+  field_length_header= ma_get_length((uchar**) &header);
+  field_length_data= header;
+  header+= field_length_header;
+  field_length_data_end= header;
+
+  /* Allocate buffer for current row & original row */
+  if (!(current_record= my_malloc(share->base.reclength * 2, MYF(MY_WME))))
+    DBUG_RETURN(1);
+  orig_record= current_record+ share->base.reclength;
+
+  /* Read current record */
+  if (_ma_read_block_record(info, current_record, record_pos))
+    goto err;
+
+  if (*field_length_data == 255)
+  {
+    /* Bitmap changed */
+    field_length_data++;
+    memcpy(orig_record, header, share->base.null_bytes);
+    header+= share->base.null_bytes;
+  }
+  else
+    memcpy(orig_record, current_record, share->base.null_bytes);
+  bitmap_clear_all(&info->changed_fields);
+
+  while (field_length_data < field_length_data_end)
+  {
+    uint field_nr= ma_get_length((uchar**) &field_length_data), field_length;
+    MARIA_COLUMNDEF *column= share->columndef + field_nr;
+    uchar *orig_field_pos= orig_record + column->offset;
+
+    bitmap_set_bit(&info->changed_fields, field_nr);
+    if (field_nr >= share->base.fixed_not_null_fields)
+    {
+      if (!(field_length= ma_get_length((uchar**) &field_length_data)))
+      {
+        /* Null field or empty field */
+        bfill(orig_field_pos, column->fill_length,
+              column->type == FIELD_SKIP_ENDSPACE ? ' ' : 0);
+        continue;
+      }
+    }
+    else
+      field_length= column->length;
+
+    switch (column->type) {
+    case FIELD_CHECK:
+    case FIELD_NORMAL:                          /* Fixed length field */
+    case FIELD_ZERO:
+    case FIELD_SKIP_PRESPACE:                   /* Not packed */
+      memcpy(orig_field_pos, header, column->length);
+      header+= column->length;
+      break;
+    case FIELD_SKIP_ZERO:                       /* Number */
+    case FIELD_SKIP_ENDSPACE:                   /* CHAR */
+    {
+      uint diff;
+      memcpy(orig_field_pos, header, field_length);
+      if ((diff= (column->length - field_length)))
+        bfill(orig_field_pos + column->length - diff, diff,
+              column->type == FIELD_SKIP_ENDSPACE ? ' ' : 0);
+      header+= field_length;
+    }
+    break;
+    case FIELD_VARCHAR:
+      if (column->length <= 256)
+      {
+        *orig_field_pos++= (uchar) field_length;
+      }
+      else
+      {
+        int2store(orig_field_pos, field_length);
+        orig_field_pos+= 2;
+      }
+      memcpy(orig_field_pos, header, field_length);
+      header+= field_length;
+      break;
+    case FIELD_BLOB:
+    {
+      uint size_length= column->length - portable_sizeof_char_ptr;
+      _ma_store_blob_length(orig_field_pos, size_length, field_length);
+      memcpy_fixed(orig_field_pos + size_length, &header, sizeof(header));
+      header+= field_length;
+      break;
+    }
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
+  copy_not_changed_fields(info, &info->changed_fields,
+                          orig_record, current_record);
+
+  if (share->calc_checksum)
+  {
+    info->cur_row.checksum= (*share->calc_checksum)(info, orig_record);
+    info->state->checksum+= (info->cur_row.checksum -
+                             (*share->calc_checksum)(info, current_record));
+  }
+
+  /*
+    Now records are up to date, execute the update to original values
+  */
+  if (_ma_update_block_record2(info, record_pos, current_record, orig_record,
+                               undo_lsn))
+    goto err;
+
+  error= 0;
+err:
+  my_free(current_record, MYF(0));
+  DBUG_RETURN(error);
 }

@@ -2164,9 +2164,19 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 	param->error_printed=1;
 	goto err;
       }
-      continue;
+      /* purecov: begin tested */
+      if (block_record)
+      {
+        sort_info.new_info->state->records--;
+        if ((*sort_info.new_info->s->write_record_abort)(sort_info.new_info))
+        {
+          _ma_check_print_error(param,"Couldn't delete duplicate row");
+          goto err;
+        }
+        continue;
+      }
+      /* purecov: end */
     }
-
     if (!block_record && _ma_sort_write_record(&sort_param))
       goto err;
   }

@@ -728,8 +728,8 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end)
     buf                 RETURN  The buffer to receive the record.
 
   RETURN
-    0                                   on success
-    HA_ERR_WRONG_IN_RECORD or -1        on error
+    0   On success
+    #   Error number
 */
 
 int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
@@ -739,7 +739,7 @@ int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
   DBUG_ENTER("maria_read_pack_record");
 
   if (filepos == HA_OFFSET_ERROR)
-    DBUG_RETURN(-1);			/* _search() didn't find record */
+    DBUG_RETURN(my_errno);          /* _search() didn't find record */
 
   file= info->dfile.file;
   if (_ma_pack_get_block_info(info, &info->bit_buff, &block_info,
@@ -755,7 +755,7 @@ int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(my_errno);
 }
 
 
@@ -1598,14 +1598,14 @@ static int _ma_read_mempack_record(MARIA_HA *info, uchar *buf,
   DBUG_ENTER("maria_read_mempack_record");
 
   if (filepos == HA_OFFSET_ERROR)
-    DBUG_RETURN(-1);			/* _search() didn't find record */
+    DBUG_RETURN(my_errno);          /* _search() didn't find record */
 
   if (!(pos= (uchar*) _ma_mempack_get_block_info(info, &info->bit_buff,
                                                 &block_info, &info->rec_buff,
                                                 &info->rec_buff_size,
 						(uchar*) share->file_map+
 						filepos)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(my_errno);
   DBUG_RETURN(_ma_pack_rec_unpack(info, &info->bit_buff, buf,
                                   pos, block_info.rec_len));
 }

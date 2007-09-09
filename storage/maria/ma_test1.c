@@ -250,6 +250,9 @@ static int run_test(const char *filename)
     goto end;
   }
 
+  if (maria_commit(file) || maria_begin(file))
+    goto err;
+
   if (!skip_update)
   {
     if (opt_unique)
@@ -287,7 +290,7 @@ static int run_test(const char *filename)
     found=0;
     while ((error= maria_scan(file,read_record)) == 0)
     {
-      if (update_count-- == 0) { VOID(maria_close(file)) ; exit(0) ; }
+      if (--update_count == 0) { VOID(maria_close(file)) ; exit(0) ; }
       memcpy(record,read_record,rec_length);
       update_record(record);
       if (maria_update(file,read_record,record))
@@ -303,7 +306,10 @@ static int run_test(const char *filename)
   }
 
   if (testflag == 3)
+  {
+    printf("Terminating after update\n");
     goto end;
+  }
   if (!silent)
     printf("- Reopening file\n");
   if (maria_commit(file))
