@@ -7230,6 +7230,11 @@ ha_innobase::innobase_get_auto_increment(
 {
 	ulint		error;
 
+	ut_a(*value == 0);
+
+	/* Note: If the table is not initialized when we attempt the
+	read below. We initialize the table's auto-inc counter  and
+	always do a reread of the AUTOINC value. */
 	do {
 		error = innobase_autoinc_lock();
 
