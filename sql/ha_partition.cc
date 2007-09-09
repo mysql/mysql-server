@@ -2693,7 +2693,17 @@ int ha_partition::write_row(uchar * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    error= update_auto_increment();
+
+    /*
+      If we have failed to set the auto-increment value for this row,
+      it is highly likely that we will not be able to insert it into
+      the correct partition. We must check and fail if neccessary.
+    */
+    if (error)
+      DBUG_RETURN(error);
+  }
 
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #ifdef NOT_NEEDED
@@ -5456,8 +5466,10 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   ulonglong first_value_part, last_value_part, nb_reserved_values_part,
     last_value= ~ (ulonglong) 0;
   handler **pos, **end;
+  bool retry= TRUE;
   DBUG_ENTER("ha_partition::get_auto_increment");
 
+again:
   for (pos=m_file, end= m_file+ m_tot_parts; pos != end ; pos++)
   {
     first_value_part= *first_value;
@@ -5466,7 +5478,8 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     if (first_value_part == ~(ulonglong)(0)) // error in one partition
     {
       *first_value= first_value_part;
-      break;
+      sql_print_error("Partition failed to reserve auto_increment value");
+      DBUG_VOID_RETURN;
     }
     /*
       Partition has reserved an interval. Intersect it with the intervals
@@ -5479,6 +5492,25 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   }
   if (last_value < *first_value) /* empty intersection, error */
   {
+    /*
+      When we have an empty intersection, it means that one or more
+      partitions may have a significantly different autoinc next value.
+      We should not fail here - it just means that we should try to
+      find a new reservation making use of the current *first_value
+      wbich should now be compatible with all partitions.
+    */
+    if (retry)
+    {
+      retry= FALSE;
+      last_value= ~ (ulonglong) 0;
+      release_auto_increment();
+      goto again;
+    }
+    /*
+      We should not get here.
+    */
+    sql_print_error("Failed to calculate auto_increment value for partition");
+    
     *first_value= ~(ulonglong)(0);
   }
   if (increment)                                // If not check for values
