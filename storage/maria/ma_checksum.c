@@ -31,6 +31,9 @@ ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
     const uchar *pos= record + column->offset;
     ulong length;
 
+    if (record[column->null_pos] & column->null_bit)
+      continue;                                 /* Null field */
+
     switch (column->type) {
     case FIELD_BLOB:
     {
@@ -45,12 +48,12 @@ ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
     }
     case FIELD_VARCHAR:
     {
-      uint pack_length= HA_VARCHAR_PACKLENGTH(column->length-1);
+      uint pack_length= column->fill_length;
       if (pack_length == 1)
         length= (ulong) *(uchar*) pos;
       else
         length= uint2korr(pos);
-      pos+= pack_length;
+      pos+= pack_length;                        /* Skip length information */
       break;
     }
     default:

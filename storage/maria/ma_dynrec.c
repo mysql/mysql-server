@@ -1138,10 +1138,14 @@ err:
 }
 
 
+/*
+  @brief Unpacks a record
 
-	/* Unpacks a record */
-	/* Returns -1 and my_errno =HA_ERR_RECORD_DELETED if reclength isn't */
-	/* right. Returns reclength (>0) if ok */
+  @return Recordlength
+  @retval >0  ok
+  @retval MY_FILE_ERROR (== -1)  Error.
+          my_errno is set to HA_ERR_WRONG_IN_RECORD
+*/
 
 ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
 		     ulong found_length)
@@ -1369,9 +1373,10 @@ void _ma_store_blob_length(uchar *pos,uint pack_length,uint length)
     part of the record.
 
   RETURN
-    0           OK
-    1          Error
+    0          OK
+    #          Error number
 */
+
 int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
                             MARIA_RECORD_POS filepos)
 {
@@ -1379,103 +1384,102 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
   uint b_type;
   MARIA_BLOCK_INFO block_info;
   File file;
+  uchar *to;
+  uint left_length;
   DBUG_ENTER("_ma_read_dynamic_record");
 
-  if (filepos != HA_OFFSET_ERROR)
+  if (filepos == HA_OFFSET_ERROR)
+    goto err;
+
+  LINT_INIT(to);
+  LINT_INIT(left_length);
+  file= info->dfile.file;
+  block_of_record= 0;   /* First block of record is numbered as zero. */
+  block_info.second_read= 0;
+  do
   {
-    uchar *to;
-    uint left_length;
-
-    LINT_INIT(to);
-    LINT_INIT(left_length);
-    file= info->dfile.file;
-    block_of_record= 0;   /* First block of record is numbered as zero. */
-    block_info.second_read= 0;
-    do
-    {      
-      /* A corrupted table can have wrong pointers. (Bug# 19835) */
-      if (filepos == HA_OFFSET_ERROR)
+    /* A corrupted table can have wrong pointers. (Bug# 19835) */
+    if (filepos == HA_OFFSET_ERROR)
+      goto panic;
+    if (info->opt_flag & WRITE_CACHE_USED &&
+        (info->rec_cache.pos_in_file < filepos +
+         MARIA_BLOCK_INFO_HEADER_LENGTH) &&
+        flush_io_cache(&info->rec_cache))
+      goto err;
+    info->rec_cache.seek_not_done=1;
+    if ((b_type= _ma_get_block_info(&block_info, file, filepos)) &
+        (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
+         BLOCK_FATAL_ERROR))
+    {
+      if (b_type & (BLOCK_SYNC_ERROR | BLOCK_DELETED))
+        my_errno=HA_ERR_RECORD_DELETED;
+      goto err;
+    }
+    if (block_of_record++ == 0)			/* First block */
+    {
+      if (block_info.rec_len > (uint) info->s->base.max_pack_length)
         goto panic;
-      if (info->opt_flag & WRITE_CACHE_USED &&
-	  (info->rec_cache.pos_in_file < filepos +
-           MARIA_BLOCK_INFO_HEADER_LENGTH) &&
-	  flush_io_cache(&info->rec_cache))
-	goto err;
-      info->rec_cache.seek_not_done=1;
-      if ((b_type= _ma_get_block_info(&block_info, file, filepos)) &
-	  (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
-           BLOCK_FATAL_ERROR))
+      if (info->s->base.blobs)
       {
-	if (b_type & (BLOCK_SYNC_ERROR | BLOCK_DELETED))
-	  my_errno=HA_ERR_RECORD_DELETED;
-	goto err;
-      }
-      if (block_of_record++ == 0)			/* First block */
-      {
-	if (block_info.rec_len > (uint) info->s->base.max_pack_length)
-	  goto panic;
-	if (info->s->base.blobs)
-	{
-	  if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
-                               block_info.rec_len +
-                               info->s->base.extra_rec_buff_size))
-	    goto err;
-	}
-        to= info->rec_buff;
-	left_length=block_info.rec_len;
-      }
-      if (left_length < block_info.data_len || ! block_info.data_len)
-	goto panic;			/* Wrong linked record */
-      /* copy information that is already read */
-      {
-        uint offset= (uint) (block_info.filepos - filepos);
-        uint prefetch_len= (sizeof(block_info.header) - offset);
-        filepos+= sizeof(block_info.header);
-        
-        if (prefetch_len > block_info.data_len)
-          prefetch_len= block_info.data_len;
-        if (prefetch_len)
-        {
-          memcpy((uchar*) to, block_info.header + offset, prefetch_len);
-          block_info.data_len-= prefetch_len;
-          left_length-= prefetch_len;
-          to+= prefetch_len;
-        }
-      }
-      /* read rest of record from file */
-      if (block_info.data_len)
-      {
-        if (info->opt_flag & WRITE_CACHE_USED &&
-            info->rec_cache.pos_in_file < filepos + block_info.data_len &&
-            flush_io_cache(&info->rec_cache))
+        if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
+                             block_info.rec_len +
+                             info->s->base.extra_rec_buff_size))
           goto err;
-        /*
-          What a pity that this method is not called 'file_pread' and that
-          there is no equivalent without seeking. We are at the right
-          position already. :(
-        */
-        if (info->s->file_read(info, (uchar*) to, block_info.data_len,
-                               filepos, MYF(MY_NABP)))
-          goto panic;
-        left_length-=block_info.data_len;
-        to+=block_info.data_len;
       }
-      filepos= block_info.next_filepos;
-    } while (left_length);
+      to= info->rec_buff;
+      left_length=block_info.rec_len;
+    }
+    if (left_length < block_info.data_len || ! block_info.data_len)
+      goto panic;			/* Wrong linked record */
+    /* copy information that is already read */
+    {
+      uint offset= (uint) (block_info.filepos - filepos);
+      uint prefetch_len= (sizeof(block_info.header) - offset);
+      filepos+= sizeof(block_info.header);
 
-    info->update|= HA_STATE_AKTIV;	/* We have a aktive record */
-    fast_ma_writeinfo(info);
-    DBUG_RETURN(_ma_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
-		MY_FILE_ERROR ? 0 : 1);
-  }
+      if (prefetch_len > block_info.data_len)
+        prefetch_len= block_info.data_len;
+      if (prefetch_len)
+      {
+        memcpy((uchar*) to, block_info.header + offset, prefetch_len);
+        block_info.data_len-= prefetch_len;
+        left_length-= prefetch_len;
+        to+= prefetch_len;
+      }
+    }
+    /* read rest of record from file */
+    if (block_info.data_len)
+    {
+      if (info->opt_flag & WRITE_CACHE_USED &&
+          info->rec_cache.pos_in_file < filepos + block_info.data_len &&
+          flush_io_cache(&info->rec_cache))
+        goto err;
+      /*
+        What a pity that this method is not called 'file_pread' and that
+        there is no equivalent without seeking. We are at the right
+        position already. :(
+      */
+      if (info->s->file_read(info, (uchar*) to, block_info.data_len,
+                             filepos, MYF(MY_NABP)))
+        goto panic;
+      left_length-=block_info.data_len;
+      to+=block_info.data_len;
+    }
+    filepos= block_info.next_filepos;
+  } while (left_length);
+
+  info->update|= HA_STATE_AKTIV;	/* We have a aktive record */
   fast_ma_writeinfo(info);
-  DBUG_RETURN(1);			/* Wrong data to read */
+  DBUG_RETURN(_ma_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
+              MY_FILE_ERROR ? 0 : my_errno);
+
+err:
+  fast_ma_writeinfo(info);
+  DBUG_RETURN(my_errno);
 
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
-err:
-  VOID(_ma_writeinfo(info,0));
-  DBUG_RETURN(1);
+  goto err;
 }
 
 	/* compare unique constraint between stored rows */
@@ -1655,7 +1659,7 @@ err:
 
   RETURN
     0           OK
-    != 0        Error
+    != 0        Error number
 */
 
 int _ma_read_rnd_dynamic_record(MARIA_HA *info,
@@ -1663,7 +1667,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
                                 MARIA_RECORD_POS filepos,
 				my_bool skip_deleted_blocks)
 {
-  int block_of_record, info_read, save_errno;
+  int block_of_record, info_read;
   uint left_len,b_type;
   uchar *to;
   MARIA_BLOCK_INFO block_info;
@@ -1827,9 +1831,8 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;		/* Something is fatal wrong */
 err:
-  save_errno=my_errno;
-  VOID(_ma_writeinfo(info,0));
-  DBUG_RETURN(my_errno=save_errno);
+  fast_ma_writeinfo(info);
+  DBUG_RETURN(my_errno);
 }
 
 

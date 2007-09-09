@@ -183,26 +183,25 @@ int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
     if (info->opt_flag & WRITE_CACHE_USED &&
 	info->rec_cache.pos_in_file <= pos &&
 	flush_io_cache(&info->rec_cache))
-      return(-1);
+      return(my_errno);
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
 
     error=info->s->file_read(info,(char*) record,info->s->base.reclength,
-                             pos, MYF(MY_NABP)) != 0;
-    fast_ma_writeinfo(info);
+                             pos, MYF(MY_NABP));
     if (! error)
     {
+      fast_ma_writeinfo(info);
       if (!*record)
       {
-	my_errno=HA_ERR_RECORD_DELETED;
-	return(1);				/* Record is deleted */
+        /* Record is deleted */
+	return ((my_errno=HA_ERR_RECORD_DELETED));
       }
       info->update|= HA_STATE_AKTIV;		/* Record is read */
       return(0);
     }
-    return(-1);					/* Error on read */
   }
   fast_ma_writeinfo(info);			/* No such record */
-  return(-1);
+  return(my_errno);
 }
 
 
@@ -264,13 +263,7 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
 
   if (! cache_read)			/* No cacheing */
   {
-    if ((error= _ma_read_static_record(info, buf, filepos)))
-    {
-      if (error > 0)
-	error=my_errno=HA_ERR_RECORD_DELETED;
-      else
-	error=my_errno;
-    }
+    error= _ma_read_static_record(info, buf, filepos);
     DBUG_RETURN(error);
   }
 

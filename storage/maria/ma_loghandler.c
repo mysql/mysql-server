@@ -4901,8 +4901,8 @@ my_bool translog_write_record(LSN *lsn,
   int rc;
   uint short_trid= trn->short_id;
   DBUG_ENTER("translog_write_record");
-  DBUG_PRINT("enter", ("type: %u  ShortTrID: %u",
-                       (uint) type, (uint)short_trid));
+  DBUG_PRINT("enter", ("type: %u  ShortTrID: %u  rec_len: %lu",
+                       (uint) type, (uint) short_trid, (ulong) rec_len));
 
   if (tbl_info)
   {
@@ -4995,9 +4995,7 @@ my_bool translog_write_record(LSN *lsn,
     be add
   */
   parts.total_record_length= parts.record_length;
-  DBUG_PRINT("info", ("record length: %lu  %lu",
-                      (ulong) parts.record_length,
-                      (ulong) parts.total_record_length));
+  DBUG_PRINT("info", ("record length: %lu", (ulong) parts.record_length));
 
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&

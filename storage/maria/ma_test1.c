@@ -252,6 +252,9 @@ static int run_test(const char *filename)
     exit(1);
   }
 
+  if (maria_commit(file) || maria_begin(file))
+    goto err;
+
   if (!skip_update)
   {
     if (opt_unique)
@@ -289,7 +292,7 @@ static int run_test(const char *filename)
     found=0;
     while ((error= maria_scan(file,read_record)) == 0)
     {
-      if (update_count-- == 0) { VOID(maria_close(file)) ; exit(0) ; }
+      if (--update_count == 0) { VOID(maria_close(file)) ; exit(0) ; }
       memcpy(record,read_record,rec_length);
       update_record(record);
       if (maria_update(file,read_record,record))
@@ -302,6 +305,18 @@ static int run_test(const char *filename)
     if (found != row_count)
       printf("Found %ld of %ld rows\n", (ulong) found, (ulong) row_count);
     maria_scan_end(file);
+  }
+
+  if (die_in_middle_of_transaction == 2)
+  {
+    /*
+      Ensure we get changed pages and log to disk
+      As commit record is not done, the undo entries needs to be rolled back.
+    */
+    _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                          FLUSH_RELEASE);
+    printf("Dying on request after update without maria_close()\n");
+    exit(1);
   }
 
   if (!silent)
@@ -356,7 +371,7 @@ static int run_test(const char *filename)
       }
     }
 
-    if (die_in_middle_of_transaction == 2)
+    if (die_in_middle_of_transaction == 3)
     {
       /*
         Ensure we get changed pages and log to disk
