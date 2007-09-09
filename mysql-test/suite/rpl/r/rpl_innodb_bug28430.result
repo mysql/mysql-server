@@ -101,10 +101,10 @@ SELECT count(*) as "Master regular" FROM test.regular_tbl;
 Master regular	500
 CALL test.proc_bykey();
 SELECT count(*) as "Master bykey" FROM test.bykey_tbl;
-Master bykey	811
+Master bykey	500
 CALL test.proc_byrange();
 SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
-Master byrange	996
+Master byrange	500
 show create table test.byrange_tbl;
 Table	byrange_tbl
 Create Table	CREATE TABLE `byrange_tbl` (
@@ -123,9 +123,9 @@ Master_User	root
 Master_Port	12000
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	776796
+Read_Master_Log_Pos	945644
 Relay_Log_File	slave-relay-bin.000003
-Relay_Log_Pos	776942
+Relay_Log_Pos	945790
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -138,8 +138,8 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	776796
-Relay_Log_Space	777097
+Exec_Master_Log_Pos	945644
+Relay_Log_Space	945945
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -158,9 +158,9 @@ Last_SQL_Error
 SELECT count(*) "Slave norm" FROM test.regular_tbl;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM test.bykey_tbl;
-Slave bykey	811
+Slave bykey	500
 SELECT count(*) "Slave byrange" FROM test.byrange_tbl;
-Slave byrange	996
+Slave byrange	500
 DROP PROCEDURE test.proc_norm;
 DROP PROCEDURE test.proc_bykey;
 DROP PROCEDURE test.proc_byrange;
