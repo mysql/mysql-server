@@ -3175,12 +3175,9 @@ end_with_restore_list:
     res= mysql_rm_db(thd, lex->name.str, lex->drop_if_exists, 0);
     break;
   }
-  case SQLCOM_RENAME_DB:
+  case SQLCOM_ALTER_DB_UPGRADE:
   {
-    LEX_STRING *olddb, *newdb;
-    List_iterator <LEX_STRING> db_list(lex->db_list);
-    olddb= db_list++;
-    newdb= db_list++;
+    LEX_STRING *db= & lex->name;
     if (end_active_trans(thd))
     {
       res= 1;
@@ -3188,24 +3185,22 @@ end_with_restore_list:
     }
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-       (!rpl_filter->db_ok(olddb->str) ||
-        !rpl_filter->db_ok(newdb->str) ||
-        !rpl_filter->db_ok_with_wild_table(olddb->str) ||
-        !rpl_filter->db_ok_with_wild_table(newdb->str)))
+       (!rpl_filter->db_ok(db->str) ||
+        !rpl_filter->db_ok_with_wild_table(db->str)))
     {
       res= 1;
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
     }
 #endif
-    if (check_db_name(newdb))
+    if (check_db_name(db))
     {
-      my_error(ER_WRONG_DB_NAME, MYF(0), newdb->str);
+      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd,ALTER_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,DROP_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
-        check_access(thd,CREATE_ACL,newdb->str,0,1,0,is_schema_db(newdb->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
     {
       res= 1;
       break;
@@ -3217,7 +3212,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res= mysql_rename_db(thd, olddb, newdb);
+
+    res= mysql_upgrade_db(thd, db);
     if (!res)
       send_ok(thd);
     break;
