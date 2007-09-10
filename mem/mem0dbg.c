@@ -554,9 +554,7 @@ completed:
 	}
 	*error = FALSE;
 }
-#endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
 
-#ifdef UNIV_DEBUG
 /******************************************************************
 Prints the contents of a memory heap. */
 static
@@ -583,20 +581,6 @@ mem_heap_print(
 }
 
 /******************************************************************
-Checks that an object is a memory heap (or a block of it). */
-
-ibool
-mem_heap_check(
-/*===========*/
-				/* out: TRUE if ok */
-	mem_heap_t*	heap)	/* in: memory heap */
-{
-	ut_a(heap->magic_n == MEM_BLOCK_MAGIC_N);
-
-	return(TRUE);
-}
-
-/******************************************************************
 Validates the contents of a memory heap. */
 
 ibool
@@ -619,6 +603,22 @@ mem_heap_validate(
 	}
 
 	ut_a(!error);
+
+	return(TRUE);
+}
+#endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
+
+#ifdef UNIV_DEBUG
+/******************************************************************
+Checks that an object is a memory heap (or a block of it). */
+
+ibool
+mem_heap_check(
+/*===========*/
+				/* out: TRUE if ok */
+	mem_heap_t*	heap)	/* in: memory heap */
+{
+	ut_a(heap->magic_n == MEM_BLOCK_MAGIC_N);
 
 	return(TRUE);
 }
