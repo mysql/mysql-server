@@ -118,9 +118,9 @@ static inline my_off_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
   return record_pos >> 8;
 }
 
-static inline my_off_t ma_recordpos_to_dir_entry(MARIA_RECORD_POS record_pos)
+static inline uint ma_recordpos_to_dir_entry(MARIA_RECORD_POS record_pos)
 {
-  return record_pos & 255;
+  return (uint) (record_pos & 255);
 }
 
 /* ma_blockrec.c */

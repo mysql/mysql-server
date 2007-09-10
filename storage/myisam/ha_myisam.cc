@@ -252,7 +252,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
     DBUG_PRINT("loop", ("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
                         (long) found, recpos, minpos, length));
     if (recpos != minpos)
-    { // Reserved space (Null bits?)
+    {
+      /* reserve space for null bits */
       bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
       recinfo_pos->type= (int) FIELD_NORMAL;
       recinfo_pos++->length= (uint16) (minpos - recpos);

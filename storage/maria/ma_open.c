@@ -314,7 +314,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
           HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
-          HA_OPTION_RELIES_ON_SQL_LAYER))
+          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
@@ -847,7 +847,8 @@ void _ma_setup_functions(register MARIA_SHARE *share)
       Calculate checksum according to data in the original, not compressed,
       row.
     */
-    if (share->state.header.org_data_file_type == STATIC_RECORD)
+    if (share->state.header.org_data_file_type == STATIC_RECORD &&
+        ! (share->options & HA_OPTION_NULL_FIELDS))
       share->calc_checksum= _ma_static_checksum;
     else
       share->calc_checksum= _ma_checksum;
@@ -881,7 +882,11 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     share->update_record= _ma_update_static_record;
     share->write_record= _ma_write_static_record;
     share->compare_unique= _ma_cmp_static_unique;
-    share->calc_checksum= share->calc_write_checksum= _ma_static_checksum;
+    if (share->state.header.org_data_file_type == STATIC_RECORD &&
+        ! (share->options & HA_OPTION_NULL_FIELDS))
+      share->calc_checksum= _ma_static_checksum;
+    else
+      share->calc_checksum= _ma_checksum;
     break;
   case BLOCK_RECORD:
     share->once_init= _ma_once_init_block_record;

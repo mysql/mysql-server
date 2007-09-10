@@ -119,6 +119,8 @@ static int run_test(const char *filename)
   recinfo[1].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
     recinfo[1].length+= HA_VARCHAR_PACKLENGTH(recinfo[1].length);
+  recinfo[1].null_bit= null_fields ? 2 : 0;
+
   if (opt_unique)
   {
     recinfo[2].type=FIELD_CHECK;
@@ -186,7 +188,7 @@ static int run_test(const char *filename)
     uniques=0;
 
   offset_to_key= test(null_fields);
-  if (key_field == FIELD_BLOB)
+  if (key_field == FIELD_BLOB || key_field == FIELD_VARCHAR)
     offset_to_key+= 2;
 
   if (!silent)
@@ -338,8 +340,7 @@ static int run_test(const char *filename)
       {
         fprintf(stderr,
                 "delete-rows number of rows deleted; Going down hard!\n");
-        VOID(maria_close(file));
-        exit(0) ;
+        goto end;
       }
       j=i*2;
       if (!flags[j])

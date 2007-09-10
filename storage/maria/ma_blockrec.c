@@ -1937,6 +1937,7 @@ static my_bool write_block_record(MARIA_HA *info,
     /* Update page directory */
     uint length= (uint) (data - row_pos->data);
     DBUG_PRINT("info", ("Used head length on page: %u", length));
+    DBUG_ASSERT(data <= end_of_data);
     if (length < info->s->base.min_row_length)
     {
       uint diff_length= info->s->base.min_row_length - length;
@@ -2517,7 +2518,9 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
                          blocks, blocks->block->org_bitmap_value != 0,
                          &row_pos, undo_lsn))
     DBUG_RETURN(1);                         /* Error reading bitmap */
-  DBUG_PRINT("exit", ("Rowid: %lu", (ulong) row->lastpos));
+  DBUG_PRINT("exit", ("Rowid: %lu (%lu:%u)", (ulong) row->lastpos,
+                      (ulong) ma_recordpos_to_page(row->lastpos),
+                      ma_recordpos_to_dir_entry(row->lastpos)));
   DBUG_RETURN(0);
 }
 
@@ -2790,7 +2793,8 @@ err:
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS record_pos,
                                 const uchar *orig_rec, const uchar *new_rec)
 {
-  return _ma_update_block_record2(info, record_pos, orig_rec, new_rec, 0);
+  return _ma_update_block_record2(info, record_pos, orig_rec, new_rec,
+                                  LSN_ERROR);
 }
 
 
@@ -3041,6 +3045,8 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
   page=          ma_recordpos_to_page(info->cur_row.lastpos);
   record_number= ma_recordpos_to_dir_entry(info->cur_row.lastpos);
+  DBUG_PRINT("enter", ("Rowid: %lu (%lu:%u)", (ulong) info->cur_row.lastpos,
+                       (ulong) page, record_number));
 
   if (delete_head_or_tail(info, page, record_number, 1, 0) ||
       delete_tails(info, info->cur_row.tail_positions))
@@ -4309,16 +4315,12 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     }
     case FIELD_VARCHAR:
     {
-      if (column->length <= 256)
-      {
+      if (column->fill_length == 1)
         column_length= *field_lengths;
-        field_lengths++;
-      }
       else
-      {
         column_length= uint2korr(field_lengths);
-        field_lengths+= 2;
-      }
+      field_lengths+= column->fill_length;
+      column_pos+= column->fill_length;
       break;
     }
     default:
@@ -4971,6 +4973,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   uint *null_field_lengths;
   ulong *blob_lengths;
   MARIA_COLUMNDEF *column, *end_column;
+  my_bool res;
   DBUG_ENTER("_ma_apply_undo_row_delete");
 
   /*
@@ -5003,11 +5006,9 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
     row.blob_length= ma_get_length((uchar**) &header);
 
   /* We need to build up a record (without blobs) in rec_buff */
-  if (_ma_alloc_buffer(&info->rec_buff, &info->rec_buff_size,
-                       length - row.blob_length))
+  if (!(record= my_malloc(share->base.reclength, MYF(MY_WME))))
     DBUG_RETURN(1);
 
-  record= info->rec_buff;
   memcpy(record, null_bits, share->base.null_bytes);
 
   /* Copy field information from header to record */
@@ -5073,21 +5074,22 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
       uchar *field_pos= record + column->offset;
 
       /* 256 is correct as this includes the length uchar */
-      if (column->length <= 256)
+      if (column->fill_length == 1)
       {
         field_pos[0]= *field_length_data;
-        length= (uint) *field_length_data++;
+        length= (uint) *field_length_data;
       }
       else
       {
         field_pos[0]= field_length_data[0];
         field_pos[1]= field_length_data[1];
         length= uint2korr(field_length_data);
-        field_length_data+= 2;
       }
+      field_length_data+= column->fill_length;
+      field_pos+= column->fill_length;
       row.varchar_length+= length;
       *null_field_lengths= length;
-      memcpy(record + column->offset, header, length);
+      memcpy(field_pos, header, length);
       header+= length;
       break;
     }
@@ -5122,7 +5124,9 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
 
   /* Row is now up to date. Time to insert the record */
 
-  DBUG_RETURN(allocate_and_write_block_record(info, record, &row, undo_lsn));
+  res= allocate_and_write_block_record(info, record, &row, undo_lsn);
+  my_free(record, MYF(0));
+  DBUG_RETURN(res);
 }
 
 

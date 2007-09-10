@@ -126,6 +126,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=1 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -137,7 +138,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  3536469224
+< Checksum:                  3697324514
 ---
 > Checksum:                           0
 11c11
@@ -204,6 +205,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=2 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -215,7 +217,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  3536469224
+< Checksum:                  3697324514
 ---
 > Checksum:                           0
 11c11
@@ -282,6 +284,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=3 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -293,7 +296,7 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  3536469224
+< Checksum:                  3697324514
 ---
 > Checksum:                           0
 11c11
@@ -319,7 +322,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -336,7 +339,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -353,13 +356,14 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=1 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -371,13 +375,13 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  1984748106
+< Checksum:                  4024695312
 ---
 > Checksum:                           0
 11c11
-< Datafile length:                57344  Keyfile length:                  16384
+< Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -397,7 +401,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -414,7 +418,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -431,13 +435,14 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=2 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -449,13 +454,13 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  1984748106
+< Checksum:                  4024695312
 ---
 > Checksum:                           0
 11c11
-< Datafile length:                57344  Keyfile length:                  16384
+< Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
@@ -516,6 +521,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+Terminating after update
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=3 (additional aborted work)
 terminating after deletes
 Dying on request without maria_commit()/maria_close()
@@ -527,13 +533,13 @@ applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
-< Checksum:                  1984748106
+< Checksum:                  4024695312
 ---
 > Checksum:                           0
 11c11
-< Datafile length:                57344  Keyfile length:                  16384
+< Datafile length:                49152  Keyfile length:                  16384
 ---
-> Datafile length:                57344  Keyfile length:                   8192
+> Datafile length:                49152  Keyfile length:                   8192
 18c18
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---

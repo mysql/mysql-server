@@ -3836,7 +3836,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
             if (param->testflag & T_VERBOSE)
             {
               char llbuff[22];
-              record_pos_to_txt(info, sort_param->filepos, llbuff);
+              record_pos_to_txt(info, info->cur_row.lastpos, llbuff);
               _ma_check_print_info(param,
                                    "Found record with wrong checksum at %s",
                                    llbuff);
@@ -3846,7 +3846,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           info->cur_row.checksum= checksum;
 	  param->glob_crc+= checksum;
         }
-        sort_param->filepos= info->cur_row.lastpos;
+        sort_param->start_recpos= sort_param->filepos= info->cur_row.lastpos;
         DBUG_RETURN(0);
       }
       if (flag == HA_ERR_END_OF_FILE)

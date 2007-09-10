@@ -131,6 +131,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     column->empty_pos= 0;
     column->empty_bit= 0;
     column->fill_length= column->length;
+    if (column->null_bit)
+      options|= HA_OPTION_NULL_FIELDS;
 
     reclength+= column->length;
     type= column->type;
@@ -664,14 +666,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.base.keystart = share.state.state.key_file_length=
     MY_ALIGN(info_length, maria_block_size);
-  if (share.data_file_type == BLOCK_RECORD)
-  {
-    /*
-      we are going to create a first bitmap page, set data_file_length
-      to reflect this, before the state goes to disk
-    */
-    share.state.state.data_file_length= maria_block_size;
-  }
   share.base.max_key_block_length= maria_block_size;
   share.base.max_key_length=ALIGN_SIZE(max_key_length+4);
   share.base.records=ci->max_rows;
@@ -683,11 +677,18 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   share.base.pack_bytes= pack_bytes;
   share.base.fields= columns;
   share.base.pack_fields= packed;
-#ifdef USE_RAID
-  share.base.raid_type=ci->raid_type;
-  share.base.raid_chunks=ci->raid_chunks;
-  share.base.raid_chunksize=ci->raid_chunksize;
-#endif
+
+  if (share.data_file_type == BLOCK_RECORD)
+  {
+    /*
+      we are going to create a first bitmap page, set data_file_length
+      to reflect this, before the state goes to disk
+    */
+    share.state.state.data_file_length= maria_block_size;
+    /* Add length of packed fields + length */
+    share.base.pack_reclength+= share.base.max_field_lengths+3;
+
+  }
 
   /* max_data_file_length and max_key_file_length are recalculated on open */
   if (tmp_table)
