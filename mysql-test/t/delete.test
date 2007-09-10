@@ -173,6 +173,19 @@ delete from t1 where (@a:= f1) order by f1 limit 1;
 select @a;
 drop table t1;
 
+# BUG#30385 "Server crash when deleting with order by and limit"
+CREATE TABLE t1 (
+  `date` date ,
+  `time` time ,
+  `seq` int(10) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`seq`),
+  KEY `seq` (`seq`),
+  KEY `time` (`time`),
+  KEY `date` (`date`)
+);
+DELETE FROM t1 ORDER BY date ASC, time ASC LIMIT 1;
+drop table t1;
+
 --echo End of 4.1 tests
 # End of 4.1 tests
 
