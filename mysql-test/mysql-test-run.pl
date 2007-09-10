@@ -1988,7 +1988,7 @@ sub remove_stale_vardir () {
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
-	rmtree(readlink($opt_vardir));
+	mtr_rmtree(readlink($opt_vardir));
 
 	# Remove the "var" symlink
 	mtr_verbose("unlink($opt_vardir)");
@@ -2016,7 +2016,7 @@ sub remove_stale_vardir () {
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
-	  rmtree($bin);
+	  mtr_rmtree($bin);
 	}
       }
     }
@@ -2024,7 +2024,7 @@ sub remove_stale_vardir () {
     {
       # Remove the entire "var" dir
       mtr_verbose("Removing $opt_vardir/");
-      rmtree("$opt_vardir/");
+      mtr_rmtree("$opt_vardir/");
     }
 
     if ( $opt_mem )
@@ -2033,7 +2033,7 @@ sub remove_stale_vardir () {
       # remove the $opt_mem dir to assure the symlink
       # won't point at an old directory
       mtr_verbose("Removing $opt_mem");
-      rmtree($opt_mem);
+      mtr_rmtree($opt_mem);
     }
 
   }
@@ -2046,11 +2046,11 @@ sub remove_stale_vardir () {
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
     mtr_verbose("Removing $default_vardir");
-    rmtree($default_vardir);
+    mtr_rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
-    rmtree("$opt_vardir/");
+    mtr_rmtree("$opt_vardir/");
   }
 }
 
@@ -2963,7 +2963,7 @@ sub restore_slave_databases ($) {
     {
       my $data_dir= $slave->[$idx]->{'path_myddir'};
       my $name= basename($data_dir);
-      rmtree($data_dir);
+      mtr_rmtree($data_dir);
       mtr_copy_dir("$path_snapshot/$name", $data_dir);
     }
   }
@@ -3310,7 +3310,7 @@ sub run_testcase ($) {
 sub save_installed_db () {
 
   mtr_report("Saving snapshot of installed databases");
-  rmtree($path_snapshot);
+  mtr_rmtree($path_snapshot);
 
   foreach my $data_dir (@data_dir_lst)
   {
@@ -3357,7 +3357,7 @@ sub restore_installed_db ($) {
     {
       my $name= basename($data_dir);
       save_files_before_restore($test_name, $data_dir);
-      rmtree("$data_dir");
+      mtr_rmtree("$data_dir");
       mtr_copy_dir("$path_snapshot/$name", "$data_dir");
     }
 
@@ -3367,7 +3367,7 @@ sub restore_installed_db ($) {
     {
       foreach my $ndbd (@{$cluster->{'ndbds'}})
       {
-	rmtree("$ndbd->{'path_fs'}" );
+	mtr_rmtree("$ndbd->{'path_fs'}" );
       }
     }
   }
@@ -3824,6 +3824,9 @@ sub mysqld_start ($$$) {
     # Default to not wait until pid file has been created
     $wait_for_pid_file= 0;
   }
+
+  # Remove the pidfile
+  unlink($mysqld->{'path_pid'});
 
   if ( defined $exe )
   {
