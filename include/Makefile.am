@@ -15,18 +15,17 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-# FIXME 'abi_check' should be in BUILT_SOURCES, disabled for now
 BUILT_SOURCES =		$(HEADERS_GEN) link_sources
 HEADERS_GEN =		mysql_version.h my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
-			my_list.h my_alloc.h typelib.h
+			my_list.h my_alloc.h typelib.h mysql/plugin.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h \
 		  	my_pthread.h my_no_pthread.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			m_ctype.h mysql/plugin.h my_attribute.h $(HEADERS_GEN)
+			m_ctype.h my_attribute.h $(HEADERS_GEN)
 noinst_HEADERS =	config-win.h config-netware.h \
 			heap.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -72,9 +71,8 @@ dist-hook:
 abi_check: $(HEADERS_ABI) mysql_version.h mysql_h.ic
 	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
-	  @ICHECK@ --compare mysql_h.ic $@.ic; \
-	  $(RM) -f $@.ic; \
+	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@ $(HEADERS_ABI); \
+	  @ICHECK@ --compare mysql_h.ic $@; \
 	fi; \
 	touch abi_check;
 

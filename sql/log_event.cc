@@ -5701,7 +5701,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #ifndef MYSQL_CLIENT
     m_table(NULL),
 #endif
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
+    m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     ,m_key(NULL), m_curr_row(NULL), m_curr_row_end(NULL)
 #endif
@@ -6247,7 +6247,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       wait (reached end of last relay log and nothing gets appended
       there), we timeout after one minute, and notify DBA about the
       problem.  When WL#2975 is implemented, just remove the member
-      Relay_log_info::last_event_start_time and all its occurences.
+      Relay_log_info::last_event_start_time and all its occurrences.
     */
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }

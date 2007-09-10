@@ -90,6 +90,15 @@ dict_mem_table_create(
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
+
+	/* The actual increment value will be set by MySQL, we simply
+	default to 1 here.*/
+	table->autoinc_increment = 1;
+
+	/* The number of transactions that are either waiting on the
+	AUTOINC lock or have been granted the lock. */
+	table->n_waiting_or_granted_auto_inc_locks = 0;
+
 #ifdef UNIV_DEBUG
 	table->magic_n = DICT_TABLE_MAGIC_N;
 #endif /* UNIV_DEBUG */
@@ -108,18 +117,11 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	mutex_free(&(table->autoinc_mutex));
-
-	if (table->col_names && (table->n_def < table->n_cols)) {
-		ut_free((void*)table->col_names);
-	}
-
 	mem_heap_free(table->heap);
 }
 
 /********************************************************************
-Add 'name' to end of the col_names array (see dict_table_t::col_names). Call
-ut_free on col_names (if not NULL), allocate new array (if heap, from it,
-otherwise with ut_malloc), and copy col_names + name to it. */
+Append 'name' to 'col_names' (@see dict_table_t::col_names). */
 static
 const char*
 dict_add_col_name(
@@ -129,21 +131,19 @@ dict_add_col_name(
 					NULL */
 	ulint		cols,		/* in: number of existing columns */
 	const char*	name,		/* in: new column name */
-	mem_heap_t*	heap)		/* in: heap, or NULL */
+	mem_heap_t*	heap)		/* in: heap */
 {
-	ulint		i;
-	ulint		old_len;
-	ulint		new_len;
-	ulint		total_len;
-	const char*	s;
-	char*		res;
+	ulint	old_len;
+	ulint	new_len;
+	ulint	total_len;
+	char*	res;
 
-	ut_a(((cols == 0) && !col_names) || ((cols > 0) && col_names));
-	ut_a(*name);
+	ut_ad(!cols == !col_names);
 
 	/* Find out length of existing array. */
 	if (col_names) {
-		s = col_names;
+		const char*	s = col_names;
+		ulint		i;
 
 		for (i = 0; i < cols; i++) {
 			s += strlen(s) + 1;
@@ -157,21 +157,13 @@ dict_add_col_name(
 	new_len = strlen(name) + 1;
 	total_len = old_len + new_len;
 
-	if (heap) {
-		res = mem_heap_alloc(heap, total_len);
-	} else {
-		res = ut_malloc(total_len);
-	}
+	res = mem_heap_alloc(heap, total_len);
 
 	if (old_len > 0) {
 		memcpy(res, col_names, old_len);
 	}
 
 	memcpy(res + old_len, name, new_len);
-
-	if (col_names) {
-		ut_free((char*)col_names);
-	}
 
 	return(res);
 }
@@ -183,7 +175,8 @@ void
 dict_mem_table_add_col(
 /*===================*/
 	dict_table_t*	table,	/* in: table */
-	const char*	name,	/* in: column name */
+	mem_heap_t*	heap,	/* in: temporary memory heap, or NULL */
+	const char*	name,	/* in: column name, or NULL */
 	ulint		mtype,	/* in: main datatype */
 	ulint		prtype,	/* in: precise type */
 	ulint		len)	/* in: precision */
@@ -191,21 +184,32 @@ dict_mem_table_add_col(
 	dict_col_t*	col;
 	ulint		mbminlen;
 	ulint		mbmaxlen;
-	mem_heap_t*	heap;
+	ulint		i;
 
-	ut_ad(table && name);
+	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(!heap == !name);
 
-	table->n_def++;
+	i = table->n_def++;
 
-	heap = table->n_def < table->n_cols ? NULL : table->heap;
-	table->col_names = dict_add_col_name(table->col_names,
-					     table->n_def - 1,
-					     name, heap);
+	if (name) {
+		if (UNIV_UNLIKELY(table->n_def == table->n_cols)) {
+			heap = table->heap;
+		}
+		if (UNIV_LIKELY(i) && UNIV_UNLIKELY(!table->col_names)) {
+			/* All preceding column names are empty. */
+			char* s = mem_heap_alloc(heap, table->n_def);
+			memset(s, 0, table->n_def);
+			table->col_names = s;
+		}
 
-	col = (dict_col_t*) dict_table_get_nth_col(table, table->n_def - 1);
+		table->col_names = dict_add_col_name(table->col_names,
+						     i, name, heap);
+	}
 
-	col->ind = table->n_def - 1;
+	col = (dict_col_t*) dict_table_get_nth_col(table, i);
+
+	col->ind = (unsigned int) i;
 	col->ord_part = 0;
 
 	col->mtype = (unsigned int) mtype;
@@ -318,7 +322,7 @@ dict_mem_index_add_field(
 {
 	dict_field_t*	field;
 
-	ut_ad(index && name);
+	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	index->n_def++;

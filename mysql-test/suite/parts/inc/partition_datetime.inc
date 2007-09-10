@@ -46,7 +46,7 @@ select * from t2;
 drop table t2;
 
 eval create table t3 (a datetime not null, primary key(a)) engine=$engine 
-partition by range (cast(month(a) as unsigned)) subpartition by key (a)
+partition by range (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values less than (4),
 partition quarter2 values less than (7),
@@ -66,7 +66,7 @@ select * from t3;
 drop table t3;
 
 eval create table t4 (a datetime not null, primary key(a)) engine=$engine 
-partition by list (cast(month(a) as unsigned)) subpartition by key (a)
+partition by list (month(a)) subpartition by key (a)
 subpartitions 3 (
 partition quarter1 values in (1,2,3),
 partition quarter2 values in (4,5,6),

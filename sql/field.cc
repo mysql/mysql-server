@@ -7796,10 +7796,8 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
   uint32 length=get_length();			// Length of from string
   if (length > max_length)
   {
-    ptr=to;
     length=max_length;
-    store_length(length);			// Store max length
-    ptr= (uchar*) from;
+    store_length(to,packlength,length,TRUE);
   }
   else
     memcpy(to,from,packlength);			// Copy length
@@ -7824,7 +7822,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 
    @param   to         Destination of the data
    @param   from       Source of the data
-   @param   param_data <not used>
+   @param   param_data not used
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -7838,8 +7836,8 @@ const uchar *Field_blob::unpack(uchar *to,
 
 const uchar *Field_blob::unpack(uchar *to, const uchar *from)
 {
-  memcpy(to,from,packlength);
   uint32 length=get_length(from);
+  memcpy(to,from,packlength);
   from+=packlength;
   if (length)
     memcpy_fixed(to+packlength, &from, sizeof(from));
