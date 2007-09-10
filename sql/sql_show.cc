@@ -2464,8 +2464,8 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
 
   @param[in]      thd                   thread handler
   @param[in]      cond                  WHERE condition
-  @param[in]      table                 I_S table
-  @param[in, out] lookup_field_vals     Struct which holds lookup values 
+  @param[in]      tables                I_S table
+  @param[in, out] lookup_field_values   Struct which holds lookup values 
 
   @return         void
 */
@@ -3620,8 +3620,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     col_access= get_column_grant(thd, &tables->grant, 
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
-    if (lex->sql_command != SQLCOM_SHOW_FIELDS  &&
-        !tables->schema_table && !col_access)
+    if (!tables->schema_table && !col_access)
       continue;
     end= tmp;
     for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
@@ -4414,6 +4413,12 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   {
     Table_triggers_list *triggers= tables->table->triggers;
     int event, timing;
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (check_table_access(thd, TRIGGER_ACL, tables, 1))
+      goto ret;
+#endif
+
     for (event= 0; event < (int)TRG_EVENT_MAX; event++)
     {
       for (timing= 0; timing < (int)TRG_ACTION_MAX; timing++)
@@ -4450,6 +4455,9 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+ret:
+#endif
   DBUG_RETURN(0);
 }
 
