@@ -12,6 +12,16 @@
 # Change:                                                                      #
 ################################################################################
 
+
+--echo
+--echo This test relies on the CAST() function for partitioning, which
+--echo is not allowed.  Not deleting it yet, as it may have some useful
+--echo bits in it.  See Bug #30581, "partition_value tests use disallowed
+--echo CAST() function"
+--echo
+
+--disable_parsing
+
 --echo
 --echo #========================================================================
 --echo #  Calculation of "exotic" results within the partition function
@@ -155,3 +165,5 @@ VALUES(NULL,NULL,NULL,NULL,NULL);
 eval SELECT COUNT(*) = 1 FROM t1 WHERE f_char2 IS NULL;
 DROP TABLE t1;
 #
+
+--enable_parsing

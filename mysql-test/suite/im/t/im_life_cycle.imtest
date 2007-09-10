@@ -1,3 +1,5 @@
+let $UTIL=$MYSQL_TEST_DIR/suite/im/t;
+
 ###########################################################################
 #
 # This file contains test for (1.1) test suite.
@@ -6,7 +8,7 @@
 #
 ###########################################################################
 
---source include/im_check_env.inc
+--source suite/im/t/im_check_env.inc
 
 ###########################################################################
 #
@@ -25,7 +27,7 @@
 
 START INSTANCE mysqld2;
 # FIXME: START INSTANCE should be synchronous.
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_life_cycle
+--exec $UTIL/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_life_cycle
 
 # FIXME: Result of SHOW INSTANCES here is not deterministic unless START
 # INSTANCE is synchronous. Even waiting for mysqld to start by looking at
@@ -58,7 +60,7 @@ SHOW VARIABLES LIKE 'port';
 
 STOP INSTANCE mysqld2;
 # FIXME: STOP INSTANCE should be synchronous.
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_life_cycle
+--exec $UTIL/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_life_cycle
 
 # FIXME: Result of SHOW INSTANCES here is not deterministic unless START
 # INSTANCE is synchronous. Even waiting for mysqld to start by looking at
@@ -121,7 +123,7 @@ STOP INSTANCE mysqld3;
 --echo -- 1.1.6.
 --echo --------------------------------------------------------------------
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted 30 im_life_cycle
+--exec $UTIL/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted 30 im_life_cycle
 
 # Give some time to IM to detect that mysqld was restarted. It should be
 # longer than monitoring interval.
@@ -143,7 +145,7 @@ SHOW INSTANCES;
 
 START INSTANCE mysqld2;
 # FIXME: START INSTANCE should be synchronous.
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_life_cycle
+--exec $UTIL/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_life_cycle
 
 # FIXME: Result of SHOW INSTANCES here is not deterministic unless START
 # INSTANCE is synchronous. Even waiting for mysqld to start by looking at
@@ -151,7 +153,7 @@ START INSTANCE mysqld2;
 # mysqld has started.
 # SHOW INSTANCES;
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed 10 im_life_cycle
+--exec $UTIL/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed 10 im_life_cycle
 
 # FIXME: Result of SHOW INSTANCES here is not deterministic unless START
 # INSTANCE is synchronous. Even waiting for mysqld to start by looking at

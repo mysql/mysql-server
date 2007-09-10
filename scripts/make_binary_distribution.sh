@@ -212,7 +212,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
 if [ $BASE_SYSTEM = "netware" ] ; then
   BIN_FILES="$BIN_FILES \
     netware/mysqld_safe$BS netware/mysql_install_db$BS \
-    netware/init_db.sql netware/test_db.sql$BS \
+    netware/init_db.sql netware/test_db.sql \
     netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql \
     ";
 # For all other platforms:

@@ -16,6 +16,12 @@
 #ifndef SLAVE_H
 #define SLAVE_H
 
+/**
+  @defgroup Replication Replication
+  @{
+
+  @file
+*/
 #ifdef HAVE_REPLICATION
 
 #include "log.h"
@@ -209,6 +215,8 @@ extern I_List<THD> threads;
 #define SLAVE_IO  1
 #define SLAVE_SQL 2
 
+/**
+  @} (end of group Replication)
+*/
+
 #endif
-
-

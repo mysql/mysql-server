@@ -156,8 +156,8 @@ if ($run)
 #             partitioning mechanism.
 #       Sideeffect: Attempt to INSERT one record
 #             DUPLICATE KEY will appear if we have UNIQUE columns
-#                 1022: Can't write; duplicate key in table 't1' UIDX/PK(f_int1)
-#                 1062: Duplicate entry '2' for key 1 UIDX/PK(f_int2)
+#                 1022: ER_DUP_KEY
+#                 1062: ER_DUP_ENTRY
 --disable_abort_on_error
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
@@ -200,7 +200,8 @@ if ($any_unique)
    ## 1.3.1  Check, if f_int1 is UNIQUE
    #       Sideeffect: Attempt to INSERT one record
    #             DUPLICATE KEY will appear if we have UNIQUE columns
-   #                 1022: Can't write; duplicate key in table 't1' UIDX/PK
+   #                 1022: ER_DUP_KEY
+   #                 1062: ER_DUP_ENTRY
    --disable_abort_on_error
    INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
    SELECT f_int1, 2 * @max_row + f_int1, CAST((2 * @max_row + f_int1) AS CHAR),
@@ -494,8 +495,9 @@ WHERE f_charbig = '#SINGLE#' AND f_int1 IN (-1,@cur_value);
 # 4.7  Insert one record with such a big value for f_int1, so that in case
 #      - f_int1 is used within the partitioning algorithm
 #      - we use range partitioning
-#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE (1514)
+#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE (1523)
 #         "Table has no partition for value ...."
+#      or ER_SAME_NAME_PARTITION (1514)
 --disable_abort_on_error
 eval INSERT INTO t1 SET f_int1 = @max_int_4 , f_int2 = @max_int_4, f_charbig = '#$max_int_4##';
 --enable_abort_on_error
@@ -504,11 +506,11 @@ if ($no_debug)
 --disable_query_log
 }
 eval SET @my_errno = $mysql_errno;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1505,1514)`;
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1514,1523)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1514
+   --echo #      Expected/handled SQL codes are 0,1514,1523
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -555,8 +557,8 @@ INSERT t1 SET f_int1 = 0 , f_int2 = 0,
 #      f1 "=" NULL is a delicate value which might stress the partitioning
 #      mechanism if the result of the expression in the partitioning algorithm
 #      becomes NULL.
-#      Not: This INSERT will fail, if f_int1 is PRIMARY KEY or UNIQUE INDEX
-#           1048: Column 'f_int1' cannot be null
+#      This INSERT will fail, if f_int1 is PRIMARY KEY or UNIQUE INDEX
+#           1048: ER_BAD_NULL_ERROR
 --disable_abort_on_error
 
 INSERT INTO t1

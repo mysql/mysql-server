@@ -199,3 +199,11 @@ drop function func_26093_a;
 drop function func_26093_b;
 
 --echo End of 5.0 tests
+
+#
+# Bug #30389: connection_id() always return 0 in embedded server
+#
+
+select connection_id() > 0;
+
+--echo End of tests

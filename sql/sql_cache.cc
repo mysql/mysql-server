@@ -749,6 +749,12 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
+  if (thd->killed)
+  {
+    query_cache_abort(&thd->net);
+    DBUG_VOID_RETURN;
+  }
+
 #ifdef EMBEDDED_LIBRARY
   query_cache_insert(&thd->net, (char*)thd, 
                      emb_count_querycache_size(thd));
@@ -775,28 +781,31 @@ void query_cache_end_of_result(THD *thd)
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
     Query_cache_query *header= query_block->query();
-    Query_cache_block *last_result_block= header->result()->prev;
-    ulong allign_size= ALIGN_SIZE(last_result_block->used);
-    ulong len= max(query_cache.min_allocation_unit, allign_size);
-    if (last_result_block->length >= query_cache.min_allocation_unit + len)
-      query_cache.split_block(last_result_block,len);
+    Query_cache_block *last_result_block;
+    ulong allign_size;
+    ulong len;
 
-#ifndef DBUG_OFF
     if (header->result() == 0)
     {
-      DBUG_PRINT("error", ("end of data whith no result. query '%s'",
-                           header->query()));
-      query_cache.wreck(__LINE__, "");
-
+      DBUG_PRINT("error", ("End of data with no result blocks; "
+                           "Query '%s' removed from cache.", header->query()));
       /*
-        We do not need call of BLOCK_UNLOCK_WR(query_block); here because
-        query_cache.wreck() switched query cache off but left content
-        untouched for investigation (it is debugging method).
+        Extra safety: empty result should not happen in the normal call
+        to this function. In the release version that query should be ignored
+        and removed from QC.
       */
+      DBUG_ASSERT(0);
+      query_cache.free_query(query_block);
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
       DBUG_VOID_RETURN;
     }
-#endif
+
+    last_result_block= header->result()->prev;
+    allign_size= ALIGN_SIZE(last_result_block->used);
+    len= max(query_cache.min_allocation_unit, allign_size);
+    if (last_result_block->length >= query_cache.min_allocation_unit + len)
+      query_cache.split_block(last_result_block,len);
+
     header->found_rows(current_thd->limit_found_rows);
     header->result()->type= Query_cache_block::RESULT;
 
@@ -3222,14 +3231,42 @@ void Query_cache::double_linked_list_join(Query_cache_block *head_tail,
     >0  number of tables
 */
 
-static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
-                                                   uint8 *tables_type)
+TABLE_COUNTER_TYPE
+Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
+                                      uint8 *tables_type)
 {
   DBUG_ENTER("process_and_count_tables");
   TABLE_COUNTER_TYPE table_count = 0;
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
+#ifdef HAVE_QUERY_CACHE
+    /*
+      Disable any attempt to store this statement if there are
+      column level grants on any referenced tables.
+      The grant.want_privileges flag was set to 1 in the
+      check_grant() function earlier if the TABLE_LIST object
+      had any associated column privileges.
+
+      We need to check that the TABLE_LIST object isn't part
+      of a VIEW definition because we want to be able to cache
+      views.
+
+      TODO: Although it is possible to cache views, the privilege
+      check on view tables always fall back on column privileges
+      even if there are more generic table privileges. Thus it isn't
+      currently possible to retrieve cached view-tables unless the
+      client has the super user privileges.
+    */
+    if (tables_used->grant.want_privilege &&
+        tables_used->belong_to_view == NULL)
+    {
+      DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
+                            "tables with column privileges."));
+      thd->lex->safe_to_cache_query= 0;
+      DBUG_RETURN(0);
+    }
+#endif
     if (tables_used->view)
     {
       DBUG_PRINT("qcache", ("view: %s  db: %s",
@@ -3307,7 +3344,8 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
                           (long) lex->select_lex.options,
                           (int) thd->variables.query_cache_type));
 
-    if (!(table_count= process_and_count_tables(tables_used, tables_type)))
+    if (!(table_count= process_and_count_tables(thd, tables_used,
+                                                tables_type)))
       DBUG_RETURN(0);
 
     if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
