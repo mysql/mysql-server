@@ -7226,11 +7226,12 @@ On return if there is no error then the tables AUTOINC lock is locked.*/
 
 ulong
 ha_innobase::innobase_get_auto_increment(
+/*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
 	ulint		error;
 
-	ut_a(*value == 0);
+	*value = 0;
 
 	/* Note: If the table is not initialized when we attempt the
 	read below. We initialize the table's auto-inc counter  and
@@ -7292,7 +7293,7 @@ we have a table-level lock). offset, increment, nb_desired_values are ignored.
 
 void
 ha_innobase::get_auto_increment(
-/*=================================*/
+/*============================*/
         ulonglong	offset,              /* in: */
         ulonglong	increment,           /* in: table autoinc increment */
         ulonglong	nb_desired_values,   /* in: number of values reqd */
@@ -7384,7 +7385,9 @@ ha_innobase::get_auto_increment(
 
 /* See comment in handler.h */
 int
-ha_innobase::reset_auto_increment(ulonglong value)
+ha_innobase::reset_auto_increment(
+/*==============================*/
+	ulonglong	value)		/* in: new value for table autoinc */
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
 
