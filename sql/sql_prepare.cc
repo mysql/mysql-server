@@ -1799,7 +1799,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_UNINSTALL_PLUGIN:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
-  case SQLCOM_RENAME_DB:
+  case SQLCOM_ALTER_DB_UPGRADE:
   case SQLCOM_CHECKSUM:
   case SQLCOM_CREATE_USER:
   case SQLCOM_RENAME_USER:
