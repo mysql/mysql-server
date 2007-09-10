@@ -6427,6 +6427,9 @@ ha_innobase::start_stmt(
 
 	innobase_release_stat_resources(trx);
 
+	/* Reset the AUTOINC statement level counter for multi-row INSERTs. */
+	trx->n_autoinc_rows = 0;
+
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	reset_template(prebuilt);
@@ -7339,6 +7342,11 @@ ha_innobase::innobase_get_auto_increment(
 {
 	ulint		error;
 
+	ut_a(*value == 0);
+
+	/* Note: If the table is not initialized when we attempt the
+	read below. We initialize the table's auto-inc counter  and
+	always do a reread of the AUTOINC value. */
 	do {
 		error = innobase_autoinc_lock();
 
@@ -7403,6 +7411,7 @@ ha_innobase::get_auto_increment(
         ulonglong	*first_value,        /* out: the autoinc value */
         ulonglong	*nb_reserved_values) /* out: count of reserved values */
 {
+	trx_t*		trx;
 	ulint		error;
 	ulonglong	autoinc = 0;
 
@@ -7429,37 +7438,34 @@ ha_innobase::get_auto_increment(
 	this method for the same statement results in different values which
 	don't make sense. Therefore we store the value the first time we are
 	called and count down from that as rows are written (see write_row()).
+	*/
 
-	We make one exception, if the *first_value is precomputed by MySQL
-	we use that value. And set the number of reserved values to 1 if
-	this is the first time we were called for the SQL statement, this
-	will force MySQL to call us for the next value. If we are in the
-	middle of a multi-row insert we preserve the existing counter.*/
-	if (*first_value == 0) {
+	trx = prebuilt->trx;
 
-		/* Called for the first time ? */
-		if (prebuilt->trx->n_autoinc_rows == 0) {
+	/* Note: We can't rely on *first_value since some MySQL engines,
+	in particular the partition engine, don't initialize it to 0 when
+	invoking this method. So we are not sure if it's guaranteed to
+	be 0 or not. */
 
-			prebuilt->trx->n_autoinc_rows = nb_desired_values;
+	/* Called for the first time ? */
+	if (trx->n_autoinc_rows == 0) {
 
-			/* It's possible for nb_desired_values to be 0:
-			e.g., INSERT INTO T1(C) SELECT C FROM T2; */
-			if (nb_desired_values == 0) {
+		trx->n_autoinc_rows = nb_desired_values;
 
-				++prebuilt->trx->n_autoinc_rows;
-			}
+		/* It's possible for nb_desired_values to be 0:
+		e.g., INSERT INTO T1(C) SELECT C FROM T2; */
+		if (nb_desired_values == 0) {
+
+			trx->n_autoinc_rows = 1;
 		}
 
 		*first_value = autoinc;
-
-	} else if (prebuilt->trx->n_autoinc_rows == 0) {
-
-		prebuilt->trx->n_autoinc_rows = 1;
+	/* Not in the middle of a mult-row INSERT. */
+	} else if (prebuilt->last_value == 0) {
+		*first_value = autoinc;
 	}
 
-	ut_a(prebuilt->trx->n_autoinc_rows > 0);
-
-	*nb_reserved_values = prebuilt->trx->n_autoinc_rows;
+	*nb_reserved_values = trx->n_autoinc_rows;
 
 	/* With old style AUTOINC locking we only update the table's
 	AUTOINC counter after attempting to insert the row. */
