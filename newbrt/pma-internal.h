@@ -61,6 +61,12 @@ void __pma_update_my_cursors(PMA pma, struct kv_pair_tag *tpairs, int n);
 void __pma_delete_at(PMA pma, int here);
 
 /*
+ * if the pma entry at here is deleted and there are no more references to it
+ * then finish the deletion
+ */
+void __pma_delete_resume(PMA pma, int here);
+
+/*
  * finish a deletion from the pma. called when there are no cursor references
  * to the kv pair.
  */

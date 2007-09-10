@@ -390,8 +390,7 @@ int pma_cursor_set_position_prev (PMA_CURSOR c) {
     c->position--;
     while (c->position >= 0) {
         if (kv_pair_valid(pma->pairs[c->position])) {
-            if (old_position >= 0 && kv_pair_deleted(pma->pairs[old_position]) &&__pma_count_cursor_refs(pma, old_position) == 0)
-                __pma_delete_finish(pma, old_position);
+            __pma_delete_resume(pma, old_position);
             return 0;
         }
         c->position--;
@@ -416,8 +415,7 @@ int pma_cursor_set_position_next (PMA_CURSOR c) {
     c->position++;
     while (c->position<pma->N) {
 	if (kv_pair_valid(c->pma->pairs[c->position])) {
-            if (old_position >= 0 && kv_pair_deleted(pma->pairs[old_position]) && __pma_count_cursor_refs(pma, old_position) == 0)
-                __pma_delete_finish(pma, old_position);
+            __pma_delete_resume(pma, old_position);
             return 0;
 	}
         c->position++;
@@ -438,6 +436,40 @@ int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val) {
     return 0;
 }
 
+int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
+    PMA pma = c->pma;
+    int here = pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=pma_index_limit(pma));
+    if (here==pma_index_limit(pma)) 
+        return DB_NOTFOUND;
+    DBT k2;
+    struct kv_pair *pair = pma->pairs[here];
+    if (kv_pair_valid(pair) && pma->compare_fun(db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
+        __pma_delete_resume(c->pma, c->position);
+        c->position = here;
+        return 0;
+    } else
+        return DB_NOTFOUND;
+}
+
+int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
+    PMA pma = c->pma;
+    int here = pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=pma_index_limit(pma));
+
+    /* find the first valid pair where key[here] >= key */
+    while (here < pma->N) {
+        struct kv_pair *pair = pma->pairs[here];
+        if (kv_pair_valid(pair)) {
+            __pma_delete_resume(c->pma, c->position);
+            c->position = here;
+            return 0;
+        }
+        here += 1;
+    }
+
+    return DB_NOTFOUND;
+}
 
 #if 0
 int pma_cget_first (PMA_CURSOR c, YBT *key, YBT *val) {
@@ -611,6 +643,11 @@ int pma_delete (PMA pma, DBT *k, DB *db) {
     if (__pma_count_cursor_refs(pma, l) == 0)
         __pma_delete_finish(pma, l);
     return BRT_OK;
+}
+
+void __pma_delete_resume(PMA pma, int here) {
+    if (here >= 0 && kv_pair_deleted(pma->pairs[here]) &&__pma_count_cursor_refs(pma, here) == 0)
+        __pma_delete_finish(pma, here);
 }
 
 void __pma_delete_finish(PMA pma, int here) {
