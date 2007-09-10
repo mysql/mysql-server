@@ -1639,6 +1639,8 @@ public:
   char *record;
   enum_duplicates dup;
   time_t start_time;
+  ulong sql_mode;
+  bool auto_increment_field_not_null;
   bool query_start_used, ignore, log_query;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
@@ -2141,6 +2143,9 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   /* Copy session variables. */
   row->auto_increment_increment= thd->variables.auto_increment_increment;
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  row->sql_mode=                 thd->variables.sql_mode;
+  row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
   {
@@ -2555,10 +2560,13 @@ bool Delayed_insert::handle_inserts(void)
     thd.stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
       row->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
     table->timestamp_field_type= row->timestamp_field_type;
+    table->auto_increment_field_not_null= row->auto_increment_field_not_null;
 
     /* Copy the session variables. */
     thd.variables.auto_increment_increment= row->auto_increment_increment;
     thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    thd.variables.sql_mode=                 row->sql_mode;
+
     /* Copy a forced insert_id, if any. */
     if (row->forced_insert_id)
     {
