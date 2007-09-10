@@ -75,7 +75,7 @@ int pma_cursor_free (PMA_CURSOR*);
  * get the pma that a pma cursor is bound to
  *
  * c - the pma cursor
- * pma - the location that the bound pma is returned
+ * pma - the pma that the cursor is bound to
  */
 int pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
 int pma_cursor_set_position_last (PMA_CURSOR c);
@@ -83,6 +83,12 @@ int pma_cursor_set_position_first (PMA_CURSOR c);
 int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
 int pma_cursor_set_position_prev (PMA_CURSOR c);
 int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val);
+
+/* set the cursor by key */
+int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
+
+/* set the cursor to the smallest key >= requested key */
+int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
 
 /*
  * Get the last key and value in the pma
