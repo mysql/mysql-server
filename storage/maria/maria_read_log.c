@@ -171,8 +171,8 @@ get_one_option(int optid __attribute__((unused)),
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
     break;
-  }
 #endif
+  }
   return 0;
 }
 

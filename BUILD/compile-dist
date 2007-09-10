@@ -50,6 +50,7 @@ fi
   --with-blackhole-storage-engine \
   --with-csv-storage-engine \
   --with-example-storage-engine \
+  --with-maria-storage-engine \
   --with-federated-storage-engine \
   --with-innodb \
   --with-ssl \

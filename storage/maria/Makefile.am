@@ -61,7 +61,7 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_ft_eval.h trnman.h lockman.h tablockman.h \
 			ma_control_file.h ha_maria.h ma_blockrec.h \
 			ma_loghandler.h ma_loghandler_lsn.h ma_pagecache.h \
-			ma_recovery.h ma_commit.h
+			ma_recovery.h ma_commit.h trnman_public.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
