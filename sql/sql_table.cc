@@ -5451,9 +5451,13 @@ TABLE *create_altered_table(THD *thd,
     my_casedn_str(files_charset_info, tmp_name);
   altered_create_info.options&= ~HA_LEX_CREATE_TMP_TABLE;
   altered_create_info.frm_only= 1;
-  error= create_temporary_table(thd, table, new_db, tmp_name,
-                                &altered_create_info,
-                                alter_info, db_change);
+  if ((error= create_temporary_table(thd, table, new_db, tmp_name,
+                                     &altered_create_info,
+                                     alter_info, db_change)))
+  {
+    DBUG_PRINT("info", ("Error %u while creating temporary table", error));
+    DBUG_RETURN(NULL);
+  };
 
   build_table_filename(path, sizeof(path), new_db, tmp_name, "",
                        FN_IS_TMP);
@@ -6612,8 +6616,12 @@ view_err:
 
 
   /* Create a temporary table with the new format */
-  error= create_temporary_table(thd, table, new_db, tmp_name, create_info,
-                                alter_info, !strcmp(db, new_db));
+  if ((error= create_temporary_table(thd, table, new_db, tmp_name, 
+                                     create_info, alter_info, 
+                                     !strcmp(db, new_db))))
+  {
+    goto err;
+  }
 
   /* Open the table so we need to copy the data to it. */
   if (table->s->tmp_table)
