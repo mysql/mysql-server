@@ -2347,8 +2347,8 @@ static my_bool write_block_record(MARIA_HA *info,
         in the first/second case, Recovery, when it sees the CLR_END in the
         REDO phase, may decrement/increment the records' count.
       */
-      /** @todo when Monty has UNDO_UPDATE coded, revisit this */
-      log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE]= LOGREC_UNDO_ROW_DELETE;
+      log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE]= old_record ?
+        LOGREC_UNDO_ROW_UPDATE : LOGREC_UNDO_ROW_DELETE;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 

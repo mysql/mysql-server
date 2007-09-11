@@ -73,7 +73,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 Testing the REDO AND UNDO PHASE
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 --test-undo=1 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -126,9 +126,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=1 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -139,6 +139,61 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
 < Checksum:                  3697324514
+---
+> Checksum:                           0
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=1 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                  3026590807
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                  3026590807
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
 ---
 > Checksum:                           0
 11c11
@@ -152,7 +207,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 --test-undo=2 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -205,9 +260,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=2 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -218,6 +273,61 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
 < Checksum:                  3697324514
+---
+> Checksum:                           0
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=2 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                  3026590807
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                  3026590807
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
 ---
 > Checksum:                           0
 11c11
@@ -231,7 +341,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 --test-undo=3 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -284,9 +394,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=3 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -308,9 +418,64 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=3 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                           0
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                           0
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                  2428948025
+---
+> Checksum:                           0
+11c11
+< Datafile length:                16384  Keyfile length:                  16384
+---
+> Datafile length:                16384  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  number NULL                    0         8192       8192
+---
+> 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=1 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -363,9 +528,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=1 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -376,6 +541,61 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
 < Checksum:                  4024695312
+---
+> Checksum:                           0
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=1 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                   800025671
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                   800025671
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
 ---
 > Checksum:                           0
 11c11
@@ -389,7 +609,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=2 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -442,9 +662,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=2 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -455,6 +675,61 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
 < Checksum:                  4024695312
+---
+> Checksum:                           0
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=2 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                   800025671
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                   800025671
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
 ---
 > Checksum:                           0
 11c11
@@ -468,7 +743,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=3 (additional aborted work)
-terminating after inserts
+Terminating after inserts
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -521,9 +796,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
-Terminating after update
+Terminating after updates
 TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=3 (additional aborted work)
-terminating after deletes
+Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
 testing idempotency
@@ -534,6 +809,61 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 7c7
 < Checksum:                  4024695312
+---
+> Checksum:                           0
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+Terminating after inserts
+TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=3 (additional aborted work)
+Terminating after updates
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                           0
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
+---
+> Checksum:                           0
+11c11
+< Datafile length:                49152  Keyfile length:                  16384
+---
+> Datafile length:                49152  Keyfile length:                   8192
+18c18
+< 1   2     6   unique  varchar BLOB NULL              0         8192       8192
+---
+> 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+7c7
+< Checksum:                   529753687
 ---
 > Checksum:                           0
 11c11

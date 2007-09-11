@@ -979,6 +979,8 @@ prototype_redo_exec_hook(CLR_END)
     case LOGREC_UNDO_ROW_INSERT:
       info->s->state.state.records--;
       break;
+    case LOGREC_UNDO_ROW_UPDATE:
+      break;
     default:
       DBUG_ASSERT(0);
     }
