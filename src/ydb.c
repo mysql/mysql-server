@@ -260,7 +260,8 @@ struct __toku_dbc_internal {
 };
 			  
 int __toku_c_get (DBC *c, DBT *key, DBT *data, u_int32_t flag) {
-    return brt_c_get(c->i->c, key, data, flag);
+    int r = brt_c_get(c->i->c, key, data, flag);
+    return r;
 }
 
 int __toku_c_close (DBC *c) {
@@ -270,8 +271,8 @@ int __toku_c_close (DBC *c) {
 }
 
 int __toku_c_del (DBC *c, u_int32_t flags) {
-    barf();
-    return 0;
+    int r = brt_cursor_delete(c->i->c, flags);
+    return r;
 }
 
 int __toku_db_cursor (DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
@@ -289,14 +290,15 @@ int __toku_db_cursor (DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
     return 0;
 }
 
-int  __toku_db_del (DB *db, DB_TXN *txn, DBT *dbt, u_int32_t flags) {
-  barf();
-  abort();
+int  __toku_db_del (DB *db, DB_TXN *txn __attribute__((unused)), DBT *key, u_int32_t flags __attribute((unused))) {
+    int r = brt_delete(db->i->brt, key, db);
+    return r;
 }
   
-int  __toku_db_get (DB *db, DB_TXN *txn, DBT *dbta, DBT *dbtb, u_int32_t flags) {
-  barf();
-  abort();
+int  __toku_db_get (DB *db, DB_TXN *txn __attribute__((unused)), DBT *key, DBT *data, u_int32_t flags) {
+    assert(flags == 0);
+    int r = brt_lookup(db->i->brt, key, data, db);
+    return r;
 }
 
 int  __toku_db_key_range (DB *db, DB_TXN *txn, DBT *dbt, DB_KEY_RANGE *kr, u_int32_t flags) {
@@ -371,8 +373,8 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
     assert(r==0);
     return 0;
 }
-int  __toku_db_put (DB *db, DB_TXN *txn, DBT *dbta, DBT *dbtb, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, dbta, dbtb, db);
+int  __toku_db_put (DB *db, DB_TXN *txn, DBT *key, DBT *data, u_int32_t flags) {
+    int r = brt_insert(db->i->brt, key, data, db);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
