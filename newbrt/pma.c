@@ -376,12 +376,21 @@ int pma_cursor_get_pma(PMA_CURSOR c, PMA *pmap) {
 
 int pma_cursor_set_position_last (PMA_CURSOR c) {
     PMA pma = c->pma;
+    int result = 0;
+    int old_position = c->position;
     c->position=pma->N-1;
     while (!kv_pair_valid(c->pma->pairs[c->position])) {
-	if (c->position>0) c->position--;
-	else return DB_NOTFOUND;
+	if (c->position>0) 
+            c->position--;
+	else {
+            c->position = -1;
+            result = DB_NOTFOUND;
+            break;
+        } 
     }
-    return 0;
+    if (old_position != c->position)
+        __pma_delete_resume(pma, old_position);
+    return result;
 }
 
 int pma_cursor_set_position_prev (PMA_CURSOR c) {
@@ -401,12 +410,21 @@ int pma_cursor_set_position_prev (PMA_CURSOR c) {
 
 int pma_cursor_set_position_first (PMA_CURSOR c) {
     PMA pma = c->pma;
+    int result = 0;
+    int old_position = c->position;
     c->position=0;
     while (!kv_pair_valid(c->pma->pairs[c->position])) {
-	if (c->position+1<pma->N) c->position++;
-	else return DB_NOTFOUND;
+	if (c->position+1<pma->N) 
+            c->position++;
+	else {
+            c->position = -1;
+            result =DB_NOTFOUND;
+            break;
+        }
     }
-    return 0;
+    if (old_position != c->position)
+        __pma_delete_resume(pma, old_position);
+    return result;
 }
     
 int pma_cursor_set_position_next (PMA_CURSOR c) {
