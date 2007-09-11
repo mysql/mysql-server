@@ -59,8 +59,8 @@ ma_test_loghandler_first_lsn_t_SOURCES = ma_test_loghandler_first_lsn-t.c ma_mar
 ma_test_loghandler_max_lsn_t_SOURCES = ma_test_loghandler_max_lsn-t.c ma_maria_log_cleanup.c
 ma_test_loghandler_purge_t_SOURCES = ma_test_loghandler_purge-t.c ma_maria_log_cleanup.c
 
-ma_pagecache_single_src =	ma_pagecache_single.c test_file.c
-ma_pagecache_consist_src =	ma_pagecache_consist.c test_file.c
+ma_pagecache_single_src =	ma_pagecache_single.c test_file.c test_file.h
+ma_pagecache_consist_src =	ma_pagecache_consist.c test_file.c test_file.h
 ma_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 
 ma_pagecache_single_1k_t_SOURCES =	$(ma_pagecache_single_src)
