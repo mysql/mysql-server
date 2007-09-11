@@ -23,8 +23,7 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
-struct st_relay_log_info;
-typedef st_relay_log_info RELAY_LOG_INFO;
+class Relay_log_info;
 
 class Query_log_event;
 class Load_log_event;
@@ -424,6 +423,8 @@ typedef struct system_status_var
 
 #define last_system_status_var com_stmt_close
 
+void mark_transaction_to_rollback(THD *thd, bool all);
+
 #ifdef MYSQL_SERVER
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -591,6 +592,22 @@ public:
   char *query;
   uint32 query_length;                          // current query length
   Server_side_cursor *cursor;
+
+  /**
+    Name of the current (default) database.
+
+    If there is the current (default) database, "db" contains its name. If
+    there is no current (default) database, "db" is NULL and "db_length" is
+    0. In other words, "db", "db_length" must either be NULL, or contain a
+    valid database name.
+
+    @note this attribute is set and alloced by the slave SQL thread (for
+    the THD of that thread); that thread is (and must remain, for now) the
+    only responsible for freeing this member.
+  */
+
+  char *db;
+  uint db_length;
 
 public:
 
@@ -968,7 +985,7 @@ class THD :public Statement,
 {
 public:
   /* Used to execute base64 coded binlog events in MySQL server */
-  RELAY_LOG_INFO* rli_fake;
+  Relay_log_info* rli_fake;
 
   /*
     Constant for THD::where initialization in the beginning of every query.
@@ -1023,18 +1040,21 @@ public:
   */
   char	  *thread_stack;
 
+  /**
+    Currently selected catalog.
+  */
+  char *catalog;
+
   /*
-    db - currently selected database
-    catalog - currently selected catalog
-    WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
-    set and alloced by the slave SQL thread (for the THD of that thread); that
-    thread is (and must remain, for now) the only responsible for freeing these
-    3 members. If you add members here, and you add code to set them in
-    replication, don't forget to free_them_and_set_them_to_0 in replication
-    properly. For details see the 'err:' label of the handle_slave_sql()
-    in sql/slave.cc.
-   */
-  char   *db, *catalog;
+    WARNING: some members of THD (currently 'Statement::db',
+    'catalog' and 'query')  are set and alloced by the slave SQL thread
+    (for the THD of that thread); that thread is (and must remain, for now)
+    the only responsible for freeing these 3 members. If you add members
+    here, and you add code to set them in replication, don't forget to
+    free_them_and_set_them_to_0 in replication properly. For details see
+    the 'err:' label of the handle_slave_sql() in sql/slave.cc.
+  */
+
   Security_context main_security_ctx;
   Security_context *security_ctx;
 
@@ -1389,7 +1409,6 @@ public:
   uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
-  uint       db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
@@ -1801,11 +1820,26 @@ public:
     }
   }
 
-  /*
-    Initialize the current database from a NULL-terminated string with length
-    If we run out of memory, we free the current database and return TRUE.
-    This way the user will notice the error as there will be no current
-    database selected (in addition to the error message set by malloc).
+  /**
+    Set the current database; use deep copy of C-string.
+
+    @param new_db     a pointer to the new database name.
+    @param new_db_len length of the new database name.
+
+    Initialize the current database from a NULL-terminated string with
+    length. If we run out of memory, we free the current database and
+    return TRUE.  This way the user will notice the error as there will be
+    no current database selected (in addition to the error message set by
+    malloc).
+
+    @note This operation just sets {db, db_length}. Switching the current
+    database usually involves other actions, like switching other database
+    attributes including security context. In the future, this operation
+    will be made private and more convenient interface will be provided.
+
+    @return Operation status
+      @retval FALSE Success
+      @retval TRUE  Out-of-memory error
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
@@ -1820,6 +1854,18 @@ public:
     db_length= db ? new_db_len : 0;
     return new_db && !db;
   }
+
+  /**
+    Set the current database; use shallow copy of C-string.
+
+    @param new_db     a pointer to the new database name.
+    @param new_db_len length of the new database name.
+
+    @note This operation just sets {db, db_length}. Switching the current
+    database usually involves other actions, like switching other database
+    attributes including security context. In the future, this operation
+    will be made private and more convenient interface will be provided.
+  */
   void reset_db(char *new_db, size_t new_db_len)
   {
     db= new_db;
@@ -2482,6 +2528,7 @@ public:
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
+
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);

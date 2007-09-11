@@ -3169,7 +3169,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 #ifdef XXX_SUPERCEDED_BY_WL2952
   if (lock_type != F_UNLCK)
   {
-    ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
+    ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, ht);
 
     DBUG_PRINT("info",("federated not lock F_UNLCK"));
     if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
@@ -3200,7 +3200,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
           DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
           DBUG_RETURN(error);
         }
-        thd->ha_data[ht->slot]= this;
+        thd_set_ha_data(thd, ht, this);
         trans_register_ha(thd, TRUE, ht);
         /*
           Send a lock table to the remote end.
@@ -3230,7 +3230,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 static int federated_commit(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
+  ha_federated *trx= (ha_federated *) thd_get_ha_data(thd, hton);
   DBUG_ENTER("federated_commit");
 
   if (all)
@@ -3245,7 +3245,7 @@ static int federated_commit(handlerton *hton, THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[hton->slot]= NULL;
+    thd_set_ha_data(thd, hton, NULL);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -3256,7 +3256,7 @@ static int federated_commit(handlerton *hton, THD *thd, bool all)
 static int federated_rollback(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
+  ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, hton);
   DBUG_ENTER("federated_rollback");
 
   if (all)
@@ -3271,7 +3271,7 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[hton->slot]= NULL;
+    thd_set_ha_data(thd, hton, NULL);
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));

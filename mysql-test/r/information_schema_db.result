@@ -151,13 +151,11 @@ create view v2 as select f1 from testdb_1.v1;
 create view v4 as select f1,f2 from testdb_1.v3;
 show fields from testdb_1.v5;
 Field	Type	Null	Key	Default	Extra
-f1	char(4)	YES		NULL	
 show create view testdb_1.v5;
 View	Create View	character_set_client	collation_connection
 v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
 show fields from testdb_1.v6;
 Field	Type	Null	Key	Default	Extra
-f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
 v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci

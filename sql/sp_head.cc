@@ -249,11 +249,14 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_TRIGGER:
   case SQLCOM_CREATE_USER:
   case SQLCOM_ALTER_TABLE:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
   case SQLCOM_BEGIN:
   case SQLCOM_RENAME_TABLE:
   case SQLCOM_RENAME_USER:
   case SQLCOM_DROP_INDEX:
   case SQLCOM_DROP_DB:
+  case SQLCOM_REVOKE_ALL:
   case SQLCOM_DROP_USER:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_DROP_TRIGGER:
@@ -1013,9 +1016,10 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  bool cur_db_changed= FALSE;
   sp_rcontext *ctx;
   bool err_status= FALSE;
   uint ip= 0;
@@ -1070,8 +1074,11 @@ sp_head::execute(THD *thd)
   */
 
   if (m_db.length &&
-      (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
+      (err_status= mysql_opt_change_db(thd, &m_db, &saved_cur_db_name, FALSE,
+                                       &cur_db_changed)))
+  {
     goto done;
+  }
 
   if ((ctx= thd->spcont))
     ctx->clear_handler();
@@ -1252,14 +1259,14 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (dbchanged)
+  if (cur_db_changed && !thd->killed)
   {
     /*
-      No access check when changing back to where we came from.
-      (It would generate an error from mysql_change_db() when old_db=="")
+      Force switching back to the saved current database, because it may be
+      NULL. In this case, mysql_change_db() would generate an error.
     */
-    if (! thd->killed)
-      err_status|= mysql_change_db(thd, &old_db, TRUE);
+
+    err_status|= mysql_change_db(thd, &saved_cur_db_name, TRUE);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
