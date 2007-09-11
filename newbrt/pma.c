@@ -489,6 +489,23 @@ int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
     return DB_NOTFOUND;
 }
 
+int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
+    int r = DB_NOTFOUND;
+
+    if (c->position >= 0) {
+        PMA pma = c->pma;
+        assert(c->position < pma->N);
+        struct kv_pair *kv = pma->pairs[c->position];
+        if (kv_pair_valid(kv)) {
+            if (kvsize) *kvsize = kv_pair_keylen(kv) + kv_pair_vallen(kv);
+            pma->pairs[c->position] = kv_pair_set_deleted(kv);
+            r = 0;
+        }
+    }
+
+    return r;
+}
+
 #if 0
 int pma_cget_first (PMA_CURSOR c, YBT *key, YBT *val) {
     PMA pma=c->pma;

@@ -90,21 +90,11 @@ int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
 /* set the cursor to the smallest key >= requested key */
 int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
 
-/*
- * Get the last key and value in the pma
- */
-int pma_get_last(PMA pma, DBT *key, DBT *val);
+/* delete the key under the cursor */
+int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
 
-/* Return PMA_NOTFOUND if the pma is empty. */
-#if 0
-int pma_cget_first (PMA_CURSOR, YBT */*key*/, YBT */*val*/);
-int pma_cursor_first (PMA);
-int pma_cursor_last  (PMA);
-int pma_cursor_set (PMA, bytevec key, int keylen);
-int pma_cursor_next (PMA);
-int pma_cursor_prev (PMA);
-int pma_cursor_get (PMA, bytevec *key, int *keylen, bytevec *data, int *datalen);
-#endif
+/* get the last key and value in the pma */
+int pma_get_last(PMA pma, DBT *key, DBT *val);
 
 int pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
