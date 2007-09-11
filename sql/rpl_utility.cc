@@ -164,7 +164,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 */
 int
-table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
+table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
   const
 {
   /*
@@ -172,7 +172,7 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
   */
   uint const cols_to_check= min(table->s->fields, size());
   int error= 0;
-  RELAY_LOG_INFO const *rli= const_cast<RELAY_LOG_INFO*>(rli_arg);
+  Relay_log_info const *rli= const_cast<Relay_log_info*>(rli_arg);
 
   TABLE_SHARE const *const tsh= table->s;
 
@@ -188,6 +188,25 @@ table_def::compatible_with(RELAY_LOG_INFO const *rli_arg, TABLE *table)
                   "received type %d, %s.%s has type %d",
                   col, type(col), tsh->db.str, tsh->table_name.str,
                   table->field[col]->type());
+      rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
+                  ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
+    }
+    /*
+      Check the slave's field size against that of the master.
+    */
+    if (!error && 
+        !table->field[col]->compatible_field_size(field_metadata(col)))
+    {
+      error= 1;
+      char buf[256];
+      my_snprintf(buf, sizeof(buf), "Column %d size mismatch - "
+                  "master has size %d, %s.%s on slave has size %d."
+                  " Master's column size should be <= the slave's "
+                  "column size.", col,
+                  table->field[col]->pack_length_from_metadata(
+                                       m_field_metadata[col]),
+                  tsh->db.str, tsh->table_name.str, 
+                  table->field[col]->row_pack_length());
       rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
                   ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
     }

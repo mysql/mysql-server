@@ -5670,7 +5670,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1582	This function 'pi' has the same name as a native function
+Note	1583	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5719,15 +5719,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1582	This function 'database' has the same name as a native function
+Note	1583	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1582	This function 'current_user' has the same name as a native function
+Note	1583	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1582	This function 'md5' has the same name as a native function
+Note	1583	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
@@ -6546,4 +6546,56 @@ DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
+
+# Bug#13675.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TABLE IF EXISTS t1;
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p1('text');
+Warnings:
+Warning	1264	Out of range value for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2(10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2('text');
+Warnings:
+Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
 End of 5.0 tests

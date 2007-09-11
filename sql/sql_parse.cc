@@ -28,6 +28,11 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+/**
+  @defgroup Runtime_Environment Runtime Environment
+  @{
+*/
+
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
   ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
@@ -3376,6 +3381,8 @@ end_with_restore_list:
   }
   case SQLCOM_REVOKE_ALL:
   {
+    if (end_active_trans(thd))
+      goto error;
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
@@ -3387,6 +3394,9 @@ end_with_restore_list:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
+    if (end_active_trans(thd))
+      goto error;
+
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
 		     first_table ?  first_table->db : select_lex->db,
 		     first_table ? &first_table->grant.privilege : 0,
@@ -5251,6 +5261,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   lex->nest_level++;
+  if (lex->nest_level > (int) MAX_SELECT_NESTING)
+  {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    DBUG_RETURN(1);
+  }
   select_lex->nest_level= lex->nest_level;
   /*
     Don't evaluate this subquery during statement prepare even if
@@ -5370,11 +5385,12 @@ void mysql_init_multi_delete(LEX *lex)
 
 /**
   Parse a query.
-  @param thd Current thread
-  @param inBuf Begining of the query text
-  @param length Length of the query text
-  @param [out] semicolon For multi queries, position of the character of
-  the next query in the query text.
+
+  @param       thd     Current thread
+  @param       inBuf   Begining of the query text
+  @param       length  Length of the query text
+  @param[out]  found_semicolon For multi queries, position of the character of
+                               the next query in the query text.
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
@@ -7241,3 +7257,7 @@ bool parse_sql(THD *thd,
 
   return err_status;
 }
+
+/**
+  @} (end of group Runtime_Environment)
+*/

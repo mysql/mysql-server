@@ -239,6 +239,12 @@ int SSL_set_fd(SSL* ssl, YASSL_SOCKET_T fd)
 }
 
 
+YASSL_SOCKET_T SSL_get_fd(const SSL* ssl)
+{
+    return ssl->getSocket().get_fd();
+}
+
+
 int SSL_connect(SSL* ssl)
 {
     if (ssl->GetError() == YasslError(SSL_ERROR_WANT_READ))

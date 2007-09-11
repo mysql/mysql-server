@@ -371,5 +371,163 @@ Variable_name	Value
 Qcache_hits	19
 drop table t1;
 ---- disconnect connection con1 ----
+########################################################################
+#
+# BUG#25843: Changing default database between PREPARE and EXECUTE of
+# statement breaks binlog.
+#
+########################################################################
+
+#
+# Check that default database and its attributes are fixed at the
+# creation time.
+#
+
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+CREATE TABLE mysqltest1.t1(msg VARCHAR(255));
+CREATE TABLE mysqltest2.t1(msg VARCHAR(255));
+
+use mysqltest1;
+PREPARE stmt_a_1 FROM 'INSERT INTO t1 VALUES(DATABASE())';
+PREPARE stmt_a_2 FROM 'INSERT INTO t1 VALUES(@@collation_database)';
+
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+use mysqltest2;
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+SELECT * FROM mysqltest1.t1;
+msg
+mysqltest1
+utf8_unicode_ci
+mysqltest1
+utf8_unicode_ci
+
+SELECT * FROM mysqltest2.t1;
+msg
+
+DROP PREPARE stmt_a_1;
+DROP PREPARE stmt_a_2;
+
+#
+# The Query Cache test case.
+#
+
+DELETE FROM mysqltest1.t1;
+DELETE FROM mysqltest2.t1;
+
+INSERT INTO mysqltest1.t1 VALUES('mysqltest1.t1');
+INSERT INTO mysqltest2.t1 VALUES('mysqltest2.t1');
+
+use mysqltest1;
+PREPARE stmt_b_1 FROM 'SELECT * FROM t1';
+
+use mysqltest2;
+PREPARE stmt_b_2 FROM 'SELECT * FROM t1';
+
+EXECUTE stmt_b_1;
+msg
+mysqltest1.t1
+
+EXECUTE stmt_b_2;
+msg
+mysqltest2.t1
+
+use mysqltest1;
+
+EXECUTE stmt_b_1;
+msg
+mysqltest1.t1
+
+EXECUTE stmt_b_2;
+msg
+mysqltest2.t1
+
+DROP PREPARE stmt_b_1;
+DROP PREPARE stmt_b_2;
+
+use test;
+
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+
+#
+# Check that prepared statements work properly when there is no current
+# database.
+#
+
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+use mysqltest1;
+
+PREPARE stmt_c_1 FROM 'SELECT DATABASE(), @@collation_database';
+
+use mysqltest2;
+
+PREPARE stmt_c_2 FROM 'SELECT DATABASE(), @@collation_database';
+
+DROP DATABASE mysqltest2;
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+EXECUTE stmt_c_1;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+EXECUTE stmt_c_2;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+PREPARE stmt_c_3 FROM 'SELECT DATABASE(), @@collation_database';
+
+EXECUTE stmt_c_3;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+use mysqltest1;
+
+EXECUTE stmt_c_2;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+EXECUTE stmt_c_3;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+DROP DATABASE mysqltest1;
+
+use test;
+
+########################################################################
 set @@global.query_cache_size=@initial_query_cache_size;
 flush status;
