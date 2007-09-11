@@ -6434,6 +6434,8 @@ static my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_ROW_INSERT:
     tbl_info->s->state.state.records--;
     break;
+  case LOGREC_UNDO_ROW_UPDATE:
+    break;
   default:
     DBUG_ASSERT(0);
   }

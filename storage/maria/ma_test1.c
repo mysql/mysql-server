@@ -248,7 +248,7 @@ static int run_test(const char *filename)
 
   if (testflag == 2)
   {
-    printf("terminating after inserts\n");
+    printf("Terminating after inserts\n");
     goto end;
   }
 
@@ -309,7 +309,7 @@ static int run_test(const char *filename)
 
   if (testflag == 3)
   {
-    printf("Terminating after update\n");
+    printf("Terminating after updates\n");
     goto end;
   }
   if (!silent)
@@ -372,7 +372,7 @@ static int run_test(const char *filename)
 
   if (testflag == 4)
   {
-    printf("terminating after deletes\n");
+    printf("Terminating after deletes\n");
     goto end;
   }
 
