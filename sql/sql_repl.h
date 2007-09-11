@@ -42,20 +42,20 @@ extern my_bool opt_sporadic_binlog_dump_fail;
                           pthread_mutex_unlock(&(thd)->LOCK_delete);    \
                         } while(0)
 
-int start_slave(THD* thd, MASTER_INFO* mi, bool net_report);
-int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report);
-bool change_master(THD* thd, MASTER_INFO* mi);
+int start_slave(THD* thd, Master_info* mi, bool net_report);
+int stop_slave(THD* thd, Master_info* mi, bool net_report);
+bool change_master(THD* thd, Master_info* mi);
 bool mysql_show_binlog_events(THD* thd);
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2);
-int reset_slave(THD *thd, MASTER_INFO* mi);
+int reset_slave(THD *thd, Master_info* mi);
 int reset_master(THD* thd);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool log_in_use(const char* log_name);
 void adjust_linfo_offsets(my_off_t purge_offset);
 bool show_binlogs(THD* thd);
-extern int init_master_info(MASTER_INFO* mi);
+extern int init_master_info(Master_info* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 
