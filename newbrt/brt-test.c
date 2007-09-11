@@ -1410,6 +1410,147 @@ void test_multiple_brt_cursors(int n) {
     assert(r==0);
 }
 
+void test_brt_cursor_set(int n, int cursor_op) {
+    printf("test_brt_cursor_set:%d %d\n", n, cursor_op);
+
+    int r;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    int i;
+    DBT key, val;
+    int k, v;
+
+    /* insert keys 0, 10, 20 .. 10*(n-1) */
+    for (i=0; i<n; i++) {
+        k = htonl(10*i);
+        v = 10*i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(brt, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
+    for (i=0; i<n; i++) {
+        int vv;
+
+        v = 10*(random() % n);
+        k = htonl(v);
+        fill_dbt(&key, &k, sizeof k);
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &key, &val, cursor_op);
+        assert(r == 0);
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == v);
+        toku_free(val.data);
+    }   
+
+    /* try to set cursor to keys not in the tree, all should fail */
+    for (i=0; i<10*n; i++) {
+        if (i % 10 == 0) 
+            continue;
+        k = htonl(i);
+        fill_dbt(&key, &k, sizeof k);
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &key, &val, DB_SET);
+        assert(r == DB_NOTFOUND);
+    }
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+void test_brt_cursor_set_range(int n) {
+    printf("test_brt_cursor_set_range:%d\n", n);
+
+    int r;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+
+    unlink(fname);
+
+    r = brt_create_cachetable(&ct, 0);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    int i;
+    DBT key, val;
+    int k, v;
+
+    /* insert keys 0, 10, 20 .. 10*(n-1) */
+    int max_key = 10*(n-1);
+    for (i=0; i<n; i++) {
+        k = htonl(10*i);
+        v = 10*i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(brt, &key, &val, 0);
+        assert(r == 0);
+    }
+
+    r = brt_cursor(brt, &cursor);
+    assert(r==0);
+
+    /* pick random keys v in 0 <= v < 10*n, the cursor should point
+       to the smallest key in the tree that is >= v */
+    for (i=0; i<n; i++) {
+        int vv;
+
+        v = random() % (10*n);
+        k = htonl(v);
+        fill_dbt(&key, &k, sizeof k);
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = brt_c_get(cursor, &key, &val, DB_SET_RANGE);
+        if (v > max_key)
+            /* there is no smallest key if v > the max key */
+            assert(r == DB_NOTFOUND);
+        else {
+            assert(r == 0);
+            assert(val.size == sizeof vv);
+            memcpy(&vv, val.data, val.size);
+            assert(vv == (((v+9)/10)*10));
+            toku_free(val.data);
+        }
+    }   
+
+    r = brt_cursor_close(cursor);
+    assert(r==0);
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
+int test_brt_cursor_inc = 1000;
+int test_brt_cursor_limit = 10000;
+
 void test_brt_cursor() {
     int n;
 
@@ -1417,30 +1558,36 @@ void test_brt_cursor() {
     test_multiple_brt_cursors(2);
     test_multiple_brt_cursors(3);
 
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_first(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_rfirst(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_walk(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_last(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_first_last(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_split(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_rand(n); memory_check_all_free();
     }
-    if (1) for (n=0; n<10000; n += 100) {
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
         test_brt_cursor_rwalk(n); memory_check_all_free();
     }
+
+    test_brt_cursor_set(1000, DB_SET); memory_check_all_free();
+    test_brt_cursor_set(10000, DB_SET); memory_check_all_free();
+    test_brt_cursor_set(1000, DB_SET_RANGE); memory_check_all_free();
+    test_brt_cursor_set_range(1000); memory_check_all_free();
+    test_brt_cursor_set_range(10000); memory_check_all_free();
 }
 
 void test_large_kv(int bsize, int ksize, int vsize) {
