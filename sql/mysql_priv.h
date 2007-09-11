@@ -953,8 +953,15 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
                       bool skip_error);
+
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
+
+bool mysql_opt_change_db(THD *thd,
+                         const LEX_STRING *new_db_name,
+                         LEX_STRING *saved_db_name,
+                         bool force_switch,
+                         bool *cur_db_changed);
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
                  const char ** semicolon);
@@ -1294,7 +1301,6 @@ bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
                    bool is_locked);
-void mysql_ha_mark_tables_for_reopen(THD *thd, TABLE *table);
 /* mysql_ha_flush mode_flags bits */
 #define MYSQL_HA_CLOSE_FINAL        0x00
 #define MYSQL_HA_REOPEN_ON_USAGE    0x01

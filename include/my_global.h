@@ -562,12 +562,6 @@ int	__void__;
 #define PURIFY_OR_LINT_INIT(var)
 #endif
 
-/* Define some useful general macros */
-#if !defined(max)
-#define max(a, b)	((a) > (b) ? (a) : (b))
-#define min(a, b)	((a) < (b) ? (a) : (b))
-#endif
-
 #if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
@@ -1507,5 +1501,11 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21
+
+/* Define some useful general macros (should be done after all headers). */
+#if !defined(max)
+#define max(a, b)	((a) > (b) ? (a) : (b))
+#define min(a, b)	((a) < (b) ? (a) : (b))
+#endif
 
 #endif /* my_global_h */

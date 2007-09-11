@@ -273,6 +273,16 @@ create table VAR_SAMP(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
 create table VAR_SAMP (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP (a int)' at line 1
+DROP TABLE IF EXISTS table_25930_a;
+DROP TABLE IF EXISTS table_25930_b;
+SET SQL_MODE = 'ANSI_QUOTES';
+CREATE TABLE table_25930_a ( "blah" INT );
+CREATE TABLE table_25930_b SELECT "blah" - 1 FROM table_25930_a;
+desc table_25930_b;
+Field	Type	Null	Key	Default	Extra
+"blah" - 1	bigint(12)	YES		NULL	
+DROP TABLE table_25930_a;
+DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
 select pi(3.14);
 ERROR 42000: Incorrect parameter count in the call to native function 'pi'

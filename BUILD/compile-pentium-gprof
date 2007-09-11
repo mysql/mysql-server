@@ -3,7 +3,7 @@
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-extra_flags="$pentium_cflags -O2 -pg -g"
-extra_configs="$pentium_configs $debug_configs --disable-shared $static_link"
+extra_flags="$pentium_cflags $gprof_compile_flags"
+extra_configs="$pentium_configs $debug_configs $gprof_link_flags"
 
 . "$path/FINISH.sh"
