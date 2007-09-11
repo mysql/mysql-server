@@ -1410,6 +1410,103 @@ void test_multiple_brt_cursors(int n) {
     assert(r==0);
 }
 
+static int log16(int n) {
+    int r = 0;
+    int b = 1;
+    while (b < n) {
+        b *= 16;
+        r += 1;
+    }
+    return r;
+}
+
+void test_multiple_brt_cursor_walk(int n) {
+    printf("test_multiple_brt_cursor_walk:%d\n", n);
+
+    int r;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    const int cursor_gap = 1000;
+    const int ncursors = n/cursor_gap;
+    BRT_CURSOR cursors[ncursors];
+
+ 
+    unlink(fname);
+
+    int h = log16(n);
+    int cachesize = 2 * h * ncursors;
+    r = brt_create_cachetable(&ct, cachesize);
+    assert(r==0);
+
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(r==0);
+
+    int c;
+    /* create the cursors */
+    for (c=0; c<ncursors; c++) {
+        r = brt_cursor(brt, &cursors[c]);
+        assert(r == 0);
+    }
+    
+    DBT key, val;
+    int k, v;
+
+    /* insert keys 0, 1, 2, ... n-1 */
+    int i;
+    for (i=0; i<n; i++) {
+        k = htonl(i);
+        v = i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        r = brt_insert(brt, &key, &val, 0);
+        assert(r == 0);
+
+        /* point cursor i / cursor_gap to the current last key i */
+        if ((i % cursor_gap) == 0) {
+            c = i / cursor_gap;
+            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&val); val.flags = DB_DBT_MALLOC;
+            r = brt_c_get(cursors[c], &key, &val, DB_LAST);
+            assert(r == 0);
+            toku_free(key.data);
+            toku_free(val.data);
+        }
+    }
+
+    /* walk the cursors by cursor_gap */
+    for (i=0; i<cursor_gap; i++) {
+        for (c=0; c<ncursors; c++) {
+            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&val); val.flags = DB_DBT_MALLOC;
+            r = brt_c_get(cursors[c], &key, &val, DB_NEXT);
+            if (r == DB_NOTFOUND) {
+                /* we already consumed 1 previously */
+                assert(i == cursor_gap-1);
+            } else {
+                assert(r == 0);
+                int vv;
+                assert(val.size == sizeof vv);
+                memcpy(&vv, val.data, val.size);
+                assert(vv == c*1000 + i + 1);
+                toku_free(key.data);
+                toku_free(val.data);
+            }
+        }
+    }
+
+    for (i=0; i<ncursors; i++) {
+        r = brt_cursor_close(cursors[i]);
+        assert(r == 0);
+    }
+
+    r = close_brt(brt);
+    assert(r==0);
+
+    r = cachetable_close(&ct);
+    assert(r==0);
+}
+
 void test_brt_cursor_set(int n, int cursor_op) {
     printf("test_brt_cursor_set:%d %d\n", n, cursor_op);
 
@@ -1651,6 +1748,8 @@ void test_brt_cursor() {
     test_brt_cursor_set_range(1000); memory_check_all_free();
     test_brt_cursor_set_range(10000); memory_check_all_free();
     test_brt_cursor_delete(1000); memory_check_all_free();
+    test_multiple_brt_cursor_walk(10000); memory_check_all_free();
+    test_multiple_brt_cursor_walk(100000); memory_check_all_free();
 }
 
 void test_large_kv(int bsize, int ksize, int vsize) {
