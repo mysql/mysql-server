@@ -195,7 +195,6 @@ KEY `date` (`date`)
 DELETE FROM t1 ORDER BY date ASC, time ASC LIMIT 1;
 drop table t1;
 End of 4.1 tests
-End of 4.1 tests
 CREATE TABLE t1 (a int not null,b int not null);
 CREATE TABLE t2 (a int not null, b int not null, primary key (a,b));
 CREATE TABLE t3 (a int not null, b int not null, primary key (a,b));
