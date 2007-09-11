@@ -38,11 +38,7 @@ buf_block_get_freed_page_clock(
 /************************************************************************
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
-mutex.
-Note that freed_page_clock for both buf_pool and block starts ticking
-only after the buffer_cache has warmed up. During the initial warmup
-phase these values are set to zero. We always recommend to to move the
-block to the start of the LRU in this case. */
+mutex. */
 UNIV_INLINE
 ibool
 buf_page_peek_if_too_old(
@@ -51,10 +47,9 @@ buf_page_peek_if_too_old(
 					younger */
 	const buf_page_t*	bpage)	/* in: block to make younger */
 {
-	return(buf_pool->freed_page_clock == 0
-	       || (buf_pool->freed_page_clock
-		   >= buf_page_get_freed_page_clock(bpage)
-		   + 1 + (buf_pool->curr_size / 4)));
+	return(buf_pool->freed_page_clock
+	       >= buf_page_get_freed_page_clock(bpage)
+	       + 1 + (buf_pool->curr_size / 4));
 }
 
 /*************************************************************************
