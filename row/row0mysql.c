@@ -81,8 +81,19 @@ row_mysql_is_system_table(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-static ibool row_add_table_to_background_drop_list(dict_table_t* table);
-/*====================================================================*/
+/*************************************************************************
+If a table is not yet in the drop list, adds the table to the list of tables
+which the master thread drops in background. We need this on Unix because in
+ALTER TABLE MySQL may call drop table even if the table has running queries on
+it. Also, if there are running foreign key checks on the table, we drop the
+table lazily. */
+static
+ibool
+row_add_table_to_background_drop_list(
+/*==================================*/
+				/* out: TRUE if the table was not yet in the
+				drop list, and was added there */
+	const char*	name);	/* in: table name */
 
 /***********************************************************************
 Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
@@ -733,12 +744,13 @@ row_prebuilt_free(
 	if (prebuilt->table->to_be_dropped
 	    && prebuilt->table->n_mysql_handles_opened == 0) {
 
-		if (!row_add_table_to_background_drop_list(prebuilt->table)) {
+		const char* table_name = prebuilt->table->name;
+
+		if (!row_add_table_to_background_drop_list(table_name)) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: failed trying to add ",
 			      stderr);
-			ut_print_name(stderr, NULL, TRUE,
-				      prebuilt->table->name);
+			ut_print_name(stderr, NULL, TRUE, table_name);
 			fputs(" to the background drop list.\n", stderr);
 		}
 	}
@@ -2331,7 +2343,7 @@ row_add_table_to_background_drop_list(
 /*==================================*/
 				/* out: TRUE if the table was not yet in the
 				drop list, and was added there */
-	dict_table_t*	table)	/* in: table */
+	const char*	name)	/* in: table name */
 {
 	row_mysql_drop_t*	drop;
 
@@ -2347,7 +2359,7 @@ row_add_table_to_background_drop_list(
 	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
 
 	while (drop != NULL) {
-		if (strcmp(drop->table_name, table->name) == 0) {
+		if (strcmp(drop->table_name, name) == 0) {
 			/* Already in the list */
 
 			mutex_exit(&kernel_mutex);
@@ -2360,7 +2372,7 @@ row_add_table_to_background_drop_list(
 
 	drop = mem_alloc(sizeof(row_mysql_drop_t));
 
-	drop->table_name = mem_strdup(table->name);
+	drop->table_name = mem_strdup(name);
 
 	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
 
@@ -3205,7 +3217,7 @@ check_next_foreign:
 	if (table->n_mysql_handles_opened > 0) {
 		ibool	added;
 
-		added = row_add_table_to_background_drop_list(table);
+		added = row_add_table_to_background_drop_list(table->name);
 
 		if (added) {
 			/* Temporary tables can have read views and we don't
@@ -3242,15 +3254,16 @@ check_next_foreign:
 
 	if (table->n_foreign_key_checks_running > 0) {
 
-		ibool	added;
+		const char*	table_name = table->name;
+		ibool		added;
 
-		added = row_add_table_to_background_drop_list(table);
+		added = row_add_table_to_background_drop_list(table_name);
 
 		if (added) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: You are trying to drop table ",
 			      stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
+			ut_print_name(stderr, trx, TRUE, table_name);
 			fputs("\n"
 			      "InnoDB: though there is a"
 			      " foreign key check running on it.\n"
@@ -4071,7 +4084,7 @@ row_check_table_for_mysql(
 	ulint		ret		= DB_SUCCESS;
 	ulint		old_isolation_level;
 
-	if (prebuilt->table->ibd_file_missing) {
+	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Error:\n"
 			"InnoDB: MySQL is trying to use a table handle"
@@ -4085,7 +4098,7 @@ row_check_table_for_mysql(
 			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
 			"innodb-troubleshooting.html\n"
 			"InnoDB: how you can resolve the problem.\n",
-			prebuilt->table->name);
+			table->name);
 		return(DB_ERROR);
 	}
 
