@@ -6,7 +6,9 @@
 #
 ###########################################################################
 
---source include/im_check_env.inc
+--source suite/im/t/im_check_env.inc
+
+let $UTIL=$MYSQL_TEST_DIR/suite/im/t;
 
 ###########################################################################
 
@@ -31,10 +33,10 @@ SHOW INSTANCE OPTIONS mysqld2;
 #
 
 START INSTANCE mysqld2;
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_utils
+--exec $UTIL/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started im_utils
 
 STOP INSTANCE mysqld2;
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_utils
+--exec $UTIL/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped im_utils
 
 #
 # Check 'SHOW LOG FILES' command:

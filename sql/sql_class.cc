@@ -387,7 +387,6 @@ THD::THD()
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
-  db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
@@ -395,7 +394,7 @@ THD::THD()
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
-  db_length= col_access=0;
+  col_access=0;
   query_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
@@ -2040,7 +2039,9 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   lex(lex_arg),
   query(0),
   query_length(0),
-  cursor(0)
+  cursor(0),
+  db(NULL),
+  db_length(0)
 {
   name.str= NULL;
 }
@@ -2423,6 +2424,10 @@ bool Security_context::set_user(char *user_arg)
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
+  @param       thd
+  @param       definer_user
+  @param       definer_host
+  @param       db
   @param[out]  backup  Save a pointer to the current security context
                        in the thread. In case of success it points to the
                        saved old context, otherwise it points to NULL.

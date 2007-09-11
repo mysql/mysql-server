@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$amd64_cflags $gprof_compile_flags"
+extra_configs="$amd64_configs $debug_configs $gprof_link_flags"
+
+. "$path/FINISH.sh"

@@ -112,7 +112,6 @@ public:
 /****************************************************************************/
 
 /**
-  @class Prepared_statement
   @brief Prepared_statement: a statement that can contain placeholders
 */
 
@@ -2869,6 +2868,19 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
          init_param_array(this);
   lex->set_trg_event_type_for_tables();
 
+  /* Remember the current database. */
+
+  if (thd->db && thd->db_length)
+  {
+    db= this->strmake(thd->db, thd->db_length);
+    db_length= thd->db_length;
+  }
+  else
+  {
+    db= NULL;
+    db_length= 0;
+  }
+
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2975,6 +2987,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Query_arena *old_stmt_arena;
   bool error= TRUE;
 
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  bool cur_db_changed;
+
+  LEX_STRING stmt_db_name= { db, db_length };
+
   status_var_increment(thd->status_var.com_stmt_execute);
 
   /* Check if we got an error when sending long data */
@@ -3023,6 +3042,21 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
 
   thd->set_n_backup_statement(this, &stmt_backup);
+
+  /*
+    Change the current database (if needed).
+
+    Force switching, because the database of the prepared statement may be
+    NULL (prepared statements can be created while no current database
+    selected).
+  */
+
+  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+                          &cur_db_changed))
+    goto error;
+
+  /* Allocate query. */
+
   if (expanded_query->length() &&
       alloc_query(thd, (char*) expanded_query->ptr(),
                   expanded_query->length()+1))
@@ -3051,6 +3085,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   thd->protocol= protocol;                      /* activate stmt protocol */
 
+  /* Go! */
+
   if (open_cursor)
     error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
                              &result, &cursor);
@@ -3068,6 +3104,17 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       query_cache_end_of_result(thd);
     }
   }
+
+  /*
+    Restore the current database (if changed).
+
+    Force switching back to the saved current database (if changed),
+    because it may be NULL. In this case, mysql_change_db() would generate
+    an error.
+  */
+
+  if (cur_db_changed)
+    mysql_change_db(thd, &saved_cur_db_name, TRUE);
 
   thd->protocol= &thd->protocol_text;         /* use normal protocol */
 

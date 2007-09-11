@@ -82,6 +82,10 @@ bool Prelock_error_handler::safely_trapped_errors()
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
 
+/**
+  @defgroup Data_Dictionary Data Dictionary
+  @{
+*/
 
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
@@ -1217,13 +1221,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
-  /* 
-    End open index scans and table scans and remove references to the tables 
-    from the handler tables hash. After this preparation it is safe to close 
-    the tables.
-  */
-  mysql_ha_mark_tables_for_reopen(thd, thd->open_tables);
-
   found_old_table= 0;
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
@@ -2152,9 +2149,9 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
     @brief Check that table exists in table definition cache, on disk
            or in some storage engine.
 
-    @param  thd          Thread context
-    @param  table        Table list element
-    @param  exists[out]  Out parameter which is set to TRUE if table
+    @param       thd     Thread context
+    @param       table   Table list element
+    @param[out]  exists  Out parameter which is set to TRUE if table
                          exists and to FALSE otherwise.
 
     @note This function assumes that caller owns LOCK_open mutex.
@@ -2255,7 +2252,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
-  DBUG_ASSERT (table_list->lock_type != TL_WRITE_DEFAULT);
   /* find a unused table in the open table cache */
   if (refresh)
     *refresh=0;
@@ -3559,11 +3555,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   {
     safe_to_ignore_table= FALSE;
 
-    if (tables->lock_type == TL_WRITE_DEFAULT)
-    {
-      tables->lock_type= thd->update_lock_default;
-      DBUG_ASSERT (tables->lock_type >= TL_WRITE_ALLOW_WRITE);
-    }
     /*
       Ignore placeholders for derived tables. After derived tables
       processing, link to created temporary table will be put here.
@@ -3708,7 +3699,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
-      tables->table->reginfo.lock_type=tables->lock_type;
+      tables->table->reginfo.lock_type= tables->lock_type == TL_WRITE_DEFAULT ?
+        thd->update_lock_default : tables->lock_type;
     tables->table->grant= tables->grant;
 
 process_view_routines:
@@ -7773,6 +7765,9 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
     */
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
+  else
+    thd->restore_backup_open_tables_state(backup);
+
   thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);
 }
@@ -7788,24 +7783,25 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
 {
   bool found_old_table;
 
-  if (thd->lock)
-  {
-    /*
-      Note:
-      We do not create explicitly a separate transaction for the
-      performance table I/O, but borrow the current transaction.
-      lock + unlock will autocommit the change done in the
-      performance schema table: this is the expected result.
-      The current transaction should not be affected by this code.
-      TODO: Note that if a transactional engine is used for log tables,
-      this code will need to be revised, as a separate transaction
-      might be needed.
-    */
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock= 0;
-  }
+  /*
+    If open_performance_schema_table() fails,
+    this function should not be called.
+  */
+  DBUG_ASSERT(thd->lock != NULL);
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  /*
+    Note:
+    We do not create explicitly a separate transaction for the
+    performance table I/O, but borrow the current transaction.
+    lock + unlock will autocommit the change done in the
+    performance schema table: this is the expected result.
+    The current transaction should not be affected by this code.
+    TODO: Note that if a transactional engine is used for log tables,
+    this code will need to be revised, as a separate transaction
+    might be needed.
+  */
+  mysql_unlock_tables(thd, thd->lock);
+  thd->lock= 0;
 
   pthread_mutex_lock(&LOCK_open);
 
@@ -7821,3 +7817,6 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   thd->restore_backup_open_tables_state(backup);
 }
 
+/**
+  @} (end of group Data_Dictionary)
+*/
