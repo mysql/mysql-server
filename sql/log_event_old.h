@@ -31,7 +31,7 @@ class Old_rows_log_event
   
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
-  int do_apply_event(Rows_log_event*,const RELAY_LOG_INFO*);
+  int do_apply_event(Rows_log_event*,const Relay_log_info*);
 
   /*
     Primitive to prepare for a sequence of row executions.
@@ -80,7 +80,7 @@ class Old_rows_log_event
     RETURN VALUE
       Error code, if something went wrong, 0 otherwise.
    */
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start,
                              uchar const **row_end) = 0;
 
@@ -131,13 +131,13 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()
-  virtual int do_apply_event(const RELAY_LOG_INFO *rli)
+  virtual int do_apply_event(const Relay_log_info *rli)
   { return Old_rows_log_event::do_apply_event(this,rli); }
 
   // primitives for old version of do_apply_event()
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 
@@ -179,13 +179,13 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()
-  virtual int do_apply_event(const RELAY_LOG_INFO *rli)
+  virtual int do_apply_event(const Relay_log_info *rli)
   { return Old_rows_log_event::do_apply_event(this,rli); }
 
   // primitives for old version of do_apply_event()
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
@@ -226,13 +226,13 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   // use old definition of do_apply_event()
-  virtual int do_apply_event(const RELAY_LOG_INFO *rli)
+  virtual int do_apply_event(const Relay_log_info *rli)
   { return Old_rows_log_event::do_apply_event(this,rli); }
 
   // primitives for old version of do_apply_event()
   virtual int do_before_row_operations(TABLE *table);
   virtual int do_after_row_operations(TABLE *table, int error);
-  virtual int do_prepare_row(THD*, RELAY_LOG_INFO const*, TABLE*,
+  virtual int do_prepare_row(THD*, Relay_log_info const*, TABLE*,
                              uchar const *row_start, uchar const **row_end);
   virtual int do_exec_row(TABLE *table);
 #endif

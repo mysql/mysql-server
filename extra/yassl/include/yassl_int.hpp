@@ -584,7 +584,7 @@ class SSL {
     Socket              socket_;                // socket wrapper
     Buffers             buffers_;               // buffered handshakes and data
     Log                 log_;                   // logger
-    bool                quietShutdown_;         // shutdown without handshakes
+    bool                quietShutdown_;
 
     // optimization variables
     bool                has_data_;              // buffered data ready?

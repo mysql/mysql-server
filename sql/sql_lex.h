@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @defgroup Semantic_Analysis Semantic Analysis
+*/
 
 /* YACC and LEX Definitions */
 
@@ -593,7 +596,6 @@ public:
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
-  List<List_item>     expr_list;
   SQL_LIST *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
@@ -886,16 +888,6 @@ public:
     datetime_field= 0;
     error_if_not_empty= FALSE;
   }
-  /**
-    Construct a copy of this object to be used for mysql_alter_table
-    and mysql_create_table. Historically, these two functions modify
-    their Alter_info arguments. This behaviour breaks re-execution of
-    prepared statements and stored procedures and is compensated by
-    always supplying a copy of Alter_info to these functions.
-
-    @return You need to use check the error in THD for out
-    of memory condition after calling this function.
-  */
   Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
@@ -1101,8 +1093,9 @@ enum enum_comment_state
 
 
 /**
-  This class represents the character input stream consumed during
+  @brief This class represents the character input stream consumed during
   lexical analysis.
+
   In addition to consuming the input stream, this class performs some
   comment pre processing, by filtering out out of bound special text
   from the query input stream.
@@ -1112,6 +1105,7 @@ enum enum_comment_state
   is the pre-processed buffer that contains only the query text that
   should be seen once out-of-bound data is removed.
 */
+
 class Lex_input_stream
 {
 public:
@@ -1120,6 +1114,7 @@ public:
 
   /**
     Set the echo mode.
+
     When echo is true, characters parsed from the raw input stream are
     preserved. When false, characters parsed are silently ignored.
     @param echo the echo mode.
@@ -1515,9 +1510,9 @@ typedef struct st_lex : public Query_tables_list
   /** End of SELECT of CREATE VIEW statement */
   const char* create_view_select_end;
 
-  /** Start of 'ON <table>', in trigger statements.  */
+  /** Start of 'ON table', in trigger statements.  */
   const char* raw_trg_on_table_name_begin;
-  /** End of 'ON <table>', in trigger statements. */
+  /** End of 'ON table', in trigger statements. */
   const char* raw_trg_on_table_name_end;
 
   /* Partition info structure filled in by PARTITION BY parse part */
@@ -1830,5 +1825,9 @@ extern int MYSQLlex(void *arg, void *yythd);
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
+
+/**
+  @} (End of group Semantic_Analysis)
+*/
 
 #endif /* MYSQL_SERVER */

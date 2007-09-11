@@ -53,7 +53,8 @@ sub collect_test_cases ($) {
       my $found= 0;
       foreach my $test ( @$cases )
       {
-	if ( mtr_match_extension($test->{'name'}, $tname) )
+	if ( $test->{'name'} eq $tname ||
+	     mtr_match_extension($test->{'name'}, $tname) )
 	{
 	  $found= 1;
 	}
@@ -192,8 +193,9 @@ sub collect_one_suite($$)
   if ( @::opt_cases )
   {
     # Collect in specified order, no sort
-    foreach my $tname ( @::opt_cases )
+    foreach my $tname2 ( @::opt_cases )
     {
+      my $tname= $tname2; # Don't modify @::opt_cases !
       my $elem= undef;
       my $component_id= undef;
 
@@ -201,6 +203,9 @@ sub collect_one_suite($$)
       # to understand type of the test.
 
       $tname = basename($tname);
+
+      # Get rid of suite part
+      $tname =~ s/^$suite\.//;
 
       # Check if the extenstion has been specified.
 

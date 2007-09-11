@@ -20,6 +20,11 @@
 #include "event_queue.h"
 #include "event_db_repository.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 #ifdef __GNUC__
 #if __GNUC__ >= 2
 #define SCHED_FUNC __FUNCTION__
@@ -790,3 +795,7 @@ Event_scheduler::dump_internal_status()
 
   DBUG_VOID_RETURN;
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

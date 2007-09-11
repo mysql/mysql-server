@@ -24,7 +24,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
@@ -43,7 +43,7 @@ set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type lik
 truncate ndb_show_tables;
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select id,name from ndb_show_tables where id = @t1_id and name like '%t1%';
 id	name
@@ -69,9 +69,9 @@ insert into t1 values (6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
@@ -102,9 +102,9 @@ insert into t1 values (6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
-Warning	1475	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1476	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
