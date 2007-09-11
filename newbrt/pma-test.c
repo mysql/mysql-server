@@ -1433,12 +1433,110 @@ void test_pma_double_delete() {
     assert(error == 0);
 }
 
+void test_pma_cursor_first_delete_last() {
+    printf("test_pma_cursor_first_delete_last\n");
+
+    int error;
+    PMA pma;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    int i;
+    for (i=1; i<=2; i++) {
+        k = htonl(i);
+        v = i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        error = pma_insert(pma, &key, &val, 0);
+        assert(error == 0);
+    }
+    assert(pma_n_entries(pma) == 2);
+
+    PMA_CURSOR pmacursor;
+
+    error = pma_cursor(pma, &pmacursor);
+    assert(error == 0);
+
+    error = pma_cursor_set_position_first(pmacursor);
+    assert(error == 0);
+
+    k = htonl(1);
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == 0);
+    assert(pma_n_entries(pma) == 2);
+
+    error = pma_cursor_set_position_last(pmacursor);
+    assert(error == 0);
+    assert(pma_n_entries(pma) == 1);
+
+    error = pma_cursor_free(&pmacursor);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
+void test_pma_cursor_last_delete_first() {
+    printf("test_pma_cursor_last_delete_first\n");
+
+    int error;
+    PMA pma;
+
+    error = pma_create(&pma, default_compare_fun);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    int i;
+    for (i=1; i<=2; i++) {
+        k = htonl(i);
+        v = i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        error = pma_insert(pma, &key, &val, 0);
+        assert(error == 0);
+    }
+    assert(pma_n_entries(pma) == 2);
+
+    PMA_CURSOR pmacursor;
+
+    error = pma_cursor(pma, &pmacursor);
+    assert(error == 0);
+
+    error = pma_cursor_set_position_last(pmacursor);
+    assert(error == 0);
+
+    k = htonl(2);
+    fill_dbt(&key, &k, sizeof k);
+    error = pma_delete(pma, &key, 0);
+    assert(error == 0);
+    assert(pma_n_entries(pma) == 2);
+
+    error = pma_cursor_set_position_first(pmacursor);
+    assert(error == 0);
+    assert(pma_n_entries(pma) == 1);
+
+    error = pma_cursor_free(&pmacursor);
+    assert(error == 0);
+
+    error = pma_free(&pma);
+    assert(error == 0);
+}
+
 void test_pma_delete() {
     test_pma_delete_shrink(256);  memory_check_all_free();
     test_pma_delete_random(256);  memory_check_all_free();
     test_pma_delete_cursor(32);   memory_check_all_free();
     test_pma_delete_insert();     memory_check_all_free();
     test_pma_double_delete();     memory_check_all_free();
+    test_pma_cursor_first_delete_last(); memory_check_all_free();
+    test_pma_cursor_last_delete_first(); memory_check_all_free();
 }
 
 void test_pma_already_there() {
