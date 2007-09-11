@@ -1318,14 +1318,12 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
-    BRTNODE node;
-    int childnum;
-
     if (r!=0) 
         return r;
 
-    node=node_v;
-    // Leaves have a single mdict, where the data is found.
+    BRTNODE node = node_v;
+    int childnum;
+
     if (node->height==0) {
 	result = pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
@@ -1634,7 +1632,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor) {
                 CACHEKEY *rootp = calculate_root_offset_pointer(t);
                 r = brt_init_new_root(t, childa, childb, child_splitk, rootp);
                 assert(r == 0);
-                r = cachetable_unpin(t->cf, *rootp, 0);
+                r = cachetable_unpin(t->cf, *rootp, 1);
                 assert(r == 0);
             } else {
                 BRTNODE upnode;
@@ -1812,7 +1810,7 @@ void brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unused)),
             cursor->pathcnum[i] = newchildnum;
             return;
         } 
-        if (i == cursor->path_len-1 && cursor->op == DB_PREV) {
+        if (i == cursor->path_len-1 && (cursor->op == DB_PREV || cursor->op == DB_LAST)) {
             goto setnewchild;
         }
         if (i+1 < cursor->path_len) {
@@ -2168,6 +2166,121 @@ int brtcurs_set_position_prev (BRT_CURSOR cursor) {
     return 0;
 }
 
+int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
+    BRT brt = cursor->brt;
+    void *node_v;
+    int r;
+    r = cachetable_get_and_pin(brt->cf, off, &node_v, brtnode_flush_callback,
+                               brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
+    if (r != 0)
+        return r;
+
+    BRTNODE node = node_v;
+    int childnum;
+
+    if (node->height > 0) {
+        cursor->path_len += 1;
+        for (;;) {
+            childnum = brtnode_which_child(node, key, brt, db);
+            cursor->path[cursor->path_len-1] = node;
+            cursor->pathcnum[cursor->path_len-1] = childnum;
+            brt_node_add_cursor(node, childnum, cursor);
+            int more = node->u.n.n_bytes_in_hashtable[childnum];
+            if (more > 0) {
+                brt_flush_child(cursor->brt, node, childnum, cursor);
+                node = cursor->path[cursor->path_len-1];
+                childnum = cursor->pathcnum[cursor->path_len-1];
+                brt_node_remove_cursor(node, childnum, cursor);
+                /* the node may have split. search the node keys again */
+                continue;
+            }
+            break;
+        }
+        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, db);
+        if (r != 0)
+            brt_node_remove_cursor(node, childnum, cursor);
+    } else {
+        cursor->path_len += 1;
+        cursor->path[cursor->path_len-1] = node;
+        r = pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        if (r == 0) {
+            r = pma_cursor_set_key(cursor->pmacurs, key, db);
+            if (r != 0) {
+                int rr = pma_cursor_free(&cursor->pmacurs);
+                assert(rr == 0);
+            }
+        }
+     }
+
+    if (r != 0) {
+        cursor->path_len -= 1;
+        cachetable_unpin(brt->cf, off, 0);
+    }
+    return r;
+}
+
+int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
+    BRT brt = cursor->brt;
+    void *node_v;
+    int r;
+    r = cachetable_get_and_pin(brt->cf, off, &node_v, brtnode_flush_callback,
+                               brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
+    if (r != 0)
+        return r;
+
+    BRTNODE node = node_v;
+    int childnum;
+
+    if (node->height > 0) {
+        cursor->path_len += 1;
+        /* select a subtree by key */
+        childnum = brtnode_which_child(node, key, brt, db);
+    next_child:        
+        for (;;) {
+            cursor->path[cursor->path_len-1] = node;
+            cursor->pathcnum[cursor->path_len-1] = childnum;
+            brt_node_add_cursor(node, childnum, cursor);
+            int more = node->u.n.n_bytes_in_hashtable[childnum];
+            if (more > 0) {
+                brt_flush_child(cursor->brt, node, childnum, cursor);
+                node = cursor->path[cursor->path_len-1];
+                childnum = cursor->pathcnum[cursor->path_len-1];
+                brt_node_remove_cursor(node, childnum, cursor);
+                continue;
+            }
+            break;
+        }
+        r = brtcurs_set_range(cursor, node->u.n.children[childnum], key, db);
+        if (r != 0) {
+            node = cursor->path[cursor->path_len-1];
+            childnum = cursor->pathcnum[cursor->path_len-1];
+            brt_node_remove_cursor(node, childnum, cursor);
+            /* no key in the child subtree is >= key, need to search the next child */
+            childnum += 1;
+            if (0) printf("set_range %d %d\n", childnum, node->u.n.n_children);
+            if (childnum < node->u.n.n_children)
+                goto next_child;
+        }
+    } else {
+        cursor->path_len += 1;
+        cursor->path[cursor->path_len-1] = node;
+        r = pma_cursor(node->u.l.buffer, &cursor->pmacurs);
+        if (r == 0) {
+            r = pma_cursor_set_range(cursor->pmacurs, key, db);
+            if (r != 0) {
+                int rr = pma_cursor_free(&cursor->pmacurs);
+                assert(rr == 0);
+            }
+        }
+    }
+
+    if (r != 0) {
+        cursor->path_len -= 1;
+        cachetable_unpin(brt->cf, off, 0);
+    }
+    return r;
+}
+
 static int unpin_cursor (BRT_CURSOR cursor) {
     BRT brt=cursor->brt;
     int i;
@@ -2251,6 +2364,23 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
         r = brtcurs_set_position_prev(cursor); if (r!=0) goto died0;
         r = pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
+        break;
+    case DB_SET:
+        r = unpin_cursor(cursor);
+        assert(r == 0);
+        r = brtcurs_set_key(cursor, *rootp, kbt, 0);
+        if (r != 0) goto died0;
+        r = pma_cget_current(cursor->pmacurs, kbt, vbt);
+        if (r != 0) goto died0;
+        break;
+    case DB_SET_RANGE:
+        r = unpin_cursor(cursor);
+        assert(r == 0);
+        r = brtcurs_set_range(cursor, *rootp, kbt, 0);
+        if (r != 0) goto died0;
+        r = pma_cget_current(cursor->pmacurs, kbt, vbt);
+        if (r != 0) goto died0;
+        break;
         break;
     default:
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
