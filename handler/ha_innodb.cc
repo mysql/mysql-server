@@ -8489,8 +8489,6 @@ error_handling:
 		row_mysql_lock_data_dictionary(trx);
 		dict_locked = TRUE;
 
-		row_prebuilt_table_obsolete(innodb_table);
-
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
 
@@ -8511,6 +8509,8 @@ error_handling:
 			}
 			break;
 		}
+
+		row_prebuilt_table_obsolete(innodb_table);
 
 		row_prebuilt_free(prebuilt, TRUE);
 		prebuilt = row_create_prebuilt(indexed_table);
