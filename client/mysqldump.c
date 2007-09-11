@@ -1308,8 +1308,8 @@ static char *cover_definer_clause_in_trigger(const char *trigger_def_str,
 
   @note This function will go away when WL#3995 is implemented.
 
-  @param[in] def_str    CREATE FUNCTION|PROCEDURE statement string.
-  @param[in] def_length length of the def_str.
+  @param[in] def_str        CREATE FUNCTION|PROCEDURE statement string.
+  @param[in] def_str_length length of the def_str.
 
   @return pointer to the new allocated query string.
 */

@@ -602,7 +602,6 @@ convert_error_code_to_mysql(
                 thd_mark_transaction_to_rollback(thd, TRUE);
 
 		return(HA_ERR_LOCK_DEADLOCK);
-
 	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
 		/* Starting from 5.0.13, we let MySQL just roll back the

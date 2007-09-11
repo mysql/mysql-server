@@ -4322,7 +4322,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
  */
 
 #ifdef HAVE_NDB_BINLOG
-extern MASTER_INFO *active_mi;
+extern Master_info *active_mi;
 static int ndbcluster_update_apply_status(THD *thd, int do_update)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);

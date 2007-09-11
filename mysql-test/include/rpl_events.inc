@@ -147,4 +147,6 @@ DROP EVENT test.slave_terminate;
 --echo "Cleanup"
 connection master;
 DROP TABLE t1;
+sync_slave_with_master;
+connection master;
 

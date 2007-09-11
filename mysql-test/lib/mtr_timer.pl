@@ -18,7 +18,6 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-use Socket;
 use Errno;
 use strict;
 
@@ -52,12 +51,10 @@ sub mtr_init_timers () {
 sub mtr_timer_start($$$) {
   my ($timers,$name,$duration)= @_;
 
-  mtr_verbose("mtr_timer_start: $name, $duration");
-
   if ( exists $timers->{'timers'}->{$name} )
   {
     # We have an old running timer, kill it
-    mtr_verbose("There is an old timer running");
+    mtr_warning("There is an old timer running");
     mtr_timer_stop($timers,$name);
   }
 
@@ -75,22 +72,22 @@ sub mtr_timer_start($$$) {
       }
       else
       {
-        mtr_error("can't fork");
+        mtr_error("can't fork timer, error: $!");
       }
     }
 
     if ( $tpid )
     {
       # Parent, record the information
-      mtr_verbose("timer parent, record info($name, $tpid, $duration)");
+      mtr_verbose("Starting timer for '$name',",
+		  "duration: $duration, pid: $tpid");
       $timers->{'timers'}->{$name}->{'pid'}= $tpid;
       $timers->{'timers'}->{$name}->{'duration'}= $duration;
       $timers->{'pids'}->{$tpid}= $name;
     }
     else
     {
-      # Child, redirect output and exec
-      # FIXME do we need to redirect streams?
+      # Child, install signal handlers and sleep for "duration"
 
       # Don't do the ^C cleanup in the timeout child processes!
       # There is actually a race here, if we get ^C after fork(), but before
@@ -98,13 +95,13 @@ sub mtr_timer_start($$$) {
       $SIG{INT}= 'DEFAULT';
 
       $SIG{TERM}= sub {
-	mtr_verbose("timer woke up, exiting!");
+	mtr_verbose("timer $$ woke up, exiting!");
 	exit(0);
       };
 
       $0= "mtr_timer(timers,$name,$duration)";
       sleep($duration);
-      mtr_verbose("timer expired after $duration seconds");
+      mtr_verbose("timer $$ expired after $duration seconds");
       exit(0);
     }
   }
@@ -114,12 +111,10 @@ sub mtr_timer_start($$$) {
 sub mtr_timer_stop ($$) {
   my ($timers,$name)= @_;
 
-  mtr_verbose("mtr_timer_stop: $name");
-
   if ( exists $timers->{'timers'}->{$name} )
   {
     my $tpid= $timers->{'timers'}->{$name}->{'pid'};
-    mtr_verbose("Stopping timer with pid $tpid");
+    mtr_verbose("Stopping timer for '$name' with pid $tpid");
 
     # FIXME as Cygwin reuses pids fast, maybe check that is
     # the expected process somehow?!
@@ -134,11 +129,8 @@ sub mtr_timer_stop ($$) {
 
     return 1;
   }
-  else
-  {
-    mtr_error("Asked to stop timer \"$name\" not started");
-    return 0;
-  }
+
+  mtr_error("Asked to stop timer '$name' not started");
 }
 
 
@@ -158,7 +150,8 @@ sub mtr_timer_timeout ($$) {
 
   return "" unless exists $timers->{'pids'}->{$pid};
 
-  # We got a timeout, return the name ot the timer
+  # Got a timeout(the process with $pid is recorded as being a timer)
+  # return the name of the timer
   return $timers->{'pids'}->{$pid};
 }
 
