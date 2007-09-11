@@ -182,7 +182,8 @@ Dbtup::dealloc_tuple(Signal* signal,
 		   &disk, tmpptr, gci);
   }
   
-  if (! (bits & Tuple_header::LCP_SKIP) && lcpScan_ptr_i != RNIL)
+  if (! (bits & (Tuple_header::LCP_SKIP | Tuple_header::ALLOC)) && 
+      lcpScan_ptr_i != RNIL)
   {
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);

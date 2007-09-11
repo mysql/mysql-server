@@ -20,7 +20,7 @@
 #include <NDBT.hpp>
 #include <HugoCalculator.hpp>
 #include <HugoOperations.hpp>
-
+class NDBT_Stats;
 
 class HugoTransactions : public HugoOperations {
 public:
@@ -109,10 +109,24 @@ public:
   void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
   
   Uint64 m_latest_gci;
+
+  void setStatsLatency(NDBT_Stats* stats) { m_stats_latency = stats; }
+
+  // allows multiple threads to update separate batches
+  void setThrInfo(int thr_count, int thr_no) {
+    m_thr_count = thr_count;
+    m_thr_no = thr_no;
+  }
+
 protected:  
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;
   int m_retryMax;
+
+  NDBT_Stats* m_stats_latency;
+
+  int m_thr_count;      // 0 if no separation between threads
+  int m_thr_no;
 };
 
 
