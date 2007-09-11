@@ -1548,6 +1548,68 @@ void test_brt_cursor_set_range(int n) {
     assert(r==0);
 }
 
+void test_brt_cursor_delete(int n) {
+    printf("test_brt_cursor_delete:%d\n", n);
+
+    int error;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+
+    unlink(fname);
+
+    error = brt_create_cachetable(&ct, 0);
+    assert(error == 0);
+
+    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    assert(error == 0);
+
+    error = brt_cursor(brt, &cursor);
+    assert(error == 0);
+
+    DBT key, val;
+    int k, v;
+
+    int i;
+    /* insert keys 0, 1, 2, .. (n-1) */
+    for (i=0; i<n; i++) {
+        k = htonl(i);
+        v = i;
+        fill_dbt(&key, &k, sizeof k);
+        fill_dbt(&val, &v, sizeof v);
+        error = brt_insert(brt, &key, &val, 0);
+        assert(error == 0);
+    }
+
+    /* walk the tree and delete under the cursor */
+    for (;;) {
+        init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        error = brt_c_get(cursor, &key, &val, DB_NEXT);
+        if (error == DB_NOTFOUND)
+            break;
+        assert(error == 0);
+        toku_free(key.data);
+        toku_free(val.data);
+
+        error = brt_cursor_delete(cursor, 0);
+        assert(error == 0);
+    }
+
+    error = brt_cursor_delete(cursor, 0);
+    assert(error != 0);
+
+    error = brt_cursor_close(cursor);
+    assert(error == 0);
+
+    error = close_brt(brt);
+    assert(error == 0);
+
+    error = cachetable_close(&ct);
+    assert(error == 0);
+}
+
 int test_brt_cursor_inc = 1000;
 int test_brt_cursor_limit = 10000;
 
@@ -1588,6 +1650,7 @@ void test_brt_cursor() {
     test_brt_cursor_set(1000, DB_SET_RANGE); memory_check_all_free();
     test_brt_cursor_set_range(1000); memory_check_all_free();
     test_brt_cursor_set_range(10000); memory_check_all_free();
+    test_brt_cursor_delete(1000); memory_check_all_free();
 }
 
 void test_large_kv(int bsize, int ksize, int vsize) {
@@ -1848,6 +1911,7 @@ void test_brt_delete() {
 
 static void brt_blackbox_test (void) {
     memory_check = 1;
+
     test_wrongendian_compare(0, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 2);          memory_check_all_free();
     test_wrongendian_compare(1, 257);        memory_check_all_free();

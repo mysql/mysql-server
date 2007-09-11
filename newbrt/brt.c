@@ -2390,3 +2390,19 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     if ((r = unpin_brt_header(cursor->brt))!=0) return r;
     return 0;
 }
+
+int brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused__))) {
+    int r;
+
+    if (cursor->path_len > 0) {
+        BRTNODE node = cursor->path[cursor->path_len-1];
+        assert(node->height == 0);
+        int kvsize;
+        r = pma_cursor_delete_under(cursor->pmacurs, &kvsize);
+        if (r == 0)
+            node->u.l.n_bytes_in_buffer -= KEY_VALUE_OVERHEAD + kvsize;
+    } else
+        r = DB_NOTFOUND;
+
+    return r;
+}
