@@ -260,7 +260,7 @@ struct __toku_dbc_internal {
 };
 			  
 int __toku_c_get (DBC *c, DBT *key, DBT *data, u_int32_t flag) {
-    int r = brt_c_get(c->i->c, key, data, flag);
+    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->db);
     return r;
 }
 

@@ -71,26 +71,26 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs);
 int pma_cursor (PMA, PMA_CURSOR *);
 int pma_cursor_free (PMA_CURSOR*);
 
-/*
- * get the pma that a pma cursor is bound to
- *
- * c - the pma cursor
- * pma - the pma that the cursor is bound to
- */
+/* get the pma that a pma cursor is bound to */
 int pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
 int pma_cursor_set_position_last (PMA_CURSOR c);
 int pma_cursor_set_position_first (PMA_CURSOR c);
 int pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
 int pma_cursor_set_position_prev (PMA_CURSOR c);
-int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val);
 
-/* set the cursor by key */
+/* get the key and data under the cursor */
+int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val);
+
+/* set the cursor to the matching key and value pair */
+int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db);
+
+/* move the cursor to the kv pair matching the key */
 int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db);
 
-/* set the cursor to the smallest key >= requested key */
+/* set the cursor to the smallest key in the pma >= key */
 int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db);
 
-/* delete the key under the cursor */
+/* delete the key value pair under the cursor, return the size of the pair */
 int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize);
 
 /* get the last key and value in the pma */
@@ -117,7 +117,7 @@ void pma_iterate (PMA, void(*)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*);
       ITEMLEN datalenvar = pmanode_vallen(table, __i);                 \
       body;                                                            \
 } } })
-#endif
 
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
+#endif

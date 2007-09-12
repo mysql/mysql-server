@@ -946,7 +946,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
                     k->app_private, db);
             assert(r == 0);
         } else {
-            r = cachetable_unpin(t->cf, child->thisnodename, 0);
+            r = cachetable_unpin(t->cf, child->thisnodename, 1);
             assert(r == 0);
         }
 
@@ -1314,6 +1314,7 @@ int brt_insert (BRT brt, DBT *key, DBT *val, DB* db) {
 }
 
 int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
+    int result;
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
@@ -1324,7 +1325,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     int childnum;
 
     if (node->height==0) {
-	int result = pma_lookup(node->u.l.buffer, k, v, db);
+	result = pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
 	r = cachetable_unpin(brt->cf, off, 0);
 	assert(r == 0);
@@ -1337,7 +1338,6 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
 	ITEMLEN hanswerlen;
         int type;
 	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen, &type)==0) {
-	    int result;
 	    if (type == BRT_INSERT) {
                 //printf("Found %d bytes\n", *vallen);
                 ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
@@ -1347,20 +1347,18 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
                 result = DB_NOTFOUND;
             } else {
                 assert(0);
-		result = -1; // Some versions of gcc complain
-	    }
+                result = -1; // some versions of gcc complain
+            }
             r = cachetable_unpin(brt->cf, off, 0);
             assert(r == 0);
             return result;
 	}
     }
     
-    {
-	int result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
-	r = cachetable_unpin(brt->cf, off, 0);
-	assert(r == 0);
-	return result;
-    }
+    result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
+    r = cachetable_unpin(brt->cf, off, 0);
+    assert(r == 0);
+    return result;
 }
 
 
@@ -1777,7 +1775,7 @@ void brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE le
         if (0) printf("brt_cursor_leaf_split %p oldnode %lld newnode %lld\n", cursor, 
                       oldnode->thisnodename, newnode->thisnodename);
 
-        r = cachetable_unpin(t->cf, oldnode->thisnodename, 0);
+        r = cachetable_unpin(t->cf, oldnode->thisnodename, 1);
         assert(r == 0);
         r = cachetable_maybe_get_and_pin(t->cf, newnode->thisnodename, &v);
         assert(r == 0 && v == newnode);
@@ -1857,7 +1855,7 @@ void brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE
         if (0) printf("brt_cursor_nonleaf_split %p oldnode %lld newnode %lld\n",
     cursor, oldnode->thisnodename, newnode->thisnodename);
 
-        r = cachetable_unpin(t->cf, oldnode->thisnodename, 0);
+        r = cachetable_unpin(t->cf, oldnode->thisnodename, 1);
         assert(r == 0);
         r = cachetable_maybe_get_and_pin(t->cf, newnode->thisnodename, &v);
         assert(r == 0 && v == newnode); 
@@ -1936,7 +1934,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
     if (r!=0) {
-	if (0) { died0: cachetable_unpin(brt->cf, off, 0); }
+	if (0) { died0: cachetable_unpin(brt->cf, off, 1); }
 	return r;
     }
     BRTNODE node = node_v;
@@ -1997,7 +1995,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
     if (r!=0) {
-	if (0) { died0: cachetable_unpin(brt->cf, off, 0); }
+	if (0) { died0: cachetable_unpin(brt->cf, off, 1); }
 	return r;
     }
     BRTNODE node = node_v;
@@ -2064,7 +2062,7 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor) {
     node = cursor->path[cursor->path_len-1];
     childnum = cursor->pathcnum[cursor->path_len-1];
     cursor->path_len -= 1;
-    cachetable_unpin(cursor->brt->cf, node->thisnodename, 0);
+    cachetable_unpin(cursor->brt->cf, node->thisnodename, 1);
 
     if (brt_cursor_path_empty(cursor))
         return DB_NOTFOUND;
@@ -2124,7 +2122,7 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
     node = cursor->path[cursor->path_len-1];
     childnum = cursor->pathcnum[cursor->path_len-1];
     cursor->path_len -= 1;
-    cachetable_unpin(cursor->brt->cf, node->thisnodename, 0);
+    cachetable_unpin(cursor->brt->cf, node->thisnodename, 1);
 
     if (brt_cursor_path_empty(cursor))
         return DB_NOTFOUND;
@@ -2170,7 +2168,7 @@ int brtcurs_set_position_prev (BRT_CURSOR cursor) {
     return 0;
 }
 
-int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
+int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag, DB *db) {
     BRT brt = cursor->brt;
     void *node_v;
     int r;
@@ -2200,7 +2198,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
             }
             break;
         }
-        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, db);
+        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, val, flag, db);
         if (r != 0)
             brt_node_remove_cursor(node, childnum, cursor);
     } else {
@@ -2208,7 +2206,14 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
         cursor->path[cursor->path_len-1] = node;
         r = pma_cursor(node->u.l.buffer, &cursor->pmacurs);
         if (r == 0) {
-            r = pma_cursor_set_key(cursor->pmacurs, key, db);
+            if (flag == DB_SET)
+                r = pma_cursor_set_key(cursor->pmacurs, key, db);
+            else if (flag == DB_GET_BOTH)
+                r = pma_cursor_set_both(cursor->pmacurs, key, val, db);
+            else {
+                assert(0);
+                r = DB_NOTFOUND;
+            }
             if (r != 0) {
                 int rr = pma_cursor_free(&cursor->pmacurs);
                 assert(rr == 0);
@@ -2218,7 +2223,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
 
     if (r != 0) {
         cursor->path_len -= 1;
-        cachetable_unpin(brt->cf, off, 0);
+        cachetable_unpin(brt->cf, off, 1);
     }
     return r;
 }
@@ -2280,7 +2285,7 @@ int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
 
     if (r != 0) {
         cursor->path_len -= 1;
-        cachetable_unpin(brt->cf, off, 0);
+        cachetable_unpin(brt->cf, off, 1);
     }
     return r;
 }
@@ -2292,7 +2297,7 @@ static int unpin_cursor (BRT_CURSOR cursor) {
     for (i=0; i<cursor->path_len; i++) {
         BRTNODE node = cursor->path[i];
         brt_node_remove_cursor(node, cursor->pathcnum[i], cursor);
-	int r2 = cachetable_unpin(brt->cf, cursor->path[i]->thisnodename, 0);
+	int r2 = cachetable_unpin(brt->cf, cursor->path[i]->thisnodename, 1);
 	if (r==0) r=r2;
     }
     if (cursor->pmacurs) {
@@ -2321,7 +2326,7 @@ static void assert_cursor_path(BRT_CURSOR cursor) {
     assert(node->height == 0);
 }
 
-int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
+ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db) {
     int do_rmw=0;
     int r;
     CACHEKEY *rootp;
@@ -2344,7 +2349,7 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_last(cursor, *rootp); if (r!=0) goto died0;
-        r=pma_cget_current(cursor->pmacurs, kbt, vbt);
+        r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_FIRST:
@@ -2352,39 +2357,44 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
         r=brtcurs_set_position_first(cursor, *rootp); if (r!=0) goto died0;
-        r=pma_cget_current(cursor->pmacurs, kbt, vbt);
+        r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
 	if (cursor->path_len<=0)
 	    goto do_db_first;
 	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
-	r=pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+	r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_PREV:
         if (cursor->path_len<= 0)
             goto do_db_last;
         r = brtcurs_set_position_prev(cursor); if (r!=0) goto died0;
-        r = pma_cget_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
+        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_SET:
         r = unpin_cursor(cursor);
         assert(r == 0);
-        r = brtcurs_set_key(cursor, *rootp, kbt, 0);
+        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, db);
         if (r != 0) goto died0;
-        r = pma_cget_current(cursor->pmacurs, kbt, vbt);
+        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
+        if (r != 0) goto died0;
+        break;
+    case DB_GET_BOTH:
+        r = unpin_cursor(cursor);
+        assert(r == 0);
+        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_GET_BOTH, db);
         if (r != 0) goto died0;
         break;
     case DB_SET_RANGE:
         r = unpin_cursor(cursor);
         assert(r == 0);
-        r = brtcurs_set_range(cursor, *rootp, kbt, 0);
+        r = brtcurs_set_range(cursor, *rootp, kbt, db);
         if (r != 0) goto died0;
-        r = pma_cget_current(cursor->pmacurs, kbt, vbt);
+        r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
         if (r != 0) goto died0;
-        break;
         break;
     default:
 	fprintf(stderr, "%s:%d c_get(...,%d) not ready\n", __FILE__, __LINE__, flags);
@@ -2395,6 +2405,7 @@ int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags) {
     return 0;
 }
 
+/* delete the key and value under the cursor */
 int brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused__))) {
     int r;
 
