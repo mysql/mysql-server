@@ -18,8 +18,6 @@ alter table t1 add index (b);
 show create table t1;
 
 -- Check how existing tables interfere with temporary tables.
--- The error code is somewhat misleading.  If innodb_file_per_table=1,
--- "File exists" from the operating system will translate into -1.
 CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
 
 --error 156
