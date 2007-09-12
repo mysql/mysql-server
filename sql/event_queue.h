@@ -15,11 +15,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+
+  @addtogroup Event_Scheduler
+  @{
+
+  @file event_queue.h
+
+  Queue of events awaiting execution.
+*/
+
 class Event_basic;
 class Event_queue_element;
 class Event_queue_element_for_exec;
 
 class THD;
+
+/**
+  Queue of active events awaiting execution.
+*/
 
 class Event_queue
 {
@@ -105,5 +119,8 @@ private:
   bool mutex_queue_data_attempting_lock;
   bool waiting_on_cond;
 };
+/**
+  @} (End of group Event_Scheduler)
+*/
 
 #endif /* _EVENT_QUEUE_H_ */

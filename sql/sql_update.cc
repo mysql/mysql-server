@@ -86,10 +86,10 @@ static bool check_fields(THD *thd, List<Item> &items)
 /**
   @brief Re-read record if more columns are needed for error message.
 
-  @detail If we got a duplicate key error, we want to write an error
-    message containing the value of the duplicate key. If we do not have
-    all fields of the key value in record[0], we need to re-read the
-    record with a proper read_set.
+  If we got a duplicate key error, we want to write an error
+  message containing the value of the duplicate key. If we do not have
+  all fields of the key value in record[0], we need to re-read the
+  record with a proper read_set.
 
   @param[in] error   error number
   @param[in] table   table

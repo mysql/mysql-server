@@ -939,6 +939,36 @@ alter table t1 add index(a(1024));
 show create table t1;
 drop table t1;
 
+#
+# Bug #28570: handler::index_read() is called with different find_flag when 
+# ORDER BY is used
+#
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  KEY (b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,10), (2,10), (2,20), (3,30);
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=20 FOR UPDATE;
+
+--connect (conn2, localhost, root,,test)
+
+# This statement gives a "failed: 1205: Lock wait timeout exceeded; try 
+# restarting transaction" message when the bug is present.
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
+ROLLBACK;
+
+--disconnect conn2
+--connection default
+
+ROLLBACK;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
