@@ -16,9 +16,9 @@ insert into t2 values (1, "Master t2 a=1 at c=10", 10);
 insert into t2 values (2, "Master t2 a=2 at c=10", 10);
 insert into t2 values (3, "Master t2 a=3 at c=10", 10);
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	0
+NDB_CONFLICT_FN_MAX	0
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=10	10
@@ -45,9 +45,9 @@ update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
 update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
 update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	3
+NDB_CONFLICT_FN_MAX	3
 select * from t1 order by a;
 a	b	X
 1	Slave t1 a=1 at X=12	12
@@ -66,9 +66,9 @@ update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
 update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	3
+NDB_CONFLICT_FN_MAX	3
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=13	13
@@ -93,9 +93,9 @@ insert into t2 values (1, "Master t2 a=1 at c=10", 10);
 insert into t2 values (2, "Master t2 a=2 at c=10", 10);
 insert into t2 values (3, "Master t2 a=3 at c=10", 10);
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	3
+NDB_CONFLICT_FN_MAX	3
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=10	10
@@ -122,9 +122,9 @@ update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
 update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
 update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	6
+NDB_CONFLICT_FN_MAX	6
 select * from t1 order by a;
 a	b	X
 1	Slave t1 a=1 at X=12	12
@@ -143,9 +143,9 @@ update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
 update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	6
+NDB_CONFLICT_FN_MAX	6
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=13	13
@@ -170,9 +170,9 @@ insert into t2 values (1, "Master t2 a=1 at c=10", 10);
 insert into t2 values (2, "Master t2 a=2 at c=10", 10);
 insert into t2 values (3, "Master t2 a=3 at c=10", 10);
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	6
+NDB_CONFLICT_FN_MAX	6
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=10	10
@@ -199,9 +199,9 @@ update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
 update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
 update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	6
+NDB_CONFLICT_FN_MAX	6
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=11	11
@@ -220,9 +220,9 @@ update t2 set b="Master t2 a=1 at c=13", c=13 where a=1;
 update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_MAX";
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
 VARIABLE_NAME	VARIABLE_VALUE
-NDB_CONFLICT_MAX	6
+NDB_CONFLICT_FN_MAX	6
 select * from t1 order by a;
 a	b	X
 1	Master t1 a=1 at X=13	13

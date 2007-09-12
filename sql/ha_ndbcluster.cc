@@ -192,7 +192,7 @@ struct st_ndb_status {
 };
 
 static struct st_ndb_status g_ndb_status;
-static long g_ndb_status_conflict_max= 0;
+static long g_ndb_status_conflict_fn_max= 0;
 
 static int update_status_variables(st_ndb_status *ns, Ndb_cluster_connection *c)
 {
@@ -223,7 +223,7 @@ SHOW_VAR ndb_status_variables[]= {
 };
 
 SHOW_VAR ndb_status_conflict_variables[]= {
-  {"conflict_max",     (char*) &g_ndb_status_conflict_max,      SHOW_LONG},
+  {"conflict_fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -286,7 +286,7 @@ check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
         err.classification != NdbError::NoDataFound)
     {
       if (err.code == 9999)
-        g_ndb_status_conflict_max++;
+        g_ndb_status_conflict_fn_max++;
       else
         DBUG_RETURN(err.code);
     }
