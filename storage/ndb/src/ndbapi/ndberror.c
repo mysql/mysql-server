@@ -189,6 +189,7 @@ ErrorBundle ErrorCodes[] = {
   { 4032, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
+  {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
 
   /**
    * InsufficientSpace
@@ -289,6 +290,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Application error
    */
+  { 281,  HA_ERR_NO_CONNECTION, AE, "Operation not allowed due to cluster shutdown in progress" },
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
   { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
