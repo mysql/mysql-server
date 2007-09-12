@@ -1055,7 +1055,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       Use view db name as thread default database, in order to ensure
       that the view is parsed and prepared correctly.
     */
-    if ((result= sp_use_new_db(thd, table->view_db, &old_db, 1, &dbchanged)))
+    if ((result= mysql_opt_change_db(thd, &table->view_db, &old_db, 1,
+                                     &dbchanged)))
       goto end;
 
     lex_start(thd);
