@@ -47,8 +47,6 @@
 extern EventLogger g_eventLogger;
 
 static Gci_container_pod g_empty_gci_container;
-static const Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
-static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
 #if defined(VM_TRACE) && defined(NOT_USED)
 static void
@@ -1744,7 +1742,8 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
 }
 
 void
-NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
+NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
+                                         Uint32 len)
 {
   if (unlikely(m_active_op_count == 0))
   {
@@ -1755,6 +1754,12 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 
   Uint32 gci_hi = rep->gci_hi;
   Uint32 gci_lo = rep->gci_lo;
+
+  if (unlikely(len < SubGcpCompleteRep::SignalLength))
+  {
+    gci_lo = 0;
+  }
+
   const Uint64 gci= gci_lo | (Uint64(gci_hi) << 32);
   const Uint32 cnt= rep->gcp_complete_rep_count;
 
@@ -1910,7 +1915,7 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
       if (impl->m_node_bit_mask.get(0u))
       {
         oid_ref = impl->m_oid;
-        insertDataL(impl, &data, ptr);
+        insertDataL(impl, &data, SubTableData::SignalLength, ptr);
       }
       NdbEventOperationImpl* blob_op = impl->theBlobOpList;
       while (blob_op != NULL)
@@ -1918,7 +1923,7 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
         if (blob_op->m_node_bit_mask.get(0u))
         {
           oid_ref = blob_op->m_oid;
-          insertDataL(blob_op, &data, ptr);
+          insertDataL(blob_op, &data, SubTableData::SignalLength, ptr);
         }
         blob_op = blob_op->m_next;
       }
@@ -2106,7 +2111,7 @@ NdbEventBuffer::completeClusterFailed()
   rep.gci_hi= gci >> 32;
   rep.gci_lo= gci & 0xFFFFFFFF;
   rep.gcp_complete_rep_count= cnt;
-  execSUB_GCP_COMPLETE_REP(&rep);
+  execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength);
 
   DBUG_VOID_RETURN;
 }
@@ -2120,6 +2125,7 @@ NdbEventBuffer::getLatestGCI()
 int
 NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    const SubTableData * const sdata, 
+                            Uint32 len,
 			    LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
@@ -2127,6 +2133,12 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   const Uint32 operation = SubTableData::getOperation(ri);
   Uint32 gci_hi = sdata->gci_hi;
   Uint32 gci_lo = sdata->gci_lo;
+
+  if (unlikely(len < SubTableData::SignalLength))
+  {
+    gci_lo = 0;
+  }
+
   Uint64 gci= gci_lo | (Uint64(gci_hi) << 32);
   const bool is_data_event = 
     operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
@@ -2251,7 +2263,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 2;
         DBUG_RETURN_EVENT(-1);
       }
-      if (unlikely(copy_data(sdata, ptr, data, NULL)))
+      if (unlikely(copy_data(sdata, len, ptr, data, NULL)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
@@ -2297,7 +2309,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     else
     {
       // event with same op, PK found, merge into old buffer
-      if (unlikely(merge_data(sdata, ptr, data, & bucket->m_data.m_sz)))
+      if (unlikely(merge_data(sdata, len, ptr, data, &bucket->m_data.m_sz)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
@@ -2468,7 +2480,7 @@ NdbEventBuffer::dealloc_mem(EventBufData* data,
 }
 
 int 
-NdbEventBuffer::copy_data(const SubTableData * const sdata,
+NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
                           LinearSectionPtr ptr[3],
                           EventBufData* data,
                           Uint32 * change_sz)
@@ -2478,6 +2490,12 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata,
   if (alloc_mem(data, ptr, change_sz) != 0)
     DBUG_RETURN_EVENT(-1);
   memcpy(data->sdata, sdata, sizeof(SubTableData));
+
+  if (unlikely(len < SubTableData::SignalLength))
+  {
+    data->sdata->gci_lo = 0;
+  }
+
   int i;
   for (i = 0; i <= 2; i++)
     memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
@@ -2545,7 +2563,7 @@ copy_attr(AttributeHeader ah,
 }
 
 int 
-NdbEventBuffer::merge_data(const SubTableData * const sdata,
+NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
                            LinearSectionPtr ptr2[3],
                            EventBufData* data,
                            Uint32 * change_sz)
@@ -2557,7 +2575,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
   int t1 = SubTableData::getOperation(data->sdata->requestInfo);
   int t2 = SubTableData::getOperation(sdata->requestInfo);
   if (t1 == Ev_t::enum_NUL)
-    DBUG_RETURN_EVENT(copy_data(sdata, ptr2, data, change_sz));
+    DBUG_RETURN_EVENT(copy_data(sdata, len, ptr2, data, change_sz));
 
   Ev_t* tp = 0;
   int i;
@@ -2843,7 +2861,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   SubTableData sdata = *blob_data->sdata;
   sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
   SubTableData::setOperation(sdata.requestInfo, NdbDictionary::Event::_TE_NUL);
-  if (copy_data(&sdata, ptr, main_data, NULL) != 0)
+  if (copy_data(&sdata, SubTableData::SignalLength, ptr, main_data, NULL) != 0)
     DBUG_RETURN_EVENT(-1);
   hpos.data = main_data;
 
