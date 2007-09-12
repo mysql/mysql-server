@@ -1033,9 +1033,11 @@ static int maria_chk(HA_CHECK *param, char *filename)
         Tell the server's Recovery to ignore old REDOs on this table; we don't
         know what the log's end LSN is now, so we just let the server know
         that it will have to find and store it.
+        This is the only case where create_rename_lsn can be a horizon and not
+        a LSN.
       */
       if (share->base.born_transactional)
-        share->state.create_rename_lsn= share->state.is_of_lsn=
+        share->state.create_rename_lsn= share->state.is_of_horizon=
           LSN_REPAIRED_BY_MARIA_CHK;
       if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
           (maria_is_any_key_active(share->state.key_map) ||

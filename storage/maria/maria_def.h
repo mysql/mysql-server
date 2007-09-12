@@ -96,7 +96,8 @@ typedef struct st_maria_state_info
   uint open_count;
   uint8 changed;			/* Changed since mariachk */
   LSN create_rename_lsn;    /**< LSN when table was last created/renamed */
-  LSN is_of_lsn;            /**< LSN when state was last updated on disk */
+  /** @brief Log horizon when state was last updated on disk */
+  TRANSLOG_ADDRESS is_of_horizon;
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -218,6 +219,7 @@ typedef struct st_maria_file_bitmap
 
 #define MARIA_CHECKPOINT_LOOKS_AT_ME 1
 #define MARIA_CHECKPOINT_SHOULD_FREE_ME 2
+#define MARIA_CHECKPOINT_SEEN_IN_LOOP 4
 
 typedef struct st_maria_share
 {					/* Shared between opens */
@@ -331,6 +333,7 @@ typedef struct st_maria_share
 						   non-mmaped area */
   MARIA_FILE_BITMAP bitmap;
   rw_lock_t mmap_lock;
+  LSN lsn_of_file_id; /**< LSN of its last LOGREC_FILE_ID */
 } MARIA_SHARE;
 
 
@@ -940,10 +943,10 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              ulong);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
-int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share,
-                                         LSN lsn, my_bool do_sync);
-int _ma_update_create_rename_lsn_on_disk_sub(MARIA_SHARE *share,
-                                             LSN lsn, my_bool do_sync);
+int _ma_update_create_rename_lsn(MARIA_SHARE *share,
+                                 LSN lsn, my_bool do_sync);
+int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
+                                     LSN lsn, my_bool do_sync);
 
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 #define _ma_tmp_disable_logging_for_table(S) \

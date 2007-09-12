@@ -247,8 +247,7 @@ extern my_bool pagecache_delete_pages(PAGECACHE *pagecache,
 extern void end_pagecache(PAGECACHE *keycache, my_bool cleanup);
 extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                          LEX_STRING *str,
-                                                         LSN *min_lsn,
-                                                         LSN *max_lsn);
+                                                         LSN *min_lsn);
 extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
 
 

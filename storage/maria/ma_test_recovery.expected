@@ -205,6 +205,47 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t2 -u1 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                   8192
+========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 --test-undo=2 (additional aborted work)
 Terminating after inserts
@@ -338,6 +379,47 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 < 1   2     6   unique  number NULL                    0         8192       8192
 ---
 > 1   2     6   unique  number NULL                    0                    8192
+========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t2 -u2 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                   8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 --test-undo=3 (additional aborted work)
@@ -473,6 +555,47 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -t2 -u3 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                 204800
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                90112  Keyfile length:                   8192
+========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=1 (additional aborted work)
 Terminating after inserts
@@ -606,6 +729,47 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u1 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                   8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=2 (additional aborted work)
@@ -741,6 +905,47 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u2 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                   8192
+========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=3 (additional aborted work)
 Terminating after inserts
@@ -874,4 +1079,45 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 < 1   2     6   unique  varchar BLOB NULL              0         8192       8192
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
+========DIFF END=======
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t1 (commit at end)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b -t2 -u3 (additional aborted work)
+Dying on request without maria_commit()/maria_close()
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing idempotency
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                 212992
+========DIFF END=======
+testing applying of CLRs to recreate table
+applying log
+Differences in maria_chk -dvv, recovery not yet perfect !
+========DIFF START=======
+6c6
+< Status:              checked,analyzed,optimized keys,sorted index pages
+---
+> Status:              changed
+11c11
+< Datafile length:                 8192  Keyfile length:                   8192
+---
+> Datafile length:                81920  Keyfile length:                   8192
 ========DIFF END=======

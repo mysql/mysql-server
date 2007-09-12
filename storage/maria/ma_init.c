@@ -19,6 +19,7 @@
 #include <ft_global.h>
 #include "ma_blockrec.h"
 #include "trnman_public.h"
+#include "ma_checkpoint.h"
 
 my_bool maria_inited= FALSE;
 pthread_mutex_t THR_LOCK_maria;
@@ -56,6 +57,7 @@ void maria_end(void)
   {
     maria_inited= maria_multi_threaded= FALSE;
     ft_free_stopwords();
+    ma_checkpoint_end();
     trnman_destroy();
     translog_destroy();
     end_pagecache(maria_log_pagecache, TRUE);

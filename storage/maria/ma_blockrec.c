@@ -402,9 +402,10 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
       File must be synced as it is going out of the maria_open_list and so
       becoming unknown to Checkpoint.
     */
-    if ((share->now_transactional &&
-         my_sync(share->bitmap.file.file, MYF(MY_WME))) ||
-        my_close(share->bitmap.file.file, MYF(MY_WME)))
+    if (share->now_transactional &&
+        my_sync(share->bitmap.file.file, MYF(MY_WME)))
+      res= 1;
+    if (my_close(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
     /*
       Trivial assignment to guard against multiple invocations
@@ -2587,7 +2588,8 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   my_bool res= 0;
   MARIA_BITMAP_BLOCKS *blocks= &info->cur_row.insert_blocks;
   MARIA_BITMAP_BLOCK *block, *end;
-  DBUG_ENTER("_ma_abort_write_block_record");
+  LSN lsn= LSN_IMPOSSIBLE;
+  DBUG_ENTER("_ma_write_abort_block_record");
 
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
@@ -2616,44 +2618,42 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
 
   if (info->s->now_transactional)
   {
-    LSN lsn;
+    LSN previous_undo_lsn;
+    TRANSLOG_HEADER_BUFFER rec;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
-
+    uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE + 1];
+    int len;
     /*
-      Write UNDO record
-      This entry is just an end marker for the abort_insert as we will never
-      really undo a failed insert. Note that this UNDO will cause recover
-      to ignore the LOGREC_UNDO_ROW_INSERT that is the previous entry
-      in the UNDO chain.
+      We do need the code above (delete_head_or_tail() etc) for
+      non-transactional tables.
+      For transactional tables we could skip this code above and just execute
+      the UNDO_INSERT, but we try to have one code path.
+      Write CLR record, because we are somehow undoing UNDO_ROW_INSERT.
+      When we have logging for keys: as maria_write() first writes the row
+      then the keys, and if failure, deletes the keys then the rows,
+      info->trn->undo_lsn below will properly point to the UNDO of the
+      UNDO_ROW_INSERT for this row.
     */
-    /**
-       @todo RECOVERY BUG
-       We do need the code above (delete_head_or_tail() etc) for
-       non-transactional tables.
-       For transactional tables we can either also use it or execute the
-       UNDO_INSERT. If we crash before this
-       _ma_write_abort_block_record(), Recovery will do the work of this
-       function by executing UNDO_INSERT.
-       For transactional tables, we will remove this LOGREC_UNDO_PURGE and
-       replace it with a LOGREC_CLR_END: we should go back the UNDO chain
-       until we reach the UNDO which inserted the row into the data file, and
-       use its previous_undo_lsn.
-       Same logic for when we remove inserted keys (in case of error in
-       maria_write(): we come to the present function only after removing the
-       inserted keys... as long as we unpin the key pages only after writing
-       the CLR_END, this would be recovery-safe...).
-    */
-    lsn_store(log_data, info->trn->undo_lsn);
+    if ((len= translog_read_record_header(info->trn->undo_lsn, &rec)) ==
+        RECHEADER_READ_ERROR)
+    {
+      res= 1;
+      goto end;
+    }
+    DBUG_ASSERT(rec.type == LOGREC_UNDO_ROW_INSERT);
+    previous_undo_lsn= lsn_korr(rec.header);
+    lsn_store(log_data, previous_undo_lsn);
+    log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE]= LOGREC_UNDO_ROW_INSERT;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    if (translog_write_record(&lsn, LOGREC_UNDO_ROW_PURGE,
+    if (translog_write_record(&lsn, LOGREC_CLR_END,
                               info->trn, info, sizeof(log_data),
                               TRANSLOG_INTERNAL_PARTS + 1, log_array,
                               log_data + LSN_STORE_SIZE))
       res= 1;
   }
-  _ma_unpin_all_pages_and_finalize_row(info, info->trn->undo_lsn);
+end:
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
 

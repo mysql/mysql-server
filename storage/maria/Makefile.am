@@ -61,7 +61,8 @@ noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_ft_eval.h trnman.h lockman.h tablockman.h \
 			ma_control_file.h ha_maria.h ma_blockrec.h \
 			ma_loghandler.h ma_loghandler_lsn.h ma_pagecache.h \
-			ma_recovery.h ma_commit.h trnman_public.h
+			ma_checkpoint.h ma_recovery.h ma_commit.h \
+			trnman_public.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/storage/myisam/libmyisam.a \
@@ -120,7 +121,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c \
 			ma_sp_key.c ma_control_file.c ma_loghandler.c \
 			ma_pagecache.c ma_pagecaches.c \
-			ma_recovery.c ma_commit.c
+			ma_checkpoint.c ma_recovery.c ma_commit.c
 CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA?
 
 SUFFIXES = .sh

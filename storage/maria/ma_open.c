@@ -618,14 +618,13 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           view of the server, including server's recovery) now.
         */
         if ((open_flags & HA_OPEN_FROM_SQL_LAYER) || maria_in_recovery)
-          _ma_update_create_rename_lsn_on_disk_sub(share,
-                                                   translog_get_horizon(),
-                                                   TRUE);
+          _ma_update_create_rename_lsn_sub(share, translog_get_horizon(),
+                                           TRUE);
       }
       else if ((!LSN_VALID(share->state.create_rename_lsn) ||
-                !LSN_VALID(share->state.is_of_lsn) ||
+                !LSN_VALID(share->state.is_of_horizon) ||
                 (cmp_translog_addr(share->state.create_rename_lsn,
-                                   share->state.is_of_lsn) > 0)) &&
+                                   share->state.is_of_horizon) > 0)) &&
                !(open_flags & HA_OPEN_FOR_REPAIR))
       {
         /*
@@ -981,7 +980,7 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
    @brief Function to save and store the header in the index file (.MYI)
 
    Operates under MARIA_SHARE::intern_lock if requested.
-   Sets MARIA_SHARE::MARIA_STATE_INFO::is_of_lsn if table is transactional.
+   Sets MARIA_SHARE::MARIA_STATE_INFO::is_of_horizon if transactional table.
    Then calls _ma_state_info_write_sub().
 
    @param  share           table
@@ -998,7 +997,7 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
 
 uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
 {
-  uint res= 0;
+  uint res;
   if (pWrite & 4)
     pthread_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
@@ -1007,11 +1006,11 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
       !maria_in_recovery)
   {
     /*
-      In a recovery, we want to set is_of_lsn to the LSN of the last
+      In a recovery, we want to set is_of_horizon to the LSN of the last
       record executed by Recovery, not the current EOF of the log (which
       is too new). Recovery does it by itself.
     */
-    share->state.is_of_lsn= translog_get_horizon();
+    share->state.is_of_horizon= translog_get_horizon();
   }
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
   if (pWrite & 4)
@@ -1052,11 +1051,12 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   /* open_count must be first because of _ma_mark_file_changed ! */
   mi_int2store(ptr,state->open_count);			ptr+= 2;
   /*
-    if you change the offset of create_rename_lsn/is_of_lsn inside the file,
-    fix ma_create + ma_rename + ma_delete_all + backward-compatibility.
+    if you change the offset of create_rename_lsn/is_of_horizon inside the
+    index file's header, fix ma_create + ma_rename + ma_delete_all +
+    backward-compatibility.
   */
   lsn_store(ptr, state->create_rename_lsn);		ptr+= LSN_STORE_SIZE;
-  lsn_store(ptr, state->is_of_lsn);			ptr+= LSN_STORE_SIZE;
+  lsn_store(ptr, state->is_of_horizon);			ptr+= LSN_STORE_SIZE;
   *ptr++= (uchar)state->changed;
   *ptr++= state->sortkey;
   mi_rowstore(ptr,state->state.records);		ptr+= 8;
@@ -1119,7 +1119,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 
   state->open_count = mi_uint2korr(ptr);		ptr+= 2;
   state->create_rename_lsn= lsn_korr(ptr);		ptr+= LSN_STORE_SIZE;
-  state->is_of_lsn= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
+  state->is_of_horizon= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
   state->changed= 					(my_bool) *ptr++;
   state->sortkey= 					(uint) *ptr++;
   state->state.records= mi_rowkorr(ptr);		ptr+= 8;

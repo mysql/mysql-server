@@ -3865,8 +3865,6 @@ int reset_pagecache_counters(const char *name, PAGECACHE *pagecache)
                             its size, will be put
    @param[out]  min_rec_lsn pointer to where the minimum rec_lsn of all
                             relevant dirty pages will be put
-   @param[out]  max_rec_lsn pointer to where the maximum rec_lsn of all
-                            relevant dirty pages will be put
    @return Operation status
      @retval 0      OK
      @retval 1      Error
@@ -3874,14 +3872,13 @@ int reset_pagecache_counters(const char *name, PAGECACHE *pagecache)
 
 my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LEX_STRING *str,
-                                                  LSN *min_rec_lsn,
-                                                  LSN *max_rec_lsn)
+                                                  LSN *min_rec_lsn)
 {
   my_bool error= 0;
-  ulong stored_list_size= 0;
+  uint stored_list_size= 0;
   uint file_hash;
   char *ptr;
-  LSN minimum_rec_lsn= LSN_MAX, maximum_rec_lsn= 0;
+  LSN minimum_rec_lsn= LSN_MAX;
   DBUG_ENTER("pagecache_collect_changed_blocks_with_LSN");
 
   DBUG_ASSERT(NULL == str->str);
@@ -3921,7 +3918,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     }
   }
 
-  str->length= 8 + /* number of dirty pages */
+  compile_time_assert(sizeof(pagecache->blocks == 4));
+  str->length= 4 + /* number of dirty pages */
     (4 + /* file */
      4 + /* pageno */
      LSN_STORE_SIZE /* rec_lsn */
@@ -3929,8 +3927,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   if (NULL == (str->str= my_malloc(str->length, MYF(MY_WME))))
     goto err;
   ptr= str->str;
-  int8store(ptr, stored_list_size);
-  ptr+= 8;
+  int4store(ptr, stored_list_size);
+  ptr+= 4;
   if (!stored_list_size)
     goto end;
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
@@ -3955,15 +3953,12 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
         DBUG_ASSERT(LSN_VALID(block->rec_lsn));
         if (cmp_translog_addr(block->rec_lsn, minimum_rec_lsn) < 0)
           minimum_rec_lsn= block->rec_lsn;
-        if (cmp_translog_addr(block->rec_lsn, maximum_rec_lsn) > 0)
-          maximum_rec_lsn= block->rec_lsn;
       } /* otherwise, some trn->rec_lsn should hold the correct info */
     }
   }
 end:
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   *min_rec_lsn= minimum_rec_lsn;
-  *max_rec_lsn= maximum_rec_lsn;
   DBUG_RETURN(error);
 
 err:

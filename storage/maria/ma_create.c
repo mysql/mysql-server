@@ -636,7 +636,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-  share.state.create_rename_lsn= share.state.is_of_lsn= LSN_IMPOSSIBLE;
   share.state.process=	(ulong) getpid();
   share.state.unique=	(ulong) 0;
   share.state.update_count=(ulong) 0;
@@ -1006,7 +1005,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
-    if (_ma_update_create_rename_lsn_on_disk_sub(&share, lsn, FALSE))
+    if (_ma_update_create_rename_lsn_sub(&share, lsn, FALSE))
       goto err;
     my_free(log_data, MYF(0));
   }
@@ -1070,7 +1069,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     if (my_chsize(dfile,share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
       goto err;
 #endif
-    if ((sync_dir && my_sync(dfile, MYF(0))) || my_close(dfile,MYF(0)))
+    if (sync_dir && my_sync(dfile, MYF(0)))
+      goto err;
+    if (my_close(dfile,MYF(0)))
       goto err;
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
@@ -1207,7 +1208,7 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 
 
 /**
-   @brief Writes create_rename_lsn and is_of_lsn to disk, optionally forces.
+   @brief Writes create_rename_lsn and is_of_horizon to disk, can force.
 
    This is for special cases where:
    - we don't want to write the full state to disk (so, not call
@@ -1224,21 +1225,21 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
      @retval 1      error (disk problem)
 */
 
-int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share,
-                                         LSN lsn, my_bool do_sync)
+int _ma_update_create_rename_lsn(MARIA_SHARE *share,
+                                 LSN lsn, my_bool do_sync)
 {
   int res;
   pthread_mutex_lock(&share->intern_lock);
-  res= _ma_update_create_rename_lsn_on_disk_sub(share, lsn, do_sync);
+  res= _ma_update_create_rename_lsn_sub(share, lsn, do_sync);
   pthread_mutex_unlock(&share->intern_lock);
   return res;
 }
 
 
 /**
-   @brief Writes create_rename_lsn and is_of_lsn to disk, optionally forces.
+   @brief Writes create_rename_lsn and is_of_horizon to disk, can force.
 
-   Shortcut of _ma_update_create_rename_lsn_on_disk() when we know that
+   Shortcut of _ma_update_create_rename_lsn() when we know that
    intern_lock is not needed (when creating a table or opening it for the
    first time).
 
@@ -1250,15 +1251,28 @@ int _ma_update_create_rename_lsn_on_disk(MARIA_SHARE *share,
      @retval 1      error (disk problem)
 */
 
-int _ma_update_create_rename_lsn_on_disk_sub(MARIA_SHARE *share,
-                                             LSN lsn, my_bool do_sync)
+int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
+                                     LSN lsn, my_bool do_sync)
 {
   char buf[LSN_STORE_SIZE*2], *ptr;
   File file= share->kfile.file;
   DBUG_ASSERT(file >= 0);
   for (ptr= buf; ptr < (buf + sizeof(buf)); ptr+= LSN_STORE_SIZE)
     lsn_store(ptr, lsn);
-  share->state.is_of_lsn= share->state.create_rename_lsn= lsn;
+  share->state.is_of_horizon= share->state.create_rename_lsn= lsn;
+  if (share->id != 0)
+  {
+    /*
+      If OP is the operation which is calling us, if table is later written,
+      we could see in the log:
+      FILE_ID ... REDO_OP ... REDO_INSERT.
+      (that can happen in real life at least with OP=REPAIR).
+      As FILE_ID will be ignored by Recovery because it is <
+      create_rename_lsn, REDO_INSERT would be ignored too, wrongly.
+      To avoid that, we force a LOGREC_FILE_ID to be logged at next write:
+    */
+    translog_deassign_id_from_share(share);
+  }
   return my_pwrite(file, buf, sizeof(buf),
                    sizeof(share->state.header) + 2, MYF(MY_NABP)) ||
     (do_sync && my_sync(file, MYF(0)));

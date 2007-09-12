@@ -25,6 +25,7 @@
 #define SAFEMALLOC
 #endif
 #include "maria_def.h"
+#include "trnman.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 
@@ -47,7 +48,8 @@ static void copy_key(struct st_maria_info *info,uint inx,
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
             rec_pointer_size=0,pack_fields=1,silent=0,
-            opt_quick_mode=0, transactional= 0, skip_update= 0;
+            opt_quick_mode=0, transactional= 0, skip_update= 0,
+            die_in_middle_of_transaction= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
 static int create_flag= 0, srand_arg= 0;
 static ulong pagecache_size=IO_SIZE*16;
@@ -235,6 +237,9 @@ int main(int argc, char *argv[])
     goto err;
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
+  maria_begin(file);
+  if (testflag == 1)
+    goto end;
   if (!silent)
     printf("- Writing key:s\n");
   if (locking)
@@ -243,8 +248,6 @@ int main(int argc, char *argv[])
     maria_extra(file,HA_EXTRA_WRITE_CACHE,0);
   if (opt_quick_mode)
     maria_extra(file,HA_EXTRA_QUICK,0);
-
-  maria_begin(file);
 
   for (i=0 ; i < recant ; i++)
   {
@@ -297,7 +300,7 @@ int main(int argc, char *argv[])
       }
     }
   }
-  if (testflag == 1)
+  if (testflag == 2)
     goto end;
 
   if (write_cacheing)
@@ -348,7 +351,7 @@ int main(int argc, char *argv[])
     else
       puts("Warning: Skipping delete test because no dupplicate keys");
   }
-  if (testflag == 2)
+  if (testflag == 3)
     goto end;
 
   if (!silent)
@@ -409,7 +412,7 @@ int main(int argc, char *argv[])
       }
     }
   }
-  if (testflag == 3)
+  if (testflag == 4)
     goto end;
 
   for (i=999, dupp_keys=j=0 ; i>0 ; i--)
@@ -814,7 +817,7 @@ int main(int argc, char *argv[])
     goto err;
   }
 
-  if (testflag == 4)
+  if (testflag == 5)
     goto end;
 
   if (!silent)
@@ -892,6 +895,36 @@ int main(int argc, char *argv[])
     goto err;
   }
 end:
+  if (die_in_middle_of_transaction)
+  {
+    /* As commit record is not done, UNDO entries needs to be rolled back */
+    switch (die_in_middle_of_transaction) {
+    case 1:
+      /*
+        Flush changed pages go to disk. That will also flush log. Recovery
+        will skip REDOs and apply UNDOs.
+      */
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      break;
+    case 2:
+      /*
+        Just flush log. Pages are likely to not be on disk. Recovery will
+        then execute REDOs and UNDOs.
+      */
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
+      break;
+    case 3:
+      /*
+        Flush nothing. Pages and log are likely to not be on disk. Recovery
+        will then do nothing.
+      */
+      break;
+    }
+    printf("Dying on request without maria_commit()/maria_close()\n");
+    exit(0);
+  }
   if (maria_commit(file))
     goto err;
   if (maria_close(file))
@@ -998,9 +1031,9 @@ static void get_options(int argc, char **argv)
       verbose=1;
       break;
     case 'm':				/* records */
-      if ((recant=atoi(++pos)) < 10 && testflag > 1)
+      if ((recant=atoi(++pos)) < 10 && testflag > 2)
       {
-	fprintf(stderr,"record count must be >= 10 (if testflag != 1)\n");
+	fprintf(stderr,"record count must be >= 10 (if testflag > 2)\n");
 	exit(1);
       }
       break;
@@ -1047,6 +1080,9 @@ static void get_options(int argc, char **argv)
       break;
     case 'T':
       transactional= 1;
+      break;
+    case 'u':
+      die_in_middle_of_transaction= atoi(++pos);
       break;
     case 'q':
       opt_quick_mode=1;

@@ -67,17 +67,12 @@ int maria_rename(const char *old_name, const char *new_name)
   if (sync_dir)
   {
     LSN lsn;
-    uchar log_data[2 + 2];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
-    uint old_name_len= strlen(old_name), new_name_len= strlen(new_name);
-    int2store(log_data, old_name_len);
-    int2store(log_data + 2, new_name_len);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *)old_name;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= old_name_len;
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)new_name;
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].length= new_name_len;
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    uint old_name_len= strlen(old_name)+1, new_name_len= strlen(new_name)+1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)old_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= old_name_len;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *)new_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= new_name_len;
     /*
       For this record to be of any use for Recovery, we need the upper
       MySQL layer to be crash-safe, which it is not now (that would require
@@ -88,7 +83,7 @@ int maria_rename(const char *old_name, const char *new_name)
     */
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_RENAME_TABLE,
                                        &dummy_transaction_object, NULL,
-                                       2 + 2 + old_name_len + new_name_len,
+                                       old_name_len + new_name_len,
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, NULL) ||
                  translog_flush(lsn)))
@@ -100,7 +95,7 @@ int maria_rename(const char *old_name, const char *new_name)
       store LSN into file, needed for Recovery to not be confused if a
       RENAME happened (applying REDOs to the wrong table).
     */
-    if (_ma_update_create_rename_lsn_on_disk(share, lsn, TRUE))
+    if (_ma_update_create_rename_lsn(share, lsn, TRUE))
     {
       maria_close(info);
       DBUG_RETURN(1);

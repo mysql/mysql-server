@@ -18,6 +18,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include "trnman.h"
+#include "ma_checkpoint.h"
 #include "ma_control_file.h"
 
 /*
@@ -587,27 +588,25 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   TRN *trn;
   char *ptr;
   uint stored_transactions= 0;
-  LSN minimum_rec_lsn= ULONGLONG_MAX, minimum_first_undo_lsn= ULONGLONG_MAX;
+  LSN minimum_rec_lsn= LSN_MAX, minimum_first_undo_lsn= LSN_MAX;
   DBUG_ENTER("trnman_collect_transactions");
 
   DBUG_ASSERT((NULL == str_act->str) && (NULL == str_com->str));
 
   /* validate the use of read_non_atomic() in general: */
   compile_time_assert((sizeof(LSN) == 8) && (sizeof(LSN_WITH_FLAGS) == 8));
-
-  DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
   pthread_mutex_lock(&LOCK_trn_list);
   str_act->length= 2 + /* number of active transactions */
     LSN_STORE_SIZE + /* minimum of their rec_lsn */
-    (6 + /* long id */
-     2 + /* short id */
+    (2 + /* short id */
+     6 + /* long id */
      LSN_STORE_SIZE + /* undo_lsn */
 #ifdef MARIA_VERSIONING /* not enabled yet */
      LSN_STORE_SIZE + /* undo_purge_lsn */
 #endif
      LSN_STORE_SIZE /* first_undo_lsn */
      ) * trnman_active_transactions;
-  str_com->length= 8 + /* number of committed transactions */
+  str_com->length= 4 + /* number of committed transactions */
     (6 + /* long id */
 #ifdef MARIA_VERSIONING /* not enabled yet */
      LSN_STORE_SIZE + /* undo_purge_lsn */
@@ -638,13 +637,6 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
       */
       continue;
     }
-#ifndef MARIA_CHECKPOINT
-/*
-  in the checkpoint patch (not yet ready) we will have a real implementation
-  of lsn_read_non_atomic(); for now it's not needed
-*/
-#define lsn_read_non_atomic(A) (A)
-#endif
       /* needed for low-water mark calculation */
     if (((rec_lsn= lsn_read_non_atomic(trn->rec_lsn)) > 0) &&
         (cmp_translog_addr(rec_lsn, minimum_rec_lsn) < 0))
@@ -656,23 +648,23 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
     if  ((undo_lsn= trn->undo_lsn) == 0) /* trn can be forgotten */
       continue;
     stored_transactions++;
-    int6store(ptr, trn->trid);
-    ptr+= 6;
     int2store(ptr, sid);
     ptr+= 2;
+    int6store(ptr, trn->trid);
+    ptr+= 6;
     lsn_store(ptr, undo_lsn); /* needed for rollback */
     ptr+= LSN_STORE_SIZE;
-#ifdef MARIA_VERSIONING /* not enabled yet */
-    /* to know where purging should start (last delete of this trn) */
-    lsn_store(ptr, trn->undo_purge_lsn);
-    ptr+= LSN_STORE_SIZE;
-#endif
     /* needed for low-water mark calculation */
     if (((first_undo_lsn= lsn_read_non_atomic(trn->first_undo_lsn)) > 0) &&
         (cmp_translog_addr(first_undo_lsn, minimum_first_undo_lsn) < 0))
       minimum_first_undo_lsn= first_undo_lsn;
     lsn_store(ptr, first_undo_lsn);
     ptr+= LSN_STORE_SIZE;
+#ifdef MARIA_VERSIONING /* not enabled yet */
+    /* to know where purging should start (last delete of this trn) */
+    lsn_store(ptr, trn->undo_purge_lsn);
+    ptr+= LSN_STORE_SIZE;
+#endif
     /**
        @todo RECOVERY: add a comment explaining why we can dirtily read some
        vars, inspired by the text of "assumption 8" in WL#3072
@@ -680,6 +672,8 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   }
   str_act->length= ptr - str_act->str; /* as we maybe over-estimated */
   ptr= str_act->str;
+  DBUG_PRINT("info",("collected %u active transactions",
+                     (uint)stored_transactions));
   int2store(ptr, stored_transactions);
   ptr+= 2;
   /* this LSN influences how REDOs for any page can be ignored by Recovery */
@@ -687,8 +681,10 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   /* one day there will also be a list of prepared transactions */
   /* do the same for committed ones */
   ptr= str_com->str;
-  int8store(ptr, (ulonglong)trnman_committed_transactions);
-  ptr+= 8;
+  int4store(ptr, trnman_committed_transactions);
+  ptr+= 4;
+  DBUG_PRINT("info",("collected %u committed transactions",
+                     (uint)trnman_committed_transactions));
   for (trn= committed_list_min.next; trn != &committed_list_max;
        trn= trn->next)
   {
@@ -716,7 +712,6 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
 err:
   error= 1;
 end:
-  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
   DBUG_RETURN(error);
 }

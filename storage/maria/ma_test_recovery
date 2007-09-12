@@ -131,7 +131,7 @@ do
   for test_undo in 1 2 3
   do
   # first iteration tests rollback of insert, second tests rollback of delete
-  set -- "ma_test1 $silent -M -T -c -N $blobs" "--testflag=1" "--testflag=2" "ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=3" "--testflag=4" "ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=2" "--testflag=3"
+  set -- "ma_test1 $silent -M -T -c -N $blobs" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace $blobs" "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs" "-t1" "-t2 -u"
   # -N (create NULL fields) is needed because --test-undo adds it anyway
   while [ $# != 0 ]
     do
@@ -148,8 +148,8 @@ do
     mv $table.MAD $tmp/$table.MAD.good
     rm $table.MAI
     rm maria_log.* maria_log_control
-    echo "TEST WITH $prog $abort_run_args --test-undo=$test_undo (additional aborted work)"
-    $maria_path/$prog $abort_run_args --test-undo=$test_undo
+    echo "TEST WITH $prog $abort_run_args$test_undo (additional aborted work)"
+    $maria_path/$prog $abort_run_args$test_undo
     cp $table.MAD $tmp/$table.MAD.before_undo
     if [ $test_undo -lt 3 ]
         then
@@ -174,7 +174,7 @@ do
     echo "testing applying of CLRs to recreate table"
     rm $table.MA?
     apply_log "shouldnotchangelog"
-    # the cmp below fails with blobs! @todo RECOVERY BUG find out why.
+    # the cmp below fails with ma_test1+blobs! @todo RECOVERY BUG why?
     # It is probably serious; REDOs shouldn't place rows in different
     # positions from what the run-time code did. Indeed it may lead to
     # more or less free space...
@@ -189,12 +189,15 @@ do
     check_table_is_same
     shift 3
   done
+  rm -f $table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
 done
 done
-rm -f $table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
 
 ) 2>&1 > $tmp/ma_test_recovery.output
 
+# also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
+# this is normal: removing records does not shrink the data/key file,
+# does not put back the "analyzed,optimized keys"(etc) index state.
 diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output > /dev/null || diff_failed=1
 if [ "$diff_failed" == "1" ]
     then

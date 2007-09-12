@@ -31,6 +31,8 @@ C_MODE_START
 #include "maria_def.h"
 #include "ma_rt_index.h"
 #include "ma_blockrec.h"
+#include "ma_checkpoint.h"
+#include "ma_recovery.h"
 C_MODE_END
 
 /*
@@ -2344,6 +2346,7 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
 
 static int maria_hton_panic(handlerton *hton, ha_panic_function flag)
 {
+  ma_checkpoint_execute(CHECKPOINT_FULL, FALSE); /* can't catch error */
   return maria_panic(flag);
 }
 
@@ -2403,7 +2406,10 @@ static int ha_maria_init(void *p)
     translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
-    trnman_init(0);
+    maria_recover() ||
+    ma_checkpoint_init(FALSE) ||
+    /* One checkpoint after Recovery */
+    ma_checkpoint_execute(CHECKPOINT_FULL, FALSE);
   maria_multi_threaded= TRUE;
   return res;
 }

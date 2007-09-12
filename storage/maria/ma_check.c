@@ -2264,7 +2264,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 			     llstr(sort_info.dupp,llbuff));
   }
 
-  got_error= sync_dir ? write_log_record_for_repair(param, info) : 0;
+  got_error= 0;
   /* If invoked by external program that uses thr_lock */
   if (&share->state.state != info->state)
     memcpy( &share->state.state, info->state, sizeof(*info->state));
@@ -2308,6 +2308,14 @@ err:
       info->rec_cache.file=-1; /* don't flush data to new_file, it's closed */
     }
     maria_mark_crashed_on_repair(info);
+  }
+  else if (sync_dir)
+  {
+    /*
+      Now that we have flushed and forced everything, we can bump
+      create_rename_lsn:
+    */
+    write_log_record_for_repair(param, info);
   }
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -5551,7 +5559,7 @@ read_next_page:
 
 /**
    @brief Writes a LOGREC_REPAIR_TABLE record and updates create_rename_lsn
-   and is_of_lsn
+   and is_of_horizon
 
    REPAIR/OPTIMIZE have replaced the data/index file with a new file
    and so, in this scenario:
@@ -5572,6 +5580,7 @@ read_next_page:
 
 static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 {
+  MARIA_SHARE *share= info->s;
   /* in case this is maria_chk or recovery... */
   if (translog_inited && !maria_in_recovery)
   {
@@ -5613,16 +5622,12 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       return 1;
     /*
       The table's existence was made durable earlier (MY_SYNC_DIR passed to
-      maria_change_to_newfile()).
+      maria_change_to_newfile()). _ma_flush_table_files_after_repair() was
+      called earlier, flushed and forced data+index+state. Old REDOs should
+      not be applied to the table:
     */
-    if (_ma_update_create_rename_lsn_on_disk(info->s, lsn, FALSE))
+    if (_ma_update_create_rename_lsn(share, lsn, TRUE))
       return 1;
-    /*
-      _ma_flush_table_files_after_repair() is later called by maria_repair(),
-      and makes sure to flush the data, index, update is_of_lsn, flush state
-      and sync, so create_rename_lsn reaches disk, thus we won't apply old
-      REDOs to the new table.
-    */
   }
   return 0;
 }

@@ -297,8 +297,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
        HA_EXTRA_PREPARE_FOR_DROP|RENAME.
     */
     pthread_mutex_lock(&THR_LOCK_maria);
+    pthread_mutex_lock(&share->intern_lock); /* protect against Checkpoint */
     /* this makes the share not be re-used next time the table is opened */
     share->last_version= 0L;			/* Impossible version */
+    pthread_mutex_unlock(&share->intern_lock);
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
@@ -306,9 +308,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   {
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
     pthread_mutex_lock(&THR_LOCK_maria);
-    share->last_version= 0L;			/* Impossible version */
     /*
-      This share, having last_version=0, needs to save all its data/index
+      This share, to have last_version=0, needs to save all its data/index
       blocks to disk if this is not for a DROP TABLE. Otherwise they would be
       invisible to future openers; and they could even go to disk late and
       cancel the work of future openers.
@@ -396,6 +397,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       }
     }
 #endif
+    /* For protection against Checkpoint, we set under intern_lock: */
+    share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&share->intern_lock);
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;

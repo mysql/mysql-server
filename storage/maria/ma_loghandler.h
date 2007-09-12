@@ -105,7 +105,6 @@ enum translog_record_type
   LOGREC_UNDO_ROW_INSERT,
   LOGREC_UNDO_ROW_DELETE,
   LOGREC_UNDO_ROW_UPDATE,
-  LOGREC_UNDO_ROW_PURGE,
   LOGREC_UNDO_KEY_INSERT,
   LOGREC_UNDO_KEY_DELETE,
   LOGREC_PREPARE,
@@ -251,13 +250,14 @@ extern my_bool translog_init_scanner(LSN lsn,
 extern int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
                                             TRANSLOG_HEADER_BUFFER *buff);
 extern LSN translog_get_file_max_lsn_stored(uint32 file);
-extern my_bool translog_purge(LSN low);
+extern my_bool translog_purge(TRANSLOG_ADDRESS low);
 extern my_bool translog_is_file(uint file_no);
 extern my_bool translog_lock();
 extern my_bool translog_unlock();
 extern void translog_lock_assert_owner();
 extern TRANSLOG_ADDRESS translog_get_horizon();
-extern int translog_assign_id_to_share(struct st_maria_share *share,
+extern TRANSLOG_ADDRESS translog_get_horizon_no_lock();
+extern int translog_assign_id_to_share(struct st_maria_info *tbl_info,
                                        struct st_transaction *trn);
 extern void translog_deassign_id_from_share(struct st_maria_share *share);
 extern void

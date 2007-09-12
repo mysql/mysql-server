@@ -225,11 +225,10 @@ static my_bool write_hook_for_undo_row_delete(enum translog_record_type type,
                                               TRN *trn, MARIA_HA *tbl_info,
                                               LSN *lsn,
                                               struct st_translog_parts *parts);
-static my_bool write_hook_for_undo_row_purge(enum translog_record_type type,
-                                             TRN *trn, MARIA_HA *tbl_info,
-                                             LSN *lsn,
-                                             struct st_translog_parts *parts);
 static my_bool write_hook_for_clr_end(enum translog_record_type type,
+                                      TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                                      struct st_translog_parts *parts);
+static my_bool write_hook_for_file_id(enum translog_record_type type,
                                       TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                       struct st_translog_parts *parts);
 
@@ -386,10 +385,12 @@ static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
  write_hook_for_redo, NULL, 0,
  "redo_insert_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
+/** @todo RECOVERY BUG unused, remove? */
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOB=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
  "redo_insert_row_blob", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
+/** @todo RECOVERY BUG handle it in recovery */
 /*QQQ:TODO:header???*/
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, FILEID_STORE_SIZE, NULL,
@@ -416,10 +417,12 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
+/* not yet used; for when we have versioning */
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
 {LOGRECTYPE_FIXEDLENGTH, 16, 16, NULL, write_hook_for_redo, NULL, 0,
  "redo_delete_row", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
+/** @todo RECOVERY BUG unused, remove? */
 static LOG_DESC INIT_LOGREC_REDO_UPDATE_ROW_HEAD=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 9, NULL, write_hook_for_redo, NULL, 0,
  "redo_update_row_head", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
@@ -459,12 +462,6 @@ static LOG_DESC INIT_LOGREC_UNDO_ROW_UPDATE=
  LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
  NULL, write_hook_for_undo, NULL, 1,
  "undo_row_update", LOGREC_LAST_IN_GROUP, NULL, NULL};
-
-static LOG_DESC INIT_LOGREC_UNDO_ROW_PURGE=
-{LOGRECTYPE_PSEUDOFIXEDLENGTH, LSN_STORE_SIZE + FILEID_STORE_SIZE,
- LSN_STORE_SIZE + FILEID_STORE_SIZE,
- NULL, write_hook_for_undo_row_purge, NULL, 1,
- "undo_row_purge", LOGREC_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_UNDO_KEY_INSERT=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, 10, NULL, write_hook_for_undo, NULL, 1,
@@ -518,7 +515,7 @@ static LOG_DESC INIT_LOGREC_REDO_REPAIR_TABLE=
  "redo_repair_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_FILE_ID=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 2, NULL, NULL, NULL, 0,
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 2, NULL, write_hook_for_file_id, NULL, 0,
  "file_id", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_LONG_TRANSACTION_ID=
@@ -564,8 +561,6 @@ static void loghandler_init()
     INIT_LOGREC_UNDO_ROW_DELETE;
   log_record_type_descriptor[LOGREC_UNDO_ROW_UPDATE]=
     INIT_LOGREC_UNDO_ROW_UPDATE;
-  log_record_type_descriptor[LOGREC_UNDO_ROW_PURGE]=
-    INIT_LOGREC_UNDO_ROW_PURGE;
   log_record_type_descriptor[LOGREC_UNDO_KEY_INSERT]=
     INIT_LOGREC_UNDO_KEY_INSERT;
   log_record_type_descriptor[LOGREC_UNDO_KEY_DELETE]=
@@ -4941,7 +4936,7 @@ my_bool translog_write_record(LSN *lsn,
         log records are written; for example SELECT FOR UPDATE takes locks but
         writes no log record.
       */
-      if (unlikely(translog_assign_id_to_share(share, trn)))
+      if (unlikely(translog_assign_id_to_share(tbl_info, trn)))
         DBUG_RETURN(1);
     }
     fileid_store(store_share_id, share->id);
@@ -5153,6 +5148,20 @@ TRANSLOG_ADDRESS translog_get_horizon()
   res= log_descriptor.horizon;
   translog_unlock();
   return res;
+}
+
+
+/**
+   @brief Returns the current horizon at the end of the current log, caller is
+   assumed to already hold the lock
+
+   @return Horizon
+*/
+
+TRANSLOG_ADDRESS translog_get_horizon_no_lock()
+{
+  translog_lock_assert_owner();
+  return log_descriptor.horizon;
 }
 
 
@@ -5616,7 +5625,9 @@ int translog_read_record_header_from_buffer(uchar *page,
     res= translog_fixed_length_header(page, page_offset, buff);
     break;
   default:
-    DBUG_ASSERT(0);
+#ifdef ASK_SANJA
+    DBUG_ASSERT(0); /* fails on empty log (Sanja knows) */
+#endif
     res= RECHEADER_READ_ERROR;
   }
   DBUG_RETURN(res);
@@ -5877,13 +5888,14 @@ static my_bool translog_record_read_next_chunk(struct st_translog_reader_data
 static my_bool translog_init_reader_data(LSN lsn,
                                          struct st_translog_reader_data *data)
 {
+  int read_header;
   DBUG_ENTER("translog_init_reader_data");
   if (translog_init_scanner(lsn, 1, &data->scanner) ||
-      !(data->read_header=
-        translog_read_record_header_scan(&data->scanner, &data->header, 1)))
-  {
+      ((read_header=
+        translog_read_record_header_scan(&data->scanner, &data->header, 1))
+       == RECHEADER_READ_ERROR))
     DBUG_RETURN(1);
-  }
+  data->read_header= read_header;
   data->body_offset= data->header.non_header_data_start_offset;
   data->chunk_size= data->header.non_header_data_len;
   data->current_offset= data->read_header;
@@ -6385,26 +6397,6 @@ static my_bool write_hook_for_undo_row_delete(enum translog_record_type type
 
 
 /**
-   @brief Upates "records" and calls the generic UNDO hook
-
-   @todo we will get rid of this record soon.
-
-   @return Operation status, always 0 (success)
-*/
-
-static my_bool write_hook_for_undo_row_purge(enum translog_record_type type
-                                             __attribute__ ((unused)),
-                                             TRN *trn, MARIA_HA *tbl_info,
-                                             LSN *lsn,
-                                             struct st_translog_parts *parts
-                                             __attribute__ ((unused)))
-{
-  tbl_info->s->state.state.records--;
-  return write_hook_for_undo(type, trn, tbl_info, lsn, parts);
-}
-
-
-/**
    @brief Sets transaction's undo_lsn, first_undo_lsn if needed
 
    @todo move it to a separate file
@@ -6425,7 +6417,6 @@ static my_bool write_hook_for_clr_end(enum translog_record_type type
     ptr[LSN_STORE_SIZE + FILEID_STORE_SIZE];
 
   DBUG_ASSERT(trn->trid != 0);
-  /** @todo depending on what we are undoing, update "records" or not */
   trn->undo_lsn= lsn_korr(ptr);
   switch (undone_record_type) {
   case LOGREC_UNDO_ROW_DELETE:
@@ -6446,13 +6437,37 @@ static my_bool write_hook_for_clr_end(enum translog_record_type type
 
 
 /**
+   @brief Updates table's lsn_of_file_id.
+
+   @todo move it to a separate file
+
+   @return Operation status, always 0 (success)
+*/
+
+static my_bool write_hook_for_file_id(enum translog_record_type type
+                                      __attribute__ ((unused)),
+                                      TRN *trn
+                                      __attribute__ ((unused)),
+                                      MARIA_HA *tbl_info,
+                                      LSN *lsn
+                                      __attribute__ ((unused)),
+                                      struct st_translog_parts *parts
+                                      __attribute__ ((unused)))
+{
+  DBUG_ASSERT(cmp_translog_addr(tbl_info->s->lsn_of_file_id, *lsn) < 0);
+  tbl_info->s->lsn_of_file_id= *lsn;
+  return 0;
+}
+
+
+/**
    @brief Gives a 2-byte-id to MARIA_SHARE and logs this fact
 
    If a MARIA_SHARE does not yet have a 2-byte-id (unique over all currently
    open MARIA_SHAREs), give it one and record this assignment in the log
    (LOGREC_FILE_ID log record).
 
-   @param  share           table
+   @param  tbl_info        table
    @param  trn             calling transaction
 
    @return Operation status
@@ -6462,8 +6477,9 @@ static my_bool write_hook_for_clr_end(enum translog_record_type type
    @note Can be called even if share already has an id (then will do nothing)
 */
 
-int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
+int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
 {
+  MARIA_SHARE *share= tbl_info->s;
   /*
     If you give an id to a non-BLOCK_RECORD table, you also need to release
     this id somewhere. Then you can change the assertion.
@@ -6495,7 +6511,6 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
     LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     uchar log_data[FILEID_STORE_SIZE];
-    fileid_store(log_data, share->id);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
@@ -6510,22 +6525,13 @@ int translog_assign_id_to_share(MARIA_SHARE *share, TRN *trn)
     */
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
       strlen(share->open_file_name) + 1;
-    if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, NULL,
+    if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, tbl_info,
                                        sizeof(log_data) +
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  1].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL)))
+                                       log_array, log_data)))
       return 1;
-    /*
-      Note that we first set share->id then write the record. The checkpoint
-      record does not include any share with id==0; this is ok because:
-      checkpoint_start_log_horizon is either before or after the above
-      record. If before, ok to not include the share, as the record will be
-      seen for sure during the REDO phase. If after, Checkpoint will see all
-      data as it was after this record was written, including the id!=0, so
-      share will be included.
-    */
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;
@@ -6546,12 +6552,17 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
                       (ulong)share, share->id));
   /*
     We don't need any mutex as we are called only when closing the last
-    instance of the table: no writes can be happening.
+    instance of the table or at the end of REPAIR: no writes can be
+    happening. But a Checkpoint may be reading share->id, so we require this
+    mutex:
   */
+  safe_mutex_assert_owner(&share->intern_lock);
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
   share->id= 0;
+  /* useless but safety: */
+  share->lsn_of_file_id= LSN_IMPOSSIBLE;
 }
 
 
@@ -6733,13 +6744,13 @@ LSN translog_first_theoretical_lsn()
 /**
   @brief Check given low water mark and purge files if it is need
 
-  @param low the last (minimum) LSN which is need
+  @param low the last (minimum) address which is need
 
   @retval 0 OK
   @retval 1 Error
 */
 
-my_bool translog_purge(LSN low)
+my_bool translog_purge(TRANSLOG_ADDRESS low)
 {
   uint32 last_need_file= LSN_FILE_NO(low);
   TRANSLOG_ADDRESS horizon= translog_get_horizon();

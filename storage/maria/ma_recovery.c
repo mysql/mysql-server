@@ -63,6 +63,7 @@ static FILE *tracef; /**< trace file for debugging */
 prototype_redo_exec_hook(LONG_TRANSACTION_ID);
 prototype_redo_exec_hook_dummy(CHECKPOINT);
 prototype_redo_exec_hook(REDO_CREATE_TABLE);
+prototype_redo_exec_hook(REDO_RENAME_TABLE);
 prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -74,7 +75,6 @@ prototype_redo_exec_hook(REDO_DELETE_ALL);
 prototype_redo_exec_hook(UNDO_ROW_INSERT);
 prototype_redo_exec_hook(UNDO_ROW_DELETE);
 prototype_redo_exec_hook(UNDO_ROW_UPDATE);
-prototype_redo_exec_hook(UNDO_ROW_PURGE);
 prototype_redo_exec_hook(COMMIT);
 prototype_redo_exec_hook(CLR_END);
 prototype_undo_exec_hook(UNDO_ROW_INSERT);
@@ -93,12 +93,13 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
                                                TRANSLOG_HEADER_BUFFER *rec);
 static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
                                                TRANSLOG_HEADER_BUFFER *rec);
-static void prepare_table_for_close(MARIA_HA *info, LSN at_lsn);
-static int parse_checkpoint_record(LSN lsn);
+static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon);
+static LSN parse_checkpoint_record(LSN lsn);
 static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
                             LSN first_undo_lsn);
 static int new_table(uint16 sid, const char *name,
-                     File org_kfile, File org_dfile, LSN lsn);
+                     File org_kfile, File org_dfile,
+                     LSN lsn_of_file_id);
 static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
                     struct st_dirty_page *dirty_page);
 static int close_all_tables();
@@ -124,6 +125,10 @@ static LEX_STRING log_record_buffer;
    of runtime: recreates transactions inside trnman, open tables with their
    two-byte-id mapping; takes a checkpoint and runs the UNDO phase. Closes all
    tables.
+
+   @return Operation status
+     @retval 0      OK
+     @retval !=0    Error
 */
 
 int maria_recover()
@@ -201,7 +206,6 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     }
     else
     {
-      DBUG_ASSERT(0); /* not yet implemented */
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
       if (from_lsn == LSN_IMPOSSIBLE)
         goto err;
@@ -230,10 +234,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (close_all_tables())
     goto err;
 
-  /*
-    At this stage, end of recovery, trnman is left initialized. This is for
-    the future, when we have an online UNDO phase or prepared transactions.
-  */
+  /* If inside ha_maria, a checkpoint will soon be taken and save our work */
   goto end;
 err:
   error= 1;
@@ -426,7 +427,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   ptr+= 2;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
   lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
-  /* we also set is_of_lsn, like maria_create() does */
+  /* we also set is_of_horizon, like maria_create() does */
   lsn_store(ptr + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
             rec->lsn);
   if (my_pwrite(kfile, ptr,
@@ -468,6 +469,77 @@ end:
   fprintf(tracef, "\n");
   if (kfile >= 0)
     error|= my_close(kfile, MYF(MY_WME));
+  if (info != NULL)
+    error|= maria_close(info);
+  return error;
+}
+
+
+prototype_redo_exec_hook(REDO_RENAME_TABLE)
+{
+  char *old_name, *new_name;
+  int error= 1;
+  MARIA_HA *info= NULL;
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+      rec->record_length)
+  {
+    fprintf(tracef, "Failed to read record\n");
+    goto end;
+  }
+  old_name= log_record_buffer.str;
+  new_name= old_name + strlen(old_name) + 1;
+  fprintf(tracef, "Table '%s' to rename to '%s'", old_name, new_name);
+  info= maria_open(old_name, O_RDONLY, HA_OPEN_FOR_REPAIR);
+  if (info)
+  {
+    MARIA_SHARE *share= info->s;
+    /*
+      We may have open instances on this table. But it does not matter, the
+      maria_extra() below will take care of them.
+    */
+    if (!share->base.born_transactional)
+    {
+      fprintf(tracef, ", is not transactional\n");
+      ALERT_USER();
+      error= 0;
+      goto end;
+    }
+    if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
+    {
+      fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
+              " record, ignoring renaming",
+              LSN_IN_HEX(share->state.create_rename_lsn));
+      error= 0;
+      goto end;
+    }
+    if (maria_is_crashed(info))
+    {
+      fprintf(tracef, ", is crashed, can't rename it");
+      ALERT_USER();
+      goto end;
+    }
+    /*
+      This maria_extra() call serves to signal that old open instances of
+      this table should not be used anymore, and (only on Windows) to close
+      open files so they can be renamed
+    */
+    if (maria_extra(info, HA_EXTRA_PREPARE_FOR_RENAME, NULL) ||
+        maria_close(info))
+      goto end;
+    info= NULL;
+  }
+  fprintf(tracef, ", renaming '%s'", old_name);
+  if (maria_rename(old_name, new_name))
+  {
+    fprintf(tracef, "Failed to rename table\n");
+    goto end;
+  }
+  error= 0;
+end:
+  fprintf(tracef, "\n");
   if (info != NULL)
     error|= maria_close(info);
   return error;
@@ -553,6 +625,12 @@ prototype_redo_exec_hook(FILE_ID)
 
   if (cmp_translog_addr(rec->lsn, checkpoint_start) < 0)
   {
+    /*
+      If that mapping was still true at checkpoint time, it was found in
+      checkpoint record, no need to recreate it. If that mapping had ended at
+      checkpoint time (table was closed or repaired), a flush and force
+      happened and so mapping is not needed.
+    */
     fprintf(tracef, "ignoring because before checkpoint\n");
     return 0;
   }
@@ -589,7 +667,8 @@ end:
 
 
 static int new_table(uint16 sid, const char *name,
-                     File org_kfile, File org_dfile, LSN lsn)
+                     File org_kfile, File org_dfile,
+                     LSN lsn_of_file_id)
 {
   /*
     -1 (skip table): close table and return 0;
@@ -628,11 +707,12 @@ static int new_table(uint16 sid, const char *name,
     error= -1;
     goto end;
   }
-  if (cmp_translog_addr(lsn, share->state.create_rename_lsn) <= 0)
+  if (cmp_translog_addr(lsn_of_file_id, share->state.create_rename_lsn) <= 0)
   {
     fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
-            " record, ignoring open request",
-            LSN_IN_HEX(share->state.create_rename_lsn));
+            " LOGREC_FILE_ID's LSN (%lu,0x%lx), ignoring open request",
+            LSN_IN_HEX(share->state.create_rename_lsn),
+            LSN_IN_HEX(lsn_of_file_id));
     error= -1;
     goto end;
   }
@@ -655,6 +735,16 @@ static int new_table(uint16 sid, const char *name,
     /* Recovery will fix this, no error */
     ALERT_USER();
   }
+  /*
+    This LSN serves in this situation; assume log is:
+    FILE_ID(6->"t2") REDO_INSERT(6) FILE_ID(6->"t1") CHECKPOINT(6->"t1")
+    then crash, checkpoint record is parsed and opens "t1" with id 6; assume
+    REDO phase starts from the REDO_INSERT above: it will wrongly try to
+    update a page of "t1". With this LSN below, REDO_INSERT can realize the
+    mapping is newer than itself, and not execute.
+    Same example is possible with UNDO_INSERT (update of the state).
+  */
+  info->s->lsn_of_file_id= lsn_of_file_id;
   all_tables[sid].info= info;
   all_tables[sid].org_kfile= org_kfile;
   all_tables[sid].org_dfile= org_dfile;
@@ -848,7 +938,7 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records++;
@@ -871,7 +961,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
@@ -889,30 +979,11 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
   {
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
-  return 0;
-}
-
-
-prototype_redo_exec_hook(UNDO_ROW_PURGE)
-{
-  MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
-  if (info == NULL)
-    return 0;
-  /* this a bit broken, but this log record type will be deleted soon */
-  set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
-  {
-    fprintf(tracef, "   state older than record, updating rows' count\n");
-    info->s->state.state.records--;
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
-      STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
-  }
-  fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   return 0;
 }
 
@@ -969,7 +1040,7 @@ prototype_redo_exec_hook(CLR_END)
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   fprintf(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
           log_desc->name, LSN_IN_HEX(previous_undo_lsn));
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_lsn) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     switch (undone_record_type) {
@@ -1113,6 +1184,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(LONG_TRANSACTION_ID);
   install_redo_exec_hook(CHECKPOINT);
   install_redo_exec_hook(REDO_CREATE_TABLE);
+  install_redo_exec_hook(REDO_RENAME_TABLE);
   install_redo_exec_hook(REDO_DROP_TABLE);
   install_redo_exec_hook(FILE_ID);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -1124,7 +1196,6 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(UNDO_ROW_INSERT);
   install_redo_exec_hook(UNDO_ROW_DELETE);
   install_redo_exec_hook(UNDO_ROW_UPDATE);
-  install_redo_exec_hook(UNDO_ROW_PURGE);
   install_redo_exec_hook(COMMIT);
   install_redo_exec_hook(CLR_END);
   install_undo_exec_hook(UNDO_ROW_INSERT);
@@ -1134,17 +1205,14 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   current_group_end_lsn= LSN_IMPOSSIBLE;
 
   TRANSLOG_HEADER_BUFFER rec;
-  /*
-    instead of this block below we will soon use
-    translog_first_lsn_in_log()...
-  */
+
   int len= translog_read_record_header(lsn, &rec);
 
   /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
   {
-    fprintf(tracef, "Cannot find a first record\n");
-    return 1;
+    fprintf(tracef, "Cannot find a first record, empty log, nothing to do\n");
+    return 0;
   }
   struct st_translog_scanner_data scanner;
   if (translog_init_scanner(lsn, 1, &scanner))
@@ -1247,7 +1315,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
         fprintf(tracef, "EOF on the log\n");
         break;
       case RECHEADER_READ_ERROR:
-        fprintf(stderr, "Error reading log\n");
+        fprintf(tracef, "Error reading log\n");
         return 1;
       }
       break;
@@ -1281,7 +1349,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
   dirty_pages_pool= NULL;
 
   llstr(max_long_trid, llbuf);
-  printf("Maximum transaction long id seen: %s\n", llbuf);
+  fprintf(tracef, "Maximum transaction long id seen: %s\n", llbuf);
   if (prepare_for_undo_phase && trnman_init(max_long_trid))
     return -1;
 
@@ -1400,22 +1468,30 @@ static int run_undo_phase(uint unfinished)
 
 
 /**
-   @brief re-enables transactionality, updates is_of_lsn
+   @brief re-enables transactionality, updates is_of_horizon
 
    @param  info                table
-   @param  at_lsn              LSN to set is_of_lsn
+   @param  horizon             address to set is_of_horizon
 */
 
-static void prepare_table_for_close(MARIA_HA *info, LSN at_lsn)
+static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
 {
   MARIA_SHARE *share= info->s;
   /*
-    State is now at least as new as the LSN of the current record. It may be
+    In a fully-forward REDO phase (no checkpoint record),
+    state is now at least as new as the LSN of the current record. It may be
     newer, in case we are seeing a LOGREC_FILE_ID which tells us to close a
     table, but that table was later modified further in the log.
+    But if we parsed a checkpoint record, it may be this way in the log:
+    FILE_ID(6->t2)... FILE_ID(6->t1)... CHECKPOINT(6->t1)
+    Checkpoint parsing opened t1 with id 6; first FILE_ID above is going to
+    make t1 close; the first condition below is however false (when checkpoint
+    was taken it increased is_of_horizon) and so it works. For safety we
+    add the second condition.
   */
-  if (cmp_translog_addr(share->state.is_of_lsn, at_lsn) < 0)
-    share->state.is_of_lsn= at_lsn;
+  if (cmp_translog_addr(share->state.is_of_horizon, horizon) < 0 &&
+      cmp_translog_addr(share->lsn_of_file_id, horizon) < 0)
+    share->state.is_of_horizon= horizon;
   _ma_reenable_logging_for_table(share);
 }
 
@@ -1446,6 +1522,22 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     return NULL;
   }
   fprintf(tracef, ", '%s'", info->s->open_file_name);
+  if (cmp_translog_addr(rec->lsn, info->s->lsn_of_file_id) <= 0)
+  {
+    /*
+      This can happen only if processing a record before the checkpoint
+      record.
+      id->name mapping is newer than REDO record: for sure the table subject
+      of the REDO has been flushed and forced (id re-assignment implies this);
+      REDO can be ignored (and must be, as we don't know what this subject
+      table was).
+    */
+    DBUG_ASSERT(cmp_translog_addr(rec->lsn, checkpoint_start) < 0);
+    fprintf(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"
+            " than record, skipping record",
+            LSN_IN_HEX(info->s->lsn_of_file_id));
+    return NULL;
+  }
   /* detect if an open instance of a dropped table (internal bug) */
   DBUG_ASSERT(info->s->last_version != 0);
   if (cmp_translog_addr(rec->lsn, checkpoint_start) < 0)
@@ -1491,27 +1583,45 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
     fprintf(tracef, ", table skipped, so skipping record\n");
     return NULL;
   }
-  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE); /* to flush state on close */
   fprintf(tracef, ", '%s'", info->s->open_file_name);
+  if (cmp_translog_addr(rec->lsn, info->s->lsn_of_file_id) <= 0)
+  {
+    fprintf(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"
+            " than record, skipping record",
+            LSN_IN_HEX(info->s->lsn_of_file_id));
+    return NULL;
+  }
   DBUG_ASSERT(info->s->last_version != 0);
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE); /* to flush state on close */
   fprintf(tracef, ", applying record\n");
   return info;
 }
 
 
-static int parse_checkpoint_record(LSN lsn)
+/**
+   @brief Parses checkpoint record.
+
+   Builds from it the dirty_pages list (a hash), opens tables and maps them to
+   their 2-byte IDs,  recreates transactions (not real TRNs though).
+
+   @return From where in the log the REDO phase should start
+     @retval LSN_IMPOSSIBLE error
+     @retval other          ok
+*/
+
+static LSN parse_checkpoint_record(LSN lsn)
 {
   uint i;
   TRANSLOG_HEADER_BUFFER rec;
 
-  fprintf(tracef, "Loading data from checkpoint record\n");
+  fprintf(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
+          LSN_IN_HEX(lsn));
   int len= translog_read_record_header(lsn, &rec);
 
-  /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
   {
     fprintf(tracef, "Cannot find checkpoint record where it should be\n");
-    return 1;
+    return LSN_IMPOSSIBLE;
   }
 
   enlarge_buffer(&rec);
@@ -1521,7 +1631,7 @@ static int parse_checkpoint_record(LSN lsn)
       rec.record_length)
   {
     fprintf(tracef, "Failed to read record\n");
-    return 1;
+    return LSN_IMPOSSIBLE;
   }
 
   char *ptr= log_record_buffer.str;
@@ -1563,6 +1673,7 @@ static int parse_checkpoint_record(LSN lsn)
 
   /* tables  */
   uint nb_tables= uint4korr(ptr);
+  ptr+= 4;
   fprintf(tracef, "%u open tables\n", nb_tables);
   for (i= 0; i< nb_tables; i++)
   {
@@ -1580,23 +1691,24 @@ static int parse_checkpoint_record(LSN lsn)
     ptr+= name_len;
     strnmov(name, ptr, sizeof(name));
     if (new_table(sid, name, kfile, dfile, first_log_write_lsn))
-      return 1;
+      return LSN_IMPOSSIBLE;
   }
 
   /* dirty pages */
   uint nb_dirty_pages= uint4korr(ptr);
   ptr+= 4;
+  fprintf(tracef, "%u dirty pages\n", nb_dirty_pages);
   if (hash_init(&all_dirty_pages, &my_charset_bin, nb_dirty_pages,
                 offsetof(struct st_dirty_page, file_and_page_id),
                 sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
                 NULL, NULL, 0))
-    return 1;
+    return LSN_IMPOSSIBLE;
   dirty_pages_pool=
     (struct st_dirty_page *)my_malloc(nb_dirty_pages *
                                       sizeof(struct st_dirty_page),
                                       MYF(MY_WME));
   if (unlikely(dirty_pages_pool == NULL))
-    return 1;
+    return LSN_IMPOSSIBLE;
   struct st_dirty_page *next_dirty_page_in_pool= dirty_pages_pool;
   LSN minimum_rec_lsn_of_dirty_pages= LSN_MAX;
   for (i= 0; i < nb_dirty_pages ; i++)
@@ -1608,7 +1720,7 @@ static int parse_checkpoint_record(LSN lsn)
     LSN rec_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     if (new_page(fileid, pageid, rec_lsn, next_dirty_page_in_pool++))
-      return 1;
+      return LSN_IMPOSSIBLE;
     set_if_smaller(minimum_rec_lsn_of_dirty_pages, rec_lsn);
   }
   /* after that, there will be no insert/delete into the hash */
@@ -1627,11 +1739,11 @@ static int parse_checkpoint_record(LSN lsn)
   if (ptr != (log_record_buffer.str + log_record_buffer.length))
   {
     fprintf(tracef, "checkpoint record corrupted\n");
-    return 1;
+    return LSN_IMPOSSIBLE;
   }
   set_if_smaller(checkpoint_start, minimum_rec_lsn_of_dirty_pages);
 
-  return 0;
+  return checkpoint_start;
 }
 
 static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
@@ -1656,9 +1768,9 @@ static int close_all_tables()
   /*
     Since the end of end_of_redo_phase(), we may have written new records
     (if UNDO phase ran)  and thus the state is newer than at
-    end_of_redo_phase(), we need to bump is_of_lsn again.
+    end_of_redo_phase(), we need to bump is_of_horizon again.
   */
-  LSN addr= translog_get_horizon();
+  TRANSLOG_ADDRESS addr= translog_get_horizon();
   for (list_element= maria_open_list ; list_element ; list_element= next_open)
   {
     next_open= list_element->next;
@@ -1674,14 +1786,14 @@ end:
 }
 
 #ifdef MARIA_EXTERNAL_LOCKING
-#error Maria's Recovery is really not ready for it
+#error Maria's Checkpoint and Recovery are really not ready for it
 #endif
 
 /*
 Recovery of the state :  how it works
 =====================================
 
-Ignoring Checkpoints for a start.
+Here we ignore Checkpoints for a start.
 
 The state (MARIA_HA::MARIA_SHARE::MARIA_STATE_INFO) is updated in
 memory frequently (at least at every row write/update/delete) but goes
@@ -1700,8 +1812,8 @@ the end of every row write/update/delete/delete_all. When Recovery sees the
 sign of such row operation (UNDO or REDO), it may need to update the records'
 count if that count does not reflect that operation (is older). How to know
 the age of the state compared to the log record: every time the state
-goes to disk at runtime, its member "is_of_lsn" is updated to the
-current end-of-log LSN. So Recovery just needs to compare is_of_lsn
+goes to disk at runtime, its member "is_of_horizon" is updated to the
+current end-of-log horizon. So Recovery just needs to compare is_of_horizon
 and the record's LSN to know if it should modify "records".
 
 Other operations like ALTER TABLE DISABLE KEYS update the state but
@@ -1738,7 +1850,7 @@ intern_lock (as Checkpoint needs it anyway to read MARIA_SHARE::kfile,
 and as maria_close() takes it too). All state writes to disk are
 changed to be protected with intern_lock.
 So Checkpoint takes intern_lock, log's lock, reads "records" from
-memory, releases log's lock, updates is_of_lsn and writes "records" to
+memory, releases log's lock, updates is_of_horizon and writes "records" to
 disk, release intern_lock.
 In practice, not only "records" needs to be written but the full
 state. So, Checkpoint reads the full state from memory. Some other
@@ -1747,7 +1859,7 @@ state which are not protected by the lock's log (see ma_extra.c
 HA_EXTRA_NO_KEYS), and Checkpoint would be reading a corrupted state
 from memory; to guard against that we extend the intern_lock-zone to
 changes done to the state in memory by HA_EXTRA_NO_KEYS et al, and
-also any change made in memory to create_rename_lsn/state_is_of_lsn.
+also any change made in memory to create_rename_lsn/state_is_of_horizon.
 Last, we don't want in Checkpoint to do
  log lock; read state from memory; release log lock;
 for each table, it may hold the log's lock too much in total.
@@ -1758,12 +1870,12 @@ But this re-introduces the problem that some other thread may be changing the
 state in memory and on disk under intern_lock, without log's lock, like
 HA_EXTRA_NO_KEYS, while we read the N states. However, when Checkpoint later
 comes to handling the table under intern_lock, which is serialized with
-HA_EXTRA_NO_KEYS, it can see that is_of_lsn is higher then when the state was
-read from memory under log's lock, and thus can decide to not flush the
+HA_EXTRA_NO_KEYS, it can see that is_of_horizon is higher then when the state
+was read from memory under log's lock, and thus can decide to not flush the
 obsolete state it has, knowing that the other thread flushed a more recent
-state already. If on the other hand is_of_lsn is not higher, the read state is
-current and can be flushed. So we have a per-table sequence:
- lock intern_lock; test if is_of_lsn is higher than when we read the state
+state already. If on the other hand is_of_horizon is not higher, the read
+state is current and can be flushed. So we have a per-table sequence:
+ lock intern_lock; test if is_of_horizon is higher than when we read the state
  under log's lock; if no then flush the read state to disk.
 */
 
@@ -1794,7 +1906,6 @@ current and can be flushed. So we have a per-table sequence:
 
   /**** UNDO PHASE *****/
 
-  print_information_to_error_log(nb of trans to roll back, nb of prepared trans
   /*
     Launch one or more threads to do the background rollback. Don't wait for
     them to complete their rollback (background rollback; for debugging, we
@@ -1815,33 +1926,4 @@ current and can be flushed. So we have a per-table sequence:
   /*
     mark that checkpoint requests are now allowed.
   */
-}
-
-pthread_handler_decl rollback_background_thread()
-{
-  /*
-    execute the normal runtime-rollback code for a bunch of transactions.
-  */
-  while (trans in list_of_trans_to_rollback_by_this_thread)
-  {
-    while (trans->undo_lsn != 0)
-    {
-      /* this is the normal runtime-rollback code: */
-      record= log_read_record(trans->undo_lsn);
-      execute_log_record_in_undo_phase(record);
-      trans->undo_lsn= record.prev_undo_lsn;
-    }
-    /* remove trans from list */
-  }
-  lock_mutex(rollback_threads); /* or atomic counter */
-  if (--total_of_rollback_threads == 0)
-  {
-    /*
-      All rollback threads are done.  Print "rollback finished" to the error
-      log and take a full checkpoint.
-    */
-  }
-  unlock_mutex(rollback_threads);
-  pthread_exit();
-}
 #endif
