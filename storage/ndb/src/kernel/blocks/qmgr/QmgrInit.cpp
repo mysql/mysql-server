@@ -43,6 +43,8 @@ void Qmgr::initData()
   ndbrequire((Uint32)NodeInfo::DB == 0);
   ndbrequire((Uint32)NodeInfo::API == 1);
   ndbrequire((Uint32)NodeInfo::MGM == 2); 
+
+  m_micro_gcp_enabled = false;
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -113,6 +115,8 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_DIH_RESTARTREF, &Qmgr::execDIH_RESTARTREF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
   addRecSignal(GSN_NODE_VERSION_REP, &Qmgr::execNODE_VERSION_REP);
+
+  addRecSignal(GSN_UPGRADE_PROTOCOL_ORD, &Qmgr::execUPGRADE_PROTOCOL_ORD);
   
   initData();
 }//Qmgr::Qmgr()
