@@ -10,7 +10,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-boot.sh version 1.00"
+VERSION="upgrade-boot.sh version 1.00"
 
 DATE=`date '+%Y-%m-%d'`
 HOST=`hostname -s`
@@ -24,7 +24,8 @@ verbose=0
 do_clone=yes
 build=yes
 
-tag=
+tag0=
+tag1=
 conf=
 extra_args=
 extra_clone=
@@ -40,15 +41,36 @@ do
                 --no-clone) do_clone="";;
                 --no-build) build="";;
                 --verbose) verbose=`expr $verbose + 1`;;
-                --clone=*) clone=`echo $1 | sed s/--clone=//`;;
+                --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
+                --clone0=*) clone0=`echo $1 | sed s/--clone0=//`;;
+                --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
                 --version) echo $VERSION; exit;;
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
-	        --tag=*) tag=`echo $1 | sed s/--tag=//`;;
+	        --tag=*) tag0=`echo $1 | sed s/--tag=//`;;
+	        --tag0=*) tag0=`echo $1 | sed s/--tag0=//`;;
+	        --tag1=*) tag1=`echo $1 | sed s/--tag1=//`;;
 	        --*) echo "Unknown arg: $1";;
                 *) RUN=$*;;
         esac
         shift
 done
+
+if [ -z "$clone1" ]
+then
+	clone1=$clone0
+fi
+
+if [ -z "$tag0" ]
+then
+	echo "No tag0 specified"
+	exit
+fi
+
+if [ -z "$tag1" ]
+then
+        echo "No tag1 specified"
+        exit
+fi
 
 #################################
 #Make sure the configfile exists#
@@ -103,7 +125,8 @@ fi
 # Setup the clone source location  #
 ####################################
 
-src_clone=${src_clone_base}${clone}
+src_clone0=${src_clone_base}${clone0}
+src_clone1=${src_clone_base}${clone1}
 
 #######################################
 # Check to see if the lock file exists#
@@ -136,14 +159,8 @@ fi
 # You can add more to this path#
 ################################
 
-if [ -z "$tag" ]
-then
-    dst_place=${build_dir}/clone-$clone-$DATE.$$
-else
-    dst_place=${build_dir}/clone-$tag-$DATE.$$
-    extra_args="$extra_args --clone=$tag"
-    extra_clone="-r$tag"
-fi
+dst_place0=${build_dir}/clone-$tag0-$DATE.$$
+dst_place1=${build_dir}/clone-$tag1-$DATE.$$
 
 #########################################
 # Delete source and pull down the latest#
@@ -151,25 +168,38 @@ fi
 
 if [ "$do_clone" ]
 then
-	rm -rf $dst_place
-	if [ `echo $src_clone | grep -c 'file:\/\/'` = 1 ]
+	rm -rf $dst_place0 $dst_place1
+	if [ `echo $src_clone0 | grep -c 'file:\/\/'` = 1 ]
 	then
-		bk clone -l $extra_clone $src_clone $dst_place
+		bk clone -l -r$tag0 $src_clone0 $dst_place0
 	else
-		bk clone $extra_clone $src_clone $dst_place
+		bk clone -r$tag0 $src_clone0 $dst_place0
 	fi
+
+        if [ `echo $src_clone1 | grep -c 'file:\/\/'` = 1 ]
+        then
+                bk clone -l -r$tag1 $src_clone1 $dst_place1
+        else
+                bk clone -r$tag1 $src_clone1 $dst_place1
+        fi
 fi
 
 ##########################################
 # Build the source, make installs, and   #
 # create the database to be rsynced	 #
 ##########################################
-
+install_dir0=$install_dir/$tag0
+install_dir1=$install_dir/$tag1
 if [ "$build" ]
 then
-	cd $dst_place
-        rm -rf $install_dir
-	BUILD/compile-ndb-autotest --prefix=$install_dir
+	cd $dst_place0
+        rm -rf $install_dir0
+	BUILD/compile-ndb-autotest --prefix=$install_dir0
+	make install
+
+	cd $dst_place1
+	rm -rf $install_dir1
+        BUILD/compile-ndb-autotest --prefix=$install_dir1
 	make install
 fi
 
@@ -178,11 +208,11 @@ fi
 # Start run script             #
 ################################
 
-script=$install_dir/mysql-test/ndb/autotest-run.sh
-sh -x $script $save_args --conf=$conf --install-dir=$install_dir --suite=$RUN --nolock $extra_args
+script=$install_dir1/mysql-test/ndb/upgrade-run.sh
+$script $save_args --conf=$conf --install-dir=$install_dir --suite=$RUN --nolock $extra_args
 
 if [ "$build" ]
 then
-    rm -rf $dst_place
+    rm -rf $dst_place0 $dst_place1
 fi
 rm -f $LOCK
