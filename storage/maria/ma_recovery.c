@@ -107,13 +107,16 @@ static int close_all_tables();
 
 /** @brief global [out] buffer for translog_read_record(); never shrinks */
 static LEX_STRING log_record_buffer;
-#define enlarge_buffer(rec)                                             \
-  if (log_record_buffer.length < (rec)->record_length)                  \
-  {                                                                     \
-    log_record_buffer.length= (rec)->record_length;                     \
-    log_record_buffer.str= my_realloc(log_record_buffer.str,            \
-                                      (rec)->record_length, MYF(MY_WME)); \
+static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
+{
+  if (log_record_buffer.length < rec->record_length)
+  {
+    log_record_buffer.length= rec->record_length;
+    log_record_buffer.str= my_realloc(log_record_buffer.str,
+                                      rec->record_length,
+                                      MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   }
+}
 
 #define ALERT_USER() DBUG_ASSERT(0)
 #define LSN_IN_HEX(L) (ulong)LSN_FILE_NO(L),(ulong)LSN_OFFSET(L)
