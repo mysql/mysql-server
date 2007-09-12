@@ -48,7 +48,7 @@
   Background page flushing is not used.
   So, needed pagecache functions for doing this flushing are not yet pushed.
 */
-#define flush_pagecache_blocks_with_filter(A,B,C,D,E) (((int)D) * 0)
+#define flush_pagecache_blocks_with_filter(A,B,C,D,E) (int)(((ulong)D) * 0)
 /**
    filter has to return 0, 1 or 2: 0 means "don't flush this page", 1 means
    "flush it", 2 means "don't flush this page and following pages".

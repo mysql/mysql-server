@@ -64,6 +64,7 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID);
 prototype_redo_exec_hook_dummy(CHECKPOINT);
 prototype_redo_exec_hook(REDO_CREATE_TABLE);
 prototype_redo_exec_hook(REDO_RENAME_TABLE);
+prototype_redo_exec_hook(REDO_REPAIR_TABLE);
 prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -537,12 +538,61 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     fprintf(tracef, "Failed to rename table\n");
     goto end;
   }
+  info= maria_open(new_name, O_RDONLY, 0);
+  if (info == NULL)
+  {
+    fprintf(tracef, "Failed to open renamed table\n");
+    goto end;
+  }
+  if (_ma_update_create_rename_lsn(info->s, rec->lsn, TRUE))
+    goto end;
+  if (maria_close(info))
+    goto end;
+  info= NULL;
   error= 0;
 end:
   fprintf(tracef, "\n");
   if (info != NULL)
     error|= maria_close(info);
   return error;
+}
+
+
+/*
+  The record may come from REPAIR, ALTER TABLE ENABLE KEYS, OPTIMIZE.
+*/
+prototype_redo_exec_hook(REDO_REPAIR_TABLE)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+  /*
+    Otherwise, the mapping is newer than the table, and our record is newer
+    than the mapping, so we can repair.
+  */
+  fprintf(tracef, "   repairing...\n");
+  /**
+     @todo RECOVERY BUG fix this:
+     the maria_chk_init() call causes a heap of linker errors in ha_maria.cc!
+  */
+#if 0
+  HA_CHECK param;
+  maria_chk_init(&param);
+  param.isam_file_name= info->s->open_file_name;
+  param.testflag= uint4korr(rec->header);
+  if (maria_repair(&param, info, info->s->open_file_name,
+                   param.testflag & T_QUICK))
+    goto end;
+  if (_ma_update_create_rename_lsn(info->s, rec->lsn, TRUE))
+    goto end;
+  error= 0;
+end:
+  return error;
+#else
+  DBUG_ASSERT("fix this table repairing" == NULL);
+  return error;
+#endif
 }
 
 
@@ -691,10 +741,6 @@ static int new_table(uint16 sid, const char *name,
   {
     fprintf(tracef, "Table is crashed, can't apply log records to it\n");
     goto end;
-   /*
-      we should make an exception for REDO_REPAIR_TABLE records: if we want to
-      execute them, we should not reject the crashed table here.
-    */
   }
   MARIA_SHARE *share= info->s;
   /* check that we're not already using it */
@@ -748,6 +794,11 @@ static int new_table(uint16 sid, const char *name,
   all_tables[sid].info= info;
   all_tables[sid].org_kfile= org_kfile;
   all_tables[sid].org_dfile= org_dfile;
+  /*
+    We don't set info->s->id, it would be useless (no logging in REDO phase);
+    if you change that, know that some records in REDO phase call
+    _ma_update_create_rename_lsn() which resets info->s->id.
+  */
   fprintf(tracef, ", opened");
   error= 0;
 end:
@@ -1185,6 +1236,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(CHECKPOINT);
   install_redo_exec_hook(REDO_CREATE_TABLE);
   install_redo_exec_hook(REDO_RENAME_TABLE);
+  install_redo_exec_hook(REDO_REPAIR_TABLE);
   install_redo_exec_hook(REDO_DROP_TABLE);
   install_redo_exec_hook(FILE_ID);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -1727,14 +1779,6 @@ static LSN parse_checkpoint_record(LSN lsn)
   /*
     sanity check on record (did we screw up with all those "ptr+=", did the
     checkpoint write code and checkpoint read code go out of sync?).
-  */
-  /**
-     @todo This probably presently and hopefully detects that
-     first_log_write_lsn is not written by the checkpoint record; we need
-     to add MARIA_SHARE::first_log_write_lsn, fill it with a inwrite-hook of
-     LOGREC_FILE_ID (note that when we write this record we hold intern_lock,
-     so Checkpoint will read the LSN correctly), and store it in the
-     checkpoint record.
   */
   if (ptr != (log_record_buffer.str + log_record_buffer.length))
   {
