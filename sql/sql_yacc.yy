@@ -3361,7 +3361,6 @@ change_ts_option:
         ;
 
 tablespace_option_list:
-          /* empty */ {}
         tablespace_options
         ;
 
@@ -3383,7 +3382,6 @@ tablespace_option:
         ;
 
 alter_tablespace_option_list:
-          /* empty */ {}
         alter_tablespace_options
         ;
 
@@ -3402,7 +3400,6 @@ alter_tablespace_option:
         ;
 
 logfile_group_option_list:
-          /* empty */ {}
         logfile_group_options
         ;
 
@@ -3423,7 +3420,6 @@ logfile_group_option:
         ;
 
 alter_logfile_group_option_list:
-          /* empty */ {}
           alter_logfile_group_options
         ;
 
@@ -3668,7 +3664,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -3692,19 +3688,22 @@ create2:
 
 create2a:
           field_list ')' opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
-        |  opt_partitioning {}
+        |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);} union_opt {}
+           { Select->set_braces(1);}
+           union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);} union_clause {}
+          { Select->set_braces(0);}
+          union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);} union_opt {}
+          { Select->set_braces(1);}
+          union_opt {}
         ;
 
 /*
@@ -3786,7 +3785,7 @@ partition_entry:
         ;
 
 partition:
-          BY part_type_def opt_no_parts {} opt_sub_part {} part_defs
+          BY part_type_def opt_no_parts opt_sub_part part_defs
         ;
 
 part_type_def:
@@ -3987,10 +3986,11 @@ part_definition:
             part_info->use_default_partitions= FALSE;
             part_info->use_default_no_partitions= FALSE;
           }
-          part_name {}
-          opt_part_values {}
-          opt_part_options {}
-          opt_sub_partition {}
+          part_name
+          opt_part_values
+          opt_part_options
+          opt_sub_partition
+          {}
         ;
 
 part_name:
