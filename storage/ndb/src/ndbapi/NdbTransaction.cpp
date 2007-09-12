@@ -1638,13 +1638,18 @@ Parameters:    aSignal: The signal object pointer.
 Remark:        
 ******************************************************************************/
 int			
-NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
+NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf, 
+                                     Uint32 len)
 { 
   if(checkState_TransId(&commitConf->transId1)){
     theCommitStatus = Committed;
     theCompletionStatus = CompletedSuccess;
     Uint32 tGCI_hi = commitConf->gci_hi;
     Uint32 tGCI_lo = commitConf->gci_lo;
+    if (unlikely(len < TcCommitConf::SignalLength))
+    {
+      tGCI_lo = 0;
+    }
     Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
     theGlobalCheckpointId = tGCI;
     // theGlobalCheckpointId == 0 if NoOp transaction
@@ -1825,7 +1830,11 @@ from other transactions.
     Uint32 tNoSent = theNoOfOpSent;
     theNoOfOpCompleted = tNoComp;
     Uint32 tGCI_hi = keyConf->gci_hi;
-    Uint32 tGCI_lo = * (Uint32*)&keyConf->operations[tNoOfOperations];
+    Uint32 tGCI_lo = * tPtr; // After op(s)
+    if (unlikely(aDataLength < TcKeyConf::StaticLength+1 + 2*tNoOfOperations))
+    {
+      tGCI_lo = 0;
+    }
     Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
@@ -2000,7 +2009,11 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
     }//for
     Uint32 tNoSent = theNoOfOpSent;
     Uint32 tGCI_hi = indxConf->gci_hi;
-    Uint32 tGCI_lo = * (Uint32*)&indxConf->operations[tNoOfOperations];
+    Uint32 tGCI_lo = * tPtr;
+    if (unlikely(aDataLength < TcIndxConf::SignalLength+1+2*tNoOfOperations))
+    {
+      tGCI_lo = 0;
+    }
     Uint64 tGCI = Uint64(tGCI_lo) | (Uint64(tGCI_hi) << 32);
 
     theNoOfOpCompleted = tNoComp;

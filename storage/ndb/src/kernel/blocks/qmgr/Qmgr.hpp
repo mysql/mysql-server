@@ -278,6 +278,8 @@ private:
   void execARBIT_CHOOSEREF(Signal* signal);
   void execARBIT_STOPREP(Signal* signal);
 
+  void execUPGRADE_PROTOCOL_ORD(Signal*);
+  
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -464,6 +466,8 @@ private:
                        Uint32 length, 
                        JobBufferLevel jbuf,
                        Uint32 minversion);
+
+  bool m_micro_gcp_enabled;
 };
 
 #endif
