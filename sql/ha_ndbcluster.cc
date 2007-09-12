@@ -192,6 +192,7 @@ struct st_ndb_status {
 };
 
 static struct st_ndb_status g_ndb_status;
+static long g_ndb_status_conflict_max= 0;
 
 static int update_status_variables(st_ndb_status *ns, Ndb_cluster_connection *c)
 {
@@ -218,6 +219,11 @@ SHOW_VAR ndb_status_variables[]= {
   {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
 //{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG},
   {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_conflict_variables[]= {
+  {"conflict_max",     (char*) &g_ndb_status_conflict_max,      SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -279,9 +285,13 @@ check_completed_operations(NdbTransaction *trans, const NdbOperation *first)
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError &&
         err.classification != NdbError::ConstraintViolation &&
-        err.classification != NdbError::NoDataFound &&
-        err.code != 9999)
-      DBUG_RETURN(err.code);
+        err.classification != NdbError::NoDataFound)
+    {
+      if (err.code == 9999)
+        g_ndb_status_conflict_max++;
+      else
+        DBUG_RETURN(err.code);
+    }
     first= trans->getNextCompletedOperation(first);
   }
   DBUG_RETURN(0);
@@ -11955,6 +11965,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
 SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
+  {"Ndb",                      (char*) &ndb_status_conflict_variables,   SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
 
