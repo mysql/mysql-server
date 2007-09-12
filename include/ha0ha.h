@@ -158,7 +158,9 @@ ha_print_info(
 typedef struct ha_node_struct ha_node_t;
 struct ha_node_struct {
 	ha_node_t*	next;	/* next chain node or NULL if none */
+#ifdef UNIV_DEBUG
 	buf_block_t*	block;	/* buffer block containing the data, or NULL */
+#endif /* UNIV_DEBUG */
 	void*		data;	/* pointer to the data */
 	ulint		fold;	/* fold value for the data */
 };
