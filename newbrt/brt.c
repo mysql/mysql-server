@@ -1314,7 +1314,6 @@ int brt_insert (BRT brt, DBT *key, DBT *val, DB* db) {
 }
 
 int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
-    int result;
     void *node_v;
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
@@ -1325,7 +1324,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     int childnum;
 
     if (node->height==0) {
-	result = pma_lookup(node->u.l.buffer, k, v, db);
+	int result = pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
 	r = cachetable_unpin(brt->cf, off, 0);
 	assert(r == 0);
@@ -1338,6 +1337,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
 	ITEMLEN hanswerlen;
         int type;
 	if (toku_hash_find (node->u.n.htables[childnum], k->data, k->size, &hanswer, &hanswerlen, &type)==0) {
+	    int result;
 	    if (type == BRT_INSERT) {
                 //printf("Found %d bytes\n", *vallen);
                 ybt_set_value(v, hanswer, hanswerlen, &brt->sval);
@@ -1345,18 +1345,22 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
                  result = 0;
             } else if (type == BRT_DELETE) {
                 result = DB_NOTFOUND;
-            } else
+            } else {
                 assert(0);
+		result = -1; // Some versions of gcc complain
+	    }
             r = cachetable_unpin(brt->cf, off, 0);
             assert(r == 0);
             return result;
 	}
     }
     
-    result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
-    r = cachetable_unpin(brt->cf, off, 0);
-    assert(r == 0);
-    return result;
+    {
+	int result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
+	r = cachetable_unpin(brt->cf, off, 0);
+	assert(r == 0);
+	return result;
+    }
 }
 
 

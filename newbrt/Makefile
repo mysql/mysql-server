@@ -26,23 +26,28 @@ endif
 default: bins
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
-BINS =  \
-        benchmark-test \
+REGRESSION_TESTS = \
+        ybt-test \
+        pma-test \
         brt-serialize-test \
         brt-test \
         cachetable-test \
+        cachetable-test2 \
         hashtest \
-        pma-test \
+# This line intentially kept commented so I can have a \ on the end of the previous line
+
+BINS =  $(REGRESSION_TESTS) \
+        benchmark-test \
         randbrt \
         randdb4 \
-        ybt-test \
-# This line intentially kept blank so I can have a \ on the end of the previous line
+# This line intentially kept commented so I can have a \ on the end of the previous line
 
 bins: $(BINS)
 check: bins
 	$(DTOOL) ./ybt-test
 	$(DTOOL) ./pma-test
 	$(DTOOL) ./cachetable-test
+	$(DTOOL) ./cachetable-test2
 	$(DTOOL) ./brt-serialize-test
 	$(DTOOL) ./brt-test
 	$(DTOOL) ./hashtest
@@ -84,6 +89,9 @@ brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pm
 
 cachetable-test.o: cachetable.h memory.h
 cachetable-test: cachetable.o memory.o cachetable-test.o
+
+cachetable-test2.o: cachetable.h memory.h
+cachetable-test2: cachetable.o memory.o cachetable-test2.o
 
 benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o
 benchmark-test.o: brt.h ../include/db.h
