@@ -47,7 +47,7 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
 
-#ifdef NPTL_PTHREAD_EXIT_BUG                    /* see my_pthread.h */
+#ifdef TARGET_OS_LINUX
 
 /*
   Dummy thread spawned in my_thread_global_init() below to avoid
@@ -61,7 +61,8 @@ nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
   pthread_exit(0);
   return 0;
 }
-#endif
+
+#endif /* TARGET_OS_LINUX */
 
 
 static uint get_thread_lib(void);
@@ -88,7 +89,7 @@ my_bool my_thread_global_init(void)
     return 1;
   }
 
-#ifdef NPTL_PTHREAD_EXIT_BUG
+#ifdef TARGET_OS_LINUX
   /*
     BUG#24507: Race conditions inside current NPTL pthread_exit()
     implementation.
@@ -112,7 +113,7 @@ my_bool my_thread_global_init(void)
     pthread_create(&dummy_thread,&dummy_thread_attr,
                    nptl_pthread_exit_hack_handler, NULL);
   }
-#endif
+#endif /* TARGET_OS_LINUX */
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   /*
@@ -179,10 +180,17 @@ void my_thread_global_end(void)
                                       &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
+#ifdef HAVE_PTHREAD_KILL
+      /*
+        We shouldn't give an error here, because if we don't have
+        pthread_kill(), programs like mysqld can't ensure that all threads
+        are killed when we enter here.
+      */
       if (THR_thread_count)
         fprintf(stderr,
                 "Error in my_thread_global_end(): %d threads didn't exit\n",
                 THR_thread_count);
+#endif
       all_threads_killed= 0;
       break;
     }
@@ -208,7 +216,7 @@ void my_thread_global_end(void)
   if (all_threads_killed)
   {
     pthread_mutex_destroy(&THR_LOCK_threads);
-    pthread_cond_destroy (&THR_COND_threads);
+    pthread_cond_destroy(&THR_COND_threads);
   }
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_destroy(&LOCK_localtime_r);

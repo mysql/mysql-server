@@ -107,10 +107,11 @@ void HexDecoder::Decode()
         // sanity checks
         assert( b  < sizeof(hexDecode)/sizeof(hexDecode[0]) );
         assert( b2 < sizeof(hexDecode)/sizeof(hexDecode[0]) );
-        assert( b != bad && b2 != bad );
 
         b  = hexDecode[b];
         b2 = hexDecode[b2];
+        
+        assert( b != bad && b2 != bad );
         
         decoded_[i++] = (b << 4) | b2;
         bytes -= 2;
@@ -184,7 +185,7 @@ void Base64Decoder::Decode()
 {
     word32 bytes = coded_.size();
     word32 plainSz = bytes - ((bytes + (pemLineSz - 1)) / pemLineSz); 
-    plainSz = ((plainSz * 3) / 4) + 3;
+    plainSz = (plainSz * 3 + 3) / 4;
     decoded_.New(plainSz);
 
     word32 i = 0;

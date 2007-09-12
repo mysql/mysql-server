@@ -561,7 +561,7 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     be rolled back already
   */
   if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd->ha_data[hton->slot])
+      thd_get_ha_data(thd, hton))
     hton->close_connection(hton, thd);
   return FALSE;
 }
@@ -1509,7 +1509,7 @@ void handler::ha_statistic_increment(ulong SSV::*offset) const
 
 void **handler::ha_data(THD *thd) const
 {
-  return (void **) thd->ha_data + ht->slot;
+  return thd_ha_data(thd, ht);
 }
 
 THD *handler::ha_thd(void) const
@@ -3184,7 +3184,8 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
     read_range_first()
     start_key		Start key. Is 0 if no min range
     end_key		End key.  Is 0 if no max range
-    eq_range_arg	Set to 1 if start_key == end_key		
+    eq_range_arg	Set to 1 if start_key == end_key and the range endpoints
+                        will not change during query execution.
     sorted		Set to 1 if result should be sorted per key
 
   NOTES

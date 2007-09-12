@@ -9,6 +9,7 @@
 
 const char* SSLeay_version(int type);
 
+#define SSLEAY_NUMBER_DEFINED
 #define SSLEAY_VERSION 0x0900L
 #define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 
