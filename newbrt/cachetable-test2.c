@@ -60,14 +60,14 @@ static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY ke
     int *v = value;
     //cachetable_print_state(ct);
     //printf("Flush %lld %d\n", key, (int)value);
-    assert((int)v==(int)key);
+    assert((long)v==(long)key);
     item_becomes_not_present(f, key);
     //print_ints();
 }
 
 static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, void*extraargs) {
-    assert((int)extraargs==(int)key);
-    *value = (void*)(int)key;
+    assert((long)extraargs==(long)key);
+    *value = (void*)(long)key;
     return 0;
 }
 
@@ -90,10 +90,10 @@ void test_chaining (void) {
     enum { FILENAME_LEN=100 };
     char fname[N_FILES][FILENAME_LEN];
     int r;
-    int i, trial;
+    long i, trial;
     r = create_cachetable(&ct, N_PRESENT_LIMIT);                               assert(r==0);
     for (i=0; i<N_FILES; i++) {
-	int r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%d.dat", i);
+	int r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
 	unlink(fname[i]);
 	r = cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, 0777);   assert(r==0);
@@ -117,7 +117,7 @@ void test_chaining (void) {
 				       &value,
 				       flush_forchain,
 				       fetch_forchain,
-				       (void*)(int)present_items[whichone].key
+				       (void*)(long)present_items[whichone].key
 				       );
 	    assert(r==0);
 	    r = cachetable_unpin(present_items[whichone].cf,
