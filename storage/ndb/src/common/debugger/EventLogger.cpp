@@ -90,6 +90,8 @@ void getRestartAction(Uint32 action, BaseString &str)
   if (action == 0)
     return;
   str.appfmt(", restarting");
+  if (action & 2)
+    str.appfmt(", no start");
   if (action & 4)
     str.appfmt(", initial");
 }
