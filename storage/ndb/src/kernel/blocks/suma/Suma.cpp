@@ -3857,8 +3857,15 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   SubGcpCompleteAck * const ack = (SubGcpCompleteAck*)signal->getDataPtr();
   Uint32 gci_hi = ack->rep.gci_hi;
   Uint32 gci_lo = ack->rep.gci_lo;
-  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   Uint32 senderRef  = ack->rep.senderRef;
+  if (unlikely(signal->getLength() < SubGcpCompleteAck::SignalLength))
+  {
+    jam();
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(refToNode(senderRef)).m_version));
+    gci_lo = 0;
+  }
+
+  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   if (refToBlock(senderRef) == SUMA) {
