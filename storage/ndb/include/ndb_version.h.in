@@ -91,5 +91,28 @@ Uint32 ndbGetOwnVersion();
 #define NDBD_255_NODES_VERSION NDB_MAKE_VERSION(5,1,4)
 #define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
 
+#define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
+#define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
+
+static
+inline
+int
+ndb_check_micro_gcp(Uint32 version)
+{	
+  if (version == NDB_VERSION_D)
+    return 1;
+  {
+    const Uint32 major = (version >> 16) & 0xFF;
+    const Uint32 minor = (version >>  8) & 0xFF;
+    if (major >= 6)
+    {
+      if (minor == 2)
+        return version >= NDBD_MICRO_GCP_62;
+      return version >= NDBD_MICRO_GCP_63;
+    }
+  }
+  return 0;
+}
+
 #endif
  
