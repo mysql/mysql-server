@@ -2465,6 +2465,16 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
 
   jamEntry();
   Tlength = signal->length();
+  Uint32 TcommitLen = 5;
+  Uint32 Tgci_lo_mask = ~(Uint32)0;
+
+  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version)))
+  {
+    jam();
+    TcommitLen = 4;
+    Tgci_lo_mask = 0;
+  }
+  
   ndbrequire(Tlength <= 25);
   MEMCOPY_NO_WORDS(&TpackedData[0], &signal->theData[0], Tlength);
   while (Tlength > Tstep) {
@@ -2480,10 +2490,10 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->theData[1] = sig1;
       signal->theData[2] = sig2;
       signal->theData[3] = sig3;
-      signal->theData[4] = sig4;
-      signal->header.theLength = 5;
+      signal->theData[4] = sig4 & Tgci_lo_mask;
+      signal->header.theLength = TcommitLen;
       execCOMMIT(signal);
-      Tstep += 5;
+      Tstep += TcommitLen;
       break;
     case ZCOMPLETE:
       jam();
@@ -2830,6 +2840,13 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
   Thostptr.p->packedWordsLqh[pos + 3] = transid2;
   Thostptr.p->packedWordsLqh[pos + 4] = gci_lo;
   Thostptr.p->noOfPackedWordsLqh = pos + 5;
+
+  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
+  {
+    jam();
+    ndbassert(gci_lo == 0);
+    Thostptr.p->noOfPackedWordsLqh = pos + 4;
+  }
 }//Dblqh::sendCommitLqh()
 
 void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
@@ -6026,6 +6043,14 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   Uint32 transid2 = signal->theData[4];
   Uint32 tcOprec = signal->theData[6];
   Uint32 gci_lo = signal->theData[7];
+
+  if (unlikely(signal->getLength() < 8))
+  {
+    jam();
+    gci_lo = 0;
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+  }
+
   if (ERROR_INSERTED(5004)) {
     systemErrorLab(signal, __LINE__);
   }
@@ -12144,6 +12169,16 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
+  if (unlikely(refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
+  {
+    jam();
+    ndbassert(!ndb_check_micro_gcp
+              (getNodeInfo(refToNode
+                           (signal->getSendersBlockRef())).m_version));
+    EXECUTE_DIRECT(DBDIH, GSN_GCP_SAVEREQ, signal, signal->getLength());
+    return;
+  }
+  
   const Uint32 dihBlockRef = saveReq->dihBlockRef;
   const Uint32 dihPtr = saveReq->dihPtr;
   const Uint32 gci = saveReq->gci;

@@ -33,6 +33,7 @@
 #include <signaldata/FailRep.hpp>
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/ApiBroadcast.hpp>
+#include <signaldata/Upgrade.hpp>
 
 #include <ndb_version.h>
 
@@ -648,6 +649,15 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, startingVersion)) {
     jam();
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    return;
+  }
+
+  if (!ndb_check_micro_gcp(startingVersion))
+  {
+    jam();
+    infoEvent("Connection from node %u refused as it's not micro GCP enabled",
+              addNodePtr.i);
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
     return;
   }
@@ -2805,6 +2815,18 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
   return;
 }//Qmgr::node_failed()
 
+void
+Qmgr::execUPGRADE_PROTOCOL_ORD(Signal* signal)
+{
+  const UpgradeProtocolOrd* ord = (UpgradeProtocolOrd*)signal->getDataPtr();
+  switch(ord->type){
+  case UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP:
+    jam();
+    m_micro_gcp_enabled = true;
+    return;
+  }
+}
+
 /**--------------------------------------------------------------------------
  * AN API NODE IS REGISTERING. IF FOR THE FIRST TIME WE WILL ENABLE 
  * COMMUNICATION WITH ALL NDB BLOCKS.
@@ -2833,10 +2855,21 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 #endif
 
   bool compatability_check;
+  const char * extra = 0;
   NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
   switch(type){
   case NodeInfo::API:
-    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    if (m_micro_gcp_enabled && !ndb_check_micro_gcp(version))
+    {
+      jam();
+      compatability_check = false;
+      extra = ": micro gcp enabled";
+    }
+    else
+    {
+      jam();
+      compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    }
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
@@ -2848,18 +2881,19 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     infoEvent("Invalid connection attempt with type %d", type);
     return;
   }
-
+  
   if (!compatability_check) {
     jam();
     char buf[NDB_VERSION_STRING_BUF_SZ];
     infoEvent("Connection attempt from %s id=%d with %s "
-	      "incompatible with %s",
+	      "incompatible with %s%s",
 	      type == NodeInfo::API ? "api or mysqld" : "management server",
 	      apiNodePtr.i,
 	      ndbGetVersionString(version, mysql_version, 0,
-			       buf, 
-			       sizeof(buf)),
-	      NDB_VERSION_STRING);
+                                  buf, 
+                                  sizeof(buf)),
+	      NDB_VERSION_STRING,
+              extra ? extra : 0);
     apiNodePtr.p->phase = ZAPI_INACTIVE;
     sendApiRegRef(signal, ref, ApiRegRef::UnsupportedVersion);
     return;

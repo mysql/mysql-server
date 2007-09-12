@@ -381,7 +381,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_GCP_SAVEREQ                 283
 #define GSN_GCP_TCFINISHED              284
 
-/* 285 unused */
+#define GSN_UPGRADE_PROTOCOL_ORD        285
+
 /* 286 unused */
 /* 287 unused */
 #define GSN_GETGCICONF                  288

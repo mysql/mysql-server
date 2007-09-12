@@ -828,7 +828,7 @@ private:
   int  receiveTCSEIZEREF(NdbApiSignal* anApiSignal);	
   int  receiveTCRELEASECONF(NdbApiSignal* anApiSignal);	
   int  receiveTCRELEASEREF(NdbApiSignal* anApiSignal);	
-  int  receiveTC_COMMITCONF(const class TcCommitConf *);
+  int  receiveTC_COMMITCONF(const class TcCommitConf *, Uint32 len);
   int  receiveTCKEYCONF(const class TcKeyConf *, Uint32 aDataLength);
   int  receiveTCKEY_FAILCONF(const class TcKeyFailConf *);
   int  receiveTCKEY_FAILREF(NdbApiSignal* anApiSignal);

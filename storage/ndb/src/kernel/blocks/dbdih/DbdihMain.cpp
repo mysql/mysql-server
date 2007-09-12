@@ -69,6 +69,7 @@
 #include <signaldata/DihFragCount.hpp>
 #include <signaldata/DictLock.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/Upgrade.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
@@ -187,9 +188,11 @@ void Dbdih::sendGCP_COMMIT(Signal* signal, Uint32 nodeId)
   BlockReference ref = calcDihBlockRef(nodeId);
   GCPCommit *req = (GCPCommit*)signal->getDataPtrSend();
   req->nodeId = cownNodeId;
-  req->gci_hi = Uint32(m_micro_gcp.m_new_gci >> 32);
-  req->gci_lo = Uint32(m_micro_gcp.m_new_gci);
+  req->gci_hi = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+  req->gci_lo = Uint32(m_micro_gcp.m_master.m_new_gci);
   sendSignal(ref, GSN_GCP_COMMIT, signal, GCPCommit::SignalLength, JBA);
+
+  ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_COMMIT()
 
 void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
@@ -197,9 +200,11 @@ void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId)
   BlockReference ref = calcDihBlockRef(nodeId);
   GCPPrepare *req = (GCPPrepare*)signal->getDataPtrSend();
   req->nodeId = cownNodeId;
-  req->gci_hi = Uint32(m_micro_gcp.m_new_gci >> 32);
-  req->gci_lo = Uint32(m_micro_gcp.m_new_gci);
+  req->gci_hi = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+  req->gci_lo = Uint32(m_micro_gcp.m_master.m_new_gci);
   sendSignal(ref, GSN_GCP_PREPARE, signal, GCPPrepare::SignalLength, JBA);
+  
+  ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
 }//Dbdih::sendGCP_PREPARE()
 
 void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId)
@@ -208,7 +213,7 @@ void Dbdih::sendGCP_SAVEREQ(Signal* signal, Uint32 nodeId)
   BlockReference ref = calcDihBlockRef(nodeId);
   saveReq->dihBlockRef = reference();
   saveReq->dihPtr = nodeId;
-  saveReq->gci = m_gcp_save.m_gci;
+  saveReq->gci = m_gcp_save.m_master.m_new_gci;
   sendSignal(ref, GSN_GCP_SAVEREQ, signal, GCPSaveReq::SignalLength, JBB);
 }//Dbdih::sendGCP_SAVEREQ()
 
@@ -740,17 +745,6 @@ done:
     c_newest_restorable_gci = newest;
     Sysfile::setRestartOngoing(SYSFILE->systemRestartBits);
     m_micro_gcp.m_current_gci = Uint64(newest + 1) << 32;
-    m_micro_gcp.m_new_gci = Uint64(newest + 1) << 32;
-    if (m_micro_gcp.m_enabled)
-    {
-      jam();
-      m_micro_gcp.m_next_gci = (Uint64(newest + 1) << 32) + 1;
-    }
-    else
-    {
-      jam();
-      m_micro_gcp.m_next_gci = (Uint64(newest + 2) << 32);
-    }
     setNodeInfo(signal);
     if ((Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))) {
       jam();
@@ -760,6 +754,19 @@ done:
       /* -------------------------------------------------------------------- */
       invalidateLcpInfoAfterSr();
     }//if
+
+    if (m_micro_gcp.m_enabled == false && 
+        m_micro_gcp.m_master.m_time_between_gcp)
+    {
+      /**
+       * Micro GCP is disabled...but configured...
+       */
+      jam();
+      m_micro_gcp.m_enabled = true;
+      UpgradeProtocolOrd * ord = (UpgradeProtocolOrd*)signal->getDataPtrSend();
+      ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
+      EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
+    }
     break;
   }
   case CopyGCIReq::GLOBAL_CHECKPOINT: {
@@ -772,18 +779,18 @@ done:
       /**
        * This must be master take over...and it already running...
        */
-      ndbrequire(m_gcp_save.m_master_ref != c_copyGCISlave.m_senderRef);
+      ndbrequire(c_newest_restorable_gci == SYSFILE->newestRestorableGCI);
       m_gcp_save.m_master_ref = c_copyGCISlave.m_senderRef;
       return;
     }
 
-    if (m_gcp_save.m_state == GcpSave::GCP_SAVE_IDLE)
+    if (c_newest_restorable_gci == SYSFILE->newestRestorableGCI)
     {
       jam();
+
       /**
        * This must be master take over...and it already complete...
        */
-      ndbrequire(m_gcp_save.m_master_ref != c_copyGCISlave.m_senderRef);
       m_gcp_save.m_master_ref = c_copyGCISlave.m_senderRef;
       c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
       signal->theData[0] = c_copyGCISlave.m_senderData;
@@ -1669,7 +1676,7 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
   cndbStartReqBlockref = ref;
   if (cstarttype == NodeState::ST_INITIAL_START) {
     jam();
-    initRestartInfo();
+    initRestartInfo(signal);
     initGciFilesLab(signal);
     return;
   }
@@ -1873,8 +1880,23 @@ void Dbdih::execSTART_PERMCONF(Signal* signal)
   CRASH_INSERTION(7121);
   Uint32 nodeId = signal->theData[0];
   cfailurenr = signal->theData[1];
+  
+  bool microGCP = signal->theData[2];
+  if (signal->getLength() < StartPermConf::SignalLength)
+  {
+    microGCP = false;
+  }
+  m_micro_gcp.m_enabled = microGCP;
   ndbrequire(nodeId == cownNodeId);
   ndbsttorry10Lab(signal, __LINE__);
+
+  if (m_micro_gcp.m_enabled)
+  {
+    jam();
+    UpgradeProtocolOrd * ord = (UpgradeProtocolOrd*)signal->getDataPtrSend();
+    ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
+    EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
+  }
 }//Dbdih::execSTART_PERMCONF()
 
 void Dbdih::execSTART_PERMREF(Signal* signal) 
@@ -2082,6 +2104,7 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
     StartPermConf * conf = (StartPermConf*)&signal->theData[0];
     conf->startingNodeId = c_nodeStartMaster.startNode;
     conf->systemFailureNo = cfailurenr;
+    conf->microGCP = m_micro_gcp.m_enabled;
     sendSignal(calcDihBlockRef(c_nodeStartMaster.startNode), 
 	       GSN_START_PERMCONF, signal, StartPermConf::SignalLength, JBB);
     c_nodeStartMaster.m_outstandingGsn = GSN_START_PERMCONF;
@@ -2418,6 +2441,12 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Uint32 tnodeStartFailNr = signal->theData[2];
   Uint32 gci_hi = signal->theData[4];
   Uint32 gci_lo = signal->theData[5];
+  if (unlikely(signal->getLength() < 6))
+  {
+    jam();
+    gci_lo = 0;
+  }
+  
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   CRASH_INSERTION(7127);
   m_micro_gcp.m_current_gci = gci;
@@ -2491,7 +2520,7 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   /*-------------------------------------------------------------------------*/
   signal->theData[0] = reference();
   signal->theData[1] = nodeId;
-  signal->theData[2] = m_micro_gcp.m_current_gci >> 32;
+  signal->theData[2] = Uint32(m_micro_gcp.m_current_gci >> 32);
   sendSignal(clocallqhblockref, GSN_INCL_NODEREQ, signal, 3, JBB);
 }//Dbdih::execINCL_NODEREQ()
 
@@ -2834,7 +2863,8 @@ void Dbdih::startTakeOver(Signal* signal,
     checkToCopyCompleted(signal);
     return;
   }
-  cstartGcpNow = true;
+
+  m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
 }//Dbdih::startTakeOver()
 
 void Dbdih::changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver)
@@ -5083,7 +5113,7 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = failedNodeId;
     saveRef->nodeId = failedNodeId;
-    saveRef->gci    = m_gcp_save.m_gci;
+    saveRef->gci    = m_gcp_save.m_master.m_new_gci;
     saveRef->errorCode = GCPSaveRef::FakedSignalDueToNodeFailure;
     sendSignal(reference(), GSN_GCP_SAVEREF, signal, 
 	       GCPSaveRef::SignalLength, JBB);
@@ -5407,16 +5437,16 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   case MasterGCPConf::GCP_PREPARE_RECEIVED:
     jam();
     ok = true;
-    if (m_micro_gcp.m_master_state == MicroGcp::M_GCP_IDLE)
+    if (m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_IDLE)
     {
       jam();
-      m_micro_gcp.m_master_state = MicroGcp::M_GCP_PREPARE;
-      m_micro_gcp.m_new_gci = newGCI;
+      m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_PREPARE;
+      m_micro_gcp.m_master.m_new_gci = newGCI;
     }
     else
     {
       jam();
-      ndbrequire(m_micro_gcp.m_new_gci == newGCI);
+      ndbrequire(m_micro_gcp.m_master.m_new_gci == newGCI);
     }
     break;
   case MasterGCPConf::GCP_COMMIT_RECEIVED:
@@ -5424,8 +5454,12 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
   case MasterGCPConf::GCP_COMMITTED:
     jam();
     ok = true;
-    ndbrequire(m_micro_gcp.m_new_gci == newGCI);
-    m_micro_gcp.m_master_state = MicroGcp::M_GCP_COMMIT;
+    if (m_micro_gcp.m_master.m_state != MicroGcp::M_GCP_IDLE)
+    {
+      ndbrequire(m_micro_gcp.m_master.m_new_gci == newGCI);
+    }
+    m_micro_gcp.m_master.m_new_gci = newGCI;
+    m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_COMMIT;
     break;
 #ifndef VM_TRACE
   default:
@@ -5442,26 +5476,26 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     break;
   case MasterGCPConf::GCP_SAVE_REQ:
     jam();
-    if (m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE)
+    if (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
     {
       jam();
-      m_gcp_save.m_master_state = GcpSave::GCP_SAVE_REQ;
+      m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_REQ;
     }
     break;
   case MasterGCPConf::GCP_SAVE_CONF:
     jam();
-    if (m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE)
+    if (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
     {
       jam();
-      m_gcp_save.m_master_state = GcpSave::GCP_SAVE_REQ;
+      m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_REQ;
     }
     break;
   case MasterGCPConf::GCP_SAVE_COPY_GCI:
     jam();
-    if (m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE)
+    if (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
     {
       jam();
-      m_gcp_save.m_master_state = GcpSave::GCP_SAVE_COPY_GCI;
+      m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_COPY_GCI;
     }
     break;
 #ifndef VM_TRACE
@@ -5497,12 +5531,12 @@ void Dbdih::execMASTER_GCPREF(Signal* signal)
 void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId) 
 {
   cmasterState = MASTER_ACTIVE;
-  m_micro_gcp.m_start_time = 0;
-  m_gcp_save.m_start_time = 0;
-  m_micro_gcp.m_next_gci = m_micro_gcp.m_new_gci + 1;
+
+  m_micro_gcp.m_master.m_start_time = 0;
+  m_gcp_save.m_master.m_start_time = 0;
 
   bool ok = false;
-  switch(m_micro_gcp.m_master_state){
+  switch(m_micro_gcp.m_master.m_state){
   case MicroGcp::M_GCP_IDLE:
     jam();
     ok = true;
@@ -5536,65 +5570,64 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     ndbrequire(false);
 #ifndef VM_TRACE
   default:
-    jamLine(m_micro_gcp.m_master_state);
+    jamLine(m_micro_gcp.m_master.m_state);
     ndbrequire(false);
 #endif
   }
   ndbassert(ok);
 
+  if (m_micro_gcp.m_enabled == false)
   {
-    Uint32 saveGCI = Uint32(m_micro_gcp.m_next_gci >> 32);
-    if (m_gcp_save.m_gci + 1 == saveGCI)
+    jam();
+    m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_IDLE;
+  }
+  else
+  {
+    ok = false;
+    m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
+    switch(m_gcp_save.m_master.m_state){
+    case GcpSave::GCP_SAVE_IDLE:
+      jam();
+      ok = true;
+      break;
+    case GcpSave::GCP_SAVE_REQ:
     {
       jam();
+      ok = true;
+      
       /**
-       * Make sure that GCP save can continue...
+       * Restart GCP_SAVE_REQ
        */
-      m_micro_gcp.m_next_gci = (Uint64(saveGCI) + 1) << 32;
+      sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
+      break;
     }
-  }
-
-  ok = false;
-  switch(m_gcp_save.m_master_state){
-  case GcpSave::GCP_SAVE_IDLE:
-    jam();
-    ok = true;
-    break;
-  case GcpSave::GCP_SAVE_REQ:
-  {
-    jam();
-    ok = true;
-
-    /**
-     * Restart GCP_SAVE_REQ
-     */
-    sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
-    break;
-  }
-  case GcpSave::GCP_SAVE_CONF:
-    jam();
-  case GcpSave::GCP_SAVE_COPY_GCI:
-    jam();
-    ok = true;
-    copyGciLab(signal, CopyGCIReq::GLOBAL_CHECKPOINT);
-    m_gcp_save.m_master_state = GcpSave::GCP_SAVE_COPY_GCI;
-    break;
+    case GcpSave::GCP_SAVE_CONF:
+      jam();
+    case GcpSave::GCP_SAVE_COPY_GCI:
+      jam();
+      ok = true;
+      copyGciLab(signal, CopyGCIReq::GLOBAL_CHECKPOINT);
+      m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_COPY_GCI;
+      break;
 #ifndef VM_TRACE
-  default:
-    jamLine(m_gcp_save.m_master_state);
-    ndbrequire(false);
+    default:
+      jamLine(m_gcp_save.m_master.m_state);
+      ndbrequire(false);
 #endif
+    }
+    ndbrequire(ok);
   }
-  ndbrequire(ok);
-
+  
   signal->theData[0] = NDB_LE_GCP_TakeoverCompleted;
-  signal->theData[1] = m_micro_gcp.m_master_state;
-  signal->theData[2] = m_gcp_save.m_master_state;
+  signal->theData[1] = m_micro_gcp.m_master.m_state;
+  signal->theData[2] = m_gcp_save.m_master.m_state;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
 
-  infoEvent("kk: %u %u",
-            m_micro_gcp.m_master_state,
-            m_gcp_save.m_master_state);
+  infoEvent("kk: %u/%u %u %u",
+            Uint32(m_micro_gcp.m_current_gci >> 32),
+            Uint32(m_micro_gcp.m_current_gci),
+            m_micro_gcp.m_master.m_state,
+            m_gcp_save.m_master.m_state);
 
   /*--------------------------------------------------*/
   /*       WE SEPARATE HANDLING OF GLOBAL CHECKPOINTS */
@@ -7947,11 +7980,64 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   return;
 }//Dbdih::checkGcpStopLab()
 
-static
+
 bool
-check_enable_micro_gcp()
+Dbdih::check_enable_micro_gcp(Signal* signal, bool broadcast)
 {
-  return false;
+  ndbassert(m_micro_gcp.m_enabled == false);
+  ndbassert(NodeVersionInfo::DataLength == 6);
+  Uint32 min = ~(Uint32)0;
+  const NodeVersionInfo& info = getNodeVersionInfo();
+  for (Uint32 i = 0; i<3; i++)
+  {
+    Uint32 tmp = info.m_type[i].m_min_version;
+    if (tmp)
+    {
+      min = (min < tmp) ? min : tmp; 
+    }
+  }
+
+  if (ndb_check_micro_gcp(min))
+  {
+    jam();
+    m_micro_gcp.m_enabled = true;
+
+    infoEvent("Enabling micro GCP");
+    if (broadcast)
+    {
+      jam();
+      UpgradeProtocolOrd * ord = (UpgradeProtocolOrd*)signal->getDataPtrSend();
+      ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
+
+      /**
+       * We need to notify all ndbd's or they'll get confused!
+       */
+      NodeRecordPtr specNodePtr;
+      specNodePtr.i = cfirstAliveNode;
+      do {
+        jam();
+        ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+        sendSignal(calcDihBlockRef(specNodePtr.i), GSN_UPGRADE_PROTOCOL_ORD,
+                   signal, UpgradeProtocolOrd::SignalLength, JBA);
+        specNodePtr.i = specNodePtr.p->nextNode;
+      } while (specNodePtr.i != RNIL);
+      EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
+    }
+  }
+  return m_micro_gcp.m_enabled;
+}
+
+void
+Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
+{
+  const UpgradeProtocolOrd* ord = (UpgradeProtocolOrd*)signal->getDataPtr();
+  switch(ord->type){
+  case UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP:
+    jam();
+    m_micro_gcp.m_enabled = true;
+    EXECUTE_DIRECT(QMGR, GSN_UPGRADE_PROTOCOL_ORD,signal, signal->getLength());
+    return;
+  }
 }
 
 void
@@ -7983,54 +8069,64 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   }//if
 
   Uint64 now = NdbTick_CurrentMillisecond();
-  if (cstartGcpNow == false)
+  
+  Uint32 delayMicro = m_micro_gcp.m_enabled ? 
+    m_micro_gcp.m_master.m_time_between_gcp : 
+    m_gcp_save.m_master.m_time_between_gcp;
+  
+  if (! (now >= m_micro_gcp.m_master.m_start_time + delayMicro))
   {
     jam();
-    Uint32 delay = m_micro_gcp.m_time_between_gcp;
-    if (delay == 0)
-    {
-      jam(); // I.e not configured
-      delay = m_gcp_save.m_time_between_gcp;
-    }
+    signal->theData[0] = DihContinueB::ZSTART_GCP;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+    return;
+  }
 
-    if (m_micro_gcp.m_start_time + delay > now)
-    {
-      jam();
-      signal->theData[0] = DihContinueB::ZSTART_GCP;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-      return;
-    }
-  }//if
-  cstartGcpNow = false;
-  m_micro_gcp.m_start_time = now;
-
-  if (m_micro_gcp.m_enabled == false && m_micro_gcp.m_time_between_gcp)
+  m_micro_gcp.m_master.m_start_time = now;
+  
+  if (m_micro_gcp.m_enabled == false && 
+      m_micro_gcp.m_master.m_time_between_gcp)
   {
     /**
      * Micro GCP is disabled...but configured...
      */
     jam();
-    check_enable_micro_gcp();
+    check_enable_micro_gcp(signal, true);
   }
-
-  m_micro_gcp.m_new_gci = m_micro_gcp.m_next_gci;
-  m_micro_gcp.m_next_gci++;
-
+  
   /**
    * Check that there has not been more than 2^32 micro GCP wo/ any save
    */
-  ndbrequire((m_micro_gcp.m_new_gci & 0xFFFFFFFF) != 0xFFFFFFFF);
-
+  Uint64 currGCI = m_micro_gcp.m_current_gci;
+  ndbrequire(Uint32(currGCI) != ~(Uint32)0);
+  m_micro_gcp.m_master.m_new_gci = currGCI + 1;
+  
+  Uint32 delaySave = m_gcp_save.m_master.m_time_between_gcp;
+  if ((m_micro_gcp.m_enabled == false) ||
+      (now >= m_gcp_save.m_master.m_start_time + delaySave && 
+       m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
+  {
+    jam();
+    /**
+     * Time for save...switch gci_hi
+     */
+    m_gcp_save.m_master.m_start_time = now;
+    m_micro_gcp.m_master.m_new_gci = Uint64((currGCI >> 32) + 1) << 32;
+  }
+  
+  ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
+  
+  
   /***************************************************************************/
   // Report the event that a global checkpoint has started.
   /***************************************************************************/
   signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
-  signal->theData[1] = m_micro_gcp.m_new_gci >> 32;
-  signal->theData[2] = m_micro_gcp.m_new_gci & 0xFFFFFFFF;
+  signal->theData[1] = m_micro_gcp.m_master.m_new_gci >> 32;
+  signal->theData[2] = m_micro_gcp.m_master.m_new_gci & 0xFFFFFFFF;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
-
+  
   CRASH_INSERTION(7000);
-  m_micro_gcp.m_master_state = MicroGcp::M_GCP_PREPARE;
+  m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_PREPARE;
   signal->setTrace(TestOrd::TraceGlobalCheckpoint);
 
 #ifdef ERROR_INSERT
@@ -8053,8 +8149,15 @@ void Dbdih::execGCP_PREPARECONF(Signal* signal)
   Uint32 senderNodeId = signal->theData[0];
   Uint32 gci_hi = signal->theData[1];
   Uint32 gci_lo = signal->theData[2];
+
+  if (unlikely(signal->getLength() < GCPPrepareConf::SignalLength))
+  {
+    gci_lo = 0;
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(senderNodeId).m_version));
+  }
+
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
-  ndbrequire(gci == m_micro_gcp.m_new_gci);
+  ndbrequire(gci == m_micro_gcp.m_master.m_new_gci);
   receiveLoopMacro(GCP_PREPARE, senderNodeId);
   //-------------------------------------------------------------
   // We have now received all replies. We are ready to continue
@@ -8067,7 +8170,7 @@ void Dbdih::gcpcommitreqLab(Signal* signal)
 {
   CRASH_INSERTION(7001);
 
-  m_micro_gcp.m_master_state = MicroGcp::M_GCP_COMMIT;
+  m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_COMMIT;
 
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(7187))
@@ -8093,39 +8196,7 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   const Uint32 gci_lo = signal->theData[3];
   const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
-#if 0
-  /**
-   * This section is #if 0
-   *   as I changed GCP_NODEFINISH to only be sent in return to
-   *   node sending GCP_COMMIT
-   *
-   * So...this can never arraive at "new master"
-   */
-
-  if (!isMaster()) {
-    jam();
-    ndbrequire(failureNr > cfailurenr);
-    //-------------------------------------------------------------
-    // Another node thinks we are master. This could happen when he
-    // has heard of a node failure which I have not heard of. Ignore
-    // signal in this case since we will discover it by sending
-    // MASTER_GCPREQ to the node.
-    //-------------------------------------------------------------
-    return;
-  } else if (cmasterState == MASTER_TAKE_OVER_GCP) {
-    jam();
-    //-------------------------------------------------------------
-    // We are currently taking over as master. Ignore
-    // signal in this case since we will discover it in reception of
-    // MASTER_GCPCONF.
-    //-------------------------------------------------------------
-    return;
-  } else {
-    ndbrequire(cmasterState == MASTER_ACTIVE);
-  }//if
-#endif
-
-  ndbrequire(m_micro_gcp.m_master_state == MicroGcp::M_GCP_COMMIT);
+  ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
   receiveLoopMacro(GCP_COMMIT, senderNodeId);
 
   jam();
@@ -8174,7 +8245,11 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
    * New protocol
    */
   Uint64 now;
-  m_micro_gcp.m_master_state = MicroGcp::M_GCP_IDLE;
+  m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_IDLE;
+
+  Uint32 curr_hi = m_micro_gcp.m_current_gci >> 32;
+  Uint32 old_hi = m_micro_gcp.m_old_gci >> 32;
+  
   if (m_micro_gcp.m_enabled)
   {
     jam();
@@ -8184,48 +8259,25 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
       signal->theData[0] = DihContinueB::ZSTART_GCP;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
     }
-
-    if (m_gcp_save.m_master_state != GcpSave::GCP_SAVE_IDLE)
-    {
-      jam();
-      return;
-    }
-
-    now = NdbTick_CurrentMillisecond();
-    if (m_gcp_save.m_start_time + m_gcp_save.m_time_between_gcp > now)
-    {
-      jam();
-      return;
-    }
   }
   else
   {
-    jam();
-    now = NdbTick_CurrentMillisecond();
-    ndbrequire(m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE);
+    ndbrequire(curr_hi != old_hi);
   }
   
-  /**
-   * Start a save
-   */
-  Uint32 saveGCI = (m_micro_gcp.m_old_gci >> 32) - 1;
-  if (saveGCI == m_gcp_save.m_gci)
+  if (curr_hi == old_hi)
   {
     jam();
-    /**
-     * gci_hi switch has not yet occured...wait until it has
-     */
-    ndbrequire(m_micro_gcp.m_enabled);
     return;
   }
 
-  m_gcp_save.m_master_state = GcpSave::GCP_SAVE_REQ;
-  m_gcp_save.m_gci = saveGCI;
-  m_gcp_save.m_start_time = now;
+  /**
+   * Start a save
+   */
+  Uint32 saveGCI = old_hi;
+  m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_REQ;
+  m_gcp_save.m_master.m_new_gci = saveGCI;
   
-  m_micro_gcp.m_next_gci = Uint32(m_micro_gcp.m_next_gci >> 32) + 1;
-  m_micro_gcp.m_next_gci <<= 32;
-
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(7188))
   {
@@ -8236,7 +8288,7 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
     return;
   }
 #endif
-
+  
   sendLoopMacro(GCP_SAVEREQ, sendGCP_SAVEREQ);
   return;
 }//Dbdih::execGCP_NODEFINISH()
@@ -8260,21 +8312,18 @@ Dbdih::execGCP_SAVEREQ(Signal* signal)
      * This is master take over...
      * and SAVE_REQ is already running
      */
-    ndbrequire(m_gcp_save.m_master_ref != req->dihBlockRef);
     ndbrequire(m_gcp_save.m_gci == req->gci);
     m_gcp_save.m_master_ref = req->dihBlockRef;
     return;
   }
 
-  if (m_gcp_save.m_state == GcpSave::GCP_SAVE_CONF)
+  if (m_gcp_save.m_gci == req->gci)
   {
     jam();
     /**
      * This is master take over...
      * and SAVE_REQ is complete...
      */
-    ndbrequire(m_gcp_save.m_master_ref != req->dihBlockRef);
-    ndbrequire(m_gcp_save.m_gci == req->gci);
     m_gcp_save.m_master_ref = req->dihBlockRef;
 
     GCPSaveReq save = (* req);
@@ -8350,7 +8399,7 @@ void Dbdih::execGCP_SAVEREF(Signal* signal)
 
 void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId) 
 {
-  ndbrequire(m_gcp_save.m_master_state == GcpSave::GCP_SAVE_REQ);
+  ndbrequire(m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_REQ);
   receiveLoopMacro(GCP_SAVEREQ, nodeId);
   /*-------------------------------------------------------------------------*/
   // All nodes have replied. We are ready to update the system file.
@@ -8376,7 +8425,7 @@ void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId)
   }
   copyGciLab(signal, CopyGCIReq::GLOBAL_CHECKPOINT);
 
-  m_gcp_save.m_master_state = GcpSave::GCP_SAVE_COPY_GCI;
+  m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_COPY_GCI;
 
 }//Dbdih::GCP_SAVEhandling()
 
@@ -8403,12 +8452,19 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   Uint32 masterNodeId = req->nodeId;
   Uint32 gci_hi = req->gci_hi;
   Uint32 gci_lo = req->gci_lo;
+  if (unlikely(signal->getLength() < GCPPrepare::SignalLength))
+  {
+    jam();
+    gci_lo = 0;
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(masterNodeId).m_version));
+  }
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
   BlockReference retRef = calcDihBlockRef(masterNodeId);
 
   if (isMaster())
   {
-    ndbrequire(m_micro_gcp.m_master_state == MicroGcp::M_GCP_PREPARE);
+    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_PREPARE);
   }
 
   if (m_micro_gcp.m_state == MicroGcp::M_GCP_PREPARE)
@@ -8418,27 +8474,23 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
      * This must be master take over
      *   Prepare is already complete
      */
-    ndbrequire(m_micro_gcp.m_master_ref != retRef);
     ndbrequire(m_micro_gcp.m_new_gci == gci);
     m_micro_gcp.m_master_ref = retRef;
-
     goto reply;
   }
 
-  ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE);
-  
-  if (m_micro_gcp.m_current_gci == gci)
+  if (m_micro_gcp.m_new_gci == gci)
   {
     jam();
     /**
      * This GCP has already been prepared...
      *   Must be master takeover
      */
-    infoEvent("keso");
-    ndbrequire(m_micro_gcp.m_master_ref != retRef);
-    // Note...dont set master_ref...and this will also be GCP_COMMIT:ed
+    m_micro_gcp.m_master_ref = retRef;
     goto reply;
   }
+  
+  ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE);
 
   cgckptflag = true;
   m_micro_gcp.m_state = MicroGcp::M_GCP_PREPARE;
@@ -8474,13 +8526,19 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   Uint32 masterNodeId = req->nodeId;
   Uint32 gci_hi = req->gci_hi;
   Uint32 gci_lo = req->gci_lo;
+
+  if (unlikely(signal->getLength() < GCPCommit::SignalLength))
+  {
+    gci_lo = 0;
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(masterNodeId).m_version));
+  }
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
   Uint32 masterRef = calcDihBlockRef(masterNodeId);
   ndbrequire(masterNodeId = cmasterNodeId);
   if (isMaster())
   {
-    ndbrequire(m_micro_gcp.m_master_state == MicroGcp::M_GCP_COMMIT);
+    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
   }
 
   if (m_micro_gcp.m_state == MicroGcp::M_GCP_COMMIT)
@@ -8490,23 +8548,20 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
      * This must be master take over
      *   Commit is already ongoing...
      */
-    ndbrequire(m_micro_gcp.m_master_ref != masterRef);
     ndbrequire(m_micro_gcp.m_current_gci == gci);
     m_micro_gcp.m_master_ref = masterRef;
     return;
   }
 
-  if (m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED ||
-      m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE)
+  if (m_micro_gcp.m_current_gci == gci)
   {
     jam();
     /**
      * This must be master take over
      *   Commit has already completed
      */
-    ndbrequire(m_micro_gcp.m_master_ref != masterRef);
-    ndbrequire(m_micro_gcp.m_current_gci == gci);
-
+    m_micro_gcp.m_master_ref = masterRef;
+    
     GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
     conf->nodeId = cownNodeId;
     conf->gci_hi = m_micro_gcp.m_old_gci >> 32;
@@ -8517,6 +8572,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
     return;
   }
 
+  ndbrequire(m_micro_gcp.m_new_gci == gci);
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_PREPARE);
   m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
   m_micro_gcp.m_master_ref = calcDihBlockRef(masterNodeId);
@@ -8581,7 +8637,7 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   SubGcpCompleteRep* rep = (SubGcpCompleteRep*)signal->getDataPtr();
   if (isMaster())
   {
-    ndbrequire(m_micro_gcp.m_master_state == MicroGcp::M_GCP_IDLE);
+    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_IDLE);
   }
   
   Uint32 masterRef = rep->senderRef;
@@ -8592,9 +8648,7 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
      * This must be master take over
      *   signal has already arrived
      */
-    ndbrequire(m_micro_gcp.m_master_ref != masterRef);
     m_micro_gcp.m_master_ref = masterRef;
-    ndbout_c(" - ignore");
     return;
   }
 
@@ -8918,25 +8972,8 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
        */
       signal->theData[0] = DihContinueB::ZSTART_GCP;
       sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-      
-      SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
-      rep->gci_hi = m_gcp_save.m_gci;
-      rep->gci_lo = 0;
-      rep->flags = SubGcpCompleteRep::ON_DISK;
-      
-      {
-        NodeRecordPtr specNodePtr;
-        specNodePtr.i = cfirstAliveNode;
-        do {
-          jam();
-          ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
-          sendSignal(calcDihBlockRef(specNodePtr.i), GSN_SUB_GCP_COMPLETE_REP,
-                     signal, SubGcpCompleteRep::SignalLength, JBA);
-          specNodePtr.i = specNodePtr.p->nextNode;
-        } while (specNodePtr.i != RNIL);
-      }
     }
-    m_gcp_save.m_master_state = GcpSave::GCP_SAVE_IDLE;
+    m_gcp_save.m_master.m_state = GcpSave::GCP_SAVE_IDLE;
 
     CRASH_INSERTION(7004);
     emptyWaitGCPMasterQueue(signal);    
@@ -9051,8 +9088,21 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
 
     EXECUTE_DIRECT(LGMAN, GSN_SUB_GCP_COMPLETE_REP, signal, 
 		   SubGcpCompleteRep::SignalLength);
+    
     jamEntry();
 
+    if (m_micro_gcp.m_enabled == false)
+    {
+      jam();
+      EXECUTE_DIRECT(SUMA, GSN_SUB_GCP_COMPLETE_REP, signal, 
+                     SubGcpCompleteRep::SignalLength);
+      jamEntry();
+      ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
+      m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
+
+      CRASH_INSERTION(7190);
+    }
+    
 #ifdef GCP_TIMER_HACK
     NdbTick_getMicroTimer(&globalData.gcp_timer_copygci[1]);
 
@@ -12598,7 +12648,6 @@ void Dbdih::initCommonData()
   crestartGci = 0;
   crestartInfoFile[0] = RNIL;
   crestartInfoFile[1] = RNIL;
-  cstartGcpNow = false;
   cstartPhase = 0;
   c_startToLock = RNIL;
   cstarttype = (Uint32)-1;
@@ -12641,7 +12690,7 @@ void Dbdih::initCommonData()
     Uint32 tmp = 2000;
     ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
     tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
-    m_gcp_save.m_time_between_gcp = tmp;
+    m_gcp_save.m_master.m_time_between_gcp = tmp;
 
     if (ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_INTERVAL, &tmp) == 0 &&
         tmp)
@@ -12649,12 +12698,11 @@ void Dbdih::initCommonData()
       /**
        * A value is set for micro gcp...run new protocol when applicable
        */
-      if (tmp > m_gcp_save.m_time_between_gcp)
-        tmp = m_gcp_save.m_time_between_gcp;
+      if (tmp > m_gcp_save.m_master.m_time_between_gcp)
+        tmp = m_gcp_save.m_master.m_time_between_gcp;
       if (tmp < 10)
         tmp = 10;
-      m_micro_gcp.m_time_between_gcp = tmp;
-      m_micro_gcp.m_enabled = true;
+      m_micro_gcp.m_master.m_time_between_gcp = tmp;
     }
   }
 }//Dbdih::initCommonData()
@@ -12682,7 +12730,7 @@ void Dbdih::initFragstore(FragmentstorePtr fragPtr)
 /*       DESCRIPTION: INITIATE RESTART INFO VARIABLE AND VARIABLES FOR   */
 /*                    GLOBAL CHECKPOINTS.                                */
 /*************************************************************************/
-void Dbdih::initRestartInfo() 
+void Dbdih::initRestartInfo(Signal* signal) 
 {
   Uint32 i;
   for (i = 0; i < MAX_NDB_NODES; i++) {
@@ -12700,17 +12748,6 @@ void Dbdih::initRestartInfo()
 
   m_micro_gcp.m_old_gci = Uint64(1) << 32;
   m_micro_gcp.m_current_gci = Uint64(2) << 32;
-  m_micro_gcp.m_new_gci = Uint64(2) << 32;
-  if (m_micro_gcp.m_enabled)
-  {
-    jam();
-    m_micro_gcp.m_next_gci = m_micro_gcp.m_new_gci + 1;
-  }
-  else
-  {
-    jam();
-    m_micro_gcp.m_next_gci = m_micro_gcp.m_new_gci + (Uint64(1) << 32);
-  }
   crestartGci = 1;
   c_newest_restorable_gci = 1;
 
@@ -12727,6 +12764,19 @@ void Dbdih::initRestartInfo()
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
   srand(time(0));
   globalData.m_restart_seq = SYSFILE->m_restart_seq = 0;
+
+  if (m_micro_gcp.m_enabled == false && 
+      m_micro_gcp.m_master.m_time_between_gcp)
+  {
+    /**
+     * Micro GCP is disabled...but configured...
+     */
+    jam();
+    m_micro_gcp.m_enabled = true;
+    UpgradeProtocolOrd * ord = (UpgradeProtocolOrd*)signal->getDataPtrSend();
+    ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
+    EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
+  }
 }//Dbdih::initRestartInfo()
 
 /*--------------------------------------------------------------------*/
@@ -13396,7 +13446,7 @@ void Dbdih::nodeResetStart(Signal *signal)
   {
     jam();
     ndbrequire(isMaster());
-    ndbrequire(m_micro_gcp.m_master_state == MicroGcp::M_GCP_IDLE);
+    ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_IDLE);
     signal->theData[0] = DihContinueB::ZSTART_GCP;
     sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
   }
@@ -14168,7 +14218,7 @@ void Dbdih::takeOverCompleted(Uint32 aNodeId)
     ndbrequire(isMaster());
     Sysfile::setTakeOverNode(aNodeId, SYSFILE->takeOver, 0);
     takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_END_COPY;
-    cstartGcpNow = true;
+    m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
   }//if
 }//Dbdih::takeOverCompleted()
 
@@ -14688,8 +14738,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihDumpNodeRestartInfo) {
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d, c_nodeStartMaster.wait = %d",
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
-    infoEvent("cstartGcpNow = %d",
-              cstartGcpNow);
     infoEvent("cfirstVerifyQueue = %d, cverifyQueueCounter = %d",
               cfirstVerifyQueue, cverifyQueueCounter);
     infoEvent("cgcpOrderBlocked = %d",
@@ -14803,8 +14851,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 7009) {
     infoEvent("ccalcOldestRestorableGci = %d, cnoOfNodeGroups = %d",
               c_lcpState.oldestRestorableGci, cnoOfNodeGroups);
-    infoEvent("cstartGcpNow = %d",
-              cstartGcpNow);
     infoEvent("crestartGci = %d",
               crestartGci);
   }//if  
@@ -15036,7 +15082,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     {
       tmp = signal->theData[1];
     }
-    m_gcp_save.m_time_between_gcp = tmp;
+    m_gcp_save.m_master.m_time_between_gcp = tmp;
     g_eventLogger.info("Setting time between gcp : %d", tmp);
   }
 
@@ -15838,7 +15884,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     jam();
 
     if((requestType == WaitGCPReq::CompleteIfRunning) &&
-       (m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE)) {
+       (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)) {
       jam();
       conf->senderData = senderData;
       conf->gcp = m_micro_gcp.m_old_gci >> 32;
@@ -15861,10 +15907,9 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     ptr.p->clientData = senderData;
     
     if((requestType == WaitGCPReq::CompleteForceStart) && 
-       (m_gcp_save.m_master_state == GcpSave::GCP_SAVE_IDLE)) {
+       (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)) {
       jam();
-      cstartGcpNow = true;
-      m_gcp_save.m_start_time = 0; //
+      m_micro_gcp.m_master.m_start_time = m_gcp_save.m_master.m_start_time = 0;
     }//if
     return;
   } else { 
