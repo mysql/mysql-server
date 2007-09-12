@@ -111,7 +111,6 @@ SYSTEM_VALUES_ID	VALUE
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
 server_id	epoch	log_name	start_pos	end_pos
 0	1421634174976		0	0
-0	331		0	0
 SELECT * FROM DESCRIPTION ORDER BY USERNAME;
 USERNAME	ADDRESS
 Guangbao Ni	Suite 503, 5F NCI Tower, A12 Jianguomenwai Avenue Chaoyang District, Beijing, 100022  PRC
