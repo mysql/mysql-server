@@ -8,12 +8,6 @@
 #let $engine_type= 'myisam';
 let $engine_type= 'innodb';
 
-###### CLEAN UP SECTION ##############
-
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
-
-
 ######## Creat Table Section #########
 use test;
 
@@ -60,6 +54,8 @@ delimiter ;|
 CALL test.proc_norm();
 
 --sync_slave_with_master
+
+###### CLEAN UP SECTION ##############
 
 connection master;
 DROP PROCEDURE test.proc_norm;
