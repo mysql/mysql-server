@@ -1758,9 +1758,15 @@ int ha_ndbcluster::unique_index_read(const byte *key,
 
   if (execute_no_commit_ie(this,trans,false) != 0) 
   {
-    table->status= STATUS_NOT_FOUND;
-    DBUG_RETURN(ndb_err(trans));
+    int err= ndb_err(trans);
+    if(err==HA_ERR_KEY_NOT_FOUND)
+      table->status= STATUS_NOT_FOUND;
+    else
+      table->status= STATUS_GARBAGE;
+
+    DBUG_RETURN(err);
   }
+
   // The value have now been fetched from NDB
   unpack_record(buf);
   table->status= 0;
@@ -3310,6 +3316,8 @@ int ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     if (m_table && table->found_next_number_field)
     {
+      if ((my_errno= check_ndb_connection()))
+        DBUG_RETURN(my_errno);
       Ndb *ndb= get_ndb();
       
       Uint64 auto_increment_value64;
@@ -6462,7 +6470,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   if (uses_blob_value(m_retrieve_all_fields) ||
       (cur_index_type == UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
-       null_value_index_search(ranges, ranges+range_count, buffer)))
+       null_value_index_search(ranges, ranges+range_count, buffer))
+      || m_delete_cannot_batch || m_update_cannot_batch)
   {
     m_disable_multi_read= TRUE;
     DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
