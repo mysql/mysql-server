@@ -2168,15 +2168,7 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
       ndbout << "Node";
       for (int i= 0; i < no_of_nodes; i++)
         ndbout << " " << node_ids[i];
-      ndbout_c(": Is being restarted");
-
-      ndbout << "Node";
-      for (int i= 0; i < no_of_nodes; i++)
-        ndbout << " " << node_ids[i];
-      if (nostart)
-        ndbout_c(": No start");
-      else
-        ndbout_c(": Is rejoining the cluster");
+      ndbout_c(" is being restarted");
     }
     if(need_disconnect)
       disconnect();
