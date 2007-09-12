@@ -721,6 +721,8 @@ private:
   void execDICT_LOCK_CONF(Signal* signal);
   void execDICT_LOCK_REF(Signal* signal);
 
+  void execUPGRADE_PROTOCOL_ORD(Signal* signal);
+
   // Statement blocks
 //------------------------------------
 // Methods that send signals
@@ -842,7 +844,7 @@ private:
   void emptyverificbuffer(Signal *, bool aContintueB);
   Uint32 findHotSpare();
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
-  void initRestartInfo();
+  void initRestartInfo(Signal*);
   void initRestorableGciFiles();
   void makeNodeGroups(Uint32 nodeArray[]);
   void makePrnList(class ReadNodesConf * readNodes, Uint32 nodeArray[]);
@@ -1212,7 +1214,6 @@ private:
   Uint32 cgcpSameCounter;
 #endif
 
-  bool cstartGcpNow;
   bool cgckptflag;    /* A FLAG WHICH IS SET WHILE A NEW GLOBAL CHECK
                            POINT IS BEING CREATED. NO VERIFICATION IS ALLOWED
                            IF THE FLAG IS SET*/
@@ -1224,17 +1225,21 @@ private:
    */
   struct GcpSave
   {
-    bool m_master_take_over;
-    Uint32 m_time_between_gcp;   /* Delay between global checkpoints */
     Uint32 m_gci;
     Uint32 m_master_ref;
-    Uint64 m_start_time;
     enum State {
       GCP_SAVE_IDLE     = 0, // Idle
       GCP_SAVE_REQ      = 1, // REQ received
       GCP_SAVE_CONF     = 2, // REF/CONF sent
       GCP_SAVE_COPY_GCI = 3
-    } m_state, m_master_state;
+    } m_state;
+
+    struct {
+      State m_state;
+      Uint32 m_new_gci;
+      Uint32 m_time_between_gcp;   /* Delay between global checkpoints */
+      Uint64 m_start_time;
+    } m_master;
   } m_gcp_save;
 
   /**
@@ -1243,20 +1248,23 @@ private:
   struct MicroGcp
   {
     bool m_enabled;
-    bool m_master_take_over;
-    Uint32 m_time_between_gcp;
     Uint32 m_master_ref;
     Uint64 m_old_gci;
     Uint64 m_current_gci; // Currently active
     Uint64 m_new_gci;     // Currently being prepared...
-    Uint64 m_next_gci;    // Next to prepare
-    Uint64 m_start_time;
     enum State {
       M_GCP_IDLE      = 0,
       M_GCP_PREPARE   = 1,
       M_GCP_COMMIT    = 2,
       M_GCP_COMMITTED = 3
-    } m_state, m_master_state;
+    } m_state;
+
+    struct {
+      State m_state;
+      Uint32 m_time_between_gcp;
+      Uint64 m_new_gci;
+      Uint64 m_start_time;
+    } m_master;
   } m_micro_gcp;
 
   struct GcpMonitor
@@ -1685,6 +1693,8 @@ private:
                          Uint32 block = 0, Uint32 gsn = 0, Uint32 len = 0,
                          JobBufferLevel = JBB);
 #endif
+
+  bool check_enable_micro_gcp(Signal* signal, bool broadcast);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

@@ -266,6 +266,9 @@ Dbdih::Dbdih(Block_context& ctx):
 	       &Dbdih::execPREPARE_COPY_FRAG_REF);
   addRecSignal(GSN_PREPARE_COPY_FRAG_CONF,
 	       &Dbdih::execPREPARE_COPY_FRAG_CONF);
+
+  addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
+	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
   
   apiConnectRecord = 0;
   connectRecord = 0;

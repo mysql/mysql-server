@@ -532,7 +532,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
 	  (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT)) {
-	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf);
+	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf, tLen);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
 	}//if
@@ -731,7 +731,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   {
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
-    theEventBuffer->execSUB_GCP_COMPLETE_REP(rep);
+    theEventBuffer->execSUB_GCP_COMPLETE_REP(rep, tLen);
     return;
   }
   case GSN_SUB_TABLE_DATA:
@@ -764,7 +764,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
-    theEventBuffer->insertDataL(op,sdata, ptr);
+    theEventBuffer->insertDataL(op, sdata, tLen, ptr);
     return;
   }
   case GSN_DIHNDBTAMPER:
