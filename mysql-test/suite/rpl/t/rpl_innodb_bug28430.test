@@ -7,12 +7,6 @@
 
 let $engine_type= 'innodb';
 
-###### CLEAN UP SECTION ##############
-
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
-
-
 ######## Creat Table Section #########
 use test;
 
@@ -144,6 +138,8 @@ show slave status;
 SELECT count(*) "Slave norm" FROM test.regular_tbl;
 SELECT count(*) "Slave bykey" FROM test.bykey_tbl;
 SELECT count(*) "Slave byrange" FROM test.byrange_tbl;
+
+###### CLEAN UP SECTION ##############
 
 connection master;
 DROP PROCEDURE test.proc_norm;

@@ -2,10 +2,6 @@
 --vertical_results
 let $engine_type= 'innodb';
 
-###### CLEAN UP SECTION ##############
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
-
 ######## Creat Table Section #########
 use test;
 
@@ -63,6 +59,8 @@ delimiter ;|
 CALL test.proc_part();
 
 select count(*) as Part from test.part_tbl;
+
+###### CLEAN UP SECTION ##############
 
 DROP PROCEDURE test.proc_part;
 DROP TABLE test.part_tbl;
