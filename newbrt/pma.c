@@ -442,7 +442,7 @@ int pma_cursor_set_position_next (PMA_CURSOR c) {
     return DB_NOTFOUND;
 }
 
-int pma_cget_current (PMA_CURSOR c, DBT *key, DBT *val) {
+int pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val) {
     if (c->position == -1)
         return DB_NOTFOUND;
     PMA pma = c->pma;
@@ -458,16 +458,37 @@ int pma_cursor_set_key(PMA_CURSOR c, DBT *key, DB *db) {
     PMA pma = c->pma;
     int here = pmainternal_find(pma, key, db);
     assert(0<=here ); assert(here<=pma_index_limit(pma));
-    if (here==pma_index_limit(pma)) 
-        return DB_NOTFOUND;
-    DBT k2;
-    struct kv_pair *pair = pma->pairs[here];
-    if (kv_pair_valid(pair) && pma->compare_fun(db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
-        __pma_delete_resume(c->pma, c->position);
-        c->position = here;
-        return 0;
-    } else
-        return DB_NOTFOUND;
+    int r = DB_NOTFOUND;
+    if (here < pma->N) {
+        DBT k2;
+        struct kv_pair *pair = pma->pairs[here];
+        if (kv_pair_valid(pair) && 
+            pma->compare_fun(db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair)))==0) {
+            __pma_delete_resume(c->pma, c->position);
+            c->position = here;
+            r = 0;
+        }
+    } 
+    return r;
+}
+
+int pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val, DB *db) {
+    PMA pma = c->pma;
+    int here = pmainternal_find(pma, key, db);
+    assert(0<=here ); assert(here<=pma_index_limit(pma));
+    int r = DB_NOTFOUND;
+    if (here < pma->N) {
+        DBT k2, v2;
+        struct kv_pair *pair = pma->pairs[here];
+        if (kv_pair_valid(pair) && 
+            pma->compare_fun(db, key, fill_dbt(&k2, kv_pair_key(pair), kv_pair_keylen(pair))) == 0 &&
+            pma->compare_fun(db, val, fill_dbt(&v2, kv_pair_val(pair), kv_pair_vallen(pair))) == 0) {
+            __pma_delete_resume(c->pma, c->position);
+            c->position = here;
+            r = 0;
+        }
+    } 
+    return r;
 }
 
 int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
@@ -476,50 +497,35 @@ int pma_cursor_set_range(PMA_CURSOR c, DBT *key, DB *db) {
     assert(0<=here ); assert(here<=pma_index_limit(pma));
 
     /* find the first valid pair where key[here] >= key */
+    int r = DB_NOTFOUND;
     while (here < pma->N) {
         struct kv_pair *pair = pma->pairs[here];
         if (kv_pair_valid(pair)) {
             __pma_delete_resume(c->pma, c->position);
             c->position = here;
-            return 0;
+            r = 0;
+            break;
         }
         here += 1;
     }
-
-    return DB_NOTFOUND;
+    return r;
 }
 
 int pma_cursor_delete_under(PMA_CURSOR c, int *kvsize) {
     int r = DB_NOTFOUND;
-
     if (c->position >= 0) {
         PMA pma = c->pma;
         assert(c->position < pma->N);
         struct kv_pair *kv = pma->pairs[c->position];
         if (kv_pair_valid(kv)) {
-            if (kvsize) *kvsize = kv_pair_keylen(kv) + kv_pair_vallen(kv);
+            if (kvsize) 
+                *kvsize = kv_pair_keylen(kv) + kv_pair_vallen(kv);
             pma->pairs[c->position] = kv_pair_set_deleted(kv);
             r = 0;
         }
     }
-
     return r;
 }
-
-#if 0
-int pma_cget_first (PMA_CURSOR c, YBT *key, YBT *val) {
-    PMA pma=c->pma;
-    c->position=0;
-    if (pma->n_pairs_present==0) return DB_NOTFOUND;
-    while (pma->pairs[c->position].key==0 && c->position<pma->N) {
-	c->position++;
-    }
-    assert(c->position<pma->N && pma->pairs[c->position].key!=0);
-    ybt_set_value(key, pma->pairs[c->position].key, pma->pairs[c->position].keylen, &c->skey);
-    ybt_set_value(val, pma->pairs[c->position].val, pma->pairs[c->position].vallen, &c->sval);
-    return 0;
-}
-#endif
 
 int pma_cursor_free (PMA_CURSOR *cursp) {
     PMA_CURSOR curs=*cursp;

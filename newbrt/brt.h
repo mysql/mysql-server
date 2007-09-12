@@ -30,7 +30,7 @@ int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
 int brt_cursor (BRT, BRT_CURSOR*);
-int brt_c_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags);
+int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, DB *db);
 int brt_cursor_delete(BRT_CURSOR cursor, int flags);
 int brt_cursor_close (BRT_CURSOR curs);
 
