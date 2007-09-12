@@ -824,11 +824,11 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   dfiles= (PAGECACHE_FILE *)my_realloc((uchar *)dfiles,
                                        /* avoid size of 0 for my_realloc */
                                        max(1, nb) * sizeof(PAGECACHE_FILE),
-                                       MYF(MY_WME));
+                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   kfiles= (PAGECACHE_FILE *)my_realloc((uchar *)kfiles,
                                        /* avoid size of 0 for my_realloc */
                                        max(1, nb) * sizeof(PAGECACHE_FILE),
-                                       MYF(MY_WME));
+                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   if (unlikely((state_copies == NULL) ||
                (dfiles == NULL) || (kfiles == NULL)))
     goto err;
