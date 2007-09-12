@@ -879,13 +879,13 @@ EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t1
-type	range
+type	index
 possible_keys	bkey
-key	bkey
-key_len	5
+key	PRIMARY
+key_len	4
 ref	NULL
-rows	16
-Extra	Using where; Using index; Using filesort
+rows	32
+Extra	Using where
 SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 a	b
 1	2
@@ -974,13 +974,13 @@ EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t2
-type	ref
+type	index
 possible_keys	bkey
-key	bkey
-key_len	5
-ref	const
-rows	8
-Extra	Using where; Using index; Using filesort
+key	PRIMARY
+key_len	4
+ref	NULL
+rows	16
+Extra	Using where; Using index
 SELECT * FROM t2 WHERE b=1 ORDER BY a;
 a	b	c
 1	1	1
@@ -1123,6 +1123,24 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY (b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,10), (2,10), (2,20), (3,30);
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=20 FOR UPDATE;
+a	b
+2	20
+START TRANSACTION;
+SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
+a	b
+1	10
+2	10
+ROLLBACK;
+ROLLBACK;
+DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE `t2` (
 `k` int(11) NOT NULL auto_increment,
