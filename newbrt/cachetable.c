@@ -53,6 +53,18 @@ struct cachefile {
     struct fileid fileid;
 };
 
+void cachetable_print_state (CACHETABLE ct) {
+    int i;
+    for (i=0; i<ct->table_size; i++) {
+	PAIR p;
+	printf("t[%d]=", i);
+	for (p=ct->table[i]; p; p=p->hash_chain) {
+	    printf(" {%lld, %p}", p->key, p->cachefile);
+	}
+	printf("\n");
+    }
+}
+
 int create_cachetable (CACHETABLE *result, int n_entries) {
     TAGMALLOC(CACHETABLE, t);
     int i;
@@ -112,7 +124,7 @@ CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
     }
 }
 
-int cachefile_flush (CACHEFILE cf);
+static int cachefile_flush_and_remove (CACHEFILE cf);
 
 int cachefile_close (CACHEFILE *cfp) {
     CACHEFILE cf = *cfp;
@@ -120,7 +132,7 @@ int cachefile_close (CACHEFILE *cfp) {
     cf->refcount--;
     if (cf->refcount==0) {
 	int r;
-	if ((r = cachefile_flush(cf))) return r;
+	if ((r = cachefile_flush_and_remove(cf))) return r;
 	r = close(cf->fd);
 	cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
 	toku_free(cf);
@@ -337,7 +349,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 	    *value = p->value;
 	    p->pinned++;
 	    lru_touch(t,p);
-	    printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+	    //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
 	    return 0;
 	}
     }
@@ -374,7 +386,28 @@ int cachetable_flush (CACHETABLE t) {
     return 0;
 }
 
-int cachefile_flush (CACHEFILE cf) {
+static void assert_cachefile_is_flushed_and_removed (CACHEFILE cf) {
+    CACHETABLE t = cf->cachetable;
+    int i;
+    // Check it two ways
+    // First way: Look through all the hash chains
+    for (i=0; i<t->table_size; i++) {
+	PAIR p;
+	for (p=t->table[i]; p; p=p->hash_chain) {
+	    assert(p->cachefile!=cf);
+	}
+    }
+    // Second way: Look through the LRU list.
+    {
+	PAIR p;
+	for (p=t->head; p; p=p->next) {
+	    assert(p->cachefile!=cf);
+	}
+    }
+}
+
+
+static int cachefile_flush_and_remove (CACHEFILE cf) {
     int i;
     CACHETABLE t = cf->cachetable;
     for (i=0; i<t->table_size; i++) {
@@ -390,9 +423,9 @@ int cachefile_flush (CACHEFILE cf) {
 	    }
 	}
     }
+    assert_cachefile_is_flushed_and_removed(cf);
     return 0;
 }
-
 
 /* Require that it all be flushed. */
 int cachetable_close (CACHETABLE *tp) {

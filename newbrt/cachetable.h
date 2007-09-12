@@ -18,6 +18,7 @@ typedef struct cachefile *CACHEFILE;
  * Note: The cachetable should use a common pool of memory, flushing things across cachetables.
  *  (The first implementation doesn't)
  * If you pin something twice, you must unpin it twice.
+ * n_entries says how many items can fit into the cache table at a time.
  */
 int create_cachetable (CACHETABLE */*result*/, int /*n_entries*/);
 
@@ -55,5 +56,8 @@ int cachefile_close (CACHEFILE*);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, off_t offset);
 
 int cachefile_fd (CACHEFILE);
+
+// Useful for debugging 
+void cachetable_print_state (CACHETABLE ct);
 
 #endif
