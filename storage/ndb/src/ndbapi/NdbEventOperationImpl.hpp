@@ -514,9 +514,9 @@ public:
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
-		  const SubTableData * const sdata,
+		  const SubTableData * const sdata, Uint32 len,
 		  LinearSectionPtr ptr[3]);
-  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
+  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len);
   void complete_outof_order_gcis();
   
   void report_node_connected(Uint32 node_id);
@@ -543,11 +543,11 @@ public:
                 Uint32 * change_sz);
   void dealloc_mem(EventBufData* data,
                    Uint32 * change_sz);
-  int copy_data(const SubTableData * const sdata,
+  int copy_data(const SubTableData * const sdata, Uint32 len,
                 LinearSectionPtr ptr[3],
                 EventBufData* data,
                 Uint32 * change_sz);
-  int merge_data(const SubTableData * const sdata,
+  int merge_data(const SubTableData * const sdata, Uint32 len,
                  LinearSectionPtr ptr[3],
                  EventBufData* data,
                  Uint32 * change_sz);
