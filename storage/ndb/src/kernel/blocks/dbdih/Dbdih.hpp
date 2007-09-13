@@ -863,6 +863,7 @@ private:
   void setNodeLcpActiveStatus();
   void setNodeRestartInfoBits();
   void startGcp(Signal *);
+  void startGcpMonitor(Signal*);
 
   void readFragment(RWFragment* rf, FragmentstorePtr regFragptr);
   Uint32 readPageWord(RWFragment* rf);
@@ -1204,16 +1205,6 @@ private:
   /*------------------------------------------------------------------------*/
   Uint32 crestartInfoFile[2];
 
-  /**
-   * GCP Monitor
-   */
-#if 0
-  Uint32 cgcpStartCounter; 
-  Uint32 coldGcpStatus;
-  Uint32 coldGcpId;
-  Uint32 cgcpSameCounter;
-#endif
-
   bool cgckptflag;    /* A FLAG WHICH IS SET WHILE A NEW GLOBAL CHECK
                            POINT IS BEING CREATED. NO VERIFICATION IS ALLOWED
                            IF THE FLAG IS SET*/
@@ -1272,16 +1263,16 @@ private:
     struct
     {
       Uint32 m_gci;
-      GcpSave::State m_state;
       Uint32 m_counter;
-    } m_old_gcp_save;
+      Uint32 m_max_lag;
+    } m_gcp_save;
 
     struct
     {
       Uint64 m_gci;
-      MicroGcp::State m_state;
       Uint32 m_counter;
-    } m_old_micro_gcp;
+      Uint32 m_max_lag;
+    } m_micro_gcp;
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/
