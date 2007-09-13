@@ -122,7 +122,8 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/ut0ut.ic include/ut0vec.h		\
 			include/ut0vec.ic include/ut0list.h		\
 			include/ut0list.ic include/ut0wqueue.h		\
-			include/ha_prototypes.h handler/ha_innodb.h
+			include/ha_prototypes.h handler/ha_innodb.h	\
+			include/handler0alter.h
 
 EXTRA_LIBRARIES =	libinnobase.a
 noinst_LIBRARIES =	@plugin_innobase_static_target@
@@ -159,7 +160,7 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			usr/usr0sess.c ut/ut0byte.c ut/ut0dbg.c		\
 			ut/ut0list.c ut/ut0mem.c ut/ut0rnd.c		\
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c		\
-			handler/ha_innodb.cc
+			handler/ha_innodb.cc handler/handler0alter.cc
 
 libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
 libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
