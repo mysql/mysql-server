@@ -4656,8 +4656,9 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            const char *key_name= $4 ? $4 : $1;
-            Key *key= new Foreign_key(key_name, lex->col_list,
+            const char *key_name= $1 ? $1 : $4;
+            const char *fkey_name = $4 ? $4 : key_name;
+            Key *key= new Foreign_key(fkey_name, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
