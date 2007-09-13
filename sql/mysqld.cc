@@ -2802,16 +2802,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   get_options(&defaults_argc, defaults_argv);
   set_server_version();
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  if (!(maria_pagecache= get_or_create_pagecache(maria_pagecache_base.str,
-                                                maria_pagecache_base.length)))
-    exit(1);
-/*
-  maria_pagecache->param_buff_size= maria_pagecache_var.param_buff_size;
-  maria_pagecache->param_block_size= maria_block_size;
-*/
-#endif
-
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -5063,6 +5053,8 @@ enum options_mysqld
   OPT_MARIA_MAX_SORT_FILE_SIZE, OPT_MARIA_SORT_BUFFER_SIZE,
   OPT_MARIA_USE_MMAP, OPT_MARIA_REPAIR_THREADS,
   OPT_MARIA_STATS_METHOD,
+  OPT_PAGECACHE_BUFFER_SIZE,
+  OPT_PAGECACHE_DIVISION_LIMIT, OPT_PAGECACHE_AGE_THRESHOLD,
 
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -6234,17 +6226,17 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
 #ifdef WITH_MARIA_STORAGE_ENGINE
-  {"pagecache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
+  {"pagecache_age_threshold", OPT_PAGECACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (uchar**) &maria_pagecache_var.param_age_threshold,
    (uchar**) 0, 0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
-  {"pagecache_buffer_size", OPT_KEY_BUFFER_SIZE,
+  {"pagecache_buffer_size", OPT_PAGECACHE_BUFFER_SIZE,
    "The size of the buffer used for index blocks for Maria tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (uchar**) &maria_pagecache_var.param_buff_size,
    (uchar**) 0, 0, (GET_ULL | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"pagecache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
+  {"pagecache_division_limit", OPT_PAGECACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (uchar**) &maria_pagecache_var.param_division_limit,
    (uchar**) 0,
@@ -7186,8 +7178,10 @@ static void mysql_init_variables(void)
 
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
-
 #ifdef WITH_MARIA_STORAGE_ENGINE
+  if (!(maria_pagecache= get_or_create_pagecache(maria_pagecache_base.str,
+                                                 maria_pagecache_base.length)))
+    exit(1);
   /* set pagecache_hash.default_value = maria_pagecache */
   multi_pagecache_init();
 #endif
@@ -7846,8 +7840,26 @@ mysql_getopt_value(const char *keyname, uint key_length,
       return (uchar**) &key_cache->param_age_threshold;
     }
   }
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  case OPT_PAGECACHE_BUFFER_SIZE:
+  case OPT_PAGECACHE_DIVISION_LIMIT:
+  case OPT_PAGECACHE_AGE_THRESHOLD:
+  {
+    PAGECACHE *pagecache;
+    if (!(pagecache= get_or_create_pagecache(keyname, key_length)))
+      exit(1);
+    switch (option->id) {
+    case OPT_PAGECACHE_BUFFER_SIZE:
+      return (uchar**) &pagecache->param_buff_size;
+    case OPT_PAGECACHE_DIVISION_LIMIT:
+      return (uchar**) &pagecache->param_division_limit;
+    case OPT_PAGECACHE_AGE_THRESHOLD:
+      return (uchar**) &pagecache->param_age_threshold;
+    }
   }
- return option->value;
+#endif
+  }
+  return option->value;
 }
 
 
