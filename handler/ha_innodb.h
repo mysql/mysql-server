@@ -198,10 +198,12 @@ class ha_innobase: public handler
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered() { return true; }
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
+	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
 	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
 	int prepare_drop_index(TABLE *table_arg, uint *key_num,
 			       uint num_of_keys);
 	int final_drop_index(TABLE *table_arg);
+	/** @} */
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
 };
@@ -265,3 +267,27 @@ int innobase_report_binlog_offset_and_commit(
 int innobase_commit_complete(void* trx_handle);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 #endif
+
+typedef struct trx_struct trx_t;
+/*************************************************************************
+Gets the InnoDB transaction handle for a MySQL handler object, creates
+an InnoDB transaction struct if the corresponding MySQL thread struct still
+lacks one. */
+extern "C"
+trx_t*
+check_trx_exists(
+/*=============*/
+				/* out: InnoDB transaction handle */
+	MYSQL_THD	thd)	/* in: user thread handle */
+	__attribute__((nonnull));
+/************************************************************************
+Converts an InnoDB error code to a MySQL error code and also tells to MySQL
+about a possible transaction rollback inside InnoDB caused by a lock wait
+timeout or a deadlock. */
+extern "C"
+int
+convert_error_code_to_mysql(
+/*========================*/
+				/* out: MySQL error code */
+	int		error,	/* in: InnoDB error code */
+	MYSQL_THD	thd);	/* in: user thread handle or NULL */
