@@ -204,8 +204,8 @@ class Thd_ndb
   Ndb *ndb;
   ulong count;
   uint lock_count;
-  NdbTransaction *all;
-  NdbTransaction *stmt;
+  uint start_stmt_count;
+  NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
   int m_error_code;
@@ -495,6 +495,10 @@ private:
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
+
+  void transaction_checks(THD *thd);
+  int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
+  int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
