@@ -86,11 +86,18 @@ int main(int argc, char **argv)
     printf("You are using --only-display, NOTHING will be written to disk\n");
 
   /* LSN could be also --start-from-lsn=# */
-  lsn= translog_first_theoretical_lsn();
-  /*
-    @todo process LSN_IMPOSSIBLE and LSN_ERROR values of
-    translog_first_theoretical_lsn()
-  */
+  lsn= translog_first_lsn_in_log();
+  if (lsn == LSN_ERROR)
+  {
+    fprintf(stderr, "Opening transaction log failed\n");
+    goto end;
+  }
+  if (lsn == LSN_IMPOSSIBLE)
+  {
+     fprintf(stdout, "The transaction log is empty\n");
+  }
+  fprintf(stdout, "The transaction log starts from lsn (%lu,0x%lx)\n",
+          LSN_IN_PARTS(lsn));
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
   if (maria_apply_log(lsn, opt_display_and_apply, stdout,

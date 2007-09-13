@@ -2469,8 +2469,7 @@ static void check_and_set_lsn(PAGECACHE *pagecache,
   DBUG_ASSERT(block->type == PAGECACHE_LSN_PAGE);
   old= lsn_korr(block->buffer + PAGE_LSN_OFFSET);
   DBUG_PRINT("info", ("old lsn: (%lu, 0x%lx)  new lsn: (%lu, 0x%lx)",
-                      (ulong)LSN_FILE_NO(old), (ulong)LSN_OFFSET(old),
-                      (ulong)LSN_FILE_NO(lsn), (ulong)LSN_OFFSET(lsn)));
+                      LSN_IN_PARTS(old), LSN_IN_PARTS(lsn)));
   if (cmp_translog_addr(lsn, old) > 0)
   {
 

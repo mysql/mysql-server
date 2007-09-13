@@ -119,7 +119,6 @@ static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
 }
 
 #define ALERT_USER() DBUG_ASSERT(0)
-#define LSN_IN_HEX(L) (ulong)LSN_FILE_NO(L),(ulong)LSN_OFFSET(L)
 
 
 /**
@@ -270,7 +269,7 @@ static void display_record_position(const LOG_DESC *log_desc,
     form a group, so we indent below the group's end record
   */
   fprintf(tracef, "%sRec#%u LSN (%lu,0x%lx) short_trid %u %s(num_type:%u) len %lu\n",
-          number ? "" : "   ", number, LSN_IN_HEX(rec->lsn),
+          number ? "" : "   ", number, LSN_IN_PARTS(rec->lsn),
           rec->short_trid, log_desc->name, rec->type,
          (ulong)rec->record_length);
 }
@@ -301,7 +300,7 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
   if (gslsn != LSN_IMPOSSIBLE)
   {
     fprintf(tracef, "Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
-            LSN_IN_HEX(gslsn), sid);
+            LSN_IN_PARTS(gslsn), sid);
     all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
   }
   if (long_trid != 0)
@@ -314,7 +313,7 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
       fprintf(tracef, "Found an old transaction long_trid %s short_trid %u"
               " with same short id as this new transaction, and has neither"
               " committed nor rollback (undo_lsn: (%lu,0x%lx))\n", llbuf,
-              sid, LSN_IN_HEX(ulsn));
+              sid, LSN_IN_PARTS(ulsn));
       goto err;
     }
   }
@@ -394,7 +393,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     {
       fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
               " record, ignoring creation",
-              LSN_IN_HEX(share->state.create_rename_lsn));
+              LSN_IN_PARTS(share->state.create_rename_lsn));
       error= 0;
       goto end;
     }
@@ -515,7 +514,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     {
       fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
               " record, ignoring renaming",
-              LSN_IN_HEX(share->state.create_rename_lsn));
+              LSN_IN_PARTS(share->state.create_rename_lsn));
       error= 0;
       goto end;
     }
@@ -634,7 +633,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     {
       fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
               " record, ignoring removal",
-              LSN_IN_HEX(share->state.create_rename_lsn));
+              LSN_IN_PARTS(share->state.create_rename_lsn));
       error= 0;
       goto end;
     }
@@ -760,8 +759,8 @@ static int new_table(uint16 sid, const char *name,
   {
     fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
             " LOGREC_FILE_ID's LSN (%lu,0x%lx), ignoring open request",
-            LSN_IN_HEX(share->state.create_rename_lsn),
-            LSN_IN_HEX(lsn_of_file_id));
+            LSN_IN_PARTS(share->state.create_rename_lsn),
+            LSN_IN_PARTS(lsn_of_file_id));
     error= -1;
     goto end;
   }
@@ -1063,7 +1062,7 @@ prototype_redo_exec_hook(COMMIT)
       table, so an unfinished group staid in the log.
     */
     fprintf(tracef, ", with group at LSN (%lu,0x%lx) short_trid %u aborted\n",
-           (ulong) LSN_FILE_NO(gslsn), (ulong) LSN_OFFSET(gslsn), sid);
+            LSN_IN_PARTS(gslsn), sid);
     all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
   }
   else
@@ -1093,7 +1092,7 @@ prototype_redo_exec_hook(CLR_END)
 
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   fprintf(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
-          log_desc->name, LSN_IN_HEX(previous_undo_lsn));
+          log_desc->name, LSN_IN_PARTS(previous_undo_lsn));
   if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
@@ -1144,7 +1143,7 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
   /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
-          LSN_IN_HEX(previous_undo_lsn));
+          LSN_IN_PARTS(previous_undo_lsn));
   return error;
 }
 
@@ -1186,7 +1185,7 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
   info->trn= 0;
   fprintf(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
   fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
-          LSN_IN_HEX(previous_undo_lsn));
+          LSN_IN_PARTS(previous_undo_lsn));
   return error;
 }
 
@@ -1221,7 +1220,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
                                    (LSN_STORE_SIZE + FILEID_STORE_SIZE));
   info->trn= 0;
   fprintf(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
-          LSN_IN_HEX(previous_undo_lsn));
+          LSN_IN_PARTS(previous_undo_lsn));
   return error;
 }
 
@@ -1261,13 +1260,19 @@ static int run_redo_phase(LSN lsn, my_bool apply)
 
   TRANSLOG_HEADER_BUFFER rec;
 
+  if (unlikely(lsn == translog_get_horizon()))
+  {
+    fprintf(tracef, "Cannot find a first record, empty log, nothing to do.\n");
+    return 0;
+  }
+
   int len= translog_read_record_header(lsn, &rec);
 
   /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
   {
-    fprintf(tracef, "Cannot find a first record, empty log, nothing to do\n");
-    return 0;
+    fprintf(tracef, "Failed to read header of the first record.\n");
+    return 1;
   }
   struct st_translog_scanner_data scanner;
   if (translog_init_scanner(lsn, 1, &scanner))
@@ -1416,7 +1421,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
     if (gslsn != LSN_IMPOSSIBLE)
     {
       fprintf(tracef, "Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
-             (ulong) LSN_FILE_NO(gslsn), (ulong) LSN_OFFSET(gslsn), sid);
+              LSN_IN_PARTS(gslsn), sid);
       ALERT_USER();
     }
     if (all_active_trans[sid].undo_lsn != LSN_IMPOSSIBLE)
@@ -1590,7 +1595,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     DBUG_ASSERT(cmp_translog_addr(rec->lsn, checkpoint_start) < 0);
     fprintf(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"
             " than record, skipping record",
-            LSN_IN_HEX(info->s->lsn_of_file_id));
+            LSN_IN_PARTS(info->s->lsn_of_file_id));
     return NULL;
   }
   /* detect if an open instance of a dropped table (internal bug) */
@@ -1643,7 +1648,7 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   {
     fprintf(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"
             " than record, skipping record",
-            LSN_IN_HEX(info->s->lsn_of_file_id));
+            LSN_IN_PARTS(info->s->lsn_of_file_id));
     return NULL;
   }
   DBUG_ASSERT(info->s->last_version != 0);
@@ -1670,7 +1675,7 @@ static LSN parse_checkpoint_record(LSN lsn)
   TRANSLOG_HEADER_BUFFER rec;
 
   fprintf(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
-          LSN_IN_HEX(lsn));
+          LSN_IN_PARTS(lsn));
   int len= translog_read_record_header(lsn, &rec);
 
   if (len == RECHEADER_READ_ERROR)

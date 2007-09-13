@@ -191,9 +191,8 @@ static int really_execute_checkpoint()
      this horizon.
   */
   checkpoint_start_log_horizon= translog_get_horizon();
-#define LSN_IN_HEX(L) (ulong)LSN_FILE_NO(L),(ulong)LSN_OFFSET(L)
   DBUG_PRINT("info",("checkpoint_start_log_horizon (%lu,0x%lx)",
-                     LSN_IN_HEX(checkpoint_start_log_horizon)));
+                     LSN_IN_PARTS(checkpoint_start_log_horizon)));
   lsn_store(checkpoint_start_log_horizon_char, checkpoint_start_log_horizon);
 
 

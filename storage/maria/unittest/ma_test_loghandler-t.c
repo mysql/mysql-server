@@ -88,8 +88,7 @@ void read_ok(TRANSLOG_HEADER_BUFFER *rec)
 {
   char buff[80];
   snprintf(buff, sizeof(buff), "read record type: %u  LSN: (%lu,0x%lx)",
-           rec->type, (ulong) LSN_FILE_NO(rec->lsn),
-           (ulong) LSN_OFFSET(rec->lsn));
+           rec->type, LSN_IN_PARTS(rec->lsn));
   ok(1, buff);
 }
 
@@ -358,7 +357,7 @@ int main(int argc __attribute__((unused)), char *argv[])
               (uint) rec.type, (uint) rec.short_trid, (uint) rec.record_length,
               (uint) uint4korr(rec.header), (uint) rec.header[4],
               (uint) rec.header[5],
-              (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+              LSN_IN_PARTS(rec.lsn));
       goto err;
     }
     read_ok(&rec);
@@ -403,9 +402,8 @@ int main(int argc __attribute__((unused)), char *argv[])
                   "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (uint) rec.record_length,
-                  (ulong) LSN_FILE_NO(ref), (ulong) LSN_OFFSET(ref),
-                  (ulong) LSN_FILE_NO(lsn), (ulong) LSN_OFFSET(lsn),
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                  LSN_IN_PARTS(ref), LSN_IN_PARTS(lsn),
+                  LSN_IN_PARTS(rec.lsn));
           goto err;
         }
       }
@@ -436,14 +434,13 @@ int main(int argc __attribute__((unused)), char *argv[])
                   "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (uint) rec.record_length,
-                  (ulong) LSN_FILE_NO(ref1), (ulong) LSN_OFFSET(ref1),
-                  (ulong) LSN_FILE_NO(ref2), (ulong) LSN_OFFSET(ref2),
+                  LSN_IN_PARTS(ref1), LSN_IN_PARTS(ref2),
                   (uint) rec.header[14], (uint) rec.header[15],
                   (uint) rec.header[16], (uint) rec.header[17],
                   (uint) rec.header[18], (uint) rec.header[19],
                   (uint) rec.header[20], (uint) rec.header[21],
                   (uint) rec.header[22],
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                  LSN_IN_PARTS(rec.lsn));
           goto err;
         }
       }
@@ -488,8 +485,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                   rec.record_length != rec_len + LSN_STORE_SIZE,
                   (uint) len,
                   len != 12,
-                  (ulong) LSN_FILE_NO(ref), (ulong) LSN_OFFSET(ref),
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn),
+                  LSN_IN_PARTS(ref), LSN_IN_PARTS(rec.lsn),
                   (len != 12 || ref != lsn),
                   check_content(rec.header + LSN_STORE_SIZE,
                                 len - LSN_STORE_SIZE));
@@ -500,7 +496,7 @@ int main(int argc __attribute__((unused)), char *argv[])
           fprintf(stderr,
                   "Incorrect LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE "
                   "in whole rec read lsn(%lu,0x%lx)\n",
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                  LSN_IN_PARTS(rec.lsn));
           goto err;
         }
       }
@@ -527,10 +523,8 @@ int main(int argc __attribute__((unused)), char *argv[])
                   "lsn(%lu,0x%lx)\n",
                   i, (uint) rec.type, (uint) rec.short_trid,
                   (ulong) rec.record_length, (ulong) rec_len,
-                  len,
-                  (ulong) LSN_FILE_NO(ref1), (ulong) LSN_OFFSET(ref1),
-                  (ulong) LSN_FILE_NO(ref2), (ulong) LSN_OFFSET(ref2),
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                  len, LSN_IN_PARTS(ref1), LSN_IN_PARTS(ref2),
+                  LSN_IN_PARTS(rec.lsn));
           goto err;
         }
         if (read_and_check_content(&rec, long_buffer, LSN_STORE_SIZE * 2))
@@ -538,7 +532,7 @@ int main(int argc __attribute__((unused)), char *argv[])
           fprintf(stderr,
                   "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
                   "in whole rec read lsn(%lu,0x%lx)\n",
-                  (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                  LSN_IN_PARTS(rec.lsn));
           goto err;
         }
       }
@@ -571,7 +565,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                 (uint) rec.record_length,
                 (uint) uint4korr(rec.header), (uint) rec.header[4],
                 (uint) rec.header[5],
-                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                LSN_IN_PARTS(rec.lsn));
         goto err;
       }
       lsn= rec.lsn;
@@ -592,8 +586,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                 "lsn(%lu,0x%lx)\n",
                 i, (uint) rec.type, (uint) rec.short_trid,
                 (ulong) rec.record_length, (ulong) rec_len,
-                len,
-                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                len, LSN_IN_PARTS(rec.lsn));
         goto err;
       }
       if (read_and_check_content(&rec, long_buffer, 0))
@@ -601,7 +594,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         fprintf(stderr,
                 "Incorrect LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE "
                 "in whole rec read lsn(%lu,0x%lx)\n",
-                (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn));
+                LSN_IN_PARTS(rec.lsn));
         goto err;
       }
       read_ok(&rec);

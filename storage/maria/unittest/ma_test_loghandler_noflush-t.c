@@ -114,8 +114,7 @@ int main(int argc __attribute__((unused)), char *argv[])
             (uint) uint4korr(rec.header), (uint4korr(rec.header) != 0),
             (uint) rec.header[4], (((uchar)rec.header[4]) != 0),
             (uint) rec.header[5], (((uchar)rec.header[5]) != 0xFF),
-            (ulong) LSN_FILE_NO(rec.lsn), (ulong) LSN_OFFSET(rec.lsn),
-            (first_lsn != rec.lsn));
+            LSN_IN_PARTS(rec.lsn), (first_lsn != rec.lsn));
     goto err;
   }
 

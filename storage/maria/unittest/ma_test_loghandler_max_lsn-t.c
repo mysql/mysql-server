@@ -79,8 +79,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (max_lsn != LSN_IMPOSSIBLE)
   {
     fprintf(stderr, "Incorrect first lsn response (%lu,0x%lx).",
-            (ulong) LSN_FILE_NO(max_lsn),
-            (ulong) LSN_OFFSET(max_lsn));
+            LSN_IN_PARTS(max_lsn));
     translog_destroy();
     exit(1);
   }
@@ -125,10 +124,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   {
     fprintf(stderr, "Incorrect max lsn: (%lu,0x%lx)  "
             " last lsn on first file: (%lu,0x%lx)\n",
-            (ulong) LSN_FILE_NO(max_lsn),
-            (ulong) LSN_OFFSET(max_lsn),
-            (ulong) LSN_FILE_NO(last_lsn),
-            (ulong) LSN_OFFSET(last_lsn));
+            LSN_IN_PARTS(max_lsn), LSN_IN_PARTS(last_lsn));
     translog_destroy();
     exit(1);
   }
