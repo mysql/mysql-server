@@ -129,3 +129,10 @@ insert into t1 (time, first_name, last_name) values ('2007-02-07', 'Q', 'Robert'
 SELECT * FROM t1 WHERE first_name='Andy' OR last_name='Jake';
 id	time	first_name	last_name
 drop table t1;
+CREATE TABLE t1 (a DOUBLE NOT NULL, KEY(a)) ENGINE=InnoDB
+PARTITION BY KEY(a) PARTITIONS 10;
+INSERT INTO t1 VALUES(1),(2);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
