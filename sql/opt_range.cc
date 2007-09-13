@@ -1756,10 +1756,10 @@ SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
     the UPDATE/DELETE code will work:
      * index can only be scanned in forward direction
      * HA_EXTRA_KEYREAD will not be used
-    Perhaps these assumptions could be relaxed
+    Perhaps these assumptions could be relaxed.
 
   RETURN
-    index number
+    Number of the index that produces the required ordering in the cheapest way
     MAX_KEY if no such index was found.
 */
 
