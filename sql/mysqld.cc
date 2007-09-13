@@ -1300,8 +1300,21 @@ static void set_ports()
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysqld_port= MYSQL_PORT;
+
+    /*
+      if builder specifically requested a default port, use that
+      (even if it coincides with our factory default).
+      only if they didn't do we check /etc/services (and, failing
+      on that, fall back to the factory default of 3306).
+      either default can be overridden by the environment variable
+      MYSQL_TCP_PORT, which in turn can be overridden with command
+      line options.
+    */
+
+#if MYSQL_PORT_DEFAULT == 0
     if ((serv_ptr= getservbyname("mysql", "tcp")))
       mysqld_port= ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+#endif
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysqld_port= (uint) atoi(env);		/* purecov: inspected */
   }
@@ -5399,7 +5412,13 @@ Disable with --skip-ndbcluster (will save memory).",
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (gptr*) &pidfile_name_ptr, (gptr*) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &mysqld_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (gptr*) &mysqld_port,
    (gptr*) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
    "Maximum time in seconds to wait for the port to become free. "
