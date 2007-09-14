@@ -156,6 +156,12 @@ private:
   Uint64 sendSize;
 
   ReceiveBuffer receiveBuffer;
+
+  /**
+   * SendBuffer throttle.
+   */
+  Uint32 overloadedPct;
+  void update_status_overloaded();
 };
 
 inline
@@ -185,6 +191,15 @@ inline
 bool
 TCP_Transporter::hasDataToSend() const {
   return m_sendBuffer.dataSize > 0;
+}
+
+inline
+void
+TCP_Transporter::update_status_overloaded() {
+  const Uint32 used = m_sendBuffer.dataSize;
+  const Uint32 total = m_sendBuffer.sizeOfBuffer;
+  const bool val = (100 * used > overloadedPct * total);
+  set_status_overloaded(val);
 }
 
 inline

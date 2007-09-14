@@ -3,7 +3,7 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5045
+Next DBLQH 5048
 Next DBDICT 6007
 Next DBDIH 7186
 Next DBTC 8040
@@ -224,6 +224,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT
+
+5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
