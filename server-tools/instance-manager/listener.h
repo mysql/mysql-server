@@ -39,7 +39,7 @@ protected:
   virtual void run();
 
 private:
-  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
+  static const int LISTEN_BACK_LOG_SIZE;
 
 private:
   Thread_info thread_info;
