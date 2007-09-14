@@ -3449,4 +3449,24 @@ SHOW WARNINGS;
 
 DROP TABLE t1;
 
+#
+# Bug #27695: Misleading warning when declaring all space column names and
+#             truncation of one-space column names to zero length names.
+#
+
+SELECT 1 AS ` `;
+SELECT 1 AS `  `;
+SELECT 1 AS ` x`;
+
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+SELECT `` FROM v1;
+
+CREATE VIEW v2 AS SELECT 1 AS `  `;
+SELECT `` FROM v2;
+
+CREATE VIEW v3 AS SELECT 1 AS ` x`;
+SELECT `x` FROM v3;
+
+DROP VIEW v1, v2, v3;
+
 --echo End of 5.0 tests
