@@ -186,6 +186,38 @@ disconnect con3;
 disconnect con2;
 disconnect con1;
 
+
+#
+# Bug #30377: EXPLAIN loses last_query_cost when used with UNION
+#
+
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT a FROM t1 LIMIT 1;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT a FROM t1;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+SELECT a IN (SELECT a FROM t1) FROM t1 LIMIT 1;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+SELECT (SELECT a FROM t1 LIMIT 1) x FROM t1 LIMIT 1;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+SELECT * FROM t1 a, t1 b LIMIT 1;
+SHOW SESSION STATUS LIKE 'Last_query_cost';
+
+DROP TABLE t1;
+
+
 # End of 5.0 tests
 
 #
