@@ -3235,13 +3235,8 @@ end_dont_reset_start_part:
 
 void ha_partition::position(const uchar *record)
 {
-  handler *file;
+  handler *file= m_file[m_last_part];
   DBUG_ENTER("ha_partition::position");
-
-  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
-    m_last_part= 0;
-
-  file= m_file[m_last_part];
 
   file->position(record);
   int2store(ref, m_last_part);
@@ -3297,6 +3292,36 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   file= m_file[part_id];
   m_last_part= part_id;
   DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+}
+
+
+/*
+  Read row using position using given record to find
+
+  SYNOPSIS
+    rnd_pos_by_record()
+    record             Current record in MySQL Row Format
+
+  RETURN VALUE
+    >0                 Error code
+    0                  Success
+
+  DESCRIPTION
+    this works as position()+rnd_pos() functions, but does some extra work,
+    calculating m_last_part - the partition to where the 'record'
+    should go.
+
+    called from replication (log_event.cc)
+*/
+
+int ha_partition::rnd_pos_by_record(uchar *record)
+{
+  DBUG_ENTER("ha_partition::rnd_pos_by_record");
+
+  if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(handler::rnd_pos_by_record(record));
 }
 
 

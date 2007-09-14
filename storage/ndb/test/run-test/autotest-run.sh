@@ -216,8 +216,8 @@ fi
 # Make directories needed
 
 p=`pwd`
-run_dir=$install_dir/run-$RUN-mysql-$clone-$target
-res_dir=$base_dir/result-$RUN-mysql-$clone-$target/$DATE
+run_dir=$install_dir/run-$RUN-$clone-$target
+res_dir=$base_dir/result-$RUN-$clone-$target/$DATE
 tar_dir=$base_dir/saved-results
 
 mkdir -p $run_dir $res_dir $tar_dir
@@ -246,7 +246,7 @@ cd $res_dir
 
 echo "date=$DATE" > info.txt
 echo "suite=$RUN" >> info.txt
-echo "clone=mysql-$clone" >> info.txt
+echo "clone=$clone" >> info.txt
 echo "arch=$target" >> info.txt
 find . | xargs chmod ugo+r
 

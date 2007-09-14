@@ -323,7 +323,6 @@ void lex_start(THD *thd)
   lex->length=0;
   lex->part_info= 0;
   lex->select_lex.in_sum_expr=0;
-  lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
@@ -720,6 +719,7 @@ static inline uint int_token(const char *str,uint length)
 int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
+  bool comment_closed;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
@@ -1212,7 +1212,10 @@ int MYSQLlex(void *arg, void *yythd)
         /*
           The special comment format is very strict:
           '/' '*' '!', followed by exactly
-          2 digits (major), then 3 digits (minor).
+          1 digit (major), 2 digits (minor), then 2 digits (dot).
+          32302 -> 3.23.02
+          50032 -> 5.0.32
+          50114 -> 5.1.14
         */
         char version_str[6];
         version_str[0]= lip->yyPeekn(0);
@@ -1231,7 +1234,7 @@ int MYSQLlex(void *arg, void *yythd)
           ulong version;
           version=strtol(version_str, NULL, 10);
 
-          /* Accept 'M' 'M' 'm' 'm' 'm' */
+          /* Accept 'M' 'm' 'm' 'd' 'd' */
           lip->yySkipn(5);
 
           if (version <= MYSQL_VERSION_ID)
@@ -1255,16 +1258,36 @@ int MYSQLlex(void *arg, void *yythd)
         lip->yySkip();                  // Accept /
         lip->yySkip();                  // Accept *
       }
-
-      while (! lip->eof() &&
-            ((c=lip->yyGet()) != '*' || lip->yyPeek() != '/'))
+      /*
+        Discard:
+        - regular '/' '*' comments,
+        - special comments '/' '*' '!' for a future version,
+        by scanning until we find a closing '*' '/' marker.
+        Note: There is no such thing as nesting comments,
+        the first '*' '/' sequence seen will mark the end.
+      */
+      comment_closed= FALSE;
+      while (! lip->eof())
       {
-        if (c == '\n')
+        c= lip->yyGet();
+        if (c == '*')
+        {
+          if (lip->yyPeek() == '/')
+          {
+            lip->yySkip();
+            comment_closed= TRUE;
+            state = MY_LEX_START;
+            break;
+          }
+        }
+        else if (c == '\n')
           lip->yylineno++;
       }
-      if (! lip->eof())
-        lip->yySkip();                  // remove last '/'
+      /* Unbalanced comments with a missing '*' '/' are a syntax error */
+      if (! comment_closed)
+        return (ABORT_SYM);
       state = MY_LEX_START;             // Try again
+      lip->in_comment= NO_COMMENT;
       lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
@@ -1316,6 +1339,9 @@ int MYSQLlex(void *arg, void *yythd)
         lip->set_echo(FALSE);
         lip->yySkip();
         lip->set_echo(TRUE);
+        /* Unbalanced comments with a missing '*' '/' are a syntax error */
+        if (lip->in_comment != NO_COMMENT)
+          return (ABORT_SYM);
         lip->next_state=MY_LEX_END;     // Mark for next loop
         return(END_OF_INPUT);
       }
@@ -1556,7 +1582,6 @@ void st_select_lex::init_select()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
-  expr_list.empty();
   interval_list.empty();
   ftfunc_list_alloc.empty();
   inner_sum_func_list= 0;
