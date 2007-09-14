@@ -50,7 +50,7 @@ public:
   
   Uint32 errorRef;
   Uint32 errorCode;
-  Uint32 data[];
+  Uint32 data[1];
 };
 
 #endif
