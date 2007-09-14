@@ -569,6 +569,43 @@ public:
   virtual enum_monotonicity_info get_monotonicity_info() const
   { return NON_MONOTONIC; }
 
+  /*
+    Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$ const2"
+
+    SYNOPSIS
+      val_int_endpoint()
+        left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
+                   TRUE   <=> The interval is "x > const" or "x >= const"
+
+        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
+                        FALSE <=> the comparison is '<=' or '>='
+                   OUT  The same but for the "F(x) $CMP$ F(const)" comparison
+
+    DESCRIPTION
+      This function is defined only for unary monotonic functions. The caller
+      supplies the source half-interval
+
+         x $CMP$ const
+
+      The value of const is supplied implicitly as the value this item's
+      argument, the form of $CMP$ comparison is specified through the
+      function's arguments. The calle returns the result interval
+         
+         F(x) $CMP2$ F(const)
+      
+      passing back F(const) as the return value, and the form of $CMP2$ 
+      through the out parameter. NULL values are assumed to be comparable and
+      be less than any non-NULL values.
+
+    RETURN
+      The output range bound, which equal to the value of val_int()
+        - If the value of the function is NULL then the bound is the 
+          smallest possible value of LONGLONG_MIN 
+  */
+  virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
+  { DBUG_ASSERT(0); }
+
+
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   /*
     Return double precision floating point representation of item.
@@ -1401,6 +1438,7 @@ public:
   {
     return MONOTONIC_STRICT_INCREASING;
   }
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
