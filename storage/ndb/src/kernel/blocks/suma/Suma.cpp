@@ -4152,8 +4152,8 @@ Suma::execSUB_CREATE_REF(Signal* signal) {
     SystemError * const sysErr = (SystemError*)&signal->theData[0];
     sysErr->errorCode = SystemError::CopySubscriptionRef;
     sysErr->errorRef = reference();
-    sysErr->data1 = error;
-    sysErr->data2 = 0;
+    sysErr->data[0] = error;
+    sysErr->data[1] = 0;
     sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
                SystemError::SignalLength, JBB);
     Restart.resetRestart(signal);
@@ -4199,8 +4199,8 @@ Suma::execSUB_START_REF(Signal* signal) {
     SystemError * const sysErr = (SystemError*)&signal->theData[0];
     sysErr->errorCode = SystemError::CopySubscriberRef;
     sysErr->errorRef = reference();
-    sysErr->data1 = error;
-    sysErr->data2 = 0;
+    sysErr->data[0] = error;
+    sysErr->data[1] = 0;
     sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
                SystemError::SignalLength, JBB);
     Restart.resetRestart(signal);
