@@ -1220,7 +1220,8 @@ indexTypeMapping[] = {
 int
 NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
-				 bool fullyQualifiedNames)
+				 bool fullyQualifiedNames,
+				 bool hostByteOrder)
 {
   DBUG_ENTER("NdbDictInterface::parseTableInfo");
 
@@ -1379,13 +1380,19 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   if(tableDesc.FragmentDataLen > 0)
   {
-    Uint32 replicaCount = tableDesc.FragmentData[0];
-    Uint32 fragCount = tableDesc.FragmentData[1];
+    Uint16 replicaCount = tableDesc.FragmentData[0];
+    Uint16 fragCount = tableDesc.FragmentData[1];
+
+    if(hostByteOrder == false)
+    {
+      replicaCount = ((replicaCount & 0xFF00) >> 8) |((replicaCount & 0x00FF) << 8);
+      fragCount = ((fragCount & 0xFF00) >> 8) |((fragCount & 0x00FF) << 8);
+    }
 
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
 
-    for(i = 0; i<(fragCount*replicaCount); i++)
+    for(i = 0; i<(Uint32) (fragCount*replicaCount); i++)
     {
       if (impl->m_fragments.push_back(tableDesc.FragmentData[i+2]))
       {
