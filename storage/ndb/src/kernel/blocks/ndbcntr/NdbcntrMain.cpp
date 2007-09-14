@@ -185,7 +185,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   const SystemError * const sysErr = (SystemError *)signal->getDataPtr();
   char buf[100];
   int killingNode = refToNode(sysErr->errorRef);
-  Uint32 data1 = sysErr->data1;
+  Uint32 data1 = sysErr->data[0];
   
   jamEntry();
   switch (sysErr->errorCode){
