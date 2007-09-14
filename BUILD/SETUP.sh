@@ -138,3 +138,28 @@ then
   echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"
   echo "$CXX" | grep "ccache" > /dev/null || CXX="ccache $CXX"
 fi
+
+# gcov
+
+# The  -fprofile-arcs and -ftest-coverage options cause GCC to instrument the
+# code with profiling information used by gcov.
+# The -DDISABLE_TAO_ASM is needed to avoid build failures in Yassl.
+# The -DHAVE_gcov enables code to write out coverage info even when crashing.
+
+gcov_compile_flags="-fprofile-arcs -ftest-coverage"
+gcov_compile_flags="$gcov_compile_flags -DDISABLE_TAO_ASM"
+gcov_compile_flags="$gcov_compile_flags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
+
+# GCC4 needs -fprofile-arcs -ftest-coverage on the linker command line (as well
+# as on the compiler command line), and this requires setting LDFLAGS for BDB.
+
+gcov_link_flags="-fprofile-arcs -ftest-coverage"
+
+gcov_configs="--disable-shared"
+
+# gprof
+
+gprof_compile_flags="-O2 -pg -g"
+
+gprof_link_flags="--disable-shared $static_link"
+
