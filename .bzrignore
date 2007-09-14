@@ -476,6 +476,9 @@ contrib/*.vcproj
 core
 core.*
 core.2430
+cscope.in.out
+cscope.out
+cscope.po.out
 db-*.*.*
 dbug/*.ds?
 dbug/*.vcproj
