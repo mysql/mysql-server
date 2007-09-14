@@ -274,6 +274,7 @@ extern my_bool translog_inited;
 
 extern LSN translog_first_lsn_in_log();
 extern LSN translog_first_theoretical_lsn();
+extern LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon);
 
 /* record parts descriptor */
 struct st_translog_parts

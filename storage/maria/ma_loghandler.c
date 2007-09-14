@@ -5679,7 +5679,7 @@ int translog_read_record_header_scan(TRANSLOG_SCANNER_DATA *scanner,
 /**
    @brief Read record header and some fixed part of the next record (the part
    depend on record type).
- 
+
    @param scanner         data for scanning if lsn is NULL scanner data
                           will be used for continue scanning.
                           The scanner can be NULL.
@@ -6595,40 +6595,28 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
 
 
 /**
-   @brief returns the LSN of the first record starting in this log
+  @brief returns the most close LSN higher the given chunk address
 
-   @retval LSN_ERROR Error
-   @retval LSN_IMPOSSIBLE no log or the log is empty
-   @retval # LSN of the first record
+  @param addr the chunk address to start from
+  @param horizon the horizon if it is known or LSN_IMPOSSIBLE
+
+  @retval LSN_ERROR Error
+  @retval LSN_IMPOSSIBLE no LSNs after the address
+  @retval # LSN of the most close LSN higher the given chunk address
 */
 
-LSN translog_first_lsn_in_log()
+LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
 {
-  TRANSLOG_ADDRESS addr, horizon= translog_get_horizon();
-  TRANSLOG_VALIDATOR_DATA data;
-  uint file;
   uint chunk_type;
-  uint16 chunk_offset;
-  uchar *page;
   TRANSLOG_SCANNER_DATA scanner;
-  DBUG_ENTER("translog_first_lsn_in_log");
-  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
-  DBUG_ASSERT(translog_inited == 1);
+  DBUG_ENTER("translog_next_LSN");
 
-  if (!(file= translog_first_file(horizon, 0)))
-  {
-    /* log has no records yet */
-    DBUG_RETURN(LSN_IMPOSSIBLE);
-  }
+  if (horizon == LSN_IMPOSSIBLE)
+    horizon= translog_get_horizon();
 
-  addr= MAKE_LSN(file, TRANSLOG_PAGE_SIZE); /* the first page of the file */
-  data.addr= &addr;
-  if ((page= translog_get_page(&data, scanner.buffer)) == NULL ||
-      (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
-    DBUG_RETURN(LSN_ERROR);
-  addr+= chunk_offset;
   if (addr == horizon)
     DBUG_RETURN(LSN_IMPOSSIBLE);
+
   translog_init_scanner(addr, 0, &scanner);
 
   chunk_type= scanner.page[scanner.page_offset] & TRANSLOG_CHUNK_TYPE;
@@ -6647,6 +6635,44 @@ LSN translog_first_lsn_in_log()
   if (scanner.page[scanner.page_offset] == 0)
     DBUG_RETURN(LSN_IMPOSSIBLE); /* reached page filler */
   DBUG_RETURN(scanner.page_addr + scanner.page_offset);
+}
+
+/**
+   @brief returns the LSN of the first record starting in this log
+
+   @retval LSN_ERROR Error
+   @retval LSN_IMPOSSIBLE no log or the log is empty
+   @retval # LSN of the first record
+*/
+
+LSN translog_first_lsn_in_log()
+{
+  TRANSLOG_ADDRESS addr, horizon= translog_get_horizon();
+  TRANSLOG_VALIDATOR_DATA data;
+  uint file;
+  uint16 chunk_offset;
+  uchar *page;
+  DBUG_ENTER("translog_first_lsn_in_log");
+  DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
+  DBUG_ASSERT(translog_inited == 1);
+
+  if (!(file= translog_first_file(horizon, 0)))
+  {
+    /* log has no records yet */
+    DBUG_RETURN(LSN_IMPOSSIBLE);
+  }
+
+  addr= MAKE_LSN(file, TRANSLOG_PAGE_SIZE); /* the first page of the file */
+  data.addr= &addr;
+  {
+    uchar buffer[TRANSLOG_PAGE_SIZE];
+    if ((page= translog_get_page(&data, buffer)) == NULL ||
+        (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
+      DBUG_RETURN(LSN_ERROR);
+  }
+  addr+= chunk_offset;
+
+  DBUG_RETURN(translog_next_LSN(addr, horizon));
 }
 
 

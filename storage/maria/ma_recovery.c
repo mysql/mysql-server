@@ -212,6 +212,13 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
       if (from_lsn == LSN_IMPOSSIBLE)
         goto err;
+      from_lsn= translog_next_LSN(from_lsn, LSN_IMPOSSIBLE);
+      if (from_lsn == LSN_ERROR)
+        goto err;
+      /*
+        from_lsn LSN_IMPOSSIBLE will be correctly processed
+        by run_redo_phase()
+      */
     }
   }
 
@@ -1260,9 +1267,10 @@ static int run_redo_phase(LSN lsn, my_bool apply)
 
   TRANSLOG_HEADER_BUFFER rec;
 
-  if (unlikely(lsn == translog_get_horizon()))
+  if (unlikely(lsn == LSN_IMPOSSIBLE || lsn == translog_get_horizon()))
   {
-    fprintf(tracef, "Cannot find a first record, empty log, nothing to do.\n");
+    fprintf(tracef, "checkpoint address refers to the log end log or "
+            "log is empty, nothing to do.\n");
     return 0;
   }
 
