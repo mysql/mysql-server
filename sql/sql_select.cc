@@ -12353,6 +12353,12 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
         for (; const_key_parts & 1 ; const_key_parts>>= 1)
           key_part++; 
+        /*
+         The primary and secondary key parts were all const (i.e. there's
+         one row).  The sorting doesn't matter.
+        */
+        if (key_part == key_part_end && reverse == 0)
+          DBUG_RETURN(1);
       }
       else
         DBUG_RETURN(0);
@@ -12995,7 +13001,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->ref.key >= 0 && tab->ref.key_parts < used_key_parts)
+    else if (tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
 	SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
