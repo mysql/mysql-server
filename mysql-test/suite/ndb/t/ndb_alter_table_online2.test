@@ -1,0 +1,74 @@
+-- source include/have_multi_ndb.inc
+-- source include/not_embedded.inc
+# currently dies cores if binlog is enabled
+#-- source include/have_log_bin.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+CREATE DATABASE IF NOT EXISTS mysqlslap;
+--enable_warnings
+#
+# basic online alter test during load
+#
+
+create table t1 (pk int key, a int) engine ndb;
+insert into t1 values (1,0);
+
+let $end_mysqlslap= 5000;
+--exec $MYSQL_SLAP --silent --query="update test.t1 set a=a+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+
+# wait for 100 updates
+--disable_result_log
+--disable_query_log
+select @end:=100;
+let $val= 1;
+while ($val)
+{
+  --sleep 0.1
+  select @val:=a from t1 where pk=1;
+  let $val= `select @end > @val `;
+}
+--enable_result_log
+--enable_query_log
+
+# add a column online
+alter table t1 add b int;
+update t1 set b= 0;
+--exec $MYSQL_SLAP --silent --query="update test.t1 set b=b+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+# wait for 100 updates
+--disable_result_log
+--disable_query_log
+select @end:=100;
+let $val= 1;
+while ($val)
+{
+  --sleep 0.1
+  select @val:=b from t1 where pk=1;
+  let $val= `select @end > @val`;
+}
+--enable_result_log
+--enable_query_log
+
+# add a column online
+alter table t1 add c int;
+update t1 set c= 0;
+--exec $MYSQL_SLAP --silent --query="update test.t1 set c=c+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
+
+# wait for mysqlslap to end
+--disable_result_log
+--disable_query_log
+--eval select @end:=$end_mysqlslap
+let $val= 1;
+while ($val)
+{
+  --sleep 0.1
+  select @val1:=a,@val2:=b,@val3:=c from t1 where pk=1;
+  let $val= `select @end > @val1 || @end > @val2 || @end > @val3`;
+}
+--enable_result_log
+--enable_query_log
+
+# drop the table
+drop table t1;
