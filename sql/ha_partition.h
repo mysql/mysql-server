@@ -468,7 +468,7 @@ public:
   virtual int reset(void);
 
 private:
-  static const uint NO_CURRENT_PART_ID= 0xFFFFFFFF;
+  static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
   void late_extra_cache(uint partition_id);
   void late_extra_no_cache(uint partition_id);
