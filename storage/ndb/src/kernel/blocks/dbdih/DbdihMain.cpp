@@ -8053,6 +8053,11 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
      */
     m_gcp_save.m_master.m_start_time = now;
     m_micro_gcp.m_master.m_new_gci = Uint64((currGCI >> 32) + 1) << 32;
+
+    signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
+    signal->theData[1] = Uint32(currGCI >> 32);
+    signal->theData[2] = Uint32(currGCI);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   }
   
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
@@ -8061,10 +8066,6 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   /***************************************************************************/
   // Report the event that a global checkpoint has started.
   /***************************************************************************/
-  signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
-  signal->theData[1] = m_micro_gcp.m_master.m_new_gci >> 32;
-  signal->theData[2] = m_micro_gcp.m_master.m_new_gci & 0xFFFFFFFF;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   
   CRASH_INSERTION(7000);
   m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_PREPARE;
