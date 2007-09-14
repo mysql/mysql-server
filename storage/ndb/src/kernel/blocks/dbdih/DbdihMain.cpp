@@ -8055,8 +8055,8 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
     m_micro_gcp.m_master.m_new_gci = Uint64((currGCI >> 32) + 1) << 32;
 
     signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
-    signal->theData[1] = m_micro_gcp.m_master.m_new_gci >> 32;
-    signal->theData[2] = m_micro_gcp.m_master.m_new_gci & 0xFFFFFFFF;
+    signal->theData[1] = Uint32(currGCI >> 32);
+    signal->theData[2] = Uint32(currGCI);
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   }
   
