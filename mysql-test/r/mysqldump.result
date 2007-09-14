@@ -4177,5 +4177,18 @@ set names latin1;
 # Cleanup.
 DROP DATABASE mysqldump_test_db;
 #
+# BUG#29938: wrong behavior of mysqldump --skip-events
+#            with --all-databases
+#
+TRUNCATE mysql.event;
+USE test;
+CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	e29938	root@localhost	SYSTEM	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+TRUNCATE mysql.event;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+#
 # End of 5.1 tests
 #

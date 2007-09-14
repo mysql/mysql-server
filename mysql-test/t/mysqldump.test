@@ -1756,5 +1756,21 @@ DROP DATABASE mysqldump_test_db;
 ###########################################################################
 
 --echo #
+--echo # BUG#29938: wrong behavior of mysqldump --skip-events
+--echo #            with --all-databases
+--echo #
+
+TRUNCATE mysql.event;
+
+USE test;
+CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
+SHOW EVENTS;
+--exec $MYSQL_DUMP --skip-events --all-databases > $MYSQLTEST_VARDIR/tmp/bug29938.sql
+
+TRUNCATE mysql.event;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
+SHOW EVENTS;
+
+--echo #
 --echo # End of 5.1 tests
 --echo #
