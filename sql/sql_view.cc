@@ -1008,8 +1008,19 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
 
   {
+    char old_db_buf[NAME_LEN+1];
+    LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
+    bool dbchanged;
     Lex_input_stream lip(thd, table->query.str, table->query.length);
     thd->m_lip= &lip;
+
+    /* 
+      Use view db name as thread default database, in order to ensure
+      that the view is parsed and prepared correctly.
+    */
+    if ((result= sp_use_new_db(thd, table->view_db, &old_db, 1, &dbchanged)))
+      goto end;
+
     lex_start(thd);
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
@@ -1051,6 +1062,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
+
+    if (dbchanged && mysql_change_db(thd, &old_db, TRUE))
+      goto err;
   }
   if (!res && !thd->is_fatal_error)
   {
