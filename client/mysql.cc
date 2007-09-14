@@ -1245,6 +1245,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   char buff[80], *pos, *out;
   COMMANDS *com;
   bool need_space= 0;
+  bool ss_comment= 0;
   DBUG_ENTER("add_line");
 
   if (!line[0] && buffer.is_empty())
@@ -1293,22 +1294,36 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       if ((com=find_command(NullS,(char) inchar)))
       {
-	const String tmp(line,(uint) (out-line), charset_info);
-	buffer.append(tmp);
-	if ((*com->func)(&buffer,pos-1) > 0)
-	  DBUG_RETURN(1);                       // Quit
-	if (com->takes_params)
-	{
-	  for (pos++ ;
-	       *pos && (*pos != *delimiter ||
-			!is_prefix(pos + 1, delimiter + 1)) ; pos++)
-	    ;	// Remove parameters
-	  if (!*pos)
-	    pos--;
-	  else 
-	    pos+= delimiter_length - 1; // Point at last delim char
-	}
-	out=line;
+        const String tmp(line,(uint) (out-line), charset_info);
+        buffer.append(tmp);
+        if ((*com->func)(&buffer,pos-1) > 0)
+          DBUG_RETURN(1);                       // Quit
+        if (com->takes_params)
+        {
+          if (ss_comment)
+          {
+            /*
+              If a client-side macro appears inside a server-side comment,
+              discard all characters in the comment after the macro (that is,
+              until the end of the comment rather than the next delimiter)
+            */
+            for (pos++; *pos && (*pos != '*' || *(pos + 1) != '/'); pos++)
+              ;
+            pos--;
+          }
+          else
+          {
+            for (pos++ ;
+                 *pos && (*pos != *delimiter ||
+                          !is_prefix(pos + 1, delimiter + 1)) ; pos++)
+              ;	// Remove parameters
+            if (!*pos)
+              pos--;
+            else 
+              pos+= delimiter_length - 1; // Point at last delim char
+          }
+        }
+        out=line;
       }
       else
       {
@@ -1368,7 +1383,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
         out=line;
       }
     }
-    else if (*ml_comment && inchar == '*' && *(pos + 1) == '/')
+    else if (*ml_comment && !ss_comment && inchar == '*' && *(pos + 1) == '/')
     {
       pos++;
       *ml_comment= 0;
@@ -1376,6 +1391,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }      
     else
     {						// Add found char to buffer
+      if (!*in_string && inchar == '/' && *(pos + 1) == '*' &&
+          *(pos + 2) == '!')
+        ss_comment= 1;
+      else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
+        ss_comment= 0;
       if (inchar == *in_string)
 	*in_string= 0;
       else if (!*ml_comment && !*in_string &&

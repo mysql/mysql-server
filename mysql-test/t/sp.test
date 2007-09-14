@@ -7300,4 +7300,91 @@ CALL p1();
 SET NAMES default;
 DROP PROCEDURE p1;
 
+#
+# Bug#29408 Cannot find view in columns table if the selection contains a function
+#
+delimiter |;
+
+create function f1()
+    returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+  declare x int(11);
+  set x=-1;
+   return x;
+end|
+                          
+delimiter ;|
+                  
+create view v1 as select 1 as one, f1() as days;
+                          
+connect (bug29408, localhost, root,,*NO-ONE*);                     
+connection bug29408;
+
+show create view test.v1;      
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+
+connection default;
+disconnect bug29408;
+drop view v1;
+drop function f1;
+
+#
+# Bug#13675: DATETIME/DATE type in store proc param seems to be converted as
+# varbinary
+#
+
+--echo
+--echo # Bug#13675.
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+--echo
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p1('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2(10);
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
 --echo End of 5.0 tests
