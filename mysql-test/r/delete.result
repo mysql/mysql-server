@@ -193,4 +193,15 @@ select @a;
 @a
 1
 drop table t1;
+CREATE TABLE t1 (
+`date` date ,
+`time` time ,
+`seq` int(10) unsigned NOT NULL auto_increment,
+PRIMARY KEY  (`seq`),
+KEY `seq` (`seq`),
+KEY `time` (`time`),
+KEY `date` (`date`)
+);
+DELETE FROM t1 ORDER BY date ASC, time ASC LIMIT 1;
+drop table t1;
 End of 4.1 tests
