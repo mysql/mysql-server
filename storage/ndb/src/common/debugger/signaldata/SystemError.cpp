@@ -32,7 +32,7 @@ printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len,
   {
     for (Uint32 i = 0; i<len - 2; i++)
     {
-      fprintf(output, "data[%u]: H\'%.8x\n", sig->data[i]);
+      fprintf(output, "data[%u]: H\'%.8x\n", i, sig->data[i]);
     }
   }
   return true;
