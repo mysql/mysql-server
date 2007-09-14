@@ -97,8 +97,12 @@ int  __toku_db_env_open (DB_ENV *env, const char *home, u_int32_t flags, int mod
     return 0;
 }
 int  __toku_db_env_close (DB_ENV * env, u_int32_t flags) {
-  barf();
-  return 1;
+    cachetable_close(&env->i->cachetable);
+    free(env->i->dir);
+    free(env->i->files);
+    free(env->i);
+    free(env);
+    return 0;
 }
 int  __toku_db_env_log_archive (DB_ENV *env, char **list[], u_int32_t flags) {
     *list = NULL;
@@ -251,6 +255,10 @@ int __toku_db_close (DB *db, u_int32_t flags) {
     int r = close_brt(db->i->brt);
     printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     db->i->freed = 1;
+    free(db->i->database_name);
+    free(db->i->full_fname);
+    free(db->i);
+    free(db);
     return r;
 }
 
@@ -267,6 +275,8 @@ int __toku_c_get (DBC *c, DBT *key, DBT *data, u_int32_t flag) {
 int __toku_c_close (DBC *c) {
     int r = brt_cursor_close(c->i->c);
     printf("%s:%d %d=__toku_c_close(%p)\n", __FILE__, __LINE__, r, c);
+    free(c->i);
+    free(c);
     return r;
 }
 
@@ -345,7 +355,7 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
     if (db->i->full_fname) return -1; /* It was already open. */
     db->i->full_fname = construct_full_name(db->i->env->i->dir, fname);
     printf("Full name = %s\n", db->i->full_fname);
-    db->i->database_name = strdup(dbname);
+    db->i->database_name = strdup(dbname ? dbname : "");
 
     if (flags&DB_RDONLY) openflags |= O_RDONLY;
     else openflags |= O_RDWR;
@@ -416,6 +426,8 @@ int __toku_db_stat (DB *db, void *v, u_int32_t flags) {
   abort();
 }
 
+extern int default_compare_fun(DB *db, const DBT *a, const DBT *b);
+
 int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
   DB *result=malloc(sizeof(*result));
   fprintf(stderr, "%s:%d db_create(%p, %p, 0x%x)\n", __FILE__, __LINE__, db, env, flags);
@@ -435,7 +447,7 @@ int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
   result->stat = __toku_db_stat;
   result->i = malloc(sizeof(*result->i));
   result->i->freed = 0;
-  result->i->bt_compare = 0;
+  result->i->bt_compare = default_compare_fun;
   result->i->header = 0;
   result->i->database_number = 0;
   result->i->env = env;
