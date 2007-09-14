@@ -6395,8 +6395,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     c_obj_hash.add(obj_ptr);
     tablePtr.p->m_obj_ptr_i = obj_ptr.i;
 
-#ifdef VM_TRACE
-    ndbout_c("Dbdict: name=%s,id=%u,obj_ptr_i=%d", 
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
 	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
 #endif
   }
@@ -7304,6 +7304,16 @@ Dbdict::execDROP_TAB_REQ(Signal* signal){
     ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
     decrease_ref_count(ptr.p->m_obj_ptr_i);
   }
+  
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    Rope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i, 
+             tablePtr.p->m_obj_ptr_i);
+  }
+#endif
 }
 
 #include <DebuggerNames.hpp>
