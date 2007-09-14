@@ -761,3 +761,34 @@ insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
 explain partitions select * from t1 where a>-2 and a <=0;
 drop table t1;
 
+
+#
+# BUG#27927 Partition pruning not optimal with TO_DAYS function
+# 
+
+CREATE TABLE t1 ( recdate  DATETIME NOT NULL )
+PARTITION BY RANGE( TO_DAYS(recdate) ) (
+  PARTITION p0 VALUES LESS THAN ( TO_DAYS('2007-03-08') ),
+  PARTITION p1 VALUES LESS THAN ( TO_DAYS('2007-04-01') )
+);
+INSERT INTO t1 VALUES ('2007-03-01 12:00:00');
+INSERT INTO t1 VALUES ('2007-03-07 12:00:00');
+INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
+INSERT INTO t1 VALUES ('2007-03-15 12:00:00');
+-- echo must use p0 only:
+explain partitions select * from t1 where recdate < '2007-03-08 00:00:00';
+
+drop table t1;
+CREATE TABLE t1 ( recdate  DATETIME NOT NULL )
+PARTITION BY RANGE( YEAR(recdate) ) (
+  PARTITION p0 VALUES LESS THAN (2006),
+  PARTITION p1 VALUES LESS THAN (2007)
+);
+INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
+INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
+INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
+INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
+
+-- echo must use p0 only:
+explain partitions select * from t1 where recdate < '2006-01-01 00:00:00';
+drop table t1;
