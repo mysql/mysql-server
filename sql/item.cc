@@ -2069,6 +2069,11 @@ Item *Item_field::get_tmp_table_item(THD *thd)
   return new_item;
 }
 
+longlong Item_field::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  longlong res= val_int();
+  return null_value? LONGLONG_MIN : res;
+}
 
 /*
   Create an item from a string we KNOW points to a valid longlong
