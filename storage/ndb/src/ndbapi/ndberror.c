@@ -624,6 +624,8 @@ ErrorBundle ErrorCodes[] = {
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
+  { 2810, DMEC, TR, "No space left on the device" },
+  { 2815, DMEC, TR, "Error in reading files, please check file system" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},
