@@ -58,7 +58,6 @@ load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t11;
 
 Section 3.1.10 - CALL checks:
 --------------------------------------------------------------------------------
-USE db_storedproc;
 
 Testcase 3.1.10.2 + 3.1.10.5:
 -----------------------------
@@ -95,6 +94,7 @@ CALL sp31102();
 ERROR 42000: execute command denied to user 'user_2'@'localhost' for routine 'db_storedproc.sp31102'
 SELECT fn31105( 9 );
 ERROR 42000: execute command denied to user 'user_2'@'localhost' for routine 'db_storedproc.fn31105'
+USE db_storedproc;
 	
 root@localhost	db_storedproc
 CALL sp31102();
@@ -114,6 +114,7 @@ a`	a`	1000-01-01	-5000	a`	-5000
 SELECT fn31105( 9 );
 fn31105( 9 )
 81
+USE db_storedproc;
 	
 root@localhost	db_storedproc
 REVOKE EXECUTE ON db_storedproc.* FROM 'user_2'@'localhost';
@@ -131,6 +132,7 @@ CALL sp31102();
 ERROR 42000: execute command denied to user 'user_2'@'localhost' for routine 'db_storedproc.sp31102'
 SELECT fn31105( 9 );
 ERROR 42000: execute command denied to user 'user_2'@'localhost' for routine 'db_storedproc.fn31105'
+USE db_storedproc;
 	
 root@localhost	db_storedproc
 DROP PROCEDURE sp31102;
