@@ -16,7 +16,6 @@
 
 #include "cachetable.h"
 
-
 struct db_header {
     int n_databases; // Or there can be >=1 named databases.  This is the count.
     char *database_names; // These are the names
@@ -37,6 +36,13 @@ struct __toku_db_internal {
     BRT brt;
     int is_db_dup;
 };
+
+static inline void *malloc_zero(size_t size) {
+    void *vp = malloc(size);
+    if (vp)
+        memset(vp, 0, size);
+    return vp;
+}
 
 void __toku_db_env_err (const DB_ENV *env __attribute__((__unused__)), int error, const char *fmt, ...) {
   va_list ap;
@@ -177,7 +183,7 @@ void __toku_default_errcall(const char *errpfx, char *msg) {
 int txn_begin (DB_ENV *env, DB_TXN *stxn, DB_TXN **txn, u_int32_t flags);
 
 int db_env_create (DB_ENV **envp, u_int32_t flags) {
-  DB_ENV *result=malloc(sizeof(*result));
+  DB_ENV *result=malloc_zero(sizeof(*result));
   fprintf(stderr, "%s:%d db_env_create flags=%d, returning %p\n", __FILE__, __LINE__, flags, result);
   result->err = __toku_db_env_err;
   result->open = __toku_db_env_open;
@@ -201,7 +207,7 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
   result->txn_stat = __toku_db_env_txn_stat;
   result->txn_begin = txn_begin;
 
-  result->i = malloc(sizeof(*result->i));
+  result->i = malloc_zero(sizeof(*result->i));
   result->i->dir = 0;
   result->i->noticecall = 0;
   result->i->tmp_dir = 0;
@@ -211,8 +217,7 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
 
   result->i->n_files = 0;
   result->i->files_array_limit = 4;
-  result->i->files = malloc(result->i->files_array_limit*sizeof(*result->i->files));
-
+  result->i->files = malloc_zero(result->i->files_array_limit * sizeof (*result->i->files));
   *envp = result;
   return 0;
 }
@@ -229,7 +234,7 @@ u_int32_t __toku_db_txn_id (DB_TXN *txn) {
 }
 
 int txn_begin (DB_ENV *env, DB_TXN *stxn, DB_TXN **txn, u_int32_t flags) {
-  DB_TXN *result = malloc(sizeof(*result));
+  DB_TXN *result = malloc_zero(sizeof(*result));
   notef("parent=%p flags=0x%x\n", stxn, flags);
   result->commit = __toku_db_txn_commit;
   result->id     = __toku_db_txn_id;
@@ -286,13 +291,13 @@ int __toku_c_del (DBC *c, u_int32_t flags) {
 }
 
 int __toku_db_cursor (DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
-    DBC *result=malloc(sizeof(*result));
+    DBC *result=malloc_zero(sizeof(*result));
     int r;
     assert(result);
     result->c_get = __toku_c_get;
     result->c_close = __toku_c_close;
     result->c_del = __toku_c_del;
-    result->i = malloc(sizeof(*result->i));
+    result->i = malloc_zero(sizeof(*result->i));
     result->i->db = db;
     r = brt_cursor(db->i->brt, &result->i->c);
     assert(r==0);
@@ -429,7 +434,7 @@ int __toku_db_stat (DB *db, void *v, u_int32_t flags) {
 extern int default_compare_fun(DB *db, const DBT *a, const DBT *b);
 
 int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
-  DB *result=malloc(sizeof(*result));
+  DB *result=malloc_zero(sizeof(*result));
   fprintf(stderr, "%s:%d db_create(%p, %p, 0x%x)\n", __FILE__, __LINE__, db, env, flags);
   print_flags(flags);
   result->app_private = 0;
@@ -445,7 +450,7 @@ int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
   result->set_bt_compare = __toku_db_set_bt_compare;
   result->set_flags = __toku_db_set_flags;
   result->stat = __toku_db_stat;
-  result->i = malloc(sizeof(*result->i));
+  result->i = malloc_zero(sizeof(*result->i));
   result->i->freed = 0;
   result->i->bt_compare = default_compare_fun;
   result->i->header = 0;
