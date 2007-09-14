@@ -603,7 +603,7 @@ public:
           smallest possible value of LONGLONG_MIN 
   */
   virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
-  { DBUG_ASSERT(0); }
+  { DBUG_ASSERT(0); return 0; }
 
 
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
