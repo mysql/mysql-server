@@ -6732,6 +6732,7 @@ const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
 {
   char *ptr= (char *)metadata_ptr;
+  DBUG_ASSERT(field_length <= 65535);
   int2store(ptr, field_length);
   return 2;
 }
