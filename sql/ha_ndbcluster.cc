@@ -229,14 +229,12 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
     */
   case HA_ERR_NO_SUCH_TABLE:
   case HA_ERR_KEY_NOT_FOUND:
-  case HA_ERR_FOUND_DUPP_KEY:
     return error;
 
     /* Mapping missing, go with the ndb error code*/
   case -1:
     error= ndberr->code;
     break;
-
     /* Mapping exists, go with the mapped code */
   default:
     break;
@@ -331,6 +329,7 @@ Thd_ndb::Thd_ndb()
   all= NULL;
   stmt= NULL;
   m_error= FALSE;
+  m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
@@ -366,6 +365,7 @@ Thd_ndb::init_open_tables()
 {
   count= 0;
   m_error= FALSE;
+  m_error_code= 0;
   my_hash_reset(&open_tables);
 }
 
@@ -489,6 +489,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->m_error= TRUE;
+  get_thd_ndb(current_thd)->m_error_code= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2086,9 +2087,15 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   if (execute_no_commit_ie(this,trans,FALSE) != 0 ||
       op->getNdbError().code) 
   {
-    table->status= STATUS_NOT_FOUND;
-    DBUG_RETURN(ndb_err(trans));
+    int err= ndb_err(trans);
+    if(err==HA_ERR_KEY_NOT_FOUND)
+      table->status= STATUS_NOT_FOUND;
+    else
+      table->status= STATUS_GARBAGE;
+
+    DBUG_RETURN(err);
   }
+
   // The value have now been fetched from NDB
   unpack_record(buf);
   table->status= 0;
@@ -6983,9 +6990,26 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   while ((file_name=it++))
   {
     bool file_on_disk= FALSE;
-    DBUG_PRINT("info", ("%s", file_name->str));     
+    DBUG_PRINT("info", ("%s", file_name->str));
     if (hash_search(&ndb_tables, (uchar*) file_name->str, file_name->length))
     {
+      build_table_filename(name, sizeof(name), db, file_name->str, reg_ext, 0);
+      if (my_access(name, F_OK))
+      {
+        pthread_mutex_lock(&LOCK_open);
+        DBUG_PRINT("info", ("Table %s listed and need discovery",
+                            file_name->str));
+        if (ndb_create_table_from_engine(thd, db, file_name->str))
+        {
+          pthread_mutex_unlock(&LOCK_open);
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_TABLE_EXISTS_ERROR,
+                              "Discover of table %s.%s failed",
+                              db, file_name->str);
+          continue;
+        }
+        pthread_mutex_unlock(&LOCK_open);
+      }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
     }
@@ -8053,9 +8077,9 @@ int handle_trailing_share(NDB_SHARE *share)
     }
   }
 
-  sql_print_error("NDB_SHARE: %s already exists  use_count=%d."
-                  " Moving away for safety, but possible memleak.",
-                  share->key, share->use_count);
+  sql_print_warning("NDB_SHARE: %s already exists  use_count=%d."
+                    " Moving away for safety, but possible memleak.",
+                    share->key, share->use_count);
   dbug_print_open_tables();
 
   /*
@@ -8251,7 +8275,15 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       share->table_name= share->db + strlen(share->db) + 1;
       ha_ndbcluster::set_tabname(key, share->table_name);
 #ifdef HAVE_NDB_BINLOG
-      ndbcluster_binlog_init_share(share, table);
+      if (ndbcluster_binlog_init_share(share, table))
+      {
+        DBUG_PRINT("error", ("get_share: %s could not init share", key));
+        ndbcluster_real_free_share(&share);
+        *root_ptr= old_root;
+        if (!have_lock)
+          pthread_mutex_unlock(&ndbcluster_mutex);
+        DBUG_RETURN(0);
+      }
 #endif
       *root_ptr= old_root;
     }

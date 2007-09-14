@@ -596,7 +596,6 @@ public:
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
-  List<List_item>     expr_list;
   SQL_LIST *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
@@ -1799,6 +1798,28 @@ typedef struct st_lex : public Query_tables_list
 
   bool table_or_sp_used();
   bool is_partition_management() const;
+
+  /**
+    @brief check if the statement is a single-level join
+    @return result of the check
+      @retval TRUE  The statement doesn't contain subqueries, unions and 
+                    stored procedure calls.
+      @retval FALSE There are subqueries, UNIONs or stored procedure calls.
+  */
+  bool is_single_level_stmt() 
+  { 
+    /* 
+      This check exploits the fact that the last added to all_select_list is
+      on its top. So select_lex (as the first added) will be at the tail 
+      of the list.
+    */ 
+    if (&select_lex == all_selects_list && !sroutines.records)
+    {
+      DBUG_ASSERT(!all_selects_list->next_select_in_list());
+      return TRUE;
+    }
+    return FALSE;
+  }
 } LEX;
 
 struct st_lex_local: public st_lex

@@ -24,7 +24,10 @@ verbose=0
 do_clone=yes
 build=yes
 
+tag=
 conf=
+extra_args=
+extra_clone=
 LOCK=$HOME/.autotest-lock
 
 ############################
@@ -40,6 +43,8 @@ do
                 --clone=*) clone=`echo $1 | sed s/--clone=//`;;
                 --version) echo $VERSION; exit;;
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
+	        --tag=*) tag=`echo $1 | sed s/--tag=//`;;
+	        --*) echo "Unknown arg: $1";;
                 *) RUN=$*;;
         esac
         shift
@@ -52,14 +57,20 @@ done
 #################################
 if [ -z "$conf" ]
 then
-    conf=`pwd`/autotest.conf
+	if [ -f "`pwd`/autotest.conf" ]
+	then
+		conf="`pwd`/autotest.conf"
+	elif [ -f "$HOME/autotest.conf" ]
+	then
+		conf="$HOME/autotest.conf"
+	fi
 fi
 
 if [ -f $conf ]
 then
 	. $conf
 else
-	echo "Can't find config file: $conf"
+	echo "Can't find config file: >$conf<"
 	exit
 fi
 
@@ -92,7 +103,7 @@ fi
 # Setup the clone source location  #
 ####################################
 
-src_clone=$src_clone_base-$clone
+src_clone=${src_clone_base}${clone}
 
 #######################################
 # Check to see if the lock file exists#
@@ -125,7 +136,14 @@ fi
 # You can add more to this path#
 ################################
 
-dst_place=${build_dir}/clone-mysql-$clone-$DATE.$$
+if [ -z "$tag" ]
+then
+    dst_place=${build_dir}/clone-$clone-$DATE.$$
+else
+    dst_place=${build_dir}/clone-$tag-$DATE.$$
+    extra_args="$extra_args --clone=$tag"
+    extra_clone="-r$tag"
+fi
 
 #########################################
 # Delete source and pull down the latest#
@@ -134,7 +152,12 @@ dst_place=${build_dir}/clone-mysql-$clone-$DATE.$$
 if [ "$do_clone" ]
 then
 	rm -rf $dst_place
-	bk clone  $src_clone $dst_place
+	if [ `echo $src_clone | grep -c 'file:\/\/'` = 1 ]
+	then
+		bk clone -l $extra_clone $src_clone $dst_place
+	else
+		bk clone $extra_clone $src_clone $dst_place
+	fi
 fi
 
 ##########################################
@@ -156,7 +179,7 @@ fi
 ################################
 
 script=$install_dir/mysql-test/ndb/autotest-run.sh
-$script $save_args --conf=$conf --install-dir=$install_dir --suite=$RUN --nolock
+sh -x $script $save_args --conf=$conf --install-dir=$install_dir --suite=$RUN --nolock $extra_args
 
 if [ "$build" ]
 then
