@@ -656,8 +656,14 @@ int Log_to_csv_event_handler::
 
   table= open_performance_schema_table(thd, & table_list,
                                        & open_tables_backup);
-  result= (table ? 0 : 1);
-  close_performance_schema_table(thd, & open_tables_backup);
+  if (table)
+  {
+    result= 0;
+    close_performance_schema_table(thd, & open_tables_backup);
+  }
+  else
+    result= 1;
+
   DBUG_RETURN(result);
 }
 
@@ -1215,10 +1221,10 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
 {
   DBUG_ENTER("binlog_trans_log_savepos");
   DBUG_ASSERT(pos != NULL);
-  if (thd->ha_data[binlog_hton->slot] == NULL)
+  if (thd_get_ha_data(thd, binlog_hton) == NULL)
     thd->binlog_setup_trx_data();
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= trx_data->position();
   DBUG_PRINT("return", ("*pos: %lu", (ulong) *pos));
@@ -1247,12 +1253,12 @@ binlog_trans_log_truncate(THD *thd, my_off_t pos)
   DBUG_ENTER("binlog_trans_log_truncate");
   DBUG_PRINT("enter", ("pos: %lu", (ulong) pos));
 
-  DBUG_ASSERT(thd->ha_data[binlog_hton->slot] != NULL);
+  DBUG_ASSERT(thd_get_ha_data(thd, binlog_hton) != NULL);
   /* Only true if binlog_trans_log_savepos() wasn't called before */
   DBUG_ASSERT(pos != ~(my_off_t) 0);
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
   trx_data->truncate(pos);
   DBUG_VOID_RETURN;
 }
@@ -1283,9 +1289,9 @@ int binlog_init(void *p)
 static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
   DBUG_ASSERT(trx_data->empty());
-  thd->ha_data[binlog_hton->slot]= 0;
+  thd_set_ha_data(thd, binlog_hton, NULL);
   trx_data->~binlog_trx_data();
   my_free((uchar*)trx_data, MYF(0));
   return 0;
@@ -1408,7 +1414,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
 
   if (trx_data->empty())
   {
@@ -1435,7 +1441,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_rollback");
   int error=0;
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
 
   if (trx_data->empty()) {
     trx_data->reset();
@@ -3251,23 +3257,22 @@ int THD::binlog_setup_trx_data()
 {
   DBUG_ENTER("THD::binlog_setup_trx_data");
   binlog_trx_data *trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
 
   if (trx_data)
     DBUG_RETURN(0);                             // Already set up
 
-  ha_data[binlog_hton->slot]= trx_data=
-    (binlog_trx_data*) my_malloc(sizeof(binlog_trx_data), MYF(MY_ZEROFILL));
+  trx_data= (binlog_trx_data*) my_malloc(sizeof(binlog_trx_data), MYF(MY_ZEROFILL));
   if (!trx_data ||
       open_cached_file(&trx_data->trans_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
     my_free((uchar*)trx_data, MYF(MY_ALLOW_ZERO_PTR));
-    ha_data[binlog_hton->slot]= 0;
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
+  thd_set_ha_data(this, binlog_hton, trx_data);
 
-  trx_data= new (ha_data[binlog_hton->slot]) binlog_trx_data;
+  trx_data= new (thd_get_ha_data(this, binlog_hton)) binlog_trx_data;
 
   DBUG_RETURN(0);
 }
@@ -3303,7 +3308,7 @@ int THD::binlog_setup_trx_data()
 void
 THD::binlog_start_trans_and_stmt()
 {
-  binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
+  binlog_trx_data *trx_data= (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
   DBUG_ENTER("binlog_start_trans_and_stmt");
   DBUG_PRINT("enter", ("trx_data: 0x%lx  trx_data->before_stmt_pos: %lu",
                        (long) trx_data,
@@ -3323,7 +3328,7 @@ THD::binlog_start_trans_and_stmt()
 
 void THD::binlog_set_stmt_begin() {
   binlog_trx_data *trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
 
   /*
     The call to binlog_trans_log_savepos() might create the trx_data
@@ -3333,14 +3338,15 @@ void THD::binlog_set_stmt_begin() {
   */
   my_off_t pos= 0;
   binlog_trans_log_savepos(this, &pos);
-  trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
+  trx_data= (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
   trx_data->before_stmt_pos= pos;
 }
 
 int THD::binlog_flush_transaction_cache()
 {
   DBUG_ENTER("binlog_flush_transaction_cache");
-  binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
+  binlog_trx_data *trx_data= (binlog_trx_data*)
+    thd_get_ha_data(this, binlog_hton);
   DBUG_PRINT("enter", ("trx_data=0x%lu", (ulong) trx_data));
   if (trx_data)
     DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%lu",
@@ -3403,7 +3409,7 @@ Rows_log_event*
 THD::binlog_get_pending_rows_event() const
 {
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
   /*
     This is less than ideal, but here's the story: If there is no
     trx_data, prepare_pending_rows_event() has never been called
@@ -3416,11 +3422,11 @@ THD::binlog_get_pending_rows_event() const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 {
-  if (ha_data[binlog_hton->slot] == NULL)
+  if (thd_get_ha_data(this, binlog_hton) == NULL)
     binlog_setup_trx_data();
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(this, binlog_hton);
 
   DBUG_ASSERT(trx_data);
   trx_data->set_pending(ev);
@@ -3443,7 +3449,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   int error= 0;
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
 
   DBUG_ASSERT(trx_data);
 
@@ -3594,7 +3600,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         goto err;
 
       binlog_trx_data *const trx_data=
-        (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+        (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
       if (event_info->get_cache_stmt() || trans_log_pos != 0)
@@ -5031,7 +5037,7 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
   DBUG_ENTER("TC_LOG_BINLOG::log");
   Xid_log_event xle(thd, xid);
   binlog_trx_data *trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
   /*
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.

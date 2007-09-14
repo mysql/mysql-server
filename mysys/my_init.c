@@ -79,6 +79,9 @@ my_bool my_init(void)
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+  fastmutex_global_init();              /* Must be called early */
+#endif
   netware_init();
 #ifdef THREAD
 #if defined(HAVE_PTHREAD_INIT)

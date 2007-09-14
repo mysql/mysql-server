@@ -1,0 +1,17 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
+ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
+
+# the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
+#ndb_autodiscover3        : bug#21806
+#ndb_autodiscover3         : Bug#20872 2007-07-15 ingo master*.err: miscellaneous error messages
