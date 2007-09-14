@@ -1756,10 +1756,10 @@ SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
     the UPDATE/DELETE code will work:
      * index can only be scanned in forward direction
      * HA_EXTRA_KEYREAD will not be used
-    Perhaps these assumptions could be relaxed
+    Perhaps these assumptions could be relaxed.
 
   RETURN
-    index number
+    Number of the index that produces the required ordering in the cheapest way
     MAX_KEY if no such index was found.
 */
 
@@ -1778,6 +1778,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
     if (!(table->keys_in_use_for_query.is_set(idx)))
       continue;
     KEY_PART_INFO *keyinfo= table->key_info[idx].key_part;
+    uint n_parts=  table->key_info[idx].key_parts;
     uint partno= 0;
     
     /* 
@@ -1787,7 +1788,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
     */
     if (!(table->file->index_flags(idx, 0, 1) & HA_READ_ORDER))
       continue;
-    for (ord= order; ord; ord= ord->next, partno++)
+    for (ord= order; ord && partno < n_parts; ord= ord->next, partno++)
     {
       Item *item= order->item[0];
       if (!(item->type() == Item::FIELD_ITEM &&
