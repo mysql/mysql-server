@@ -762,7 +762,6 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    (uchar**) &port, (uchar**) &port, 0, GET_INT, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-   0, 0, 0},
   {"position", 'j', "Deprecated. Use --start-position instead.",
    (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
    REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
