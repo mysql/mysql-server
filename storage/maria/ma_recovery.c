@@ -49,6 +49,7 @@ static LSN current_group_end_lsn,
   checkpoint_start= LSN_IMPOSSIBLE;
 static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
+static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -117,7 +118,23 @@ static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   }
 }
-
+static my_bool recovery_message_printed;
+static inline void print_recovery_message()
+{
+  /*
+    If we're really doing a recovery (reading REDOs or UNDOs), we print a
+    one-line message when we start it and when we end it. It goes to stderr,
+    not tracef, so that it is visible in the error log (soon we should maybe
+    use sql_print_error). We don't print if if tracef is stdout as stdout will
+    be seen by the user and thus convey sufficient info already.
+  */
+  if (!recovery_message_printed && (tracef != stdout))
+  {
+    recovery_message_printed= TRUE;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, "Maria engine: starting recovery\n");
+  }
+}
 #define ALERT_USER() DBUG_ASSERT(0)
 
 
@@ -147,7 +164,7 @@ int maria_recover()
   {
     fprintf(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
     DBUG_ASSERT(maria_pagecache->inited);
-    res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE);
+    res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE, TRUE);
     if (!res)
       fprintf(trace_file, "SUCCESS\n");
     fclose(trace_file);
@@ -164,6 +181,8 @@ int maria_recover()
                            LSN_IMPOSSIBLE means "use last checkpoint"
    @param  apply           if log records should be applied or not
    @param  trace_file      trace file where progress/debug messages will go
+   @param  skip_DDLs       Should DDL records (CREATE/RENAME/DROP/REPAIR)
+                           be skipped by the REDO phase or not
 
    @todo This trace_file thing is primitive; soon we will make it similar to
    ma_check_print_warning() etc, and a successful recovery does not need to
@@ -175,7 +194,7 @@ int maria_recover()
 */
 
 int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
-                    my_bool should_run_undo_phase)
+                    my_bool should_run_undo_phase, my_bool skip_DDLs_arg)
 {
   int error= 0;
   uint unfinished_trans;
@@ -192,7 +211,33 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (!all_active_trans || !all_tables)
     goto err;
 
+  recovery_message_printed= FALSE;
   tracef= trace_file;
+  if (!(skip_DDLs= skip_DDLs_arg))
+  {
+    /*
+      Example of what can go wrong when replaying DDLs:
+      CREATE TABLE t (logged); INSERT INTO t VALUES(1) (logged);
+      ALTER TABLE t ... which does
+        CREATE a temporary table #sql... (logged)
+        INSERT data from t into #sql... (not logged)
+        RENAME #sql TO t (logged)
+      Removing tables by hand and replaying the log will leave in the
+      end an empty table "t": missing records. If after the RENAME an INSERT
+      into t was done, that row had number 1 in its page, executing the
+      REDO_INSERT_ROW_HEAD on the recreated empty t will fail (assertion
+      failure in _ma_apply_redo_insert_row_head_or_tail(): new data page is
+      created whereas rownr is not 0).
+      Another issue is that replaying of DDLs is not correct enough to work if
+      there was a crash during a DDL (see comment in execution of
+      REDO_RENAME_TABLE ).
+    */
+    fprintf(tracef, "WARNING: MySQL server currently disables log records"
+            " about insertion of data by ALTER TABLE"
+            " (copy_data_between_tables()), applying of log records may"
+            " well not work. Additionally, applying of DDL records will"
+            " cause damage if there are tables left by a crash of a DDL.\n");
+  }
 
   if (from_lsn == LSN_IMPOSSIBLE)
   {
@@ -245,6 +290,8 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     goto err;
 
   /* If inside ha_maria, a checkpoint will soon be taken and save our work */
+  if (recovery_message_printed && (tracef != stdout))
+    fprintf(stderr, "Maria engine: finished recovery\n");
   goto end;
 err:
   error= 1;
@@ -365,6 +412,11 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   uint flags;
   int error= 1, create_mode= O_RDWR | O_TRUNC;
   MARIA_HA *info= NULL;
+  if (skip_DDLs)
+  {
+    fprintf(tracef, "we skip DDLs\n");
+    return 0;
+  }
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -382,7 +434,12 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   {
     MARIA_SHARE *share= info->s;
     /* check that we're not already using it */
-    DBUG_ASSERT(share->reopen == 1);
+    if (share->reopen != 1)
+    {
+      fprintf(tracef, ", is already open (reopen=%u)\n", share->reopen);
+      ALERT_USER();
+      goto end;
+    }
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
     if (!share->base.born_transactional)
     {
@@ -391,7 +448,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
         one was renamed to its name, thus create_rename_lsn is 0 and should
         not be trusted.
       */
-      fprintf(tracef, ", is not transactional\n");
+      fprintf(tracef, ", is not transactional, ignoring creation\n");
       ALERT_USER();
       error= 0;
       goto end;
@@ -406,13 +463,16 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     }
     if (maria_is_crashed(info))
     {
-      fprintf(tracef, ", is crashed, overwriting it");
+      fprintf(tracef, ", is crashed, can't recreate it");
       ALERT_USER();
+      goto end;
     }
     maria_close(info);
     info= NULL;
   }
-  /* if does not exist, is older, or its header is corrupted, overwrite it */
+  else /* one or two files absent, or header corrupted... */
+    fprintf(tracef, "can't be opened, probably does not exist");
+  /* if does not exist, or is older, overwrite it */
   /** @todo symlinks */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
@@ -490,6 +550,11 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
   char *old_name, *new_name;
   int error= 1;
   MARIA_HA *info= NULL;
+  if (skip_DDLs)
+  {
+    fprintf(tracef, "we skip DDLs\n");
+    return 0;
+  }
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -501,7 +566,36 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
   }
   old_name= log_record_buffer.str;
   new_name= old_name + strlen(old_name) + 1;
-  fprintf(tracef, "Table '%s' to rename to '%s'", old_name, new_name);
+  fprintf(tracef, "Table '%s' to rename to '%s'; old-name table ", old_name,
+          new_name);
+  /*
+    Here is why we skip CREATE/DROP/RENAME when doing a recovery from
+    ha_maria (whereas we do when called from maria_read_log). Consider:
+    CREATE TABLE t;
+    RENAME TABLE t to u;
+    DROP TABLE u;
+    RENAME TABLE v to u; # crash between index rename and data rename.
+    And do a Recovery (not removing tables beforehand).
+    Recovery replays CREATE, then RENAME: the maria_open("t") works,
+    maria_open("u") does not (no data file) so table "u" is considered
+    inexistent and so maria_rename() is done which overwrites u's index file,
+    which is lost. Ok, the data file (v.MAD) is still available, but only a
+    REPAIR USE_FRM can rebuild the index, which is unsafe and downtime.
+    So it is preferrable to not execute RENAME, and leave the "mess" of files,
+    rather than possibly destroy a file. DBA will manually rename files.
+    A safe recovery method would probably require checking the existence of
+    the index file and of the data file separately (not via maria_open()), and
+    maybe also to store a create_rename_lsn in the data file too
+    For now, all we risk is to leave the mess (half-renamed files) left by the
+    crash. We however sync files and directories at each file rename. The SQL
+    layer is anyway not crash-safe for DDLs (except the repartioning-related
+    ones).
+    We replay DDLs in maria_read_log to be able to recreate tables from
+    scratch. It means that "maria_read_log -a" should not be used on a
+    database which just crashed during a DDL. And also ALTER TABLE does not
+    log insertions of records into the temporary table, so replaying may
+    fail (see comment and warning in maria_apply_log()).
+  */
   info= maria_open(old_name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
   {
@@ -512,7 +606,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     */
     if (!share->base.born_transactional)
     {
-      fprintf(tracef, ", is not transactional\n");
+      fprintf(tracef, ", is not transactional, ignoring renaming\n");
       ALERT_USER();
       error= 0;
       goto end;
@@ -540,7 +634,76 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
         maria_close(info))
       goto end;
     info= NULL;
+    fprintf(tracef, ", is ok for renaming; new-name table ");
   }
+  else /* one or two files absent, or header corrupted... */
+  {
+    fprintf(tracef, ", can't be opened, probably does not exist");
+    error= 0;
+    goto end;
+  }
+  /*
+    We must also check the create_rename_lsn of the 'new_name' table if it
+    exists: otherwise we may, with our rename which overwrites, destroy
+    another table. For example:
+    CREATE TABLE t;
+    RENAME t to u;
+    DROP TABLE u;
+    RENAME v to u; # v is an old table, its creation/insertions not in log
+    And start executing the log (without removing tables beforehand): creates
+    t, renames it to u (if not testing create_rename_lsn) thus overwriting
+    old-named v, drops u, and we are stuck, we have lost data.
+  */
+  info= maria_open(new_name, O_RDONLY, HA_OPEN_FOR_REPAIR);
+  if (info)
+  {
+    MARIA_SHARE *share= info->s;
+    /* We should not have open instances on this table. */
+    if (share->reopen != 1)
+    {
+      fprintf(tracef, ", is already open (reopen=%u)\n", share->reopen);
+      ALERT_USER();
+      goto end;
+    }
+    if (!share->base.born_transactional)
+    {
+      fprintf(tracef, ", is not transactional, ignoring renaming\n");
+      ALERT_USER();
+      goto drop;
+    }
+    if (cmp_translog_addr(share->state.create_rename_lsn, rec->lsn) >= 0)
+    {
+      fprintf(tracef, ", has create_rename_lsn (%lu,0x%lx) more recent than"
+              " record, ignoring renaming",
+              LSN_IN_PARTS(share->state.create_rename_lsn));
+      /*
+        We have to drop the old_name table. Consider:
+        CREATE TABLE t;
+        CREATE TABLE v;
+        RENAME TABLE t to u;
+        DROP TABLE u;
+        RENAME TABLE v to u;
+        and apply the log without removing tables beforehand. t will be
+        created, v too; in REDO_RENAME u will be more recent, but we still
+        have to drop t otherwise it stays.
+      */
+      goto drop;
+    }
+    if (maria_is_crashed(info))
+    {
+      fprintf(tracef, ", is crashed, can't rename it");
+      ALERT_USER();
+      goto end;
+    }
+    if (maria_close(info))
+      goto end;
+    info= NULL;
+    /* abnormal situation */
+    fprintf(tracef, ", exists but is older than record, can't rename it");
+    goto end;
+  }
+  else /* one or two files absent, or header corrupted... */
+    fprintf(tracef, ", can't be opened, probably does not exist");
   fprintf(tracef, ", renaming '%s'", old_name);
   if (maria_rename(old_name, new_name))
   {
@@ -559,6 +722,16 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     goto end;
   info= NULL;
   error= 0;
+  goto end;
+drop:
+  fprintf(tracef, ", only dropping '%s'", old_name);
+  if (maria_delete_table(old_name))
+  {
+    fprintf(tracef, "Failed to drop table\n");
+    goto end;
+  }
+  error= 0;
+  goto end;
 end:
   fprintf(tracef, "\n");
   if (info != NULL)
@@ -573,8 +746,17 @@ end:
 prototype_redo_exec_hook(REDO_REPAIR_TABLE)
 {
   int error= 1;
-  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
-  if (info == NULL)
+  MARIA_HA *info;
+  if (skip_DDLs)
+  {
+    /*
+      REPAIR is not exactly a DDL, but it manipulates files without logging
+      insertions into them.
+    */
+    fprintf(tracef, "we skip DDLs\n");
+    return 0;
+  }
+  if ((info= get_MARIA_HA_from_REDO_record(rec)) == NULL)
     return 0;
   /*
     Otherwise, the mapping is newer than the table, and our record is newer
@@ -610,6 +792,11 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
   char *name;
   int error= 1;
   MARIA_HA *info= NULL;
+  if (skip_DDLs)
+  {
+    fprintf(tracef, "we skip DDLs\n");
+    return 0;
+  }
   enlarge_buffer(rec);
   if (log_record_buffer.str == NULL ||
       translog_read_record(rec->lsn, 0, rec->record_length,
@@ -631,7 +818,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     */
     if (!share->base.born_transactional)
     {
-      fprintf(tracef, ", is not transactional\n");
+      fprintf(tracef, ", is not transactional, ignoring removal\n");
       ALERT_USER();
       error= 0;
       goto end;
@@ -646,8 +833,9 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
     }
     if (maria_is_crashed(info))
     {
-      fprintf(tracef, ", is crashed, dropping it");
+      fprintf(tracef, ", is crashed, can't drop it");
       ALERT_USER();
+      goto end;
     }
     /*
       This maria_extra() call serves to signal that old open instances of
@@ -658,14 +846,16 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
         maria_close(info))
       goto end;
     info= NULL;
+    /* if it is older, or its header is corrupted, drop it */
+    fprintf(tracef, ", dropping '%s'", name);
+    if (maria_delete_table(name))
+    {
+      fprintf(tracef, "Failed to drop table\n");
+      goto end;
+    }
   }
-  /* if does not exist, is older, or its header is corrupted, drop it */
-  fprintf(tracef, ", dropping '%s'", name);
-  if (maria_delete_table(name))
-  {
-    fprintf(tracef, "Failed to drop table\n");
-    goto end;
-  }
+  else /* one or two files absent, or header corrupted... */
+    fprintf(tracef,", can't be opened, probably does not exist");
   error= 0;
 end:
   fprintf(tracef, "\n");
@@ -753,7 +943,12 @@ static int new_table(uint16 sid, const char *name,
   }
   MARIA_SHARE *share= info->s;
   /* check that we're not already using it */
-  DBUG_ASSERT(share->reopen == 1);
+  if (share->reopen != 1)
+  {
+    fprintf(tracef, ", is already open (reopen=%u)\n", share->reopen);
+    ALERT_USER();
+    goto end;
+  }
   DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
   if (!share->base.born_transactional)
   {
@@ -1294,7 +1489,6 @@ static int run_redo_phase(LSN lsn, my_bool apply)
     uint16 sid= rec.short_trid;
     const LOG_DESC *log_desc= &log_record_type_descriptor[rec.type];
     display_record_position(log_desc, &rec, i);
-
     /*
       A complete group is a set of log records with an "end mark" record
       (e.g. a set of REDOs for an operation, terminated by an UNDO for this
@@ -1572,6 +1766,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   MARIA_HA *info;
   char llbuf[22];
 
+  print_recovery_message();
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
   /**
@@ -1643,6 +1838,7 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   uint16 sid;
   MARIA_HA *info;
 
+  print_recovery_message();
   sid= fileid_korr(rec->header + LSN_STORE_SIZE);
   fprintf(tracef, "   For table of short id %u", sid);
   info= all_tables[sid].info;

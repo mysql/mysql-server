@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
   if (maria_apply_log(lsn, opt_display_and_apply, stdout,
-                      opt_display_and_apply))
+                      opt_display_and_apply, FALSE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname);
 

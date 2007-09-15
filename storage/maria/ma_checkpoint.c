@@ -123,7 +123,13 @@ int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait)
   int result= 0;
   DBUG_ENTER("ma_checkpoint_execute");
 
-  DBUG_ASSERT(checkpoint_inited);
+  if (!checkpoint_inited)
+  {
+    /*
+      If ha_maria failed to start, maria_panic_hton is called, we come here.
+    */
+    DBUG_RETURN(0);
+  }
   DBUG_ASSERT(level > CHECKPOINT_NONE);
 
   /* look for already running checkpoints */
