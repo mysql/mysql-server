@@ -4643,6 +4643,8 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_ASSERT(ndb);
+  PRINT_OPTION_FLAGS(thd);
+  DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL || (!all &&
       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
@@ -4714,8 +4716,11 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
-  if (!trans)
+  if (trans == NULL || (!all &&
+      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
+    /* Ignore end-of-statement until real rollback or commit is called */
+    DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
     DBUG_RETURN(0);
   }
 
