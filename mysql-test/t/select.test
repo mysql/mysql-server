@@ -3465,6 +3465,8 @@ DROP TABLE t1;
 #             truncation of one-space column names to zero length names.
 #
 
+--disable_ps_protocol
+
 SELECT 1 AS ` `;
 SELECT 1 AS `  `;
 SELECT 1 AS ` x`;
@@ -3479,5 +3481,7 @@ CREATE VIEW v3 AS SELECT 1 AS ` x`;
 SELECT `x` FROM v3;
 
 DROP VIEW v1, v2, v3;
+
+--enable_ps_protocol
 
 --echo End of 5.0 tests
