@@ -3163,6 +3163,7 @@ void select_insert::abort() {
    */
   if (table)
   {
+    bool changed, transactional_table;
     /*
       If we are not in prelocked mode, we end the bulk insert started
       before.
@@ -3184,20 +3185,20 @@ void select_insert::abort() {
       If table creation failed, the number of rows modified will also be
       zero, so no check for that is made.
     */
-    if (info.copied || info.deleted || info.updated)
+    changed= (info.copied || info.deleted || info.updated);
+    transactional_table= table->file->has_transactions();
+    if (thd->transaction.stmt.modified_non_trans_table)
     {
-      DBUG_ASSERT(table != NULL);
-      if (!table->file->has_transactions())
-      {
         if (mysql_bin_log.is_open())
           thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                            table->file->has_transactions(), FALSE);
-        if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
-            !can_rollback_data())
+                            transactional_table, FALSE);
+        if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
-        query_cache_invalidate3(thd, table, 1);
-      }
+	if (changed)
+	  query_cache_invalidate3(thd, table, 1);
     }
+    DBUG_ASSERT(transactional_table || !changed ||
+		thd->transaction.stmt.modified_non_trans_table);
     table->file->ha_release_auto_increment();
   }
 
