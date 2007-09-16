@@ -426,11 +426,18 @@ insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
 ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
+master-bin.000001	589		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (1)
+master-bin.000001	#	Query	#	#	use `test`; insert into ti values (2) /* to make the dup error in the following */
+master-bin.000001	#	Query	#	#	use `test`; insert into tt select * from ti /* one affected and error */
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -456,10 +463,11 @@ insert into t2 select bug27417(2);
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	222		
-/* only (!) with fixes for #23333 will show there is the query */;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 select count(*) from t1 /* must be 3 */;
 count(*)
 3
@@ -471,10 +479,11 @@ delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	227		
-/* the query must be in regardless of #23333 */;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 select count(*) from t1 /* must be 5 */;
 count(*)
 5
@@ -491,9 +500,12 @@ insert into t2 values (1);
 reset master;
 insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	293		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -503,9 +515,13 @@ insert into t2 values (2);
 reset master;
 insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	332		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -514,9 +530,13 @@ insert into t3 values (1,1),(2,3),(3,4);
 reset master;
 update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	305		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -530,9 +550,13 @@ insert into t3 values (bug27417(1), 2);
 reset master;
 delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	335		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -548,9 +572,14 @@ a	b
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	362		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 drop trigger trg_del;
 drop table t1,t2,t3,t4;
 drop function bug27417;
