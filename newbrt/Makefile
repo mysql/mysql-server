@@ -97,7 +97,7 @@ benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o h
 benchmark-test.o: brt.h ../include/db.h
 
 clean:
-	rm -rf *.o hashtest brt-test cachetable-test randbrt randdb4 benchmark-test *.bb *.bbg *.da
+	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da
 
 randdb4: LOADLIBES=-ldb
 randbrt: brt.o hashtable.o cachetable.o memory.o brt-serialize.o
