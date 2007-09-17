@@ -1,3 +1,4 @@
+
 #include "cachetable.h"
 #include "memory.h"
 #include "yerror.h"
@@ -26,8 +27,8 @@ struct ctpair {
     PAIR     next,prev; // In LRU list.
     PAIR     hash_chain;
     CACHEFILE cachefile;
-    void (*flush_callback)(CACHEFILE,CACHEKEY,void*, int write_me, int keep_me);
-    int (*fetch_callback)(CACHEFILE,CACHEKEY,void**,void*extrargs);
+    cachetable_flush_func_t flush_callback;
+    cachetable_fetch_func_t fetch_callback;
     void*extraargs;
 };
 
@@ -59,11 +60,12 @@ void cachetable_print_state (CACHETABLE ct) {
 	PAIR p;
 	printf("t[%d]=", i);
 	for (p=ct->table[i]; p; p=p->hash_chain) {
-	    printf(" {%lld, %p}", p->key, p->cachefile);
+	    printf(" {%lld, %p, dirty=%d, pin=%lld}", p->key, p->cachefile, p->dirty, p->pinned);
 	}
 	printf("\n");
     }
 }
+
 
 int create_cachetable (CACHETABLE *result, int n_entries) {
     TAGMALLOC(CACHETABLE, t);
@@ -269,11 +271,30 @@ static int maybe_flush_some (CACHETABLE t) {
     return 0;
 }
 
+static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value,
+                             cachetable_flush_func_t flush_callback,
+                             cachetable_fetch_func_t fetch_callback,
+                             void *extraargs, int dirty) {
+    TAGMALLOC(PAIR, p);
+    p->pinned = 1;
+    p->dirty = dirty;
+    //printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
+    p->key = key;
+    p->value = value;
+    p->next = p->prev = 0;
+    p->cachefile = cachefile;
+    p->flush_callback = flush_callback;
+    p->fetch_callback = fetch_callback;
+    p->extraargs = extraargs;
+    lru_add_to_list(cachefile->cachetable, p);
+    p->hash_chain = cachefile->cachetable->table[h];
+    cachefile->cachetable->table[h] = p;
+    cachefile->cachetable->n_in_table++;
+    return 0;
+}
+
 int cachetable_put (CACHEFILE cachefile, CACHEKEY key, void*value,
-		    void (*flush_callback)(CACHEFILE,CACHEKEY,void*, int /*write_me*/, int /*keep_me*/),
-		    int (*fetch_callback)(CACHEFILE,CACHEKEY,void**,void*/*extraargs*/),
-		    void*extraargs
-		    ) {
+                    cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     int h = hashit(cachefile->cachetable, key);
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     {
@@ -288,33 +309,13 @@ int cachetable_put (CACHEFILE cachefile, CACHEKEY key, void*value,
 	    }
 	}
     }
-    if (maybe_flush_some(cachefile->cachetable)) return -2;
-    
-    {
-	TAGMALLOC(PAIR, p);
-	p->pinned=1;
-	p->dirty =1;
-	//printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
-	p->key = key;
-	p->value = value;
-	p->next = p->prev = 0;
-	p->cachefile = cachefile;
-	p->flush_callback = flush_callback;
-	p->fetch_callback = fetch_callback;
-	p->extraargs = extraargs;
-	lru_add_to_list(cachefile->cachetable, p);
-	p->hash_chain = cachefile->cachetable->table[h];
-	cachefile->cachetable->table[h] = p;
-	cachefile->cachetable->n_in_table++;
-	return 0;
-    }
+    if (maybe_flush_some(cachefile->cachetable)) 
+        return -2;
+    return cachetable_insert_at(cachefile, h, key, value, flush_callback, fetch_callback, extraargs, 1);
 }
 
 int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
-			    void(*flush_callback)(CACHEFILE,CACHEKEY,void*,int write_me, int keep_me),
-			    int(*fetch_callback)(CACHEFILE, CACHEKEY key, void**value,void*extraargs), /* If we are asked to fetch something, get it by calling this back. */
-			    void*extraargs
-			    ) {
+                            cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int h = hashit(t,key);
     PAIR p;
@@ -333,7 +334,7 @@ int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
 	int r;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
 	if ((r=fetch_callback(cachefile, key, &toku_value,extraargs))) return r;
-	cachetable_put(cachefile, key, toku_value, flush_callback, fetch_callback,extraargs);
+	cachetable_insert_at(cachefile, h, key, toku_value, flush_callback, fetch_callback, extraargs, 0);
 	*value = toku_value;
     }
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
@@ -493,4 +494,20 @@ int cachefile_pread  (CACHEFILE cf, void *buf, size_t count, off_t offset) {
 
 int cachefile_fd (CACHEFILE cf) {
     return cf->fd;
+}
+
+/* debug function */
+int cachetable_get_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
+                         int *dirty_ptr, long long *pin_ptr) {
+    int h = hashit(ct, key);
+    PAIR p;
+    for (p = ct->table[h]; p; p = p->hash_chain) {
+        if (p->key == key) {
+            *value_ptr = p->value;
+            *dirty_ptr = p->dirty;
+            *pin_ptr = p->pinned;
+            return 0;
+        }
+    }
+    return 1;
 }

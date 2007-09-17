@@ -275,10 +275,117 @@ void test_multi_filehandles (void) {
     r = cachetable_close(&t); assert(r==0);
 }
 
+void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, int write, int keep) {
+    printf("test_dirty_flush %p %lld %p %d %d\n", f, key, value, write, keep);
+}
+
+int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, void *arg) {
+    *value_ptr = arg;
+    printf("test_dirty_fetch %p %lld %p %p\n", f, key, *value_ptr, arg);
+    return 0;
+}
+
+void test_dirty() {
+    CACHETABLE t;
+    CACHEFILE f;
+    CACHEKEY key; void *value;
+    int dirty; long long pinned;
+    int r;
+
+    r = create_cachetable(&t, 4);
+    assert(r == 0);
+
+    char *fname = "test.dat";
+    unlink(fname);
+    r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   
+    assert(r == 0);
+
+    key = 1; value = (void*)1;
+    r = cachetable_put(f, key, value, test_dirty_flush, 0, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 1);
+
+    r = cachetable_unpin(f, key, 0);
+    assert(r == 0);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 0);
+
+    r = cachetable_get_and_pin(f, key, &value, test_dirty_flush,
+                               test_dirty_fetch, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 1);
+
+    r = cachetable_unpin(f, key, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 0);
+
+    key = 2;
+    r = cachetable_get_and_pin(f, key, &value, test_dirty_flush,
+                               test_dirty_fetch, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 0);
+    assert(pinned == 1);
+
+    r = cachetable_unpin(f, key, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 0);
+    assert(pinned == 0);
+
+    r = cachetable_get_and_pin(f, key, &value, test_dirty_flush,
+                               test_dirty_fetch, 0);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 0);
+    assert(pinned == 1);
+
+    r = cachetable_unpin(f, key, 1);
+    assert(r == 0);
+
+    // cachetable_print_state(t);
+    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 0);
+
+    r = cachefile_close(&f);
+    assert(r == 0);
+    r = cachetable_close(&t);
+    assert(r == 0);
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     test0();
     test_nested_pin();
     test_multi_filehandles ();
+    test_dirty();
     malloc_cleanup();
     printf("ok\n");
     return 0;

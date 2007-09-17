@@ -24,18 +24,17 @@ int create_cachetable (CACHETABLE */*result*/, int /*n_entries*/);
 
 int cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode);
 
+typedef void (*cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, int write_me, int keep_me);
+
+/* If we are asked to fetch something, get it by calling this back. */
+typedef int (*cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void**value,void*extraargs); 
+
 /* Error if already present.  On success, pin the value. */
 int cachetable_put (CACHEFILE, CACHEKEY, void*/*value*/,
-		    void(*flush_callback)(CACHEFILE, CACHEKEY key, void*value, int write_me, int keep_me),
-		    int(*fetch_callback)(CACHEFILE, CACHEKEY key, void**value,void*extraargs), /* If we are asked to fetch something, get it by calling this back. */
-		    void*extraargs
-		    );
+                    cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 int cachetable_get_and_pin (CACHEFILE, CACHEKEY, void**/*value*/,
-			    void(*flush_callback)(CACHEFILE,CACHEKEY,void*,int write_me, int keep_me),
-			    int(*fetch_callback)(CACHEFILE, CACHEKEY key, void**value,void*extraargs), /* If we are asked to fetch something, get it by calling this back. */
-			    void*extraargs
-			    );
+                            cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 /* If the the item is already in memory, then return 0 and store it in the void**.
  * If the item is not in memory, then return nonzero. */
@@ -59,5 +58,6 @@ int cachefile_fd (CACHEFILE);
 
 // Useful for debugging 
 void cachetable_print_state (CACHETABLE ct);
-
+int cachetable_get_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
+                         int *dirty_ptr, long long *pin_ptr);
 #endif
