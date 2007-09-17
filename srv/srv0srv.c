@@ -28,6 +28,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0srv.h"
 
 #include "ut0mem.h"
+#include "ut0ut.h"
 #include "os0proc.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
@@ -340,6 +341,8 @@ int	srv_query_thread_priority = 0;
 disable adaptive hash indexes */
 ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes	= TRUE;
+
+ulint	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 20;
@@ -991,11 +994,10 @@ srv_conc_enter_innodb(
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
-		/* TODO Do something more interesting (based on a config
-		parameter). Some users what to give the replication
-		thread very low priority, see http://bugs.mysql.com/25078
-		This can be done by introducing
-		innodb_replication_delay(ms) config parameter */
+		UT_WAIT_FOR(srv_conc_n_threads
+			    < (lint)srv_thread_concurrency,
+			    srv_replication_delay * 1000);
+
 		return;
 	}
 
