@@ -7987,6 +7987,18 @@ Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
   if (c_nodeStartMaster.blockGcp == true)
   {
     jam();
+
+    /**
+     * Also wait for GCP save...
+     */
+    if (m_gcp_save.m_master.m_state != GcpSave::GCP_SAVE_IDLE)
+    {
+      jam();
+      signal->theData[0] = DihContinueB::ZSTART_GCP;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+      return;
+    }
+    
     /* ------------------------------------------------------------------ */
     /*  A NEW NODE WANTS IN AND WE MUST ALLOW IT TO COME IN NOW SINCE THE */
     /*       GCP IS COMPLETED.                                            */
@@ -8304,7 +8316,7 @@ void Dbdih::execGCP_SAVECONF(Signal* signal)
     return;
   }
 
-  ndbrequire(saveConf->gci == m_gcp_save.m_gci);
+  ndbrequire(saveConf->gci == m_gcp_save.m_master.m_new_gci);
   ndbrequire(saveConf->nodeId == saveConf->dihPtr);
   SYSFILE->lastCompletedGCI[saveConf->nodeId] = saveConf->gci;  
   GCP_SAVEhandling(signal, saveConf->nodeId);
@@ -8327,7 +8339,7 @@ void Dbdih::execGCP_SAVEREF(Signal* signal)
     return;
   }
 
-  ndbrequire(saveRef->gci == m_gcp_save.m_gci);
+  ndbrequire(saveRef->gci == m_gcp_save.m_master.m_new_gci);
   ndbrequire(saveRef->nodeId == saveRef->dihPtr);
 
   /**
