@@ -36,7 +36,7 @@ drop table t1, t2;
 
 # prepare
 
-create table tt (a int unique);
+create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
 show master status;
@@ -53,11 +53,10 @@ rollback;
 
 select count(*) from tt /* 2 */;
 show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
-select * from ti /* that is what slave would miss - a bug */;
+select * from ti /* that is what slave would miss - bug#28960 */;
 
 
 ## send_error() branch
@@ -78,13 +77,12 @@ rollback;
 # check
 
 show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from tt /* that is what otherwise slave missed - the bug */;
 
-drop table ti,tt;
+drop table ti;
 
 
 #
@@ -122,17 +120,15 @@ insert into t2 select bug27417(2);
 reset master;
 
 --error ER_DUP_ENTRY
-insert into t2 values (bug27417(2)); 
-#TODO: Andrei: enable this test after 23333 is pushed 
-#show master status; /* only (!) with fixes for #23333 will show there is the query */;
+insert into t2 values (bug27417(2));
+source include/show_binlog_events.inc; #only (!) with fixes for #23333 will show there is the query
 select count(*) from t1 /* must be 3 */;
 
 reset master;
 select count(*) from t2;
 delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */; 
-#TODO: Andrei: enable this test after 23333 is pushed 
-#show master status; /* the query must be in regardless of #23333 */;
+source include/show_binlog_events.inc; # the query must be in regardless of #23333
 select count(*) from t1 /* must be 5 */;
 
 --enable_info
@@ -140,7 +136,125 @@ delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 --disable_info
 select count(*) from t1 /* must be 7 */;
 
-drop function bug27417;
+# function bug27417 remains for the following testing of bug#23333
 drop table t1,t2;
+
+#
+# Bug#23333 using the patch (and the test) for bug#27471
+# throughout the bug tests 
+# t1 - non-trans side effects gatherer;
+# t2 - transactional table;
+#
+CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
+
+
+#
+# INSERT
+#
+
+# prepare
+  
+ insert into t2 values (1);
+ reset master;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 values (bug27417(1)); 
+  
+# check
+
+ source include/show_binlog_events.inc; # must be event of the query
+ select count(*) from t1 /* must be 1 */;
+
+#
+# INSERT SELECT
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ insert into t2 values (2);
+ reset master;
+
+# execute
+
+ --error ER_DUP_ENTRY
+ insert into t2 select bug27417(1) union select bug27417(2); 
+  
+# check
+
+ source include/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 2 */;
+
+#
+# UPDATE (multi-update see bug#27716)
+#
+
+# prepare
+ delete from t1;
+ insert into t3 values (1,1),(2,3),(3,4);
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ update t3 set b=b+bug27417(1);
+
+# check
+ source include/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 2 */;
+
+
+#
+# DELETE (for multi-delete see Bug #29136)
+#
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t3;
+ insert into t2 values (1);
+ insert into t3 values (1,1);
+ create trigger trg_del before delete on t2 for each row 
+   insert into t3 values (bug27417(1), 2);
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete from t2;
+# check
+ source include/show_binlog_events.inc; # must be events of the query
+ select count(*) from t1 /* must be 1 */;
+
+
+#
+# LOAD DATA
+#
+
+# prepare
+ delete from t1;
+ create table t4 (a int default 0, b int primary key) engine=innodb;
+ insert into t4 values (0, 17);
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+# check
+ select * from t4;
+ select count(*) from t1 /* must be 2 */;
+ source include/show_binlog_events.inc; # must be events of the query
+
+#
+# bug#23333 cleanup
+#
+
+
+drop trigger trg_del;
+drop table t1,t2,t3,t4;
+drop function bug27417;
+
 
 --echo end of tests
