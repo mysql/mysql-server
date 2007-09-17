@@ -720,10 +720,14 @@ error_handling:
 		error = row_merge_drop_table(trx, innodb_table);
 		goto convert_error;
 
+	case DB_TOO_BIG_RECORD:
+		my_error(HA_ERR_TO_BIG_ROW, MYF(0));
+		goto error;
 	case DB_PRIMARY_KEY_IS_NULL:
 		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
 		/* fall through */
 	case DB_DUPLICATE_KEY:
+error:
 		prebuilt->trx->error_info = NULL;
 		prebuilt->trx->error_key_num = trx->error_key_num;
 		/* fall through */

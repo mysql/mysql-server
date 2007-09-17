@@ -1031,6 +1031,8 @@ NULL	NULL	NULL	null
 alter table t1 add primary key (a), add key (b(20));
 ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
 delete from t1 where d='null';
+alter table t1 add primary key (a,b(255),c(255)), add key (b(255));
+ERROR HY000: Too big row
 alter table t1 add primary key (a), add key (b(20));
 select count(*) from t1 where a=44;
 count(*)
