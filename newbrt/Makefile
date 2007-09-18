@@ -12,7 +12,7 @@ FPICFLAGS = -fPIC
 DTOOL = valgrind --quiet --error-exitcode=1
 endif
 
-CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS)
+CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -fnested-functions
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
 
 ifdef BRT_FANOUT
