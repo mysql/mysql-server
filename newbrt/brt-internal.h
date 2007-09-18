@@ -27,6 +27,7 @@ struct brtnode {
     unsigned int nodesize;
     diskoff thisnodename;
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
+    int dirty;
     union node {
 	struct nonleaf {
 	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
@@ -90,6 +91,10 @@ void brtnode_free (BRTNODE *node);
 //static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
 
 //int write_brt_header (int fd, struct brt_header *header);
+
+static inline void brtnode_set_dirty(BRTNODE node) {
+    node->dirty = 1;
+}
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)

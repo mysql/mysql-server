@@ -173,6 +173,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     result->nodesize = nodesize; // How to compute the nodesize?
     result->thisnodename = off;
     result->height = rbuf_int(&rc);
+    result->dirty = 0;
     //printf("height==%d\n", result->height);
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
