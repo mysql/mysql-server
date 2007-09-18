@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 extern char* optarg;
 extern int optind;
@@ -85,7 +86,6 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('o'): {
-            extern int errno;
             if (freopen(optarg, "w", stdout) == NULL)
             {
                fprintf(
