@@ -159,6 +159,24 @@ INSERT INTO t1 values (1,1);
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables;
+ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c TIMESTAMP'
+ALTER TABLE t1 ADD c TIMESTAMP;
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+truncate ndb_show_tables;
+INSERT INTO t1 values (2,1,NULL);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	0000-00-00 00:00:00
+2	1	2007-09-19 18:46:02
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables;
 ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL'
 ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
