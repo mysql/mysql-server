@@ -694,9 +694,9 @@ UNIV_INLINE
 ulint
 dict_index_get_n_unique(
 /*====================*/
-				/* out: number of fields */
-	dict_index_t*	index);	/* in: an internal representation of index
-				(in the dictionary cache) */
+					/* out: number of fields */
+	const dict_index_t*	index);	/* in: an internal representation
+					of index (in the dictionary cache) */
 /************************************************************************
 Gets the number of fields in the internal representation of an index
 which uniquely determine the position of an index entry in the index, if
@@ -705,9 +705,9 @@ UNIV_INLINE
 ulint
 dict_index_get_n_unique_in_tree(
 /*============================*/
-				/* out: number of fields */
-	dict_index_t*	index);	/* in: an internal representation of index
-				(in the dictionary cache) */
+					/* out: number of fields */
+	const dict_index_t*	index);	/* in: an internal representation
+					of index (in the dictionary cache) */
 /************************************************************************
 Gets the number of user-defined ordering fields in the index. In the internal
 representation we add the row id to the ordering fields to make all indexes
