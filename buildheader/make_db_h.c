@@ -164,6 +164,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus)\nextern \"C\" {\n#endif\n");
 
+    dodefine(DB_VERSION_MAJOR);
+    dodefine(DB_VERSION_MINOR);
+    dodefine(DB_VERSION_PATCH);
     printf("#ifndef _TOKUDB_WRAP_H\n");
     printf("#define DB_VERSION_STRING \"Tokutek: TokuDB\"\n");
     printf("#else\n");
@@ -222,7 +225,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");
-
+    printf("int db_env_create(DB_ENV **, u_int32_t);\n");
+    printf("int db_create(DB **, DB_ENV *, u_int32_t);\n");
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
