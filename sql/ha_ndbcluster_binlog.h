@@ -36,29 +36,34 @@ extern ulong ndb_extra_logging;
 
 extern handlerton *ndbcluster_hton;
 
-class Ndb_event_data {
+class Ndb_event_data
+{
 public:
-  Ndb_event_data(NDB_SHARE *the_share, uint n_fields) : 
-  share(the_share), no_fields(n_fields)
+  Ndb_event_data(NDB_SHARE *the_share) : 
+    share(the_share), table_share((TABLE_SHARE *)0), table((TABLE *)0)
   {
     ndb_value[0]= 0;
     ndb_value[1]= 0;
-    record[0]= 0;
-    record[1]= 0;
   }
   ~Ndb_event_data()
   {
+    if (table)
+      closefrm(table, 1);
+    free_root(&mem_root, MYF(0));
+    table_share= 0;
+    table= 0;
     share= 0;
     /*
-       ndbvalue[] and record[] are allocated with my_multi_malloc
+       ndbvalue[] allocated with my_multi_malloc
        so only first pointer should be freed  
     */
     my_free(ndb_value[0], MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
+  MEM_ROOT mem_root;
+  TABLE_SHARE *table_share;
+  TABLE *table;
   NDB_SHARE *share;
-  uint no_fields;
   NdbValue *ndb_value[2];
-  uchar *record[2]; // pointer to allocated records for receiving data
 };
 
 /*
