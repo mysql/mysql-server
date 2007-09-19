@@ -133,13 +133,13 @@ none of which are stored externally. */
 int
 cmp_rec_rec_simple(
 /*===============*/
-				/* out: 1, 0 , -1 if rec1 is greater, equal,
-				less, respectively, than rec2 */
-	const rec_t*	rec1,	/* in: physical record */
-	const rec_t*	rec2,	/* in: physical record */
-	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index);	/* in: data dictionary index */
+					/* out: 1, 0 , -1 if rec1 is greater,
+					equal, less, respectively, than rec2 */
+	const rec_t*		rec1,	/* in: physical record */
+	const rec_t*		rec2,	/* in: physical record */
+	const ulint*		offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*		offsets2,/* in: rec_get_offsets(rec2, index) */
+	const dict_index_t*	index);	/* in: data dictionary index */
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************
 This function is used to compare two physical records. Only the common
