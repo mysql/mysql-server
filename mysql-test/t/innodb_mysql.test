@@ -937,4 +937,27 @@ SELECT c,b   FROM t1 GROUP BY c,b;
 
 DROP TABLE t1;
 
+#
+# Bug #31001: ORDER BY DESC in InnoDB not working
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
+INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
+
+#The two queries below should produce different results, but they don't.
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
+query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+SELECT * FROM t1 WHERE b=2 ORDER BY a DESC;
+
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a ASC;
+SELECT * FROM t1 ORDER BY b ASC, a ASC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a DESC;
+SELECT * FROM t1 ORDER BY b DESC, a DESC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b ASC, a DESC;
+SELECT * FROM t1 ORDER BY b ASC, a DESC;
+query_vertical EXPLAIN SELECT * FROM t1 ORDER BY b DESC, a ASC;
+SELECT * FROM t1 ORDER BY b DESC, a ASC;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
