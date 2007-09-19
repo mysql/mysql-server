@@ -1,4 +1,4 @@
-CFLAGS = -W -Wall -Wno-unused -g -fPIC
+CFLAGS = -W -Wall -Wno-unused -g -fPIC -O2
 CPPFLAGS = -I../include -I../newbrt
 
 install: libdb.so
