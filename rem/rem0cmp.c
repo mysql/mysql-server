@@ -712,13 +712,13 @@ none of which are stored externally. */
 int
 cmp_rec_rec_simple(
 /*===============*/
-				/* out: 1, 0 , -1 if rec1 is greater, equal,
-				less, respectively, than rec2 */
-	const rec_t*	rec1,	/* in: physical record */
-	const rec_t*	rec2,	/* in: physical record */
-	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index)	/* in: data dictionary index */
+					/* out: 1, 0 , -1 if rec1 is greater,
+					equal, less, respectively, than rec2 */
+	const rec_t*		rec1,	/* in: physical record */
+	const rec_t*		rec2,	/* in: physical record */
+	const ulint*		offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*		offsets2,/* in: rec_get_offsets(rec2, index) */
+	const dict_index_t*	index)	/* in: data dictionary index */
 {
 	ulint		rec1_f_len;	/* length of current field in rec1 */
 	const byte*	rec1_b_ptr;	/* pointer to the current byte
@@ -731,14 +731,15 @@ cmp_rec_rec_simple(
 	ulint		rec2_byte;	/* value of current byte to be
 					compared in rec2 */
 	ulint		cur_field;	/* current field number */
+	ulint		n_uniq;
 
-	ut_ad(!rec_offs_any_extern(offsets1));
-	ut_ad(!rec_offs_any_extern(offsets2));
+	n_uniq = dict_index_get_n_unique(index);
+	ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
+	ut_ad(rec_offs_n_fields(offsets2) >= n_uniq);
+
 	ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
-	ut_ad(rec_offs_n_fields(offsets1) == rec_offs_n_fields(offsets2));
 
-	for (cur_field = 0; cur_field < rec_offs_n_fields(offsets1);
-	     cur_field++) {
+	for (cur_field = 0; cur_field < n_uniq; cur_field++) {
 
 		ulint	cur_bytes;
 		ulint	mtype;
@@ -751,6 +752,9 @@ cmp_rec_rec_simple(
 			mtype = col->mtype;
 			prtype = col->prtype;
 		}
+
+		ut_ad(!rec_offs_nth_extern(offsets1, cur_field));
+		ut_ad(!rec_offs_nth_extern(offsets2, cur_field));
 
 		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
 					       cur_field, &rec1_f_len);
