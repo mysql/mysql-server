@@ -29,6 +29,20 @@ row_ext_create(
 Looks up a column prefix of an externally stored column. */
 UNIV_INLINE
 byte*
+row_ext_lookup_ith(
+/*===============*/
+				/* out: column prefix, or NULL if
+				the column is not stored externally */
+	row_ext_t*	ext,	/* in/out: column prefix cache */
+	ulint		i,	/* in: ith element of ext */
+	const byte*	field,	/* in: locally stored part of the column */
+	ulint		f_len,	/* in: length of field, in bytes */
+	ulint*		len);	/* out: length of prefix, in bytes,
+				at most REC_MAX_INDEX_COL_LEN */
+/************************************************************************
+Looks up a column prefix of an externally stored column. */
+UNIV_INLINE
+byte*
 row_ext_lookup(
 /*===========*/
 				/* out: column prefix, or NULL if
