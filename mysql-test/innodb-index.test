@@ -306,29 +306,35 @@ explain select * from t1;
 explain select * from t1 order by a;
 drop table t1;
 
-create table t1(a int, b blob, c text, d text not null) engine=innodb default charset = utf8;
-insert into t1 values (22,repeat('jejdkrun87',2200),repeat('jejdkrun87',440),'jejdkrun87');
-insert into t1 values (44,repeat('adfd72nh9k',4400),repeat('adfd72nh9k',880),'adfd72nh9k');
-insert into t1 values (null,null,null,'null');
+create table t2(d varchar(17) primary key) engine=innodb default charset=utf8;
+create table t3(a int primary key) engine=innodb;
 
+insert into t3 values(22),(44),(33),(55),(66);
+
+insert into t2 values ('jejdkrun87'),('adfd72nh9k'),
+('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
+
+create table t1(a int, b blob, c text, d text not null)
+engine=innodb default charset = utf8;
+
+insert into t1 values (null,null,null,'null');
+insert into t1
+select a,left(repeat(d,100*a),65535),repeat(d,20*a),d from t2,t3;
+drop table t2, t3;
 select count(*) from t1 where a=44;
-select a,b=repeat(d,100*a),c=repeat(d,20*a) from t1;
-select a,length(b),length(c),d from t1;
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a) from t1;
 --error ER_PRIMARY_CANT_HAVE_NULL
 alter table t1 add primary key (a), add key (b(20));
 delete from t1 where d='null';
-alter table t1 add primary key (a,b(255),c(255)), add key (b(767));
-alter table t1 drop primary key, drop key b;
+--error ER_DUP_ENTRY
 alter table t1 add primary key (a), add key (b(20));
+delete from t1 where a%2;
+alter table t1 add primary key (a,b(255),c(255)), add key (b(767));
 select count(*) from t1 where a=44;
-select a,b=repeat(d,100*a),c=repeat(d,20*a) from t1;
-select a,length(b),length(c),d from t1;
-insert into t1 values (33,repeat('adfdpplkeock',3300),repeat('adfdpplkeock',660),'adfdpplkeock');
-insert into t1 values (55,repeat('adfdijnmnb78k',5500),repeat('adfdijnmnb78k',1100),'adfdijnmnb78k');
-insert into t1 values (66,repeat('adfdijn0loKNHJik',6600),repeat('adfdijn0loKNHJik',1320),'adfdijn0loKNHJik');
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a) from t1;
 show create table t1;
 check table t1;
 explain select * from t1 where b like 'adfd%';
-select a,b=repeat(d,100*a),c=repeat(d,20*a) from t1;
-select a,length(b),length(c),d from t1;
 drop table t1;
