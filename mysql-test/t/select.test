@@ -3450,3 +3450,13 @@ SHOW WARNINGS;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+#
+# Bug #30639: limit offset,rowcount wraps when rowcount >= 2^32 in windows
+#
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+DROP TABLE t1;
