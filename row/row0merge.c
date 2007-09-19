@@ -41,7 +41,7 @@ Completed by Sunny Bains and Marko Makela
 
 /* Block size for I/O operations in merge sort */
 
-typedef byte	row_merge_block_t[1048576];
+typedef byte	row_merge_block_t[16384];
 
 /* Secondary buffer for I/O operations of merge records */
 
@@ -776,6 +776,8 @@ row_merge_write_rec(
 			return(NULL);
 		}
 
+		UNIV_MEM_ALLOC(block[0], sizeof block[0]);
+
 		/* Copy the rest. */
 		b = block[0];
 		memcpy(b, buf[0] + avail_size, size - avail_size);
@@ -807,16 +809,15 @@ row_merge_write_eof(
 	ut_ad(foffs);
 
 	*b++ = 0;
-#ifdef UNIV_DEBUG_VALGRIND
-	/* The rest of the block is uninitialized.  Initialize it
-	to avoid bogus warnings. */
-	memset(b, 0, block[1] - b);
-#endif /* UNIV_DEBUG_VALGRIND */
+	UNIV_MEM_ASSERT_RW(block[0], b - block[0]);
+	UNIV_MEM_ASSERT_W(block[0], sizeof block[0]);
+	UNIV_MEM_VALID(block[0], sizeof block[0]);
 
 	if (!row_merge_write(fd, (*foffs)++, block)) {
 		return(NULL);
 	}
 
+	UNIV_MEM_ALLOC(block[0], sizeof block[0]);
 	return(block[0]);
 }
 
@@ -1023,6 +1024,7 @@ row_merge_read_clustered_index(
 				goto func_exit;
 			}
 
+			UNIV_MEM_ALLOC(block[0], sizeof block[0]);
 			merge_buf[i] = row_merge_buf_empty(buf);
 		}
 
@@ -1215,6 +1217,8 @@ row_merge(
 		    || !row_merge_write(of.fd, of.offset++, block)) {
 			return(DB_CORRUPTION);
 		}
+
+		UNIV_MEM_ALLOC(block[0], sizeof block[0]);
 	}
 
 	/* Swap file descriptors for the next pass. */
