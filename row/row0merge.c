@@ -179,7 +179,6 @@ row_merge_buf_add(
 					column prefixes, or NULL */
 {
 	ulint		i;
-	ulint		j;
 	ulint		n_fields;
 	ulint		data_size;
 	ulint		extra_size;
@@ -204,17 +203,19 @@ row_merge_buf_add(
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	for (i = j = 0; i < n_fields; i++, field++) {
+	for (i = 0; i < n_fields; i++, field++) {
 		dict_field_t*		ifield;
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
+		ulint			len;
 
 		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
 		row_field = dtuple_get_nth_field(row, col_no);
 		dfield_copy(field, row_field);
+		len = field->len;
 
 		if (dfield_is_null(field)) {
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
@@ -223,18 +224,19 @@ row_merge_buf_add(
 		} else if (UNIV_LIKELY(!ext)) {
 		} else if (dict_index_is_clust(index)) {
 			/* Flag externally stored fields. */
-			if (j < ext->n_ext && col_no == ext->ext[j]) {
-				j++;
-
-				ut_a(field->len >= BTR_EXTERN_FIELD_REF_SIZE);
-				dfield_set_ext(field);
+			byte*	buf = row_ext_lookup(ext, col_no,
+						     field->data, len, &len);
+			if (UNIV_LIKELY_NULL(buf)) {
+				if (i < dict_index_get_n_unique(index)) {
+					dfield_set_data(field, buf, len);
+				} else {
+					dfield_set_ext(field);
+					len = field->len;
+				}
 			}
 		} else {
-			ulint	len = field->len;
 			byte*	buf = row_ext_lookup(ext, col_no,
-						     row_field->data,
-						     row_field->len,
-						     &len);
+						     field->data, len, &len);
 			if (UNIV_LIKELY_NULL(buf)) {
 				dfield_set_data(field, buf, len);
 			}
@@ -243,30 +245,32 @@ row_merge_buf_add(
 		/* If a column prefix index, take only the prefix */
 
 		if (ifield->prefix_len) {
-			field->len = dtype_get_at_most_n_mbchars(
+			field->len = len = dtype_get_at_most_n_mbchars(
 				col->prtype,
 				col->mbminlen, col->mbmaxlen,
 				ifield->prefix_len,
-				field->len, field->data);
+				len, field->data);
 		}
 
-		ut_ad(field->len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
 		if (ifield->fixed_len) {
-			ut_ad(field->len == ifield->fixed_len);
+			ut_ad(len == ifield->fixed_len);
 			ut_ad(!dfield_is_ext(field));
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
-		} else if (field->len < 128
+		} else if (len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			extra_size++;
 		} else {
+			/* For variable-length columns, we look up the
+			maximum length from the column itself.  If this
+			is a prefix index column shorter than 256 bytes,
+			this will waste one byte. */
 			extra_size += 2;
 		}
-		data_size += field->len;
+		data_size += len;
 	}
-
-	ut_ad(!ext || !dict_index_is_clust(index) || j == ext->n_ext);
 
 #ifdef UNIV_DEBUG
 	{
