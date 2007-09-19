@@ -657,4 +657,19 @@ b
 #
 #
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b bit(2));
+INSERT INTO t1 VALUES (3, 2), (2, 3), (2, 0), (3, 2), (3, 1);
+SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
+COUNT(DISTINCT b)
+2
+2
+DROP TABLE t1;
+create table t2 (a int, b bit(2), c char(10));
+INSERT INTO t2 VALUES (3, 2, 'two'), (2, 3, 'three'), (2, 0, 'zero'), 
+(3, 2, 'two'), (3, 1, 'one');
+SELECT COUNT(DISTINCT b,c) FROM t2 GROUP BY a;
+COUNT(DISTINCT b,c)
+2
+2
+DROP TABLE t2;
 End of 5.0 tests

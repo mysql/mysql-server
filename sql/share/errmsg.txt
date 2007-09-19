@@ -5637,3 +5637,5 @@ ER_ADMIN_WRONG_MRG_TABLE
 	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
 ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
 	eng "Too high level of nesting for select"
+ER_NAME_BECOMES_EMPTY
+        eng "Name '%-.64s' has become ''"

@@ -4062,4 +4062,38 @@ SHOW WARNINGS;
 Level	Code	Message
 Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
 DROP TABLE t1;
+SELECT 1 AS ` `;
+
+1
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT 1 AS `  `;
+
+1
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT 1 AS ` x`;
+x
+1
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT `` FROM v1;
+
+1
+CREATE VIEW v2 AS SELECT 1 AS `  `;
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT `` FROM v2;
+
+1
+CREATE VIEW v3 AS SELECT 1 AS ` x`;
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+SELECT `x` FROM v3;
+x
+1
+DROP VIEW v1, v2, v3;
 End of 5.0 tests
