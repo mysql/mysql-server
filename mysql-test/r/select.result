@@ -4048,3 +4048,20 @@ Level	Code	Message
 Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
 DROP TABLE t1;
 End of 5.0 tests
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+a
+1
+2
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+a
+3
+4
+5
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+a
+3
+4
+5
+DROP TABLE t1;

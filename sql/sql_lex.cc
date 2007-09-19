@@ -2372,10 +2372,19 @@ st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
 void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
   ha_rows select_limit_val;
+  ulonglong val;
 
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
-                                                 HA_POS_ERROR);
+  val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
+  select_limit_val= (ha_rows)val;
+#ifndef BIG_TABLES
+  /* 
+    Check for overflow : ha_rows can be smaller then ulonglong if
+    BIG_TABLES is off.
+    */
+  if (val != (ulonglong)select_limit_val)
+    select_limit_val= HA_POS_ERROR;
+#endif
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
                                                  ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
