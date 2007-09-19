@@ -68,6 +68,7 @@ public:
     maybe_null=1; 
   }
   enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
@@ -248,6 +249,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "year"; }
   enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   void fix_length_and_dec()
   { 
     decimals=0;
