@@ -5,6 +5,9 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+#define DB_VERSION_MAJOR 4
+#define DB_VERSION_MINOR 1
+#define DB_VERSION_PATCH 24
 #ifndef _TOKUDB_WRAP_H
 #define DB_VERSION_STRING "Tokutek: TokuDB"
 #else
@@ -199,6 +202,8 @@ struct __toku_dbt {
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb
 #endif
+int db_env_create(DB_ENV **, u_int32_t);
+int db_create(DB **, DB_ENV *, u_int32_t);
 #if defined(__cplusplus)
 }
 #endif
