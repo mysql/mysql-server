@@ -411,11 +411,16 @@ rec_init_offsets(
 						     == DATA_BLOB)) {
 					if (len & 0x80) {
 						/* 1exxxxxxx xxxxxxxx */
+
 						len <<= 8;
 						len |= *lens--;
 
-						ut_a(len <= 0x3fff);
-						offs += len;
+						/* B-tree node pointers
+						must not contain externally
+						stored columns.  Thus
+						the "e" flag must be 0. */
+						ut_a(!(len & 0x4000));
+						offs += len & 0x3fff;
 						len = offs;
 
 						goto resolved;
