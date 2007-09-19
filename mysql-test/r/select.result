@@ -4082,3 +4082,20 @@ x
 1
 DROP VIEW v1, v2, v3;
 End of 5.0 tests
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+a
+1
+2
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+a
+3
+4
+5
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+a
+3
+4
+5
+DROP TABLE t1;
