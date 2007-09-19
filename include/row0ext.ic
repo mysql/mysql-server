@@ -54,6 +54,37 @@ row_ext_create(
 Looks up a column prefix of an externally stored column. */
 UNIV_INLINE
 byte*
+row_ext_lookup_ith(
+/*===============*/
+				/* out: column prefix, or NULL if
+				the column is not stored externally */
+	row_ext_t*	ext,	/* in/out: column prefix cache */
+	ulint		i,	/* in: index of ext->ext[] */
+	const byte*	field,	/* in: locally stored part of the column */
+	ulint		f_len,	/* in: length of field, in bytes */
+	ulint*		len)	/* out: length of prefix, in bytes,
+				at most REC_MAX_INDEX_COL_LEN */
+{
+	ut_ad(ext);
+	ut_ad(field);
+	ut_ad(len);
+	ut_ad(i < ext->n_ext);
+
+	/* Return from the cache if found */
+	if (ext->len[i]) {
+		*len = ext->len[i];
+		ut_ad(*len > f_len);
+		return(ext->buf + i * REC_MAX_INDEX_COL_LEN);
+	}
+
+	/* Update the cache */
+	return(row_ext_lookup_low(ext, i, field, f_len, len));
+}
+
+/************************************************************************
+Looks up a column prefix of an externally stored column. */
+UNIV_INLINE
+byte*
 row_ext_lookup(
 /*===========*/
 				/* out: column prefix, or NULL if
@@ -73,15 +104,7 @@ row_ext_lookup(
 
 	for (i = 0; i < ext->n_ext; i++) {
 		if (col == ext->ext[i]) {
-			/* Return from the cache if found */
-			if (ext->len[i]) {
-				*len = ext->len[i];
-				ut_ad(*len > f_len);
-				return(ext->buf + i * REC_MAX_INDEX_COL_LEN);
-			}
-
-			/* Update the cache */
-			return(row_ext_lookup_low(ext, i, field, f_len, len));
+			return(row_ext_lookup_ith(ext, i, field, f_len, len));
 		}
 	}
 
