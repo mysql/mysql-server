@@ -607,7 +607,7 @@ err_exit:
 		extra_size |= *b++;
 	}
 
-	/* Normalize extra_size.  Above, value 0 signals "end of list. */
+	/* Normalize extra_size.  Above, value 0 signals "end of list". */
 	extra_size--;
 
 	/* Read the extra bytes. */
@@ -669,6 +669,7 @@ err_exit:
 
 	/* The record spans two blocks.  Copy it to buf. */
 
+	b -= extra_size + data_size;
 	avail_size = block[1] - b;
 	memcpy(*buf, b, avail_size);
 	*mrec = *buf + extra_size;
@@ -697,9 +698,17 @@ row_merge_write_rec_low(
 /*====================*/
 	byte*		b,	/* out: buffer */
 	ulint		e,	/* in: encoded extra_size */
+#ifdef UNIV_DEBUG
+	ulint		size,	/* in: total size to write */
+#endif /* UNIV_DEBUG */
 	const mrec_t*	mrec,	/* in: record to write */
 	const ulint*	offsets)/* in: offsets of mrec */
 {
+#ifdef UNIV_DEBUG
+	const byte* const end = b + size;
+#endif /* UNIV_DEBUG */
+	ut_ad(e == rec_offs_extra_size(offsets) + 1);
+
 	if (e < 0x80) {
 		*b++ = e;
 	} else {
@@ -708,7 +717,12 @@ row_merge_write_rec_low(
 	}
 
 	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
+	ut_ad(b + rec_offs_size(offsets) == end);
 }
+
+#ifndef UNIV_DEBUG
+# define row_merge_write_rec_low(b,e,s,m,o) row_merge_write_rec_low(b,e,m,o)
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Write a merge record. */
@@ -750,7 +764,8 @@ row_merge_write_rec(
 		Copy it to the temporary buffer first. */
 		avail_size = block[1] - b;
 
-		row_merge_write_rec_low(buf[0], extra_size, mrec, offsets);
+		row_merge_write_rec_low(buf[0],
+					extra_size, size, mrec, offsets);
 
 		/* Copy the head of the temporary buffer, write
 		the completed block, and copy the tail of the
@@ -766,8 +781,8 @@ row_merge_write_rec(
 		memcpy(b, buf[0] + avail_size, size - avail_size);
 		b += size - avail_size;
 	} else {
-		row_merge_write_rec_low(b, extra_size, mrec, offsets);
-		b += rec_offs_size(offsets);
+		row_merge_write_rec_low(b, extra_size, size, mrec, offsets);
+		b += size;
 	}
 
 	return(b);
