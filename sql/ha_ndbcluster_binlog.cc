@@ -2792,6 +2792,8 @@ set_conflict_fn(NDB_SHARE *share,
 {
   DBUG_ENTER("set_conflict_fn");
   uint len= 0;
+  Ndb_event_data *event_data=
+    (share->event_data != 0) ? share->event_data : (Ndb_event_data *)share->op->getCustomData();
   switch (conflict_col->getArrayType())
   {
   case NDBCOL::ArrayTypeShortVar:
@@ -2880,8 +2882,7 @@ set_conflict_fn(NDB_SHARE *share,
       {
         /* find column in table */
         DBUG_PRINT("info", ("serching for %s %u", start_arg, len));
-        DBUG_ASSERT(share->event_data != 0); // this function is called before event ops are set up
-        TABLE_SHARE *table_s= share->event_data->table_share;
+        TABLE_SHARE *table_s= event_data->table_share;
         for (uint j= 0; j < table_s->fields; j++)
         {
           Field *field= table_s->field[j];
@@ -2934,8 +2935,7 @@ set_conflict_fn(NDB_SHARE *share,
           slave_set_resolve_max(share, ndbtab, args[0].fieldno))
       {
         /* wrong data type */
-        DBUG_ASSERT(share->event_data != 0); // this function is called before event ops are set up
-        TABLE_SHARE *table_s= share->event_data->table_share;
+        TABLE_SHARE *table_s= event_data->table_share;
         snprintf(msg, msg_len,
                  "column '%s' has wrong datatype",
                  table_s->field[args[0].fieldno]->field_name);
