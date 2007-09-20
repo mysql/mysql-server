@@ -74,16 +74,16 @@ slow_log	CREATE TABLE `slow_log` (
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
 start_time	timestamp	NO		CURRENT_TIMESTAMP	
-user_host	mediumtext	NO			
-query_time	time	NO			
-lock_time	time	NO			
-rows_sent	int(11)	NO			
-rows_examined	int(11)	NO			
+user_host	mediumtext	NO		NULL	
+query_time	time	NO		NULL	
+lock_time	time	NO		NULL	
+rows_sent	int(11)	NO		NULL	
+rows_examined	int(11)	NO		NULL	
 db	varchar(512)	YES		NULL	
 last_insert_id	int(11)	YES		NULL	
 insert_id	int(11)	YES		NULL	
 server_id	int(11)	YES		NULL	
-sql_text	mediumtext	NO			
+sql_text	mediumtext	NO		NULL	
 flush logs;
 flush tables;
 SET GLOBAL GENERAL_LOG=ON;
