@@ -166,11 +166,11 @@ LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 truncate ndb_show_tables;
-INSERT INTO t1 values (2,1,NULL);
+INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
 a	b	c
 1	1	0000-00-00 00:00:00
-2	1	2007-09-19 18:46:02
+2	2	2007-09-19 18:46:02
 DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
