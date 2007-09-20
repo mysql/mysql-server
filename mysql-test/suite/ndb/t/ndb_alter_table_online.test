@@ -86,6 +86,53 @@ truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,1,1);
 SELECT * FROM t1 ORDER BY a;
+
+CREATE ONLINE INDEX ci on t1(c);
+
+--disable_warnings
+--exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--enable_warnings
+
+select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+truncate ndb_show_tables;
+ 
+CREATE OFFLINE INDEX ci2 on t1(c);
+
+--disable_warnings
+--exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--enable_warnings
+
+select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
+
+truncate ndb_show_tables;
+ 
+DROP ONLINE INDEX ci on t1;
+
+--disable_warnings
+--exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--enable_warnings
+
+select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+truncate ndb_show_tables;
+
+DROP OFFLINE INDEX ci2 on t1;
+
+--disable_warnings
+--exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--enable_warnings
+
+select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+truncate ndb_show_tables;
+
 DROP TABLE t1;
 
 #
