@@ -1193,7 +1193,7 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records++;
@@ -1216,7 +1216,7 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     info->s->state.state.records--;
@@ -1234,7 +1234,7 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
   if (info == NULL)
     return 0;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
   {
     info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
@@ -1295,7 +1295,7 @@ prototype_redo_exec_hook(CLR_END)
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   fprintf(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
           log_desc->name, LSN_IN_PARTS(previous_undo_lsn));
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) > 0)
+  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
   {
     fprintf(tracef, "   state older than record, updating rows' count\n");
     switch (undone_record_type) {

@@ -1909,7 +1909,8 @@ static my_bool write_block_record(MARIA_HA *info,
   {
     /* Still room on page; Copy as many blobs we can into this page */
     data= tmp_data;
-    for (; column < end_column && *blob_lengths < (ulong) (end_of_data - data);
+    for (; column < end_column &&
+           *blob_lengths <= (ulong)(end_of_data - data);
          column++, blob_lengths++)
     {
       uchar *tmp_pos;

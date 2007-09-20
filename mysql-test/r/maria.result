@@ -1966,3 +1966,10 @@ select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8
 1	a	256	256	4096	4096		
 drop table t1,t2;
+CREATE TABLE t1 (seq int, s1 int, s2 blob);
+insert into t1 values (1, 1, MD5(1));
+update t1 set s1=2 where seq=1;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

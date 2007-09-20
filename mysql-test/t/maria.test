@@ -1254,6 +1254,14 @@ check table t1,t2;
 select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 drop table t1,t2;
 
+# Test UPDATE with small BLOB which fits on head page
+
+CREATE TABLE t1 (seq int, s1 int, s2 blob);
+insert into t1 values (1, 1, MD5(1));
+update t1 set s1=2 where seq=1;
+check table t1 extended;
+drop table t1;
+
 # End of 5.2 tests
 
 --disable_result_log
