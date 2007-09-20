@@ -383,6 +383,9 @@ or row lock! */
 					their level set after the page is
 					locked; see e.g.
 					ibuf_bitmap_get_map_page(). */
+#define SYNC_INFORMATION_SCHEMA	1900	/* Used when latching
+					INFORMATION SCHEMA internal
+					structures. */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
 					this in X-mode, implicit or backround
 					operations purge, rollback, foreign

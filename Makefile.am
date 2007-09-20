@@ -104,6 +104,7 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/sync0rw.ic include/sync0sync.h		\
 			include/sync0sync.ic include/sync0types.h	\
 			include/thr0loc.h include/thr0loc.ic		\
+			include/trx0i_s.h				\
 			include/trx0purge.h include/trx0purge.ic	\
 			include/trx0rec.h include/trx0rec.ic		\
 			include/trx0roll.h include/trx0roll.ic		\
@@ -123,7 +124,8 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/ut0vec.ic include/ut0list.h		\
 			include/ut0list.ic include/ut0wqueue.h		\
 			include/ha_prototypes.h handler/ha_innodb.h	\
-			include/handler0alter.h
+			include/handler0alter.h				\
+			handler/i_s.h
 
 EXTRA_LIBRARIES =	libinnobase.a
 noinst_LIBRARIES =	@plugin_innobase_static_target@
@@ -154,13 +156,16 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			row/row0undo.c row/row0upd.c row/row0vers.c	\
 			srv/srv0que.c srv/srv0srv.c srv/srv0start.c	\
 			sync/sync0arr.c sync/sync0rw.c			\
-			sync/sync0sync.c thr/thr0loc.c trx/trx0purge.c	\
+			sync/sync0sync.c thr/thr0loc.c			\
+			trx/trx0i_s.c					\
+			trx/trx0purge.c					\
 			trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c	\
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c	\
 			usr/usr0sess.c ut/ut0byte.c ut/ut0dbg.c		\
 			ut/ut0list.c ut/ut0mem.c ut/ut0rnd.c		\
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c		\
-			handler/ha_innodb.cc handler/handler0alter.cc
+			handler/ha_innodb.cc handler/handler0alter.cc	\
+			handler/i_s.cc
 
 libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
 libinnobase_a_CFLAGS  =	$(AM_CFLAGS)

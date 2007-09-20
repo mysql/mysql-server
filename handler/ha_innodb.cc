@@ -34,6 +34,7 @@
 #include <mysys_err.h>
 #include <my_sys.h>
 #include "ha_innodb.h"
+#include "i_s.h"
 #include <mysql/plugin.h>
 
 #ifndef MYSQL_SERVER
@@ -8388,5 +8389,8 @@ mysql_declare_plugin(innobase)
   innobase_stat_zip_deinit,
   0x0100 /* 1.0 */,
   NULL, NULL, NULL
-}
+},
+i_s_innodb_trx,
+i_s_innodb_locks,
+i_s_innodb_lock_waits
 mysql_declare_plugin_end;
