@@ -33,7 +33,7 @@ typedef enum enum_ma_checkpoint_level {
 
 C_MODE_START
 int ma_checkpoint_init(my_bool create_background_thread);
-void ma_checkpoint_end();
+void ma_checkpoint_end(void);
 int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait);
 C_MODE_END
 

@@ -99,9 +99,9 @@ static int filter_flush_data_file_indirect(enum pagecache_page_type type,
 static int filter_flush_data_file_evenly(enum pagecache_page_type type,
                                          pgcache_page_no_t pageno,
                                          LSN rec_lsn, void *arg);
-static int really_execute_checkpoint();
+static int really_execute_checkpoint(void);
 pthread_handler_t ma_checkpoint_background(void *arg);
-static int collect_tables();
+static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon);
 
 /**
    @brief Does a checkpoint
@@ -171,7 +171,7 @@ end:
     @retval !=0 error
 */
 
-static int really_execute_checkpoint()
+static int really_execute_checkpoint(void)
 {
   uint i, error= 0;
   /** @brief checkpoint_start_log_horizon will be stored there */
@@ -223,7 +223,8 @@ static int really_execute_checkpoint()
 
 
   /* STEP 3: fetch information about table files */
-  if (unlikely(collect_tables(&record_pieces[2])))
+  if (unlikely(collect_tables(&record_pieces[2],
+                              checkpoint_start_log_horizon)))
     goto err;
 
 
@@ -366,7 +367,7 @@ int ma_checkpoint_init(my_bool create_background_thread)
    @brief Destroys the checkpoint module
 */
 
-void ma_checkpoint_end()
+void ma_checkpoint_end(void)
 {
   DBUG_ENTER("ma_checkpoint_end");
   if (checkpoint_inited)

@@ -304,7 +304,9 @@ static my_bool delete_tails(MARIA_HA *info, MARIA_RECORD_POS *tails);
 static my_bool delete_head_or_tail(MARIA_HA *info,
                                   ulonglong page, uint record_number,
                                    my_bool head, my_bool from_update);
+#ifndef DBUG_OFF
 static void _ma_print_directory(uchar *buff, uint block_size);
+#endif
 static void compact_page(uchar *buff, uint block_size, uint rownr,
                          my_bool extend_block);
 static uchar *store_page_range(uchar *to, MARIA_BITMAP_BLOCK *block,

@@ -104,7 +104,7 @@ static int new_table(uint16 sid, const char *name,
                      LSN lsn_of_file_id);
 static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
                     struct st_dirty_page *dirty_page);
-static int close_all_tables();
+static int close_all_tables(void);
 
 /** @brief global [out] buffer for translog_read_record(); never shrinks */
 static LEX_STRING log_record_buffer;
@@ -119,7 +119,7 @@ static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
   }
 }
 static my_bool recovery_message_printed;
-static inline void print_recovery_message()
+static inline void print_recovery_message(void)
 {
   /*
     If we're really doing a recovery (reading REDOs or UNDOs), we print a
@@ -151,7 +151,7 @@ static inline void print_recovery_message()
      @retval !=0    Error
 */
 
-int maria_recover()
+int maria_recover(void)
 {
   int res= 1;
   FILE *trace_file;
@@ -2012,7 +2012,7 @@ static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
 }
 
 
-static int close_all_tables()
+static int close_all_tables(void)
 {
   int error= 0;
   LIST *list_element, *next_open;

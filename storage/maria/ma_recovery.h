@@ -24,7 +24,7 @@
 /* Performs recovery of the engine at start */
 
 C_MODE_START
-int maria_recover();
+int maria_recover(void);
 int maria_apply_log(LSN lsn, my_bool apply, FILE *trace_file,
                     my_bool execute_undo_phase, my_bool skip_DDLs);
 C_MODE_END
