@@ -254,20 +254,6 @@ int thd_non_transactional_update(const MYSQL_THD thd);
 int thd_binlog_format(const MYSQL_THD thd);
 }
 
-/*
-  don't delete it - it may be re-enabled later
-  as an optimization for the most common case InnoDB+binlog
-*/
-#if 0
-int innobase_report_binlog_offset_and_commit(
-	THD*	thd,
-	void*	trx_handle,
-	char*	log_file_name,
-	my_off_t end_offset);
-int innobase_commit_complete(void* trx_handle);
-void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
-#endif
-
 typedef struct trx_struct trx_t;
 /*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
