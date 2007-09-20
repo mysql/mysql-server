@@ -49,6 +49,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
+#include "trx0i_s.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -938,6 +939,9 @@ srv_init(void)
 		conc_slot->event = os_event_create(NULL);
 		ut_a(conc_slot->event);
 	}
+
+	/* Initialize some INFORMATION SCHEMA internal structures */
+	trx_i_s_cache_init(trx_i_s_cache);
 }
 
 /*************************************************************************
