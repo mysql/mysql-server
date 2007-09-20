@@ -241,7 +241,7 @@ select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type
 
 truncate ndb_show_tables;
 
-INSERT INTO t1 values (2,1,NULL);
+INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
