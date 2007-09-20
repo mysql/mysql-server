@@ -6696,7 +6696,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   m_table(NULL),
 #endif
   m_memory(NULL),
-  m_field_metadata(0), m_field_metadata_size(0)
+    m_field_metadata(0), m_field_metadata_size(0), m_null_bits(0)
 {
   unsigned int bytes_read= 0;
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
