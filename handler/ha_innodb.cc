@@ -63,6 +63,7 @@ static handlerton *innodb_hton_ptr;
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "../storage/innobase/include/univ.i"
+#include "../storage/innobase/include/btr0sea.h"
 #include "../storage/innobase/include/buf0buddy.h"
 #include "../storage/innobase/include/os0file.h"
 #include "../storage/innobase/include/os0thread.h"
@@ -128,6 +129,7 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -1615,6 +1617,8 @@ innobase_init(
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
+
+	btr_search_disabled = (ibool) !innobase_use_adaptive_hash_indexes;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -7309,11 +7313,12 @@ On return if there is no error then the tables AUTOINC lock is locked.*/
 
 ulong
 ha_innobase::innobase_get_auto_increment(
+/*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
 	ulint		error;
 
-	ut_a(*value == 0);
+	*value = 0;
 
 	/* Note: If the table is not initialized when we attempt the
 	read below. We initialize the table's auto-inc counter  and
@@ -7375,7 +7380,7 @@ we have a table-level lock). offset, increment, nb_desired_values are ignored.
 
 void
 ha_innobase::get_auto_increment(
-/*=================================*/
+/*============================*/
         ulonglong	offset,              /* in: */
         ulonglong	increment,           /* in: table autoinc increment */
         ulonglong	nb_desired_values,   /* in: number of values reqd */
@@ -7467,7 +7472,9 @@ ha_innobase::get_auto_increment(
 
 /* See comment in handler.h */
 int
-ha_innobase::reset_auto_increment(ulonglong value)
+ha_innobase::reset_auto_increment(
+/*==============================*/
+	ulonglong	value)		/* in: new value for table autoinc */
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
 
@@ -8192,6 +8199,17 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_adaptive_hash_indexes, innobase_use_adaptive_hash_indexes,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable the InnoDB adaptive hash indexes (enabled by default)",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
+  PLUGIN_VAR_RQCMDARG,
+  "Replication thread delay (ms) on the slave server if "
+  "innodb_thread_concurrency is reached (0 by default)",
+  NULL, NULL, 0, 0, ~0UL, 0);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
@@ -8320,6 +8338,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(use_adaptive_hash_indexes),
+  MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
