@@ -118,6 +118,31 @@ ut_usectime(
 }
 
 /**************************************************************
+Returns the number of microseconds since epoch. Similar to
+time(3), the return value is also stored in *tloc, provided
+that tloc is non-NULL. */
+
+ullint
+ut_time_us(
+/*=======*/
+			/* out: us since epoch */
+	ullint*	tloc)	/* out: us since epoch, if non-NULL */
+{
+	struct timeval	tv;
+	ullint		us;
+
+	ut_gettimeofday(&tv, NULL);
+
+	us = (ullint) tv.tv_sec * 1000000 + tv.tv_usec;
+
+	if (tloc != NULL) {
+		*tloc = us;
+	}
+
+	return(us);
+}
+
+/**************************************************************
 Returns the difference of two times in seconds. */
 
 double
@@ -487,3 +512,47 @@ ut_copy_file(
 		}
 	} while (len > 0);
 }
+
+/**************************************************************************
+snprintf(). */
+
+#ifdef __WIN__
+#include <stdarg.h>
+int
+ut_snprintf(
+				/* out: number of characters that would
+				have been printed if the size were
+				unlimited, not including the terminating
+				'\0'. */
+	char*		str,	/* out: string */
+	size_t		size,	/* in: str size */
+	const char*	fmt,	/* in: format */
+	...)			/* in: format values */
+{
+	int	res;
+	va_list	ap1;
+	va_list	ap2;
+
+	va_start(ap1, fmt);
+	va_start(ap2, fmt);
+
+	res = _vscprintf(fmt, ap1);
+
+	if (res == -1) {
+		return(-1);
+	}
+
+	if (size > 0) {
+		_vsnprintf(str, size, fmt, ap2);
+
+		if ((size_t)res >= size) {
+			str[size - 1] = '\0';
+		}
+	}
+
+	va_end(ap1);
+	va_end(ap2);
+
+	return(res);
+}
+#endif /* __WIN__ */

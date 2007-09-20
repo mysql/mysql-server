@@ -20,6 +20,21 @@ Created 1/20/1994 Heikki Tuuri
 
 typedef time_t	ib_time_t;
 
+/*************************************************************************
+Delays execution for at most max_wait_us microseconds or returns earlier
+if cond becomes true; cond is evaluated every 2 ms. */
+
+#define UT_WAIT_FOR(cond, max_wait_us)				\
+do {								\
+	ullint	start_us;					\
+	start_us = ut_time_us(NULL);				\
+	while (!(cond) 						\
+	       && ut_time_us(NULL) - start_us < (max_wait_us)) {\
+								\
+		os_thread_sleep(2000 /* 2 ms */);		\
+	}							\
+} while (0)
+
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
@@ -152,6 +167,18 @@ ut_usectime(
 /*========*/
 	ulint*	sec,	/* out: seconds since the Epoch */
 	ulint*	ms);	/* out: microseconds since the Epoch+*sec */
+
+/**************************************************************
+Returns the number of microseconds since epoch. Similar to
+time(3), the return value is also stored in *tloc, provided
+that tloc is non-NULL. */
+
+ullint
+ut_time_us(
+/*=======*/
+			/* out: us since epoch */
+	ullint*	tloc);	/* out: us since epoch, if non-NULL */
+
 /**************************************************************
 Returns the difference of two times in seconds. */
 
@@ -262,6 +289,24 @@ ut_copy_file(
 /*=========*/
 	FILE*	dest,	/* in: output file */
 	FILE*	src);	/* in: input file to be appended to output */
+
+/**************************************************************************
+snprintf(). */
+
+#ifdef __WIN__
+int
+ut_snprintf(
+				/* out: number of characters that would
+				have been printed if the size were
+				unlimited, not including the terminating
+				'\0'. */
+	char*		str,	/* out: string */
+	size_t		size,	/* in: str size */
+	const char*	fmt,	/* in: format */
+	...);			/* in: format values */
+#else
+#define ut_snprintf	snprintf
+#endif /* __WIN__ */
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
