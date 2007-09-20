@@ -1,4 +1,4 @@
-CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -O
+CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -I /usr/local/BerkeleyDB.4.1/include/ -ldb
 LFLAGS = -l CPPFLAGS = -I../include -I../newbrt
 
 #cc  $(CPPFLAGS) $(DBBINS) -shared -o libdb.so $(CFLAGS)
@@ -8,7 +8,7 @@ BDB_LOAD=/usr/local/BerkeleyDB.4.1/bin/db_load
 
 UTILS=         \
    ydb_gen     \
-#   ydb_load    \
+   ydb_load    \
 #   ydb_dump    \
 #End
 

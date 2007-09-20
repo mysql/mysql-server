@@ -14,52 +14,36 @@ extern int optopt;
 extern int opterr;
 extern int optreset;
 
-#if !defined(bool)
-typedef unsigned char bool;
-#endif
+typedef uint8_t bool;
+#define true   ((bool)1)
+#define false  ((bool)0)
 
-#if !defined(true)
-#define true ((bool)1)
-#endif
+int   usage(void);
+void  generate_keys(void);
 
-#if !defined(false)
-#define false ((bool)0)
-#endif
-#define args(arguments) arguments
-
-int   usage          args( (const char* progname) );
-void  generate_keys  args( (
-   char dbt_delimiter,
-   char* sort_delimiter,
-   const char* progname,
-   bool plaintext,
-   long minsize,
-   long maxsize,
-   long long maxnumkeys,
-   long maxkibibytes,
-   unsigned long seed,
-   bool printableonly
-) );
+char           dbt_delimiter = '\n';
+char*          sort_delimiter = "";
+char*          progname;
+bool           plaintext = false;
+long           minsize = -1;
+long           maxsize = -1;
+int64_t        maxnumkeys = -1;
+long           maxkibibytes = -1;
+bool           header = true;
+bool           footer = true;
+bool           justheader = false;
+bool           justfooter = false;
+bool           outputkeys = true;
+unsigned long  seed = 1;
+bool           printableonly = false;
+bool           leadingspace = true;
 
 int main (int argc, char *argv[]) {
    char ch;
-   char dbt_delimiter = '\n';
-   char* sort_delimiter = "";
-   const char* progname = argv[0];
-   bool plaintext = false;
-   long minsize = -1;
-   long maxsize = -1;
-   long long maxnumkeys = -1;
-   long maxkibibytes = -1;
-   bool header = true;
-   bool footer = true;
-   bool justheader = false;
-   bool justfooter = false;
-   bool outputkeys = true;
-   unsigned long seed = 1;
-   bool printableonly = false;
 
-   while ((ch = getopt(argc, argv, "PfFhHTr:s:d:p:m:M:n:N:?o:")) != EOF) {
+   progname = argv[0];
+   
+   while ((ch = getopt(argc, argv, "PfFhHTpr:s:d:p:m:M:n:N:?o:")) != EOF) {
       switch (ch) {
          case ('P'): {
             printableonly = true;
@@ -83,18 +67,21 @@ int main (int argc, char *argv[]) {
          }
          case ('T'): {
             plaintext = true;
+            leadingspace = false;
+            header = false;
+            footer = false;
+            break;
+         }
+         case ('p'): {
+            plaintext = true;
+            leadingspace = true;
             break;
          }
          case ('o'): {
-            if (freopen(optarg, "w", stdout) == NULL)
-            {
-               fprintf(
-                  stderr,
-                  "%s: %s: reopen: %s\n",
-                  progname,
-                  optarg,
-                  strerror(errno)
-               );
+            if (freopen(optarg, "w", stdout) == NULL) {
+               fprintf(stderr,
+                       "%s: %s: reopen: %s\n",
+                       progname, optarg, strerror(errno));
                return (EXIT_FAILURE);
             }
             break;
@@ -240,7 +227,7 @@ int main (int argc, char *argv[]) {
          }
          case ('?'):
          default: {
-            return (usage(progname));
+            return (usage());
          }
       }
    }
@@ -253,7 +240,7 @@ int main (int argc, char *argv[]) {
          "%s: The -h and -H options may not both be specified.\n",
          progname
       );
-      usage(progname);
+      usage();
       return (EXIT_FAILURE);
    }
    if (justfooter && !footer) {
@@ -262,7 +249,7 @@ int main (int argc, char *argv[]) {
          "%s: The -f and -F options may not both be specified.\n",
          progname
       );
-      usage(progname);
+      usage();
       return (EXIT_FAILURE);
    }
    if (justfooter && justheader) {
@@ -271,7 +258,7 @@ int main (int argc, char *argv[]) {
          "%s: The -H and -F options may not both be specified.\n",
          progname
       );
-      usage(progname);
+      usage();
       return (EXIT_FAILURE);
    }
    if (justfooter && header) {
@@ -290,13 +277,13 @@ int main (int argc, char *argv[]) {
       );
       footer = false;
    }
-   if (plaintext)
+   if (!leadingspace)
    {
       if (footer)
       {
          fprintf(
             stderr,
-            "%s: -T implies -f\n",
+            "%s: -p implies -f\n",
             progname
          );
          footer = false;
@@ -305,7 +292,7 @@ int main (int argc, char *argv[]) {
       {
          fprintf(
             stderr,
-            "%s: -T implies -h\n",
+            "%s: -p implies -h\n",
             progname
          );
          header = false;
@@ -325,7 +312,7 @@ int main (int argc, char *argv[]) {
          "%s: exactly one of the -n and -N options must be specified.\n",
          progname
       );
-      usage(progname);
+      usage();
       return (EXIT_FAILURE);
    }
    if (outputkeys && seed == 1)
@@ -359,12 +346,12 @@ int main (int argc, char *argv[]) {
          "%s: Max key size must be greater than min key size.\n",
          progname
       );
-      usage(progname);
+      usage();
       return (EXIT_FAILURE);
    }
 
    if (argc != 0) {   
-      return (usage(progname));
+      return (usage());
    }
    if (header)
    {
@@ -388,18 +375,7 @@ int main (int argc, char *argv[]) {
    if (outputkeys)
    {
       /* Generate Keys! */
-      generate_keys(
-         dbt_delimiter,
-         sort_delimiter,
-         progname,
-         plaintext,
-         minsize,
-         maxsize,
-         maxnumkeys,
-         maxkibibytes,
-         seed,
-         printableonly
-      );
+      generate_keys();
    }
    if (footer)
    {
@@ -408,10 +384,11 @@ int main (int argc, char *argv[]) {
    return 0;
 }
 
-int usage(const char* progname)
+int usage()
 {
-   printf
+   fprintf
    (
+      stderr,
       "usage: %s [-ThHfF] [-d delimiter] [-s delimiter]\n"
       "       -m minsize -M maxsize [-r random seed]\n"
       "       (-n maxnumkeys | -N maxkibibytes) [-o filename]\n",
@@ -437,91 +414,34 @@ unsigned char randbyte()
    return retval;
 }
 
-/* Uniformly random int from [min,max] */
-int random_range(int min, int max)
+/* Almost-uniformly random int from [0,max) */
+int random_below(int max)
 {
-   int power;
-   int number;
-   int choices;
-
-   if (min == 0 && max == 0) {
-      return 0;
-   }
-
-   choices = max - min + 1;
-   if (choices < 2)
-   {
-      return min;
-   }
-
-   for (power = 2; power < choices; power <<= 1)
-   {
-   }
-
-   do
-   {
-      number = random() & (power - 1);
-   }
-      while (number >= choices);
-   
-   return min + number;
+   assert(max > 0);
+   return (random() % max);
 }
 
-void outputbyte(unsigned char ch, bool plaintext)
+void outputbyte(unsigned char ch)
 {
    if (plaintext) {
-      if (ch != '\n' && isprint(ch)) {
-         switch (ch) {
-            case ('\\'): {
-               printf("\\\\");
-               break;
-            }
-            default:
-            {
-               printf("%c", ch);
-               break;
-            }
-         }
-      }
-      else {
-         printf(
-            "\\%c%c",
-            "0123456789abcdef"[(ch & 0xf0) >> 4],
-            "0123456789abcdef"[ch & 0x0f]
-         );
-      }
+      if (ch == '\\')         printf("\\\\");
+      else if (isprint(ch))   printf("%c", ch);
+      else                    printf("\\%02x", ch);
    }
-   else {
-      printf(
-         "%c%c",
-         "0123456789abcdef"[(ch & 0xf0) >> 4],
-         "0123456789abcdef"[ch & 0x0f]
-      );
-   }
+   else printf("%02x", ch);
 }
 
-void outputstring(char* str, bool plaintext)
+void outputstring(char* str)
 {
    char* p;
 
    for (p = str; *p != '\0'; p++)
    {
-      outputbyte((unsigned char)*p, plaintext);
+      outputbyte((unsigned char)*p);
    }
 }
 
-void generate_keys(
-   char dbt_delimiter,
-   char* sort_delimiter,
-   const char* progname,
-   bool plaintext,
-   long minsize,
-   long maxsize,
-   long long maxnumkeys,
-   long maxkibibytes,
-   unsigned long seed,
-   bool printableonly
-)
+void generate_keys()
 {
    bool usedemptykey = false;
    long long numgenerated = 0;
@@ -545,12 +465,12 @@ void generate_keys(
       numgenerated++;
       
       /* Generate a key. */
-      if (!plaintext) {
+      if (leadingspace) {
          printf(" ");   /* Each key is preceded by a space. */
       }
       {
          /* Pick a key length. */
-         length = random_range(minsize, maxsize);
+         length = random_below(maxsize - minsize + 1) + minsize;
          
          /* Output 'length' random bytes. */
          for (i = 0; i < length; i++)
@@ -562,7 +482,7 @@ void generate_keys(
             }
                while (printableonly && !isprint(ch));
             
-            outputbyte(ch, plaintext);
+            outputbyte(ch);
          }
          totalsize += length;
          if (length == 0 && !usedemptykey)
@@ -573,14 +493,14 @@ void generate_keys(
          {
             /* Append identifier to ensure uniqueness. */
             sprintf(identifier, "x%llx", numgenerated);
-            outputstring(identifier, plaintext);
+            outputstring(identifier);
             totalsize += strlen(identifier);
          }
       }
       printf("%c", dbt_delimiter);
 
       /* Generate a value. */
-      if (!plaintext) {
+      if (leadingspace) {
          printf(" ");   /* Each value is preceded by a space. */
       }
       {
@@ -597,7 +517,7 @@ void generate_keys(
             }
                while (printableonly && !isprint(ch));
             
-            outputbyte(ch, plaintext);
+            outputbyte(ch);
          }
          totalsize += length;
       }
