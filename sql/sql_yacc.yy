@@ -1610,13 +1610,13 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-            lex->alter_info.build_method= $2;
 	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
 							NULL,
 							TL_OPTION_UPDATING))
 	      MYSQL_YYABORT;
             lex->alter_info.reset();
             lex->alter_info.flags= ALTER_ADD_INDEX;
+            lex->alter_info.build_method= $2;
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
