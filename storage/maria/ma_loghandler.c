@@ -5170,7 +5170,7 @@ my_bool translog_init_scanner(LSN lsn,
 {
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_init_scanner");
-  DBUG_PRINT("enter", ("LSN: (0x%lu,0x%lx)", LSN_IN_PARTS(lsn));
+  DBUG_PRINT("enter", ("LSN: (0x%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE != 0);
   DBUG_ASSERT(translog_inited == 1);
 
@@ -5186,7 +5186,7 @@ my_bool translog_init_scanner(LSN lsn,
                       LSN_IN_PARTS(scanner->horizon)));
 
   /* lsn < horizon */
-  DBUG_ASSERT(lsn < scanner->horizon));
+  DBUG_ASSERT(lsn < scanner->horizon);
 
   scanner->page_addr= lsn;
   scanner->page_addr-= scanner->page_offset; /*decrease offset */
