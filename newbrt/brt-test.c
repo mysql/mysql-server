@@ -1433,9 +1433,10 @@ void test_multiple_brt_cursor_walk(int n) {
 
     unlink(fname);
 
+    int nodesize = 1<<12;
     int h = log16(n);
-    int cachesize = 2 * h * ncursors;
-    r = brt_create_cachetable(&ct, cachesize);
+    int cachesize = 2 * h * ncursors * nodesize;
+    r = brt_create_cachetable_size(&ct, 127, cachesize);
     assert(r==0);
 
     r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  

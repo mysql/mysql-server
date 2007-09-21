@@ -56,7 +56,7 @@ static void file_is_not_present(CACHEFILE cf) {
 }
 
 
-static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void *value, int write_me __attribute__((__unused__)), int keep_me __attribute__((__unused__))) {
+static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void *value, long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), int keep_me __attribute__((__unused__))) {
     int *v = value;
     //cachetable_print_state(ct);
     //printf("Flush %lld %d\n", key, (int)value);
@@ -65,7 +65,7 @@ static void flush_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY ke
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, void*extraargs) {
+static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==(long)key);
     *value = (void*)(long)key;
     return 0;
