@@ -1119,6 +1119,8 @@ row_merge_read_clustered_index(
 				continue;
 			}
 
+			/* The buffer must be sufficiently large
+			to hold at least one record. */
 			ut_ad(buf->n_tuples || !has_next);
 
 			/* We have enough data tuples to form a block.
@@ -1143,6 +1145,16 @@ row_merge_read_clustered_index(
 
 			UNIV_MEM_INVALID(block[0], sizeof block[0]);
 			merge_buf[i] = row_merge_buf_empty(buf);
+
+			/* Try writing the record again, now that
+			the buffer has been written out and emptied. */
+
+			if (UNIV_UNLIKELY
+			    (row && !row_merge_buf_add(buf, row, ext))) {
+				/* An empty buffer should have enough
+				room for at least one record. */
+				ut_error;
+			}
 		}
 
 		mem_heap_empty(row_heap);
