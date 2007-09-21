@@ -23,6 +23,11 @@ void brt_flush (BRT); /* fsync and clear the caches. */
 
 int brt_create_cachetable (CACHETABLE *t, int n_cachlines /* Pass 0 if you want the default. */);
 
+/* create and initialize a cache table
+   hashsize is the initialize size of the lookup table
+   cachesize is the upper limit on the size of the size of the values in the table */
+int brt_create_cachetable_size (CACHETABLE *t, int hashsize, long cachesize);
+
 extern int brt_debug_mode;
 int verify_brt (BRT brt);
 

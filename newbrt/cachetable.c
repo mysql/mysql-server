@@ -21,6 +21,7 @@ typedef struct ctpair *PAIR;
 struct ctpair {
     enum typ_tag tag;
     long long pinned;
+    long size;
     char     dirty;
     CACHEKEY key;
     void    *value;
@@ -39,6 +40,7 @@ struct cachetable {
     PAIR *table;
     PAIR  head,tail; // of LRU list.  head is the most recently used.  tail is least recently used.
     CACHEFILE cachefiles;
+    long size_current, size_limit;
 };
 
 struct fileid {
@@ -54,24 +56,11 @@ struct cachefile {
     struct fileid fileid;
 };
 
-void cachetable_print_state (CACHETABLE ct) {
-    int i;
-    for (i=0; i<ct->table_size; i++) {
-	PAIR p;
-	printf("t[%d]=", i);
-	for (p=ct->table[i]; p; p=p->hash_chain) {
-	    printf(" {%lld, %p, dirty=%d, pin=%lld}", p->key, p->cachefile, p->dirty, p->pinned);
-	}
-	printf("\n");
-    }
-}
-
-
-int create_cachetable (CACHETABLE *result, int n_entries) {
+int create_cachetable_size(CACHETABLE *result, int table_size, long size_limit) {
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
-    t->table_size = n_entries;
+    t->table_size = table_size;
     MALLOC_N(t->table_size, t->table);
     assert(t->table);
     t->head = t->tail = 0;
@@ -79,6 +68,8 @@ int create_cachetable (CACHETABLE *result, int n_entries) {
 	t->table[i]=0;
     }
     t->cachefiles = 0;
+    t->size_current = 0;
+    t->size_limit = size_limit;
     *result = t;
     return 0;
 }
@@ -97,7 +88,8 @@ int cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags,
     fileid.st_ino = statbuf.st_ino;
     for (extant = t->cachefiles; extant; extant=extant->next) {
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
-	    close(fd);
+	    r = close(fd);
+            assert(r == 0);
 	    extant->refcount++;
 	    *cf = extant;
 	    return 0;
@@ -136,7 +128,9 @@ int cachefile_close (CACHEFILE *cfp) {
 	int r;
 	if ((r = cachefile_flush_and_remove(cf))) return r;
 	r = close(cf->fd);
-	cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
+	assert(r == 0);
+        cf->fd = -1;
+        cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
 	toku_free(cf);
 	*cfp=0;
 	return r;
@@ -238,25 +232,26 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->dirty && write_me)); 
     //printf("%s:%d TAG=%x p=%p\n", __FILE__, __LINE__, remove_me->tag, remove_me);
     //printf("%s:%d dirty=%d\n", __FILE__, __LINE__, remove_me->dirty);
-    remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->dirty && write_me, 0);
+    remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->size, remove_me->dirty && write_me, 0);
     t->n_in_table--;
     // Remove it from the hash chain.
     t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
+    t->size_current -= remove_me->size;
     toku_free(remove_me);
 }
 
 static void flush_and_keep (PAIR flush_me) {
     if (flush_me->dirty) {
 	WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=1, 0)\n", __FILE__, __LINE__, flush_me->key, flush_me->value)); 
-        flush_me->flush_callback(flush_me->cachefile, flush_me->key, flush_me->value, 1, 1);
+        flush_me->flush_callback(flush_me->cachefile, flush_me->key, flush_me->value, flush_me->size, 1, 1);
 	flush_me->dirty=0;
     }
 }
 
-static int maybe_flush_some (CACHETABLE t) {
- again:
-    if (t->n_in_table>=t->table_size) {
-	/* Try to remove one. */
+static int maybe_flush_some (CACHETABLE t, long size) {
+again:
+    if (size + t->size_current > t->size_limit) {
+        /* Try to remove one. */
 	PAIR remove_me;
 	for (remove_me = t->tail; remove_me; remove_me = remove_me->prev) {
 	    if (!remove_me->pinned) {
@@ -271,13 +266,14 @@ static int maybe_flush_some (CACHETABLE t) {
     return 0;
 }
 
-static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value,
-                             cachetable_flush_func_t flush_callback,
-                             cachetable_fetch_func_t fetch_callback,
-                             void *extraargs, int dirty) {
+static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value, long size,
+                                cachetable_flush_func_t flush_callback,
+                                cachetable_fetch_func_t fetch_callback,
+                                void *extraargs, int dirty) {
     TAGMALLOC(PAIR, p);
     p->pinned = 1;
     p->dirty = dirty;
+    p->size = size;
     //printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
     p->key = key;
     p->value = value;
@@ -286,14 +282,16 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     p->flush_callback = flush_callback;
     p->fetch_callback = fetch_callback;
     p->extraargs = extraargs;
-    lru_add_to_list(cachefile->cachetable, p);
-    p->hash_chain = cachefile->cachetable->table[h];
-    cachefile->cachetable->table[h] = p;
-    cachefile->cachetable->n_in_table++;
+    CACHETABLE ct = cachefile->cachetable;
+    lru_add_to_list(ct, p);
+    p->hash_chain = ct->table[h];
+    ct->table[h] = p;
+    ct->n_in_table++;
+    ct->size_current += size;
     return 0;
 }
 
-int cachetable_put (CACHEFILE cachefile, CACHEKEY key, void*value,
+int cachetable_put_size(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
                     cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     int h = hashit(cachefile->cachetable, key);
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
@@ -309,12 +307,12 @@ int cachetable_put (CACHEFILE cachefile, CACHEKEY key, void*value,
 	    }
 	}
     }
-    if (maybe_flush_some(cachefile->cachetable)) 
+    if (maybe_flush_some(cachefile->cachetable, size)) 
         return -2;
-    return cachetable_insert_at(cachefile, h, key, value, flush_callback, fetch_callback, extraargs, 1);
+    return cachetable_insert_at(cachefile, h, key, value, size, flush_callback, fetch_callback, extraargs, 1);
 }
 
-int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
+int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
                             cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int h = hashit(t,key);
@@ -322,20 +320,26 @@ int cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value,
     for (p=t->table[h]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
+            *sizep = p->size;
 	    p->pinned++;
 	    lru_touch(t,p);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
 	    return 0;
 	}
     }
-    if (maybe_flush_some(t)) return -2;
+    if (maybe_flush_some(t, 1)) return -2;
     {
-	void *toku_value;
+	void *toku_value; 
+        long size = 1; // compat
 	int r;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
-	if ((r=fetch_callback(cachefile, key, &toku_value,extraargs))) return r;
-	cachetable_insert_at(cachefile, h, key, toku_value, flush_callback, fetch_callback, extraargs, 0);
+	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs))) 
+            return r;
+	cachetable_insert_at(cachefile, h, key, toku_value, size, flush_callback, fetch_callback, extraargs, 0);
 	*value = toku_value;
+        if (sizep)
+            *sizep = size;
+        // maybe_flush_some(t, size);
     }
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return 0;
@@ -358,7 +362,7 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 }
 
 
-int cachetable_unpin (CACHEFILE cachefile, CACHEKEY key, int dirty) {
+int cachetable_unpin_size (CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
     CACHETABLE t = cachefile->cachetable;
     int h = hashit(t,key);
     PAIR p;
@@ -368,12 +372,16 @@ int cachetable_unpin (CACHEFILE cachefile, CACHEKEY key, int dirty) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    assert(p->pinned>0);
 	    p->pinned--;
-	    p->dirty  |= dirty;
+	    p->dirty |= dirty;
+            if (size != 0) {
+                t->size_current -= p->size;
+                p->size = size;
+                t->size_current += p->size;
+            }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    return 0;
 	}
     }
-    printf("\n");
     return 0;
 }
 
@@ -496,16 +504,47 @@ int cachefile_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
-/* debug function */
-int cachetable_get_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
-                         int *dirty_ptr, long long *pin_ptr) {
+/* debug functions */
+
+void cachetable_print_state (CACHETABLE ct) {
+    int i;
+    for (i=0; i<ct->table_size; i++) {
+	PAIR p = ct->table[i];
+        if (p != 0) {
+	printf("t[%d]=", i);
+	for (p=ct->table[i]; p; p=p->hash_chain) {
+	    printf(" {%lld, %p, dirty=%d, pin=%lld, size=%ld}", p->key, p->cachefile, p->dirty, p->pinned, p->size);
+	}
+	printf("\n");
+        }
+    }
+}
+
+void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
+    if (num_entries_ptr) 
+        *num_entries_ptr = ct->n_in_table;
+    if (hash_size_ptr)
+        *hash_size_ptr = ct->table_size;
+    if (size_current_ptr)
+        *size_current_ptr = ct->size_current;
+    if (size_limit_ptr)
+        *size_limit_ptr = ct->size_limit;
+}
+
+int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
+                         int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
     int h = hashit(ct, key);
     PAIR p;
     for (p = ct->table[h]; p; p = p->hash_chain) {
         if (p->key == key) {
-            *value_ptr = p->value;
-            *dirty_ptr = p->dirty;
-            *pin_ptr = p->pinned;
+            if (value_ptr)
+                *value_ptr = p->value;
+            if (dirty_ptr)
+                *dirty_ptr = p->dirty;
+            if (pin_ptr)
+                *pin_ptr = p->pinned;
+            if (size_ptr)
+                *size_ptr = p->size;
             return 0;
         }
     }

@@ -60,7 +60,16 @@ void brtnode_free (BRTNODE *nodep) {
     *nodep=0;
 }
 
-void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnode_v, int write_me, int keep_me) {
+long brtnode_size(BRTNODE node) {
+    long size;
+    if (node->height > 0)
+        size = node->u.n.n_bytes_in_hashtables;
+    else
+        size = node->u.l.n_bytes_in_buffer;
+    return size;
+}
+
+void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnode_v, long size __attribute((unused)), int write_me, int keep_me) {
     BRTNODE brtnode = brtnode_v;
     if (0) {
 	printf("%s:%d brtnode_flush_callback %p keep_me=%d height=%d", __FILE__, __LINE__, brtnode, keep_me, brtnode->height);
@@ -80,13 +89,16 @@ void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnod
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
-int brtnode_fetch_callback (CACHEFILE cachefile, diskoff nodename, void **brtnode_pv,void*extraargs) {
+int brtnode_fetch_callback (CACHEFILE cachefile, diskoff nodename, void **brtnode_pv, long *sizep __attribute__((unused)), void*extraargs) {
     long nodesize=(long)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    return deserialize_brtnode_from(cachefile_fd(cachefile), nodename, result, nodesize);
+    int r = deserialize_brtnode_from(cachefile_fd(cachefile), nodename, result, nodesize);
+    if (r == 0)
+        *sizep = brtnode_size(*result);
+    return r;
 }
 	
-void brtheader_flush_callback (CACHEFILE cachefile, diskoff nodename, void *header_v, int write_me, int keep_me) {
+void brtheader_flush_callback (CACHEFILE cachefile, diskoff nodename, void *header_v, long size __attribute((unused)), int write_me, int keep_me) {
     struct brt_header *h = header_v;
     assert(nodename==0);
     assert(!h->dirty); // shouldn't be dirty once it is unpinned.
@@ -106,10 +118,11 @@ void brtheader_flush_callback (CACHEFILE cachefile, diskoff nodename, void *head
     }
 }
 
-int brtheader_fetch_callback (CACHEFILE cachefile, diskoff nodename, void **headerp_v, void*extraargs __attribute__((__unused__))) {
+int brtheader_fetch_callback (CACHEFILE cachefile, diskoff nodename, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__))) {
     struct brt_header **h = (struct brt_header **)headerp_v;
     assert(nodename==0);
-    return deserialize_brtheader_from(cachefile_fd(cachefile), nodename, h);
+    int r = deserialize_brtheader_from(cachefile_fd(cachefile), nodename, h);
+    return r;
 }
 
 int read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header) {
@@ -238,7 +251,7 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height) {
     initialize_brtnode(t, n, name, height);
     *result = n;
     assert(n->nodesize>0);
-    r=cachetable_put(t->cf, n->thisnodename, n,
+    r=cachetable_put_size(t->cf, n->thisnodename, n, brtnode_size(n),
 		     brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)t->h->nodesize);
     assert(r==0);
 }
@@ -663,9 +676,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     toku_hashtable_free(&old_h);
 
-    r=cachetable_unpin(t->cf, childa->thisnodename, childa->dirty);
+    r=cachetable_unpin_size(t->cf, childa->thisnodename, childa->dirty, brtnode_size(childa));
     assert(r==0);
-    r=cachetable_unpin(t->cf, childb->thisnodename, childb->dirty);
+    r=cachetable_unpin_size(t->cf, childb->thisnodename, childb->dirty, brtnode_size(childb));
     assert(r==0);
 		
 
@@ -776,7 +789,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
     }
     if (debug) printf("%s:%d %*sdone push_some_brt_cmds_down, unpinning %lld\n", __FILE__, __LINE__, debug, "", targetchild);
-    r=cachetable_unpin(t->cf, targetchild, child->dirty);
+    r=cachetable_unpin_size(t->cf, targetchild, child->dirty, brtnode_size(child));
     if (r!=0) return r;
     *did_split=0;
     assert(serialize_brtnode_size(node)<=node->nodesize);
@@ -953,7 +966,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
                     k->app_private, db);
             assert(r == 0);
         } else {
-            r = cachetable_unpin(t->cf, child->thisnodename, child->dirty);
+            r = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
             assert(r == 0);
         }
 
@@ -990,7 +1003,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 					  k->app_private, db);
 		  if (r!=0) return r;
 	      } else {
-		  cachetable_unpin(t->cf, child->thisnodename, child->dirty);
+		  cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
 		  *did_split = 0;
 	      }
 	  }
@@ -1052,13 +1065,17 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     }
 }
 
+int brt_create_cachetable_size(CACHETABLE *ct, int hashsize, long cachesize) {
+    return create_cachetable_size(ct, hashsize, cachesize);
+}
+
 //enum {n_nodes_in_cache =64};
 enum {n_nodes_in_cache =127};
 
 int brt_create_cachetable (CACHETABLE *ct, int cachelines) {
     if (cachelines==0) cachelines=n_nodes_in_cache;
     assert(cachelines>0);
-    return create_cachetable(ct, cachelines);
+    return brt_create_cachetable_size(ct, cachelines, cachelines*1024*1024);
 }
 
 static int setup_brt_root_node (BRT t, diskoff offset) {
@@ -1073,7 +1090,7 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
 	printf("%s:%d for tree %p node %p mdict_create--> %p\n", __FILE__, __LINE__, t, node, node->u.l.buffer);
 	printf("%s:%d put root at %lld\n", __FILE__, __LINE__, offset);
     }
-    r=cachetable_put(t->cf, offset, node,
+    r=cachetable_put_size(t->cf, offset, node, brtnode_size(node),
 		     brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)t->h->nodesize);
     if (r!=0) {
 	toku_free(node);
@@ -1081,7 +1098,7 @@ static int setup_brt_root_node (BRT t, diskoff offset) {
     }
     //printf("%s:%d created %lld\n", __FILE__, __LINE__, node->thisnodename);
     verify_counts(node);
-    r=cachetable_unpin(t->cf, node->thisnodename, node->dirty);
+    r=cachetable_unpin_size(t->cf, node->thisnodename, node->dirty, brtnode_size(node));
     if (r!=0) {
 	toku_free(node);
 	return r;
@@ -1255,11 +1272,13 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     r=toku_hashtable_create(&newroot->u.n.htables[0]); if (r!=0) return r;
     r=toku_hashtable_create(&newroot->u.n.htables[1]); if (r!=0) return r;
     verify_counts(newroot);
-    r=cachetable_unpin(brt->cf, nodea->thisnodename, nodea->dirty); if (r!=0) return r;
-    r=cachetable_unpin(brt->cf, nodeb->thisnodename, nodeb->dirty); if (r!=0) return r;
+    r=cachetable_unpin_size(brt->cf, nodea->thisnodename, nodea->dirty, brtnode_size(nodea)); 
+    if (r!=0) return r;
+    r=cachetable_unpin_size(brt->cf, nodeb->thisnodename, nodeb->dirty, brtnode_size(nodeb)); 
+    if (r!=0) return r;
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, brt->root);
-    cachetable_put(brt->cf, newroot_diskoff, newroot,
-    brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
+    cachetable_put_size(brt->cf, newroot_diskoff, newroot, brtnode_size(newroot),
+                        brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
     brt_update_cursors_new_root(brt, newroot, nodea, nodeb);
     return 0;
 }
@@ -1307,7 +1326,7 @@ int brt_root_put_cmd(BRT brt, BRT_CMD *cmd) {
 	    assert(node->u.n.n_children<=TREE_FANOUT);
         dirty = node->dirty;
     }
-    cachetable_unpin(brt->cf, *rootp, dirty);
+    cachetable_unpin_size(brt->cf, *rootp, dirty, 0);
     r = unpin_brt_header(brt);
     assert(r == 0);
     //assert(0==cachetable_assert_all_unpinned(brt->cachetable));
@@ -1340,7 +1359,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
     if (node->height==0) {
 	result = pma_lookup(node->u.l.buffer, k, v, db);
 	//printf("%s:%d looked up something, got answerlen=%d\n", __FILE__, __LINE__, answerlen);
-	r = cachetable_unpin(brt->cf, off, 0);
+	r = cachetable_unpin_size(brt->cf, off, 0, 0);
 	assert(r == 0);
         return result;
     }
@@ -1362,14 +1381,14 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db) {
                 assert(0);
                 result = -1; // some versions of gcc complain
             }
-            r = cachetable_unpin(brt->cf, off, 0);
+            r = cachetable_unpin_size(brt->cf, off, 0, 0);
             assert(r == 0);
             return result;
 	}
     }
     
     result = brt_lookup_node(brt, node->u.n.children[childnum], k, v, db);
-    r = cachetable_unpin(brt->cf, off, 0);
+    r = cachetable_unpin_size(brt->cf, off, 0, 0);
     assert(r == 0);
     return result;
 }
@@ -1460,7 +1479,7 @@ int dump_brtnode (BRT brt, diskoff off, int depth, bytevec lorange, ITEMLEN lole
 		    ( keylen=keylen, vallen=vallen, printf(" %s:%s", (char*)key, (char*)val)));
 	printf("\n");
     }
-    r = cachetable_unpin(brt->cf, off, 0);
+    r = cachetable_unpin_size(brt->cf, off, 0, 0);
     assert(r==0);
     return result;
 }
@@ -1486,7 +1505,7 @@ int show_brtnode_blocknumbers (BRT brt, diskoff off) {
     assert(off%brt->h->nodesize==0);
     if ((r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				    brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize))) {
-	if (0) { died0: cachetable_unpin(brt->cf, off, 0); }
+	if (0) { died0: cachetable_unpin_size(brt->cf, off, 0, 0); }
 	return r;
     }
     node=node_v;
@@ -1496,7 +1515,7 @@ int show_brtnode_blocknumbers (BRT brt, diskoff off) {
 	    if ((r=show_brtnode_blocknumbers(brt, node->u.n.children[i]))) goto died0;
 	}
     }
-    r = cachetable_unpin(brt->cf, off, 0);
+    r = cachetable_unpin_size(brt->cf, off, 0, 0);
     return r;
 }
 
@@ -1573,7 +1592,7 @@ int verify_brtnode (BRT brt, diskoff off, bytevec lorange, ITEMLEN lolen, byteve
 	    }
 	}
     }
-    if ((r = cachetable_unpin(brt->cf, off, 0))) return r;
+    if ((r = cachetable_unpin_size(brt->cf, off, 0, 0))) return r;
     return result;
 }
 
@@ -1647,7 +1666,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor) {
                 CACHEKEY *rootp = calculate_root_offset_pointer(t);
                 r = brt_init_new_root(t, childa, childb, child_splitk, rootp);
                 assert(r == 0);
-                r = cachetable_unpin(t->cf, *rootp, 1);
+                r = cachetable_unpin_size(t->cf, *rootp, 1, 0);
                 assert(r == 0);
             } else {
                 BRTNODE upnode;
@@ -1788,7 +1807,7 @@ void brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE le
         if (0) printf("brt_cursor_leaf_split %p oldnode %lld newnode %lld\n", cursor, 
                       oldnode->thisnodename, newnode->thisnodename);
 
-        r = cachetable_unpin(t->cf, oldnode->thisnodename, oldnode->dirty);
+        r = cachetable_unpin_size(t->cf, oldnode->thisnodename, oldnode->dirty, brtnode_size(oldnode));
         assert(r == 0);
         r = cachetable_maybe_get_and_pin(t->cf, newnode->thisnodename, &v);
         assert(r == 0 && v == newnode);
@@ -1868,7 +1887,7 @@ void brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE
         if (0) printf("brt_cursor_nonleaf_split %p oldnode %lld newnode %lld\n",
     cursor, oldnode->thisnodename, newnode->thisnodename);
 
-        r = cachetable_unpin(t->cf, oldnode->thisnodename, oldnode->dirty);
+        r = cachetable_unpin_size(t->cf, oldnode->thisnodename, oldnode->dirty, brtnode_size(oldnode));
         assert(r == 0);
         r = cachetable_maybe_get_and_pin(t->cf, newnode->thisnodename, &v);
         assert(r == 0 && v == newnode); 
@@ -1947,7 +1966,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
     if (r!=0) {
-	if (0) { died0: cachetable_unpin(brt->cf, off, 1); }
+	if (0) { died0: cachetable_unpin_size(brt->cf, off, 1, 0); }
 	return r;
     }
     BRTNODE node = node_v;
@@ -2008,7 +2027,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
     int r = cachetable_get_and_pin(brt->cf, off, &node_v,
 				   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)brt->h->nodesize);
     if (r!=0) {
-	if (0) { died0: cachetable_unpin(brt->cf, off, 1); }
+	if (0) { died0: cachetable_unpin_size(brt->cf, off, 1, 0); }
 	return r;
     }
     BRTNODE node = node_v;
@@ -2075,7 +2094,7 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor) {
     node = cursor->path[cursor->path_len-1];
     childnum = cursor->pathcnum[cursor->path_len-1];
     cursor->path_len -= 1;
-    cachetable_unpin(cursor->brt->cf, node->thisnodename, node->dirty);
+    cachetable_unpin_size(cursor->brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
 
     if (brt_cursor_path_empty(cursor))
         return DB_NOTFOUND;
@@ -2135,7 +2154,7 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
     node = cursor->path[cursor->path_len-1];
     childnum = cursor->pathcnum[cursor->path_len-1];
     cursor->path_len -= 1;
-    cachetable_unpin(cursor->brt->cf, node->thisnodename, node->dirty);
+    cachetable_unpin_size(cursor->brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
 
     if (brt_cursor_path_empty(cursor))
         return DB_NOTFOUND;
@@ -2236,7 +2255,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag
 
     if (r != 0) {
         cursor->path_len -= 1;
-        cachetable_unpin(brt->cf, off, node->dirty);
+        cachetable_unpin_size(brt->cf, off, node->dirty, brtnode_size(node));
     }
     return r;
 }
@@ -2298,7 +2317,7 @@ int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
 
     if (r != 0) {
         cursor->path_len -= 1;
-        cachetable_unpin(brt->cf, off, node->dirty);
+        cachetable_unpin_size(brt->cf, off, node->dirty, brtnode_size(node));
     }
     return r;
 }
@@ -2310,7 +2329,7 @@ static int unpin_cursor (BRT_CURSOR cursor) {
     for (i=0; i<cursor->path_len; i++) {
         BRTNODE node = cursor->path[i];
         brt_node_remove_cursor(node, cursor->pathcnum[i], cursor);
-	int r2 = cachetable_unpin(brt->cf, node->thisnodename, node->dirty);
+	int r2 = cachetable_unpin_size(brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
 	if (r==0) r=r2;
     }
     if (cursor->pmacurs) {

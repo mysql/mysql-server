@@ -1,11 +1,12 @@
-#include "memory.h"
-#include "cachetable.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "memory.h"
+#include "cachetable.h"
 
 struct item {
     CACHEKEY key;
@@ -25,7 +26,7 @@ static void expectN(CACHEKEY key) {
 
 CACHEFILE expect_f;
 
-static void flush (CACHEFILE f, CACHEKEY key, void*value, int write_me __attribute__((__unused__)), int keep_mee __attribute__((__unused__))) {
+static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), int keep_mee __attribute__((__unused__))) {
     struct item *it = value;
     int i;
 
@@ -57,7 +58,7 @@ struct item *make_item (CACHEKEY key) {
 }
 
 CACHEKEY did_fetch=-1;
-int fetch (CACHEFILE f, CACHEKEY key, void**value, void*extraargs) {
+int fetch (CACHEFILE f, CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     printf("Fetch %lld\n", key);
     assert (expect_f==f);
     assert((long)extraargs==23);
@@ -144,7 +145,7 @@ void test0 (void) {
 	assert(did_fetch==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key==2);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
-	assert(expect_n_flushes==0);
+        assert(expect_n_flushes==0);
     }
 	
     r=cachetable_unpin(f, 2, 1);
@@ -173,11 +174,14 @@ void test0 (void) {
     memory_check_all_free();
 }
 
-static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void *value, int write_me __attribute__((__unused__)), int keep_me __attribute__((__unused__))) {
+static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void *value,
+                     long size __attribute__((__unused__)), int write_me __attribute__((__unused__)), 
+                     int keep_me __attribute__((__unused__))) {
     int *v = value;
     assert(*v==0);
 }
-static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void**value, void*extraargs) {
+static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), 
+                    void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==42);
     *value=0;
     return 0;
@@ -223,16 +227,17 @@ void test_nested_pin (void) {
 
 void null_flush (CACHEFILE cf  __attribute__((__unused__)),
 		 CACHEKEY k    __attribute__((__unused__)),
-		 void *v       __attribute__((__unused__)),
+		 void *v       __attribute__((__unused__)),		 
+                 long size     __attribute__((__unused__)),
 		 int write_me  __attribute__((__unused__)),
 		 int keep_me   __attribute__((__unused__))) {
 }
-int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, void*extraargs) {
+int add123_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key+123L);
     return 0;
 }
-int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, void*extraargs) {
+int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key, void **value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key+222L);
     return 0;
@@ -250,7 +255,7 @@ void test_multi_filehandles (void) {
     unlink(fname1);
     unlink(fname2);
 
-    r = create_cachetable(&t, 4);                                 assert(r==0);
+    r = create_cachetable(&t, 4);                              assert(r==0);
     r = cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, 0777);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
     r = cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, 0777);   assert(r==0);
@@ -275,21 +280,23 @@ void test_multi_filehandles (void) {
     r = cachetable_close(&t); assert(r==0);
 }
 
-void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, int write, int keep) {
-    printf("test_dirty_flush %p %lld %p %d %d\n", f, key, value, write, keep);
+void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, int write, int keep) {
+    printf("test_dirty_flush %p %lld %p %ld %d %d\n", f, key, value, size, write, keep);
 }
 
-int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, void *arg) {
+int test_dirty_fetch(CACHEFILE f, CACHEKEY key, void **value_ptr, long *size_ptr, void *arg) {
     *value_ptr = arg;
-    printf("test_dirty_fetch %p %lld %p %p\n", f, key, *value_ptr, arg);
+    printf("test_dirty_fetch %p %lld %p %ld %p\n", f, key, *value_ptr, *size_ptr, arg);
     return 0;
 }
 
 void test_dirty() {
+    printf("test_dirty\n");
+
     CACHETABLE t;
     CACHEFILE f;
     CACHEKEY key; void *value;
-    int dirty; long long pinned;
+    int dirty; long long pinned; long entry_size;
     int r;
 
     r = create_cachetable(&t, 4);
@@ -305,14 +312,14 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 1);
 
     r = cachetable_unpin(f, key, 0);
     assert(r == 0);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
@@ -322,7 +329,7 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 1);
@@ -331,7 +338,7 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
@@ -342,7 +349,7 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 1);
@@ -351,7 +358,7 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 0);
@@ -361,7 +368,7 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 1);
@@ -370,11 +377,130 @@ void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = cachetable_get_state(t, key, &value, &dirty, &pinned);
+    r = cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
+     
+    r = cachefile_close(&f);
+    assert(r == 0);
+    r = cachetable_close(&t);
+    assert(r == 0);
+}
 
+int test_size_debug;
+CACHEKEY test_size_flush_key;
+
+void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, int write, int keep) {
+    if (test_size_debug) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, write, keep);
+    assert(write != 0);
+    test_size_flush_key = key;
+}
+
+void test_size_resize() {
+    printf("test_size_resize\n");
+
+    CACHETABLE t;
+    CACHEFILE f;
+    int r;
+
+    int n = 3;
+    long size = 1;
+
+    r = create_cachetable_size(&t, n, n*size);
+    assert(r == 0);
+
+    char *fname = "test.dat";
+    unlink(fname);
+    r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   
+    assert(r == 0);
+
+    CACHEKEY key = 42;
+    void *value = (void *) -42;
+
+    r = cachetable_put_size(f, key, value, size, test_size_flush_callback, 0, 0);
+    assert(r == 0);
+
+    void *entry_value; int dirty; long long pinned; long entry_size;
+    r = cachetable_get_key_state(t, key, &entry_value, &dirty, &pinned, &entry_size);
+    assert(r == 0);
+    assert(dirty == 1);
+    assert(pinned == 1);
+    assert(entry_value == value);
+    assert(entry_size == size);
+
+    long long new_size = 2*size;
+    r = cachetable_unpin_size(f, key, 0, new_size);
+    assert(r == 0);
+
+    void *current_value;
+    long current_size;
+    r = cachetable_get_and_pin_size(f, key, &current_value, &current_size, test_size_flush_callback, 0, 0);
+    assert(r == 0);
+    assert(current_value == value);
+    assert(current_size == new_size);
+
+    r = cachetable_unpin_size(f, key, 0, new_size);
+    assert(r == 0);
+
+    r = cachefile_close(&f);
+    assert(r == 0);
+    r = cachetable_close(&t);
+    assert(r == 0);
+}
+
+void test_size_flush() {
+    printf("test_size_flush\n");
+
+    CACHETABLE t;
+    CACHEFILE f;
+    int r;
+
+    const int n = 8;
+    long long size = 1*1024*1024;
+    r = create_cachetable_size(&t, 3, n*size);
+    assert(r == 0);
+
+    char *fname = "test.dat";
+    unlink(fname);
+    r = cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   
+    assert(r == 0);
+
+    /* put 2*n keys into the table, ensure flushes occur in key order */
+    test_size_flush_key = -1;
+    
+    int i;
+    CACHEKEY expect_flush_key = 0;
+    for (i=0; i<2*n; i++) {
+        CACHEKEY key = i;
+        void *value = (void *)-i;
+        //        printf("test_size put %lld %p %lld\n", key, value, size);
+        r = cachetable_put_size(f, key, value, size, test_size_flush_callback, 0, 0);
+        assert(r == 0);
+
+        int n_entries;
+        cachetable_get_state(t, &n_entries, 0, 0, 0);
+        int min2(int a, int b) { return a < b ? a : b; }
+        assert(n_entries == min2(i+1, n));
+
+        void *entry_value; int dirty; long long pinned; long entry_size;
+        r = cachetable_get_key_state(t, key, &entry_value, &dirty, &pinned, &entry_size);
+        assert(r == 0);
+        assert(dirty == 1);
+        assert(pinned == 1);
+        assert(entry_value == value);
+        assert(entry_size == size);
+
+        if (test_size_flush_key != -1) {
+            assert(test_size_flush_key == expect_flush_key);
+            assert(expect_flush_key == i-n);
+            expect_flush_key += 1;
+        }
+
+        r = cachetable_unpin_size(f, key, 0, size);
+        assert(r == 0);
+    }
+    
     r = cachefile_close(&f);
     assert(r == 0);
     r = cachetable_close(&t);
@@ -386,6 +512,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_nested_pin();
     test_multi_filehandles ();
     test_dirty();
+    test_size_resize();
+    test_size_flush();
     malloc_cleanup();
     printf("ok\n");
     return 0;
