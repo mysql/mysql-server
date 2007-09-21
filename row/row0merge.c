@@ -39,6 +39,13 @@ Completed by Sunny Bains and Marko Makela
 #include "log0log.h"
 #include "ut0sort.h"
 
+#ifdef UNIV_DEBUG
+/* Set these in order ot enable debug printout. */
+static ibool	row_merge_print_cmp;
+static ibool	row_merge_print_read;
+static ibool	row_merge_print_write;
+#endif /* UNIV_DEBUG */
+
 /* Block size for I/O operations in merge sort */
 
 typedef byte	row_merge_block_t[16384];
@@ -77,6 +84,42 @@ struct merge_file_struct {
 };
 
 typedef struct merge_file_struct merge_file_t;
+
+#ifdef UNIV_DEBUG
+/**********************************************************
+Display a merge tuple. */
+static
+void
+row_merge_tuple_print(
+/*==================*/
+	FILE*		f,	/* in: output stream */
+	const dfield_t*	entry,	/* in: tuple to print */
+	ulint		n_fields)/* in: number of fields in the tuple */
+{
+	ulint	j;
+
+	for (j = 0; j < n_fields; j++) {
+		const dfield_t*	field = &entry[j];
+
+		if (dfield_is_null(field)) {
+			fputs("\n NULL;", f);
+		} else {
+			ulint	len = ut_min(field->len, 20);
+			if (dfield_is_ext(field)) {
+				fputs("\nE", f);
+			} else {
+				fputs("\n ", f);
+			}
+			ut_print_buf(f, field->data, len);
+			if (len != field->len) {
+				fprintf(f, " (total %lu bytes)",
+					(ulong) field->len);
+			}
+		}
+	}
+	putc('\n', f);
+}
+#endif /* UNIV_DEBUG */
 
 /**********************************************************
 Allocate a sort buffer. */
@@ -423,6 +466,12 @@ row_merge_buf_write(
 
 		ut_ad(b + size < block[1]);
 
+#ifdef UNIV_DEBUG
+		if (row_merge_print_write) {
+			fprintf(stderr, "row_merge_buf_write %lu", (ulong) i);
+			row_merge_tuple_print(stderr, entry, n_fields);
+		}
+#endif /* UNIV_DEBUG */
 		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
 					       REC_STATUS_ORDINARY,
 					       entry, n_fields);
@@ -439,6 +488,11 @@ row_merge_buf_write(
 	to avoid bogus warnings. */
 	memset(b, 0xff, block[1] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
+#ifdef UNIV_DEBUG
+	if (row_merge_print_write) {
+		fputs("row_merge_buf_write EOF\n", stderr);
+	}
+#endif /* UNIV_DEBUG */
 }
 
 /**********************************************************
@@ -585,6 +639,11 @@ row_merge_read_rec(
 	if (UNIV_UNLIKELY(!extra_size)) {
 		/* End of list */
 		*mrec = NULL;
+#ifdef UNIV_DEBUG
+		if (row_merge_print_read) {
+			fputs("row_merge_read EOF\n", stderr);
+		}
+#endif /* UNIV_DEBUG */
 		return(NULL);
 	}
 
@@ -649,7 +708,7 @@ err_exit:
 		memcpy(*buf + extra_size, b, data_size);
 		b += data_size;
 
-		return(b);
+		goto func_exit;
 	}
 
 	*mrec = b + extra_size;
@@ -664,7 +723,7 @@ err_exit:
 	if (UNIV_LIKELY(b < block[1])) {
 		/* The record fits entirely in the block.
 		This is the normal case. */
-		return(b);
+		goto func_exit;
 	}
 
 	/* The record spans two blocks.  Copy it to buf. */
@@ -687,6 +746,15 @@ err_exit:
 	memcpy(*buf + avail_size, b, extra_size + data_size - avail_size);
 	b += extra_size + data_size - avail_size;
 
+func_exit:
+#ifdef UNIV_DEBUG
+	if (row_merge_print_read) {
+		fputs("row_merge_read ", stderr);
+		rec_print_comp(stderr, *mrec, offsets);
+		putc('\n', stderr);
+	}
+#endif /* UNIV_DEBUG */
+
 	return(b);
 }
 
@@ -706,8 +774,14 @@ row_merge_write_rec_low(
 {
 #ifdef UNIV_DEBUG
 	const byte* const end = b + size;
-#endif /* UNIV_DEBUG */
 	ut_ad(e == rec_offs_extra_size(offsets) + 1);
+
+	if (row_merge_print_write) {
+		fputs("row_merge_write ", stderr);
+		rec_print_comp(stderr, mrec, offsets);
+		putc('\n', stderr);
+	}
+#endif /* UNIV_DEBUG */
 
 	if (e < 0x80) {
 		*b++ = e;
@@ -807,6 +881,11 @@ row_merge_write_eof(
 	ut_ad(b >= block[0]);
 	ut_ad(b < block[1]);
 	ut_ad(foffs);
+#ifdef UNIV_DEBUG
+	if (row_merge_print_write) {
+		fputs("row_merge_write EOF\n", stderr);
+	}
+#endif /* UNIV_DEBUG */
 
 	*b++ = 0;
 	UNIV_MEM_ASSERT_RW(block[0], b - block[0]);
@@ -842,7 +921,21 @@ row_merge_cmp(
 	const ulint*	offsets2,	/* in: second record offsets */
 	dict_index_t*	index)		/* in: index */
 {
-	return(cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index));
+	int	cmp;
+
+	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index);
+
+#ifdef UNIV_DEBUG
+	if (row_merge_print_cmp) {
+		fputs("row_merge_cmp1 ", stderr);
+		rec_print_comp(stderr, mrec1, offsets1);
+		fputs("\nrow_merge_cmp2 ", stderr);
+		rec_print_comp(stderr, mrec2, offsets2);
+		fprintf(stderr, "\nrow_merge_cmp=%d\n", cmp);
+	}
+#endif /* UNIV_DEBUG */
+
+	return(cmp);
 }
 
 /************************************************************************
