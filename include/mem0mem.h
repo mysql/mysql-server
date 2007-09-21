@@ -199,7 +199,8 @@ Macro for memory buffer allocation */
 
 #define mem_zalloc(N)	memset(mem_alloc(N), 0, (N));
 
-#define mem_alloc(N)	mem_alloc_func((N), __FILE__, __LINE__)
+#define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
+#define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -210,7 +211,9 @@ void*
 mem_alloc_func(
 /*===========*/
 					/* out, own: free storage */
-	ulint		n,		/* in: desired number of bytes */
+	ulint		n,		/* in: requested size in bytes */
+	ulint*		size,		/* out: allocated size in bytes,
+					or NULL */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line);		/* in: line where created */
 

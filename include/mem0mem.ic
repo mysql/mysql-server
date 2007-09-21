@@ -496,6 +496,8 @@ mem_alloc_func(
 /*===========*/
 					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
+	ulint*		size,		/* out: allocated size in bytes,
+					or NULL */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line)		/* in: line where created */
 {
@@ -508,6 +510,18 @@ mem_alloc_func(
 	for the buffer requested by the caller, the buffer will be in the
 	first block and thus we can calculate the pointer to the heap from
 	the pointer to the buffer when we free the memory buffer. */
+
+	if (UNIV_LIKELY_NULL(size)) {
+		/* Adjust the allocation to the actual size of the
+		memory block. */
+		ulint	m = mem_block_get_len(heap)
+			- mem_block_get_free(heap);
+#ifdef UNIV_MEM_DEBUG
+		m -= MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE;
+#endif /* UNIV_MEM_DEBUG */
+		ut_ad(m >= n);
+		*size = n = m;
+	}
 
 	buf = mem_heap_alloc(heap, n);
 
