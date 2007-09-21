@@ -461,7 +461,7 @@ int mysql_update(THD *thd,
         init_read_record_idx(&info, thd, table, 1, used_index);
 
       thd->proc_info="Searching rows for update";
-      uint tmp_limit= limit;
+      ha_rows tmp_limit= limit;
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {

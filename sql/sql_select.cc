@@ -6126,7 +6126,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
-	      join->best_positions[i].records_read= sel->quick->records;
+	      join->best_positions[i].records_read= (double)sel->quick->records;
 	  }
 	  else
 	  {
