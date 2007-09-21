@@ -8704,11 +8704,18 @@ static void print_share(const char* where, NDB_SHARE* share)
           share->key, share->key_length);
 
 #ifdef HAVE_NDB_BINLOG
-  if (share->table)
+  Ndb_event_data *event_data= 0;
+  if (share->event_data)
+    event_data= share->event_data;
+  else if (share->op)
+    event_data= (Ndb_event_data *) share->op->getCustomData();
+  if (event_data)
+  {
     fprintf(DBUG_FILE,
-            "  - share->table: %p %s.%s\n",
-            share->table, share->table->s->db.str,
-            share->table->s->table_name.str);
+            "  - event_data->table: %p %s.%s\n",
+            event_data->table, event_data->table->s->db.str,
+            event_data->table->s->table_name.str);
+  }
 #endif
 }
 
@@ -8935,12 +8942,17 @@ int ndbcluster_rename_share(NDB_SHARE *share, int have_lock_open)
   ha_ndbcluster::set_tabname(share->new_key, share->table_name);
 
   dbug_print_share("ndbcluster_rename_share:", share);
-  if (share->table)
+  Ndb_event_data *event_data= 0;
+  if (share->event_data)
+    event_data= share->event_data;
+  else if (share->op)
+    event_data= (Ndb_event_data *) share->op->getCustomData();
+  if (event_data && event_data->table)
   {
-    share->table->s->db.str= share->db;
-    share->table->s->db.length= strlen(share->db);
-    share->table->s->table_name.str= share->table_name;
-    share->table->s->table_name.length= strlen(share->table_name);
+    event_data->table->s->db.str= share->db;
+    event_data->table->s->db.length= strlen(share->db);
+    event_data->table->s->table_name.str= share->table_name;
+    event_data->table->s->table_name.length= strlen(share->table_name);
   }
   /* else rename will be handled when the ALTER event comes */
   share->old_names= old_key;
@@ -9086,28 +9098,11 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   pthread_mutex_destroy(&(*share)->mutex);
 
 #ifdef HAVE_NDB_BINLOG
-  if ((*share)->table)
+  (*share)->new_op= 0;
+  if ((*share)->event_data)
   {
-    // (*share)->table->mem_root is freed by closefrm
-    (*share)->new_op= 0;
-    if ((*share)->op)
-    {
-      Ndb_event_data *event_data= (Ndb_event_data *) (*share)->op->getCustomData();
-      if (event_data)
-      {
-        delete event_data;
-        (*share)->op->setCustomData(NULL);
-      }
-    }
-    closefrm((*share)->table, 0);
-    // (*share)->table_share->mem_root is freed by free_table_share
-    free_table_share((*share)->table_share);
-#ifndef DBUG_OFF
-    bzero((uchar*)(*share)->table_share, sizeof(*(*share)->table_share));
-    bzero((uchar*)(*share)->table, sizeof(*(*share)->table));
-    (*share)->table_share= 0;
-    (*share)->table= 0;
-#endif
+    delete (*share)->event_data;
+    (*share)->event_data= 0;
   }
 #endif
   free_root(&(*share)->mem_root, MYF(0));
@@ -10886,20 +10881,10 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     }
   }
 
-  /*
-    Temporary workaround until TUP is fixed.
-    If no var or dyn attr, use copying alter table.
-  */
-  bool any_var_dyn_attr= tab->getForceVarPart();
-
   for (i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-
-    if (col->getArrayType() != NdbDictionary::Column::ArrayTypeFixed ||
-        col->getDynamic())
-      any_var_dyn_attr=true;
 
     create_ndb_column(0, new_col, field, create_info);
     if (col->getStorageType() != new_col.getStorageType())
@@ -10925,12 +10910,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       pk=1;
     if (field->flags & FIELD_IN_ADD_INDEX)
       ai=1;
-  }
-
-  if (alter_flags->is_set(HA_ADD_COLUMN) && !any_var_dyn_attr)
-  {
-    DBUG_PRINT("info", ("no var dyn attr"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   }
 
   /**
