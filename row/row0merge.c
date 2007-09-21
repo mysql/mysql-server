@@ -1299,27 +1299,26 @@ row_merge(
 	dict_index_t*		index,		/* in: index being created */
 	merge_file_t*		file,		/* in/out: file containing
 						index entries */
+	ulint			half,		/* in: half the file */
 	row_merge_block_t*	block,		/* in/out: 3 buffers */
 	int*			tmpfd)		/* in/out: temporary file
 						handle */
 {
 	ulint		foffs0;	/* first input offset */
 	ulint		foffs1;	/* second input offset */
-	ulint		half;	/* upper limit of foffs1 */
 	ulint		error;	/* error code */
 	merge_file_t	of;	/* output file */
 
+	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+
 	of.fd = *tmpfd;
 	of.offset = 0;
-
-	/* Split the input file in two halves. */
-	half = file->offset / 2;
 
 	/* Merge blocks to the output file. */
 	foffs0 = 0;
 	foffs1 = half;
 
-	for (; foffs0 < half; foffs0++, foffs1++) {
+	for (; foffs0 < half && foffs1 < file->offset; foffs0++, foffs1++) {
 		error = row_merge_blocks(index, file, block,
 					 &foffs0, &foffs1, &of);
 
@@ -1329,18 +1328,24 @@ row_merge(
 	}
 
 	/* Copy the last block, if there is one. */
+	while (foffs0 < half) {
+		if (!row_merge_read(file->fd, foffs0++, block)
+		    || !row_merge_write(of.fd, of.offset++, block)) {
+			return(DB_CORRUPTION);
+		}
+	}
 	while (foffs1 < file->offset) {
 		if (!row_merge_read(file->fd, foffs1++, block)
 		    || !row_merge_write(of.fd, of.offset++, block)) {
 			return(DB_CORRUPTION);
 		}
-
-		UNIV_MEM_INVALID(block[0], sizeof block[0]);
 	}
 
 	/* Swap file descriptors for the next pass. */
 	*tmpfd = file->fd;
 	*file = of;
+
+	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
 
 	return(DB_SUCCESS);
 }
@@ -1362,21 +1367,13 @@ row_merge_sort(
 {
 	ulint	blksz;	/* block size */
 
-	blksz = 1;
+	for (blksz = 1; blksz < file->offset; blksz *= 2) {
+		ulint	half = ut_2pow_round((file->offset + 1) / 2, blksz);
+		ulint	error = row_merge(index, file, half, block, tmpfd);
 
-	for (;; blksz *= 2) {
-		ulint	error = row_merge(index, file, block, tmpfd);
 		if (error != DB_SUCCESS) {
 			return(error);
 		}
-
-		if (blksz >= file->offset) {
-			/* everything is in a single block */
-			break;
-		}
-
-		/* Round up the file size to a multiple of blksz. */
-		file->offset = ut_2pow_round(file->offset - 1, blksz) + blksz;
 	}
 
 	return(DB_SUCCESS);
