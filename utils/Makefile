@@ -3,8 +3,8 @@ LFLAGS = -l CPPFLAGS = -I../include -I../newbrt
 
 #cc  $(CPPFLAGS) $(DBBINS) -shared -o libdb.so $(CFLAGS)
 
-BDB_DUMP=/usr/local/Berkeletokudb.4.1/bin/db_dump
-BDB_LOAD=/usr/local/Berkeletokudb.4.1/bin/db_load
+BDB_DUMP=/usr/local/Berkeleydb.4.1/bin/db_dump
+BDB_LOAD=/usr/local/Berkeleydb.4.1/bin/db_load
 
 UTILS=            \
    tokudb_gen     \
@@ -22,21 +22,24 @@ test_gen: test_gen_hex
 
 # SHELL=/bin/bash
 
-BDB_LOAD=/usr/local/Berkeletokudb.4.1/bin/db_load
-BDB_DUMP=/usr/local/Berkeletokudb.4.1/bin/db_dump
+BDB_LOAD=/usr/local/Berkeleydb.4.1/bin/db_load
+BDB_DUMP=/usr/local/Berkeleydb.4.1/bin/db_dump
 
-TEST_GEN_HEX_FLAGS=-n 10000 -m 0 -M 1024 -r 5
+TEST_GEN_HEX_NUMKEYS=10000
+TEST_GEN_HEX_LENGTHMIN=0
+TEST_GEN_HEX_LENGTHLIMIT=1024
+TEST_GEN_HEX_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(TEST_GEN_HEX_LENGTHLIMIT) -r 5
 
 test_gen_hex:
-	#Generating 10,000 keys.  0 to 1024 bytes (not including identifier overhead)
+	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	echo "Generating text input > db > text"
-	rm -f $@.db.temp
+	rm -f $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) | $(BDB_LOAD) $@.db.temp
 	$(BDB_DUMP) $@.db.temp > $@.load_dump.temp
 	./tokudb_gen -Hf > $@.gen_sorted.temp
-	./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d g -s h | tr "h" "\n" | sort -t g -k 1,1 | tr -d "\n" | tr "g" "\n" >> $@.gen_sorted.temp
+	./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp
 	./tokudb_gen -Fh  >> $@.gen_sorted.temp
-	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo Files different!; exit 1; fi
+	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
 	rm $@.*.temp
 	
 
