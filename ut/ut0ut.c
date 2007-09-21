@@ -528,15 +528,12 @@ ut_snprintf(
 	va_start(ap2, fmt);
 
 	res = _vscprintf(fmt, ap1);
-
-	if (res == -1) {
-		return(-1);
-	}
+	ut_a(res != -1);
 
 	if (size > 0) {
 		_vsnprintf(str, size, fmt, ap2);
 
-		if ((size_t)res >= size) {
+		if ((size_t) res >= size) {
 			str[size - 1] = '\0';
 		}
 	}
