@@ -324,15 +324,19 @@ void*
 mem_area_alloc(
 /*===========*/
 				/* out, own: allocated memory buffer */
-	ulint		size,	/* in: allocated size in bytes; for optimum
+	ulint*		psize,	/* in: requested size in bytes; for optimum
 				space usage, the size should be a power of 2
-				minus MEM_AREA_EXTRA_SIZE */
+				minus MEM_AREA_EXTRA_SIZE;
+				out: allocated size in bytes (greater than
+				or equal to the requested size) */
 	mem_pool_t*	pool)	/* in: memory pool */
 {
 	mem_area_t*	area;
+	ulint		size;
 	ulint		n;
 	ibool		ret;
 
+	size = *psize;
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
 	mutex_enter(&(pool->mutex));
@@ -403,8 +407,9 @@ mem_area_alloc(
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
-	UNIV_MEM_ALLOC(MEM_AREA_EXTRA_SIZE + (byte*)area,
-		       ut_2_exp(n) - MEM_AREA_EXTRA_SIZE);
+
+	*psize = ut_2_exp(n) - MEM_AREA_EXTRA_SIZE;
+	UNIV_MEM_ALLOC(MEM_AREA_EXTRA_SIZE + (byte*)area, *psize);
 
 	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area)));
 }
