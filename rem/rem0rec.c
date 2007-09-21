@@ -1260,8 +1260,7 @@ rec_copy_prefix_to_buf_old(
 			mem_free(*buf);
 		}
 
-		*buf = mem_alloc(prefix_len);
-		*buf_size = prefix_len;
+		*buf = mem_alloc2(prefix_len, buf_size);
 	}
 
 	ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1378,8 +1377,7 @@ rec_copy_prefix_to_buf(
 			mem_free(*buf);
 		}
 
-		*buf = mem_alloc(prefix_len);
-		*buf_size = prefix_len;
+		*buf = mem_alloc2(prefix_len, buf_size);
 	}
 
 	memcpy(*buf, lens + 1, prefix_len);
