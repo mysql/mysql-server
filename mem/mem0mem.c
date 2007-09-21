@@ -334,7 +334,7 @@ mem_heap_create_block(
 	if (type == MEM_HEAP_DYNAMIC) {
 
 		len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-		block = mem_area_alloc(len, mem_comm_pool);
+		block = mem_area_alloc(&len, mem_comm_pool);
 	} else {
 		ut_ad(n <= MEM_MAX_ALLOC_IN_BUF);
 
@@ -342,7 +342,7 @@ mem_heap_create_block(
 
 		if (len < UNIV_PAGE_SIZE / 2) {
 
-			block = mem_area_alloc(len, mem_comm_pool);
+			block = mem_area_alloc(&len, mem_comm_pool);
 		} else {
 			len = UNIV_PAGE_SIZE;
 
