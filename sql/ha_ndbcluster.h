@@ -42,6 +42,7 @@ class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
+class Ndb_event_data;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
@@ -137,11 +138,9 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
+  Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   NdbEventOperation *op;
-  Uint64 op_gci;
   char *old_names; // for rename table
-  TABLE_SHARE *table_share;
-  TABLE *table;
   MY_BITMAP *subscriber_bitmap;
   NdbEventOperation *new_op;
 #endif

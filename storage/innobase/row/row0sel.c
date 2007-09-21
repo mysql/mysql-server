@@ -4533,7 +4533,6 @@ row_search_autoinc_read_column(
 	ibool		unsigned_type)	/* in: signed or unsigned flag */
 {
 	ulint		len;
-	byte*		ptr;
 	const byte*	data;
 	ib_longlong	value;
 	mem_heap_t*	heap = NULL;
@@ -4555,49 +4554,20 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
-#ifdef WORDS_BIGENDIAN
 	/* Copy integer data and restore sign bit */
+	if (unsigned_type || (data[0] & 128))
+		memset(dest, 0x00, sizeof(dest));
+	else
+		memset(dest, 0xff, sizeof(dest));
 
-	memcpy((ptr = dest), data, len);
+	memcpy(dest + (sizeof(value) - len), data, len);
 
-	if (!unsigned_type) {
-		dest[0] ^= 128;
-	}
-#else
-	/* Convert integer data from Innobase to a little-endian format,
-	sign bit restored to normal */
-
-	for (ptr = dest + len; ptr != dest; ++data) {
-		--ptr;
-		*ptr = *data;
-	}
-
-	if (!unsigned_type) {
-		dest[len - 1] ^= 128;
-	}
-#endif
+	if (!unsigned_type)
+		dest[sizeof(value) - len] ^= 128;
 
 	/* The assumption here is that the AUTOINC value can't be negative.*/
-	switch (len) {
-	case 8:
-		value = *(ib_longlong*) ptr;
-		break;
-
-	case 4:
-		value = *(ib_uint32_t*) ptr;
-		break;
-
-	case 2:
-		value = *(uint16 *) ptr;
-		break;
-
-	case 1:
-		value = *ptr;
-		break;
-
-	default:
-		ut_error;
-	}
+	value = (((ib_longlong) mach_read_from_4(dest)) << 32) |
+		 ((ib_longlong) mach_read_from_4(dest + 4));        
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);

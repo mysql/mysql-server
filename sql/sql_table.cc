@@ -3429,7 +3429,7 @@ bool mysql_create_table_no_lock(THD *thd,
     /* Open table and put in temporary table list */
     if (!(open_temporary_table(thd, path, db, table_name, 1, OTM_OPEN)))
     {
-      (void) rm_temporary_table(create_info->db_type, path);
+      (void) rm_temporary_table(create_info->db_type, path, false);
       goto unlock_and_end;
     }
     thd->thread_specific_used= TRUE;
@@ -4649,7 +4649,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                                      OTM_OPEN))
     {
       (void) rm_temporary_table(create_info->db_type,
-				dst_path); /* purecov: inspected */
+				dst_path, false); /* purecov: inspected */
       goto err;     /* purecov: inspected */
     }
   }
@@ -6559,12 +6559,14 @@ view_err:
         if (alter_info->build_method == HA_BUILD_ONLINE)
         {
           my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+          close_temporary_table(thd, altered_table, 1, 1);
           goto err;
         }
         need_copy_table= TRUE;
         break;
       case HA_ALTER_ERROR:
       default:
+        close_temporary_table(thd, altered_table, 1, 1);
         goto err;
       }
 #ifndef DBUG_OFF

@@ -1613,50 +1613,51 @@ master_file_def:
 /* create a table */
 
 create:
-          CREATE opt_table_options TABLE_SYM opt_if_not_exists table_ident
+	CREATE opt_table_options TABLE_SYM opt_if_not_exists table_ident
+	{
+	  THD *thd= YYTHD;
+	  LEX *lex= thd->lex;
+	  lex->sql_command= SQLCOM_CREATE_TABLE;
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
+						 TL_OPTION_UPDATING,
+						 TL_WRITE))
+	    MYSQL_YYABORT;
+          lex->alter_info.reset();
+	  lex->col_list.empty();
+	  lex->change=NullS;
+	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
+	  lex->create_info.options=$2 | $4;
+	  lex->create_info.db_type= ha_default_handlerton(thd);
+	  lex->create_info.default_table_charset= NULL;
+	  lex->name.str= 0;
+          lex->name.length= 0;
+	}
+	create2
+	{
+	  LEX *lex= YYTHD->lex;
+          lex->current_select= &lex->select_lex; 
+          if (!lex->create_info.db_type)
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            lex->sql_command= SQLCOM_CREATE_TABLE;
-            if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE))
-              MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->col_list.empty();
-            lex->change=NullS;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
-            lex->create_info.options=$2 | $4;
-            lex->create_info.db_type= ha_default_handlerton(thd);
-            lex->create_info.default_table_charset= NULL;
-            lex->name.str= 0;
-            lex->name.length= 0;
+            lex->create_info.db_type= ha_default_handlerton(YYTHD);
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_USING_OTHER_HANDLER,
+                                ER(ER_WARN_USING_OTHER_HANDLER),
+                                ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                $5->table.str);
           }
-          create2
-          {
-            LEX *lex= YYTHD->lex;
-            lex->current_select= &lex->select_lex; 
-            if (!lex->create_info.db_type)
-            {
-              lex->create_info.db_type= ha_default_handlerton(YYTHD);
-              push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_USING_OTHER_HANDLER,
-                                  ER(ER_WARN_USING_OTHER_HANDLER),
-                                  ha_resolve_storage_engine_name(lex->create_info.db_type),
-                                  $5->table.str);
-            }
-          }
-        | CREATE build_method opt_unique_or_fulltext INDEX_SYM ident key_alg ON
-          table_ident
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_CREATE_INDEX;
-            if (!lex->current_select->add_table_to_list(lex->thd, $8,
-                                                        NULL,
-                                                        TL_OPTION_UPDATING))
-              MYSQL_YYABORT;
+        }
+	| CREATE build_method opt_unique_or_fulltext INDEX_SYM ident key_alg 
+          ON table_ident
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_CREATE_INDEX;
+	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
+							NULL,
+							TL_OPTION_UPDATING))
+	      MYSQL_YYABORT;
             lex->alter_info.reset();
             lex->alter_info.flags= ALTER_ADD_INDEX;
+            lex->alter_info.build_method= $2;
             lex->col_list.empty();
             lex->change=NullS;
           }

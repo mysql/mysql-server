@@ -1209,7 +1209,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	37
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -1230,7 +1230,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	424
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -1251,7 +1251,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	901
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -1272,7 +1272,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Dynamic
-TABLE_ROWS	0
+TABLE_ROWS	479
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -3224,14 +3224,14 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
 NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
+NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
@@ -3464,7 +3464,7 @@ max_recs
 45
 select max(cardinality) from statistics;
 max(cardinality)
-393
+901
 select concat("View '",
 table_name, "' is associated with the database '", table_schema, "'.")
 AS "Who is Who for the Views"
@@ -4530,7 +4530,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	37
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -4551,7 +4551,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	424
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -4572,7 +4572,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Fixed
-TABLE_ROWS	0
+TABLE_ROWS	901
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -4593,7 +4593,7 @@ TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Dynamic
-TABLE_ROWS	0
+TABLE_ROWS	479
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
 MAX_DATA_LENGTH	#MDL#
@@ -5809,7 +5809,7 @@ routine_definition
 select * from statistics group by index_name asc  limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
 NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE	
 select concat(table_schema, ', ', table_name, ', ', view_definition) view_info
@@ -14245,10 +14245,10 @@ NULL	mysql	db	BASE TABLE	MyISAM	10	Fixed	3	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-
 NULL	mysql	event	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Events
 NULL	mysql	func	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		User defined functions
 NULL	mysql	general_log	BASE TABLE	CSV	10	Dynamic	1	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		General log
-NULL	mysql	help_category	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help categories
-NULL	mysql	help_keyword	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help keywords
-NULL	mysql	help_relation	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		keyword-topic relation
-NULL	mysql	help_topic	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help topics
+NULL	mysql	help_category	BASE TABLE	MyISAM	10	Fixed	37	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help categories
+NULL	mysql	help_keyword	BASE TABLE	MyISAM	10	Fixed	424	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help keywords
+NULL	mysql	help_relation	BASE TABLE	MyISAM	10	Fixed	901	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		keyword-topic relation
+NULL	mysql	help_topic	BASE TABLE	MyISAM	10	Dynamic	479	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help topics
 NULL	mysql	host	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		Host privileges;  Merged with database privileges
 NULL	mysql	ndb_binlog_index	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	mysql	plugin	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		MySQL plugins
@@ -14499,14 +14499,14 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
 NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	0	NULL	NULL		BTREE	
+NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	0	NULL	NULL		BTREE	
