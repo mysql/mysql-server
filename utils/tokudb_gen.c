@@ -20,30 +20,31 @@ typedef uint8_t bool;
 
 int   usage(void);
 void  generate_keys(void);
+int   get_delimiter(char* str);
 
-char           dbt_delimiter = '\n';
-char*          sort_delimiter = "";
+char           dbt_delimiter  = '\n';
+char           sort_delimiter[2];
 char*          progname;
-bool           plaintext = false;
-long           minsize = -1;
-long           maxsize = -1;
-int64_t        maxnumkeys = -1;
-long           maxkibibytes = -1;
-bool           header = true;
-bool           footer = true;
-bool           justheader = false;
-bool           justfooter = false;
-bool           outputkeys = true;
-unsigned long  seed = 1;
-bool           printableonly = false;
-bool           leadingspace = true;
+bool           plaintext      = false;
+long           lengthmin      = -1;
+long           lengthlimit    = -1;
+int64_t        numkeys        = -1;
+bool           header         = true;
+bool           footer         = true;
+bool           justheader     = false;
+bool           justfooter     = false;
+bool           outputkeys     = true;
+unsigned long  seed           = 1;
+bool           printableonly  = false;
+bool           leadingspace   = true;
 
 int main (int argc, char *argv[]) {
    char ch;
 
    progname = argv[0];
+   strcpy(sort_delimiter, "");
    
-   while ((ch = getopt(argc, argv, "PfFhHTpr:s:d:p:m:M:n:N:?o:")) != EOF) {
+   while ((ch = getopt(argc, argv, "PfFhHTpr:s:d:p:m:M:n:o:")) != EOF) {
       switch (ch) {
          case ('P'): {
             printableonly = true;
@@ -66,15 +67,15 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('T'): {
-            plaintext = true;
-            leadingspace = false;
-            header = false;
-            footer = false;
+            plaintext      = true;
+            leadingspace   = false;
+            header         = false;
+            footer         = false;
             break;
          }
          case ('p'): {
-            plaintext = true;
-            leadingspace = true;
+            plaintext      = true;
+            leadingspace   = true;
             break;
          }
          case ('o'): {
@@ -87,145 +88,90 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('d'): {
-            if (strlen(optarg) != 1) {
-               fprintf(
-                  stderr,
-                  "%s: %s: (-n) Key (or value) delimiter must be one character.",
-                  progname,
-                  optarg
-               );
+            int temp = get_delimiter(optarg);
+            if (temp == EOF) {
+               fprintf(stderr,
+                       "%s: %s: (-d) Key (or value) delimiter must be one character.",
+                       progname, optarg);
                return (EXIT_FAILURE);
             }
-            dbt_delimiter = optarg[0];
-            if (isxdigit(dbt_delimiter)) {
-               fprintf(
-                  stderr,
-                  "%s: %c: (-n) Key (or value) delimiter cannot be a hex digit.",
-                  progname,
-                  dbt_delimiter
-               );
+            if (isxdigit(temp)) {
+               fprintf(stderr,
+                       "%s: %c: (-d) Key (or value) delimiter cannot be a hex digit.",
+                       progname, temp);
                return (EXIT_FAILURE);
             }
+            dbt_delimiter = (char)temp;
             break;
          }
          case ('s'): {
-            sort_delimiter = optarg;
-            if (strlen(sort_delimiter) != 1) {
-               fprintf(
-                  stderr,
-                  "%s: %s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
-                  progname,
-                  optarg
-               );
+            int temp = get_delimiter(optarg);
+            if (temp == EOF) {
+               fprintf(stderr,
+                       "%s: %s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
+                       progname, optarg);
                return (EXIT_FAILURE);
             }
-            if (isxdigit(sort_delimiter[0])) {
-               fprintf(
-                  stderr,
-                  "%s: %s: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
-                  progname,
-                  sort_delimiter
-               );
+            if (isxdigit(temp)) {
+               fprintf(stderr,
+                       "%s: %c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
+                       progname, temp);
                return (EXIT_FAILURE);
             }
+            sort_delimiter[0] = (char)temp;
+            sort_delimiter[1] = '\0';
             break;
          }
-         case ('r'):
-         {
+         case ('r'): {
             char* test;
             
             seed = strtol(optarg, &test, 10);
-            if (
-               optarg[0] == '\0' ||
-               *test != '\0'
-            )
-            {              
-               fprintf(
-                  stderr,
-                  "%s: %s: (-r) Random seed invalid.",
-                  progname,
-                  optarg
-               );
+            if (optarg[0] == '\0' || *test != '\0') {              
+               fprintf(stderr,
+                       "%s: %s: (-r) Random seed invalid.",
+                       progname, optarg);
             }
             break;
          }
-         case ('m'):
-         {
+         case ('m'): {
             char* test;
             
-            if (
-               optarg[0] == '\0' ||
-               (minsize = strtol(optarg, &test, 10)) < 0 ||
-               *test != '\0'
-            )
+            if (optarg[0] == '\0' ||
+               (lengthmin = strtol(optarg, &test, 10)) < 0 ||
+               *test != '\0')
             {              
-               fprintf(
-                  stderr,
-                  "%s: %s: (-m) Min size of keys/values invalid.",
-                  progname,
-                  optarg
-               );
+               fprintf(stderr,
+                       "%s: %s: (-m) Min length of keys/values invalid.",
+                       progname, optarg);
             }
             break;
          }
-         case ('M'):
-         {
+         case ('M'): {
             char* test;
             
-            if (
-               optarg[0] == '\0' ||
-               (maxsize = strtol(optarg, &test, 10)) < 0 ||
-               *test != '\0'
-            )
+            if (optarg[0] == '\0' ||
+               (lengthlimit = strtol(optarg, &test, 10)) < 0 ||
+               *test != '\0')
             {              
-               fprintf(
-                  stderr,
-                  "%s: %s: (-M) Max size of keys/values invalid.",
-                  progname,
-                  optarg
-               );
+               fprintf(stderr,
+                       "%s: %s: (-M) Limit of key/value length invalid.",
+                       progname, optarg);
             }
             break;
          }
-         case ('n'):
-         {
+         case ('n'): {
             char* test;
             
-            if (
-               optarg[0] == '\0' ||
-               (maxnumkeys = strtoll(optarg, &test, 10)) <= 0 ||
-               *test != '\0'
-            )
+            if (optarg[0] == '\0' ||
+               (numkeys = strtoll(optarg, &test, 10)) <= 0 ||
+               *test != '\0')
             {              
-               fprintf(
-                  stderr,
-                  "%s: %s: (-n) Max number of keys to generate invalid.",
-                  progname,
-                  optarg
-               );
+               fprintf(stderr,
+                       "%s: %s: (-n) Number of keys to generate invalid.",
+                       progname, optarg);
             }
             break;
          }
-         case ('N'):
-         {
-            char* test;
-            
-            if (
-               optarg[0] == '\0' ||
-               (maxkibibytes = strtol(optarg, &test, 10)) <= 0 ||
-               *test != '\0'
-            )
-            {              
-               fprintf(
-                  stderr,
-                  "%s: %s: (-N) Max kibibytes to generate invalid.",
-                  progname,
-                  optarg
-               );
-            }
-            break;
-         }
-         case ('?'):
          default: {
             return (usage());
          }
@@ -235,193 +181,133 @@ int main (int argc, char *argv[]) {
    argv += optind;
    
    if (justheader && !header) {
-      fprintf(
-         stderr,
-         "%s: The -h and -H options may not both be specified.\n",
-         progname
-      );
-      usage();
-      return (EXIT_FAILURE);
+      fprintf(stderr,
+              "%s: The -h and -H options may not both be specified.\n",
+              progname);
+      return usage();
    }
    if (justfooter && !footer) {
-      fprintf(
-         stderr,
-         "%s: The -f and -F options may not both be specified.\n",
-         progname
-      );
-      usage();
-      return (EXIT_FAILURE);
+      fprintf(stderr,
+              "%s: The -f and -F options may not both be specified.\n",
+              progname);
+      return usage();
    }
    if (justfooter && justheader) {
-      fprintf(
-         stderr,
-         "%s: The -H and -F options may not both be specified.\n",
-         progname
-      );
-      usage();
-      return (EXIT_FAILURE);
+      fprintf(stderr,
+              "%s: The -H and -F options may not both be specified.\n",
+              progname);
+      return usage();
    }
    if (justfooter && header) {
-      fprintf(
-         stderr,
-         "%s: -F implies -h\n",
-         progname
-      );
+      fprintf(stderr,
+              "%s: -F implies -h\n",
+              progname);
       header = false;
    }
    if (justheader && footer) {
-      fprintf(
-         stderr,
-         "%s: -H implies -f\n",
-         progname
-      );
+      fprintf(stderr,
+              "%s: -H implies -f\n",
+              progname);
       footer = false;
    }
-   if (!leadingspace)
-   {
-      if (footer)
-      {
-         fprintf(
-            stderr,
-            "%s: -p implies -f\n",
-            progname
-         );
+   if (!leadingspace) {
+      if (footer) {
+         fprintf(stderr,
+                 "%s: -p implies -f\n",
+                 progname);
          footer = false;
       }
-      if (header)
-      {
-         fprintf(
-            stderr,
-            "%s: -p implies -h\n",
-            progname
-         );
+      if (header) {
+         fprintf(stderr,
+                 "%s: -p implies -h\n",
+                 progname);
          header = false;
       }
    }
-   if (justfooter || justheader)
+   if (justfooter || justheader) outputkeys = false;
+   else if (numkeys == -1)
    {
-      outputkeys = false;
+      fprintf(stderr,
+              "%s: The -n option is required.\n",
+              progname);
+      return usage();
    }
-   else if (
-      (maxnumkeys > 0 && maxkibibytes > 0) ||
-      (maxnumkeys <= 0 && maxkibibytes <= 0)
-   )
-   {
-      fprintf(
-         stderr,
-         "%s: exactly one of the -n and -N options must be specified.\n",
-         progname
-      );
-      usage();
-      return (EXIT_FAILURE);
-   }
-   if (outputkeys && seed == 1)
-   {
-      fprintf(
-         stderr,
-         "%s: Using default seed.  (-r 1).\n",
-         progname
-      );
+   if (outputkeys && seed == 1) {
+      fprintf(stderr,
+              "%s: Using default seed.  (-r 1).\n",
+              progname);
       seed = 1;
    }
-   if (outputkeys && minsize == -1) {
-      fprintf(
-         stderr,
-         "%s: Using default minsize.  (-m 0).\n",
-         progname
-      );
-      minsize = 0;
+   if (outputkeys && lengthmin == -1) {
+      fprintf(stderr,
+              "%s: Using default lengthmin.  (-m 0).\n",
+              progname);
+      lengthmin = 0;
    }
-   if (outputkeys && maxsize == -1) {
-      fprintf(
-         stderr,
-         "%s: Using default maxsize.  (-M 1024).\n",
-         progname
-      );
-      maxsize = 1024;
+   if (outputkeys && lengthlimit == -1) {
+      fprintf(stderr,
+              "%s: Using default lengthlimit.  (-M 1024).\n",
+              progname);
+      lengthlimit = 1024;
    }
-   if (outputkeys && minsize > maxsize) {
-      fprintf(
-         stderr,
-         "%s: Max key size must be greater than min key size.\n",
-         progname
-      );
-      usage();
-      return (EXIT_FAILURE);
+   if (outputkeys && lengthmin >= lengthlimit) {
+      fprintf(stderr,
+              "%s: Max key size must be greater than min key size.\n",
+              progname);
+      return usage();
    }
 
    if (argc != 0) {   
-      return (usage());
+      return usage();
    }
-   if (header)
-   {
-      printf(
-         "VERSION=3\n"
-         "format=%s\n"
-         "type=btree\n"
-         "db_pagesize=4096\n"
-         "HEADER=END\n",
-         (
-            plaintext ?
-            "print" :
-            "bytevalue"
-         )
-      );
+   if (header) {
+      printf("VERSION=3\n"
+             "format=%s\n"
+             "type=btree\n"
+             "db_pagesize=4096\n"
+             "HEADER=END\n",
+             plaintext ? "print" : "bytevalue");
    }
-   if (justheader)
-   {
-      return 0;
-   }
-   if (outputkeys)
-   {
-      /* Generate Keys! */
-      generate_keys();
-   }
-   if (footer)
-   {
-      printf("DATA=END\n");
-   }
+   if (justheader) return 0;
+   if (outputkeys) generate_keys();
+   if (footer)     printf("DATA=END\n");
    return 0;
 }
 
 int usage()
 {
-   fprintf
-   (
-      stderr,
-      "usage: %s [-ThHfF] [-d delimiter] [-s delimiter]\n"
-      "       -m minsize -M maxsize [-r random seed]\n"
-      "       (-n maxnumkeys | -N maxkibibytes) [-o filename]\n",
-      progname
-   );
-   return 1;
+   fprintf(stderr,
+           "usage: %s [-ThHfF] [-d delimiter] [-s delimiter]\n"
+           "       [-m lengthmin] [-M lengthlimit] [-r random seed]\n"
+           "       [-o filename] -n numkeys\n",
+           progname);
+   return EXIT_FAILURE;
 }
 
-unsigned char randbyte()
+uint8_t randbyte()
 {
-   static int numsavedbits = 0;
-   static unsigned long long savedbits = 0;
-   unsigned char retval;
+   static uint32_t   numsavedbits   = 0;
+   static uint64_t   savedbits      = 0;
+   uint8_t           retval;
    
-   if (numsavedbits < 8)
-   {
-      savedbits |= ((unsigned long long)random()) << numsavedbits;
+   if (numsavedbits < 8) {
+      savedbits |= ((uint64_t)random()) << numsavedbits;
       numsavedbits += 31;  /* Random generates 31 random bits. */
    }
-   retval = savedbits & 0xff;
-   numsavedbits -= 8;
-   savedbits >>= 8;
+   retval         = savedbits & 0xff;
+   numsavedbits  -= 8;
+   savedbits    >>= 8;
    return retval;
 }
 
 /* Almost-uniformly random int from [0,max) */
-int random_below(int max)
+int32_t random_below(int32_t max)
 {
    assert(max > 0);
-   return (random() % max);
+   return random() % max;
 }
 
-void outputbyte(unsigned char ch)
+void outputbyte(uint8_t ch)
 {
    if (plaintext) {
       if (ch == '\\')         printf("\\\\");
@@ -435,62 +321,42 @@ void outputstring(char* str)
 {
    char* p;
 
-   for (p = str; *p != '\0'; p++)
-   {
-      outputbyte((unsigned char)*p);
+   for (p = str; *p != '\0'; p++) {
+      outputbyte((uint8_t)*p);
    }
 }
 
 void generate_keys()
 {
-   bool usedemptykey = false;
-   long long numgenerated = 0;
-   long long totalsize = 0;
-   char identifier[24]; /* 8 bytes * 2 = 16; 16+1=17; 17+null terminator = 18. Extra padding. */
-   int length;
-   int i;
+   bool     usedemptykey   = false;
+   int64_t  numgenerated   = 0;
+   int64_t  totalsize      = 0;
+   char     identifier[24]; /* 8 bytes * 2 = 16; 16+1=17; 17+null terminator = 18. Extra padding. */
+   int      length;
+   int      i;
+   uint8_t  ch;
 
    srandom(seed);
-   while (
-      (
-         maxnumkeys == -1 ||
-         numgenerated < maxnumkeys  
-      ) &&
-      (
-         maxkibibytes == -1 ||
-         totalsize >> 10 < maxkibibytes
-      )
-   )
-   {
+   while (numgenerated < numkeys) {
       numgenerated++;
       
+      /* Each key is preceded by a space (unless using -T). */
+      if (leadingspace) printf(" ");   
+      
       /* Generate a key. */
-      if (leadingspace) {
-         printf(" ");   /* Each key is preceded by a space. */
-      }
       {
          /* Pick a key length. */
-         length = random_below(maxsize - minsize + 1) + minsize;
+         length = random_below(lengthlimit - lengthmin) + lengthmin;
          
          /* Output 'length' random bytes. */
-         for (i = 0; i < length; i++)
-         {
-            unsigned char ch;
-            
-            do {
-               ch = randbyte();
-            }
+         for (i = 0; i < length; i++) {
+            do {ch = randbyte();}
                while (printableonly && !isprint(ch));
-            
             outputbyte(ch);
          }
          totalsize += length;
-         if (length == 0 && !usedemptykey)
-         {
-            usedemptykey = true;
-         }
-         else
-         {
+         if (length == 0 && !usedemptykey) usedemptykey = true;
+         else {
             /* Append identifier to ensure uniqueness. */
             sprintf(identifier, "x%llx", numgenerated);
             outputstring(identifier);
@@ -499,24 +365,18 @@ void generate_keys()
       }
       printf("%c", dbt_delimiter);
 
+      /* Each value is preceded by a space (unless using -T). */
+      if (leadingspace) printf(" ");   
+
       /* Generate a value. */
-      if (leadingspace) {
-         printf(" ");   /* Each value is preceded by a space. */
-      }
       {
          /* Pick a key length. */
-         length = random_range(minsize, maxsize);
+         length = random_below(lengthlimit - lengthmin) + lengthmin;
          
          /* Output 'length' random bytes. */
-         for (i = 0; i < length; i++)
-         {
-            unsigned char ch;
-            
-            do {
-               ch = randbyte();
-            }
+         for (i = 0; i < length; i++) {
+            do {ch = randbyte();}
                while (printableonly && !isprint(ch));
-            
             outputbyte(ch);
          }
          totalsize += length;
@@ -525,4 +385,25 @@ void generate_keys()
 
       printf("%s", sort_delimiter);
    }
+}
+
+int get_delimiter(char* str)
+{
+   if (strlen(str) == 2 && str[0] == '\\') {
+      switch (str[1]) {
+         case ('a'): return '\a';
+         case ('b'): return '\b';
+         case ('e'): return '\e';
+         case ('f'): return '\f';
+         case ('n'): return '\n';
+         case ('r'): return '\r';
+         case ('t'): return '\t';
+         case ('v'): return '\v';
+         case ('0'): return '\0';
+         case ('\\'): return '\\';
+         default: return EOF;
+      }
+   }
+   if (strlen(str) == 1) return str[0];
+   return EOF;
 }
