@@ -433,7 +433,13 @@ void
 row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/* in: sorted buffer */
+#ifdef UNIV_DEBUG
+	const merge_file_t*	of,	/* in: output file */
+#endif /* UNIV_DEBUG */
 	row_merge_block_t*	block)	/* out: buffer for writing to file */
+#ifndef UNIV_DEBUG
+# define row_merge_buf_write(buf, of, block) row_merge_buf_write(buf, block)
+#endif /* !UNIV_DEBUG */
 {
 	dict_index_t*	index	= buf->index;
 	ulint		n_fields= dict_index_get_n_fields(index);
@@ -466,17 +472,20 @@ row_merge_buf_write(
 
 		ut_ad(b + size < block[1]);
 
-#ifdef UNIV_DEBUG
-		if (row_merge_print_write) {
-			fprintf(stderr, "row_merge_buf_write %lu", (ulong) i);
-			row_merge_tuple_print(stderr, entry, n_fields);
-		}
-#endif /* UNIV_DEBUG */
 		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
 					       REC_STATUS_ORDINARY,
 					       entry, n_fields);
 
 		b += size;
+
+#ifdef UNIV_DEBUG
+		if (row_merge_print_write) {
+			fprintf(stderr, "row_merge_buf_write %p,%d,%lu %lu",
+				(void*) b, of->fd, (ulong) of->offset,
+				(ulong) i);
+			row_merge_tuple_print(stderr, entry, n_fields);
+		}
+#endif /* UNIV_DEBUG */
 	}
 
 	/* Write an "end-of-chunk" marker. */
@@ -490,7 +499,8 @@ row_merge_buf_write(
 #endif /* UNIV_DEBUG_VALGRIND */
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
-		fputs("row_merge_buf_write EOF\n", stderr);
+		fprintf(stderr, "row_merge_buf_write %p,%d,%lu EOF\n",
+			(void*) b, of->fd, (ulong) of->offset);
 	}
 #endif /* UNIV_DEBUG */
 }
@@ -641,7 +651,9 @@ row_merge_read_rec(
 		*mrec = NULL;
 #ifdef UNIV_DEBUG
 		if (row_merge_print_read) {
-			fputs("row_merge_read EOF\n", stderr);
+			fprintf(stderr, "row_merge_read %p,%p,%d,%lu EOF\n",
+				(const void*) b, (const void*) block,
+				fd, (ulong) *foffs);
 		}
 #endif /* UNIV_DEBUG */
 		return(NULL);
@@ -749,7 +761,9 @@ err_exit:
 func_exit:
 #ifdef UNIV_DEBUG
 	if (row_merge_print_read) {
-		fputs("row_merge_read ", stderr);
+		fprintf(stderr, "row_merge_read %p,%p,%d,%lu ",
+			(const void*) b, (const void*) block,
+			fd, (ulong) *foffs);
 		rec_print_comp(stderr, *mrec, offsets);
 		putc('\n', stderr);
 	}
@@ -768,16 +782,23 @@ row_merge_write_rec_low(
 	ulint		e,	/* in: encoded extra_size */
 #ifdef UNIV_DEBUG
 	ulint		size,	/* in: total size to write */
+	int		fd,	/* in: file descriptor */
+	ulint		foffs,	/* in: file offset */
 #endif /* UNIV_DEBUG */
 	const mrec_t*	mrec,	/* in: record to write */
 	const ulint*	offsets)/* in: offsets of mrec */
+#ifndef UNIV_DEBUG
+# define row_merge_write_rec_low(b, e, size, fd, foffs, mrec, offsets)	\
+	row_merge_write_rec_low(b, e, mrec, offsets)
+#endif /* !UNIV_DEBUG */
 {
 #ifdef UNIV_DEBUG
 	const byte* const end = b + size;
 	ut_ad(e == rec_offs_extra_size(offsets) + 1);
 
 	if (row_merge_print_write) {
-		fputs("row_merge_write ", stderr);
+		fprintf(stderr, "row_merge_write %p,%d,%lu ",
+			(void*) b, fd, (ulong) foffs);
 		rec_print_comp(stderr, mrec, offsets);
 		putc('\n', stderr);
 	}
@@ -793,10 +814,6 @@ row_merge_write_rec_low(
 	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
 	ut_ad(b + rec_offs_size(offsets) == end);
 }
-
-#ifndef UNIV_DEBUG
-# define row_merge_write_rec_low(b,e,s,m,o) row_merge_write_rec_low(b,e,m,o)
-#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Write a merge record. */
@@ -839,7 +856,8 @@ row_merge_write_rec(
 		avail_size = block[1] - b;
 
 		row_merge_write_rec_low(buf[0],
-					extra_size, size, mrec, offsets);
+					extra_size, size, fd, *foffs,
+					mrec, offsets);
 
 		/* Copy the head of the temporary buffer, write
 		the completed block, and copy the tail of the
@@ -857,7 +875,8 @@ row_merge_write_rec(
 		memcpy(b, buf[0] + avail_size, size - avail_size);
 		b += size - avail_size;
 	} else {
-		row_merge_write_rec_low(b, extra_size, size, mrec, offsets);
+		row_merge_write_rec_low(b, extra_size, size, fd, *foffs,
+					mrec, offsets);
 		b += size;
 	}
 
@@ -883,7 +902,8 @@ row_merge_write_eof(
 	ut_ad(foffs);
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
-		fputs("row_merge_write EOF\n", stderr);
+		fprintf(stderr, "row_merge_write %p,%p,%d,%lu EOF\n",
+			(void*) b, (void*) block, fd, (ulong) *foffs);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1112,7 +1132,7 @@ row_merge_read_clustered_index(
 				goto func_exit;
 			}
 
-			row_merge_buf_write(buf, block);
+			row_merge_buf_write(buf, file, block);
 
 			if (!row_merge_write(file->fd, file->offset++,
 					     block)) {
