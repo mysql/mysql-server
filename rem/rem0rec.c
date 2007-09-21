@@ -1551,7 +1551,8 @@ rec_print_old(
 			} else {
 				ut_print_buf(file, data, 30);
 
-				fputs("...(truncated)", file);
+				fprintf(file, " (total %lu bytes)",
+					(ulong) len);
 			}
 		} else {
 			fprintf(file, " SQL NULL, size %lu ",
@@ -1566,34 +1567,21 @@ rec_print_old(
 }
 
 /*******************************************************************
-Prints a physical record. */
+Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
+record header. */
 
 void
-rec_print_new(
-/*==========*/
+rec_print_comp(
+/*===========*/
 	FILE*		file,	/* in: file where to print */
 	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
-	const byte*	data;
-	ulint		len;
-	ulint		i;
-
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-
-	if (!rec_offs_comp(offsets)) {
-		rec_print_old(file, rec);
-		return;
-	}
-
-	ut_ad(rec);
-
-	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
-		" compact format; info bits %lu\n",
-		(ulong) rec_offs_n_fields(offsets),
-		(ulong) rec_get_info_bits(rec, TRUE));
+	ulint	i;
 
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		const byte*	data;
+		ulint		len;
 
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
@@ -1606,7 +1594,8 @@ rec_print_new(
 			} else {
 				ut_print_buf(file, data, 30);
 
-				fputs("...(truncated)", file);
+				fprintf(file, " (total %lu bytes)",
+					(ulong) len);
 			}
 		} else {
 			fputs(" SQL NULL", file);
@@ -1615,7 +1604,33 @@ rec_print_new(
 	}
 
 	putc('\n', file);
+}
 
+/*******************************************************************
+Prints a physical record. */
+
+void
+rec_print_new(
+/*==========*/
+	FILE*		file,	/* in: file where to print */
+	const rec_t*	rec,	/* in: physical record */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+{
+	ut_ad(rec);
+	ut_ad(offsets);
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	if (!rec_offs_comp(offsets)) {
+		rec_print_old(file, rec);
+		return;
+	}
+
+	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
+		" compact format; info bits %lu\n",
+		(ulong) rec_offs_n_fields(offsets),
+		(ulong) rec_get_info_bits(rec, TRUE));
+
+	rec_print_comp(file, rec, offsets);
 	rec_validate(rec, offsets);
 }
 
