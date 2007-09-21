@@ -473,7 +473,7 @@ void test_size_flush() {
     CACHEKEY expect_flush_key = 0;
     for (i=0; i<2*n; i++) {
         CACHEKEY key = i;
-        void *value = (void *)-i;
+        void *value = (void *)(long)-i;
         //        printf("test_size put %lld %p %lld\n", key, value, size);
         r = cachetable_put_size(f, key, value, size, test_size_flush_callback, 0, 0);
         assert(r == 0);
