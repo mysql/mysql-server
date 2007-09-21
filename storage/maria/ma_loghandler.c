@@ -162,6 +162,7 @@ struct st_translog_descriptor
   /* All what is after this address is not sent to disk yet */
   TRANSLOG_ADDRESS in_buffers_only;
   pthread_mutex_t sent_to_file_lock;
+  pthread_mutex_t log_flush_lock;
 
   /* Protects changing of headers of finished files (max_lsn) */
   pthread_mutex_t file_header_lock;
@@ -2642,6 +2643,8 @@ my_bool translog_init(const char *directory,
                          MY_MUTEX_INIT_FAST) ||
       pthread_mutex_init(&log_descriptor.purger_lock,
                          MY_MUTEX_INIT_FAST) ||
+      pthread_mutex_init(&log_descriptor.log_flush_lock,
+                         MY_MUTEX_INIT_FAST) ||
       init_dynamic_array(&log_descriptor.unfinished_files,
                          sizeof(struct st_file_counter),
                          10, 10 CALLER_INFO))
@@ -3023,6 +3026,7 @@ void translog_destroy()
     pthread_mutex_destroy(&log_descriptor.file_header_lock);
     pthread_mutex_destroy(&log_descriptor.unfinished_files_lock);
     pthread_mutex_destroy(&log_descriptor.purger_lock);
+    pthread_mutex_destroy(&log_descriptor.log_flush_lock);
     delete_dynamic(&log_descriptor.unfinished_files);
 
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
@@ -6070,6 +6074,10 @@ static void translog_force_current_buffer_to_finish()
 
   if (left)
   {
+    /*
+      TODO: do not copy begining of the page if we have no CRC or sector
+      checks on
+    */
     memcpy(new_buffer->buffer, data, current_page_fill);
     log_descriptor.bc.ptr+= current_page_fill;
     log_descriptor.bc.buffer->size= log_descriptor.bc.current_page_fill=
@@ -6109,6 +6117,8 @@ static void translog_force_current_buffer_to_finish()
   a log flush fails (we however don't want to crash the entire mysqld, but
   stopping all engine's operations immediately would make sense).
   Same applies to translog_write_record().
+
+  @todo: remove serialization and make group commit.
 */
 
 my_bool translog_flush(LSN lsn)
@@ -6121,6 +6131,7 @@ my_bool translog_flush(LSN lsn)
   DBUG_PRINT("enter", ("Flush up to LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(translog_inited == 1);
 
+  pthread_mutex_lock(&log_descriptor.log_flush_lock);
   translog_lock();
   old_flushed= log_descriptor.flushed;
   for (;;)
@@ -6135,8 +6146,7 @@ my_bool translog_flush(LSN lsn)
     {
       DBUG_PRINT("info", ("already flushed: (%lu,0x%lx)",
                           LSN_IN_PARTS(log_descriptor.flushed)));
-      translog_unlock();
-      DBUG_RETURN(0);
+      goto out;
     }
     /* send to the file if it is not sent */
     sent_to_file= translog_get_sent_to_file();
@@ -6163,12 +6173,15 @@ my_bool translog_flush(LSN lsn)
       }
     } while ((buffer_start != buffer_no) &&
              cmp_translog_addr(log_descriptor.flushed, lsn) < 0);
-    if (buffer_unlock != NULL)
+    if (buffer_unlock != NULL && buffer_unlock != buffer)
       translog_buffer_unlock(buffer_unlock);
     rc= translog_buffer_flush(buffer);
     translog_buffer_unlock(buffer);
     if (rc)
-      DBUG_RETURN(1);
+    {
+      rc= 1;
+      goto out;
+    }
     if (!full_circle)
       translog_lock();
   }
@@ -6187,8 +6200,8 @@ my_bool translog_flush(LSN lsn)
         if ((log_descriptor.log_file_num[cache_index]=
              open_logfile_by_number_no_cache(i)) == -1)
         {
-          translog_unlock();
-          DBUG_RETURN(1);
+          rc= 1;
+          goto out;
         }
       }
       file= log_descriptor.log_file_num[cache_index];
@@ -6199,7 +6212,9 @@ my_bool translog_flush(LSN lsn)
   log_descriptor.flushed= sent_to_file;
   /** @todo LOG decide if syncing of directory is needed */
   rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
+out:
   translog_unlock();
+  pthread_mutex_unlock(&log_descriptor.log_flush_lock);
   DBUG_RETURN(rc);
 }
 
