@@ -56,9 +56,10 @@ fold will be calculated when a row is searched in the hash table. */
 #endif
 
 #if 0
-/* This effectively kills the searching for duplicate before adding a
-row function. It will always be assumed that lock is not present and
-insertion will be performed in the hash table. */
+/* This effectively kills the search-for-duplicate-before-adding-a-row
+function, but searching in the hash is still performed. It will always
+be assumed that lock is not present and insertion will be performed in
+the hash table. */
 #define TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T
 #endif
 
