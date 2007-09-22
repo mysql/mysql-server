@@ -742,6 +742,21 @@ the same version of the cache. */
 }
 
 /***********************************************************************
+Declare a cache empty, preparing it to be filled up. Not all resources
+are freed because they can be reused. */
+static
+void
+trx_i_s_cache_clear(
+/*================*/
+	trx_i_s_cache_t*	cache)	/* out: cache to clear */
+{
+	cache->innodb_trx.rows_used = 0;
+	cache->innodb_locks.rows_used = 0;
+	cache->innodb_lock_waits.rows_used = 0;
+	hash_table_clear(cache->locks_hash);
+}
+
+/***********************************************************************
 Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
 table cache buffer. Cache must be locked for write. */
 static
@@ -754,10 +769,7 @@ fetch_data_into_cache(
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	wait_lock_row;
 
-	cache->innodb_trx.rows_used = 0;
-	cache->innodb_locks.rows_used = 0;
-	cache->innodb_lock_waits.rows_used = 0;
-	hash_table_clear(cache->locks_hash);
+	trx_i_s_cache_clear(cache);
 
 	/* We iterate over the list of all transactions and add each one
 	to innodb_trx's cache. We also add all locks that are relevant
