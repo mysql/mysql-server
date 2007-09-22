@@ -147,6 +147,36 @@ static int agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 }
 
 
+/**
+  @brief Aggregates field types from the array of items.
+
+  @param[in] items  array of items to aggregate the type from
+  @paran[in] nitems number of items in the array
+
+  @details This function aggregates field types from the array of items.
+    Found type is supposed to be used later as the result field type
+    of a multi-argument function.
+    Aggregation itself is performed by the Field::field_type_merge()
+    function.
+
+  @note The term "aggregation" is used here in the sense of inferring the
+    result type of a function from its argument types.
+
+  @return aggregated field type.
+*/
+
+enum_field_types agg_field_type(Item **items, uint nitems)
+{
+  uint i;
+  if (!nitems || items[0]->result_type() == ROW_RESULT )
+    return (enum_field_types)-1;
+  enum_field_types res= items[0]->field_type();
+  for (i= 1 ; i < nitems ; i++)
+    res= Field::field_type_merge(res, items[i]->field_type());
+  return res;
+}
+
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
@@ -2009,9 +2039,7 @@ Item_func_ifnull::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
-  cached_field_type= args[0]->field_type();
-  if (cached_field_type != args[1]->field_type())
-    cached_field_type= Item_func::field_type();
+  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -2159,11 +2187,13 @@ Item_func_if::fix_length_and_dec()
   {
     cached_result_type= arg2_type;
     collation.set(args[2]->collation.collation);
+    cached_field_type= args[2]->field_type();
   }
   else if (null2)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation.collation);
+    cached_field_type= args[1]->field_type();
   }
   else
   {
@@ -2177,6 +2207,7 @@ Item_func_if::fix_length_and_dec()
     {
       collation.set(&my_charset_bin);	// Number
     }
+    cached_field_type= agg_field_type(args + 1, 2);
   }
 
   if ((cached_result_type == DECIMAL_RESULT )
@@ -2556,7 +2587,7 @@ void Item_func_case::fix_length_and_dec()
       agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV, 1))
     return;
   
-  
+  cached_field_type= agg_field_type(agg, nagg);
   /*
     Aggregate first expression and all THEN expression types
     and collations when string comparison
@@ -2695,6 +2726,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 
 void Item_func_coalesce::fix_length_and_dec()
 {
+  cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, args, arg_count);
   switch (hybrid_type) {
   case STRING_RESULT:
