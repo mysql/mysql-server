@@ -811,7 +811,11 @@ trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/* out: cache to init */
 {
+	rw_lock_create(&cache->rw_lock, SYNC_INFORMATION_SCHEMA);
+
 	cache->last_read = 0;
+
+	mutex_create(&cache->last_read_mutex, SYNC_INFORMATION_SCHEMA);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -819,10 +823,6 @@ trx_i_s_cache_init(
 			 sizeof(i_s_lock_waits_row_t));
 
 	cache->locks_hash = hash_create(LOCKS_HASH_CELLS_NUM);
-
-	rw_lock_create(&cache->rw_lock, SYNC_INFORMATION_SCHEMA);
-
-	mutex_create(&cache->last_read_mutex, SYNC_INFORMATION_SCHEMA);
 }
 
 /***********************************************************************
