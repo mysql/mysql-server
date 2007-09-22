@@ -1075,7 +1075,7 @@ enum {n_nodes_in_cache =127};
 int brt_create_cachetable (CACHETABLE *ct, int cachelines) {
     if (cachelines==0) cachelines=n_nodes_in_cache;
     assert(cachelines>0);
-    return brt_create_cachetable_size(ct, cachelines, cachelines*1024*1024);
+    return brt_create_cachetable_size(ct, cachelines, (cachelines+1)*1024*1024);
 }
 
 static int setup_brt_root_node (BRT t, diskoff offset) {

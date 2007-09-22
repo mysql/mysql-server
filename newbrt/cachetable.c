@@ -248,9 +248,13 @@ static void flush_and_keep (PAIR flush_me) {
     }
 }
 
-static int maybe_flush_some (CACHETABLE t, long size) {
+static int maybe_flush_some (CACHETABLE t, long size __attribute__((unused))) {
 again:
+#if 0
+    if (t->n_in_table >= t->table_size) {
+#else
     if (size + t->size_current > t->size_limit) {
+#endif
         /* Try to remove one. */
 	PAIR remove_me;
 	for (remove_me = t->tail; remove_me; remove_me = remove_me->prev) {
@@ -263,6 +267,11 @@ again:
 	printf("All are pinned\n");
 	return 1;
     }
+#if 0
+    if (t->n_in_table > t->table_size)
+        printf("maybe %d %d - %ld %ld\n", t->n_in_table, t->table_size,
+               t->size_current, t->size_limit);
+#endif
     return 0;
 }
 
