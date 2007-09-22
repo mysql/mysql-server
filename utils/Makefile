@@ -1,4 +1,4 @@
-CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -I /usr/local/Berkeletokudb.4.1/include/ -ldb
+CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -I /usr/local/Berkeleydb.4.1/include/ -ldb
 LFLAGS = -l CPPFLAGS = -I../include -I../newbrt
 
 #cc  $(CPPFLAGS) $(DBBINS) -shared -o libdb.so $(CFLAGS)
