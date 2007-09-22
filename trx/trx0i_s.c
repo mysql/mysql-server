@@ -166,37 +166,17 @@ table_cache_init(
 	size_t			row_size)	/* in: the size of a
 						row */
 {
-	ulint		i;
-	i_s_mem_chunk_t	*chunks;
+	ulint	i;
 
 	table_cache->rows_used = 0;
 	table_cache->rows_allocd = 0;
 	table_cache->row_size = row_size;
 
-	/* Calculate the sizes of the memory chunks that will eventually
-	be allocated. Memory is increased by the formula
-	new = old + old / 2
-	We are trying not to be aggressive here (= using the common
-	new = old * 2) because the allocated memory will not be freed
-	until InnoDB exit (it is reused). So it is better to once
-	allocate the memory in more steps, but have less unused/wasted
-	memory than to use less steps in allocation (which is done once
-	in a lifetime) but end up with lots of unused/wasted memory. */
+	for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
 
-	/* the memory is actually allocated in
-	table_cache_create_empty_row() */
-
-	chunks = table_cache->chunks;
-	chunks[0].offset = 0;
-	chunks[0].rows_allocd = TABLE_CACHE_INITIAL_ROWSNUM;
-	chunks[0].base = NULL;
-	for (i = 1; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
-
-		chunks[i].offset
-			= chunks[i - 1].offset
-			+ chunks[i - 1].rows_allocd;
-		chunks[i].rows_allocd = chunks[i].offset / 2;
-		chunks[i].base = NULL;
+		/* the memory is actually allocated in
+		table_cache_create_empty_row() */
+		table_cache->chunks[i].base = NULL;
 	}
 }
 
@@ -222,6 +202,12 @@ table_cache_create_empty_row(
 		last allocated chunk or nothing has been allocated yet
 		(rows_num == rows_allocd == 0); */
 
+		i_s_mem_chunk_t*	chunk;
+		ulint			req_bytes;
+		ulint			got_bytes;
+		ulint			req_rows;
+		ulint			got_rows;
+
 		/* find the first not allocated chunk */
 		for (i = 0; i < MEM_CHUNKS_IN_TABLE_CACHE; i++) {
 
@@ -235,18 +221,57 @@ table_cache_create_empty_row(
 		have been allocated :-X */
 		ut_a(i < MEM_CHUNKS_IN_TABLE_CACHE);
 
-		/* allocate the next chunk */
-		/* XXX use mem_heap */
-		table_cache->chunks[i].base
-			= mem_alloc(table_cache->chunks[i].rows_allocd
-				    * table_cache->row_size);
+		/* allocate the chunk we just found */
 
-		table_cache->rows_allocd
-			+= table_cache->chunks[i].rows_allocd;
+		if (i == 0) {
+
+			/* first chunk, nothing is allocated yet */
+			req_rows = TABLE_CACHE_INITIAL_ROWSNUM;
+		} else {
+
+			/* Memory is increased by the formula
+			new = old + old / 2; We are trying not to be
+			aggressive here (= using the common new = old * 2)
+			because the allocated memory will not be freed
+			until InnoDB exit (it is reused). So it is better
+			to once allocate the memory in more steps, but
+			have less unused/wasted memory than to use less
+			steps in allocation (which is done once in a
+			lifetime) but end up with lots of unused/wasted
+			memory. */
+			req_rows = table_cache->rows_allocd / 2;
+		}
+		req_bytes = req_rows * table_cache->row_size;
+
+		chunk = &table_cache->chunks[i];
+
+		chunk->base = mem_alloc2(req_bytes, &got_bytes);
+
+		got_rows = got_bytes / table_cache->row_size;
+
+#if 0
+		printf("allocating chunk %d req bytes=%lu, got bytes=%lu, "
+		       "row size=%lu, "
+		       "req rows=%lu, got rows=%lu\n",
+		       i, req_bytes, got_bytes,
+		       table_cache->row_size,
+		       req_rows, got_rows);
+#endif
+
+		chunk->rows_allocd = got_rows;
+
+		table_cache->rows_allocd += got_rows;
+
+		/* adjust the offset of the next chunk */
+		if (i < MEM_CHUNKS_IN_TABLE_CACHE - 1) {
+
+			table_cache->chunks[i + 1].offset
+				= chunk->offset + chunk->rows_allocd;
+		}
 
 		/* return the first empty row in the newly allocated
 		chunk */
-		row = table_cache->chunks[i].base;
+		row = chunk->base;
 	} else {
 
 		char*	chunk_start;
