@@ -39,7 +39,7 @@ bool           printableonly  = false;
 bool           leadingspace   = true;
 
 int main (int argc, char *argv[]) {
-   char ch;
+   int ch;
 
    progname = argv[0];
    strcpy(sort_delimiter, "");
@@ -172,6 +172,7 @@ int main (int argc, char *argv[]) {
             }
             break;
          }
+         case ('?'):
          default: {
             return (usage());
          }
