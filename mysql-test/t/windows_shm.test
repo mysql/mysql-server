@@ -1,9 +1,0 @@
-# Windows-specific tests
---source include/windows.inc
-
-#
-# Bug #24924: shared-memory-base-name that is too long causes buffer overflow
-#
---exec $MYSQLADMIN --no-defaults --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --shared-memory-base-name=HeyMrBaseNameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX ping
-
---echo End of 5.0 tests.
