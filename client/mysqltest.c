@@ -4947,7 +4947,13 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (gptr*) &opt_port,
    (gptr*) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
