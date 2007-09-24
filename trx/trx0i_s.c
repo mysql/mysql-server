@@ -14,6 +14,7 @@ Created July 17, 2007 Vasil Dimov
 #include <mysql/plugin.h>
 
 #include "univ.i"
+#include "ha0storage.h"
 #include "hash0hash.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
@@ -118,10 +119,16 @@ struct trx_i_s_cache_struct {
 	i_s_table_cache_t innodb_locks;	/* innodb_locks table */
 	i_s_table_cache_t innodb_lock_waits;/* innodb_lock_waits table */
 /* the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
-#define LOCKS_HASH_CELLS_NUM	10000
+#define LOCKS_HASH_CELLS_NUM		10000
 	hash_table_t*	locks_hash;	/* hash table used to eliminate
 					duplicate entries in the
 					innodb_locks table */
+#define CACHE_STORAGE_INITIAL_SIZE	1024
+#define CACHE_STORAGE_HASH_CELLS	2048
+	ha_storage_t*	storage;	/* storage for external volatile
+					data that can possibly not be
+					available later, when we release
+					the kernel mutex */
 };
 
 /* This is the intermediate buffer where data needed to fill the
@@ -362,21 +369,23 @@ fill_locks_row(
 				/* out: result object that's filled */
 	i_s_locks_row_t* row,	/* out: result object that's filled */
 	const lock_t*	lock,	/* in: lock to get data from */
-	ulint		heap_no)/* in: lock's record number
+	ulint		heap_no,/* in: lock's record number
 				or ULINT_UNDEFINED if the lock
 				is a table lock */
+	trx_i_s_cache_t* cache)	/* in/out: cache into which to copy
+				volatile strings */
 {
 	row->lock_trx_id = lock_get_trx_id(lock);
 	row->lock_mode = lock_get_mode_str(lock);
 	row->lock_type = lock_get_type_str(lock);
 
-	/* XXX this may be freed later */
-	row->lock_table = lock_get_table_name(lock);
+	row->lock_table = ha_storage_put_str(
+		cache->storage, lock_get_table_name(lock));
 
 	switch (lock_get_type(lock)) {
 	case LOCK_REC:
-		/* XXX this may be freed later */
-		row->lock_index = lock_rec_get_index_name(lock);
+		row->lock_index = ha_storage_put_str(
+			cache->storage, lock_rec_get_index_name(lock));
 
 		row->lock_space = lock_rec_get_space_id(lock);
 		row->lock_page = lock_rec_get_page_no(lock);
@@ -590,7 +599,7 @@ add_lock_to_cache(
 	dst_row = (i_s_locks_row_t*)
 		table_cache_create_empty_row(&cache->innodb_locks);
 
-	fill_locks_row(dst_row, lock, heap_no);
+	fill_locks_row(dst_row, lock, heap_no, cache);
 
 #ifndef TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
 	HASH_INSERT(
@@ -753,7 +762,10 @@ trx_i_s_cache_clear(
 	cache->innodb_trx.rows_used = 0;
 	cache->innodb_locks.rows_used = 0;
 	cache->innodb_lock_waits.rows_used = 0;
+
 	hash_table_clear(cache->locks_hash);
+
+	ha_storage_empty(&cache->storage);
 }
 
 /***********************************************************************
@@ -835,6 +847,9 @@ trx_i_s_cache_init(
 			 sizeof(i_s_lock_waits_row_t));
 
 	cache->locks_hash = hash_create(LOCKS_HASH_CELLS_NUM);
+
+	cache->storage = ha_storage_create(CACHE_STORAGE_INITIAL_SIZE,
+					   CACHE_STORAGE_HASH_CELLS);
 }
 
 /***********************************************************************
