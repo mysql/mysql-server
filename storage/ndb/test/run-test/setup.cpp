@@ -32,6 +32,7 @@ struct proc_option f_options[] = {
   ,{ "--datadir=",     atrt_process::AP_MYSQLD, 0 }
   ,{ "--socket=",      atrt_process::AP_MYSQLD | atrt_process::AP_CLIENT, 0 }
   ,{ "--port=",        atrt_process::AP_MYSQLD | atrt_process::AP_CLIENT, 0 }
+  ,{ "--host=",        atrt_process::AP_CLIENT, 0 }
   ,{ "--server-id=",   atrt_process::AP_MYSQLD, PO_REP }
   ,{ "--log-bin",      atrt_process::AP_MYSQLD, PO_REP_MASTER }
   ,{ "--master-host=", atrt_process::AP_MYSQLD, PO_REP_SLAVE }
@@ -46,12 +47,17 @@ struct proc_option f_options[] = {
 const char * ndbcs = "--ndb-connectstring=";
 
 bool
-setup_config(atrt_config& config)
+setup_config(atrt_config& config, const char* atrt_mysqld)
 {
   BaseString tmp(g_clusters);
   Vector<BaseString> clusters;
   tmp.split(clusters, ",");
 
+  if (atrt_mysqld)
+  {
+    clusters.push_back(BaseString(".atrt"));
+  }
+  
   bool fqpn = clusters.size() > 1 || g_fqpn;
   
   size_t j,k;
@@ -61,6 +67,7 @@ setup_config(atrt_config& config)
     config.m_clusters.push_back(cluster);
 
     cluster->m_name = clusters[i];
+    cluster->m_options.m_features = 0;
     if (fqpn)
     {
       cluster->m_dir.assfmt("cluster%s/", cluster->m_name.c_str());
@@ -113,6 +120,17 @@ setup_config(atrt_config& config)
 	  break;
 	}
       }      
+    }
+
+    if (strcmp(clusters[i].c_str(), ".atrt") == 0)
+    {
+      /**
+       * Only use a mysqld...
+       */
+      proc_args[0].value = 0;
+      proc_args[1].value = 0;
+      proc_args[2].value = 0;      
+      proc_args[3].value = 0;      
     }
 
     /**
@@ -605,6 +623,15 @@ static
 bool 
 pr_fix_client(Properties& props, proc_rule_ctx& ctx, int)
 {
+  atrt_process& proc = *ctx.m_process; 
+  const char * val, *name = "--host=";
+  if (!proc.m_options.m_loaded.get(name, &val))
+  {
+    val = proc.m_mysqld->m_host->m_hostname.c_str();
+    proc.m_options.m_loaded.put(name, val);
+    proc.m_options.m_generated.put(name, val);
+  }
+
   for (size_t i = 0; f_options[i].name; i++)
   {
     proc_option& opt = f_options[i];
@@ -612,7 +639,6 @@ pr_fix_client(Properties& props, proc_rule_ctx& ctx, int)
     if (opt.type & atrt_process::AP_CLIENT)
     {
       const char * val;
-      atrt_process& proc = *ctx.m_process; 
       if (!proc.m_options.m_loaded.get(name, &val))
       {
 	require(proc.m_mysqld->m_options.m_loaded.get(name, &val));
