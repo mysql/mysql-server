@@ -3239,7 +3239,7 @@ void Item_func_str_to_date::fix_length_and_dec()
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
   maybe_null= 1;
   decimals=0;
-  cached_field_type= MYSQL_TYPE_STRING;
+  cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
   format= args[1]->val_str(&format_str);
