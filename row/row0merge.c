@@ -48,7 +48,7 @@ static ibool	row_merge_print_write;
 
 /* Block size for I/O operations in merge sort */
 
-typedef byte	row_merge_block_t[16384];
+typedef byte	row_merge_block_t[1048576];
 
 /* Secondary buffer for I/O operations of merge records */
 
