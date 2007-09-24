@@ -3458,6 +3458,13 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
+   /*
+     If error during the CREATE SELECT we drop the table, so no need for
+     engines to do logging of insertions (optimization).
+   */
+   if (ha_enable_transaction(thd, FALSE))
+     DBUG_RETURN(-1);
+
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
                                        &thd->extra_lock, hook_ptr)))
@@ -3602,6 +3609,7 @@ bool select_create::send_eof()
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+    ha_enable_transaction(thd, TRUE);
     if (thd->extra_lock)
     {
       mysql_unlock_tables(thd, thd->extra_lock);
@@ -3639,6 +3647,8 @@ void select_create::abort()
   */
   if (thd->current_stmt_binlog_row_based)
     ha_rollback_stmt(thd);
+
+  ha_enable_transaction(thd, TRUE);
 
   if (thd->extra_lock)
   {
