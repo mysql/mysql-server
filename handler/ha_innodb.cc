@@ -7233,7 +7233,7 @@ ha_innobase::innobase_get_auto_increment(
 /*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulint		error;
+	ulong		error;
 
 	*value = 0;
 
