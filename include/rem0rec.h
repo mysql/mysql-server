@@ -118,9 +118,9 @@ UNIV_INLINE
 ulint
 rec_get_n_fields(
 /*=============*/
-				/* out: number of data fields */
-	const rec_t*	rec,	/* in: physical record */
-	dict_index_t*	index);	/* in: record descriptor */
+					/* out: number of data fields */
+	const rec_t*		rec,	/* in: physical record */
+	const dict_index_t*	index);	/* in: record descriptor */
 /**********************************************************
 The following function is used to get the number of records owned by the
 previous directory record. */
@@ -372,10 +372,11 @@ UNIV_INLINE
 ibool
 rec_offs_validate(
 /*==============*/
-				/* out: TRUE if valid */
-	const rec_t*	rec,	/* in: record or NULL */
-	dict_index_t*	index,	/* in: record descriptor or NULL */
-	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+					/* out: TRUE if valid */
+	const rec_t*		rec,	/* in: record or NULL */
+	const dict_index_t*	index,	/* in: record descriptor or NULL */
+	const ulint*		offsets);/* in: array returned by
+					rec_get_offsets() */
 /****************************************************************
 Updates debug data in offsets, in order to avoid bogus
 rec_offs_validate() failures. */
@@ -383,9 +384,10 @@ UNIV_INLINE
 void
 rec_offs_make_valid(
 /*================*/
-	const rec_t*	rec,	/* in: record */
-	dict_index_t*	index,/* in: record descriptor */
-	ulint*		offsets);/* in: array returned by rec_get_offsets() */
+	const rec_t*		rec,	/* in: record */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint*			offsets);/* in: array returned by
+					rec_get_offsets() */
 
 /****************************************************************
 The following function is used to get the offset to the nth
