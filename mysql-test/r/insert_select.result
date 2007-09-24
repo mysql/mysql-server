@@ -816,3 +816,15 @@ id	prev_id	join_id
 3	2	0
 4	3	0
 DROP TABLE t1,t2;
+#
+# Bug#30384: Having SQL_BUFFER_RESULT option in the
+#            CREATE .. KEY(..) .. SELECT led to creating corrupted index.
+#
+create table t1(f1 int);
+insert into t1 values(1),(2),(3);
+create table t2 (key(f1)) engine=myisam select sql_buffer_result f1 from t1;
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t1,t2;
+##################################################################
