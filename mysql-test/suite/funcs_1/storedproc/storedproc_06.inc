@@ -18,9 +18,9 @@
 let $message= Section 3.1.6 - Privilege Checks:;
 --source include/show_msg80.inc
 
-USE db_storedproc_1;
 
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 # ------------------------------------------------------------------------------
@@ -58,6 +58,7 @@ disconnect user1a;
 
 # add privilege again and check
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
@@ -77,6 +78,7 @@ disconnect user1b;
 
 # cleanup
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 DROP USER 'user_1'@'localhost';
@@ -132,6 +134,7 @@ disconnect user2;
 
 # cleanup
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 drop user 'user_1'@'localhost';
