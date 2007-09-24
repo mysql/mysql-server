@@ -151,19 +151,16 @@ sub collect_one_suite($$)
 
   mtr_verbose("Collecting: $suite");
 
-  my $testdir;
-  my $resdir;
+  my $suitedir= "$::glob_mysql_test_dir"; # Default
+  if ( $suite ne "main" )
+  {
+    $suitedir= mtr_path_exists("$suitedir/suite/$suite",
+			       "$suitedir/$suite");
+    mtr_verbose("suitedir: $suitedir");
+  }
 
-  if ( $suite eq "main" )
-  {
-    $testdir= "$::glob_mysql_test_dir/t";
-    $resdir=  "$::glob_mysql_test_dir/r";
-  }
-  else
-  {
-    $testdir= "$::glob_mysql_test_dir/suite/$suite/t";
-    $resdir=  "$::glob_mysql_test_dir/suite/$suite/r";
-  }
+  my $testdir= "$suitedir/t";
+  my $resdir=  "$suitedir/r";
 
   # ----------------------------------------------------------------------
   # Build a hash of disabled testcases for this suite
@@ -205,7 +202,7 @@ sub collect_one_suite($$)
       $tname = basename($tname);
 
       # Get rid of suite part
-      $tname =~ s/^$suite\.//;
+      $tname =~ s/^(.*)\.//;
 
       # Check if the extenstion has been specified.
 
@@ -333,7 +330,7 @@ sub collect_one_test_case($$$$$$$$$) {
 
 
   my $tinfo= {};
-  $tinfo->{'name'}= "$suite.$tname";
+  $tinfo->{'name'}= basename($suite) . ".$tname";
   $tinfo->{'result_file'}= "$resdir/$tname.result";
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
