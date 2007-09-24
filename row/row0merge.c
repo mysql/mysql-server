@@ -1322,6 +1322,7 @@ row_merge(
 	merge_file_t	of;	/* output file */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+	ut_ad(half > 0);
 
 	of.fd = *tmpfd;
 	of.offset = 0;
@@ -1380,8 +1381,11 @@ row_merge_sort(
 	ulint	blksz;	/* block size */
 
 	for (blksz = 1; blksz < file->offset; blksz *= 2) {
-		ulint	half = ut_2pow_round((file->offset + 1) / 2, blksz);
-		ulint	error = row_merge(index, file, half, block, tmpfd);
+		ulint	half;
+		ulint	error;
+
+		half = ut_2pow_round((file->offset + blksz - 1) / 2, blksz);
+		error = row_merge(index, file, half, block, tmpfd);
 
 		if (error != DB_SUCCESS) {
 			return(error);
