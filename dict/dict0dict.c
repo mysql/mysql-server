@@ -309,7 +309,7 @@ Decrements the count of open MySQL handles to a table. */
 void
 dict_table_decrement_handle_count(
 /*==============================*/
-	dict_table_t*	table,		/* in: table */
+	dict_table_t*	table,		/* in/out: table */
 	ibool		dict_locked)	/* in: TRUE=data dictionary locked */
 {
 	if (!dict_locked) {
@@ -363,7 +363,7 @@ Acquire the autoinc lock.*/
 void
 dict_table_autoinc_lock(
 /*====================*/
-	dict_table_t*	table)
+	dict_table_t*	table)	/* in/out: table */
 {
 	mutex_enter(&table->autoinc_mutex);
 }
@@ -375,7 +375,7 @@ initialized counter. */
 void
 dict_table_autoinc_initialize(
 /*==========================*/
-	dict_table_t*	table,	/* in: table */
+	dict_table_t*	table,	/* in/out: table */
 	ib_longlong	value)	/* in: next value to assign to a row */
 {
 	table->autoinc_inited = TRUE;
@@ -389,8 +389,8 @@ initialized. */
 ib_longlong
 dict_table_autoinc_read(
 /*====================*/
-				/* out: value for a new row, or 0 */
-	dict_table_t*	table)	/* in: table */
+					/* out: value for a new row, or 0 */
+	const dict_table_t*	table)	/* in: table */
 {
 	ib_longlong	value;
 
@@ -412,7 +412,7 @@ void
 dict_table_autoinc_update(
 /*======================*/
 
-	dict_table_t*	table,	/* in: table */
+	dict_table_t*	table,	/* in/out: table */
 	ib_longlong	value)	/* in: value which was assigned to a row */
 {
 	if (table->autoinc_inited && value > table->autoinc) {
@@ -427,7 +427,7 @@ Release the autoinc lock.*/
 void
 dict_table_autoinc_unlock(
 /*======================*/
-	dict_table_t*	table)	/* in: release autoinc lock for this table */
+	dict_table_t*	table)	/* in/out: table */
 {
 	mutex_exit(&table->autoinc_mutex);
 }
@@ -507,10 +507,10 @@ Returns TRUE if the index contains a column or a prefix of that column. */
 ibool
 dict_index_contains_col_or_prefix(
 /*==============================*/
-				/* out: TRUE if contains the column or its
-				prefix */
-	dict_index_t*	index,	/* in: index */
-	ulint		n)	/* in: column number */
+					/* out: TRUE if contains the column
+					or its prefix */
+	const dict_index_t*	index,	/* in: index */
+	ulint			n)	/* in: column number */
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -550,17 +550,18 @@ from the prefix in index. */
 ulint
 dict_index_get_nth_field_pos(
 /*=========================*/
-				/* out: position in internal representation
-				of the index; if not contained, returns
-				ULINT_UNDEFINED */
-	dict_index_t*	index,	/* in: index from which to search */
-	dict_index_t*	index2,	/* in: index */
-	ulint		n)	/* in: field number in index2 */
+					/* out: position in internal
+					representation of the index;
+					if not contained, returns
+					ULINT_UNDEFINED */
+	const dict_index_t*	index,	/* in: index from which to search */
+	const dict_index_t*	index2,	/* in: index */
+	ulint			n)	/* in: field number in index2 */
 {
-	dict_field_t*	field;
-	dict_field_t*	field2;
-	ulint		n_fields;
-	ulint		pos;
+	const dict_field_t*	field;
+	const dict_field_t*	field2;
+	ulint			n_fields;
+	ulint			pos;
 
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -624,10 +625,11 @@ Looks for column n position in the clustered index. */
 ulint
 dict_table_get_nth_col_pos(
 /*=======================*/
-				/* out: position in internal representation
-				of the clustered index */
-	dict_table_t*	table,	/* in: table */
-	ulint		n)	/* in: column number */
+					/* out: position in internal
+					representation of
+					the clustered index */
+	const dict_table_t*	table,	/* in: table */
+	ulint			n)	/* in: column number */
 {
 	return(dict_index_get_nth_col_pos(dict_table_get_first_index(table),
 					  n));
@@ -640,12 +642,12 @@ table. Column prefixes are treated like whole columns. */
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
-				/* out: TRUE if the column, or its prefix, is
-				in the clustered key */
-	dict_table_t*	table,	/* in: table */
-	ulint		n)	/* in: column number */
+					/* out: TRUE if the column, or its
+					prefix, is in the clustered key */
+	const dict_table_t*	table,	/* in: table */
+	ulint			n)	/* in: column number */
 {
-	dict_index_t*		index;
+	const dict_index_t*	index;
 	const dict_field_t*	field;
 	const dict_col_t*	col;
 	ulint			pos;
@@ -903,7 +905,7 @@ ibool
 dict_table_rename_in_cache(
 /*=======================*/
 					/* out: TRUE if success */
-	dict_table_t*	table,		/* in: table */
+	dict_table_t*	table,		/* in/out: table */
 	const char*	new_name,	/* in: new name */
 	ibool		rename_also_foreigns)/* in: in ALTER TABLE we want
 					to preserve the original table name
@@ -1119,7 +1121,7 @@ DISCARD TABLESPACE. */
 void
 dict_table_change_id_in_cache(
 /*==========================*/
-	dict_table_t*	table,	/* in: table object already in cache */
+	dict_table_t*	table,	/* in/out: table object already in cache */
 	dulint		new_id)	/* in: new id to set */
 {
 	ut_ad(table);
@@ -1329,7 +1331,7 @@ Removes an index from the dictionary cache. */
 void
 dict_index_remove_from_cache(
 /*=========================*/
-	dict_table_t*	table,	/* in: table */
+	dict_table_t*	table,	/* in/out: table */
 	dict_index_t*	index)	/* in, own: index */
 {
 	ulint		size;
@@ -1396,10 +1398,10 @@ Adds a column to index. */
 void
 dict_index_add_col(
 /*===============*/
-	dict_index_t*	index,		/* in: index */
-	dict_table_t*	table,		/* in: table */
-	dict_col_t*	col,		/* in: column */
-	ulint		prefix_len)	/* in: column prefix length */
+	dict_index_t*		index,		/* in/out: index */
+	const dict_table_t*	table,		/* in: table */
+	dict_col_t*		col,		/* in: column */
+	ulint			prefix_len)	/* in: column prefix length */
 {
 	dict_field_t*	field;
 	const char*	col_name;
@@ -3603,9 +3605,9 @@ no comparison can occur with the page number field in a node pointer. */
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
-				/* out: TRUE if ok */
-	dict_index_t*	index,	/* in: index tree */
-	const dtuple_t*	tuple)	/* in: tuple used in a search */
+					/* out: TRUE if ok */
+	const dict_index_t*	index,	/* in: index tree */
+	const dtuple_t*		tuple)	/* in: tuple used in a search */
 {
 	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
@@ -3620,14 +3622,16 @@ Builds a node pointer out of a physical record and a page number. */
 dtuple_t*
 dict_index_build_node_ptr(
 /*======================*/
-				/* out, own: node pointer */
-	dict_index_t*	index,	/* in: index tree */
-	rec_t*		rec,	/* in: record for which to build node
-				pointer */
-	ulint		page_no,/* in: page number to put in node pointer */
-	mem_heap_t*	heap,	/* in: memory heap where pointer created */
-	ulint		level)	/* in: level of rec in tree: 0 means leaf
-				level */
+					/* out, own: node pointer */
+	const dict_index_t*	index,	/* in: index */
+	const rec_t*		rec,	/* in: record for which to build node
+					pointer */
+	ulint			page_no,/* in: page number to put in node
+					pointer */
+	mem_heap_t*		heap,	/* in: memory heap where pointer
+					created */
+	ulint			level)	/* in: level of rec in tree:
+					0 means leaf level */
 {
 	dtuple_t*	tuple;
 	dfield_t*	field;
@@ -3745,7 +3749,7 @@ Calculates the minimum record length in an index. */
 ulint
 dict_index_calc_min_rec_len(
 /*========================*/
-	dict_index_t*	index)	/* in: index */
+	const dict_index_t*	index)	/* in: index */
 {
 	ulint	sum	= 0;
 	ulint	i;
@@ -3796,7 +3800,7 @@ are used in query optimization. */
 void
 dict_update_statistics_low(
 /*=======================*/
-	dict_table_t*	table,		/* in: table */
+	dict_table_t*	table,		/* in/out: table */
 	ibool		has_dict_mutex __attribute__((unused)))
 					/* in: TRUE if the caller has the
 					dictionary mutex */
@@ -3880,7 +3884,7 @@ are used in query optimization. */
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table)	/* in: table */
+	dict_table_t*	table)	/* in/out: table */
 {
 	dict_update_statistics_low(table, FALSE);
 }
@@ -4456,20 +4460,21 @@ dict_table_get_index_by_max_id(
 	return(dict_find_index_by_max_id(table, name, column_names, n_cols));
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Check for duplicate index entries in a table [using the index name] */
-#ifdef UNIV_DEBUG
 
 void
 dict_table_check_for_dup_indexes(
 /*=============================*/
-	dict_table_t*	table)	/* in: Check for dup indexes in this table */
+	const dict_table_t*	table)	/* in: Check for dup indexes
+					in this table */
 {
 	/* Check for duplicates, ignoring indexes that are marked
 	as to be dropped */
 
-	dict_index_t*	index1;
-	dict_index_t*	index2;
+	const dict_index_t*	index1;
+	const dict_index_t*	index2;
 
 	/* The primary index _must_ exist */
 	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);

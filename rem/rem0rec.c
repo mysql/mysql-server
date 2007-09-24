@@ -219,13 +219,15 @@ rec_init_offsets() and rec_get_offsets_func(). */
 void
 rec_init_offsets_comp_ordinary(
 /*===========================*/
-	const rec_t*	rec,	/* in: physical record in ROW_FORMAT=COMPACT */
-	ulint		extra,	/* in: number of bytes to reserve between
-				the record header and the data payload
-				(usually REC_N_NEW_EXTRA_BYTES) */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets)/* in/out: array of offsets;
-				in: n=rec_offs_n_fields(offsets) */
+	const rec_t*		rec,	/* in: physical record in
+					ROW_FORMAT=COMPACT */
+	ulint			extra,	/* in: number of bytes to reserve
+					between the record header and
+					the data payload
+					(usually REC_N_NEW_EXTRA_BYTES) */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint*			offsets)/* in/out: array of offsets;
+					in: n=rec_offs_n_fields(offsets) */
 {
 	ulint		i		= 0;
 	ulint		offs		= 0;
@@ -329,10 +331,10 @@ static
 void
 rec_init_offsets(
 /*=============*/
-	const rec_t*	rec,	/* in: physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets)/* in/out: array of offsets;
-				in: n=rec_offs_n_fields(offsets) */
+	const rec_t*		rec,	/* in: physical record */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint*			offsets)/* in/out: array of offsets;
+					in: n=rec_offs_n_fields(offsets) */
 {
 	ulint	i	= 0;
 	ulint	offs;
@@ -480,17 +482,19 @@ in the record.	It can reuse a previously returned array. */
 ulint*
 rec_get_offsets_func(
 /*=================*/
-				/* out: the new offsets */
-	const rec_t*	rec,	/* in: physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: array consisting of offsets[0]
-				allocated elements, or an array from
-				rec_get_offsets(), or NULL */
-	ulint		n_fields,/* in: maximum number of initialized fields
-				(ULINT_UNDEFINED if all fields) */
-	mem_heap_t**	heap,	/* in/out: memory heap */
-	const char*	file,	/* in: file name where called */
-	ulint		line)	/* in: line number where called */
+					/* out: the new offsets */
+	const rec_t*		rec,	/* in: physical record */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint*			offsets,/* in/out: array consisting of
+					offsets[0] allocated elements,
+					or an array from rec_get_offsets(),
+					or NULL */
+	ulint			n_fields,/* in: maximum number of
+					initialized fields
+					 (ULINT_UNDEFINED if all fields) */
+	mem_heap_t**		heap,	/* in/out: memory heap */
+	const char*		file,	/* in: file name where called */
+	ulint			line)	/* in: line number where called */
 {
 	ulint	n;
 	ulint	size;
@@ -550,13 +554,15 @@ in the record.  It can reuse a previously allocated array. */
 void
 rec_get_offsets_reverse(
 /*====================*/
-	const byte*	extra,	/* in: the extra bytes of a compact record
-				in reverse order, excluding the fixed-size
-				REC_N_NEW_EXTRA_BYTES */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		node_ptr,/* in: nonzero=node pointer, 0=leaf node */
-	ulint*		offsets)/* in/out: array consisting of offsets[0]
-				allocated elements */
+	const byte*		extra,	/* in: the extra bytes of a
+					compact record in reverse order,
+					excluding the fixed-size
+					REC_N_NEW_EXTRA_BYTES */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint			node_ptr,/* in: nonzero=node pointer,
+					0=leaf node */
+	ulint*			offsets)/* in/out: array consisting of
+					offsets[0] allocated elements */
 {
 	ulint		n;
 	ulint		i;
@@ -1192,11 +1198,12 @@ are copied to the memory heap. */
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
-	dtuple_t*	tuple,		/* out: data tuple */
-	const rec_t*	rec,		/* in: physical record */
-	dict_index_t*	index,		/* in: record descriptor */
-	ulint		n_fields,	/* in: number of fields to copy */
-	mem_heap_t*	heap)		/* in: memory heap */
+	dtuple_t*		tuple,		/* out: data tuple */
+	const rec_t*		rec,		/* in: physical record */
+	const dict_index_t*	index,		/* in: record descriptor */
+	ulint			n_fields,	/* in: number of fields
+						to copy */
+	mem_heap_t*		heap)		/* in: memory heap */
 {
 	ulint	i;
 	ulint	offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1279,13 +1286,15 @@ a buffer. */
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
-					/* out, own: copied record */
-	const rec_t*	rec,		/* in: physical record */
-	dict_index_t*	index,		/* in: record descriptor */
-	ulint		n_fields,	/* in: number of fields to copy */
-	byte**		buf,		/* in/out: memory buffer
-					for the copied prefix, or NULL */
-	ulint*		buf_size)	/* in/out: buffer size */
+						/* out, own: copied record */
+	const rec_t*		rec,		/* in: physical record */
+	const dict_index_t*	index,		/* in: record descriptor */
+	ulint			n_fields,	/* in: number of fields
+						to copy */
+	byte**			buf,		/* in/out: memory buffer
+						for the copied prefix,
+						or NULL */
+	ulint*			buf_size)	/* in/out: buffer size */
 {
 	const byte*	nulls;
 	const byte*	lens;
