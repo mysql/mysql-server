@@ -3742,6 +3742,11 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
+  # Increase default connect_timeout to avoid intermittent
+  # disconnects when test servers are put under load
+  # see BUG#28359
+  mtr_add_arg($args, "%s--connect-timeout=60", $prefix);
+
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
