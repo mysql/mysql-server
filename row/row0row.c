@@ -481,33 +481,37 @@ search the clustered index record. */
 void
 row_build_row_ref_in_tuple(
 /*=======================*/
-	dtuple_t*	ref,	/* in/out: row reference built; see the
-				NOTE below! */
-	dict_index_t*	index,	/* in: index */
-	const rec_t*	rec,	/* in: record in the index;
-				NOTE: the data fields in ref will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row reference is used! */
-	trx_t*		trx)	/* in: transaction */
+	dtuple_t*		ref,	/* in/out: row reference built;
+					see the NOTE below! */
+	const rec_t*		rec,	/* in: record in the index;
+					NOTE: the data fields in ref
+					will point directly into this
+					record, therefore, the buffer
+					page of this record must be at
+					least s-latched and the latch
+					held as long as the row
+					reference is used! */
+	const dict_index_t*	index,	/* in: secondary index */
+	ulint*			offsets,/* in: rec_get_offsets(rec, index)
+					or NULL */
+	trx_t*			trx)	/* in: transaction */
 {
-	dict_index_t*	clust_index;
-	dfield_t*	dfield;
-	const byte*	field;
-	ulint		len;
-	ulint		ref_len;
-	ulint		pos;
-	ulint		clust_col_prefix_len;
-	ulint		i;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
+	const dict_index_t*	clust_index;
+	dfield_t*		dfield;
+	const byte*		field;
+	ulint			len;
+	ulint			ref_len;
+	ulint			pos;
+	ulint			clust_col_prefix_len;
+	ulint			i;
+	mem_heap_t*		heap		= NULL;
+	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_a(ref);
 	ut_a(index);
 	ut_a(rec);
+	ut_ad(!dict_index_is_clust(index));
 
 	if (UNIV_UNLIKELY(!index->table)) {
 		fputs("InnoDB: table ", stderr);
@@ -521,12 +525,17 @@ notfound:
 
 	clust_index = dict_table_get_first_index(index->table);
 
-	if (!clust_index) {
+	if (UNIV_UNLIKELY(!clust_index)) {
 		fputs("InnoDB: clust index for table ", stderr);
 		goto notfound;
 	}
 
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+	if (!offsets) {
+		offsets = rec_get_offsets(rec, index, offsets_,
+					  ULINT_UNDEFINED, &heap);
+	} else {
+		ut_ad(rec_offs_validate(rec, index, offsets));
+	}
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
