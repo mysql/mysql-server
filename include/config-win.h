@@ -15,6 +15,8 @@
 
 /* Defines for Win32 to make it compatible for MySQL */
 
+#define BIG_TABLES
+
 #ifdef __WIN2000__
 /* We have to do this define before including windows.h to get the AWE API
 functions */

@@ -139,20 +139,6 @@ public:
   */
   get_partitions_in_range_iter get_subpart_iter_for_interval;
   
-  /*
-    Valid iff
-    get_part_iter_for_interval=get_part_iter_for_interval_via_walking:
-      controls how we'll process "field < C" and "field > C" intervals.
-      If the partitioning function F is strictly increasing, then for any x, y
-      "x < y" => "F(x) < F(y)" (*), i.e. when we get interval "field < C" 
-      we can perform partition pruning on the equivalent "F(field) < F(C)".
-
-      If the partitioning function not strictly increasing (it is simply
-      increasing), then instead of (*) we get "x < y" => "F(x) <= F(y)"
-      i.e. for interval "field < C" we can perform partition pruning for
-      "F(field) <= F(C)".
-  */
-  bool range_analysis_include_bounds;
   /********************************************
    * INTERVAL ANALYSIS ENDS 
    ********************************************/
