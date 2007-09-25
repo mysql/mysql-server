@@ -123,13 +123,16 @@ static my_bool redo_phase_message_printed;
 /** @brief Prints to a trace file if it is not NULL */
 void tprint(FILE *trace_file, const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
-void tprint(FILE *trace_file, const char *format, ...)
+void tprint(FILE *trace_file __attribute__ ((unused)),
+            const char *format __attribute__ ((unused)), ...)
 {
+#ifdef EXTRA_DEBUG
   va_list args;
   va_start(args, format);
   if (trace_file != NULL)
     vfprintf(trace_file, format, args);
   va_end(args);
+#endif
 }
 
 #define ALERT_USER() DBUG_ASSERT(0)
@@ -157,7 +160,7 @@ int maria_recover(void)
   DBUG_ASSERT(!maria_in_recovery);
   maria_in_recovery= TRUE;
 
-#if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
+#ifdef EXTRA_DEBUG
   trace_file= fopen("maria_recovery.trace", "w");
 #else
   trace_file= NULL; /* no trace file for being fast */
