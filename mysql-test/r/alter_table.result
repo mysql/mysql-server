@@ -54,7 +54,7 @@ SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 GROUP_ID	int(10) unsigned	NULL	NO	PRI	0		#	
 LANG_ID	smallint(5) unsigned	NULL	NO	PRI	0		#	
-NAME	char(80)	latin1_swedish_ci	NO	MUL			#	
+NAME	char(80)	latin1_swedish_ci	NO	MUL	NULL		#	
 DROP TABLE t1;
 create table t1 (n int);
 insert into t1 values(9),(3),(12),(10);

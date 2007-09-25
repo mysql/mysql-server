@@ -989,7 +989,7 @@ b	NULL
 use test;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO			
+a	int(11)	NO		NULL	
 b	int(11)	YES		NULL	
 drop table t1;
 CREATE TABLE t1 (a int);
@@ -1354,4 +1354,35 @@ where event_object_table='t1';
 trigger_name
 drop user mysqltest_1@localhost;
 drop database mysqltest;
+create table t1 (
+f1 varchar(50),
+f2 varchar(50) not null,
+f3 varchar(50) default '',
+f4 varchar(50) default NULL,
+f5 bigint not null,
+f6 bigint not null default 10,
+f7 datetime not null,
+f8 datetime default '2006-01-01'
+);
+select column_default from information_schema.columns where table_name= 't1';
+column_default
+NULL
+NULL
+
+NULL
+NULL
+10
+NULL
+2006-01-01 00:00:00
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+f1	varchar(50)	YES		NULL	
+f2	varchar(50)	NO		NULL	
+f3	varchar(50)	YES			
+f4	varchar(50)	YES		NULL	
+f5	bigint(20)	NO		NULL	
+f6	bigint(20)	NO		10	
+f7	datetime	NO		NULL	
+f8	datetime	YES		2006-01-01 00:00:00	
+drop table t1;
 End of 5.0 tests.
