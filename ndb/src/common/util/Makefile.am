@@ -24,7 +24,8 @@ libgeneral_la_SOURCES = \
             uucode.c random.c version.c \
             strdup.c \
             ConfigValues.cpp ndb_init.c basestring_vsnprintf.c \
-            Bitmask.cpp
+            Bitmask.cpp \
+	    ndb_rand.c
 
 EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp
