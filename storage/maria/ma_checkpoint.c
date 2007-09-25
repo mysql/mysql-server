@@ -544,7 +544,9 @@ static int filter_flush_data_file_evenly(enum pagecache_page_type type,
 pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
 {
   const uint sleep_unit= 1 /* 1 second */,
-    time_between_checkpoints= 30; /* 30 sleep units */
+    time_between_checkpoints= 30, /* 30 sleep units */
+    /** @brief At least this of log/page bytes written between checkpoints */
+    checkpoint_min_activity= 2*1024*1024;
   uint sleeps= 0;
 
   my_thread_init();
@@ -570,16 +572,17 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
         in the checkpoint.
       */
       /*
-        No checkpoint if no work of interest for recovery was done
+        No checkpoint if little work of interest for recovery was done
         since last checkpoint. Such work includes log writing (lengthens
         recovery, checkpoint would shorten it), page flushing (checkpoint
         would decrease the amount of read pages in recovery).
       */
-      if ((translog_get_horizon() == log_horizon_at_last_checkpoint) &&
-          (pagecache_flushes_at_last_checkpoint ==
-           maria_pagecache->global_cache_write))
+      if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
+           (maria_pagecache->global_cache_write -
+            pagecache_flushes_at_last_checkpoint) *
+           maria_pagecache->block_size) < checkpoint_min_activity)
       {
-        /* safety against errors during flush by this thread: */
+        /* don't take checkpoint, so don't know what to flush */
         pages_to_flush_before_next_checkpoint= 0;
         break;
       }

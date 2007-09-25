@@ -125,9 +125,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=4 --test-undo=1 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -150,9 +150,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 --test-undo=1 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -300,9 +300,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=4 --test-undo=2 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -325,9 +325,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 --test-undo=2 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -475,9 +475,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=4 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=4 --test-undo=3 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -500,9 +500,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  number NULL                    0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace  --testflag=3 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  --testflag=3 --test-undo=3 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -650,9 +650,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=4 --test-undo=1 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -675,9 +675,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 --test-undo=1 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -825,9 +825,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=4 --test-undo=2 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -850,9 +850,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 --test-undo=2 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1000,9 +1000,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 (commit at end)
 Terminating after updates
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=4 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=4 --test-undo=3 (additional aborted work)
 Terminating after deletes
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1025,9 +1025,9 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > 1   2     6   unique  varchar BLOB NULL              0                    8192
 ========DIFF END=======
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N --debug=d:t:i:o,/tmp/ma_test1.trace -b --testflag=3 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b --testflag=3 --test-undo=3 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
