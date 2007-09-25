@@ -2836,7 +2836,9 @@ row_sel_get_clust_rec_for_mysql(
 				it, NULL if the old version did not exist
 				in the read view, i.e., it was a fresh
 				inserted version */
-	ulint**		offsets,/* out: offsets returned by
+	ulint**		offsets,/* in: offsets returned by
+				rec_get_offsets(rec, sec_index);
+				out: offsets returned by
 				rec_get_offsets(out_rec, clust_index) */
 	mem_heap_t**	offset_heap,/* in/out: memory heap from which
 				the offsets are allocated */
@@ -2853,7 +2855,8 @@ row_sel_get_clust_rec_for_mysql(
 	*out_rec = NULL;
 	trx = thr_get_trx(thr);
 
-	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec, trx);
+	row_build_row_ref_in_tuple(prebuilt->clust_ref, rec,
+				   sec_index, *offsets, trx);
 
 	clust_index = dict_table_get_first_index(sec_index->table);
 
