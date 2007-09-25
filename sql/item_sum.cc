@@ -2464,6 +2464,23 @@ bool Item_sum_count_distinct::setup(THD *thd)
   count_field_types(select_lex, tmp_table_param, list, 0);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
+  /*
+    Make create_tmp_table() convert BIT columns to BIGINT.
+    This is needed because BIT fields store parts of their data in table's
+    null bits, and we don't have methods to compare two table records, which
+    is needed by Unique which is used when HEAP table is used.
+  */
+  {
+    List_iterator_fast<Item> li(list);
+    Item *item;
+    while ((item= li++))
+    {
+      if (item->type() == Item::FIELD_ITEM &&
+          ((Item_field*)item)->field->type() == FIELD_TYPE_BIT)
+        item->marker=4;
+    }
+  }
+
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				(select_lex->options | thd->options),

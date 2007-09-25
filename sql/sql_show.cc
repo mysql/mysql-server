@@ -791,13 +791,70 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 
 #define LIST_PROCESS_HOST_LEN 64
 
+
+static bool get_field_default_value(THD *thd, TABLE *table,
+                                    Field *field, String *def_value,
+                                    bool quoted)
+{
+  bool has_default;
+  bool has_now_default;
+
+  /* 
+     We are using CURRENT_TIMESTAMP instead of NOW because it is
+     more standard
+  */
+  has_now_default= table->timestamp_field == field && 
+    field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
+  has_default= (field->type() != FIELD_TYPE_BLOB &&
+                !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+                field->unireg_check != Field::NEXT_NUMBER &&
+                !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+                  && has_now_default));
+
+  def_value->length(0);
+  if (has_default)
+  {
+    if (has_now_default)
+      def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
+    else if (!field->is_null())
+    {                                             // Not null by default
+      char tmp[MAX_FIELD_WIDTH];
+      String type(tmp, sizeof(tmp), field->charset());
+      field->val_str(&type);
+      if (type.length())
+      {
+        String def_val;
+        uint dummy_errors;
+        /* convert to system_charset_info == utf8 */
+        def_val.copy(type.ptr(), type.length(), field->charset(),
+                     system_charset_info, &dummy_errors);
+        if (quoted)
+          append_unescaped(def_value, def_val.ptr(), def_val.length());
+        else
+          def_value->append(def_val.ptr(), def_val.length());
+      }
+      else if (quoted)
+        def_value->append(STRING_WITH_LEN("''"));
+    }
+    else if (field->maybe_null() && quoted)
+      def_value->append(STRING_WITH_LEN("NULL"));    // Null as default
+    else
+      return 0;
+
+  }
+  return has_default;
+}
+
+
 static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128];
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
+  String def_value(def_value_buf, sizeof(def_value_buf), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -833,8 +890,6 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
-    bool has_default;
-    bool has_now_default;
     uint flags = field->flags;
 
     if (ptr != table->field)
@@ -882,44 +937,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    /* 
-      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
-      more standard 
-    */
-    has_now_default= table->timestamp_field == field && 
-                     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
-    
-    has_default= (field->type() != FIELD_TYPE_BLOB &&
-                  !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-		    && has_now_default));
-
-    if (has_default)
+    if (get_field_default_value(thd, table, field, &def_value, 1))
     {
       packet->append(STRING_WITH_LEN(" default "));
-      if (has_now_default)
-        packet->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
-      else if (!field->is_null())
-      {                                             // Not null by default
-        type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type);
-	if (type.length())
-	{
-	  String def_val;
-          uint dummy_errors;
-	  /* convert to system_charset_info == utf8 */
-	  def_val.copy(type.ptr(), type.length(), field->charset(),
-		       system_charset_info, &dummy_errors);
-          append_unescaped(packet, def_val.ptr(), def_val.length());
-	}
-        else
-	  packet->append(STRING_WITH_LEN("''"));
-      }
-      else if (field->maybe_null())
-        packet->append(STRING_WITH_LEN("NULL"));    // Null as default
-      else
-        packet->append(tmp);
+      packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
     if (!limited_mysql_mode && table->timestamp_field == field && 
@@ -2664,7 +2685,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     bool is_blob;
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
-    char tmp1[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
     char *end;
     int decimals, field_length;
@@ -2710,33 +2730,13 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[7]->store(type.ptr(),
                            (tmp_buff ? tmp_buff - type.ptr() :
                             type.length()), cs);
-    if (show_table->timestamp_field == field &&
-        field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+
+    if (get_field_default_value(thd, show_table, field, &type, 0))
     {
-      table->field[5]->store(STRING_WITH_LEN("CURRENT_TIMESTAMP"), cs);
+      table->field[5]->store(type.ptr(), type.length(), cs);
       table->field[5]->set_notnull();
     }
-    else if (field->unireg_check != Field::NEXT_NUMBER &&
-             !field->is_null() &&
-             !(field->flags & NO_DEFAULT_VALUE_FLAG))
-    {
-      String def(tmp1,sizeof(tmp1), cs);
-      type.set(tmp, sizeof(tmp), field->charset());
-      field->val_str(&type);
-      uint dummy_errors;
-      def.copy(type.ptr(), type.length(), type.charset(), cs, &dummy_errors);
-      table->field[5]->store(def.ptr(), def.length(), def.charset());
-      table->field[5]->set_notnull();
-    }
-    else if (field->unireg_check == Field::NEXT_NUMBER ||
-             lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
-             field->maybe_null())
-      table->field[5]->set_null();                // Null as default
-    else
-    {
-      table->field[5]->store("",0, cs);
-      table->field[5]->set_notnull();
-    }
+
     pos=(byte*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
