@@ -7984,9 +7984,11 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 void
 Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
 {
-  if (c_nodeStartMaster.blockGcp == true)
+  if (c_nodeStartMaster.blockGcp == true &&
+      m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE)
   {
     jam();
+
     /* ------------------------------------------------------------------ */
     /*  A NEW NODE WANTS IN AND WE MUST ALLOW IT TO COME IN NOW SINCE THE */
     /*       GCP IS COMPLETED.                                            */
@@ -8304,7 +8306,7 @@ void Dbdih::execGCP_SAVECONF(Signal* signal)
     return;
   }
 
-  ndbrequire(saveConf->gci == m_gcp_save.m_gci);
+  ndbrequire(saveConf->gci == m_gcp_save.m_master.m_new_gci);
   ndbrequire(saveConf->nodeId == saveConf->dihPtr);
   SYSFILE->lastCompletedGCI[saveConf->nodeId] = saveConf->gci;  
   GCP_SAVEhandling(signal, saveConf->nodeId);
@@ -8327,7 +8329,7 @@ void Dbdih::execGCP_SAVEREF(Signal* signal)
     return;
   }
 
-  ndbrequire(saveRef->gci == m_gcp_save.m_gci);
+  ndbrequire(saveRef->gci == m_gcp_save.m_master.m_new_gci);
   ndbrequire(saveRef->nodeId == saveRef->dihPtr);
 
   /**
@@ -11776,8 +11778,29 @@ void Dbdih::checkGcpStopLab(Signal* signal)
  */
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
+  m_gcp_monitor.m_gcp_save.m_counter = 0;
+  m_gcp_monitor.m_micro_gcp.m_counter = 0;
+
   if (local)
     goto dolocal;
+
+  if (c_nodeStartMaster.blockGcp)
+  {
+    jam();
+    /**
+     * Starting node...is delaying GCP to long...
+     *   kill it
+     */
+    SystemError * const sysErr = (SystemError*)&signal->theData[0];
+    sysErr->errorCode = SystemError::GCPStopDetected;
+    sysErr->errorRef = reference();
+    sysErr->data[0] = m_gcp_save.m_master.m_state;
+    sysErr->data[1] = cgcpOrderBlocked;
+    sysErr->data[2] = m_micro_gcp.m_master.m_state;
+    sendSignal(calcNdbCntrBlockRef(c_nodeStartMaster.startNode), 
+               GSN_SYSTEM_ERROR, signal, SystemError::SignalLength, JBA);
+    return;
+  }
 
   if (m_gcp_monitor.m_gcp_save.m_counter == m_gcp_monitor.m_gcp_save.m_max_lag)
   {
