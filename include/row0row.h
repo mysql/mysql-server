@@ -165,16 +165,20 @@ search the clustered index record. */
 void
 row_build_row_ref_in_tuple(
 /*=======================*/
-	dtuple_t*	ref,	/* in/out: row reference built; see the
-				NOTE below! */
-	dict_index_t*	index,	/* in: index */
-	const rec_t*	rec,	/* in: record in the index;
-				NOTE: the data fields in ref will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row reference is used! */
-	trx_t*		trx);	/* in: transaction */
+	dtuple_t*		ref,	/* in/out: row reference built;
+					see the NOTE below! */
+	const rec_t*		rec,	/* in: record in the index;
+					NOTE: the data fields in ref
+					will point directly into this
+					record, therefore, the buffer
+					page of this record must be at
+					least s-latched and the latch
+					held as long as the row
+					reference is used! */
+	const dict_index_t*	index,	/* in: secondary index */
+	ulint*			offsets,/* in: rec_get_offsets(rec, index)
+					or NULL */
+	trx_t*			trx);	/* in: transaction */
 /***********************************************************************
 From a row build a row reference with which we can search the clustered
 index record. */
