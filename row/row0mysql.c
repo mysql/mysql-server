@@ -2895,7 +2895,9 @@ next_rec:
 
 	/* MySQL calls ha_innobase::reset_auto_increment() which does
 	the same thing. */
+	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 0);
+	dict_table_autoinc_unlock(table);
 	dict_update_statistics(table);
 
 	trx_commit_for_mysql(trx);
