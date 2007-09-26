@@ -15,8 +15,8 @@
 
 noinst_PROGRAMS = mysql
 bin_PROGRAMS    = mysqltest_embedded mysql_client_test_embedded
-client_sources  = $(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
-tests_sources   = $(mysql_client_test_embedded_SOURCES)
+client_sources  = $(nodist_mysqltest_embedded_SOURCES) $(nodist_mysql_SOURCES)
+tests_sources   = $(nodist_mysql_client_test_embedded_SOURCES)
 BUILT_SOURCES   = link_sources
 CLEANFILES      = $(client_sources) $(tests_sources) $(BUILT_SOURCES)
 EXTRA_DIST      = CMakeLists.txt
@@ -41,15 +41,15 @@ LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @LIBDL@ $(CXXLDFLAGS) \
                 @NDB_SCI_LIBS@
 
 mysqltest_embedded_LINK = $(CXXLINK)
-mysqltest_embedded_SOURCES =	mysqltest.c
+nodist_mysqltest_embedded_SOURCES =	mysqltest.c
 mysqltest_embedded_LDADD =	$(LDADD) $(top_builddir)/regex/libregex.a
 
-mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
+nodist_mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
                 my_readline.h sql_string.h completion_hash.h
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 mysql_client_test_embedded_LINK = $(CXXLINK)
-mysql_client_test_embedded_SOURCES = mysql_client_test.c
+nodist_mysql_client_test_embedded_SOURCES = mysql_client_test.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
