@@ -564,4 +564,9 @@ explain select f2 from t2 where f2 in (1,'b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
 drop table t1, t2;
+create table t1 (a time, key(a));
+insert into t1 values (),(),(),(),(),(),(),(),(),();
+select a from t1 where a not in (a,a,a) group by a;
+a
+drop table t1;
 End of 5.1 tests
