@@ -2306,8 +2306,7 @@ AC_ARG_WITH([mysqlmanager],
 if test "$with_mysqlmanager" = "yes" -o \
         '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
             -d "$srcdir/server-tools" ')' ; then
-  tools_dirs="$tools_dirs server-tools"
-  AC_CONFIG_FILES(server-tools/Makefile server-tools/instance-manager/Makefile)
+  tools_dirs="server-tools"
 fi
 
 AC_SUBST(tools_dirs)
@@ -2319,7 +2318,6 @@ if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
 
-  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2404,70 +2402,58 @@ then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-
-if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="libedit"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
-    compile_libedit=yes
-    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
-    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
-elif test "$with_readline" = "yes"
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="readline"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
-    compile_readline=yes
-    want_to_use_readline="yes"
-    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
-else
-    # Use system readline library
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    MYSQL_CHECK_LIBEDIT_INTERFACE
-    MYSQL_CHECK_NEW_RL_INTERFACE
-    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
-    AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
+    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
     then
-        # Use the new readline interface, but only if the package includes a bundled libreadline
-        # this way we avoid linking commercial source with GPL readline
-        readline_link="-lreadline"
-        want_to_use_readline="yes"
-    elif [test "$mysql_cv_libedit_interface" = "yes"]
+	readline_topdir="cmd-line-utils"
+	readline_basedir="libedit"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
+	compile_libedit=yes
+	AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+	AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
+    elif test "$with_readline" = "yes"
     then
-        # Use libedit
-        readline_link="-ledit"
+	readline_topdir="cmd-line-utils"
+	readline_basedir="readline"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
+	compile_readline=yes
+	want_to_use_readline="yes"
+	AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
     else
-       AC_MSG_ERROR([Could not find system readline or libedit libraries
-          Use --with-readline or --with-libedit to use the bundled
-          versions of libedit or readline])
+	# Use system readline library
+	AC_LANG_SAVE
+	AC_LANG_CPLUSPLUS
+	MYSQL_CHECK_LIBEDIT_INTERFACE
+	MYSQL_CHECK_NEW_RL_INTERFACE
+	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+	AC_LANG_RESTORE
+	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
+	then
+	    # Use the new readline interface, but only if the package includes a bundled libreadline
+	    # this way we avoid linking commercial source with GPL readline
+	    readline_link="-lreadline"
+	    want_to_use_readline="yes"
+	elif [test "$mysql_cv_libedit_interface" = "yes"]
+	then
+	    # Use libedit
+	    readline_link="-ledit"
+	else
+	   AC_MSG_ERROR([Could not find system readline or libedit libraries
+	      Use --with-readline or --with-libedit to use the bundled
+	      versions of libedit or readline])
+	fi
     fi
-fi
 
-# if there is no readline, but we want to build with readline, we fail
-if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
-then
-    AC_MSG_ERROR([This commercially licensed MySQL source package can't
-          be built with libreadline. Please use --with-libedit to use
-          the bundled version of libedit instead.])
-fi
-
-#
-# if either readline or libedit is enabled - generate Makefile's for both
-# (to make sure both are included in 'make dist')
-#
-if test -n "$readline_basedir"
-then
-  AC_CONFIG_FILES(cmd-line-utils/Makefile dnl
-                  cmd-line-utils/libedit/Makefile dnl
-                  cmd-line-utils/readline/Makefile)
-fi
+    # if there is no readline, but we want to build with readline, we fail
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    then
+	AC_MSG_ERROR([This commercially licensed MySQL source package can't
+	      be built with libreadline. Please use --with-libedit to use
+	      the bundled version of libedit instead.])
+    fi
 fi
 
 AC_SUBST(readline_dir)
@@ -2536,7 +2522,6 @@ AC_SUBST(man8_files)
 sql_server_dirs=
 sql_server=
 server_scripts=
-thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
@@ -2549,7 +2534,6 @@ then
   sql_client_dirs="strings regex mysys dbug extra libmysql client"
 else
   sql_client_dirs="strings regex mysys dbug extra libmysql libmysql_r client"
-  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
 fi
 
@@ -2584,7 +2568,7 @@ then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
-  sql_server="$sql_server vio sql"
+  sql_server="vio sql"
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2596,7 +2580,6 @@ LIBS="$LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(sql_server_dirs)
 AC_SUBST(sql_server)
-AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
@@ -2634,17 +2617,27 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
+if test -d "pstack" ; then
+  AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
+fi
+if test -d "cmd-line-utils/readline" ; then
+  AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
+fi
+
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql/Makefile client/Makefile dnl
- pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ libmysql/Makefile libmysql_r/Makefile client/Makefile dnl
+ sql/Makefile sql/share/Makefile dnl
  sql/sql_builtin.cc sql-common/Makefile dnl
  dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
+ server-tools/Makefile server-tools/instance-manager/Makefile dnl
+ cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
+ libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile dnl
  debian/Makefile debian/defs.mk debian/control dnl
  mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
