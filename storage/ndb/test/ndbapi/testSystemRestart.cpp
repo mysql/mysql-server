@@ -20,6 +20,7 @@
 #include <NdbRestarter.hpp>
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbBackup.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1261,6 +1262,98 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runSRDD(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  Uint32 loops = ctx->getNumLoops();
+  int count;
+  NdbRestarter restarter;
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  Uint32 i = 1;
+  Uint32 backupId;
+
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  int val2 = 11007; // No more writes in pgman after lcp
+
+  int lcp = DumpStateOrd::DihMinTimeBetweenLCP;
+  int lcpnow = DumpStateOrd::DihStartLcpImmediately;
+
+  int startFrom = 0;
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while(i<=loops && result != NDBT_FAILED){
+
+    int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+    //CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+
+    ndbout << "Loop " << i << "/"<< loops <<" started" << endl;
+    ndbout << "Loading records..." << startFrom << endl;
+    CHECK(hugoTrans.loadTable(pNdb, startFrom) == 0);
+
+    CHECK(hugoTrans.loadTable(pNdb, startFrom, 1000) == 0);
+    CHECK(restarter.dumpStateAllNodes(&lcp, 1) == 0);
+    CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
+    CHECK(restarter.insertErrorInNode(nodeId, 8053) == 0);
+    CHECK(restarter.dumpStateOneNode(nodeId, &val2, 1) == 0);
+
+    CHECK(restarter.dumpStateAllNodes(&lcpnow, 1) == 0);
+    NdbSleep_SecSleep(1);
+    
+    hugoTrans.loadTable(pNdb, startFrom + 1000, 1000);
+    restarter.dumpStateAllNodes(&lcpnow, 1);
+    CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
+    
+    CHECK(restarter.restartAll(false, true, true) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+    
+    CHECK(backup.start(backupId) == 0);
+    
+    int cnt = 0;
+    CHECK(hugoTrans.selectCount(pNdb, 0, &cnt) == 0);
+    ndbout << "Found " << cnt << " records..." << endl;
+    ndbout << "Clearing..." << endl;    
+    CHECK(hugoTrans.clearTable(pNdb,
+                               NdbScanOperation::SF_TupScan, cnt) == 0);
+    
+    ndbout << "Restarting..." << endl;
+    CHECK(restarter.restartAll(false, true, true) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+    
+    CHECK(backup.start(backupId) == 0);
+
+    int cnt2 = 0;
+    CHECK(hugoTrans.selectCount(pNdb, 0, &cnt2) == 0);
+
+    ndbout << "Loading records...(from " << cnt2 << " to " 
+           << (cnt2 + 1000) << ") " << endl;
+    CHECK(hugoTrans.loadTableStartFrom(pNdb, cnt2, 1000) == 0);
+    CHECK(hugoTrans.selectCount(pNdb, 0, &cnt2) == 0);
+    ndbout << "Clearing..." << endl;
+    CHECK(hugoTrans.clearTable(pNdb,
+                               NdbScanOperation::SF_TupScan, cnt2) == 0);
+    
+    if (cnt + 1000 > startFrom)
+    {
+      startFrom = cnt + 1000;
+    }
+    else
+    {
+      startFrom += 1000;
+    }
+    i++;
+  }
+  
+  ndbout << "runSRDD finished" << endl;  
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1446,7 +1539,12 @@ TESTCASE("Bug29167", "")
   INITIALIZER(runWaitStarted);
   STEP(runBug29167);
 }
-
+TESTCASE("SR_DD", "")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runSRDD);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){
