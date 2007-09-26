@@ -67,7 +67,7 @@ UNIV_INLINE
 void
 row_build_row_ref_fast(
 /*===================*/
-	dtuple_t*	ref,	/* in: typed data tuple where the
+	dtuple_t*	ref,	/* in/out: typed data tuple where the
 				reference is built */
 	const ulint*	map,	/* in: array of field numbers in rec
 				telling how ref should be built from

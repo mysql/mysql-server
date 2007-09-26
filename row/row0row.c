@@ -592,17 +592,18 @@ index record. */
 void
 row_build_row_ref_from_row(
 /*=======================*/
-	dtuple_t*	ref,	/* in/out: row reference built; see the
-				NOTE below! ref must have the right number
-				of fields! */
-	dict_table_t*	table,	/* in: table */
-	dtuple_t*	row)	/* in: row
-				NOTE: the data fields in ref will point
-				directly into data of this row */
+	dtuple_t*		ref,	/* in/out: row reference built;
+					see the NOTE below!
+					ref must have the right number
+					of fields! */
+	const dict_table_t*	table,	/* in: table */
+	const dtuple_t*		row)	/* in: row
+					NOTE: the data fields in ref will point
+					directly into data of this row */
 {
-	dict_index_t*	clust_index;
-	ulint		ref_len;
-	ulint		i;
+	const dict_index_t*	clust_index;
+	ulint			ref_len;
+	ulint			i;
 
 	ut_ad(ref && table && row);
 
@@ -614,7 +615,7 @@ row_build_row_ref_from_row(
 
 	for (i = 0; i < ref_len; i++) {
 		const dict_col_t*	col;
-		dict_field_t*		field;
+		const dict_field_t*	field;
 		dfield_t*		dfield;
 		const dfield_t*		dfield2;
 

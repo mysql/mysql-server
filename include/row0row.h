@@ -186,13 +186,14 @@ index record. */
 void
 row_build_row_ref_from_row(
 /*=======================*/
-	dtuple_t*	ref,	/* in/out: row reference built; see the
-				NOTE below! ref must have the right number
-				of fields! */
-	dict_table_t*	table,	/* in: table */
-	dtuple_t*	row);	/* in: row
-				NOTE: the data fields in ref will point
-				directly into data of this row */
+	dtuple_t*		ref,	/* in/out: row reference built;
+					see the NOTE below!
+					ref must have the right number
+					of fields! */
+	const dict_table_t*	table,	/* in: table */
+	const dtuple_t*		row);	/* in: row
+					NOTE: the data fields in ref will point
+					directly into data of this row */
 /***********************************************************************
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -200,7 +201,7 @@ UNIV_INLINE
 void
 row_build_row_ref_fast(
 /*===================*/
-	dtuple_t*	ref,	/* in: typed data tuple where the
+	dtuple_t*	ref,	/* in/out: typed data tuple where the
 				reference is built */
 	const ulint*	map,	/* in: array of field numbers in rec
 				telling how ref should be built from
