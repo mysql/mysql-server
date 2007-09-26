@@ -211,3 +211,8 @@ COMMIT;
 COMMIT;
 SHOW TABLES;
 DROP SCHEMA IF EXISTS `mysqlslap`;
+#
+# Bug #29985: mysqlslap -- improper handling of resultsets in SPROCs
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1() SELECT 1;
