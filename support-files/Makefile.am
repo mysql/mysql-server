@@ -34,7 +34,10 @@ EXTRA_DIST =		mysql.spec.sh \
 
 SUBDIRS =		MacOSX RHEL4-SElinux
 
-pkgdata_DATA =		my-small.cnf \
+# Default same as 'pkgdatadir', but we can override it
+pkgsuppdir =		$(datadir)/@PACKAGE@
+
+pkgsupp_DATA =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
@@ -43,7 +46,7 @@ pkgdata_DATA =		my-small.cnf \
 			binary-configure \
 			ndb-config-2-node.ini
 
-pkgdata_SCRIPTS =	mysql.server \
+pkgsupp_SCRIPTS =	mysql.server \
 			mysqld_multi.server
 
 aclocaldir =		$(datadir)/aclocal
