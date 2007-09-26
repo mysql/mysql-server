@@ -226,22 +226,6 @@ dtuple_from_fields(
 	ulint		n_fields);	/* in: number of fields */
 
 /*************************************************************************
-Creates a dtuple for use in MySQL. */
-
-dtuple_t*
-dtuple_create_for_mysql(
-/*====================*/
-			/* out, own created dtuple */
-	void** heap,	/* out: created memory heap */
-	ulint n_fields); /* in: number of fields */
-/*************************************************************************
-Frees a dtuple used in MySQL. */
-
-void
-dtuple_free_for_mysql(
-/*==================*/
-	void* heap);
-/*************************************************************************
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
 
