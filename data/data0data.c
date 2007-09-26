@@ -101,32 +101,6 @@ dtuple_coll_cmp(
 }
 
 /*************************************************************************
-Creates a dtuple for use in MySQL. */
-
-dtuple_t*
-dtuple_create_for_mysql(
-/*====================*/
-				/* out, own created dtuple */
-	void**	heap,		/* out: created memory heap */
-	ulint	n_fields)	/* in: number of fields */
-{
-	*heap = (void*)mem_heap_create(500);
-
-	return(dtuple_create(*((mem_heap_t**)heap), n_fields));
-}
-
-/*************************************************************************
-Frees a dtuple used in MySQL. */
-
-void
-dtuple_free_for_mysql(
-/*==================*/
-	void*	heap) /* in: memory heap where tuple was created */
-{
-	mem_heap_free((mem_heap_t*)heap);
-}
-
-/*************************************************************************
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
 

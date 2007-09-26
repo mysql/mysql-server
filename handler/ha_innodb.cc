@@ -5497,8 +5497,7 @@ ha_innobase::records_in_range(
 	ib_longlong	n_rows;
 	ulint		mode1;
 	ulint		mode2;
-	void*		heap1;
-	void*		heap2;
+	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");
 
@@ -5520,10 +5519,13 @@ ha_innobase::records_in_range(
 	/* MySQL knows about this index and so we must be able to find it.*/
 	ut_a(index);
 
-	range_start = dtuple_create_for_mysql(&heap1, key->key_parts);
+	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
+				    + sizeof(dtuple_t)));
+
+	range_start = dtuple_create(heap, key->key_parts);
 	dict_index_copy_types(range_start, index, key->key_parts);
 
-	range_end = dtuple_create_for_mysql(&heap2, key->key_parts);
+	range_end = dtuple_create(heap, key->key_parts);
 	dict_index_copy_types(range_end, index, key->key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
@@ -5550,8 +5552,7 @@ ha_innobase::records_in_range(
 
 	n_rows = btr_estimate_n_rows_in_range(index, range_start,
 						mode1, range_end, mode2);
-	dtuple_free_for_mysql(heap1);
-	dtuple_free_for_mysql(heap2);
+	mem_heap_free(heap);
 
 	my_free(key_val_buff2, MYF(0));
 
