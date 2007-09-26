@@ -16044,9 +16044,9 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
 
 
 /**
-  @brief Print an index hint for a table
+  @brief Print an index hint
 
-  @details Prints out the USE|FORCE|IGNORE index hints for a table.
+  @details Prints out the USE|FORCE|IGNORE index hint.
 
   @param      thd         the current thread
   @param[out] str         appends the index hint here
@@ -16057,28 +16057,24 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
 */
 
 void 
-TABLE_LIST::print_index_hint(THD *thd, String *str, 
-                                const char *hint, uint32 hint_length,
-                                List<String> indexes)
+Index_hint::print(THD *thd, String *str)
 {
-  List_iterator_fast<String> li(indexes);
-  String *idx;
-  bool first= 1;
-
-  str->append (' ');
-  str->append (hint, hint_length);
-  str->append (STRING_WITH_LEN(" ("));
-  while ((idx = li++))
+  switch (type)
   {
-    if (first)
-      first= 0;
-    else
-      str->append(',');
-    if (!my_strcasecmp (system_charset_info, idx->c_ptr_safe(), 
-                        primary_key_name))
+    case INDEX_HINT_IGNORE: str->append(STRING_WITH_LEN("IGNORE INDEX")); break;
+    case INDEX_HINT_USE:    str->append(STRING_WITH_LEN("USE INDEX")); break;
+    case INDEX_HINT_FORCE:  str->append(STRING_WITH_LEN("FORCE INDEX")); break;
+  }
+  str->append (STRING_WITH_LEN(" ("));
+  if (key_name.length)
+  {
+    if (thd && !my_strnncoll(system_charset_info,
+                             (const uchar *)key_name.str, key_name.length, 
+                             (const uchar *)primary_key_name, 
+                             strlen(primary_key_name)))
       str->append(primary_key_name);
     else
-      append_identifier (thd, str, idx->ptr(), idx->length());
+      append_identifier(thd, str, key_name.str, key_name.length);
   }
   str->append(')');
 }
@@ -16152,16 +16148,17 @@ void TABLE_LIST::print(THD *thd, String *str)
       append_identifier(thd, str, alias, strlen(alias));
     }
 
-    if (use_index)
+    if (index_hints)
     {
-      if (force_index)
-        print_index_hint(thd, str, STRING_WITH_LEN("FORCE INDEX"), *use_index);
-      else
-        print_index_hint(thd, str, STRING_WITH_LEN("USE INDEX"), *use_index);
-    }
-    if (ignore_index)
-      print_index_hint (thd, str, STRING_WITH_LEN("IGNORE INDEX"), *ignore_index);
+      List_iterator<Index_hint> it(*index_hints);
+      Index_hint *hint;
 
+      while ((hint= it++))
+      {
+        str->append (STRING_WITH_LEN(" "));
+        hint->print (thd, str);
+      }
+    }
   }
 }
 

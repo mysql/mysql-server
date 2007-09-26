@@ -3315,7 +3315,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       if (item->result_type() != STRING_RESULT)
         field= item->tmp_table_field(&tmp_table);
       else
-        field= item->tmp_table_field_from_field_type(&tmp_table);
+        field= item->tmp_table_field_from_field_type(&tmp_table, 0);
     else
       field= create_tmp_field(thd, &tmp_table, item, item->type(),
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
