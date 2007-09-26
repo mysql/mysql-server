@@ -45,16 +45,5 @@ fi
 
 # Make sure to enable all features that affect "make dist"
 ./configure \
-  --with-embedded-server \
-  --with-archive-storage-engine \
-  --with-blackhole-storage-engine \
-  --with-csv-storage-engine \
-  --with-example-storage-engine \
-  --with-federated-storage-engine \
-  --with-innodb \
-  --with-ssl \
-  --enable-thread-safe-client \
-  --with-extra-charsets=complex \
-  --with-ndbcluster \
-  --with-zlib-dir=bundled
+  --with-ndbcluster
 make
