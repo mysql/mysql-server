@@ -5832,6 +5832,11 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         TODO: detect the situation in compare_tables, behave based
         on engine capabilities.
       */
+      if (alter_info->build_method == HA_BUILD_ONLINE)
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+        goto err;
+      }
       alter_info->build_method= HA_BUILD_OFFLINE;
     }
   }
@@ -6472,7 +6477,14 @@ view_err:
       || partition_changed
 #endif
      )
+  {
+    if (alter_info->build_method == HA_BUILD_ONLINE)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+      goto err;
+    }
     alter_info->build_method= HA_BUILD_OFFLINE;
+  }
 
   if (alter_info->build_method != HA_BUILD_OFFLINE)
   {
