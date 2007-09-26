@@ -878,3 +878,7 @@ cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
 
+max-time: 500
+cmd: testSystemRestart
+args: -l 2 -n SR_DD D1 D2
+
