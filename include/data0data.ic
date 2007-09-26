@@ -325,7 +325,7 @@ dtuple_create(
 	tuple->info_bits = 0;
 	tuple->n_fields = n_fields;
 	tuple->n_fields_cmp = n_fields;
-	tuple->fields = (dfield_t*)(((byte*)tuple) + sizeof(dtuple_t));
+	tuple->fields = (dfield_t*) &tuple[1];
 
 #ifdef UNIV_DEBUG
 	tuple->magic_n = DATA_TUPLE_MAGIC_N;
@@ -343,6 +343,8 @@ dtuple_create(
 			dfield_get_type(field)->mtype = DATA_ERROR;
 		}
 	}
+
+	UNIV_MEM_INVALID(tuple->fields, n_fields * sizeof *tuple->fields);
 #endif
 	return(tuple);
 }
