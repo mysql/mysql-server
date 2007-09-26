@@ -426,10 +426,10 @@ more than index is found return the index with the higher id.*/
 dict_index_t*
 dict_table_get_index_by_max_id(
 /*===========================*/
-				/* out: index, NULL if does not exist */
+				/* out: matching index, NULL if not found */
 	dict_table_t*	table,	/* in: table */
-	const char*	name,	/* in: index name to find*/
-	const char**	column_names, /* in: column names to match */
+	const char*	name,	/* in: the index name to find */
+	const char**	columns,/* in: array of column names */
 	ulint		n_cols);/* in: number of columns */
 /**************************************************************************
 Returns a column's name. */

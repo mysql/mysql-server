@@ -2016,13 +2016,13 @@ next_rec:
 	return(NULL);
 }
 
-/*************************************************************************
-Tries to find an index whose fields match exactly, in the same order. If
-more than one index is found then return the index with the higher id.*/
-static
+/**************************************************************************
+Returns an index object by matching on the name and column names and
+if more than one index matches return the index with the max id */
+
 dict_index_t*
-dict_find_index_by_max_id(
-/*======================*/
+dict_table_get_index_by_max_id(
+/*===========================*/
 				/* out: matching index, NULL if not found */
 	dict_table_t*	table,	/* in: table */
 	const char*	name,	/* in: the index name to find */
@@ -4441,23 +4441,6 @@ dict_table_get_index_on_name_and_min_id(
 
 	return(min_index);
 
-}
-
-/**************************************************************************
-Returns an index object by matching on the name and column names and
-if more than one index matches return the index with the max id */
-
-dict_index_t*
-dict_table_get_index_by_max_id(
-/*===========================*/
-				/* out: index, NULL if does not exist */
-	dict_table_t*	table,	/* in: table */
-	const char*	name,	/* in: index name to find*/
-	const char**	column_names, /* in: column names to match */
-	ulint		n_cols)	/* in: number of columns */
-{
-	/* Find an exact match with the passed in index */
-	return(dict_find_index_by_max_id(table, name, column_names, n_cols));
 }
 
 #ifdef UNIV_DEBUG
