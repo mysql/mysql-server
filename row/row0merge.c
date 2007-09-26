@@ -436,8 +436,6 @@ row_merge_dup_report(
 			violation is detected, it is impossible to
 			fetch the clustered index record without an
 			expensive table scan. */
-
-			innobase_rec_reset(dup->table);
 		}
 	} else {
 		const dict_index_t*	clust_index
@@ -479,7 +477,6 @@ row_merge_dup_report(
 			This should never happen, but we ignore this
 			error unless UNIV_DEBUG is defined. */
 			ut_ad(0);
-			innobase_rec_reset(dup->table);
 		}
 
 		btr_pcur_close(&pcur);
@@ -2311,6 +2308,10 @@ row_merge_build_indexes(
 
 	tmpfd = innobase_mysql_tmpfile();
 
+	/* Reset the MySQL row buffer that is used when reporting
+	duplicate keys. */
+	innobase_rec_reset(table);
+
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
 
@@ -2342,7 +2343,6 @@ row_merge_build_indexes(
 
 		if (error != DB_SUCCESS) {
 			trx->error_key_num = i;
-			innobase_rec_reset(table);
 			goto func_exit;
 		}
 	}
