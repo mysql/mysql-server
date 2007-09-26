@@ -19,6 +19,80 @@ extern "C" {
 #include "handler0alter.h"
 }
 
+/*****************************************************************
+Copies an InnoDB clustered index record to table->record[0]. */
+extern "C"
+void
+innobase_rec_to_mysql(
+/*==================*/
+	TABLE*			table,		/* in/out: MySQL table */
+	const rec_t*		rec,		/* in: record */
+	const dict_index_t*	index,		/* in: clustered index */
+	const ulint*		offsets)	/* in: rec_get_offsets(
+						rec, index, ...) */
+{
+	uint	n_fields	= table->s->fields;
+	uint	i;
+
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(n_fields == dict_table_get_n_user_cols(index->table));
+
+	for (i = 0; i < n_fields; i++) {
+		Field*		field	= table->field[i];
+		void*		ptr	= field->ptr;
+		uint32		flen	= field->pack_length();
+		ulint		ipos;
+		ulint		ilen;
+		const void*	ifield;
+
+		ipos = dict_index_get_nth_col_pos(index, i);
+		ut_ad(ipos != ULINT_UNDEFINED);
+
+		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
+reset_field:
+			field->reset();
+			field->set_null();
+			continue;
+		}
+
+		ifield = rec_get_nth_field(rec, offsets, ipos, &ilen);
+
+		/* Assign the NULL flag */
+		if (ilen == UNIV_SQL_NULL) {
+			ut_ad(field->real_maybe_null());
+			goto reset_field;
+		} else {
+			field->set_notnull();
+			/* Copy the data. */
+			/* TODO: convert integer fields */
+
+			if (ilen >= flen) {
+				memcpy(ptr, ifield, flen);
+			} else {
+				field->reset();
+				memcpy(ptr, ifield, ilen);
+			}
+		}
+	}
+}
+
+/*****************************************************************
+Resets table->record[0]. */
+extern "C"
+void
+innobase_rec_reset(
+/*===============*/
+	TABLE*			table)		/* in/out: MySQL table */
+{
+	uint	n_fields	= table->s->fields;
+	uint	i;
+
+	for (i = 0; i < n_fields; i++) {
+		table->field[i]->set_default();
+	}
+}
+
 /**********************************************************************
 Removes the filename encoding of a database and table name. */
 static
@@ -638,7 +712,7 @@ err_exit:
 	/* Read the clustered index of the table and build indexes
 	based on this information using temporary files and merge sort. */
 	error = row_merge_build_indexes(trx, innodb_table, indexed_table,
-					index, num_of_idx);
+					index, num_of_idx, table);
 
 error_handling:
 #ifdef UNIV_DEBUG

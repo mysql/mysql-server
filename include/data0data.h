@@ -213,6 +213,18 @@ dtuple_create(
 				is created */
 	ulint		n_fields); /* in: number of fields */
 
+/**************************************************************
+Wrap data fields in a tuple. The default value for number
+of fields used in record comparisons for this tuple is n_fields. */
+UNIV_INLINE
+const dtuple_t*
+dtuple_from_fields(
+/*===============*/
+					/* out: data tuple */
+	dtuple_t*	tuple,		/* in: storage for data tuple */
+	const dfield_t*	fields,		/* in: fields */
+	ulint		n_fields);	/* in: number of fields */
+
 /*************************************************************************
 Creates a dtuple for use in MySQL. */
 
@@ -247,6 +259,14 @@ dtuple_get_data_size(
 /*=================*/
 				/* out: sum of data lens */
 	const dtuple_t*	tuple);	/* in: typed data tuple */
+/*************************************************************************
+Computes the number of externally stored fields in a data tuple. */
+UNIV_INLINE
+ulint
+dtuple_get_n_ext(
+/*=============*/
+				/* out: number of fields */
+	const dtuple_t*	tuple);	/* in: tuple */
 /****************************************************************
 Compare two data tuples, respecting the collation of character fields. */
 
