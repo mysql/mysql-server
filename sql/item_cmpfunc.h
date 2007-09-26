@@ -1108,6 +1108,7 @@ class Item_func_case :public Item_func
   uint ncases;
   Item_result cmp_type;
   DTCollation cmp_collation;
+  enum_field_types cached_field_type;
   cmp_item *cmp_items[5]; /* For all result types */
   cmp_item *case_item;
 public:
@@ -1138,6 +1139,7 @@ public:
   uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
+  enum_field_types field_type() const { return cached_field_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
   Item *find_item(String *str);
