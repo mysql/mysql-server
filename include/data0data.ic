@@ -350,6 +350,26 @@ dtuple_create(
 }
 
 /**************************************************************
+Wrap data fields in a tuple. The default value for number
+of fields used in record comparisons for this tuple is n_fields. */
+UNIV_INLINE
+const dtuple_t*
+dtuple_from_fields(
+/*===============*/
+					/* out: data tuple */
+	dtuple_t*	tuple,		/* in: storage for data tuple */
+	const dfield_t*	fields,		/* in: fields */
+	ulint		n_fields)	/* in: number of fields */
+{
+	tuple->info_bits = 0;
+	tuple->n_fields = tuple->n_fields_cmp = n_fields;
+	tuple->fields = (dfield_t*) fields;
+	ut_d(tuple->magic_n = DATA_TUPLE_MAGIC_N);
+
+	return(tuple);
+}
+
+/**************************************************************
 The following function returns the sum of data lengths of a tuple. The space
 occupied by the field structs or the tuple struct is not counted. Neither
 is possible space in externally stored parts of the field. */
@@ -384,6 +404,30 @@ dtuple_get_data_size(
 	}
 
 	return(sum);
+}
+
+/*************************************************************************
+Computes the number of externally stored fields in a data tuple. */
+UNIV_INLINE
+ulint
+dtuple_get_n_ext(
+/*=============*/
+				/* out: number of externally stored fields */
+	const dtuple_t*	tuple)	/* in: tuple */
+{
+	ulint	n_ext		= 0;
+	ulint	n_fields	= tuple->n_fields;
+	ulint	i;
+
+	ut_ad(tuple);
+	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
+
+	for (i = 0; i < n_fields; i++) {
+		n_ext += dtuple_get_nth_field(tuple, i)->ext;
+	}
+
+	return(n_ext);
 }
 
 /***********************************************************************
