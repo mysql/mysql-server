@@ -217,13 +217,13 @@ reference. */
 ibool
 row_search_on_row_ref(
 /*==================*/
-				/* out: TRUE if found */
-	btr_pcur_t*	pcur,	/* in/out: persistent cursor, which must
-				be closed by the caller */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
-	dict_table_t*	table,	/* in: table */
-	dtuple_t*	ref,	/* in: row reference */
-	mtr_t*		mtr);	/* in: mtr */
+					/* out: TRUE if found */
+	btr_pcur_t*		pcur,	/* out: persistent cursor, which must
+					be closed by the caller */
+	ulint			mode,	/* in: BTR_MODIFY_LEAF, ... */
+	const dict_table_t*	table,	/* in: table */
+	const dtuple_t*		ref,	/* in: row reference */
+	mtr_t*			mtr);	/* in/out: mtr */
 /*************************************************************************
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved. */

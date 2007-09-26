@@ -732,13 +732,15 @@ Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
 ulint
 rec_get_converted_size_comp(
 /*========================*/
-				/* out: total size */
-	dict_index_t*	index,	/* in: record descriptor;
-				dict_table_is_comp() is assumed to hold */
-	ulint		status,	/* in: status bits of the record */
-	const dfield_t*	fields,	/* in: array of data fields */
-	ulint		n_fields,/* in: number of data fields */
-	ulint*		extra)	/* out: extra size */
+					/* out: total size */
+	const dict_index_t*	index,	/* in: record descriptor;
+					dict_table_is_comp() is
+					assumed to hold, even if
+					it does not */
+	ulint			status,	/* in: status bits of the record */
+	const dfield_t*		fields,	/* in: array of data fields */
+	ulint			n_fields,/* in: number of data fields */
+	ulint*			extra)	/* out: extra size */
 {
 	ulint		extra_size;
 	ulint		data_size;
@@ -1000,14 +1002,15 @@ Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
 void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
-	rec_t*		rec,	/* in: origin of record */
-	ulint		extra,	/* in: number of bytes to reserve between
-				the record header and the data payload
-				(normally REC_N_NEW_EXTRA_BYTES) */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		status,	/* in: status bits of the record */
-	const dfield_t*	fields,	/* in: array of data fields */
-	ulint		n_fields)/* in: number of data fields */
+	rec_t*			rec,	/* in: origin of record */
+	ulint			extra,	/* in: number of bytes to
+					reserve between the record
+					header and the data payload
+					(normally REC_N_NEW_EXTRA_BYTES) */
+	const dict_index_t*	index,	/* in: record descriptor */
+	ulint			status,	/* in: status bits of the record */
+	const dfield_t*		fields,	/* in: array of data fields */
+	ulint			n_fields)/* in: number of data fields */
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
@@ -1120,11 +1123,12 @@ static
 rec_t*
 rec_convert_dtuple_to_rec_new(
 /*==========================*/
-				/* out: pointer to the origin
-				of physical record */
-	byte*		buf,	/* in: start address of the physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	dtuple)	/* in: data tuple */
+					/* out: pointer to the origin
+					of physical record */
+	byte*			buf,	/* in: start address of
+					the physical record */
+	const dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*		dtuple)	/* in: data tuple */
 {
 	ulint	extra_size;
 	ulint	status;
@@ -1153,13 +1157,14 @@ stores it beginning from the start of the given buffer. */
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
-				/* out: pointer to the origin
-				of physical record */
-	byte*		buf,	/* in: start address of the
-				physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	ulint		n_ext)	/* in: number of externally stored columns */
+					/* out: pointer to the origin
+					of physical record */
+	byte*			buf,	/* in: start address of the
+					physical record */
+	const dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*		dtuple,	/* in: data tuple */
+	ulint			n_ext)	/* in: number of
+					externally stored columns */
 {
 	rec_t*	rec;
 
