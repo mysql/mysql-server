@@ -5053,7 +5053,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
     if (inv)
     {
-      if (func->array->result_type() != ROW_RESULT)
+      if (func->array && func->array->result_type() != ROW_RESULT)
       {
         /*
           We get here for conditions in form "t.key NOT IN (c1, c2, ...)",
