@@ -47,7 +47,12 @@ static ibool	row_merge_print_read;
 static ibool	row_merge_print_write;
 #endif /* UNIV_DEBUG */
 
-/* Block size for I/O operations in merge sort */
+/* Block size for I/O operations in merge sort.  The minimum is
+UNIV_PAGE_SIZE, or page_get_free_space_of_empty() rounded to a power of 2.
+
+When not creating a PRIMARY KEY that contains column prefixes, this
+can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
+ut_ad(data_size < sizeof(row_merge_block_t)). */
 
 typedef byte	row_merge_block_t[1048576];
 
@@ -335,6 +340,14 @@ row_merge_buf_add(
 	See row_merge_buf_write() for the variable-length encoding
 	of extra_size. */
 	data_size += (extra_size + 1) + ((extra_size + 1) >= 0x80);
+
+	/* The following assertion may fail if row_merge_block_t is
+	declared very small and a PRIMARY KEY is being created with
+	many prefix columns.  In that case, the record may exceed the
+	page_zip_rec_needs_ext() limit.  However, no further columns
+	will be moved to external storage until the record is inserted
+	to the clustered index B-tree. */
+	ut_ad(data_size < sizeof(row_merge_block_t));
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
 	if (buf->total_size + data_size >= sizeof(row_merge_block_t) - 1) {
