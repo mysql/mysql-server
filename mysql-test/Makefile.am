@@ -18,7 +18,6 @@
 ## Process this file with automake to create Makefile.in
 
 SUBDIRS = ndb
-DIST_SUBDIRS=ndb
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
