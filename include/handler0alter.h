@@ -5,7 +5,7 @@ Smart ALTER TABLE
 *******************************************************/
 
 /*****************************************************************
-Copies an InnoDB clustered index record to table->record[0]. */
+Copies an InnoDB record to table->record[0]. */
 
 void
 innobase_rec_to_mysql(
