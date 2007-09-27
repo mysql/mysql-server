@@ -2511,7 +2511,8 @@ row_sel_field_store_in_mysql_format(
 
 	ut_ad(len != UNIV_SQL_NULL);
 
-	if (templ->type == DATA_INT) {
+	switch (templ->type) {
+	case DATA_INT:
 		/* Convert integer data from Innobase to a little-endian
 		format, sign bit restored to normal */
 
@@ -2531,10 +2532,11 @@ row_sel_field_store_in_mysql_format(
 		}
 
 		ut_ad(templ->mysql_col_len == len);
-	} else if (templ->type == DATA_VARCHAR
-		   || templ->type == DATA_VARMYSQL
-		   || templ->type == DATA_BINARY) {
+		break;
 
+	case DATA_VARCHAR:
+	case DATA_VARMYSQL:
+	case DATA_BINARY:
 		field_end = dest + templ->mysql_col_len;
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -2585,13 +2587,17 @@ row_sel_field_store_in_mysql_format(
 
 			memset(pad_ptr, 0x20, field_end - pad_ptr);
 		}
-	} else if (templ->type == DATA_BLOB) {
+		break;
+
+	case DATA_BLOB:
 		/* Store a pointer to the BLOB buffer to dest: the BLOB was
 		already copied to the buffer in row_sel_store_mysql_rec */
 
 		row_mysql_store_blob_ref(dest, templ->mysql_col_len, data,
 					 len);
-	} else if (templ->type == DATA_MYSQL) {
+		break;
+
+	case DATA_MYSQL:
 		memcpy(dest, data, len);
 
 		ut_ad(templ->mysql_col_len >= len);
@@ -2612,16 +2618,23 @@ row_sel_field_store_in_mysql_format(
 
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
-	} else {
-		ut_ad(templ->type == DATA_CHAR
-		      || templ->type == DATA_FIXBINARY
-		      /*|| templ->type == DATA_SYS_CHILD
-		      || templ->type == DATA_SYS*/
-		      || templ->type == DATA_FLOAT
-		      || templ->type == DATA_DOUBLE
-		      || templ->type == DATA_DECIMAL);
-		ut_ad(templ->mysql_col_len == len);
+		break;
 
+	default:
+#ifdef UNIV_DEBUG
+	case DATA_SYS_CHILD:
+	case DATA_SYS:
+		/* These column types should never be shipped to MySQL. */
+		ut_ad(0);
+
+	case DATA_CHAR:
+	case DATA_FIXBINARY:
+	case DATA_FLOAT:
+	case DATA_DOUBLE:
+	case DATA_DECIMAL:
+		/* Above are the valid column types for MySQL data. */
+#endif /* UNIV_DEBUG */
+		ut_ad(templ->mysql_col_len == len);
 		memcpy(dest, data, len);
 	}
 }
