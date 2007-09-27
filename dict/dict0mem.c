@@ -174,7 +174,7 @@ dict_mem_table_add_col(
 
 	col = dict_table_get_nth_col(table, i);
 
-	col->ind = i;
+	col->ind = (unsigned int) i;
 	col->ord_part = 0;
 
 	col->mtype = (unsigned int) mtype;

@@ -5852,7 +5852,7 @@ ha_innobase::info(
 
 				table->key_info[i].rec_per_key[j]=
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
-				  rec_per_key;
+				  (ulong) rec_per_key;
 			}
 
 			index = dict_table_get_next_index(index);
@@ -7318,7 +7318,7 @@ ha_innobase::innobase_get_auto_increment(
 /*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulint		error;
+	ulong		error;
 
 	*value = 0;
 
@@ -7428,7 +7428,7 @@ ha_innobase::get_auto_increment(
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
-		trx->n_autoinc_rows = nb_desired_values;
+		trx->n_autoinc_rows = (ulint) nb_desired_values;
 
 		/* It's possible for nb_desired_values to be 0:
 		e.g., INSERT INTO T1(C) SELECT C FROM T2; */

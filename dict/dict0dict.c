@@ -378,6 +378,8 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/* in/out: table */
 	ib_longlong	value)	/* in: next value to assign to a row */
 {
+	ut_ad(mutex_own(&table->autoinc_mutex));
+
 	table->autoinc_inited = TRUE;
 	table->autoinc = value;
 }
@@ -393,6 +395,8 @@ dict_table_autoinc_read(
 	const dict_table_t*	table)	/* in: table */
 {
 	ib_longlong	value;
+
+	ut_ad(mutex_own(&table->autoinc_mutex));
 
 	if (!table->autoinc_inited) {
 
