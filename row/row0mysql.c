@@ -180,14 +180,14 @@ Stores a reference to a BLOB in the MySQL format. */
 void
 row_mysql_store_blob_ref(
 /*=====================*/
-	byte*	dest,		/* in: where to store */
-	ulint	col_len,	/* in: dest buffer size: determines into
+	byte*		dest,	/* in: where to store */
+	ulint		col_len,/* in: dest buffer size: determines into
 				how many bytes the BLOB length is stored,
 				the space for the length may vary from 1
 				to 4 bytes */
-	byte*	data,		/* in: BLOB data; if the value to store
+	const void*	data,	/* in: BLOB data; if the value to store
 				is SQL NULL this should be NULL pointer */
-	ulint	len)		/* in: BLOB length; if the value to store
+	ulint		len)	/* in: BLOB length; if the value to store
 				is SQL NULL this should be 0; remember
 				also to set the NULL bit in the MySQL record
 				header! */
@@ -208,7 +208,7 @@ row_mysql_store_blob_ref(
 
 	mach_write_to_n_little_endian(dest, col_len - 8, len);
 
-	ut_memcpy(dest + col_len - 8, &data, sizeof(byte*));
+	memcpy(dest + col_len - 8, &data, sizeof data);
 }
 
 /***********************************************************************

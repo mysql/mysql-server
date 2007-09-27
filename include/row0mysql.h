@@ -63,12 +63,17 @@ Stores a reference to a BLOB in the MySQL format. */
 void
 row_mysql_store_blob_ref(
 /*=====================*/
-	byte*	dest,		/* in: where to store */
-	ulint	col_len,	/* in: dest buffer size: determines into
+	byte*		dest,	/* in: where to store */
+	ulint		col_len,/* in: dest buffer size: determines into
 				how many bytes the BLOB length is stored,
-				this may vary from 1 to 4 bytes */
-	byte*	data,		/* in: BLOB data */
-	ulint	len);		/* in: BLOB length */
+				the space for the length may vary from 1
+				to 4 bytes */
+	const void*	data,	/* in: BLOB data; if the value to store
+				is SQL NULL this should be NULL pointer */
+	ulint		len);	/* in: BLOB length; if the value to store
+				is SQL NULL this should be 0; remember
+				also to set the NULL bit in the MySQL record
+				header! */
 /***********************************************************************
 Reads a reference to a BLOB in the MySQL format. */
 
