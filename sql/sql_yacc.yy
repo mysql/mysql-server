@@ -4506,6 +4506,12 @@ create_table_option:
         				     HA_CHOICE_NO);
           }
 
+        | TRANSACTIONAL_SYM opt_equal ulong_num
+          {
+	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
+            Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
+        				     HA_CHOICE_NO);
+          }
         ;
 
 default_charset:

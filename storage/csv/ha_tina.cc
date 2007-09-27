@@ -445,7 +445,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   */
   current_position(0), next_position(0), local_saved_data_file_length(0),
   file_buff(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH),
-  local_data_file_version(0), records_is_known(0)
+  local_data_file_version(0), records_is_known(0), curr_lock_type(F_UNLCK)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -1454,6 +1454,14 @@ int ha_tina::delete_all_rows()
   DBUG_RETURN(rc);
 }
 
+int ha_tina::external_lock(THD *thd __attribute__((unused)), int lock_type)
+{
+  if (lock_type==F_UNLCK && curr_lock_type == F_WRLCK)
+    update_status();
+  curr_lock_type= lock_type;
+  return 0;
+}
+
 /*
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
@@ -1468,7 +1476,7 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
   return to;
 }
 
-/* 
+/*
   Create a table. You do not want to leave the table open after a call to
   this (the database will call ::open() if it needs to).
 */

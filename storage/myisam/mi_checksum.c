@@ -31,9 +31,9 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
     case FIELD_BLOB:
     {
       length=_mi_calc_blob_length(rec->length-
-					mi_portable_sizeof_char_ptr,
+					portable_sizeof_char_ptr,
 					buf);
-      memcpy((char*) &pos, buf+rec->length- mi_portable_sizeof_char_ptr,
+      memcpy((char*) &pos, buf+rec->length- portable_sizeof_char_ptr,
 	     sizeof(char*));
       break;
     }

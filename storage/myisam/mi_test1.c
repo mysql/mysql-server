@@ -71,14 +71,16 @@ static int run_test(const char *filename)
   /* First define 2 columns */
   recinfo[0].type=FIELD_NORMAL; recinfo[0].length=1; /* For NULL bits */
   recinfo[1].type=key_field;
-  recinfo[1].length= (key_field == FIELD_BLOB ? 4+mi_portable_sizeof_char_ptr :
+  recinfo[1].length= (key_field == FIELD_BLOB ? 4+portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
     recinfo[1].length+= HA_VARCHAR_PACKLENGTH(key_length);;
   recinfo[2].type=extra_field;
-  recinfo[2].length= (extra_field == FIELD_BLOB ? 4 + mi_portable_sizeof_char_ptr : 24);
+  recinfo[2].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
     recinfo[2].length+= HA_VARCHAR_PACKLENGTH(recinfo[2].length);
+  recinfo[1].null_bit= null_fields ? 2 : 0;
+
   if (opt_unique)
   {
     recinfo[3].type=FIELD_CHECK;
@@ -630,7 +632,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_type= HA_KEYTYPE_VARTEXT1;
     break;
   case 'k':
-    if (key_length < 4 || key_length > MI_MAX_KEY_LENGTH)
+    if (key_length < 4 || key_length > HA_MAX_KEY_LENGTH)
     {
       fprintf(stderr,"Wrong key length\n");
       exit(1);

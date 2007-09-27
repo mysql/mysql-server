@@ -1760,7 +1760,7 @@ extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size, thread_stack;
+extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
@@ -1853,6 +1853,9 @@ extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+extern I_List<NAMED_LIST> pagecaches;
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
@@ -1882,7 +1885,7 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
-
+extern SHOW_COMP_OPTION have_maria_db;
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;

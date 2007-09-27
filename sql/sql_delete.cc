@@ -930,7 +930,18 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       goto trunc_by_del;
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    /**
+       @todo MARIA_HACK until BUG#30309 is fixed.
+       Had to make this, otherwise tests "temp_table.test" and "truncate.test"
+       crashes server at shutdown when using Maria tables: a temporary table
+       is correctly created as non-transactional but then, when truncated, is
+      recreated as transactional.
+    */
+    if (table_type->db_type == DB_TYPE_MARIA)
+      create_info.transactional= HA_CHOICE_NO;
+#endif
     close_temporary_table(thd, table, 0, 0);    // Don't free share
     ha_create_table(thd, share->normalized_path.str,
                     share->db.str, share->table_name.str, &create_info, 1);

@@ -27,6 +27,7 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
+#include <my_bit.h>
 
 #include "sp_head.h"
 #include "sp_rcontext.h"

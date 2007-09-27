@@ -5,6 +5,15 @@
 # (Can't be tested with purify :( )
 #
 
+# limit the test to engines which support INSERT DELAYED
+disable_query_log;
+--require r/true.require
+select @@global.storage_engine in
+("memory","myisam","archive","blackhole") and
+@@session.storage_engine in
+("memory","myisam","archive","blackhole") as `TRUE`;
+enable_query_log;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
