@@ -640,22 +640,25 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor)
     translog_filename_by_fileno()
     file_no              Number of the log we want to open
     path                 Pointer to buffer where file name will be
-                         stored (must be FN_REFLEN bytes at least
+                         stored (must be FN_REFLEN bytes at least)
   RETURN
     pointer to path
 */
 
 static char *translog_filename_by_fileno(uint32 file_no, char *path)
 {
-  char file_name[10 + 8 + 1];           /* See fallowing my_sprintf() call */
-  char *res;
+  char buff[11], *end;
+  uint length;
   DBUG_ENTER("translog_filename_by_fileno");
   DBUG_ASSERT(file_no <= 0xfffffff);
-  my_sprintf(file_name, (file_name, "maria_log.%08u", file_no));
-  res= fn_format(path, file_name, log_descriptor.directory, "", MYF(MY_WME));
-  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx  res: 0x%lx",
-                      res, (ulong) path, (ulong) res));
-  DBUG_RETURN(res);
+
+  /* log_descriptor.directory is already formated */
+  end= strxmov(path, log_descriptor.directory, "maria_log.0000000", NullS);
+  length= (uint) (int10_to_str(file_no, buff, 10) - buff);
+  strmov(end-length+1, buff);
+
+  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx", path, (ulong) res));
+  DBUG_RETURN(path);
 }
 
 
@@ -986,9 +989,10 @@ static void translog_mark_file_finished(uint32 file)
 {
   int i;
   struct st_file_counter *fc_ptr;
-
   DBUG_ENTER("translog_mark_file_finished");
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
+
+  LINT_INIT(fc_ptr);
 
   pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
@@ -2310,7 +2314,7 @@ my_bool translog_unlock()
 */
 
 static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
-                                PAGECACHE_PAGE_LINK *direct_link)
+                                PAGECACHE_BLOCK_LINK **direct_link)
 {
   TRANSLOG_ADDRESS addr= *(data->addr), in_buffers;
   uint cache_index;
@@ -2490,7 +2494,7 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
 
 */
 
-static void translog_free_link(PAGECACHE_PAGE_LINK *direct_link)
+static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
 {
   DBUG_ENTER("translog_free_link");
   DBUG_PRINT("info", ("Direct link: 0x%lx",
@@ -5692,7 +5696,7 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
 {
   uchar buffer[TRANSLOG_PAGE_SIZE], *page;
   translog_size_t res, page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
-  PAGECACHE_PAGE_LINK direct_link;
+  PAGECACHE_BLOCK_LINK *direct_link;
   TRANSLOG_ADDRESS addr;
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_read_record_header");
@@ -5963,7 +5967,7 @@ static void translog_destroy_reader_data(struct st_translog_reader_data *data)
   SYNOPSIS
     translog_read_record_header()
     lsn                  log record serial number (address of the record)
-    offset               From the beginning of the record beginning (readÂ§
+    offset               From the beginning of the record beginning (read
                          by translog_read_record_header).
     length               Length of record part which have to be read.
     buffer               Buffer where to read the record part (have to be at

@@ -91,8 +91,6 @@ typedef struct st_pagecache_page PAGECACHE_PAGE;
 struct st_pagecache_hash_link;
 typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
-typedef PAGECACHE_BLOCK_LINK * PAGECACHE_PAGE_LINK;  /* To be removed */
-
 #include <wqueue.h>
 
 typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
@@ -205,7 +203,7 @@ extern my_bool pagecache_write_part(PAGECACHE *pagecache,
                                     enum pagecache_page_lock lock,
                                     enum pagecache_page_pin pin,
                                     enum pagecache_write_mode write_mode,
-                                    PAGECACHE_PAGE_LINK *link,
+                                    PAGECACHE_BLOCK_LINK **link,
                                     uint offset,
                                     uint size,
                                     pagecache_disk_read_validator validator,
@@ -228,7 +226,7 @@ extern void pagecache_unpin(PAGECACHE *pagecache,
                             pgcache_page_no_t pageno,
                             LSN lsn);
 extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
-                                    PAGECACHE_PAGE_LINK *link,
+                                    PAGECACHE_BLOCK_LINK *link,
                                     LSN lsn);
 extern int flush_pagecache_blocks(PAGECACHE *keycache,
                                   PAGECACHE_FILE *file,

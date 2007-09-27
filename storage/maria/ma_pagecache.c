@@ -2755,10 +2755,9 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
 */
 
 void pagecache_unpin_by_link(PAGECACHE *pagecache,
-                             PAGECACHE_PAGE_LINK *link,
+                             PAGECACHE_BLOCK_LINK *block,
                              LSN lsn)
 {
-  PAGECACHE_BLOCK_LINK *block= (PAGECACHE_BLOCK_LINK *)link;
   DBUG_ENTER("pagecache_unpin_by_link");
   DBUG_PRINT("enter", ("block: 0x%lx fd: %u page: %lu",
                        (ulong) block,
@@ -3212,13 +3211,13 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
                              enum pagecache_page_lock lock,
                              enum pagecache_page_pin pin,
                              enum pagecache_write_mode write_mode,
-                             PAGECACHE_PAGE_LINK *link,
+                             PAGECACHE_BLOCK_LINK **link,
                              uint offset, uint size,
                              pagecache_disk_read_validator validator,
                              uchar* validator_data)
 {
   PAGECACHE_BLOCK_LINK *block= NULL;
-  PAGECACHE_PAGE_LINK fake_link;
+  PAGECACHE_BLOCK_LINK *fake_link;
   int error= 0;
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
   DBUG_ENTER("pagecache_write_part");
@@ -3234,10 +3233,10 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
+
   if (!link)
     link= &fake_link;
-  else
-    *link= 0;
+  *link= 0;
 
 restart:
 
@@ -3362,7 +3361,7 @@ restart:
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
       unreg_request(pagecache, block, 1);
     else
-      *link= (PAGECACHE_PAGE_LINK)block;
+      *link= block;
 
     if (block->status & PCBLOCK_ERROR)
       error= 1;

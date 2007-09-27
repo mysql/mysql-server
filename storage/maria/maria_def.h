@@ -632,7 +632,7 @@ typedef struct st_maria_s_param
 /* Used to store reference to pinned page */
 typedef struct st_pinned_page
 {
-  PAGECACHE_PAGE_LINK link;
+  PAGECACHE_BLOCK_LINK *link;
   enum pagecache_page_lock unlock;
 } MARIA_PINNED_PAGE;
 
