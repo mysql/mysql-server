@@ -27,15 +27,13 @@ innobase_rec_to_mysql(
 /*==================*/
 	TABLE*			table,		/* in/out: MySQL table */
 	const rec_t*		rec,		/* in: record */
-	const dict_index_t*	index,		/* in: clustered index */
+	const dict_index_t*	index,		/* in: index */
 	const ulint*		offsets)	/* in: rec_get_offsets(
 						rec, index, ...) */
 {
 	uint	n_fields	= table->s->fields;
 	uint	i;
 
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(n_fields == dict_table_get_n_user_cols(index->table));
 
 	for (i = 0; i < n_fields; i++) {
@@ -47,7 +45,6 @@ innobase_rec_to_mysql(
 		const void*	ifield;
 
 		ipos = dict_index_get_nth_col_pos(index, i);
-		ut_ad(ipos != ULINT_UNDEFINED);
 
 		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
 reset_field:
