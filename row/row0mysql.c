@@ -34,9 +34,6 @@ Created 9/17/2000 Heikki Tuuri
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
 
-/* A dummy variable used to fool the compiler */
-ibool	row_mysql_identically_false	= FALSE;
-
 /* Provide optional 4.x backwards compatibility for 5.0 and above */
 ibool	row_rollback_on_timeout	= FALSE;
 
