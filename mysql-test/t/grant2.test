@@ -585,5 +585,37 @@ drop user mysqltest_1@localhost;
 drop user mysqltest_2@localhost;
 
 
+#
+# Bug #30468: column level privileges not respected when joining tables
+#
+CREATE DATABASE db1;
+
+USE db1;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+
+CREATE TABLE t2 (b INT, c INT);
+INSERT INTO t2 VALUES (1,100),(2,200);
+
+GRANT SELECT ON t1 TO mysqltest1@localhost; 
+GRANT SELECT (b) ON t2 TO mysqltest1@localhost;
+
+connect (conn1,localhost,mysqltest1,,);
+connection conn1;
+USE db1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT c FROM t2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM t2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT * FROM t1 JOIN t2 USING (b);
+
+connection default;
+disconnect conn1;
+DROP TABLE db1.t1, db1.t2;
+DROP USER mysqltest1@localhost;
+DROP DATABASE db1;
+
+
 --echo End of 5.0 tests
 
