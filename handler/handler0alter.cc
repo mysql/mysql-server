@@ -80,8 +80,8 @@ innobase_col_to_mysql(
 #ifdef UNIV_DEBUG
 	case DATA_MYSQL:
 		ut_ad(flen >= len);
-		ut_ad(col->mbmaxlen >= templ->mbminlen);
-		ut_ad(col->mbmaxlen > templ->mbminlen || flen == len);
+		ut_ad(col->mbmaxlen >= col->mbminlen);
+		ut_ad(col->mbmaxlen > col->mbminlen || flen == len);
 		memcpy(dest, data, len);
 		break;
 
