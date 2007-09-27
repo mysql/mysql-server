@@ -20,7 +20,93 @@ extern "C" {
 }
 
 /*****************************************************************
-Copies an InnoDB clustered index record to table->record[0]. */
+Copies an InnoDB column to a MySQL field.  This function is
+adapted from row_sel_field_store_in_mysql_format(). */
+static
+void
+innobase_col_to_mysql(
+/*==================*/
+	const dict_col_t*	col,	/* in: InnoDB column */
+	const uchar*		data,	/* in: InnoDB column data */
+	ulint			len,	/* in: length of data, in bytes */
+	Field*			field)	/* in/out: MySQL field */
+{
+	uchar*	ptr;
+	uchar*	dest	= field->ptr;
+	ulint	flen	= field->pack_length();
+
+	switch (col->mtype) {
+	case DATA_INT:
+		ut_ad(len == flen);
+
+		/* Convert integer data from Innobase to little-endian
+		format, sign bit restored to normal */
+
+		for (ptr = dest + len; ptr != dest; ) {
+			*--ptr = *data++;
+		}
+
+		if (!(field->flags & UNSIGNED_FLAG)) {
+			((byte*) dest)[len - 1] ^= 0x80;
+		}
+
+		break;
+
+	case DATA_VARCHAR:
+	case DATA_VARMYSQL:
+	case DATA_BINARY:
+		field->reset();
+
+		if (field->type() == MYSQL_TYPE_VARCHAR) {
+			/* This is a >= 5.0.3 type true VARCHAR. Store the
+			length of the data to the first byte or the first
+			two bytes of dest. */
+
+			dest = row_mysql_store_true_var_len(
+				dest, len, flen - field->key_length());
+		}
+
+		/* Copy the actual data */
+		memcpy(dest, data, len);
+		break;
+
+	case DATA_BLOB:
+		/* Store a pointer to the BLOB buffer to dest: the BLOB was
+		already copied to the buffer in row_sel_store_mysql_rec */
+
+		row_mysql_store_blob_ref(dest, flen, data, len);
+		break;
+
+#ifdef UNIV_DEBUG
+	case DATA_MYSQL:
+		ut_ad(flen >= len);
+		ut_ad(col->mbmaxlen >= templ->mbminlen);
+		ut_ad(col->mbmaxlen > templ->mbminlen || flen == len);
+		memcpy(dest, data, len);
+		break;
+
+	default:
+	case DATA_SYS_CHILD:
+	case DATA_SYS:
+		/* These column types should never be shipped to MySQL. */
+		ut_ad(0);
+
+	case DATA_CHAR:
+	case DATA_FIXBINARY:
+	case DATA_FLOAT:
+	case DATA_DOUBLE:
+	case DATA_DECIMAL:
+		/* Above are the valid column types for MySQL data. */
+		ut_ad(flen == len);
+#else /* UNIV_DEBUG */
+	default:
+#endif /* UNIV_DEBUG */
+		memcpy(dest, data, len);
+	}
+}
+
+/*****************************************************************
+Copies an InnoDB record to table->record[0]. */
 extern "C"
 void
 innobase_rec_to_mysql(
@@ -38,17 +124,16 @@ innobase_rec_to_mysql(
 
 	for (i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
-		void*		ptr	= field->ptr;
-		uint32		flen	= field->pack_length();
 		ulint		ipos;
 		ulint		ilen;
-		const void*	ifield;
+		const uchar*	ifield;
+
+		field->reset();
 
 		ipos = dict_index_get_nth_col_pos(index, i);
 
 		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
-reset_field:
-			field->reset();
+null_field:
 			field->set_null();
 			continue;
 		}
@@ -58,19 +143,15 @@ reset_field:
 		/* Assign the NULL flag */
 		if (ilen == UNIV_SQL_NULL) {
 			ut_ad(field->real_maybe_null());
-			goto reset_field;
-		} else {
-			field->set_notnull();
-			/* Copy the data. */
-			/* TODO: convert integer fields */
-
-			if (ilen >= flen) {
-				memcpy(ptr, ifield, flen);
-			} else {
-				field->reset();
-				memcpy(ptr, ifield, ilen);
-			}
+			goto null_field;
 		}
+
+		field->set_notnull();
+
+		innobase_col_to_mysql(
+			dict_field_get_col(
+				dict_index_get_nth_field(index, ipos)),
+			ifield, ilen, field);
 	}
 }
 
