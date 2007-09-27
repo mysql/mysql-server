@@ -422,4 +422,22 @@ revoke all privileges, grant option from mysqltest_1@localhost;
 revoke all privileges, grant option from mysqltest_2@localhost;
 drop user mysqltest_1@localhost;
 drop user mysqltest_2@localhost;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 (b INT, c INT);
+INSERT INTO t2 VALUES (1,100),(2,200);
+GRANT SELECT ON t1 TO mysqltest1@localhost;
+GRANT SELECT (b) ON t2 TO mysqltest1@localhost;
+USE db1;
+SELECT c FROM t2;
+ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
+SELECT * FROM t2;
+ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
+SELECT * FROM t1 JOIN t2 USING (b);
+ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
+DROP TABLE db1.t1, db1.t2;
+DROP USER mysqltest1@localhost;
+DROP DATABASE db1;
 End of 5.0 tests

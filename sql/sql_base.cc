@@ -6553,10 +6553,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         !any_privileges)
     {
       field_iterator.set(tables);
-      if (check_grant_all_columns(thd, SELECT_ACL, field_iterator.grant(),
-                                  field_iterator.db_name(),
-                                  field_iterator.table_name(),
-                                  &field_iterator))
+      if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))
         DBUG_RETURN(TRUE);
     }
 #endif
