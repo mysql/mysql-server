@@ -657,7 +657,7 @@ static char *translog_filename_by_fileno(uint32 file_no, char *path)
   length= (uint) (int10_to_str(file_no, buff, 10) - buff);
   strmov(end-length+1, buff);
 
-  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx", path, (ulong) res));
+  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx", path, (ulong) path));
   DBUG_RETURN(path);
 }
 
