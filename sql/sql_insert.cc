@@ -189,11 +189,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (grant_option)
     {
-      Field_iterator_table field_it;
-      field_it.set_table(table);
-      if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                  table->s->db, table->s->table_name,
-                                  &field_it))
+      Field_iterator_table_ref field_it;
+      field_it.set(table_list);
+      if (check_grant_all_columns(thd, INSERT_ACL, &field_it))
         return -1;
     }
 #endif
