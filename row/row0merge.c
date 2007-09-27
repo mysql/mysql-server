@@ -56,9 +56,12 @@ ut_ad(data_size < sizeof(row_merge_block_t)). */
 
 typedef byte	row_merge_block_t[1048576];
 
-/* Secondary buffer for I/O operations of merge records */
+/* Secondary buffer for I/O operations of merge records.  This buffer
+is used for writing or reading a record that spans two row_merge_block_t.
+Thus, it must be able to hold one merge record, whose maximum size is
+the same as the minimum size of row_merge_block_t. */
 
-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE / 2];
+typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
 
 /* Merge record in row_merge_block_t.  The format is the same as a
 record in ROW_FORMAT=COMPACT with the exception that the
