@@ -58,7 +58,7 @@ if (pos > end_pos)             \
 ** In MySQL the server will handle version issues.
 ******************************************************************************/
 
-MARIA_HA *_ma_test_if_reopen(char *filename)
+MARIA_HA *_ma_test_if_reopen(const char *filename)
 {
   LIST *pos;
 
@@ -1001,7 +1001,9 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   if (pWrite & 4)
     pthread_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
+  {
     safe_mutex_assert_owner(&share->intern_lock);
+  }
   if (share->base.born_transactional && translog_inited &&
       !maria_in_recovery)
   {

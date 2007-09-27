@@ -4609,6 +4609,9 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   uint      block_size= share->block_size;
   uint      rec_offset;
   uchar      *buff= info->keyread_buff, *dir;
+  MARIA_PINNED_PAGE page_link;
+  enum pagecache_page_lock unlock_method;
+  enum pagecache_page_pin unpin_method;
   DBUG_ENTER("_ma_apply_redo_insert_row_head_or_tail");
 
   info->keyread_buff_used= 1;
@@ -4635,26 +4638,31 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     empty_space= (block_size - PAGE_OVERHEAD_SIZE);
     rec_offset= PAGE_HEADER_SIZE;
     dir= buff+ block_size - PAGE_SUFFIX_SIZE - DIR_ENTRY_SIZE;
+    unlock_method= PAGECACHE_LOCK_LEFT_UNLOCKED;
+    unpin_method=  PAGECACHE_PIN_LEFT_UNPINNED;
   }
   else
   {
     uint max_entry;
-    if (!(buff= pagecache_read(share->pagecache,
-                               &info->dfile,
-                               page, 0,
-                               buff, PAGECACHE_PLAIN_PAGE,
-                               PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+    if (!(buff= pagecache_read(share->pagecache, &info->dfile,
+                               page, 0, 0,
+                               PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                               &page_link.link)))
       DBUG_RETURN(my_errno);
-    if (lsn_korr(buff) >= lsn)
+    if (lsn_korr(buff) >= lsn)           /* Test if already applied */
     {
-      /* Already applied */
-
+      pagecache_unlock_by_link(share->pagecache, page_link.link,
+                               PAGECACHE_LOCK_WRITE_UNLOCK,
+                               PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                               LSN_IMPOSSIBLE);
       /* Fix bitmap, just in case */
       empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
         DBUG_RETURN(my_errno);
       DBUG_RETURN(0);
     }
+    unlock_method= PAGECACHE_LOCK_WRITE_UNLOCK;
+    unpin_method=  PAGECACHE_UNPIN;
 
     max_entry= (uint) ((uchar*) buff)[DIR_COUNT_OFFSET];
     if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
@@ -4725,8 +4733,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_LEFT_UNLOCKED,
-                      PAGECACHE_PIN_LEFT_UNPINNED,
+                      unlock_method, unpin_method,
                       PAGECACHE_WRITE_DELAY, 0))
     DBUG_RETURN(my_errno);
 
@@ -4747,6 +4754,11 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_RETURN(0);
 
 err:
+  if (unlock_method == PAGECACHE_LOCK_WRITE_UNLOCK)
+    pagecache_unlock_by_link(share->pagecache, page_link.link,
+                             PAGECACHE_LOCK_WRITE_UNLOCK,
+                             PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE);
   DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 }
 
@@ -4778,6 +4790,8 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   uint      rownr, empty_space;
   uint      block_size= share->block_size;
   uchar      *buff= info->keyread_buff;
+  int result;
+  MARIA_PINNED_PAGE page_link;
   DBUG_ENTER("_ma_apply_redo_purge_row_head_or_tail");
 
   page=  page_korr(header);
@@ -4788,11 +4802,10 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
 
   info->keyread_buff_used= 1;
 
-  if (!(buff= pagecache_read(share->pagecache,
-                             &info->dfile,
-                             page, 0,
-                             buff, PAGECACHE_PLAIN_PAGE,
-                             PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+  if (!(buff= pagecache_read(share->pagecache, &info->dfile,
+                             page, 0, 0,
+                             PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
+                             &page_link.link)))
     DBUG_RETURN(my_errno);
 
   if (lsn_korr(buff) >= lsn)
@@ -4802,6 +4815,11 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
       Note that in case the page is not anymore a head or tail page
       a future redo will fix the bitmap.
     */
+    pagecache_unlock_by_link(share->pagecache, page_link.link,
+                             PAGECACHE_LOCK_WRITE_UNLOCK,
+                             PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE);
+
     if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
     {
       empty_space= uint2korr(buff+EMPTY_SPACE_OFFSET);
@@ -4815,22 +4833,30 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == (uchar) page_type);
 
   if (delete_dir_entry(buff, block_size, rownr, &empty_space) < 0)
-    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
+    goto err;
 
   lsn_store(buff, lsn);
+  result= 0;
   if (pagecache_write(share->pagecache,
                       &info->dfile, page, 0,
                       buff, PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_LEFT_UNLOCKED,
-                      PAGECACHE_PIN_LEFT_UNPINNED,
+                      PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
                       PAGECACHE_WRITE_DELAY, 0))
-    DBUG_RETURN(my_errno);
+    result= my_errno;
 
   /* This will work even if the page was marked as UNALLOCATED_PAGE */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
-    DBUG_RETURN(my_errno);
+    result= my_errno;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(result);
+
+err:
+  pagecache_unlock_by_link(share->pagecache, page_link.link,
+                           PAGECACHE_LOCK_WRITE_UNLOCK,
+                           PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                           LSN_IMPOSSIBLE);
+  DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
+
 }
 
 
@@ -4872,16 +4898,21 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
 
     for (i= 0; i < page_range ; i++)
     {
+      MARIA_PINNED_PAGE page_link;
       if (!(buff= pagecache_read(share->pagecache,
                                  &info->dfile,
                                  page+i, 0,
                                  buff, PAGECACHE_PLAIN_PAGE,
-                                 PAGECACHE_LOCK_LEFT_UNLOCKED, 0)))
+                                 PAGECACHE_LOCK_WRITE, &page_link.link)))
         DBUG_RETURN(my_errno);
 
       if (lsn_korr(buff) >= lsn)
       {
         /* Already applied */
+        pagecache_unlock_by_link(share->pagecache, page_link.link,
+                                 PAGECACHE_LOCK_WRITE_UNLOCK,
+                                 PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
+                                 LSN_IMPOSSIBLE);
         continue;
       }
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
@@ -4889,8 +4920,7 @@ uint _ma_apply_redo_purge_blocks(MARIA_HA *info,
       if (pagecache_write(share->pagecache,
                           &info->dfile, page+i, 0,
                           buff, PAGECACHE_PLAIN_PAGE,
-                          PAGECACHE_LOCK_LEFT_UNLOCKED,
-                          PAGECACHE_PIN_LEFT_UNPINNED,
+                          PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
                           PAGECACHE_WRITE_DELAY, 0))
         DBUG_RETURN(my_errno);
     }

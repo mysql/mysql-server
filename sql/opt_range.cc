@@ -2130,9 +2130,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if ((specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
-      !limit)
-    DBUG_RETURN(0); /* purecov: inspected */
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
   records= head->file->stats.records;

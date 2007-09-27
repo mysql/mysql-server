@@ -182,10 +182,14 @@ typedef struct st_translog_scanner_data
   TRANSLOG_ADDRESS horizon;
   TRANSLOG_ADDRESS last_file_page;             /* Last page on in this file */
   uchar *page;                                  /* page content pointer */
+  /* direct link on the current page or NULL if it is not supported/requested */
+  PAGECACHE_PAGE_LINK direct_link;
   /* offset of the chunk in the page */
   translog_size_t page_offset;
   /* set horizon only once at init */
   my_bool fixed_horizon;
+  /* try to get direct link on the page if it is possible */
+  my_bool use_direct_link;
 } TRANSLOG_SCANNER_DATA;
 
 
@@ -245,7 +249,9 @@ extern my_bool translog_flush(LSN lsn);
 
 extern my_bool translog_init_scanner(LSN lsn,
 				     my_bool fixed_horizon,
-				     struct st_translog_scanner_data *scanner);
+				     struct st_translog_scanner_data *scanner,
+                                     my_bool use_direct_link);
+extern void translog_destroy_scanner(TRANSLOG_SCANNER_DATA *scanner);
 
 extern int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
                                             TRANSLOG_HEADER_BUFFER *buff);

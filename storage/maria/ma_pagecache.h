@@ -73,8 +73,6 @@ enum pagecache_write_mode
   PAGECACHE_WRITE_DONE
 };
 
-typedef void *PAGECACHE_PAGE_LINK;
-
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
 {
@@ -93,6 +91,8 @@ typedef struct st_pagecache_page PAGECACHE_PAGE;
 struct st_pagecache_hash_link;
 typedef struct st_pagecache_hash_link PAGECACHE_HASH_LINK;
 
+typedef PAGECACHE_BLOCK_LINK * PAGECACHE_PAGE_LINK;  /* To be removed */
+
 #include <wqueue.h>
 
 typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
@@ -106,25 +106,22 @@ typedef my_bool (*pagecache_disk_read_validator)(uchar *page, uchar *data);
 
 typedef struct st_pagecache
 {
-  my_bool inited;
-  my_bool resize_in_flush;       /* true during flush of resize operation    */
-  my_bool can_be_used;           /* usage of cache for read/write is allowed */
-  uint shift;                    /* block size = 2 ^ shift                   */
-  size_t mem_size;            /* specified size of the cache memory       */
-  uint32 block_size;             /* size of the page buffer of a cache block */
+  size_t mem_size;               /* specified size of the cache memory       */
   ulong min_warm_blocks;         /* min number of warm blocks;               */
   ulong age_threshold;           /* age threshold for hot blocks             */
   ulonglong time;                /* total number of block link operations    */
-  uint hash_entries;             /* max number of entries in the hash table  */
-  int hash_links;                /* max number of hash links                 */
-  int hash_links_used;    /* number of hash links taken from free links pool */
-  int disk_blocks;               /* max number of blocks in the cache        */
+  ulong hash_entries;            /* max number of entries in the hash table  */
+  long hash_links;               /* max number of hash links                 */
+  long hash_links_used;   /* number of hash links taken from free links pool */
+  long disk_blocks;              /* max number of blocks in the cache        */
   ulong blocks_used;           /* maximum number of concurrently used blocks */
   ulong blocks_unused;           /* number of currently unused blocks        */
   ulong blocks_changed;          /* number of currently dirty blocks         */
   ulong warm_blocks;             /* number of blocks in warm sub-chain       */
   ulong cnt_for_resize_op;       /* counter to block resize operation        */
   ulong blocks_available;     /* number of blocks available in the LRU chain */
+  long blocks;                   /* max number of blocks in the cache        */
+  uint32 block_size;             /* size of the page buffer of a cache block */
   PAGECACHE_HASH_LINK **hash_root;/* arr. of entries into hash table buckets */
   PAGECACHE_HASH_LINK *hash_link_root;/* memory for hash table links         */
   PAGECACHE_HASH_LINK *free_hash_list;/* list of free hash links             */
@@ -159,19 +156,22 @@ typedef struct st_pagecache
   ulonglong global_cache_r_requests;/* number of read requests (read hits)   */
   ulonglong global_cache_read;      /* number of reads from files to cache   */
 
-  int blocks;                   /* max number of blocks in the cache        */
+  uint shift;                    /* block size = 2 ^ shift                   */
+  my_bool inited;
+  my_bool resize_in_flush;       /* true during flush of resize operation    */
+  my_bool can_be_used;           /* usage of cache for read/write is allowed */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
 } PAGECACHE;
 
 /* The default key cache */
 extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
 
-extern int init_pagecache(PAGECACHE *pagecache, size_t use_mem,
-                          uint division_limit, uint age_threshold,
-                          uint block_size);
-extern int resize_pagecache(PAGECACHE *pagecache,
-                            size_t use_mem, uint division_limit,
-                            uint age_threshold);
+extern ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
+                            uint division_limit, uint age_threshold,
+                            uint block_size);
+extern ulong resize_pagecache(PAGECACHE *pagecache,
+                              size_t use_mem, uint division_limit,
+                              uint age_threshold);
 extern void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
                                    uint age_threshold);
 
@@ -185,7 +185,7 @@ extern uchar *pagecache_valid_read(PAGECACHE *pagecache,
                                   uchar *buff,
                                   enum pagecache_page_type type,
                                   enum pagecache_page_lock lock,
-                                  PAGECACHE_PAGE_LINK *link,
+                                  PAGECACHE_BLOCK_LINK **link,
                                   pagecache_disk_read_validator validator,
                                   uchar* validator_data);
 
@@ -218,7 +218,7 @@ extern void pagecache_unlock(PAGECACHE *pagecache,
                              LSN first_REDO_LSN_for_page,
                              LSN lsn);
 extern void pagecache_unlock_by_link(PAGECACHE *pagecache,
-                                     PAGECACHE_PAGE_LINK *link,
+                                     PAGECACHE_BLOCK_LINK *block,
                                      enum pagecache_page_lock lock,
                                      enum pagecache_page_pin pin,
                                      LSN first_REDO_LSN_for_page,

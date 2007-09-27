@@ -105,6 +105,7 @@ static int new_table(uint16 sid, const char *name,
 static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
                     struct st_dirty_page *dirty_page);
 static int close_all_tables(void);
+static my_bool close_one_table(const char *name, LSN addr);
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr);
 
 /** @brief global [out] buffer for translog_read_record(); never shrinks */
@@ -415,6 +416,8 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   uint flags;
   int error= 1, create_mode= O_RDWR | O_TRUNC;
   MARIA_HA *info= NULL;
+  uint kfile_size_before_extension, keystart;
+
   if (skip_DDLs)
   {
     tprint(tracef, "we skip DDLs\n");
@@ -431,6 +434,12 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   }
   name= log_record_buffer.str;
   tprint(tracef, "Table '%s'", name);
+  if (close_one_table(name, rec->lsn))
+  {
+    tprint(tracef, " got error %d on close\n", my_errno);
+    ALERT_USER();
+    goto end;
+  }
   /* we try hard to get create_rename_lsn, to avoid mistakes if possible */
   info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR);
   if (info)
@@ -474,7 +483,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     info= NULL;
   }
   else /* one or two files absent, or header corrupted... */
-    tprint(tracef, "can't be opened, probably does not exist");
+    tprint(tracef, " can't be opened, probably does not exist");
   /* if does not exist, or is older, overwrite it */
   /** @todo symlinks */
   ptr= name + strlen(name) + 1;
@@ -490,13 +499,13 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   if ((kfile= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
                                      MYF(MY_WME|create_flag))) < 0)
   {
-    tprint(tracef, "Failed to create index file\n");
+    tprint(tracef, " Failed to create index file\n");
     goto end;
   }
   ptr++;
-  uint kfile_size_before_extension= uint2korr(ptr);
+  kfile_size_before_extension= uint2korr(ptr);
   ptr+= 2;
-  uint keystart= uint2korr(ptr);
+  keystart= uint2korr(ptr);
   ptr+= 2;
   /* set create_rename_lsn (for maria_read_log to be idempotent) */
   lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
@@ -507,7 +516,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
   {
-    tprint(tracef, "Failed to write to index file\n");
+    tprint(tracef, " Failed to write to index file\n");
     goto end;
   }
   if (!(flags & HA_DONT_TOUCH_DATA))
@@ -521,7 +530,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
                                  MYF(MY_WME | create_flag))) < 0) ||
         my_close(dfile, MYF(MY_WME)))
     {
-      tprint(tracef, "Failed to create data file\n");
+      tprint(tracef, " Failed to create data file\n");
       goto end;
     }
     /*
@@ -533,7 +542,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     if (((info= maria_open(name, O_RDONLY, 0)) == NULL) ||
         _ma_initialize_data_file(info->s, info->dfile.file))
     {
-      tprint(tracef, "Failed to open new table or write to data file\n");
+      tprint(tracef, " Failed to open new table or write to data file\n");
       goto end;
     }
   }
@@ -1436,6 +1445,11 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
 
 static int run_redo_phase(LSN lsn, my_bool apply)
 {
+  TRANSLOG_HEADER_BUFFER rec;
+  struct st_translog_scanner_data scanner;
+  int len;
+  uint i;
+
   /* install hooks for execution */
 #define install_redo_exec_hook(R)                                        \
   log_record_type_descriptor[LOGREC_ ## R].record_execute_in_redo_phase= \
@@ -1467,8 +1481,6 @@ static int run_redo_phase(LSN lsn, my_bool apply)
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 
-  TRANSLOG_HEADER_BUFFER rec;
-
   if (unlikely(lsn == LSN_IMPOSSIBLE || lsn == translog_get_horizon()))
   {
     tprint(tracef, "checkpoint address refers to the log end log or "
@@ -1476,7 +1488,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
     return 0;
   }
 
-  int len= translog_read_record_header(lsn, &rec);
+  len= translog_read_record_header(lsn, &rec);
 
   /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
@@ -1484,13 +1496,11 @@ static int run_redo_phase(LSN lsn, my_bool apply)
     tprint(tracef, "Failed to read header of the first record.\n");
     return 1;
   }
-  struct st_translog_scanner_data scanner;
-  if (translog_init_scanner(lsn, 1, &scanner))
+  if (translog_init_scanner(lsn, 1, &scanner, 0))
   {
     tprint(tracef, "Scanner init failed\n");
     return 1;
   }
-  uint i;
   for (i= 1;;i++)
   {
     uint16 sid= rec.short_trid;
@@ -1533,7 +1543,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
             tprint(tracef, "Cannot find record where it should be\n");
             return 1;
           }
-          if (translog_init_scanner(rec2.lsn, 1, &scanner2))
+          if (translog_init_scanner(rec2.lsn, 1, &scanner2, 0))
           {
             tprint(tracef, "Scanner2 init failed\n");
             return 1;
@@ -1607,6 +1617,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 {
   uint sid, unfinished= 0;
   char llbuf[22];
+  LSN addr;
 
   hash_free(&all_dirty_pages);
   /*
@@ -1667,7 +1678,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
     The UNDO phase uses some normal run-time code of ROLLBACK: generates log
     records, etc; prepare tables for that
   */
-  LSN addr= translog_get_horizon();
+  addr= translog_get_horizon();
   for (sid= 0; sid <= SHARE_ID_MAX; sid++)
   {
     MARIA_HA *info= all_tables[sid].info;
@@ -2069,6 +2080,42 @@ end:
   pthread_mutex_unlock(&THR_LOCK_maria);
   return error;
 }
+
+
+/* Close one table during redo phase */
+
+static my_bool close_one_table(const char *open_name, LSN addr)
+{
+  my_bool res= 0;
+  LIST *pos;
+  /* There are no other threads using the tables, so we don't need any locks */
+  for (pos=maria_open_list ; pos ;)
+  {
+    MARIA_HA *info= (MARIA_HA*) pos->data;
+    MARIA_SHARE *share= info->s;
+    pos= pos->next;
+    if (!strcmp(share->open_file_name, open_name))
+    {
+      struct st_table_for_recovery *internal_table, *end;
+
+      for (internal_table= all_tables, end= internal_table + SHARE_ID_MAX + 1;
+           internal_table < end ;
+           internal_table++)
+      {
+        if (internal_table->info == info)
+        {
+          internal_table->info= 0;
+          break;
+        }
+      }
+      prepare_table_for_close(info, addr);
+      if (maria_close(info))
+        res= 1;
+    }
+  }
+  return res;
+}
+
 
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {
