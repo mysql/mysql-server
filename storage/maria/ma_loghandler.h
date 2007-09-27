@@ -182,8 +182,8 @@ typedef struct st_translog_scanner_data
   TRANSLOG_ADDRESS horizon;
   TRANSLOG_ADDRESS last_file_page;             /* Last page on in this file */
   uchar *page;                                  /* page content pointer */
-  /* direct link on the current page or NULL if it is not supported/requested */
-  PAGECACHE_PAGE_LINK direct_link;
+  /* direct link on the current page or NULL if not supported/requested */
+  PAGECACHE_BLOCK_LINK *direct_link;
   /* offset of the chunk in the page */
   translog_size_t page_offset;
   /* set horizon only once at init */
