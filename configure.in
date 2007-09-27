@@ -838,7 +838,7 @@ if test "$TARGET_LINUX" = "true"; then
     [ USE_PSTACK=$withval ],
     [ USE_PSTACK=no ])
   pstack_libs=
-  pstack_dirs=
+  pstack_dir=
   if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
   then
     have_libiberty= have_libbfd=
@@ -851,11 +851,11 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
 
     if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
     then
-      pstack_dirs='$(top_srcdir)'/pstack
+      pstack_dir="pstack"
       pstack_libs="../pstack/libpstack.a -lbfd -liberty"
       # We must link staticly when using pstack
       with_mysqld_ldflags="-all-static"
-      AC_SUBST([pstack_dirs])
+      AC_SUBST([pstack_dir])
       AC_SUBST([pstack_libs])
       AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
 dnl This check isn't needed, but might be nice to give some feedback....
@@ -869,7 +869,6 @@ dnl      have_libiberty_h=no)
     USE_PSTACK="no"
   fi
 fi
-AM_CONDITIONAL(COMPILE_PSTACK, test "$USE_PSTACK" = "yes")
 AC_MSG_CHECKING([if we should use pstack])
 AC_MSG_RESULT([$USE_PSTACK])
 
@@ -2430,7 +2429,7 @@ else
 	MYSQL_CHECK_NEW_RL_INTERFACE
 	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
 	AC_LANG_RESTORE
-	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
+	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
 	then
 	    # Use the new readline interface, but only if the package includes a bundled libreadline
 	    # this way we avoid linking commercial source with GPL readline
@@ -2617,10 +2616,10 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-if test -d "pstack" ; then
+if test -d "$srcdir/pstack" ; then
   AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
 fi
-if test -d "cmd-line-utils/readline" ; then
+if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi
 
