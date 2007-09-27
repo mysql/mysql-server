@@ -197,7 +197,7 @@ mutex_exit(
 {
 	ut_ad(mutex_own(mutex));
 
-	ut_d(mutex->thread_id = ULINT_UNDEFINED);
+	ut_d(mutex->thread_id = (os_thread_id_t) ULINT_UNDEFINED);
 
 #ifdef UNIV_SYNC_DEBUG
 	sync_thread_reset_level(mutex);
