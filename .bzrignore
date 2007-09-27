@@ -1345,3 +1345,8 @@ zlib/*.vcproj
 debian/control
 debian/defs.mk
 include/abi_check
+support-files/mysqld_multi.server
+tests/bug25714
+cscope.in.out
+cscope.out
+cscope.po.out

@@ -361,7 +361,13 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
@@ -2898,7 +2904,7 @@ int init_dumping_tables(char *qdatabase)
       /* Old server version, dump generic CREATE DATABASE */
       if (opt_drop_database)
         fprintf(md_result_file,
-                "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
+                "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                 qdatabase);
       fprintf(md_result_file,
               "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",

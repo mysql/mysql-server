@@ -336,8 +336,8 @@ UNIQUE i1idx (i1),
 UNIQUE i2idx (i2));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-i1	int(11)	NO	PRI		
-i2	int(11)	NO	UNI		
+i1	int(11)	NO	PRI	NULL	
+i2	int(11)	NO	UNI	NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -392,27 +392,27 @@ drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null unique);
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI		
-b	varchar(20)	NO	UNI		
+a	int(11)	NO	PRI	NULL	
+b	varchar(20)	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b int not null unique);
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI		
-b	int(11)	NO	UNI		
+a	int(11)	NO	PRI	NULL	
+b	int(11)	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null, unique (b(10)));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI		
-b	varchar(20)	NO	UNI		
+a	int(11)	NO	PRI	NULL	
+b	varchar(20)	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null, c varchar(20) not null, unique(b(10),c(10)));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI		
-b	varchar(20)	NO	MUL		
-c	varchar(20)	NO			
+a	int(11)	NO	PRI	NULL	
+b	varchar(20)	NO	MUL	NULL	
+c	varchar(20)	NO		NULL	
 drop table t1;
 CREATE TABLE t1 (
 a INTEGER auto_increment PRIMARY KEY,
