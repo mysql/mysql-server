@@ -31,7 +31,7 @@
 #    "pkgincludedir" is set to the same as "includedir"
 #    "pkgdatadir"    is set to the same as "datadir"
 #    "pkgsuppdir"    is set to "@prefix@/support-files",
-#                    normally the same as "datadir" (not to set?)
+#                    normally the same as "datadir"
 #
 #  The temporary directory path given to "--tmp=<path>" has to be
 #  absolute and with no spaces.
@@ -175,6 +175,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     pkglibdir=@pkglibdir@ \
     pkgincludedir=@pkgincludedir@ \
     pkgdatadir=@pkgdatadir@ \
+    pkgsuppdir=@pkgsuppdir@ \
     mandir=@mandir@ \
     infodir=@infodir@
 
@@ -215,6 +216,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   fi
 
   # FIXME should be handled by make file, and to other dir
+  mkdir -p $DEST/bin $DEST/support-files
   cp scripts/mysqlaccess.conf $DEST/bin/
   cp support-files/magic      $DEST/support-files/
 
