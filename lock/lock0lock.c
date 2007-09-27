@@ -5485,6 +5485,20 @@ lock_get_table_name(
 }
 
 /***********************************************************************
+For a record lock, gets the index on which the lock is. */
+
+const dict_index_t*
+lock_rec_get_index(
+/*===============*/
+				/* out: index */
+	const lock_t*	lock)	/* in: lock */
+{
+	ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+	return(lock->index);
+}
+
+/***********************************************************************
 For a record lock, gets the name of the index on which the lock is.
 The string should not be free()'d or modified. */
 
