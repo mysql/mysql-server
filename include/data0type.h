@@ -122,6 +122,8 @@ be less than 256 */
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
 
+#define DATA_SYS_PRTYPE_MASK 0xF /* mask to extract the above from prtype */
+
 /* Flags ORed to the precise data type */
 #define DATA_NOT_NULL	256	/* this is ORed to the precise type when
 				the column is declared as NOT NULL */
