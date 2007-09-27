@@ -779,3 +779,11 @@ cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
 
+max-time: 180
+cmd: testIndex
+args: -n Bug28804 T1 T3
+
+max-time: 180
+cmd: testIndex
+args: -n Bug28804_ATTRINFO T1 T3
+

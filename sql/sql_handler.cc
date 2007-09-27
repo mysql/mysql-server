@@ -440,7 +440,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       cond->cleanup();                          // File was reopened
     if ((!cond->fixed &&
 	 cond->fix_fields(thd, &cond)) || cond->check_cols(1))
-      goto err0;
+      goto err;
   }
 
   if (keyname)
@@ -448,13 +448,13 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     if ((keyno=find_type(keyname, &table->s->keynames, 1+2)-1)<0)
     {
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
-      goto err0;
+      goto err;
     }
   }
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
                     tables->db, tables->alias, &it, 0))
-    goto err0;
+    goto err;
 
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 

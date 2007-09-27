@@ -43,7 +43,9 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
-		$(distdir)/std_data $(distdir)/lib
+		$(distdir)/std_data \
+		$(distdir)/std_data/ndb_backup50_data_be $(distdir)/std_data/ndb_backup50_data_le \
+		$(distdir)/lib
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
@@ -62,6 +64,8 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_be/BACKUP* $(distdir)/std_data/ndb_backup50_data_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_le/BACKUP* $(distdir)/std_data/ndb_backup50_data_le
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 	-rm -rf `find $(distdir)/suite -type d -name SCCS`
 
@@ -71,6 +75,8 @@ install-data-local:
 		$(DESTDIR)$(testdir)/r \
 		$(DESTDIR)$(testdir)/include \
 		$(DESTDIR)$(testdir)/std_data \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_be \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_le \
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
@@ -95,6 +101,8 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50_data_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50_data_le
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 	for f in `(cd $(srcdir); find suite -type f | grep -v SCCS)`; \
 	do \
@@ -131,6 +139,7 @@ SUFFIXES = .sh
 	  -e 's!@''PERL''@!@PERL@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
+	  -e 's!@''MYSQL_TCP_PORT_DEFAULT''@!@MYSQL_TCP_PORT_DEFAULT@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \

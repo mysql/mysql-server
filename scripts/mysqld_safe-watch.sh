@@ -66,7 +66,7 @@ fi
 echo "Starting mysqld demon with databases from $DATADIR"
 
 #Default communication ports
-#MYSQL_TCP_PORT=3306
+#MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
 if test -z "$MYSQL_UNIX_PORT"
 then
   MYSQL_UNIX_PORT="/tmp/mysql.sock"
