@@ -411,22 +411,29 @@ dfield_print_also_hex(
 		break;
 
 	case DATA_SYS:
-		if (prtype & DATA_TRX_ID) {
+		switch (prtype & DATA_SYS_PRTYPE_MASK) {
+		case DATA_TRX_ID:
 			id = mach_read_from_6(data);
 
 			fprintf(stderr, "trx_id {%lu %lu}",
 				ut_dulint_get_high(id), ut_dulint_get_low(id));
-		} else if (prtype & DATA_ROLL_PTR) {
+			break;
+
+		case DATA_ROLL_PTR:
 			id = mach_read_from_7(data);
 
 			fprintf(stderr, "roll_ptr {%lu %lu}",
 				ut_dulint_get_high(id), ut_dulint_get_low(id));
-		} else if (prtype & DATA_ROW_ID) {
+			break;
+
+		case DATA_ROW_ID:
 			id = mach_read_from_6(data);
 
 			fprintf(stderr, "row_id {%lu %lu}",
 				ut_dulint_get_high(id), ut_dulint_get_low(id));
-		} else {
+			break;
+
+		default:
 			id = mach_dulint_read_compressed(data);
 
 			fprintf(stderr, "mix_id {%lu %lu}",
