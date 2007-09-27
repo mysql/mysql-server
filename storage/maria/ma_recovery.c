@@ -1496,7 +1496,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
     tprint(tracef, "Failed to read header of the first record.\n");
     return 1;
   }
-  if (translog_init_scanner(lsn, 1, &scanner, 0))
+  if (translog_init_scanner(lsn, 1, &scanner, 1))
   {
     tprint(tracef, "Scanner init failed\n");
     return 1;
@@ -1529,24 +1529,25 @@ static int run_redo_phase(LSN lsn, my_bool apply)
         }
         else
         {
+          struct st_translog_scanner_data scanner2;
+          TRANSLOG_HEADER_BUFFER rec2;
           /*
             There is a complete group for this transaction, containing more
             than this event.
           */
           tprint(tracef, "   ends a group:\n");
-          struct st_translog_scanner_data scanner2;
-          TRANSLOG_HEADER_BUFFER rec2;
           len=
-            translog_read_record_header(all_active_trans[sid].group_start_lsn, &rec2);
+            translog_read_record_header(all_active_trans[sid].group_start_lsn,
+                                        &rec2);
           if (len < 0) /* EOF or error */
           {
             tprint(tracef, "Cannot find record where it should be\n");
-            return 1;
+            goto err;
           }
-          if (translog_init_scanner(rec2.lsn, 1, &scanner2, 0))
+          if (translog_init_scanner(rec2.lsn, 1, &scanner2, 1))
           {
             tprint(tracef, "Scanner2 init failed\n");
-            return 1;
+            goto err;
           }
           current_group_end_lsn= rec.lsn;
           do
@@ -1556,13 +1557,16 @@ static int run_redo_phase(LSN lsn, my_bool apply)
               const LOG_DESC *log_desc2= &log_record_type_descriptor[rec2.type];
               display_record_position(log_desc2, &rec2, 0);
               if (apply && display_and_apply_record(log_desc2, &rec2))
-                return 1;
+              {
+                translog_destroy(&scanner2);
+                goto err;
+              }
             }
             len= translog_read_next_record_header(&scanner2, &rec2);
             if (len < 0) /* EOF or error */
             {
               tprint(tracef, "Cannot find record where it should be\n");
-              return 1;
+              goto err;
             }
           }
           while (rec2.lsn < rec.lsn);
@@ -1571,10 +1575,11 @@ static int run_redo_phase(LSN lsn, my_bool apply)
           all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
           current_group_end_lsn= LSN_IMPOSSIBLE; /* for debugging */
           display_record_position(log_desc, &rec, 0);
+          translog_destroy_scanner(&scanner2);
         }
       }
       if (apply && display_and_apply_record(log_desc, &rec))
-        return 1;
+        goto err;
     }
     else /* record does not end group */
     {
@@ -1595,13 +1600,18 @@ static int run_redo_phase(LSN lsn, my_bool apply)
         break;
       case RECHEADER_READ_ERROR:
         tprint(tracef, "Error reading log\n");
-        return 1;
+        goto err;
       }
       break;
     }
   }
+  translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
   return 0;
+
+err:
+  translog_destroy_scanner(&scanner);
+  return 1;
 }
 
 
