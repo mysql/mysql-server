@@ -51,3 +51,5 @@ DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1() SELECT 1;
 
 --exec $MYSQL_SLAP --create-schema=test --delimiter=";" --query="CALL p1; SELECT 1;" --silent 2>&1 
+
+DROP PROCEDURE p1;
