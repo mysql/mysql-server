@@ -12,7 +12,7 @@ innobase_rec_to_mysql(
 /*==================*/
 	TABLE*			table,		/* in/out: MySQL table */
 	const rec_t*		rec,		/* in: record */
-	const dict_index_t*	index,		/* in: clustered index */
+	const dict_index_t*	index,		/* in: index */
 	const ulint*		offsets);	/* in: rec_get_offsets(
 						rec, index, ...) */
 
