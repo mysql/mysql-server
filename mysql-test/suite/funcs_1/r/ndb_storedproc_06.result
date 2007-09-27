@@ -81,6 +81,7 @@ BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
 END//
 ERROR 42000: Access denied for user 'user_1'@'localhost' to database 'db_storedproc_1'
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
@@ -92,6 +93,7 @@ CREATE PROCEDURE sp1(v1 char(20))
 BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
 END//
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 DROP USER 'user_1'@'localhost';
@@ -117,6 +119,7 @@ CREATE FUNCTION fn1(v1 int) returns int
 BEGIN
 return v1;
 END//
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 drop user 'user_1'@'localhost';
