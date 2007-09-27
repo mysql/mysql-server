@@ -3888,7 +3888,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
             grant->version= grant_version;	/* purecov: inspected */
           }
 
-          DBUG_ASSERT ((grant_table= grant->grant_table) != NULL);
+          grant_table= grant->grant_table;
+          DBUG_ASSERT (grant_table);
         }
       }
 
