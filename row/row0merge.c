@@ -379,7 +379,6 @@ row_merge_buf_add(
 /* Structure for reporting duplicate records. */
 struct row_merge_dup_struct {
 	const dict_index_t*	index;		/* index being sorted */
-	const dict_table_t*	old_table;	/* original table */
 	TABLE*			table;		/* MySQL table object */
 	ulint			n_dup;		/* number of duplicates */
 };
@@ -395,17 +394,16 @@ row_merge_dup_report(
 	row_merge_dup_t*	dup,	/* in/out: for reporting duplicates */
 	const dfield_t*		entry)	/* in: duplicate index entry */
 {
-	/* Buffer for converting the record */
-	byte			buf[UNIV_PAGE_SIZE / 2];
+	mrec_buf_t 		buf;
 	const dtuple_t*		tuple;
 	dtuple_t		tuple_store;
-	const rec_t*		clust_rec;
+	const rec_t*		rec;
 	const dict_index_t*	index	= dup->index;
-	const dict_table_t*	table	= index->table;
 	ulint			n_fields= dict_index_get_n_fields(index);
 	mem_heap_t*		heap	= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*			offsets;
+	ulint			n_ext;
 
 	if (dup->n_dup++) {
 		/* Only report the first duplicate record,
@@ -415,89 +413,16 @@ row_merge_dup_report(
 
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	if (table != dup->old_table) {
-		/* A new clustered index is being created. */
+	/* Convert the tuple to a record and then to MySQL format. */
 
-		if (dict_index_is_clust(index)) {
-			/* Convert the clustered index record
-			to MySQL format. */
-			ulint	n_ext;
+	tuple = dtuple_from_fields(&tuple_store, entry, n_fields);
+	n_ext = dict_index_is_clust(index) ? dtuple_get_n_ext(tuple) : 0;
 
-			tuple = dtuple_from_fields(&tuple_store,
-						   entry, n_fields);
-			n_ext = dtuple_get_n_ext(tuple);
+	rec = rec_convert_dtuple_to_rec(buf, index, tuple, n_ext);
+	offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+				  &heap);
 
-			clust_rec = rec_convert_dtuple_to_rec(buf, index,
-							      tuple, n_ext);
-			offsets = rec_get_offsets(clust_rec, index, offsets_,
-						  ULINT_UNDEFINED, &heap);
-
-			innobase_rec_to_mysql(dup->table, clust_rec,
-					      index, offsets);
-		} else {
-			/* We cannot fetch the MySQL record
-			corresponding to a secondary index record when
-			also creating the clustered index.  Consider a
-			table t (a,b,c,d) that lacks a primary key.
-			Consider the operation ALTER TABLE t ADD
-			PRIMARY KEY (a,b), ADD UNIQUE KEY (c).
-			The original clustered index record is
-			(DB_ROW_ID,DB_TRX_ID,DB_ROLL_PTR,a,b,c,d),
-			the new clustered index record is
-			(a,b,DB_TRX_ID,DB_ROLL_PTR,c,d), and the
-			unique secondary index record is (c,a,b).
-			Because the new records do not contain
-			DB_ROW_ID and the new clustered index B-tree
-			has not been created when the UNIQUE KEY (c)
-			violation is detected, it is impossible to
-			fetch the clustered index record without an
-			expensive table scan. */
-		}
-	} else {
-		const dict_index_t*	clust_index
-			= dict_table_get_first_index(dup->old_table);
-		btr_pcur_t		pcur;
-		mtr_t			mtr;
-		ulint			n_uniq;
-
-		ut_ad(!dict_index_is_clust(index));
-		ut_ad(dict_index_is_clust(clust_index));
-
-		/* Build a search tuple for the clustered index record. */
-		n_uniq = dict_index_get_n_unique(clust_index);
-
-		ut_a(n_uniq < n_fields);
-
-		tuple = dtuple_from_fields(&tuple_store,
-					   entry + n_fields - n_uniq, n_uniq);
-
-		/* Fetch the clustered index record. */
-		mtr_start(&mtr);
-
-		if (row_search_on_row_ref(&pcur, BTR_SEARCH_LEAF,
-					  table, tuple, &mtr)) {
-
-			ut_ad(clust_index == btr_cur_get_index(
-				      btr_pcur_get_btr_cur(&pcur)));
-
-			clust_rec = btr_pcur_get_rec(&pcur);
-
-			offsets = rec_get_offsets(clust_rec, clust_index,
-						  offsets_, ULINT_UNDEFINED,
-						  &heap);
-
-			innobase_rec_to_mysql(dup->table, clust_rec,
-					      clust_index, offsets);
-		} else {
-			/* The clustered index record was not found.
-			This should never happen, but we ignore this
-			error unless UNIV_DEBUG is defined. */
-			ut_ad(0);
-		}
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-	}
+	innobase_rec_to_mysql(dup->table, rec, index, offsets);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -1192,7 +1117,7 @@ row_merge_read_clustered_index(
 		}
 	}
 
-	row_heap = mem_heap_create(UNIV_PAGE_SIZE);
+	row_heap = mem_heap_create(sizeof(mrec_buf_t));
 
 	/* Scan the clustered index. */
 	for (;;) {
@@ -1275,10 +1200,8 @@ row_merge_read_clustered_index(
 
 			if (buf->n_tuples) {
 				if (dict_index_is_unique(index)) {
-					row_merge_dup_t	dup	= {
-						buf->index, old_table,
-						table, 0
-					};
+					row_merge_dup_t	dup
+						= { buf->index, table, 0 };
 
 					row_merge_buf_sort(buf, &dup);
 
@@ -1357,7 +1280,10 @@ row_merge_blocks(
 					source list in the file */
 	ulint*			foffs1,	/* in/out: offset of second
 					source list in the file */
-	merge_file_t*		of)	/* in/out: output file */
+	merge_file_t*		of,	/* in/out: output file */
+	TABLE*			table)	/* in/out: MySQL table, for
+					reporting erroneous key value
+					if applicable */
 {
 	mem_heap_t*	heap;	/* memory heap for offsets0, offsets1 */
 
@@ -1421,8 +1347,9 @@ corrupt:
 		case 0:
 			if (UNIV_UNLIKELY
 			    (dict_index_is_unique(index))) {
+				innobase_rec_to_mysql(table, mrec0,
+						      index, offsets0);
 				mem_heap_free(heap);
-				/* TODO: if clustered, convert to MySQL */
 				return(DB_DUPLICATE_KEY);
 			}
 			/* fall through */
@@ -1465,15 +1392,16 @@ static
 ulint
 row_merge(
 /*======*/
-						/* out: DB_SUCCESS
-						or error code */
-	const dict_index_t*	index,		/* in: index being created */
-	merge_file_t*		file,		/* in/out: file containing
-						index entries */
-	ulint			half,		/* in: half the file */
-	row_merge_block_t*	block,		/* in/out: 3 buffers */
-	int*			tmpfd)		/* in/out: temporary file
-						handle */
+					/* out: DB_SUCCESS or error code */
+	const dict_index_t*	index,	/* in: index being created */
+	merge_file_t*		file,	/* in/out: file containing
+					index entries */
+	ulint			half,	/* in: half the file */
+	row_merge_block_t*	block,	/* in/out: 3 buffers */
+	int*			tmpfd,	/* in/out: temporary file handle */
+	TABLE*			table)	/* in/out: MySQL table, for
+					reporting erroneous key value
+					if applicable */
 {
 	ulint		foffs0;	/* first input offset */
 	ulint		foffs1;	/* second input offset */
@@ -1492,7 +1420,7 @@ row_merge(
 
 	for (; foffs0 < half && foffs1 < file->offset; foffs0++, foffs1++) {
 		error = row_merge_blocks(index, file, block,
-					 &foffs0, &foffs1, &of);
+					 &foffs0, &foffs1, &of, table);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -1528,14 +1456,15 @@ static
 ulint
 row_merge_sort(
 /*===========*/
-						/* out: DB_SUCCESS
-						or error code */
-	const dict_index_t*	index,		/* in: index being created */
-	merge_file_t*		file,		/* in/out: file containing
-						index entries */
-	row_merge_block_t*	block,		/* in/out: 3 buffers */
-	int*			tmpfd)		/* in/out: temporary file
-						handle */
+					/* out: DB_SUCCESS or error code */
+	const dict_index_t*	index,	/* in: index being created */
+	merge_file_t*		file,	/* in/out: file containing
+					index entries */
+	row_merge_block_t*	block,	/* in/out: 3 buffers */
+	int*			tmpfd,	/* in/out: temporary file handle */
+	TABLE*			table)	/* in/out: MySQL table, for
+					reporting erroneous key value
+					if applicable */
 {
 	ulint	blksz;	/* block size */
 
@@ -1544,7 +1473,7 @@ row_merge_sort(
 		ulint	error;
 
 		half = ut_2pow_round((file->offset + blksz - 1) / 2, blksz);
-		error = row_merge(index, file, half, block, tmpfd);
+		error = row_merge(index, file, half, block, tmpfd, table);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -2345,7 +2274,7 @@ row_merge_build_indexes(
 
 	for (i = 0; i < n_indexes; i++) {
 		error = row_merge_sort(indexes[i], &merge_files[i],
-				       block, &tmpfd);
+				       block, &tmpfd, table);
 
 		if (error == DB_SUCCESS) {
 			error = row_merge_insert_index_tuples(
