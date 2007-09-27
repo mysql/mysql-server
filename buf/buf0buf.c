@@ -2212,6 +2212,51 @@ buf_page_get_known_nowait(
 	return(TRUE);
 }
 
+/***********************************************************************
+Given a tablespace id and page number tries to get that page. If the
+page is not in the buffer pool it is not loaded and NULL is returned.
+Suitable for using when holding the kernel mutex. */
+
+buf_block_t*
+buf_page_try_get_func(
+/*==================*/
+	ulint		space_id,/* in: tablespace id */
+	ulint		page_no,/* in: page number */
+	const char*	file,	/* in: file name */
+	ulint		line,	/* in: line where called */
+	mtr_t*		mtr)	/* in: mini-transaction */
+{
+	buf_block_t*	block;
+	ulint		zip_size;
+
+	ut_ad(mtr);
+
+	zip_size = fil_space_get_zip_size(space_id);
+
+	/* If the page is not in the buffer pool, we cannot load it
+	because we may have the kernel mutex and ibuf operations would
+	break the latching order */
+
+	block = buf_page_get_gen(space_id, zip_size, page_no, RW_NO_LATCH,
+				 NULL, BUF_GET_IF_IN_POOL,
+				 __FILE__, __LINE__, mtr);
+	if (block != NULL) {
+		block = buf_page_get_nowait(space_id, zip_size,
+					    page_no, RW_S_LATCH, mtr);
+
+		if (block == NULL) {
+			/* Let us try to get an X-latch. If the current thread
+			is holding an X-latch on the page, we cannot get an
+			S-latch. */
+
+			block = buf_page_get_nowait(space_id, zip_size, page_no,
+						    RW_X_LATCH, mtr);
+		}
+	}
+
+	return(block);
+}
+
 /************************************************************************
 Initialize some fields of a control block. */
 UNIV_INLINE

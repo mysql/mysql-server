@@ -4247,26 +4247,7 @@ lock_rec_print(
 
 	putc('\n', file);
 
-	/* If the page is not in the buffer pool, we cannot load it
-	because we have the kernel mutex and ibuf operations would
-	break the latching order */
-
-	block = buf_page_get_gen(space, zip_size, page_no, RW_NO_LATCH,
-				 NULL, BUF_GET_IF_IN_POOL,
-				 __FILE__, __LINE__, &mtr);
-	if (block) {
-		block = buf_page_get_nowait(space, zip_size,
-					    page_no, RW_S_LATCH, &mtr);
-
-		if (!block) {
-			/* Let us try to get an X-latch. If the current thread
-			is holding an X-latch on the page, we cannot get an
-			S-latch. */
-
-			block = buf_page_get_nowait(space, zip_size, page_no,
-						    RW_X_LATCH, &mtr);
-		}
-	}
+	block = buf_page_try_get(space, page_no, &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 	if (block) {

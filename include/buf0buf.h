@@ -222,6 +222,24 @@ buf_page_get_known_nowait(
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
+
+/***********************************************************************
+Given a tablespace id and page number tries to get that page. If the
+page is not in the buffer pool it is not loaded and NULL is returned.
+Suitable for using when holding the kernel mutex. */
+
+buf_block_t*
+buf_page_try_get_func(
+/*==================*/
+	ulint		space_id,/* in: tablespace id */
+	ulint		page_no,/* in: page number */
+	const char*	file,	/* in: file name */
+	ulint		line,	/* in: line where called */
+	mtr_t*		mtr);	/* in: mini-transaction */
+
+#define buf_page_try_get(space_id, page_no, mtr)	\
+	buf_page_try_get_func(space_id, page_no, __FILE__, __LINE__, mtr);
+
 /************************************************************************
 Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB).
 The page must be released with buf_page_release_zip(). */
