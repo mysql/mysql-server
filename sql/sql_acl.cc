@@ -4015,7 +4015,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
 
   const char* db_name; 
   GRANT_INFO *grant;
-  GRANT_TABLE *grant_table;
+  /* Initialized only to make gcc happy */
+  GRANT_TABLE *grant_table= NULL;
 
   rw_rdlock(&LOCK_grant);
 
