@@ -29,8 +29,6 @@
 #include <errmsg.h>
 #include <mysys_err.h>
 
-static Log_event* next_event(RELAY_LOG_INFO* rli);
-
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
