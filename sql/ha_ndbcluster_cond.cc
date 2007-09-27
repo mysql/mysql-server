@@ -46,6 +46,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
   // Check if we are skipping arguments to a function to be evaluated
   if (context->skip)
   {
+    if (!item)
+    {
+      DBUG_PRINT("info", ("Unexpected mismatch of found and expected number of function arguments %u", context->skip));
+      sql_print_error("ndb_serialize_cond: Unexpected mismatch of found and "
+                      "expected number of function arguments %u", context->skip);
+      context->skip= 0;
+      DBUG_VOID_RETURN;
+    }
     DBUG_PRINT("info", ("Skiping argument %d", context->skip));
     context->skip--;
     switch (item->type()) {
