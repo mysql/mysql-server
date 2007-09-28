@@ -12720,8 +12720,20 @@ void Dbdih::initCommonData()
      */
     m_gcp_monitor.m_gcp_save.m_max_lag = 
       (m_gcp_save.m_master.m_time_between_gcp + 120000) / 100; // 2 minutes
-    m_gcp_monitor.m_micro_gcp.m_max_lag = 
-      (m_micro_gcp.m_master.m_time_between_gcp + 2000) / 100;  // 2s
+
+    {
+      Uint32 tmp = 4000;
+      Uint32 hbDBDB = 1500;
+      Uint32 arbitTimeout = 1000;
+      ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_TIMEOUT, &tmp);
+      ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
+      ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
+      Uint32 max_lag = tmp + 4 * hbDBDB;
+      if (tmp + arbitTimeout > max_lag)
+        max_lag = tmp + arbitTimeout;
+      m_gcp_monitor.m_micro_gcp.m_max_lag = 
+        (m_micro_gcp.m_master.m_time_between_gcp + max_lag) / 100;
+    }
   }
 }//Dbdih::initCommonData()
 
