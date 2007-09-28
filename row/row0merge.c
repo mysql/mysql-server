@@ -411,7 +411,7 @@ row_merge_dup_report(
 		return;
 	}
 
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	/* Convert the tuple to a record and then to MySQL format. */
 

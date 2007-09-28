@@ -1213,7 +1213,7 @@ row_ins_check_foreign_constraint(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 run_again:
 #ifdef UNIV_SYNC_DEBUG
@@ -1661,7 +1661,7 @@ row_ins_scan_sec_index_for_duplicate(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1800,7 +1800,7 @@ row_ins_duplicate_error_in_clust(
 	mem_heap_t*heap		= NULL;
 	ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*	offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	UT_NOT_USED(mtr);
 

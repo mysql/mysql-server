@@ -514,7 +514,7 @@ page_copy_rec_list_end_no_locks(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	page_cur_position(rec, block, &cur1);
 
@@ -681,7 +681,7 @@ page_copy_rec_list_start(
 		= page_rec_get_prev(page_get_supremum_rec(new_page));
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	if (page_rec_is_infimum(rec)) {
 
@@ -867,7 +867,7 @@ page_delete_rec_list_end(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
@@ -1035,7 +1035,7 @@ page_delete_rec_list_start(
 	mem_heap_t*	heap		= NULL;
 	byte		type;
 
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 	      == dict_table_is_comp(index->table));
@@ -1593,7 +1593,7 @@ page_print_list(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 

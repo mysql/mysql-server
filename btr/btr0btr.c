@@ -2847,7 +2847,7 @@ btr_print_index(
 	mem_heap_t*	heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	fputs("--------------------------\n"
 	      "INDEX TREE PRINT\n", stderr);
@@ -2949,7 +2949,7 @@ btr_index_rec_validate(
 	mem_heap_t*	heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	page = page_align(rec);
 

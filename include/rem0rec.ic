@@ -878,7 +878,8 @@ rec_offs_get_n_alloc(
 	ulint	n_alloc;
 	ut_ad(offsets);
 	n_alloc = offsets[0];
-	ut_ad(n_alloc > 0);
+	ut_ad(n_alloc > REC_OFFS_HEADER_SIZE);
+	UNIV_MEM_ASSERT_W(offsets, n_alloc * sizeof *offsets);
 	return(n_alloc);
 }
 
@@ -894,7 +895,7 @@ rec_offs_set_n_alloc(
 	ulint	n_alloc)	/* in: number of elements */
 {
 	ut_ad(offsets);
-	ut_ad(n_alloc > 0);
+	ut_ad(n_alloc > REC_OFFS_HEADER_SIZE);
 	UNIV_MEM_ASSERT_AND_ALLOC(offsets, n_alloc * sizeof *offsets);
 	offsets[0] = n_alloc;
 }

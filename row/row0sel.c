@@ -119,8 +119,8 @@ row_sel_sec_rec_is_for_clust_rec(
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
 
-	*clust_offsets_ = (sizeof clust_offsets_) / sizeof *clust_offsets_;
-	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
+	rec_offs_init(clust_offsets_);
+	rec_offs_init(sec_offsets_);
 
 	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
 				     ULINT_UNDEFINED, &heap);
@@ -753,7 +753,7 @@ row_sel_get_clust_rec(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	*out_rec = NULL;
 
@@ -1132,7 +1132,7 @@ row_sel_try_search_shortcut(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	index = plan->index;
 
@@ -1258,7 +1258,7 @@ row_sel(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(thr->run_node == node);
 
@@ -3316,7 +3316,7 @@ row_search_for_mysql(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -4619,7 +4619,7 @@ row_search_autoinc_read_column(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 
-	*offsets_ = sizeof offsets_ / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	/* TODO: We have to cast away the const of rec for now.  This needs
 	to be fixed later.*/
