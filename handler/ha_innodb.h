@@ -69,7 +69,8 @@ class ha_innobase: public handler
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
                                    const uchar* record);
-	int update_thd(THD* thd);
+	inline void update_thd(THD* thd);
+	void update_thd();
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
 	int innobase_read_and_init_auto_inc(longlong* ret);
@@ -255,17 +256,6 @@ int thd_binlog_format(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;
-/*************************************************************************
-Gets the InnoDB transaction handle for a MySQL handler object, creates
-an InnoDB transaction struct if the corresponding MySQL thread struct still
-lacks one. */
-extern "C"
-trx_t*
-check_trx_exists(
-/*=============*/
-				/* out: InnoDB transaction handle */
-	MYSQL_THD	thd)	/* in: user thread handle */
-	__attribute__((nonnull));
 /************************************************************************
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
