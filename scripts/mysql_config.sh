@@ -126,7 +126,7 @@ done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
 # Same for --libs(_r)
-for remove in lmtmalloc static-libcxa i-static
+for remove in lmtmalloc static-libcxa i-static static-intel
 do
   # We know the strings starts with a space
   libs=`echo "$libs"|sed -e "s/ -$remove  */ /g"` 
