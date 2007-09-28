@@ -82,8 +82,6 @@ ha_storage_empty(
 	temp_storage.heap = (*storage)->heap;
 	temp_storage.hash = (*storage)->hash;
 
-	/* order is important because the pointer temp_storage.hash is
-	within the heap */
 	hash_table_clear(temp_storage.hash);
 	mem_heap_empty(temp_storage.heap);
 
