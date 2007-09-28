@@ -917,7 +917,7 @@ innobase_convert_string(
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
-extern "C"
+static
 trx_t*
 check_trx_exists(
 /*=============*/
@@ -985,10 +985,9 @@ Updates the user_thd field in a handle and also allocates a new InnoDB
 transaction handle if needed, and updates the transaction fields in the
 prebuilt struct. */
 inline
-int
+void
 ha_innobase::update_thd(
 /*====================*/
-			/* out: 0 or error code */
 	THD*	thd)	/* in: thd to use the handle */
 {
 	trx_t*		trx;
@@ -1001,8 +1000,20 @@ ha_innobase::update_thd(
 	}
 
 	user_thd = thd;
+}
 
-	return(0);
+/*************************************************************************
+Updates the user_thd field in a handle and also allocates a new InnoDB
+transaction handle if needed, and updates the transaction fields in the
+prebuilt struct. */
+
+void
+ha_innobase::update_thd()
+/*=====================*/
+{
+	THD*	thd = ha_thd();
+	ut_ad(thd == current_thd);
+	update_thd(thd);
 }
 
 /*************************************************************************
