@@ -238,6 +238,13 @@ Pgman::execCONTINUEB(Signal* signal)
     }
     else
     {
+      if (ERROR_INSERTED(11007))
+      {
+        ndbout << "No more writes..." << endl;
+        SET_ERROR_INSERT_VALUE(11008);
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
+      }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
     }
@@ -1301,6 +1308,13 @@ Pgman::process_lcp(Signal* signal)
     }
     else
     {
+      if (ERROR_INSERTED(11007))
+      {
+        ndbout << "No more writes..." << endl;
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 10000, 1);
+        SET_ERROR_INSERT_VALUE(11008);
+      }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
     }
@@ -1588,8 +1602,11 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   }
 #endif
   
-  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
-	     FsReadWriteReq::FixedLength + 1, JBA);
+  if (!ERROR_INSERTED(11008))
+  {
+    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
+               FsReadWriteReq::FixedLength + 1, JBA);
+  }
 }
 
 void
@@ -2451,6 +2468,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11006)
   {
     SET_ERROR_INSERT_VALUE(11006);
+  }
+
+  if (signal->theData[0] == 11007)
+  {
+    SET_ERROR_INSERT_VALUE(11007);
   }
 }
 
