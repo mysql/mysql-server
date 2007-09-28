@@ -801,6 +801,7 @@ rec_offs_set_n_alloc(
 {
 	ut_ad(offsets);
 	ut_ad(n_alloc > 0);
+	UNIV_MEM_ASSERT_AND_ALLOC(offsets, n_alloc * sizeof *offsets);
 	offsets[0] = n_alloc;
 }
 
