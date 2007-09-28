@@ -387,10 +387,14 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	test	v0	select schema_name from information_schema.schemata	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v1	select table_name from information_schema.tables	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v2	select column_name from information_schema.columns	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v3	select CHARACTER_SET_NAME from information_schema.character_sets	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-NULL	test	v4	select COLLATION_NAME from information_schema.collations	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v1	select table_name from information_schema.tables
+where table_name="v1"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v2	select column_name from information_schema.columns
+where table_name="v2"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v3	select CHARACTER_SET_NAME from information_schema.character_sets
+where CHARACTER_SET_NAME like "latin1%"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+NULL	test	v4	select COLLATION_NAME from information_schema.collations
+where COLLATION_NAME like "latin1%"	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -1540,4 +1544,12 @@ count(*)
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_NAME='nonexisting';
 count(*)
 0
+CREATE VIEW v1
+AS SELECT *
+FROM INFORMATION_SCHEMA.TABLES;
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
+VIEW_DEFINITION
+SELECT *
+FROM INFORMATION_SCHEMA.TABLES
+DROP VIEW v1;
 End of 5.1 tests.
