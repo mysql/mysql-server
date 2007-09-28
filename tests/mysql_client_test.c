@@ -13534,7 +13534,7 @@ static void test_bug9478()
 
     {
       char buff[8];
-      /* Fill in the fethc packet */
+      /* Fill in the fetch packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
@@ -16214,6 +16214,204 @@ static void test_bug28934()
   myquery(mysql_query(mysql, "drop table t1"));
 }
 
+/*
+  Test mysql_change_user() C API and COM_CHANGE_USER
+*/
+
+static void test_change_user()
+{
+  char buff[256];
+  const char *user_pw= "mysqltest_pw";
+  const char *user_no_pw= "mysqltest_no_pw";
+  const char *pw= "password";
+  const char *db= "mysqltest_user_test_database";
+  int rc;
+
+  DBUG_ENTER("test_change_user");
+  myheader("test_change_user");
+
+  /* Prepare environment */
+  sprintf(buff, "drop database if exists %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "create database %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'%%' identified by '%s'",
+          db,
+          user_pw,
+          pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+
+  /* Try some combinations */
+  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+
+  rc= mysql_change_user(mysql, "", NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+
+  rc= mysql_change_user(mysql, NULL, NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, NULL, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_pw, pw, db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_pw, pw, NULL);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_pw, pw, "");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, user_no_pw, "", NULL);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, "", "");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, "", db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, user_no_pw, NULL, db);
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, "", pw, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", pw, "");
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, pw, NULL);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, NULL, db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, NULL, "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  rc= mysql_change_user(mysql, "", "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+
+  /* Cleanup the environment */
+
+  mysql_change_user(mysql, opt_user, opt_password, current_db);
+
+  sprintf(buff, "drop database %s", db);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'%%'", user_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  sprintf(buff, "drop user %s@'%%'", user_no_pw);
+  rc= mysql_query(mysql, buff);
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Bug#27592 (stack overrun when storing datetime value using prepared statements)
@@ -16744,6 +16942,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug29687", test_bug29687 },
   { "test_bug29692", test_bug29692 },
   { "test_bug29306", test_bug29306 },
+  { "test_change_user", test_change_user },
   { 0, 0 }
 };
 
