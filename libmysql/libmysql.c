@@ -4699,7 +4699,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   if (!mysql)
   {
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   net = &mysql->net;
