@@ -119,6 +119,8 @@ static void client_disconnect(void);
 
 #define DIE_UNLESS(expr) \
         ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE_IF(expr) \
+        ((void) ((expr) ? (die(__FILE__, __LINE__, #expr), 0) : 0))
 #define DIE(expr) \
         die(__FILE__, __LINE__, #expr)
 
@@ -177,8 +179,8 @@ if (stmt == 0) \
 DIE_UNLESS(stmt == 0);\
 }
 
-#define mytest(x) if (!x) {myerror(NULL);DIE_UNLESS(FALSE);}
-#define mytest_r(x) if (x) {myerror(NULL);DIE_UNLESS(FALSE);}
+#define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(FALSE);}
+#define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
@@ -16650,6 +16652,175 @@ static void test_bug29306()
   DBUG_VOID_RETURN;
 }
 /*
+  Bug#30472: libmysql doesn't reset charset, insert_id after succ.
+  mysql_change_user() call row insertions.
+*/
+
+static void bug30472_retrieve_charset_info(MYSQL *con,
+                                           char *character_set_name,
+                                           char *character_set_client,
+                                           char *character_set_results,
+                                           char *collation_connection)
+{
+  MYSQL_RES *rs;
+  MYSQL_ROW row;
+
+  /* Get the cached client character set name. */
+
+  strcpy(character_set_name, mysql_character_set_name(con));
+
+  /* Retrieve server character set information. */
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'character_set_client'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(character_set_client, row[1]);
+  mysql_free_result(rs);
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'character_set_results'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(character_set_results, row[1]);
+  mysql_free_result(rs);
+
+  DIE_IF(mysql_query(con, "SHOW VARIABLES LIKE 'collation_connection'"));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  strcpy(collation_connection, row[1]);
+  mysql_free_result(rs);
+}
+
+static void test_bug30472()
+{
+  MYSQL con;
+
+  char character_set_name_1[MY_CS_NAME_SIZE];
+  char character_set_client_1[MY_CS_NAME_SIZE];
+  char character_set_results_1[MY_CS_NAME_SIZE];
+  char collation_connnection_1[MY_CS_NAME_SIZE];
+
+  char character_set_name_2[MY_CS_NAME_SIZE];
+  char character_set_client_2[MY_CS_NAME_SIZE];
+  char character_set_results_2[MY_CS_NAME_SIZE];
+  char collation_connnection_2[MY_CS_NAME_SIZE];
+
+  char character_set_name_3[MY_CS_NAME_SIZE];
+  char character_set_client_3[MY_CS_NAME_SIZE];
+  char character_set_results_3[MY_CS_NAME_SIZE];
+  char collation_connnection_3[MY_CS_NAME_SIZE];
+
+  char character_set_name_4[MY_CS_NAME_SIZE];
+  char character_set_client_4[MY_CS_NAME_SIZE];
+  char character_set_results_4[MY_CS_NAME_SIZE];
+  char collation_connnection_4[MY_CS_NAME_SIZE];
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_1,
+                                 character_set_client_1,
+                                 character_set_results_1,
+                                 collation_connnection_1);
+
+  /* Switch client character set. */
+
+  DIE_IF(mysql_set_character_set(&con, "utf8"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_2,
+                                 character_set_client_2,
+                                 character_set_results_2,
+                                 collation_connnection_2);
+
+  /*
+    Check that
+      1) character set has been switched and
+      2) new character set is different from the original one.
+  */
+
+  DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
+
+  DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
+  DIE_UNLESS(strcmp(character_set_client_1, character_set_client_2) != 0);
+  DIE_UNLESS(strcmp(character_set_results_1, character_set_results_2) != 0);
+  DIE_UNLESS(strcmp(collation_connnection_1, collation_connnection_2) != 0);
+
+  /* Call mysql_change_user() with the same username, password, database. */
+
+  DIE_IF(mysql_change_user(&con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_3,
+                                 character_set_client_3,
+                                 character_set_results_3,
+                                 collation_connnection_3);
+
+  /* Check that character set information has been reset. */
+
+  DIE_UNLESS(strcmp(character_set_name_1, character_set_name_3) == 0);
+  DIE_UNLESS(strcmp(character_set_client_1, character_set_client_3) == 0);
+  DIE_UNLESS(strcmp(character_set_results_1, character_set_results_3) == 0);
+  DIE_UNLESS(strcmp(collation_connnection_1, collation_connnection_3) == 0);
+
+  /* Change connection-default character set in the client. */
+
+  con.options.charset_name= my_strdup("utf8", MYF(MY_FAE));
+
+  /*
+    Call mysql_change_user() in order to check that new connection will
+    have UTF8 character set on the client and on the server.
+  */
+
+  DIE_IF(mysql_change_user(&con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+
+  /* Retrieve character set information. */
+
+  bug30472_retrieve_charset_info(&con,
+                                 character_set_name_4,
+                                 character_set_client_4,
+                                 character_set_results_4,
+                                 collation_connnection_4);
+
+  /* Check that we have UTF8 on the server and on the client. */
+
+  DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
+
+  /* That's it. Cleanup. */
+
+  mysql_close(&con);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -16943,6 +17114,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug29692", test_bug29692 },
   { "test_bug29306", test_bug29306 },
   { "test_change_user", test_change_user },
+  { "test_bug30472", test_bug30472 },
   { 0, 0 }
 };
 
