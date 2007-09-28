@@ -6,7 +6,7 @@ Next DBTUP 4029
 Next DBLQH 5045
 Next DBDICT 6008
 Next DBDIH 7186
-Next DBTC 8053
+Next DBTC 8054
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -247,6 +247,8 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
 8050: Send ZABORT_TIMEOUT_BREAK delayed
+
+8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
