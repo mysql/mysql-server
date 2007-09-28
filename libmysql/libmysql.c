@@ -685,13 +685,24 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
   return 0;
 }
 
-
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
   int rc;
+  CHARSET_INFO *saved_cs= mysql->charset;
+
   DBUG_ENTER("mysql_change_user");
+
+  /* Get the connection-default character set. */
+
+  if (mysql_init_character_set(mysql))
+  {
+    mysql->charset= saved_cs;
+    DBUG_RETURN(TRUE);
+  }
+
+  /* Use an empty string instead of NULL. */
 
   if (!user)
     user="";
@@ -721,6 +732,14 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Add database if needed */
   end= strmov(end, db ? db : "") + 1;
 
+  /* Add character set number. */
+
+  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    *end= (uchar) mysql->charset->number;
+    ++end;
+  }
+
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, (uchar*) buff, (ulong) (end-buff), 1);
 
@@ -743,6 +762,11 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     mysql->passwd=my_strdup(passwd,MYF(MY_WME));
     mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   }
+  else
+  {
+    mysql->charset= saved_cs;
+  }
+
   DBUG_RETURN(rc);
 }
 
