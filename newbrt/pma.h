@@ -4,6 +4,8 @@
 #include "brttypes.h"
 #include "ybt.h"
 #include "yerror.h"
+#include "../include/db.h"
+#include "log.h"
 
 /* An in-memory Packed Memory Array dictionary. */
 /* There is a built-in-cursor. */
@@ -26,15 +28,15 @@ int  pma_n_entries (PMA);
 /* Duplicates the key and keylen. */
 //enum pma_errors pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 // The DB pointer is there so that the comparison function can be called.
-enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*);
+enum pma_errors pma_insert (PMA, DBT*, DBT*, DB*, TOKUTXN txn, diskoff);
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 /* This returns an error if the key is NOT present. */
 int pma_delete (PMA, DBT *, DB*);
 
-int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
-			   int *replaced_v_size /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
-			   );
+int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
+			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
+			   DB *db, TOKUTXN txn, diskoff);
 
 
 /* Exposes internals of the PMA by returning a pointer to the guts.

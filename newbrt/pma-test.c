@@ -10,6 +10,12 @@
 #include "kv-pair.h"
 #include "pma-internal.h"
 
+TOKUTXN const null_txn = 0;
+DB * const null_db = 0;
+const diskoff null_diskoff = -1;
+
+#define NULL_ARGS null_db, null_txn, null_diskoff
+
 static void test_make_space_at (void) {
     PMA pma;
     char *key;
@@ -256,7 +262,7 @@ static void test_pma_random_pick (void) {
     assert(r==0);
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
-    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
+    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), NULL_ARGS);
     assert(r==BRT_OK);
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
@@ -271,7 +277,7 @@ static void test_pma_random_pick (void) {
     r = pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
     
-    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
+    r = pma_insert(pma, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), NULL_ARGS);
     assert(r==BRT_OK);
 
 
@@ -281,13 +287,13 @@ static void test_pma_random_pick (void) {
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
 
-    r = pma_insert(pma, fill_dbt(&k, "aaa", 4), fill_dbt(&v, "athere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aab", 4), fill_dbt(&v, "bthere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aac", 4), fill_dbt(&v, "cthere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aad", 4), fill_dbt(&v, "dthere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aae", 4), fill_dbt(&v, "ethere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aaf", 4), fill_dbt(&v, "fthere", 7), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "aag", 4), fill_dbt(&v, "gthere", 7), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aaa", 4), fill_dbt(&v, "athere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aab", 4), fill_dbt(&v, "bthere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aac", 4), fill_dbt(&v, "cthere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aad", 4), fill_dbt(&v, "dthere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aae", 4), fill_dbt(&v, "ethere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aaf", 4), fill_dbt(&v, "fthere", 7), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "aag", 4), fill_dbt(&v, "gthere", 7), NULL_ARGS); assert(r==BRT_OK);
     r = pma_delete(pma, fill_dbt(&k, "aaa", 4), 0);              assert(r==BRT_OK);
     r = pma_delete(pma, fill_dbt(&k, "aab", 4), 0);              assert(r==BRT_OK);
     r = pma_delete(pma, fill_dbt(&k, "aac", 4), 0);              assert(r==BRT_OK);
@@ -313,7 +319,7 @@ static void test_find_insert (void) {
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==DB_NOTFOUND);
 
-    r=pma_insert(pma, fill_dbt(&k, "aaa", 3), fill_dbt(&v, "aaadata", 7), 0);
+    r=pma_insert(pma, fill_dbt(&k, "aaa", 3), fill_dbt(&v, "aaadata", 7), NULL_ARGS);
     assert(r==BRT_OK);
 
     init_dbt(&v);
@@ -323,7 +329,7 @@ static void test_find_insert (void) {
     assert(keycompare(v.data,v.size,"aaadata", 7)==0);
     //toku_free(v.data); v.data=0;
 
-    r=pma_insert(pma, fill_dbt(&k, "bbb", 4), fill_dbt(&v, "bbbdata", 8), 0);
+    r=pma_insert(pma, fill_dbt(&k, "bbb", 4), fill_dbt(&v, "bbbdata", 8), NULL_ARGS);
     assert(r==BRT_OK);
 
     init_dbt(&v);
@@ -338,7 +344,7 @@ static void test_find_insert (void) {
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
     
-    r=pma_insert(pma, fill_dbt(&k, "00000", 6), fill_dbt(&v, "d0", 3), 0);
+    r=pma_insert(pma, fill_dbt(&k, "00000", 6), fill_dbt(&v, "d0", 3), NULL_ARGS);
     assert(r==BRT_OK);
 
     assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
@@ -354,7 +360,7 @@ static void test_find_insert (void) {
 	    snprintf(string,10,"%05d",i);
 	    snprintf(dstring,10,"d%d", i);
 	    printf("Inserting %d: string=%s dstring=%s\n", i, string, dstring);
-	    r=pma_insert(pma, fill_dbt(&k, string, strlen(string)+1), fill_dbt(&v, dstring, strlen(dstring)+1), 0);
+	    r=pma_insert(pma, fill_dbt(&k, string, strlen(string)+1), fill_dbt(&v, dstring, strlen(dstring)+1), NULL_ARGS);
 	    assert(r==BRT_OK);
 	}
     }
@@ -382,11 +388,11 @@ static void test_pma_iterate (void) {
     int r;
     DBT k,v;
     pma_create(&pma, default_compare_fun);
-    r=pma_insert(pma, fill_dbt(&k, "42", 3), fill_dbt(&v, "-19", 4), 0);
+    r=pma_insert(pma, fill_dbt(&k, "42", 3), fill_dbt(&v, "-19", 4), NULL_ARGS);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42, -19);
 
-    r=pma_insert(pma, fill_dbt(&k, "12", 3), fill_dbt(&v, "-100", 5), 0);
+    r=pma_insert(pma, fill_dbt(&k, "12", 3), fill_dbt(&v, "-100", 5), NULL_ARGS);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42+12, -19-100);
     r=pma_free(&pma); assert(r==0); assert(pma==0);
@@ -400,9 +406,9 @@ static void test_pma_iterate2 (void) {
     DBT k,v;
     r=pma_create(&pma0, default_compare_fun); assert(r==0);
     r=pma_create(&pma1, default_compare_fun); assert(r==0);
-    pma_insert(pma0, fill_dbt(&k, "a", 2), fill_dbt(&v, "aval", 5), 0);
-    pma_insert(pma0, fill_dbt(&k, "b", 2), fill_dbt(&v, "bval", 5), 0);
-    pma_insert(pma1, fill_dbt(&k, "x", 2), fill_dbt(&v, "xval", 5), 0);
+    pma_insert(pma0, fill_dbt(&k, "a", 2), fill_dbt(&v, "aval", 5), NULL_ARGS);
+    pma_insert(pma0, fill_dbt(&k, "b", 2), fill_dbt(&v, "bval", 5), NULL_ARGS);
+    pma_insert(pma1, fill_dbt(&k, "x", 2), fill_dbt(&v, "xval", 5), NULL_ARGS);
     PMA_ITERATE(pma0,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)),dl, (n_items++,sum+=kl+dl));
     PMA_ITERATE(pma1,kv __attribute__((__unused__)),kl,dv __attribute__((__unused__)), dl, (n_items++,sum+=kl+dl));
     assert(sum==21);
@@ -479,9 +485,9 @@ void test_pma_cursor_3 (void) {
     DBT key,val;
     DBT k,v;
     r=pma_create(&pma, default_compare_fun); assert(r==0);
-    r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), 0); assert(r==BRT_OK);
-    r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), 0); assert(r==BRT_OK);
-    r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   0); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), NULL_ARGS); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), NULL_ARGS); assert(r==BRT_OK);
+    r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   NULL_ARGS); assert(r==BRT_OK);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
@@ -552,7 +558,7 @@ void test_pma_cursor_4 (void) {
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pma, &dbtk, &dbtv, 0); 
+        error = pma_insert(pma, &dbtk, &dbtv, NULL_ARGS); 
         assert(error == BRT_OK);
     }
     assert(pma_n_entries(pma) == 4);
@@ -588,7 +594,7 @@ void test_pma_cursor_4 (void) {
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pma, &dbtk, &dbtv, 0); 
+        error = pma_insert(pma, &dbtk, &dbtv, NULL_ARGS); 
         assert(error == BRT_OK);
     }
     assert(pma_n_entries(pma) == 8);
@@ -625,7 +631,7 @@ void test_pma_cursor_delete(int n) {
         k = i; v = -i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
 
@@ -725,10 +731,10 @@ void test_pma_compare_fun (int wrong_endian_p) {
     int i;
     DBT k,v;
     r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun); assert(r==0);
-    r = pma_insert(pma, fill_dbt(&k, "10", 3), fill_dbt(&v, "10v", 4), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), 0); assert(r==BRT_OK);
-    r = pma_insert(pma, fill_dbt(&k, "11", 3), fill_dbt(&v, "11v", 4), 0); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "10", 3), fill_dbt(&v, "10v", 4), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), NULL_ARGS); assert(r==BRT_OK);
+    r = pma_insert(pma, fill_dbt(&k, "11", 3), fill_dbt(&v, "11v", 4), NULL_ARGS); assert(r==BRT_OK);
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
@@ -780,7 +786,7 @@ void test_pma_split_n(int n) {
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
         assert(error == BRT_OK);
     }
 
@@ -833,7 +839,7 @@ void test_pma_split_varkey(void) {
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
         assert(error == BRT_OK);
     }
     n = i;
@@ -944,7 +950,7 @@ void test_pma_split_cursor(void) {
         v = i;
         fill_dbt(&dbtv, &v, sizeof v);
 
-        error = pma_insert(pmaa, &dbtk, &dbtv, 0); 
+        error = pma_insert(pmaa, &dbtk, &dbtv, NULL_ARGS); 
         assert(error == BRT_OK);
     }
     assert(pma_n_entries(pmaa) == 16);
@@ -1118,13 +1124,13 @@ void test_pma_insert_or_replace(void) {
     int n_diff=-2;
     r = pma_create(&pma, default_compare_fun);
     assert(r==0);
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), 0, &n_diff);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS);
     assert(r==0); assert(n_diff==-1);
 
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==4); assert(memcmp(dbtv.data, "zzz", 4)==0);
 
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), 0, &n_diff);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "ww", 3), &n_diff, NULL_ARGS);
     assert(r==0); assert(n_diff==-1);
 
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
@@ -1133,7 +1139,7 @@ void test_pma_insert_or_replace(void) {
     r = pma_lookup(pma, fill_dbt(&dbtk, "bbbb", 5), init_dbt(&dbtv), 0);
     assert(r==0); assert(dbtv.size==3); assert(memcmp(dbtv.data, "ww", 3)==0);
 
-    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), 0, &n_diff);
+    r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "bbbb", 5), fill_dbt(&dbtv, "xxxx", 5), &n_diff, NULL_ARGS);
     assert(r==0); assert(n_diff==3);
     
     r = pma_lookup(pma, fill_dbt(&dbtk, "aaa", 4), init_dbt(&dbtv), 0);
@@ -1169,7 +1175,7 @@ void test_pma_delete_shrink(int n) {
         fill_dbt(&key, k, strlen(k)+1);
         v = i;
         fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, 0);
+        r = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(r == 0);
     }
 
@@ -1218,7 +1224,7 @@ void test_pma_delete_random(int n) {
         fill_dbt(&key, k, strlen(k)+1);
         v = keys[i];
         fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, 0);
+        r = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(r == 0);
     }
 
@@ -1289,7 +1295,7 @@ void test_pma_delete_cursor(int n) {
         fill_dbt(&key, k, strlen(k)+1);
         v = i;
         fill_dbt(&val, &v, sizeof v);
-        r = pma_insert(pma, &key, &val, 0);
+        r = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(r == 0);
     }
 
@@ -1355,7 +1361,7 @@ void test_pma_delete_insert() {
     k = 1; v = 1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, 0);
+    error = pma_insert(pma, &key, &val, NULL_ARGS);
     assert(error == 0);
 
     error = pma_cursor_set_position_first(pmacursor);
@@ -1377,7 +1383,7 @@ void test_pma_delete_insert() {
     k = 1; v = 2;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, 0);
+    error = pma_insert(pma, &key, &val, NULL_ARGS);
     assert(error == 0);
     assert_cursor_equal(pmacursor, 2);
 
@@ -1408,7 +1414,7 @@ void test_pma_double_delete() {
     k = 1; v = 1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, 0);
+    error = pma_insert(pma, &key, &val, NULL_ARGS);
     assert(error == 0);
 
     error = pma_cursor_set_position_first(pmacursor);
@@ -1451,7 +1457,7 @@ void test_pma_cursor_first_delete_last() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
     assert(pma_n_entries(pma) == 2);
@@ -1499,7 +1505,7 @@ void test_pma_cursor_last_delete_first() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
     assert(pma_n_entries(pma) == 2);
@@ -1554,9 +1560,9 @@ void test_pma_already_there() {
     k = 1; v = 1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = pma_insert(pma, &key, &val, 0);
+    error = pma_insert(pma, &key, &val, NULL_ARGS);
     assert(error == 0);
-    error = pma_insert(pma, &key, &val, 0);
+    error = pma_insert(pma, &key, &val, NULL_ARGS);
     assert(error == BRT_ALREADY_THERE);
 
     error = pma_free(&pma);
@@ -1582,7 +1588,7 @@ void test_pma_cursor_set_key() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
 
@@ -1638,7 +1644,7 @@ void test_pma_cursor_set_range() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
 
@@ -1707,7 +1713,7 @@ void test_pma_cursor_delete_under() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
 
@@ -1772,7 +1778,7 @@ void test_pma_cursor_set_both() {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = pma_insert(pma, &key, &val, 0);
+        error = pma_insert(pma, &key, &val, NULL_ARGS);
         assert(error == 0);
     }
 

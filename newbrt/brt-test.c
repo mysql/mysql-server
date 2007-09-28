@@ -11,6 +11,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+TOKUTXN const null_txn = 0;
+DB * const null_db = 0;
+
 extern long long n_items_malloced;
 
 static void test0 (void) {
@@ -49,7 +52,7 @@ static void test1 (void) {
     unlink(fname);
     r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
     assert(r==0);
-    brt_insert(t, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
+    brt_insert(t, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), null_db, null_txn);
     {
 	r = brt_lookup(t, fill_dbt(&k, "hello", 6), init_dbt(&v), 0);
 	assert(r==0);
@@ -81,7 +84,7 @@ static void test2 (int memcheck) {
 	char key[100],val[100];
 	snprintf(key,100,"hello%d",i);
 	snprintf(val,100,"there%d",i);
-	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
 	//printf("%s:%d did insert %d\n", __FILE__, __LINE__, i);
 	if (0) {
 	    brt_flush(t);
@@ -119,7 +122,7 @@ static void test3 (int nodesize, int count, int memcheck) {
 	DBT k,v;
 	snprintf(key,100,"hello%d",i);
 	snprintf(val,100,"there%d",i);
-	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     r = close_brt(t);              assert(r==0);
     r = cachetable_close(&ct);     assert(r==0);
@@ -150,7 +153,7 @@ static void test4 (int nodesize, int count, int memcheck) {
 	DBT k,v;
 	snprintf(key,100,"hello%d",rv);
 	snprintf(val,100,"there%d",i);
-	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     r = close_brt(t);              assert(r==0);
     r = cachetable_close(&ct);     assert(r==0);
@@ -185,7 +188,7 @@ static void test5 (void) {
 	snprintf(key, 100, "key%d", rk);
 	snprintf(val, 100, "val%d", rv);
 	DBT k,v;
-	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     printf("\n");
     for (i=0; i<limit/2; i++) {
@@ -245,9 +248,9 @@ static void test_multiple_files_of_size (int size) {
 	DBT k,v;
 	snprintf(key, 100, "key%d", i);
 	snprintf(val, 100, "val%d", i);
-	brt_insert(t0, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t0, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
 	snprintf(val, 100, "Val%d", i);
-	brt_insert(t1, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), 0);
+	brt_insert(t1, fill_dbt(&k, key, 1+strlen(key)), fill_dbt(&v, val, 1+strlen(val)), null_db, null_txn);
     }
     //verify_brt(t0);
     //dump_brt(t0);
@@ -310,7 +313,7 @@ static void test_named_db (void) {
     r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
 
 
-    brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "day", 4), 0); assert(r==0);
+    brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "day", 4), null_db, null_txn); assert(r==0);
 
     r = close_brt(t0); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
@@ -347,8 +350,8 @@ static void test_multiple_dbs (void) {
     r = open_brt(n0, "db1", 1, &t0, 1<<12, ct, default_compare_fun); assert(r==0);
     r = open_brt(n1, "db2", 1, &t1, 1<<12, ct, default_compare_fun); assert(r==0);
 
-    brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "grief", 6), 0); assert(r==0);
-    brt_insert(t1, fill_dbt(&k, "bad",  4), fill_dbt(&v, "night", 6), 0); assert(r==0);
+    brt_insert(t0, fill_dbt(&k, "good", 5), fill_dbt(&v, "grief", 6), null_db, null_txn); assert(r==0);
+    brt_insert(t1, fill_dbt(&k, "bad",  4), fill_dbt(&v, "night", 6), null_db, null_txn); assert(r==0);
 
     r = close_brt(t0); assert(r==0);
     r = close_brt(t1); assert(r==0);
@@ -408,7 +411,7 @@ static void test_multiple_dbs_many (void) {
 	DBT kdbt,vdbt;
 	snprintf(k, 20, "key%d", i);
 	snprintf(v, 20, "val%d", i);
-	brt_insert(trees[i], fill_dbt(&kdbt, k, strlen(k)+1), fill_dbt(&vdbt, v, strlen(v)+1), 0);
+	brt_insert(trees[i], fill_dbt(&kdbt, k, strlen(k)+1), fill_dbt(&vdbt, v, strlen(v)+1), null_db, null_txn);
     }
     for (i=0; i<MANYN; i++) {
 	r = close_brt(trees[i]); assert(r==0);
@@ -437,7 +440,7 @@ static void test_multiple_brts_one_db_one_file (void) {
 	DBT kb, vb;
 	snprintf(k, 20, "key%d", i);
 	snprintf(v, 20, "val%d", i);
-	brt_insert(trees[i], fill_dbt(&kb, k, strlen(k)+1), fill_dbt(&vb, v, strlen(v)+1), 0);
+	brt_insert(trees[i], fill_dbt(&kb, k, strlen(k)+1), fill_dbt(&vb, v, strlen(v)+1), null_db, null_txn);
     }
     for (i=0; i<MANYN; i++) {
 	char k[20],vexpect[20];
@@ -484,7 +487,7 @@ static void  test_read_what_was_written (void) {
     r = open_brt(n, 0, 0, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
 
     /* See if we can put something in it. */
-    brt_insert(brt, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), 0);
+    brt_insert(brt, fill_dbt(&k, "hello", 6), fill_dbt(&v, "there", 6), null_db, null_txn);
 
     r = close_brt(brt); assert(r==0);
     r = cachetable_close(&ct); assert(r==0);
@@ -516,7 +519,7 @@ static void  test_read_what_was_written (void) {
 		int verify_result=verify_brt(brt);;
 		assert(verify_result==0);
 	    }
-	    brt_insert(brt, fill_dbt(&k, key, strlen(key)+1), fill_dbt(&v, val, strlen(val)+1), 0);
+	    brt_insert(brt, fill_dbt(&k, key, strlen(key)+1), fill_dbt(&v, val, strlen(val)+1), null_db, null_txn);
 	    if (i<600) {
 		int verify_result=verify_brt(brt);
 		if (verify_result) {
@@ -620,10 +623,10 @@ void test_cursor_last_empty(void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     init_dbt(&vbt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, null_db, null_txn);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     assert(r==DB_NOTFOUND);
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, null_db, null_txn);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     assert(r==DB_NOTFOUND);
     r = close_brt(brt);
@@ -647,8 +650,8 @@ void test_cursor_next (void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     r = open_brt(n, 0, 1, &brt, 1<<12, ct, default_compare_fun);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
-    r = brt_insert(brt, fill_dbt(&kbt, "hello", 6), fill_dbt(&vbt, "there", 6), 0);
-    r = brt_insert(brt, fill_dbt(&kbt, "byebye", 7), fill_dbt(&vbt, "byenow", 7), 0);
+    r = brt_insert(brt, fill_dbt(&kbt, "hello", 6), fill_dbt(&vbt, "there", 6), null_db, null_txn);
+    r = brt_insert(brt, fill_dbt(&kbt, "byebye", 7), fill_dbt(&vbt, "byenow", 7), null_db, null_txn);
     printf("%s:%d calling brt_cursor(...)\n", __FILE__, __LINE__);
     r = brt_cursor(brt, &cursor);            assert(r==0);
     init_dbt(&kbt);
@@ -657,7 +660,7 @@ void test_cursor_next (void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
 
     printf("%s:%d calling brt_cursor_get(...)\n", __FILE__, __LINE__);
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
     printf("%s:%d called brt_cursor_get(...)\n", __FILE__, __LINE__);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); print_malloced_items();
     assert(r==0);
@@ -666,14 +669,14 @@ void test_cursor_next (void) {
     assert(vbt.size==7);
     assert(memcmp(vbt.data, "byenow", 7)==0);
 
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
     assert(r==0);
     assert(kbt.size==6);
     assert(memcmp(kbt.data, "hello", 6)==0);
     assert(vbt.size==6);
     assert(memcmp(vbt.data, "there", 6)==0);
 
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
     assert(r==DB_NOTFOUND);
 
     r = close_brt(brt);
@@ -732,7 +735,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     r = brt_create_cachetable(&ct, 0);       assert(r==0);
     printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
 
-    if (0) {
+    if (0) { // ???? Why is this commented out?
     r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
     for (i=1; i<257; i+=255) {
 	unsigned char a[4],b[4];
@@ -745,14 +748,14 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
 	       ((char*)kbt.data)[0], ((char*)kbt.data)[1], ((char*)kbt.data)[2], ((char*)kbt.data)[3],
 	       ((char*)vbt.data)[0], ((char*)vbt.data)[1], ((char*)vbt.data)[2], ((char*)vbt.data)[3]);
-	r = brt_insert(brt, &kbt, &vbt, &nonce_db);
+	r = brt_insert(brt, &kbt, &vbt, &nonce_db, null_txn);
 	assert(r==0);
     }
     r = brt_cursor(brt, &cursor);            assert(r==0);
 
     for (i=0; i<2; i++) {
 	init_dbt(&kbt); init_dbt(&vbt);
-	r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+	r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
 	assert(r==0);
 	assert(kbt.size==4 && vbt.size==4);
 	printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
@@ -778,7 +781,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
 	       ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
 	       ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
-	r = brt_insert(brt, &kbt, &vbt, &nonce_db);
+	r = brt_insert(brt, &kbt, &vbt, &nonce_db, null_txn);
 	assert(r==0);
     }
     r = brt_cursor(brt, &cursor);            assert(r==0);
@@ -787,7 +790,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     for (i=0; i<N; i++) {
 	int this;
 	init_dbt(&kbt); init_dbt(&vbt);
-	r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+	r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
 	assert(r==0);
 	assert(kbt.size==4 && vbt.size==4);
 	if (0) printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
@@ -822,7 +825,7 @@ void assert_cursor_notfound(BRT brt, int position) {
 
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, position, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, position, null_db, null_txn);
     assert(r == DB_NOTFOUND);
 
     r = brt_cursor_close(cursor);
@@ -841,7 +844,7 @@ void assert_cursor_value(BRT brt, int position, long long value) {
     if (test_cursor_debug) printf("key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, position, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, position, null_db, null_txn);
     assert(r == 0);
     if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -867,7 +870,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     if (test_cursor_debug) printf("first key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, null_db, null_txn);
     assert(r == 0);
     if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -880,7 +883,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     if (test_cursor_debug) printf("last key:");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, 0);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, null_db, null_txn);
     assert(r == 0);
     if (test_cursor_debug)printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -920,7 +923,7 @@ void test_brt_cursor_first(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -962,7 +965,7 @@ void test_brt_cursor_last(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1004,7 +1007,7 @@ void test_brt_cursor_first_last(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1047,7 +1050,7 @@ void test_brt_cursor_rfirst(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1078,7 +1081,7 @@ void assert_cursor_walk(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1121,7 +1124,7 @@ void test_brt_cursor_walk(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1150,7 +1153,7 @@ void assert_cursor_rwalk(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, 0);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, null_db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1193,7 +1196,7 @@ void test_brt_cursor_rwalk(int n) {
         fill_dbt(&kbt, &k, sizeof k);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1224,7 +1227,7 @@ void assert_cursor_walk_inorder(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1278,7 +1281,7 @@ void test_brt_cursor_rand(int n) {
                 printf("dup");
                 continue;
 	    }
-	    r = brt_insert(brt, &kbt, &vbt, 0);
+	    r = brt_insert(brt, &kbt, &vbt, 0, 0);
 	    assert(r==0);
 	    break;
         }
@@ -1322,7 +1325,7 @@ void test_brt_cursor_split(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1333,7 +1336,7 @@ void test_brt_cursor_split(int n) {
     for (i=0; i<n/2; i++) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
         assert(r==0);
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         toku_free(kbt.data);
@@ -1348,7 +1351,7 @@ void test_brt_cursor_split(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0);
+        r = brt_insert(brt, &kbt, &vbt, 0, 0);
         assert(r==0);
     }
 
@@ -1356,7 +1359,7 @@ void test_brt_cursor_split(int n) {
     for (;;) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, 0);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1459,7 +1462,7 @@ void test_multiple_brt_cursor_walk(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0);
+        r = brt_insert(brt, &key, &val, 0, 0);
         assert(r == 0);
 
         /* point cursor i / cursor_gap to the current last key i */
@@ -1467,7 +1470,7 @@ void test_multiple_brt_cursor_walk(int n) {
             c = i / cursor_gap;
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = brt_cursor_get(cursors[c], &key, &val, DB_LAST, 0);
+            r = brt_cursor_get(cursors[c], &key, &val, DB_LAST, null_db, null_txn);
             assert(r == 0);
             toku_free(key.data);
             toku_free(val.data);
@@ -1479,7 +1482,7 @@ void test_multiple_brt_cursor_walk(int n) {
         for (c=0; c<ncursors; c++) {
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = brt_cursor_get(cursors[c], &key, &val, DB_NEXT, 0);
+            r = brt_cursor_get(cursors[c], &key, &val, DB_NEXT, null_db, null_txn);
             if (r == DB_NOTFOUND) {
                 /* we already consumed 1 previously */
                 assert(i == cursor_gap-1);
@@ -1534,7 +1537,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         v = 10*i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0);
+        r = brt_insert(brt, &key, &val, 0, 0);
         assert(r == 0);
     }
 
@@ -1549,7 +1552,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         k = htonl(v);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, cursor_op, 0);
+        r = brt_cursor_get(cursor, &key, &val, cursor_op, null_db, null_txn);
         assert(r == 0);
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
@@ -1564,7 +1567,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         k = htonl(i);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, DB_SET, 0);
+        r = brt_cursor_get(cursor, &key, &val, DB_SET, null_db, null_txn);
         assert(r == DB_NOTFOUND);
     }
 
@@ -1606,7 +1609,7 @@ void test_brt_cursor_set_range(int n) {
         v = 10*i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0);
+        r = brt_insert(brt, &key, &val, 0, 0);
         assert(r == 0);
     }
 
@@ -1622,7 +1625,7 @@ void test_brt_cursor_set_range(int n) {
         k = htonl(v);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, 0);
+        r = brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_db, null_txn);
         if (v > max_key)
             /* there is no smallest key if v > the max key */
             assert(r == DB_NOTFOUND);
@@ -1675,7 +1678,7 @@ void test_brt_cursor_delete(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_insert(brt, &key, &val, 0);
+        error = brt_insert(brt, &key, &val, 0, 0);
         assert(error == 0);
     }
 
@@ -1683,7 +1686,7 @@ void test_brt_cursor_delete(int n) {
     for (;;) {
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = brt_cursor_get(cursor, &key, &val, DB_NEXT, 0);
+        error = brt_cursor_get(cursor, &key, &val, DB_NEXT, null_db, null_txn);
         if (error == DB_NOTFOUND)
             break;
         assert(error == 0);
@@ -1735,7 +1738,7 @@ void test_brt_cursor_get_both(int n) {
     v = n+1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, 0);
+    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
     assert(error == DB_NOTFOUND);
 
     int i;
@@ -1745,7 +1748,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_insert(brt, &key, &val, 0);
+        error = brt_insert(brt, &key, &val, 0, 0);
         assert(error == 0);
     }
 
@@ -1754,7 +1757,7 @@ void test_brt_cursor_get_both(int n) {
     v = n-1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, 0);
+    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
     assert(error == DB_NOTFOUND);
 
     /* verify that key match but data mismatch fails */
@@ -1763,7 +1766,7 @@ void test_brt_cursor_get_both(int n) {
         v = i+1;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, 0);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
         assert(error == DB_NOTFOUND);
     }
 
@@ -1773,7 +1776,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, 0);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
         assert(error == 0);
 #ifdef DB_CURRENT 
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
@@ -1794,7 +1797,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, 0);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
         assert(error == DB_NOTFOUND);
     }
 
@@ -1878,7 +1881,7 @@ void test_large_kv(int bsize, int ksize, int vsize) {
     fill_dbt(&key, k, ksize);
     fill_dbt(&val, v, vsize);
 
-    r = brt_insert(t, &key, &val, 0);
+    r = brt_insert(t, &key, &val, 0, 0);
     assert(r == 0);
 
     toku_free(k);
@@ -1955,7 +1958,7 @@ void test_brt_delete_present(int n) {
         k = htonl(i); v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(t, &key, &val, 0);
+        r = brt_insert(t, &key, &val, 0, 0);
         assert(r == 0);
     }
 
@@ -1984,7 +1987,7 @@ void test_brt_delete_present(int n) {
 
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &key, &val, DB_FIRST, 0);
+    r = brt_cursor_get(cursor, &key, &val, DB_FIRST, null_db, null_txn);
     assert(r != 0);
 
     r = brt_cursor_close(cursor);
@@ -2017,7 +2020,7 @@ void test_brt_delete_not_present(int n) {
         k = htonl(i); v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(t, &key, &val, 0);
+        r = brt_insert(t, &key, &val, 0, 0);
         assert(r == 0);
     }
 
@@ -2064,7 +2067,7 @@ void test_brt_delete_cursor_first(int n) {
         k = htonl(i); v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(t, &key, &val, 0);
+        r = brt_insert(t, &key, &val, 0, 0);
         assert(r == 0);
     }
 
@@ -2093,7 +2096,7 @@ void test_brt_delete_cursor_first(int n) {
 
     init_dbt(&key); key.flags = DB_DBT_MALLOC;
     init_dbt(&val); val.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &key, &val, DB_FIRST, 0);
+    r = brt_cursor_get(cursor, &key, &val, DB_FIRST, null_db, null_txn);
     assert(r == 0);
     int vv;
     assert(val.size == sizeof vv);

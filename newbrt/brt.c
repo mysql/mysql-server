@@ -79,8 +79,7 @@ void brtnode_flush_callback (CACHEFILE cachefile, diskoff nodename, void *brtnod
     assert(brtnode->thisnodename==nodename);
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	int r=serialize_brtnode_to(cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
-	assert(r==0); // ?????
+	serialize_brtnode_to(cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -520,14 +519,16 @@ void find_heaviest_data (BRTNODE node, int *childnum_ret, KVPAIR *pairs_ret, int
 #endif
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
-			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
-			   DBT *split,
-			   int debug);
+			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+			    DBT *split,
+			    int debug,
+			    TOKUTXN txn);
 
 /* key is not in the hashtable in node.  Either put the key-value pair in the child, or put it in the node. */
 static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRTNODE node, BRTNODE child,
-								     BRT_CMD *cmd,
-								     int childnum_of_node) {
+								      BRT_CMD *cmd,
+								      int childnum_of_node,
+								      TOKUTXN txn) {
     assert(node->height>0); /* Not a leaf. */
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
@@ -548,8 +549,9 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	init_dbt(&againk);
 	//printf("%s:%d hello!\n", __FILE__, __LINE__);
 	int r = brtnode_put_cmd(t, child, cmd,
-			       &again_split, &againa, &againb, &againk,
-			       0);
+				&again_split, &againa, &againb, &againk,
+				0,
+				txn);
 	if (r!=0) return r;
 	assert(again_split==0); /* I only did the insert if I knew it wouldn't push down, and hence wouldn't split. */
 	return r;
@@ -560,17 +562,19 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 }
 
 static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
-			       BRT_CMD *cmd,
-			       int *child_did_split, BRTNODE *childa, BRTNODE *childb,
-			       DBT *childsplitk) {
+				BRT_CMD *cmd,
+				int *child_did_split, BRTNODE *childa, BRTNODE *childb,
+				DBT *childsplitk,
+				TOKUTXN txn) {
     //if (debug) printf("%s:%d %*sinserting down\n", __FILE__, __LINE__, debug, "");
     //printf("%s:%d hello!\n", __FILE__, __LINE__);
     assert(node->height>0);
     
     {
 	int r = brtnode_put_cmd(t, child, cmd,
-			       child_did_split, childa, childb, childsplitk,
-			       0);
+				child_did_split, childa, childb, childsplitk,
+				0,
+				txn);
 	if (r!=0) return r;
     }
 
@@ -607,7 +611,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 				  int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				  DBT *splitk,
 				  void *app_private,
-				  DB *db) {
+				  DB *db,
+				  TOKUTXN txn) {
     assert(node->height>0);
     assert(0 <= childnum && childnum < node->u.n.n_children);
     HASHTABLE old_h = node->u.n.htables[childnum];
@@ -667,9 +672,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
         BRT_CMD brtcmd;
         brtcmd.type = type; brtcmd.u.id.key = &skd; brtcmd.u.id.val = &svd; brtcmd.u.id.db = db;
 	if (t->compare_fun(db, &skd, childsplitk)<=0) {
-	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &brtcmd, childnum);
+	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &brtcmd, childnum, txn);
 	} else {
-	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1);
+	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1, txn);
 	}
 	if (r!=0) return r;
     }));
@@ -708,11 +713,12 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 }
 
 static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
-				   int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
-				   DBT *splitk,
-				   int debug,
-				   void *app_private,
-				   DB *db) {
+				    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+				    DBT *splitk,
+				    int debug,
+				    void *app_private,
+				    DB *db,
+				    TOKUTXN txn) {
     void *childnode_v;
     BRTNODE child;
     int r;
@@ -762,9 +768,10 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 
 	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_brt_cmd_down (t, node, child, childnum,
-                                    &brtcmd,
-				    &child_did_split, &childa, &childb,
-				    &childsplitk);
+				     &brtcmd,
+				     &child_did_split, &childa, &childb,
+				     &childsplitk,
+				     txn);
 
 	    if (0){
 		unsigned int sum=0;
@@ -782,7 +789,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 		r=handle_split_of_child (t, node, childnum,
 					 childa, childb, &childsplitk,
 					 did_split, nodea, nodeb, splitk,
-					 app_private, db);
+					 app_private, db, txn);
 		return r; /* Don't do any more pushing if the child splits. */ 
 	    }
 	}
@@ -800,7 +807,7 @@ int debugp1 (int debug) {
     return debug ? debug+1 : 0;
 }
 
-static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug, void *app_private, DB *db)
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug, void *app_private, DB *db, TOKUTXN txn)
 /* If the buffer is too full, then push down.  Possibly the child will split.  That may make us split. */
 {
     assert(node->height>0);
@@ -816,7 +823,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 	    find_heaviest_child(node, &childnum);
 	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, node->u.n.children[childnum], childnum);
 	    assert(node->u.n.children[childnum]!=0);
-	    int r = push_some_brt_cmds_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), app_private, db);
+	    int r = push_some_brt_cmds_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), app_private, db, txn);
 	    if (r!=0) return r;
 	    assert(*did_split==0 || *did_split==1);
 	    if (debug) printf("%s:%d %*sdid push_some_brt_cmds_down did_split=%d\n", __FILE__, __LINE__, debug, "", *did_split);
@@ -841,15 +848,16 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 #define INSERT_ALL_AT_ONCE
 
 static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
-			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-			    int debug) {
+			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+			     int debug,
+			     TOKUTXN txn) {
     if  (cmd->type == BRT_INSERT) {
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
         DB *db = cmd->u.id.db;
 #ifdef INSERT_ALL_AT_ONCE
         int replaced_v_size;
-        enum pma_errors pma_status = pma_insert_or_replace(node->u.l.buffer, k, v, db, &replaced_v_size);
+        enum pma_errors pma_status = pma_insert_or_replace(node->u.l.buffer, k, v, &replaced_v_size, db, txn, node->thisnodename);
         assert(pma_status==BRT_OK);
         //printf("replaced_v_size=%d\n", replaced_v_size);
         if (replaced_v_size>=0) {
@@ -922,9 +930,10 @@ static unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
 
 
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
-			       int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
-			       DBT *splitk,
-			       int debug) {
+				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+				DBT *splitk,
+				int debug,
+				TOKUTXN txn) {
     bytevec olddata;
     ITEMLEN olddatalen;
     unsigned int childnum;
@@ -956,14 +965,14 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
         child_did_split = 0;
         r = brtnode_put_cmd(t, child, cmd,
-                &child_did_split, &childa, &childb, &childsplitk, 0);
+			    &child_did_split, &childa, &childb, &childsplitk, 0, txn);
         assert(r == 0);
         if (child_did_split) {
             if (0) printf("brt_nonleaf_insert child_split %p\n", child);
             r = handle_split_of_child(t, node, childnum,
-                    childa, childb, &childsplitk,
-                    did_split, nodea, nodeb, splitk,
-                    k->app_private, db);
+				      childa, childb, &childsplitk,
+				      did_split, nodea, nodeb, splitk,
+				      k->app_private, db, txn);
             assert(r == 0);
         } else {
             r = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
@@ -994,13 +1003,13 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	      BRTNODE childa, childb;
 	      DBT childsplitk;
 	      int r = brtnode_put_cmd(t, child, cmd,
-				     &child_did_split, &childa, &childb, &childsplitk, 0);
+				      &child_did_split, &childa, &childb, &childsplitk, 0, txn);
 	      if (r!=0) return r;
 	      if (child_did_split) {
 		  r=handle_split_of_child(t, node, childnum,
 					  childa, childb, &childsplitk,
 					  did_split, nodea, nodeb, splitk,
-					  k->app_private, db);
+					  k->app_private, db, txn);
 		  if (r!=0) return r;
 	      } else {
 		  cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
@@ -1031,7 +1040,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         brtnode_set_dirty(node);
     }
     if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
-    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), k->app_private, db);
+    int r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), k->app_private, db, txn);
     if (r!=0) return r;
     if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
     if (*did_split) {
@@ -1052,16 +1061,17 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
-			   int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-			   int debug) {
+			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+			    int debug,
+			    TOKUTXN txn) {
     if (node->height==0) {
 	return brt_leaf_put_cmd(t, node, cmd,
-			       did_split, nodea, nodeb, splitk,
-			       debug);
+				did_split, nodea, nodeb, splitk,
+				debug, txn);
     } else {
 	return brt_nonleaf_put_cmd(t, node, cmd,
-				  did_split, nodea, nodeb, splitk,
-				  debug);
+				   did_split, nodea, nodeb, splitk,
+				   debug, txn);
     }
 }
 
@@ -1283,7 +1293,7 @@ int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKE
     return 0;
 }
 
-int brt_root_put_cmd(BRT brt, BRT_CMD *cmd) {
+int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
     void *node_v;
     BRTNODE node;
     CACHEKEY *rootp;
@@ -1307,8 +1317,9 @@ int brt_root_put_cmd(BRT brt, BRT_CMD *cmd) {
     if (debug) printf("%s:%d node inserting\n", __FILE__, __LINE__);
     did_split = 0;
     result = brtnode_put_cmd(brt, node, cmd,
-		       &did_split, &nodea, &nodeb, &splitk,
-		       debug);
+			     &did_split, &nodea, &nodeb, &splitk,
+			     debug,
+			     txn);
     if (debug) printf("%s:%d did_insert\n", __FILE__, __LINE__);
     if (did_split) {
 	//printf("%s:%d did_split=%d nodeb=%p nodeb->thisnodename=%lld nodeb->nodesize=%d\n", __FILE__, __LINE__, did_split, nodeb, nodeb->thisnodename, nodeb->nodesize);
@@ -1333,7 +1344,7 @@ int brt_root_put_cmd(BRT brt, BRT_CMD *cmd) {
     return result;
 }
 
-int brt_insert (BRT brt, DBT *key, DBT *val, DB* db) {
+int brt_insert (BRT brt, DBT *key, DBT *val, DB* db, TOKUTXN txn) {
     int r;
     BRT_CMD brtcmd;
 
@@ -1341,7 +1352,7 @@ int brt_insert (BRT brt, DBT *key, DBT *val, DB* db) {
     brtcmd.u.id.key = key;
     brtcmd.u.id.val = val;
     brtcmd.u.id.db = db;
-    r = brt_root_put_cmd(brt, &brtcmd);
+    r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
 
@@ -1416,7 +1427,6 @@ int brt_lookup (BRT brt, DBT *k, DBT *v, DB *db) {
     return 0;
 }
 
-
 int brt_delete(BRT brt, DBT *key, DB *db) {
     int r;
     BRT_CMD brtcmd;
@@ -1428,7 +1438,7 @@ int brt_delete(BRT brt, DBT *key, DB *db) {
     brtcmd.u.id.key = key;
     brtcmd.u.id.val = &val;
     brtcmd.u.id.db = db;
-    r = brt_root_put_cmd(brt, &brtcmd);
+    r = brt_root_put_cmd(brt, &brtcmd, 0);
     return r;
 }
 
@@ -1631,7 +1641,7 @@ int brt_flush_debug = 0;
  * then reflect the node split up the cursor path towards the tree root.
  * If the root is reached then create a new root
  */  
-void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor) {
+void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUTXN txn) {
     int r;
     int child_did_split;
     BRTNODE childa, childb;
@@ -1644,7 +1654,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor) {
 
     init_dbt(&child_splitk);
     r = push_some_brt_cmds_down(t, node, childnum, 
-            &child_did_split, &childa, &childb, &child_splitk, brt_flush_debug, 0, 0);
+				&child_did_split, &childa, &childb, &child_splitk, brt_flush_debug, 0, 0, txn);
     assert(r == 0);
     if (brt_flush_debug) {
         printf("brt_flush_child done %lld %d\n", node->thisnodename, childnum);
@@ -1676,9 +1686,9 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor) {
                 upnode = cursor->path[i];
                 childnum = cursor->pathcnum[i];
                 r = handle_split_of_child(t, upnode, childnum,
-                        childa, childb, &child_splitk,
-                        &child_did_split, &childa, &childb, &child_splitk,
-                        0, 0);
+					  childa, childb, &child_splitk,
+					  &child_did_split, &childa, &childb, &child_splitk,
+					  0, 0, txn);
                 assert(r == 0);
             }
         }
@@ -1821,18 +1831,16 @@ void brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t __attribute__((unused)),
 
     assert(node->height > 0);
 
-#if 0
-    i = cursor->path_len - node->height - 1;
-    if (i < 0)
-        i = cursor->path_len - 1;
-    if (i >= 0 && cursor->path[i] == node) {
-#else
+//    i = cursor->path_len - node->height - 1;
+//    if (i < 0)
+//        i = cursor->path_len - 1;
+//    if (i >= 0 && cursor->path[i] == node) {
+//    }
     if (0) brt_cursor_print(cursor);
     for (i = 0; i < cursor->path_len; i++)
         if (cursor->path[i] == node)
             break;
     if (i < cursor->path_len) {
-#endif
         if (cursor->pathcnum[i] < childnum)
             return;
         if (cursor->pathcnum[i] > childnum) {
@@ -1864,17 +1872,14 @@ void brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE
     int childnum;
 
     assert(oldnode->height > 0 && left->height > 0 && right->height > 0);
-#if 0
-    i = cursor->path_len - oldnode->height - 1;
-    if (i < 0)
-        i = cursor->path_len - 1;
-    if (i >= 0 && cursor->path[i] == oldnode) {
-#else
+//    i = cursor->path_len - oldnode->height - 1;
+//    if (i < 0)
+//        i = cursor->path_len - 1;
+//    if (i >= 0 && cursor->path[i] == oldnode) {
     for (i = 0; i < cursor->path_len; i++)
         if (cursor->path[i] == oldnode)
             break;
     if (i < cursor->path_len) {
-#endif
         childnum = cursor->pathcnum[i];
         brt_node_remove_cursor(oldnode, childnum, cursor);
         if (childnum < left->u.n.n_children) {
@@ -1885,7 +1890,7 @@ void brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE
         }
 
         if (0) printf("brt_cursor_nonleaf_split %p oldnode %lld newnode %lld\n",
-    cursor, oldnode->thisnodename, newnode->thisnodename);
+		      cursor, oldnode->thisnodename, newnode->thisnodename);
 
         r = cachetable_unpin_size(t->cf, oldnode->thisnodename, oldnode->dirty, brtnode_size(oldnode));
         assert(r == 0);
@@ -1959,7 +1964,7 @@ void brt_cursor_print(BRT_CURSOR cursor) {
     printf("\n");
 }
 
-int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
+int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
     BRT brt=cursor->brt;
     void *node_v;
  
@@ -1982,7 +1987,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
 	cursor->pathcnum[cursor->path_len-1] = childnum;
 	brt_node_add_cursor(node, childnum, cursor);
         if (node->u.n.n_bytes_in_hashtable[childnum] > 0) {
-            brt_flush_child(cursor->brt, node, childnum, cursor);
+            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
             /*
              * the flush may have been partially successfull.  it may have also
              * changed the tree such that the current node have expanded or been
@@ -1993,7 +1998,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_last_child;
         }
-        r=brtcurs_set_position_last (cursor, node->u.n.children[childnum]);
+        r=brtcurs_set_position_last (cursor, node->u.n.children[childnum], txn);
 	if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2020,7 +2025,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off) {
     }
 }
 
-int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
+int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
     BRT brt=cursor->brt;
     void *node_v;
 
@@ -2043,7 +2048,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
 	cursor->pathcnum[cursor->path_len-1] = childnum;
         brt_node_add_cursor(node, childnum, cursor);        
         if (node->u.n.n_bytes_in_hashtable[childnum] > 0) {
-            brt_flush_child(cursor->brt, node, childnum, cursor);
+            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
             /*
              * the flush may have been partially successfull.  it may have also
              * changed the tree such that the current node have expanded or been
@@ -2054,7 +2059,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_first_child;
         }
-        r=brtcurs_set_position_first (cursor, node->u.n.children[childnum]);
+        r=brtcurs_set_position_first (cursor, node->u.n.children[childnum], txn);
         if (r == 0)
             return r;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2082,7 +2087,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off) {
     }
 }
 
-int brtcurs_set_position_next2(BRT_CURSOR cursor) {
+int brtcurs_set_position_next2(BRT_CURSOR cursor, TOKUTXN txn) {
     BRTNODE node;
     int childnum;
     int r;
@@ -2113,11 +2118,11 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor) {
             more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more == 0)
                 break;
-            brt_flush_child(cursor->brt, node, childnum, cursor);
+            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
 	}
-        r = brtcurs_set_position_first(cursor, node->u.n.children[childnum]);
+        r = brtcurs_set_position_first(cursor, node->u.n.children[childnum], txn);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2125,11 +2130,11 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor) {
         childnum += 1;
     }
 
-    return brtcurs_set_position_next2(cursor);
+    return brtcurs_set_position_next2(cursor, txn);
 }
 
 /* requires that the cursor is initialized. */
-int brtcurs_set_position_next (BRT_CURSOR cursor) {
+int brtcurs_set_position_next (BRT_CURSOR cursor, TOKUTXN txn) {
     int r = pma_cursor_set_position_next(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	/* We fell off the end of the pma. */
@@ -2137,12 +2142,12 @@ int brtcurs_set_position_next (BRT_CURSOR cursor) {
         /* Part of the trickyness is we need to leave the cursor pointing at the current (possibly deleted) value if there is no next value. */
         r = pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
-        return brtcurs_set_position_next2(cursor);
+        return brtcurs_set_position_next2(cursor, txn);
     }
     return 0;
 }
 
-int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
+int brtcurs_set_position_prev2(BRT_CURSOR cursor, TOKUTXN txn)  {
     BRTNODE node;
     int childnum;
     int r;
@@ -2173,11 +2178,11 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
             more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more == 0)
                 break;
-            brt_flush_child(cursor->brt, node, childnum, cursor);
+            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
         }
-        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum]);
+        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum], txn);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2185,22 +2190,22 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor) {
         childnum -= 1;
     }
 
-    return brtcurs_set_position_prev2(cursor);
+    return brtcurs_set_position_prev2(cursor, txn);
 }
 
-int brtcurs_set_position_prev (BRT_CURSOR cursor) {
+int brtcurs_set_position_prev (BRT_CURSOR cursor, TOKUTXN txn) {
     int r = pma_cursor_set_position_prev(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	if (cursor->path_len==1) 
             return DB_NOTFOUND;
         r = pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
-        return brtcurs_set_position_prev2(cursor);
+        return brtcurs_set_position_prev2(cursor, txn);
     }
     return 0;
 }
 
-int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag, DB *db) {
+int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag, DB *db, TOKUTXN txn) {
     BRT brt = cursor->brt;
     void *node_v;
     int r;
@@ -2221,7 +2226,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag
             brt_node_add_cursor(node, childnum, cursor);
             int more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more > 0) {
-                brt_flush_child(cursor->brt, node, childnum, cursor);
+                brt_flush_child(cursor->brt, node, childnum, cursor, txn);
                 node = cursor->path[cursor->path_len-1];
                 childnum = cursor->pathcnum[cursor->path_len-1];
                 brt_node_remove_cursor(node, childnum, cursor);
@@ -2230,7 +2235,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag
             }
             break;
         }
-        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, val, flag, db);
+        r = brtcurs_set_key(cursor, node->u.n.children[childnum], key, val, flag, db, txn);
         if (r != 0)
             brt_node_remove_cursor(node, childnum, cursor);
     } else {
@@ -2260,7 +2265,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag
     return r;
 }
 
-int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
+int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db, TOKUTXN txn) {
     BRT brt = cursor->brt;
     void *node_v;
     int r;
@@ -2283,7 +2288,7 @@ int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
             brt_node_add_cursor(node, childnum, cursor);
             int more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more > 0) {
-                brt_flush_child(cursor->brt, node, childnum, cursor);
+                brt_flush_child(cursor->brt, node, childnum, cursor, txn);
                 node = cursor->path[cursor->path_len-1];
                 childnum = cursor->pathcnum[cursor->path_len-1];
                 brt_node_remove_cursor(node, childnum, cursor);
@@ -2291,7 +2296,7 @@ int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db) {
             }
             break;
         }
-        r = brtcurs_set_range(cursor, node->u.n.children[childnum], key, db);
+        r = brtcurs_set_range(cursor, node->u.n.children[childnum], key, db, txn);
         if (r != 0) {
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
@@ -2358,7 +2363,7 @@ static void assert_cursor_path(BRT_CURSOR cursor) {
     assert(node->height == 0);
 }
 
- int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db) {
+int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TOKUTXN txn) {
     int do_rmw=0;
     int r;
     CACHEKEY *rootp;
@@ -2380,7 +2385,7 @@ static void assert_cursor_path(BRT_CURSOR cursor) {
     do_db_last:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
-        r=brtcurs_set_position_last(cursor, *rootp); if (r!=0) goto died0;
+        r=brtcurs_set_position_last(cursor, *rootp, txn); if (r!=0) goto died0;
         r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
@@ -2388,28 +2393,28 @@ static void assert_cursor_path(BRT_CURSOR cursor) {
     do_db_first:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
-        r=brtcurs_set_position_first(cursor, *rootp); if (r!=0) goto died0;
+        r=brtcurs_set_position_first(cursor, *rootp, txn); if (r!=0) goto died0;
         r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
 	if (cursor->path_len<=0)
 	    goto do_db_first;
-	r=brtcurs_set_position_next(cursor); if (r!=0) goto died0;
+	r=brtcurs_set_position_next(cursor, txn); if (r!=0) goto died0;
 	r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_PREV:
         if (cursor->path_len<= 0)
             goto do_db_last;
-        r = brtcurs_set_position_prev(cursor); if (r!=0) goto died0;
+        r = brtcurs_set_position_prev(cursor, txn); if (r!=0) goto died0;
         r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_SET:
         r = unpin_cursor(cursor);
         assert(r == 0);
-        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, db);
+        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_SET, db, txn);
         if (r != 0) goto died0;
         r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
         if (r != 0) goto died0;
@@ -2417,13 +2422,13 @@ static void assert_cursor_path(BRT_CURSOR cursor) {
     case DB_GET_BOTH:
         r = unpin_cursor(cursor);
         assert(r == 0);
-        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_GET_BOTH, db);
+        r = brtcurs_set_key(cursor, *rootp, kbt, vbt, DB_GET_BOTH, db, txn);
         if (r != 0) goto died0;
         break;
     case DB_SET_RANGE:
         r = unpin_cursor(cursor);
         assert(r == 0);
-        r = brtcurs_set_range(cursor, *rootp, kbt, db);
+        r = brtcurs_set_range(cursor, *rootp, kbt, db, txn);
         if (r != 0) goto died0;
         r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
         if (r != 0) goto died0;
