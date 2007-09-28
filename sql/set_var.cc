@@ -784,7 +784,6 @@ sys_var *sys_variables[]=
   &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
   &sys_innodb_support_xa,
-  &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
   &sys_innodb_sync_spin_loops,
   &sys_innodb_concurrency_tickets,
