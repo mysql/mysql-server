@@ -6513,6 +6513,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     return;
   case CS_WAIT_COMMIT_CONF:
     jam();
+    CRASH_INSERTION(8053);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);

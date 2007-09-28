@@ -1176,6 +1176,38 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 #endif
+
+  if (arg == 9999)
+  {
+    Uint32 delay = 1000;
+    switch(signal->getLength()){
+    case 1:
+      break;
+    case 2:
+      delay = signal->theData[1];
+      break;
+    default:{
+      Uint32 dmin = signal->theData[1];
+      Uint32 dmax = signal->theData[2];
+      delay = dmin + (rand() % (dmax - dmin));
+      break;
+    }
+    }
+    
+    signal->theData[0] = 9999;
+    if (delay == 0)
+    {
+      execNDB_TAMPER(signal);
+    }
+    else if (delay < 10)
+    {
+      sendSignal(reference(), GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+    else
+    {
+      sendSignalWithDelay(reference(), GSN_NDB_TAMPER, signal, delay, 1);
+    }
+  }
 }//Cmvmi::execDUMP_STATE_ORD()
 
 void
