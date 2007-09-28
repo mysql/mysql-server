@@ -14119,6 +14119,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  item_field= (Item*) new Item_field(field);
 	if (!item_field)
 	  DBUG_RETURN(TRUE);                    // Fatal error
+
+        if (item->real_item()->type() != Item::FIELD_ITEM)
+          field->orig_table= 0;
 	item_field->name= item->name;
 #ifndef DBUG_OFF
 	if (_db_on_ && !item_field->name)
