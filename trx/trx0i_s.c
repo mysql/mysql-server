@@ -719,9 +719,8 @@ static
 ibool
 can_cache_be_updated(
 /*=================*/
-	const trx_i_s_cache_t*	cache)	/* in: cache */
+	trx_i_s_cache_t*	cache)	/* in: cache */
 {
-
 	ullint	now;
 
 /* The minimum time that a cache must not be updated after it has been
