@@ -42,38 +42,9 @@ UtilTransactions::UtilTransactions(Ndb* ndb,
 
 int 
 UtilTransactions::clearTable(Ndb* pNdb, 
-			     int records,
-			     int parallelism){
-  if(m_defaultClearMethod == 1){
-    return clearTable1(pNdb, records, parallelism);
-  } else if(m_defaultClearMethod == 2){
-    return clearTable2(pNdb, records, parallelism);
-  } else {
-    return clearTable3(pNdb, records, parallelism);
-  }
-}
-
-
-int 
-UtilTransactions::clearTable1(Ndb* pNdb, 
-			     int records,
-			     int parallelism)
-{
-  return clearTable3(pNdb, records, 1);
-}
-
-int 
-UtilTransactions::clearTable2(Ndb* pNdb, 
-			      int records,
-			      int parallelism)
-{
-  return clearTable3(pNdb, records, parallelism);
-}
-
-int 
-UtilTransactions::clearTable3(Ndb* pNdb, 
-			      int records,
-			      int parallelism){
+                             NdbScanOperation::ScanFlag flags,
+                             int records,
+                             int parallelism){
   // Scan all records exclusive and delete 
   // them one by one
   int                  retryAttempt = 0;
@@ -116,7 +87,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       goto failed;
     }
     
-    if( pOp->readTuplesExclusive(par) ) {
+    if( pOp->readTuples(NdbOperation::LM_Exclusive, flags, par) ) {
       err = pTrans->getNdbError();
       goto failed;
     }
@@ -177,6 +148,43 @@ UtilTransactions::clearTable3(Ndb* pNdb,
   if(pTrans != 0) closeTransaction(pNdb);
   ERR(err);
   return (err.code != 0 ? err.code : NDBT_FAILED);
+}
+
+int 
+UtilTransactions::clearTable(Ndb* pNdb, 
+			     int records,
+			     int parallelism){
+
+  return clearTable(pNdb, (NdbScanOperation::ScanFlag)0,
+                    records, parallelism);
+}
+
+
+int 
+UtilTransactions::clearTable1(Ndb* pNdb, 
+			     int records,
+			     int parallelism)
+{
+  return clearTable(pNdb, (NdbScanOperation::ScanFlag)0,
+                    records, 1);
+}
+
+int 
+UtilTransactions::clearTable2(Ndb* pNdb, 
+			      int records,
+			      int parallelism)
+{
+  return clearTable(pNdb, (NdbScanOperation::ScanFlag)0,
+                    records, parallelism);
+}
+
+int 
+UtilTransactions::clearTable3(Ndb* pNdb, 
+			      int records,
+			      int parallelism)
+{
+  return clearTable(pNdb, (NdbScanOperation::ScanFlag)0,
+                    records, parallelism);
 }
 
 int 
