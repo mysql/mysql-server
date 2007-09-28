@@ -1380,7 +1380,11 @@ longlong Item_func_int_div::val_int()
 
 void Item_func_int_div::fix_length_and_dec()
 {
-  max_length=args[0]->max_length - args[0]->decimals;
+  Item_result argtype= args[0]->result_type();
+  /* use precision ony for the data type it is applicable for and valid */
+  max_length=args[0]->max_length -
+    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+     args[0]->decimals : 0);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
