@@ -327,8 +327,13 @@ protected:
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
+/*
+  Default time to wait before aborting a new client connection
+  that does not respond to "initial server greeting" timely
+*/
+#define CONNECT_TIMEOUT		10
+
 /* The following can also be changed from the command line */
-#define CONNECT_TIMEOUT		5		// Do not wait long for connect
 #define DEFAULT_CONCURRENCY	10
 #define DELAYED_LIMIT		100		/* pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000

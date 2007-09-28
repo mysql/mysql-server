@@ -1,0 +1,19 @@
+# We currently only have shm support on windows, so in order
+# to optimize things we skip this test on all other platforms
+--source include/windows.inc
+
+# Only run this test if shared memory is avaliable
+let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
+if (`SELECT '$shm' != 'ON'`){
+  skip No shm support;
+}
+
+# Source select test case
+-- source include/common-tests.inc
+
+#
+# Bug #24924: shared-memory-base-name that is too long causes buffer overflow
+#
+--exec $MYSQLADMIN --no-defaults --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --shared-memory-base-name=HeyMrBaseNameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX ping
+
+--echo End of 5.0 tests.
