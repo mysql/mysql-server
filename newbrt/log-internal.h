@@ -1,8 +1,10 @@
 #include "yerror.h"
 #include <stdio.h>
+#include "log.h"
+#include <sys/types.h>
+
 
 #define LOGGER_BUF_SIZE (1<<20)
-typedef struct tokulogger *TOKULOGGER;
 struct tokulogger {
     enum typ_tag tag;
     char *directory;
@@ -14,3 +16,10 @@ struct tokulogger {
 };
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result);
+
+enum { LT_INSERT_WITH_NO_OVERWRITE = 'I', LT_DELETE = 'D', LT_COMMIT = 'C' };
+
+struct tokutxn {
+    u_int64_t txnid64;
+    TOKULOGGER logger;
+};

@@ -14,6 +14,7 @@
 #include "list.h"
 #include "kv-pair.h"
 #include "pma-internal.h"
+#include "log.h"
 
 /* get KEY_VALUE_OVERHEAD */
 #include "brt-internal.h"
@@ -648,7 +649,7 @@ int pma_free (PMA *pmap) {
 }
 
 /* Copies keylen and datalen */ 
-int pma_insert (PMA pma, DBT *k, DBT *v, DB* db) {
+int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, diskoff diskoff) {
     int idx = pmainternal_find(pma, k, db);
     if (idx < pma_index_limit(pma) && pma->pairs[idx]) {
         DBT k2;
@@ -656,10 +657,11 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db) {
         if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
             if (kv_pair_deleted(pma->pairs[idx])) {
                 pma->pairs[idx] = kv_pair_realloc_same_key(kv, v->data, v->size);
-                return BRT_OK;
+		int r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+                return r;
             } else
                 return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
-        }
+	}
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
         idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
@@ -668,7 +670,7 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db) {
     pma->pairs[idx] = kv_pair_malloc(k->data, k->size, v->data, v->size);
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
-    return BRT_OK;
+    return tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 1, pma->pairs[idx]);
 }    
 
 int pma_delete (PMA pma, DBT *k, DB *db) {
@@ -770,20 +772,26 @@ void __pma_delete_at(PMA pma, int here) {
     toku_free(newpairs);
 }
 
-int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
-			   int *replaced_v_size /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
-			   ) {
+int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
+			   int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
+			   DB *db, TOKUTXN txn, diskoff diskoff) {
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     int idx = pmainternal_find(pma, k, db);
     struct kv_pair *kv;
+    int r;
     if (idx < pma_index_limit(pma) && (kv = pma->pairs[idx])) {
         DBT k2;
+	// printf("%s:%d\n", __FILE__, __LINE__);
         kv = kv_pair_ptr(kv);
         if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
-            if (!kv_pair_deleted(pma->pairs[idx]))
+            if (!kv_pair_deleted(pma->pairs[idx])) {
                 *replaced_v_size = kv->vallen;
+		r=tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, kv);
+		if (r!=0) return r;
+	    }
 	    pma->pairs[idx] = kv_pair_realloc_same_key(kv, v->data, v->size);
-            return BRT_OK;
+	    r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+            return r;
         }
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
@@ -795,7 +803,9 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v, DB *db,
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
     *replaced_v_size = -1;
-    return BRT_OK;
+    //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
+    r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 1, pma->pairs[idx]);
+    return r;
 }
 
 void pma_iterate (PMA pma, void(*f)(bytevec,ITEMLEN,bytevec,ITEMLEN, void*), void*v) {

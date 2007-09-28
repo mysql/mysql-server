@@ -15,6 +15,8 @@
 #include <unistd.h>
 
 #include "cachetable.h"
+#include "log.h"
+#include "memory.h"
 
 struct db_header {
     int n_databases; // Or there can be >=1 named databases.  This is the count.
@@ -38,11 +40,16 @@ struct __toku_db_internal {
 };
 
 static inline void *malloc_zero(size_t size) {
-    void *vp = malloc(size);
+    void *vp = toku_malloc(size);
     if (vp)
         memset(vp, 0, size);
     return vp;
 }
+
+struct __toku_db_txn_internal {
+    //TXNID txnid64; /* A sixty-four bit txn id. */
+    TOKUTXN tokutxn;
+};
 
 void __toku_db_env_err (const DB_ENV *env __attribute__((__unused__)), int error, const char *fmt, ...) {
   va_list ap;
@@ -86,6 +93,7 @@ struct __toku_db_env_internal {
     int files_array_limit; // How big is *files ?
     struct ydb_file **files;
     CACHETABLE cachetable;
+    TOKULOGGER logger;
 };
 
 int  __toku_db_env_open (DB_ENV *env, const char *home, u_int32_t flags, int mode) {
@@ -97,17 +105,28 @@ int  __toku_db_env_open (DB_ENV *env, const char *home, u_int32_t flags, int mod
     
     print_flags(flags);
     assert(DB_PRIVATE & flags); // This means that we don't have to do anything with shared memory.  And that's good enough for mysql. 
-
+    
     r = brt_create_cachetable(&env->i->cachetable, 32);
     assert(r==0);
+
+    if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
+	r = tokulogger_create_and_open_logger(env->i->dir, &env->i->logger);
+    } else {
+	env->i->dir = 0;
+    }
+
     return 0;
 }
+
 int  __toku_db_env_close (DB_ENV * env, u_int32_t flags) {
     cachetable_close(&env->i->cachetable);
-    free(env->i->dir);
-    free(env->i->files);
-    free(env->i);
-    free(env);
+    if (env->i->logger) {
+	tokulogger_log_close(&env->i->logger);
+    }
+    toku_free(env->i->dir);
+    toku_free(env->i->files);
+    toku_free(env->i);
+    toku_free(env);
     return 0;
 }
 int  __toku_db_env_log_archive (DB_ENV *env, char **list[], u_int32_t flags) {
@@ -225,6 +244,11 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
 
 int __toku_db_txn_commit (DB_TXN *txn, u_int32_t flags) {
   notef("flags=%d\n", flags);
+  if (!txn) return -1;
+  int r = tokulogger_log_commit(txn->i->tokutxn);
+  if (r!=0) return r;
+  if (txn->i) toku_free(txn->i);
+  toku_free(txn);
   return 0;
 }
 
@@ -233,11 +257,16 @@ u_int32_t __toku_db_txn_id (DB_TXN *txn) {
   abort();
 }
 
+static TXNID next_txn=0;
+
 int txn_begin (DB_ENV *env, DB_TXN *stxn, DB_TXN **txn, u_int32_t flags) {
   DB_TXN *result = malloc_zero(sizeof(*result));
   notef("parent=%p flags=0x%x\n", stxn, flags);
   result->commit = __toku_db_txn_commit;
   result->id     = __toku_db_txn_id;
+  result->i      = malloc(sizeof(*result->i));
+  int r = tokutxn_begin(&result->i->tokutxn, next_txn++, env->i->logger);
+  if (r!=0) return r;
   *txn = result;
   return 0;
 }
@@ -247,9 +276,12 @@ int txn_abort (DB_TXN *txn) {
   abort();
 }
 
+#if 0
 int txn_commit (DB_TXN *txn, u_int32_t flags) {
-    return 0;
+    printf("%s:%d\n", __FILE__, __LINE__);
+    return tokulogger_log_commit(txn->i->tokutxn);
 }
+#endif
 
 int log_compare (const DB_LSN *a, const DB_LSN *b) {
   fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);
@@ -257,31 +289,35 @@ int log_compare (const DB_LSN *a, const DB_LSN *b) {
 }
 
 int __toku_db_close (DB *db, u_int32_t flags) {
-    int r = close_brt(db->i->brt);
+    int r = 0;
+    if (db->i->brt) {
+	r = close_brt(db->i->brt);
+    }
     printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     db->i->freed = 1;
-    free(db->i->database_name);
-    free(db->i->full_fname);
-    free(db->i);
-    free(db);
+    toku_free(db->i->database_name);
+    toku_free(db->i->full_fname);
+    toku_free(db->i);
+    toku_free(db);
     return r;
 }
 
 struct __toku_dbc_internal {
     BRT_CURSOR c;
     DB *db;
+    DB_TXN *txn;
 };
 			  
 int __toku_c_get (DBC *c, DBT *key, DBT *data, u_int32_t flag) {
-    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->db);
+    int r = brt_cursor_get(c->i->c, key, data, flag, c->i->db, c->i->txn->i->tokutxn);
     return r;
 }
 
 int __toku_c_close (DBC *c) {
     int r = brt_cursor_close(c->i->c);
     printf("%s:%d %d=__toku_c_close(%p)\n", __FILE__, __LINE__, r, c);
-    free(c->i);
-    free(c);
+    toku_free(c->i);
+    toku_free(c);
     return r;
 }
 
@@ -299,6 +335,7 @@ int __toku_db_cursor (DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
     result->c_del = __toku_c_del;
     result->i = malloc_zero(sizeof(*result->i));
     result->i->db = db;
+    result->i->txn = txn;
     r = brt_cursor(db->i->brt, &result->i->c);
     assert(r==0);
     *c = result;
@@ -328,7 +365,7 @@ char *construct_full_name (const char *dir, const char *fname) {
 	int dirlen = strlen(dir);
 	int fnamelen = strlen(fname);
 	int len = dirlen+fnamelen+2; // One for the / between (which may not be there).  One for the trailing null.
-	char *result = malloc(len);
+	char *result = toku_malloc(len);
 	int l;
 	printf("%s:%d len(%d)=%d+%d+2\n", __FILE__, __LINE__, len, dirlen, fnamelen);
 	assert(result);
@@ -388,8 +425,9 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
     assert(r==0);
     return 0;
 }
+
 int  __toku_db_put (DB *db, DB_TXN *txn, DBT *key, DBT *data, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, key, data, db);
+    int r = brt_insert(db->i->brt, key, data, db, txn->i->tokutxn);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
@@ -464,4 +502,23 @@ int db_create (DB **db, DB_ENV *env, u_int32_t flags) {
   result->i->is_db_dup = 0;
   *db = result;
   return 0;
+}
+
+char *db_strerror (int error) {
+
+    if (error == 0) return "Success: 0";
+    if (error > 0) {
+	char *result = strerror(error);
+	if (result) return result;
+    unknown:
+	{
+	    static char unknown_result[100]; // Race condition if two threads call this at the same time.    However even in a bad case, it should be some sort of nul-terminated string.
+	    snprintf(unknown_result, 100, "Unknown error code: %d", error);
+	    return unknown_result;
+	}
+    }
+    switch (error) {
+    default:
+	goto unknown;
+    }
 }

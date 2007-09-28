@@ -4,8 +4,6 @@
 #include "brt.h"
 //#include "pma.h"
 
-typedef long long diskoff;  /* Offset in a disk. -1 is the NULL pointer. */
-
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
 #endif
@@ -76,7 +74,7 @@ struct brt {
 };
 
 /* serialization code */
-int serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node);
+void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node);
 int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize);
 unsigned int serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);

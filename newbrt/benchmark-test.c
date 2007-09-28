@@ -44,7 +44,7 @@ void insert (long long v) {
     DBT  kt, vt;
     long_long_to_array(kc, v);
     long_long_to_array(vc, v);
-    brt_insert(t, fill_dbt(&kt, kc, 8), fill_dbt(&vt, vc, 8), 0);
+    brt_insert(t, fill_dbt(&kt, kc, 8), fill_dbt(&vt, vc, 8), 0, 0);
 }
 
 void serial_insert_from (long long from) {

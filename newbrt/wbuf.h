@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include "memory.h"
 
 /* When serializing a value, write it into a buffer. */
 /* This code requires that the buffer be big enough to hold whatever you put into it. */ 
@@ -15,11 +16,10 @@ struct wbuf {
     unsigned int  ndone;
 };
 
-static int wbuf_init (struct wbuf *w, diskoff size) {
-    w->buf=toku_malloc(size);
+static void wbuf_init (struct wbuf *w, void *buf, diskoff size) {
+    w->buf=buf;
     w->size=size;
     w->ndone=0;
-    return errno;
 }
 
 /* Write a character. */
@@ -56,8 +56,17 @@ static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, int nbytes) {
 #endif
 }
 
-static void wbuf_diskoff (struct wbuf *w, diskoff off) {
-    wbuf_int(w, off>>32);
-    wbuf_int(w, off&0xFFFFFFFF);
+static void wbuf_ulonglong (struct wbuf *w, unsigned long long ull) {
+    wbuf_int(w, ull>>32);
+    wbuf_int(w, ull&0xFFFFFFFF);
 }
+
+static void wbuf_diskoff (struct wbuf *w, diskoff off) {
+    wbuf_ulonglong(w, off);
+}
+
+static inline void wbuf_txnid (struct wbuf *w, TXNID tid) {
+    wbuf_ulonglong(w, tid);
+}
+
 #endif

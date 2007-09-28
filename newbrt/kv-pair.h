@@ -1,3 +1,9 @@
+#ifndef KV_PAIR_H
+#define KV_PAIR_H
+
+#include "memory.h"
+#include <string.h>
+
 /*
  * the key value pair contains a key and a value in a contiguous space.  the
  * key is right after the length fields and the value is right after the key.
@@ -40,12 +46,19 @@ static inline void kv_pair_free(struct kv_pair *pair) {
 static inline void *kv_pair_key(struct kv_pair *pair) {
     return pair->key;
 }
+static inline const void *kv_pair_key_const(const struct kv_pair *pair) {
+    return pair->key;
+}
+
 
 static inline int kv_pair_keylen(struct kv_pair *pair) {
     return pair->keylen;
 }
 
 static inline void *kv_pair_val(struct kv_pair *pair) {
+    return pair->key + pair->keylen;
+}
+static inline const void *kv_pair_val_const(const struct kv_pair *pair) {
     return pair->key + pair->keylen;
 }
 
@@ -79,3 +92,4 @@ struct kv_pair_tag {
     struct kv_pair *pair;
     int oldtag, newtag;
 };
+#endif

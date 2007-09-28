@@ -1,3 +1,6 @@
+#ifndef MEMORY_H
+#define MEMORY_H
+
 //#include <stdlib.h>
 
 /* Tokutek memory allocation functions and macros.
@@ -66,3 +69,4 @@ int get_n_items_malloced(void); /* How many items are malloc'd but not free'd.  
 void print_malloced_items(void); /* Try to print some malloced-but-not-freed items.  May be a noop. */
 void malloc_report (void); /* report on statistics about number of mallocs.  Maybe a no-op. */ 
 
+#endif

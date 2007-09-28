@@ -227,7 +227,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");
     printf("int db_env_create(DB_ENV **, u_int32_t);\n");
     printf("int db_create(DB **, DB_ENV *, u_int32_t);\n");
+    printf("char *db_strerror(int);\n");
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
 }
+

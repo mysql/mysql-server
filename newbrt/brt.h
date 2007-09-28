@@ -8,11 +8,12 @@
 #include "ybt.h"
 #include "../include/db.h"
 #include "cachetable.h"
+#include "log.h"
 typedef struct brt *BRT;
 int open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, int(*)(DB*,const DBT*,const DBT*));
 //int brt_create (BRT **, int nodesize, int n_nodes_in_cache); /* the nodesize and n_nodes in cache really should be separately configured. */
 //int brt_open (BRT *, char *fname, char *dbname);
-int brt_insert (BRT brt, DBT *k, DBT *v, DB*db);
+int brt_insert (BRT, DBT *, DBT *, DB*, TOKUTXN);
 int brt_lookup (BRT brt, DBT *k, DBT *v, DB*db);
 int brt_delete (BRT brt, DBT *k, DB *db);
 int close_brt (BRT);
@@ -35,7 +36,7 @@ int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
 int brt_cursor (BRT, BRT_CURSOR*);
-int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, DB *db);
+int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, DB *db, TOKUTXN);
 int brt_cursor_delete(BRT_CURSOR cursor, int flags);
 int brt_cursor_close (BRT_CURSOR curs);
 
