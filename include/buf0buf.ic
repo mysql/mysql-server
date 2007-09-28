@@ -460,17 +460,18 @@ buf_page_set_accessed(
 	bpage->accessed = accessed;
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE
 buf_frame_t*
 buf_block_get_frame(
 /*================*/
-				/* out: pointer to the frame */
-	buf_block_t*	block)	/* in: pointer to the control block */
+					/* out: pointer to the frame */
+	const buf_block_t*	block)	/* in: pointer to the control block */
 {
 	ut_ad(block);
-#ifdef UNIV_DEBUG
+
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_ZIP_PAGE:
@@ -488,9 +489,9 @@ buf_block_get_frame(
 	}
 	ut_error;
 ok:
-#endif /* UNIV_DEBUG */
-	return(block->frame);
+	return((buf_frame_t*) block->frame);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Gets the space id of a block. */
