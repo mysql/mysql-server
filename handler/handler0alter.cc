@@ -643,13 +643,13 @@ ha_innobase::add_index(
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
-	update_thd(ha_thd());
+	update_thd();
 
 	heap = mem_heap_create(1024);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
-	trx_search_latch_release_if_reserved(check_trx_exists(user_thd));
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
@@ -922,7 +922,6 @@ ha_innobase::prepare_drop_index(
 	uint	num_of_keys)	/* in: Number of keys to be dropped */
 {
 	trx_t*		trx;
-	THD*		thd;
 	int		err = 0;
 	uint 		n_key;
 
@@ -934,10 +933,10 @@ ha_innobase::prepare_drop_index(
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
-	thd = ha_thd();
+	update_thd();
 
-	trx = check_trx_exists(thd);
-	trx_search_latch_release_if_reserved(trx);
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+	trx = prebuilt->trx;
 
 	/* Test and mark all the indexes to be dropped */
 
@@ -989,7 +988,7 @@ ha_innobase::prepare_drop_index(
 	is later deleted. */
 
 	if (trx->check_foreigns
-	    && thd_sql_command(thd) != SQLCOM_CREATE_INDEX) {
+	    && thd_sql_command(user_thd) != SQLCOM_CREATE_INDEX) {
 		for (n_key = 0; n_key < num_of_keys; n_key++) {
 			KEY*		key;
 			dict_index_t*	index;
@@ -1073,7 +1072,6 @@ ha_innobase::final_drop_index(
 {
 	dict_index_t*	index;		/* Index to be dropped */
 	trx_t*		trx;		/* Transaction */
-	THD*		thd;
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
 	ut_ad(table);
@@ -1082,10 +1080,10 @@ ha_innobase::final_drop_index(
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
-	thd = ha_thd();
+	update_thd();
 
-	trx = check_trx_exists(thd);
-	trx_search_latch_release_if_reserved(trx);
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+	trx = prebuilt->trx;
 
 	/* Drop indexes marked to be dropped */
 
