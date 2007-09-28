@@ -738,7 +738,7 @@ ibool
 buf_page_can_relocate(
 /*==================*/
 	const buf_page_t*	bpage)	/* control block being relocated */
-	__attribute__((const));
+	__attribute__((pure));
 
 /*************************************************************************
 Determine if a block has been flagged old. */
@@ -774,6 +774,16 @@ buf_page_set_accessed(
 /*==================*/
 	buf_page_t*	bpage,		/* in/out: control block */
 	ibool		accessed);	/* in: accessed */
+/*************************************************************************
+Gets the buf_block_t handle of a buffered file block if an uncompressed
+page frame exists, or NULL. */
+UNIV_INLINE
+const buf_block_t*
+buf_page_get_block(
+/*===============*/
+					/* out: control block, or NULL */
+	const buf_page_t*	bpage)	/* in: control block */
+	__attribute__((pure));
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
