@@ -672,7 +672,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING},
  {{(char*) STRING_WITH_LEN("view_body_utf8")},
   my_offsetof(TABLE_LIST, view_body_utf8),
-  FILE_OPTIONS_STRING},
+  FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
 };
