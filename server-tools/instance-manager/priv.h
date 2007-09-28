@@ -29,7 +29,7 @@
 #include "portability.h"
 
 /* IM-wide platform-independent defines */
-#define SERVER_DEFAULT_PORT 3306
+#define SERVER_DEFAULT_PORT MYSQL_PORT
 #define DEFAULT_MONITORING_INTERVAL 20
 #define DEFAULT_PORT 2273
 /* three-week timeout should be enough */
