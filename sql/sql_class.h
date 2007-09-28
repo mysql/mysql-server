@@ -2133,6 +2133,10 @@ class select_create: public select_insert {
   TABLE_LIST *select_tables;
   Alter_info *alter_info;
   Field **field;
+  /* lock data for tmp table */
+  MYSQL_LOCK *m_lock;
+  /* m_lock or thd->extra_lock */
+  MYSQL_LOCK **m_plock;
 public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
@@ -2143,7 +2147,8 @@ public:
     create_table(table_arg),
     create_info(create_info_par),
     select_tables(select_tables_arg),
-    alter_info(alter_info_arg)
+    alter_info(alter_info_arg),
+    m_plock(NULL)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
