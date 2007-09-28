@@ -3427,6 +3427,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
+  MYSQL_LOCK *extra_lock= NULL;
   DBUG_ENTER("select_create::prepare");
 
   TABLEOP_HOOKS *hook_ptr= NULL;
@@ -3496,8 +3497,20 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
-                                       &thd->extra_lock, hook_ptr)))
+                                       &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
+
+  if (extra_lock)
+  {
+    DBUG_ASSERT(m_plock == NULL);
+
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      m_plock= &m_lock;
+    else
+      m_plock= &thd->extra_lock;
+
+    *m_plock= extra_lock;
+  }
 
   if (table->s->fields < values.elements)
   {
@@ -3637,10 +3650,10 @@ bool select_create::send_eof()
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    if (thd->extra_lock)
+    if (m_plock)
     {
-      mysql_unlock_tables(thd, thd->extra_lock);
-      thd->extra_lock=0;
+      mysql_unlock_tables(thd, *m_plock);
+      m_plock= 0;
     }
   }
   return tmp;
@@ -3675,10 +3688,10 @@ void select_create::abort()
   if (thd->current_stmt_binlog_row_based)
     ha_rollback_stmt(thd);
 
-  if (thd->extra_lock)
+  if (m_plock)
   {
-    mysql_unlock_tables(thd, thd->extra_lock);
-    thd->extra_lock=0;
+    mysql_unlock_tables(thd, *m_plock);
+    m_plock= 0;
   }
 
   if (table)
