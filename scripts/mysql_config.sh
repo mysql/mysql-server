@@ -92,8 +92,13 @@ fix_path pkgincludedir include/mysql include
 
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
-port='@MYSQL_TCP_PORT@'
 ldflags='@LDFLAGS@'
+
+if [ @MYSQL_TCP_PORT_DEFAULT@ -eq 0 ]; then
+  port=0
+else
+  port=@MYSQL_TCP_PORT@
+fi
 
 # Create options 
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
