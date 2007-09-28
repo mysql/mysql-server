@@ -774,16 +774,19 @@ buf_page_set_accessed(
 /*==================*/
 	buf_page_t*	bpage,		/* in/out: control block */
 	ibool		accessed);	/* in: accessed */
-
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE
 buf_frame_t*
 buf_block_get_frame(
 /*================*/
-				/* out: pointer to the frame */
-	buf_block_t*	block)	/* in: pointer to the control block */
+					/* out: pointer to the frame */
+	const buf_block_t*	block)	/* in: pointer to the control block */
 	__attribute__((pure));
+#else /* UNIV_DEBUG */
+# define buf_block_get_frame(block) block->frame
+#endif /* UNIV_DEBUG */
 /*************************************************************************
 Gets the space id of a block. */
 UNIV_INLINE
