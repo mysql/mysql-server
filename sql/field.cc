@@ -1356,15 +1356,25 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 
 void Field::make_field(Send_field *field)
 {
-  if (orig_table->s->table_cache_key && *(orig_table->s->table_cache_key))
+  if (orig_table && orig_table->s->table_cache_key &&
+      *(orig_table->s->table_cache_key))
   {
     field->org_table_name= orig_table->s->table_name;
     field->db_name= orig_table->s->table_cache_key;
   }
   else
     field->org_table_name= field->db_name= "";
-  field->table_name= orig_table->alias;
-  field->col_name= field->org_col_name= field_name;
+  if (orig_table)
+  {
+    field->table_name= orig_table->alias;
+    field->org_col_name= field_name;
+  }
+  else
+  {
+    field->table_name= "";
+    field->org_col_name= "";
+  }
+  field->col_name= field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
