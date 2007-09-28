@@ -1183,7 +1183,7 @@ rec_convert_dtuple_to_rec(
 		mem_heap_t*	heap	= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		offsets = rec_get_offsets(rec, index,
 					  offsets_, ULINT_UNDEFINED, &heap);
@@ -1213,7 +1213,7 @@ rec_copy_prefix_to_dtuple(
 	ulint	i;
 	ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*	offsets	= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
 
@@ -1664,7 +1664,7 @@ rec_print(
 	} else {
 		mem_heap_t*	heap	= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		rec_print_new(file, rec,
 			      rec_get_offsets(rec, index, offsets_,

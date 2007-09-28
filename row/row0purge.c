@@ -102,7 +102,7 @@ row_purge_remove_clust_if_poss_low(
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
 

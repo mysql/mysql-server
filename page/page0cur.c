@@ -62,7 +62,7 @@ page_cur_try_search_shortcut(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(dtuple_check_typed(tuple));
 
@@ -236,7 +236,7 @@ page_cur_search_with_match(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(block && tuple && iup_matched_fields && iup_matched_bytes
 	      && ilow_matched_fields && ilow_matched_bytes && cursor);
@@ -544,8 +544,8 @@ page_cur_insert_rec_write_log(
 		ulint*		cur_offs;
 		ulint*		ins_offs;
 
-		*cur_offs_ = (sizeof cur_offs_) / sizeof *cur_offs_;
-		*ins_offs_ = (sizeof ins_offs_) / sizeof *ins_offs_;
+		rec_offs_init(cur_offs_);
+		rec_offs_init(ins_offs_);
 
 		cur_offs = rec_get_offsets(cursor_rec, index, cur_offs_,
 					   ULINT_UNDEFINED, &heap);
@@ -719,7 +719,7 @@ page_cur_parse_insert_rec(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	page = block ? buf_block_get_frame(block) : NULL;
 
@@ -930,7 +930,7 @@ page_cur_insert_rec_low(
 		ulint*		foffsets	= foffsets_;
 		mem_heap_t*	heap		= NULL;
 
-		*foffsets = sizeof(foffsets_) / sizeof *foffsets_;
+		rec_offs_init(foffsets_);
 
 		foffsets = rec_get_offsets(free_rec, index, foffsets,
 					ULINT_UNDEFINED, &heap);
@@ -1200,7 +1200,7 @@ page_cur_insert_rec_zip(
 		ulint*		foffsets	= foffsets_;
 		mem_heap_t*	heap		= NULL;
 
-		*foffsets = sizeof(foffsets_) / sizeof *foffsets_;
+		rec_offs_init(foffsets_);
 
 		foffsets = rec_get_offsets(free_rec, index, foffsets,
 					ULINT_UNDEFINED, &heap);
@@ -1465,7 +1465,7 @@ page_copy_rec_list_end_to_created_page(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW);
 	ut_ad(page_align(rec) != new_page);
@@ -1675,7 +1675,7 @@ page_cur_parse_delete_rec(
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec		= page + offset;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		page_cur_position(rec, block, &cursor);
 		ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));

@@ -179,7 +179,7 @@ row_build(
 	ulint		j;
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
@@ -338,7 +338,7 @@ row_rec_to_index_entry(
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(rec && heap && index);
 
@@ -403,7 +403,7 @@ row_build_row_ref(
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(index && rec && heap);
 
@@ -506,7 +506,7 @@ row_build_row_ref_in_tuple(
 	ulint			i;
 	mem_heap_t*		heap		= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_a(ref);
 	ut_a(index);

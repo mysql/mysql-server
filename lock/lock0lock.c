@@ -4202,7 +4202,7 @@ lock_rec_print(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
@@ -4702,7 +4702,7 @@ lock_rec_validate_page(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -4962,7 +4962,7 @@ lock_rec_insert_check_and_lock(
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		offsets = rec_get_offsets(next_rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
@@ -5130,7 +5130,7 @@ lock_sec_rec_modify_check_and_lock(
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
@@ -5330,7 +5330,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);

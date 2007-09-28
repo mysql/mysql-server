@@ -708,7 +708,7 @@ row_upd_build_sec_rec_difference_binary(
 	ulint		i;
 	ulint		offsets_[REC_OFFS_SMALL_SIZE];
 	const ulint*	offsets;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	/* This function is used only for a secondary index */
 	ut_a(!dict_index_is_clust(index));
@@ -780,7 +780,7 @@ row_upd_build_difference_binary(
 	ulint		i;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
 	ut_a(dict_index_is_clust(index));
@@ -1212,7 +1212,7 @@ row_upd_store_row(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(node->pcur->latch_mode != BTR_NO_LATCHES);
 
@@ -1402,7 +1402,7 @@ row_upd_clust_rec_by_insert(
 		rec_t*		rec;
 		dict_index_t*	index;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
 						     btr_cur, TRUE, thr, mtr);
@@ -1551,7 +1551,7 @@ row_upd_clust_rec(
 	if (err == DB_SUCCESS && big_rec) {
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		mtr_start(mtr);
 
@@ -1653,7 +1653,7 @@ row_upd_clust_step(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
 
@@ -2007,7 +2007,7 @@ row_upd_in_place_in_select(
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(sel_node->select_will_do_update);
 	ut_ad(sel_node->latch_mode == BTR_MODIFY_LEAF);
