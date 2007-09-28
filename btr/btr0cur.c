@@ -330,7 +330,7 @@ btr_cur_search_to_nth_level(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 	/* Currently, PAGE_CUR_LE is the only search mode used for searches
 	ending to upper levels */
 
@@ -654,7 +654,7 @@ btr_cur_open_at_index_side(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	estimate = latch_mode & BTR_ESTIMATE;
 	latch_mode = latch_mode & ~BTR_ESTIMATE;
@@ -781,7 +781,7 @@ btr_cur_open_at_rnd_pos(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	if (latch_mode == BTR_MODIFY_TREE) {
 		mtr_x_lock(dict_index_get_lock(index), mtr);
@@ -1446,7 +1446,7 @@ btr_cur_upd_lock_and_undo(
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		err = lock_clust_rec_modify_check_and_lock(
 			flags, btr_cur_get_block(cursor), rec, index,
@@ -1682,7 +1682,7 @@ btr_cur_update_in_place(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -2403,7 +2403,7 @@ btr_cur_parse_del_mark_set_clust_rec(
 		if (!(flags & BTR_KEEP_SYS_FLAG)) {
 			mem_heap_t*	heap		= NULL;
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-			*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+			rec_offs_init(offsets_);
 
 			row_upd_rec_sys_fields_in_recovery(
 				rec, page_zip,
@@ -2446,7 +2446,7 @@ btr_cur_del_mark_set_clust_rec(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -2711,7 +2711,7 @@ btr_cur_optimistic_delete(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ibool		no_compress_needed;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
@@ -3159,9 +3159,8 @@ btr_estimate_number_of_different_key_vals(
 	ulint		offsets_next_rec_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets_rec	= offsets_rec_;
 	ulint*		offsets_next_rec= offsets_next_rec_;
-	*offsets_rec_ = (sizeof offsets_rec_) / sizeof *offsets_rec_;
-	*offsets_next_rec_
-		= (sizeof offsets_next_rec_) / sizeof *offsets_next_rec_;
+	rec_offs_init(offsets_rec_);
+	rec_offs_init(offsets_next_rec_);
 
 	n_cols = dict_index_get_n_unique(index);
 

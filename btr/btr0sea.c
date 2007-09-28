@@ -447,7 +447,7 @@ btr_search_update_hash_ref(
 	    && (block->curr_left_side == info->left_side)) {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+		rec_offs_init(offsets_);
 
 		rec = btr_cur_get_rec(cursor);
 
@@ -583,7 +583,7 @@ btr_search_check_guess(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ibool		success		= FALSE;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	n_unique = dict_index_get_n_unique_in_tree(cursor->index);
 
@@ -1160,7 +1160,7 @@ btr_search_build_page_hash_index(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(index);
 
@@ -1392,7 +1392,7 @@ btr_search_update_hash_on_delete(
 	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1503,7 +1503,7 @@ btr_search_update_hash_on_insert(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	table = btr_search_sys->hash_index;
 
@@ -1648,7 +1648,7 @@ btr_search_validate(void)
 	btr_search_latch. */
 	ulint		chunk_size = 10000;
 
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+	rec_offs_init(offsets_);
 
 	rw_lock_x_lock(&btr_search_latch);
 	mutex_enter(&buf_pool->mutex);

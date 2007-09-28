@@ -518,6 +518,18 @@ rec_get_data_size_old(
 				/* out: size */
 	const rec_t*	rec);	/* in: physical record */
 /**************************************************************
+The following function sets the number of allocated elements
+for an array of offsets. */
+UNIV_INLINE
+void
+rec_offs_set_n_alloc(
+/*=================*/
+	ulint*	offsets,	/* out: array for rec_get_offsets(),
+				must be allocated */
+	ulint	n_alloc);	/* in: number of elements */
+#define rec_offs_init(offsets) \
+	rec_offs_set_n_alloc(offsets, (sizeof offsets) / sizeof *offsets)
+/**************************************************************
 The following function returns the number of fields in a record. */
 UNIV_INLINE
 ulint
