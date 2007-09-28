@@ -22,7 +22,7 @@ Created September 22, 2007 Vasil Dimov
 Retrieves a data from a storage. If it is present, a pointer to the
 stored copy of data is returned, otherwise NULL is returned. */
 static
-void*
+const void*
 ha_storage_get(
 /*===========*/
 	ha_storage_t*	storage,	/* in: hash storage */
@@ -62,7 +62,7 @@ same data chunk is already present, then pointer to it is returned.
 Data chunks are considered to be equal if len1 == len2 and
 memcmp(data1, data2, len1) == 0. */
 
-void*
+const void*
 ha_storage_put(
 /*===========*/
 	ha_storage_t*	storage,	/* in/out: hash storage */
@@ -71,7 +71,7 @@ ha_storage_put(
 {
 	void*			raw;
 	ha_storage_node_t*	node;
-	void*			data_copy;
+	const void*		data_copy;
 	ulint			fold;
 
 	/* check if data chunk is already present */
@@ -91,7 +91,7 @@ ha_storage_put(
 	node = (ha_storage_node_t*) raw;
 	data_copy = (byte*) raw + sizeof(*node);
 
-	memcpy(data_copy, data, data_len);
+	memcpy((byte*) raw + sizeof(*node), data, data_len);
 
 	node->data_len = data_len;
 	node->data = data_copy;
@@ -107,5 +107,7 @@ ha_storage_put(
 		fold,			/* key */
 		node);			/* add this data to the hash */
 
+	/* the output should not be changed because it will spoil the
+	hash table */
 	return(data_copy);
 }

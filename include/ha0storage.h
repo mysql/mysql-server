@@ -41,7 +41,7 @@ same string is already present, then pointer to it is returned.
 Strings are considered to be equal if strcmp(str1, str2) == 0. */
 
 #define ha_storage_put_str(storage, str)	\
-	ha_storage_put((storage), (str), strlen(str) + 1)
+	((const char*) ha_storage_put((storage), (str), strlen(str) + 1))
 
 /***********************************************************************
 Copies data into the storage and returns a pointer to the copy. If the
@@ -49,7 +49,7 @@ same data chunk is already present, then pointer to it is returned.
 Data chunks are considered to be equal if len1 == len2 and
 memcmp(data1, data2, len1) == 0. */
 
-void*
+const void*
 ha_storage_put(
 /*===========*/
 	ha_storage_t*	storage,	/* in/out: hash storage */
