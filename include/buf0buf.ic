@@ -460,6 +460,26 @@ buf_page_set_accessed(
 	bpage->accessed = accessed;
 }
 
+/*************************************************************************
+Gets the buf_block_t handle of a buffered file block if an uncompressed
+page frame exists, or NULL. */
+UNIV_INLINE
+const buf_block_t*
+buf_page_get_block(
+/*===============*/
+					/* out: control block, or NULL */
+	const buf_page_t*	bpage)	/* in: control block */
+{
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
+
+	if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+		return((const buf_block_t*) bpage);
+	}
+
+	return(NULL);
+}
+
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
