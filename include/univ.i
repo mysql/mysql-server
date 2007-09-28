@@ -358,5 +358,9 @@ typedef void* os_thread_ret_t;
 	UNIV_MEM_ASSERT_W(addr, size);			\
 	UNIV_MEM_FREE(addr, size);			\
 } while (0)
+#define UNIV_MEM_ASSERT_AND_ALLOC(addr, size) do {	\
+	UNIV_MEM_ASSERT_W(addr, size);			\
+	UNIV_MEM_ALLOC(addr, size);			\
+} while (0)
 
 #endif
