@@ -1695,7 +1695,7 @@ JOIN::exec()
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
 				  select_limit, 0, 
                                   &join_tab[const_tables].table->
-                                    keys_in_use_for_order_by))))
+                                    keys_in_use_for_query))))
       order=0;
     having= tmp_having;
     select_describe(this, need_tmp,
@@ -12613,6 +12613,8 @@ find_field_in_item_list (Field *field, void *data)
 
   If we can use an index, the JOIN_TAB / tab->select struct
   is changed to use the index.
+
+  The index must cover all fields in <order>, or it will not be considered.
 
   Return:
      0 We have to use filesort to do the sorting
