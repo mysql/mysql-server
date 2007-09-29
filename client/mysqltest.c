@@ -1507,7 +1507,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     die("Failed to create temporary file for ds");
 
   /* Write ds to temporary file and set file pos to beginning*/
-  if (my_write(fd, ds->str, ds->length,
+  if (my_write(fd, (uchar *) ds->str, ds->length,
                MYF(MY_FNABP | MY_WME)) ||
       my_seek(fd, 0, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
   {
@@ -1984,9 +1984,11 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
-    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
-    "row number", ARG_STRING, TRUE, &ds_row, "Number for row",
+    {
+      "query", ARG_STRING, TRUE, &ds_query, "Query to run",
+      "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
+      "row number", ARG_STRING, TRUE, &ds_row, "Number for row"
+    }
   };
 
   DBUG_ENTER("var_set_query_get_value");
