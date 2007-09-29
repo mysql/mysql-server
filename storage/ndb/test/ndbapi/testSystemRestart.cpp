@@ -1220,6 +1220,30 @@ runBug24664(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runStopper(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 stop = 0;
+loop:
+  while (!ctx->isTestStopped() && 
+	 ((stop = ctx->getProperty("StopAbort", Uint32(0))) == 0))
+  {
+    NdbSleep_MilliSleep(30);
+  }
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_OK;
+  }
+  
+  ndbout << "Killing in " << stop << "ms..." << flush;
+  NdbSleep_MilliSleep(stop);
+  restarter.restartAll(false, true, true);
+  ctx->setProperty("StopAbort", Uint32(0));
+  goto loop;
+}
+
 int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -1229,6 +1253,7 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   NdbBackup backup(GETNDB(step)->getNodeId()+1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
+  bool all = ctx->getProperty("ALL", (unsigned)0);
 
   Uint32 i = 1;
   Uint32 backupId;
@@ -1254,11 +1279,18 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Loading records..." << startFrom << endl;
     CHECK(hugoTrans.loadTable(pNdb, startFrom) == 0);
 
-    ndbout << "Making " << nodeId << " crash" << endl;
-    int kill[] = { 9999, 1000, 3000 };
-    CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
-    CHECK(restarter.dumpStateOneNode(nodeId, kill, 3) == 0);
-
+    if (!all)
+    {
+      ndbout << "Making " << nodeId << " crash" << endl;
+      int kill[] = { 9999, 1000, 3000 };
+      CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
+      CHECK(restarter.dumpStateOneNode(nodeId, kill, 3) == 0);
+    }
+    else
+    {
+      ndbout << "Crashing cluster" << endl;
+      ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
+    }
     Uint64 end = NdbTick_CurrentMillisecond() + 4000;
     Uint32 row = startFrom;
     do {
@@ -1268,11 +1300,17 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
       row += 1000;
     } while (NdbTick_CurrentMillisecond() < end);
 
-    ndbout << "Waiting for " << nodeId << " to restart" << endl;
-    CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
-    
-    ndbout << "Restarting cluster" << endl;
-    CHECK(restarter.restartAll(false, true, true) == 0);
+    if (!all)
+    {
+      ndbout << "Waiting for " << nodeId << " to restart" << endl;
+      CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
+      ndbout << "Restarting cluster" << endl;
+      CHECK(restarter.restartAll(false, true, true) == 0);
+    }
+    else
+    {
+      ndbout << "Waiting for cluster to restart" << endl;
+    }
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
@@ -1297,7 +1335,7 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   ndbout << "runSR_DD_1 finished" << endl;  
-  
+  ctx->stopTest();
   return result;
 }
 
@@ -1311,6 +1349,7 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   NdbBackup backup(GETNDB(step)->getNodeId()+1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
+  bool all = ctx->getProperty("ALL", (unsigned)0);
 
   Uint32 i = 1;
   Uint32 backupId;
@@ -1331,10 +1370,18 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
 
     int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
     
-    ndbout << "Making " << nodeId << " crash" << endl;
-    int kill[] = { 9999, 3000, 10000 };
-    CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
-    CHECK(restarter.dumpStateOneNode(nodeId, kill, 3) == 0);
+    if (!all)
+    {
+      ndbout << "Making " << nodeId << " crash" << endl;
+      int kill[] = { 9999, 3000, 10000 };
+      CHECK(restarter.dumpStateOneNode(nodeId, val, 2) == 0);
+      CHECK(restarter.dumpStateOneNode(nodeId, kill, 3) == 0);
+    }
+    else
+    {
+      ndbout << "Crashing cluster" << endl;
+      ctx->setProperty("StopAbort", 1000 + rand() % (3000 - 1000));
+    }
 
     Uint64 end = NdbTick_CurrentMillisecond() + 11000;
     Uint32 row = startFrom;
@@ -1346,11 +1393,18 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
 	break;
     } while (NdbTick_CurrentMillisecond() < end);
     
-    ndbout << "Waiting for " << nodeId << " to restart" << endl;
-    CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
-    
-    ndbout << "Restarting cluster" << endl;
-    CHECK(restarter.restartAll(false, true, true) == 0);
+    if (!all)
+    {
+      ndbout << "Waiting for " << nodeId << " to restart" << endl;
+      CHECK(restarter.waitNodesNoStart(&nodeId, 1) == 0);
+      ndbout << "Restarting cluster" << endl;
+      CHECK(restarter.restartAll(false, true, true) == 0);
+    }
+    else
+    {
+      ndbout << "Waiting for cluster to restart" << endl;
+    }
+
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
@@ -1369,7 +1423,7 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   ndbout << "runSR_DD_2 finished" << endl;  
-  
+  ctx->stopTest();  
   return result;
 }
 
@@ -1555,11 +1609,28 @@ TESTCASE("Bug24664",
 }
 TESTCASE("SR_DD_1", "")
 {
+  TC_PROPERTY("ALL", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_1);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_1b", "")
+{
   INITIALIZER(runWaitStarted);
   STEP(runSR_DD_1);
   FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_1_LCP", "")
+{
+  TC_PROPERTY("ALL", 1);
+  TC_PROPERTY("LCP", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_1);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_1b_LCP", "")
 {
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
@@ -1568,11 +1639,28 @@ TESTCASE("SR_DD_1_LCP", "")
 }
 TESTCASE("SR_DD_2", "")
 {
+  TC_PROPERTY("ALL", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_2);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_2b", "")
+{
   INITIALIZER(runWaitStarted);
   STEP(runSR_DD_2);
   FINALIZER(runClearTable);
 }
 TESTCASE("SR_DD_2_LCP", "")
+{
+  TC_PROPERTY("ALL", 1);
+  TC_PROPERTY("LCP", 1);
+  INITIALIZER(runWaitStarted);
+  STEP(runStopper);
+  STEP(runSR_DD_2);
+  FINALIZER(runClearTable);
+}
+TESTCASE("SR_DD_2b_LCP", "")
 {
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
