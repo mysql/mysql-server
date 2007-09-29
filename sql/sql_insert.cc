@@ -3653,7 +3653,8 @@ bool select_create::send_eof()
     if (m_plock)
     {
       mysql_unlock_tables(thd, *m_plock);
-      m_plock= 0;
+      *m_plock= NULL;
+      m_plock= NULL;
     }
   }
   return tmp;
@@ -3691,7 +3692,8 @@ void select_create::abort()
   if (m_plock)
   {
     mysql_unlock_tables(thd, *m_plock);
-    m_plock= 0;
+    *m_plock= NULL;
+    m_plock= NULL;
   }
 
   if (table)
