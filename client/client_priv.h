@@ -82,7 +82,3 @@ enum options_client
   OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
   OPT_WRITE_BINLOG, OPT_MAX_CLIENT_OPTION
 };
-
-C_MODE_START
-extern int mysql_init_character_set(MYSQL *mysql);
-C_MODE_END
