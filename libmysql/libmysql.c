@@ -2526,7 +2526,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
              5 /* execution flags */];
   my_bool res;
   DBUG_ENTER("execute");
-  DBUG_DUMP("packet", packet, length);
+  DBUG_DUMP("packet", (uchar *) packet, length);
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
@@ -4702,13 +4702,13 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_ROWS *cur, **prev_ptr= &result->data;
   NET        *net;
 
+  DBUG_ENTER("cli_read_binary_rows");
+
   if (!mysql)
   {
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
     return 1;
   }
-
-  DBUG_ENTER("cli_read_binary_rows");
 
   net = &mysql->net;
   mysql= mysql->last_used_con;
