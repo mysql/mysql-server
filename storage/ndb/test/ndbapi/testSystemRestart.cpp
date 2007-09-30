@@ -1714,32 +1714,6 @@ TESTCASE("Bug29167", "")
   INITIALIZER(runWaitStarted);
   STEP(runBug29167);
 }
-TESTCASE("SR_DD_1", "")
-{
-  INITIALIZER(runWaitStarted);
-  STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
-}
-TESTCASE("SR_DD_1_LCP", "")
-{
-  TC_PROPERTY("LCP", 1);
-  INITIALIZER(runWaitStarted);
-  STEP(runSR_DD_1);
-  FINALIZER(runClearTable);
-}
-TESTCASE("SR_DD_2", "")
-{
-  INITIALIZER(runWaitStarted);
-  STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
-}
-TESTCASE("SR_DD_2_LCP", "")
-{
-  TC_PROPERTY("LCP", 1);
-  INITIALIZER(runWaitStarted);
-  STEP(runSR_DD_2);
-  FINALIZER(runClearTable);
-}
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){
