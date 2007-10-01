@@ -168,6 +168,35 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   set -e
 
   # ----------------------------------------------------------------------
+  # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
+  # i.e. makes access relative the current directory. This matches
+  # the documentation, so better not change this. And for another script,
+  # "mysql.server", we make some relative, others not.
+  # ----------------------------------------------------------------------
+
+  cd scripts
+  rm -f mysql_install_db
+  @MAKE@ mysql_install_db \
+    prefix=. \
+    bindir=./bin \
+    sbindir=./bin \
+    scriptdir=./bin \
+    libexecdir=./bin \
+    pkgdatadir=./share \
+    localstatedir=./data
+  cd ..
+
+  cd support-files
+  rm -f mysql.server
+  @MAKE@ mysql.server \
+    bindir=./bin \
+    sbindir=./bin \
+    scriptdir=./bin \
+    libexecdir=./bin \
+    pkgdatadir=@pkgdatadir@
+  cd ..
+
+  # ----------------------------------------------------------------------
   # Do a install that we later are to pack. Use the same paths as in
   # the build for the relevant directories.
   # ----------------------------------------------------------------------
