@@ -4193,22 +4193,20 @@ lock_rec_print(
 	FILE*		file,	/* in: file where to print */
 	const lock_t*	lock)	/* in: record type lock */
 {
-	buf_block_t*	block;
-	ulint		space;
-	ulint		zip_size;
-	ulint		page_no;
-	ulint		i;
-	mtr_t		mtr;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
+	const buf_block_t*	block;
+	ulint			space;
+	ulint			page_no;
+	ulint			i;
+	mtr_t			mtr;
+	mem_heap_t*		heap		= NULL;
+	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*			offsets		= offsets_;
 	rec_offs_init(offsets_);
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
 
 	space = lock->un_member.rec_lock.space;
-	zip_size = fil_space_get_zip_size(space);
 	page_no = lock->un_member.rec_lock.page_no;
 
 	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
@@ -4249,29 +4247,27 @@ lock_rec_print(
 
 	block = buf_page_try_get(space, page_no, &mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	if (block) {
-		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-	}
-#endif /* UNIV_SYNC_DEBUG */
+		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
 
-	for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+			if (lock_rec_get_nth_bit(lock, i)) {
 
-		if (lock_rec_get_nth_bit(lock, i)) {
-
-			fprintf(file, "Record lock, heap no %lu ", (ulong) i);
-
-			if (block) {
 				const rec_t*	rec
 					= page_find_rec_with_heap_no(
 						buf_block_get_frame(block), i);
 				offsets = rec_get_offsets(
 					rec, lock->index, offsets,
 					ULINT_UNDEFINED, &heap);
-				rec_print_new(file, rec, offsets);
-			}
 
-			putc('\n', file);
+				fprintf(file, "Record lock, heap no %lu ",
+					(ulong) i);
+				rec_print_new(file, rec, offsets);
+				putc('\n', file);
+			}
+		}
+	} else {
+		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+			fprintf(file, "Record lock, heap no %lu\n", (ulong) i);
 		}
 	}
 

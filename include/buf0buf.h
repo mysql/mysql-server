@@ -228,7 +228,7 @@ Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
 Suitable for using when holding the kernel mutex. */
 
-buf_block_t*
+const buf_block_t*
 buf_page_try_get_func(
 /*==================*/
 	ulint		space_id,/* in: tablespace id */
@@ -778,11 +778,11 @@ buf_page_set_accessed(
 Gets the buf_block_t handle of a buffered file block if an uncompressed
 page frame exists, or NULL. */
 UNIV_INLINE
-const buf_block_t*
+buf_block_t*
 buf_page_get_block(
 /*===============*/
-					/* out: control block, or NULL */
-	const buf_page_t*	bpage)	/* in: control block */
+				/* out: control block, or NULL */
+	buf_page_t*	bpage)	/* in: control block, or NULL */
 	__attribute__((pure));
 #ifdef UNIV_DEBUG
 /*************************************************************************
@@ -938,6 +938,16 @@ UNIV_INLINE
 buf_page_t*
 buf_page_hash_get(
 /*==============*/
+			/* out: block, NULL if not found */
+	ulint	space,	/* in: space id */
+	ulint	offset);/* in: offset of the page within space */
+/**********************************************************************
+Returns the control block of a file page, NULL if not found
+or an uncompressed page frame does not exist. */
+UNIV_INLINE
+buf_block_t*
+buf_block_hash_get(
+/*===============*/
 			/* out: block, NULL if not found */
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: offset of the page within space */
