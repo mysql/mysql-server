@@ -1558,7 +1558,7 @@ static int run_redo_phase(LSN lsn, my_bool apply)
               display_record_position(log_desc2, &rec2, 0);
               if (apply && display_and_apply_record(log_desc2, &rec2))
               {
-                translog_destroy(&scanner2);
+                translog_destroy_scanner(&scanner2);
                 goto err;
               }
             }
