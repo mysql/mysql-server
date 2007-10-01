@@ -3381,6 +3381,22 @@ int ha_partition::index_init(uint inx, bool sorted)
   */
   if (m_lock_type == F_WRLCK)
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  else if (sorted && m_table_flags & HA_PARTIAL_COLUMN_READ)
+  {
+    /*
+      An ordered scan is requested and necessary fields aren't in read_set.
+      This may happen e.g. with SELECT COUNT(*) FROM t1. We must ensure
+      that all fields of current key are included into read_set, as
+      partitioning requires them for sorting
+      (see ha_partition::handle_ordered_index_scan).
+
+      TODO: handle COUNT(*) queries via unordered scan.
+    */
+    uint i;
+    for (i= 0; i < m_curr_key_info->key_parts; i++)
+      bitmap_set_bit(table->read_set,
+                     m_curr_key_info->key_part[i].field->field_index);
+  }
   file= m_file;
   do
   {
