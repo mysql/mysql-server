@@ -5249,7 +5249,8 @@ my_bool translog_init_scanner(LSN lsn,
 {
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_init_scanner");
-  DBUG_PRINT("enter", ("LSN: (0x%lu,0x%lx)", LSN_IN_PARTS(lsn)));
+  DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (0x%lu,0x%lx)",
+                       (ulong) scanner, LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE != 0);
   DBUG_ASSERT(translog_inited == 1);
 
@@ -5289,7 +5290,10 @@ my_bool translog_init_scanner(LSN lsn,
 
 void translog_destroy_scanner(TRANSLOG_SCANNER_DATA *scanner)
 {
+  DBUG_ENTER("translog_destroy_scanner");
+  DBUG_PRINT("enter", ("Scanner: 0x%lx", (ulong)scanner));
   translog_free_link(scanner->direct_link);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5587,7 +5591,10 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
       DBUG_PRINT("info", ("use internal scanner"));
       scanner= &internal_scanner;
     }
-
+    else
+    {
+      translog_destroy_scanner(scanner);
+    }
     base_lsn= buff->groups[0].addr;
     translog_init_scanner(base_lsn, 1, scanner, scanner == &internal_scanner);
     /* first group chunk is always chunk type 2 */
