@@ -2502,8 +2502,9 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
-
   DBUG_ENTER("ha_enable_transaction");
+  DBUG_PRINT("enter", ("on: %d", (int) on));
+
   thd->transaction.on= on;
   if (on)
   {
