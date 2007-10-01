@@ -325,25 +325,17 @@ pow(cast(-2 as unsigned), 5)	pow(18446744073709551614, 5)	pow(-2, 5)
 CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					y	8	19	11	Y	32800	0	63
 y
 22201025555
 22255916666
 SELECT DISTINCT a DIV 900 y FROM t1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					y	8	19	11	Y	32800	0	63
 y
 22201025555
 22255916666
 SELECT b DIV 900 y FROM t1 GROUP BY y;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					y	8	20	1	Y	32768	0	63
 y
 0
 SELECT c DIV 900 y FROM t1 GROUP BY y;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					y	3	1	1	Y	32800	0	63
 y
 0
 DROP TABLE t1;
