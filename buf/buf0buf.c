@@ -2196,7 +2196,7 @@ Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
 Suitable for using when holding the kernel mutex. */
 
-buf_block_t*
+const buf_block_t*
 buf_page_try_get_func(
 /*==================*/
 	ulint		space_id,/* in: tablespace id */
@@ -2206,32 +2206,63 @@ buf_page_try_get_func(
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
 	buf_block_t*	block;
-	ulint		zip_size;
+	ibool		success;
+	ulint		fix_type;
 
-	ut_ad(mtr);
+	mutex_enter(&buf_pool->mutex);
+	block = buf_block_hash_get(space_id, page_no);
 
-	zip_size = fil_space_get_zip_size(space_id);
-
-	/* If the page is not in the buffer pool, we cannot load it
-	because we may have the kernel mutex and ibuf operations would
-	break the latching order */
-
-	block = buf_page_get_gen(space_id, zip_size, page_no, RW_NO_LATCH,
-				 NULL, BUF_GET_IF_IN_POOL,
-				 __FILE__, __LINE__, mtr);
-	if (block != NULL) {
-		block = buf_page_get_nowait(space_id, zip_size,
-					    page_no, RW_S_LATCH, mtr);
-
-		if (block == NULL) {
-			/* Let us try to get an X-latch. If the current thread
-			is holding an X-latch on the page, we cannot get an
-			S-latch. */
-
-			block = buf_page_get_nowait(space_id, zip_size, page_no,
-						    RW_X_LATCH, mtr);
-		}
+	if (!block) {
+		mutex_exit(&buf_pool->mutex);
+		return(NULL);
 	}
+
+	mutex_enter(&block->mutex);
+	mutex_exit(&buf_pool->mutex);
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_a(buf_block_get_space(block) == space_id);
+	ut_a(buf_block_get_page_no(block) == page_no);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+	buf_block_buf_fix_inc(block, file, line);
+	mutex_exit(&block->mutex);
+
+	fix_type = MTR_MEMO_PAGE_S_FIX;
+	success = rw_lock_s_lock_func_nowait(&block->lock, file, line);
+
+	if (!success) {
+		/* Let us try to get an X-latch. If the current thread
+		is holding an X-latch on the page, we cannot get an
+		S-latch. */
+
+		fix_type = MTR_MEMO_PAGE_X_FIX;
+		success = rw_lock_x_lock_func_nowait(&block->lock,
+						     file, line);
+	}
+
+	if (!success) {
+		mutex_enter(&block->mutex);
+		buf_block_buf_fix_dec(block);
+		mutex_exit(&block->mutex);
+
+		return(NULL);
+	}
+
+	mtr_memo_push(mtr, block, fix_type);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(block->page.buf_fix_count > 0);
+	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	ut_a(block->page.file_page_was_freed == FALSE);
+#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#ifdef UNIV_SYNC_DEBUG
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
+	buf_pool->n_page_gets++;
 
 	return(block);
 }

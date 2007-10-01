@@ -464,17 +464,18 @@ buf_page_set_accessed(
 Gets the buf_block_t handle of a buffered file block if an uncompressed
 page frame exists, or NULL. */
 UNIV_INLINE
-const buf_block_t*
+buf_block_t*
 buf_page_get_block(
 /*===============*/
-					/* out: control block, or NULL */
-	const buf_page_t*	bpage)	/* in: control block */
+				/* out: control block, or NULL */
+	buf_page_t*	bpage)	/* in: control block, or NULL */
 {
-	ut_ad(buf_page_in_file(bpage));
-	ut_ad(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
+	if (UNIV_LIKELY(bpage != NULL)) {
+		ut_ad(buf_page_in_file(bpage));
 
-	if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
-		return((const buf_block_t*) bpage);
+		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+			return((buf_block_t*) bpage);
+		}
 	}
 
 	return(NULL);
@@ -917,6 +918,20 @@ buf_page_hash_get(
 	ut_ad(!bpage || !bpage->in_zip_hash);
 
 	return(bpage);
+}
+
+/**********************************************************************
+Returns the control block of a file page, NULL if not found
+or an uncompressed page frame does not exist. */
+UNIV_INLINE
+buf_block_t*
+buf_block_hash_get(
+/*===============*/
+			/* out: block, NULL if not found */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: offset of the page within space */
+{
+	return(buf_page_get_block(buf_page_hash_get(space, offset)));
 }
 
 /************************************************************************
