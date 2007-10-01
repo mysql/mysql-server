@@ -15999,7 +15999,7 @@ static void test_bug21635()
   char *query_end;
   MYSQL_RES *result;
   MYSQL_FIELD *field;
-  unsigned int field_count, i;
+  unsigned int field_count, i, j;
   int rc;
 
   DBUG_ENTER("test_bug21635");
@@ -16015,14 +16015,20 @@ static void test_bug21635()
   myquery(rc);
   rc= mysql_query(mysql, "CREATE TABLE t1 (i INT)");
   myquery(rc);
-  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
-  myquery(rc);
+  /*
+    We need this loop to ensure correct behavior with both constant and
+    non-constant tables.
+  */
+  for (j= 0; j < 2 ; j++)
+  {
+    rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+    myquery(rc);
 
-  rc= mysql_real_query(mysql, query, query_end - query);
-  myquery(rc);
+    rc= mysql_real_query(mysql, query, query_end - query);
+    myquery(rc);
 
-  result= mysql_use_result(mysql);
-  DIE_UNLESS(result);
+    result= mysql_use_result(mysql);
+    DIE_UNLESS(result);
 
   field_count= mysql_field_count(mysql);
   for (i= 0; i < field_count; ++i)
@@ -16038,7 +16044,8 @@ static void test_bug21635()
       puts("OK");
   }
 
-  mysql_free_result(result);
+    mysql_free_result(result);
+  }
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 

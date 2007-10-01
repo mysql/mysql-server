@@ -230,12 +230,10 @@ select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
 
 CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
---enable_metadata
 SELECT a DIV 900 y FROM t1 GROUP BY y;
 SELECT DISTINCT a DIV 900 y FROM t1;
 SELECT b DIV 900 y FROM t1 GROUP BY y;
 SELECT c DIV 900 y FROM t1 GROUP BY y;
---disable_metadata
 DROP TABLE t1;
 
 CREATE TABLE t1(a LONGBLOB);
