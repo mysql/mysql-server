@@ -91,7 +91,7 @@ int safe_mutex_init(safe_mutex_t *mp,
 }
 
 
-int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
+int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line)
 {
   int error;
   if (!mp->file)
@@ -104,15 +104,50 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   }
 
   pthread_mutex_lock(&mp->global);
-  if (mp->count > 0 && pthread_equal(pthread_self(),mp->thread))
+  if (mp->count > 0)
   {
-    fprintf(stderr,"safe_mutex: Trying to lock mutex at %s, line %d, when the mutex was already locked at %s, line %d in thread %s\n",
-	    file,line,mp->file, mp->line, my_thread_name());
-    fflush(stderr);
-    abort();
+    if (try_lock)
+    {
+      pthread_mutex_unlock(&mp->global);
+      return EBUSY;
+    }
+    else if (pthread_equal(pthread_self(),mp->thread))
+    {
+      fprintf(stderr,
+              "safe_mutex: Trying to lock mutex at %s, line %d, when the"
+              " mutex was already locked at %s, line %d in thread %s\n",
+              file,line,mp->file, mp->line, my_thread_name());
+      fflush(stderr);
+      abort();
+    }
   }
   pthread_mutex_unlock(&mp->global);
-  error=pthread_mutex_lock(&mp->mutex);
+
+  /*
+    If we are imitating trylock(), we need to take special
+    precautions.
+
+    - We cannot use pthread_mutex_lock() only since another thread can
+      overtake this thread and take the lock before this thread
+      causing pthread_mutex_trylock() to hang. In this case, we should
+      just return EBUSY. Hence, we use pthread_mutex_trylock() to be
+      able to return immediately.
+
+    - We cannot just use trylock() and continue execution below, since
+      this would generate an error and abort execution if the thread
+      was overtaken and trylock() returned EBUSY . In this case, we
+      instead just return EBUSY, since this is the expected behaviour
+      of trylock().
+   */
+  if (try_lock)
+  {
+    error= pthread_mutex_trylock(&mp->mutex);
+    if (error == EBUSY)
+      return error;
+  }
+  else
+    error= pthread_mutex_lock(&mp->mutex);
+
   if (error || (error=pthread_mutex_lock(&mp->global)))
   {
     fprintf(stderr,"Got error %d when trying to lock mutex at %s, line %d\n",
