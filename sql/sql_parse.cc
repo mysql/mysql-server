@@ -878,10 +878,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     db_length= strlen(db);
 
+    char *ptr= db + db_length + 1;
     uint cs_number= 0;
 
-    if (db + db_length < packet_end)
-      cs_number= (uchar) *(db + db_length + 1);
+    if (ptr < packet_end)
+    {
+      if (ptr + 2 > packet_end)
+      {
+        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+        break;
+      }
+
+      cs_number= uint2korr(ptr);
+    }
 
     /* Convert database name to utf8 */
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
