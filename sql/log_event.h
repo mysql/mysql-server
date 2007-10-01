@@ -2300,7 +2300,7 @@ protected:
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
-  flag_set m_flags;	  /* Flags for row-level events */
+  flag_set m_flags;		/* Flags for row-level events */
 
   /* helper functions */
 
