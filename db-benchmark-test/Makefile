@@ -10,7 +10,7 @@ CFLAGS += -O2
 
 ifdef BDB
 CPPFLAGS = -I$(BDB)/include
-LDFLAGS = -L$(BDB)/lib -ldb -lpthread
+LDFLAGS = -L$(BDB)/lib -ldb -lpthread -Wl,-rpath,$(BDB)/lib
 else
 CPPFLAGS =
 LDFLAGS = -ldb
