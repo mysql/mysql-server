@@ -1032,12 +1032,14 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+#ifndef __WIN__
   const uint spin_treshold= 50000;
   const double lock_time_treshold= 0.1; /* Time in seconds */
   uint spin_count= 0;
   int lock_status= 0;
   ulong new_time= 0;
   ulong stop_time= 0;
+#endif
 
   DBUG_ENTER("Query_cache::send_result_to_client");
 
@@ -1085,6 +1087,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     }
   }
 
+#ifdef __WIN__
+  STRUCT_LOCK(&structure_guard_mutex);
+#else
   stop_time= my_clock()+(ulong)lock_time_treshold*CLOCKS_PER_SEC;
   while ((lock_status= pthread_mutex_trylock(&structure_guard_mutex)) == EBUSY
          && spin_count < spin_treshold
@@ -1107,6 +1112,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     thd->lex->safe_to_cache_query= FALSE; 
     goto err;
   }
+#endif
 
   if (query_cache_size == 0 || flush_in_progress)
   {
