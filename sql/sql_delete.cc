@@ -319,7 +319,7 @@ cleanup:
     thd->transaction.stmt.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
-  if ((error < 0) || (deleted && !transactional_table))
+  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -817,7 +817,8 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  if ((local_error == 0) || (deleted && normal_tables))
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
     {
@@ -831,7 +832,6 @@ bool multi_delete::send_eof()
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
   }
-  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
 
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
