@@ -2,7 +2,7 @@
 # build with Berkeley DB 4.1: make BDB=/usr/local/BerkeleyDB.4.1
 # build with TokuDB: make BDB=~/svn/tokudb
 
-BENCHDB = bench.db
+BENCHDBS = bench.bdb/ bench.tokudb
 
 CFLAGS = -Wall -Werror -g
 # CFLAGS += -pg
@@ -16,9 +16,14 @@ CPPFLAGS =
 LDFLAGS = -ldb
 endif
 
-TARGET = db-benchmark-test
+TARGETS = db-benchmark-test-bdb db-benchmark-test-tokudb
 
-$(TARGET):
+default: $(TARGETS)
 
 clean:
-	rm -rf $(TARGET) $(BENCHDB)
+	rm -rf $(TARGETS) $(BENCHDBS)
+
+db-benchmark-test-tokudb: db-benchmark-test.c
+	cc -Wall -Werror -g -O2  -I../include -L../lib -ldb -Wl,-rpath,../lib  $<  -o $@ -DDIRSUF=tokudb
+db-benchmark-test-bdb: db-benchmark-test.c
+	cc -Wall -Werror -g -O2                        -ldb                    $<  -o $@ -DDIRSUF=bdb

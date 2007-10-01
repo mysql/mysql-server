@@ -10,14 +10,18 @@
 #include <db.h>
 
 enum { SERIAL_SPACING = 1<<6 };
-enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<15 };
+enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
+enum { ITEMS_PER_TRANSACTION = 1<<14 };
 //enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<14 };
 enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATION };
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 
-char *dbdir = "./bench/";
+
+#define STRINGIFY2(s) #s
+#define STRINGIFY(s) STRINGIFY2(s)
+char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
 char *dbfilename = "bench.db";
 char *dbname;
 
@@ -26,18 +30,27 @@ DB *db;
 DB_TXN *tid=0;
 
 int do_transactions = 0;
+int n_insertions_since_txn_began=0;
 
 void setup (void) {
     int r;
    
-    char fullname[strlen(dbdir) + strlen("/") + strlen(dbfilename) + 1];
-    sprintf(fullname, "%s/%s", dbdir, dbfilename);
-    unlink(fullname);
+    {
+	char unlink_cmd[strlen(dbdir) + strlen("rf -rf ") + 1];
+	snprintf(unlink_cmd, sizeof(unlink_cmd), "rm -rf %s", dbdir);
+	//printf("unlink_cmd=%s\n", unlink_cmd);
+	system(unlink_cmd);
+    }
     if (strcmp(dbdir, ".") != 0)
         mkdir(dbdir, 0755);
 
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
+
+    if (dbenv->set_lk_max) {
+	r = dbenv->set_lk_max(dbenv, ITEMS_PER_TRANSACTION*2);
+	assert(r==0);
+    }
 
     if (dbenv->set_cachesize) {
         r = dbenv->set_cachesize(dbenv, 0, 128*1024*1024, 1);
@@ -62,24 +75,6 @@ void setup (void) {
     assert(r == 0);
     if (do_transactions) {
 	r=tid->commit(tid, 0);    assert(r==0);
-    }
-
-    if (do_transactions) {
-	DBT key,data;
-	
-	r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
-
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	key.data="hello";
-	key.size=6;
-	data.data="there";
-	data.size=6;
-	r=db->put(db, tid, &key, &data, 0);
-	CKERR(r);
-
-	r=tid->commit(tid, 0);    assert(r==0);
-
     }
 
 }
@@ -113,6 +108,15 @@ void insert (long long v) {
     long_long_to_array(vc, v);
     int r = db->put(db, tid, fill_dbt(&kt, kc, 8), fill_dbt(&vt, vc, 8), 0);
     CKERR(r);
+    if (do_transactions) {
+	if (n_insertions_since_txn_began>=ITEMS_PER_TRANSACTION) {
+	    n_insertions_since_txn_began=0;
+	    r = tid->commit(tid, 0); assert(r==0);
+	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	    n_insertions_since_txn_began=0;
+	}
+	n_insertions_since_txn_began++;
+    }
 }
 
 void serial_insert_from (long long from) {

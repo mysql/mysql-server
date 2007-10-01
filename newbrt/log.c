@@ -58,8 +58,8 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	printf("%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
 	logger->fd = creat(fname, O_EXCL | 0700);
 	if (logger->fd==-1) return errno;
+	logger->next_log_file_number++;
     }
-    logger->next_log_file_number++;
     if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE) {
 	struct iovec v[2];
 	v[0].iov_base = logger->buf;
@@ -73,7 +73,7 @@ int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	if (logger->n_in_file > 100<<20) {
 	    r = close(logger->fd);
 	    if (r!=0) return errno;
-	    logger->fd=0;
+	    logger->fd=-1;
 	    logger->n_in_file = 0;
 	}
     } else {
