@@ -99,7 +99,7 @@ struct __toku_db_env_internal {
 int  __toku_db_env_open (DB_ENV *env, const char *home, u_int32_t flags, int mode) {
     int r;
     notef("(%p, \"%s\", 0x%x, 0%o)\n", env, home, flags, mode);
-    env->i->dir = strdup(home);
+    env->i->dir = strdup(home);  assert(env->i->dir!=0);
     env->i->open_flags = flags;
     env->i->open_mode  = mode;
     
@@ -111,8 +111,6 @@ int  __toku_db_env_open (DB_ENV *env, const char *home, u_int32_t flags, int mod
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
 	r = tokulogger_create_and_open_logger(env->i->dir, &env->i->logger);
-    } else {
-	env->i->dir = 0;
     }
 
     return 0;
@@ -427,7 +425,7 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
 }
 
 int  __toku_db_put (DB *db, DB_TXN *txn, DBT *key, DBT *data, u_int32_t flags) {
-    int r = brt_insert(db->i->brt, key, data, db, txn->i->tokutxn);
+    int r = brt_insert(db->i->brt, key, data, db, txn ? txn->i->tokutxn : 0);
     //printf("%s:%d %d=__toku_db_put(...)\n", __FILE__, __LINE__, r);
     return r;
 }
