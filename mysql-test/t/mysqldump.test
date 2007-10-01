@@ -1577,5 +1577,19 @@ SELECT * FROM t2;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#29815: new option for suppressing last line of mysqldump:
+--echo #            "Dump completed on"
+--echo #
+
+--echo # --skip-dump-date:
+--exec $MYSQL_DUMP --skip-dump-date test | grep 'Dump completed'
+
+--echo # --dump-date:
+--exec $MYSQL_DUMP --dump-date test | grep 'Dump completed' | tr -d '[0-9]'
+
+--echo # --dump-date (default):
+--exec $MYSQL_DUMP test | grep 'Dump completed' | tr -d '[0-9]'
+
+--echo #
 --echo # End of 5.0 tests
 --echo #
