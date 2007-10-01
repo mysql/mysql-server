@@ -171,7 +171,7 @@ int  __toku_db_env_set_lk_detect (DB_ENV *env, u_int32_t detect) {
 }
 int  __toku_db_env_set_lk_max (DB_ENV *env, u_int32_t lk_max) {
   barf();
-  return 1;
+  return 0;
 }
 void __toku_db_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
     env->i->noticecall = noticecall;
@@ -241,7 +241,7 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
 
 
 int __toku_db_txn_commit (DB_TXN *txn, u_int32_t flags) {
-  notef("flags=%d\n", flags);
+  //notef("flags=%d\n", flags);
   if (!txn) return -1;
   int r = tokulogger_log_commit(txn->i->tokutxn);
   if (r!=0) return r;
@@ -259,7 +259,7 @@ static TXNID next_txn=0;
 
 int txn_begin (DB_ENV *env, DB_TXN *stxn, DB_TXN **txn, u_int32_t flags) {
   DB_TXN *result = malloc_zero(sizeof(*result));
-  notef("parent=%p flags=0x%x\n", stxn, flags);
+  //notef("parent=%p flags=0x%x\n", stxn, flags);
   result->commit = __toku_db_txn_commit;
   result->id     = __toku_db_txn_id;
   result->i      = malloc(sizeof(*result->i));
