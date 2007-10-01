@@ -563,6 +563,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      */
     Page_request_list::Head m_page_requests[MAX_FREE_LIST];
 
+    DLList<Page>::Head m_unmap_pages;
+
     /**
      * Current extent
      */
