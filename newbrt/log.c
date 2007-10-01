@@ -50,7 +50,7 @@ int tokulogger_create_and_open_logger (const char *directory, TOKULOGGER *result
 
 int tokulogger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     int r;
-    printf("%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
+    //printf("%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
     if (logger->fd==-1) {
 	int  fnamelen = strlen(logger->directory)+50;
 	char fname[fnamelen];
