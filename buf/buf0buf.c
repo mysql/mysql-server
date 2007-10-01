@@ -1937,13 +1937,8 @@ wait_until_unfixed:
 
 		if (!success) {
 			mutex_enter(&block->mutex);
-
-			block->page.buf_fix_count--;
-
+			buf_block_buf_fix_dec(block);
 			mutex_exit(&block->mutex);
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_s_unlock(&(block->debug_latch));
-#endif
 
 			return(NULL);
 		}
@@ -2056,14 +2051,9 @@ buf_page_optimistic_get_func(
 
 	if (UNIV_UNLIKELY(!success)) {
 		mutex_enter(&block->mutex);
-
-		block->page.buf_fix_count--;
-
+		buf_block_buf_fix_dec(block);
 		mutex_exit(&block->mutex);
 
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_s_unlock(&(block->debug_latch));
-#endif
 		return(FALSE);
 	}
 
@@ -2078,14 +2068,9 @@ buf_page_optimistic_get_func(
 		}
 
 		mutex_enter(&block->mutex);
-
-		block->page.buf_fix_count--;
-
+		buf_block_buf_fix_dec(block);
 		mutex_exit(&block->mutex);
 
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_s_unlock(&(block->debug_latch));
-#endif
 		return(FALSE);
 	}
 
@@ -2179,14 +2164,8 @@ buf_page_get_known_nowait(
 
 	if (!success) {
 		mutex_enter(&block->mutex);
-
-		block->page.buf_fix_count--;
-
+		buf_block_buf_fix_dec(block);
 		mutex_exit(&block->mutex);
-
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_s_unlock(&(block->debug_latch));
-#endif
 
 		return(FALSE);
 	}
