@@ -8,10 +8,9 @@
 --source include/master-slave.inc
 --source include/have_innodb.inc
 
-
-#
-# Define variables used by test case
-#
+# --disable_warnings/--enable_warnings added before/after query 
+# if one uses UUID() function because we need to avoid warnings
+# for STATEMENT binlog format
 
 # Non-transactional engine
 --let $engine_type= myisam
@@ -45,20 +44,24 @@ DROP EVENT IF EXISTS e11;
 
 --echo
 eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type;
---disable_warnings
 INSERT INTO t1 VALUES (1,1,'1');
+--disable_warnings
 INSERT INTO t1 VALUES (2,2,UUID());
-eval CREATE TABLE t2 (a INT, b INT, c VARCHAR(64)) ENGINE=$engine_type;
+--enable_warnings
+eval CREATE TABLE t2 (a INT UNIQUE, b INT, c VARCHAR(64)) ENGINE=$engine_type;
 INSERT INTO t2 VALUES (1,1,'1');
+--disable_warnings
 INSERT INTO t2 VALUES (2,2,UUID());
 --enable_warnings
 
 eval CREATE TABLE t11 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
---disable_warnings
 INSERT INTO t11 VALUES (1,1,'1');
+--disable_warnings
 INSERT INTO t11 VALUES (2,2,UUID());
-eval CREATE TABLE t12 (a INT, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
+--enable_warnings
+eval CREATE TABLE t12 (a INT UNIQUE, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
 INSERT INTO t12 VALUES (1,1,'1');
+--disable_warnings
 INSERT INTO t12 VALUES (2,2,UUID());
 --enable_warnings
 
@@ -96,22 +99,16 @@ BEGIN
 END|
 
 # Create events which will run every 1 sec
-CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND ENABLE DO
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO
 BEGIN
-  DECLARE c INT;
-  SELECT a INTO c FROM t1 WHERE a < 11 ORDER BY a DESC LIMIT 1;
-  IF c = 7 THEN
-    CALL p1(10, '');  
-  END IF;
+  ALTER EVENT e1 DISABLE;
+  CALL p1(10, '');  
 END|
 
-CREATE EVENT e11 ON SCHEDULE EVERY 1 SECOND ENABLE DO
+CREATE EVENT e11 ON SCHEDULE EVERY 1 SECOND DISABLE DO
 BEGIN
-  DECLARE c INT;
-  SELECT a INTO c FROM t11 WHERE a < 11 ORDER BY a DESC LIMIT 1;
-  IF c = 7 THEN
-    CALL p11(10, '');  
-  END IF;
+  ALTER EVENT e11 DISABLE;
+  CALL p11(10, '');  
 END|
 
 # Create functions and procedures used for events
@@ -130,12 +127,12 @@ END|
 
 CREATE PROCEDURE p1 (IN x INT, IN y VARCHAR(64))
 BEGIN
-  INSERT INTO t1 VALUES (x,x,y);
+  INSERT IGNORE INTO t1 VALUES (x,x,y);
 END|
 
 CREATE PROCEDURE p11 (IN x INT, IN y VARCHAR(64))
 BEGIN
-  INSERT INTO t11 VALUES (x,x,y);
+  INSERT IGNORE INTO t11 VALUES (x,x,y);
 END|
 
 DELIMITER ;|
@@ -147,17 +144,24 @@ DELIMITER ;|
 
 # Do some actions for non-transactional tables
 --echo
---disable_warnings
 CREATE TABLE t3 SELECT * FROM v1;
 INSERT INTO t1 VALUES (3,3,'');
 UPDATE t1 SET c='2' WHERE a = 1;
+--disable_warnings
 INSERT INTO t1 VALUES(4,4,f1(4));
+--enable_warnings
 INSERT INTO t1 VALUES (100,100,'');
+--disable_warnings
 CALL p1(5, UUID());
+--enable_warnings
 INSERT INTO t1 VALUES (101,101,'');
+--disable_warnings
 INSERT INTO t1 VALUES(6,6,f1(6));
+--enable_warnings
 INSERT INTO t1 VALUES (102,102,'');
+--disable_warnings
 INSERT INTO t1 VALUES(7,7,f2(7));
+--enable_warnings
 INSERT INTO t1 VALUES (103,103,'');
 
 # Do some actions for transactional tables
@@ -165,21 +169,34 @@ INSERT INTO t1 VALUES (103,103,'');
 CREATE TABLE t13 SELECT * FROM v11;
 INSERT INTO t11 VALUES (3,3,'');
 UPDATE t11 SET c='2' WHERE a = 1;
+--disable_warnings
 INSERT INTO t11 VALUES(4,4,f1(4));
-INSERT INTO t11 VALUES (100,100,'');
-CALL p11(5, UUID());
-INSERT INTO t11 VALUES (101,101,'');
-INSERT INTO t11 VALUES(6,6,f1(6));
-INSERT INTO t11 VALUES (102,102,'');
-INSERT INTO t11 VALUES(7,7,f2(7));
-INSERT INTO t11 VALUES (103,103,'');
 --enable_warnings
+INSERT INTO t11 VALUES (100,100,'');
+--disable_warnings
+CALL p11(5, UUID());
+--enable_warnings
+INSERT INTO t11 VALUES (101,101,'');
+--disable_warnings
+INSERT INTO t11 VALUES(6,6,f1(6));
+--enable_warnings
+INSERT INTO t11 VALUES (102,102,'');
+--disable_warnings
+INSERT INTO t11 VALUES(7,7,f2(7));
+--enable_warnings
+INSERT INTO t11 VALUES (103,103,'');
 
 # Scheduler is on
 --echo
+# Temporally events fire sequentally due Bug#29020.
 SET GLOBAL EVENT_SCHEDULER = on;
-# Wait 2 sec while events will executed
---sleep 2
+# Wait while events will executed
+ALTER EVENT e1 ENABLE;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t1 WHERE t1.a = 10;
+--source include/wait_condition.inc
+ALTER EVENT e11 ENABLE;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t11 WHERE t11.a = 10;
+--source include/wait_condition.inc
 SET GLOBAL EVENT_SCHEDULER = off;
 
 # Check original objects
@@ -234,7 +251,7 @@ SELECT COUNT(*) FROM t13;
 SELECT a,b FROM t13 ORDER BY a;
 SELECT a,b FROM v11 ORDER BY a;
 
-# Remove UUID() before comparing
+# Remove UUID() before comparing and sort tables
 
 --connection master
 --echo
@@ -244,6 +261,9 @@ UPDATE t3 SET c='';
 UPDATE t11 SET c='';
 UPDATE t12 SET c='';
 UPDATE t13 SET c='';
+
+ALTER TABLE t3 ORDER BY a;
+ALTER TABLE t13 ORDER BY a;
 
 --sync_slave_with_master slave
 
@@ -260,13 +280,12 @@ UPDATE t13 SET c='';
 
 # Remove dumps
 --echo
---exec rm $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_master.sql
---exec rm $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_slave.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_invoked_features_slave.sql
 
 # Remove tables,views,procedures,functions
 --connection master
 --echo
---disable_warnings
 DROP VIEW IF EXISTS v1,v11;
 DROP TABLE IF EXISTS t1,t2,t3,t11,t12,t13;
 DROP PROCEDURE IF EXISTS p1;
@@ -275,7 +294,6 @@ DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
 DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
---enable_warnings
 
 --sync_slave_with_master slave
 
