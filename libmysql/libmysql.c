@@ -736,8 +736,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 
   if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    *end= (uchar) mysql->charset->number;
-    ++end;
+    int2store(end, (ushort) mysql->charset->number);
+    end+= 2;
   }
 
   /* Write authentication package */
