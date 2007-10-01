@@ -1633,7 +1633,6 @@ btr_search_validate(void)
 /*=====================*/
 				/* out: TRUE if ok */
 {
-	buf_block_t*	block;
 	page_t*		page;
 	ha_node_t*	node;
 	ulint		n_page_dumps	= 0;
@@ -1669,18 +1668,17 @@ btr_search_validate(void)
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
 		for (; node != NULL; node = node->next) {
+			const buf_block_t*	block;
+
 			page = page_align(node->data);
 			{
 				ulint	page_no	= page_get_page_no(page);
 				ulint	space_id= page_get_space_id(page);
 
-				block = (buf_block_t*)
-					buf_page_hash_get(space_id, page_no);
+				block = buf_block_hash_get(space_id, page_no);
 			}
 
-			if (UNIV_UNLIKELY(!block)
-			    || UNIV_UNLIKELY(buf_block_get_state(block)
-					     != BUF_BLOCK_FILE_PAGE)) {
+			if (UNIV_UNLIKELY(!block)) {
 
 				/* The block is most probably being freed.
 				The function buf_LRU_search_and_free_block()
@@ -1694,7 +1692,7 @@ btr_search_validate(void)
 				continue;
 			}
 
-			offsets = rec_get_offsets((rec_t*) node->data,
+			offsets = rec_get_offsets((const rec_t*) node->data,
 						  block->index, offsets,
 						  block->curr_n_fields
 						  + (block->curr_n_bytes > 0),
