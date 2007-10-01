@@ -632,7 +632,7 @@ typedef struct st_maria_s_param
 /* Used to store reference to pinned page */
 typedef struct st_pinned_page
 {
-  PAGECACHE_PAGE_LINK link;
+  PAGECACHE_BLOCK_LINK *link;
   enum pagecache_page_lock unlock;
 } MARIA_PINNED_PAGE;
 
@@ -842,7 +842,7 @@ typedef struct st_maria_block_info
 #define UPDATE_AUTO_INC		8
 #define UPDATE_OPEN_COUNT	16
 
-#define USE_BUFFER_INIT		(((1024L*512L-MALLOC_OVERHEAD)/IO_SIZE)*IO_SIZE)
+#define USE_BUFFER_INIT		(((1024L*1024L*10-MALLOC_OVERHEAD)/8192)*8192)
 #define READ_BUFFER_INIT	(1024L*256L-MALLOC_OVERHEAD)
 #define SORT_BUFFER_INIT	(2048L*1024L-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
@@ -906,7 +906,7 @@ my_bool _ma_check_status(void *param);
 void _ma_reset_status(MARIA_HA *maria);
 #include "ma_commit.h"
 
-extern MARIA_HA *_ma_test_if_reopen(char *filename);
+extern MARIA_HA *_ma_test_if_reopen(const char *filename);
 my_bool _ma_check_table_is_closed(const char *name, const char *where);
 int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, File file_to_dup);
 int _ma_open_keyfile(MARIA_SHARE *share);

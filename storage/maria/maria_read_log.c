@@ -17,7 +17,6 @@
 #include "ma_recovery.h"
 #include <my_getopt.h>
 
-#define PCACHE_SIZE (1024*1024*10)
 #define LOG_FLAGS 0
 #define LOG_FILE_SIZE (1024L*1024L)
 
@@ -30,7 +29,8 @@ const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
 const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
-static my_bool opt_only_display, opt_display_and_apply;
+static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent;
+static ulong opt_page_buffer_size;
 
 int main(int argc, char **argv)
 {
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
   }
   /* same page cache for log and data; assumes same page size... */
   DBUG_ASSERT(maria_block_size == TRANSLOG_PAGE_SIZE);
-  if (init_pagecache(maria_pagecache, PCACHE_SIZE, 0, 0,
+  if (init_pagecache(maria_pagecache, opt_page_buffer_size, 0, 0,
                      TRANSLOG_PAGE_SIZE) == 0)
   {
     fprintf(stderr, "Got error in init_pagecache() (errno: %d)\n", errno);
@@ -100,8 +100,8 @@ int main(int argc, char **argv)
           LSN_IN_PARTS(lsn));
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_display_and_apply, stdout,
-                      opt_display_and_apply, FALSE))
+  if (maria_apply_log(lsn, opt_apply, opt_silent ? NULL : stdout,
+                      opt_apply_undo, FALSE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname);
 
@@ -121,19 +121,32 @@ end:
 
 static struct my_option my_long_options[] =
 {
+  {"apply", 'a',
+   "Apply log to tables. Will display a lot of information if not run with --silent",
+   (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"only-display", 'o', "display brief info about records's header",
    (uchar **) &opt_only_display, (uchar **) &opt_only_display, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
-  {"display-and-apply", 'a',
-   "like --only-display but displays more info and modifies tables",
-   (uchar **) &opt_display_and_apply, (uchar **) &opt_display_and_apply, 0,
+  { "page_buffer_size", 'P', "",
+    (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
+    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
+    (long) MALLOC_OVERHEAD, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
+    (long) IO_SIZE, 0},
+  {"silent", 's', "Print less information during apply/undo phase",
+   (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
+  {"undo", 'u', "Apply undos to tables. (disable with --disable-undo)",
+   (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"version", 'V', "Print version and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -141,7 +154,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.0 for %s on %s\n",
+  VOID(printf("%s Ver 1.1 for %s on %s\n",
               my_progname, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
@@ -174,6 +187,9 @@ get_one_option(int optid __attribute__((unused)),
   case '?':
     usage();
     exit(0);
+  case 'V':
+    print_version();
+    exit(0);
 #ifndef DBUG_OFF
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
@@ -192,7 +208,10 @@ static void get_options(int *argc,char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if ((opt_only_display + opt_display_and_apply) != 1)
+  if (opt_apply_undo)
+    opt_apply= 1;
+
+  if ((opt_only_display + opt_apply) != 1)
   {
     usage();
     exit(1);

@@ -363,7 +363,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     read_ok(&rec);
     translog_free_record_header(&rec);
     lsn= first_lsn;
-    if (translog_init_scanner(first_lsn, 1, &scanner))
+    if (translog_init_scanner(first_lsn, 1, &scanner, 0))
     {
       fprintf(stderr, "scanner init failed\n");
       goto err;

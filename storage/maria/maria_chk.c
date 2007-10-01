@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
 enum options_mc {
   OPT_CHARSETS_DIR=256, OPT_SET_COLLATION,OPT_START_CHECK_POS,
-  OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE,
+  OPT_CORRECT_CHECKSUM, OPT_PAGE_BUFFER_SIZE,
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MARIA_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
@@ -296,7 +296,7 @@ static struct my_option my_long_options[] =
   {"wait", 'w',
    "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
+  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE, "",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},

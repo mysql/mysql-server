@@ -640,22 +640,25 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor)
     translog_filename_by_fileno()
     file_no              Number of the log we want to open
     path                 Pointer to buffer where file name will be
-                         stored (must be FN_REFLEN bytes at least
+                         stored (must be FN_REFLEN bytes at least)
   RETURN
     pointer to path
 */
 
 static char *translog_filename_by_fileno(uint32 file_no, char *path)
 {
-  char file_name[10 + 8 + 1];           /* See fallowing my_sprintf() call */
-  char *res;
+  char buff[11], *end;
+  uint length;
   DBUG_ENTER("translog_filename_by_fileno");
   DBUG_ASSERT(file_no <= 0xfffffff);
-  my_sprintf(file_name, (file_name, "maria_log.%08u", file_no));
-  res= fn_format(path, file_name, log_descriptor.directory, "", MYF(MY_WME));
-  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx  res: 0x%lx",
-                      res, (ulong) path, (ulong) res));
-  DBUG_RETURN(res);
+
+  /* log_descriptor.directory is already formated */
+  end= strxmov(path, log_descriptor.directory, "maria_log.0000000", NullS);
+  length= (uint) (int10_to_str(file_no, buff, 10) - buff);
+  strmov(end-length+1, buff);
+
+  DBUG_PRINT("info", ("Path: '%s'  path: 0x%lx", path, (ulong) path));
+  DBUG_RETURN(path);
 }
 
 
@@ -986,9 +989,10 @@ static void translog_mark_file_finished(uint32 file)
 {
   int i;
   struct st_file_counter *fc_ptr;
-
   DBUG_ENTER("translog_mark_file_finished");
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
+
+  LINT_INIT(fc_ptr);
 
   pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
@@ -2296,21 +2300,21 @@ my_bool translog_unlock()
 }
 
 
-/*
-  Get log page by file number and offset of the beginning of the page
+/**
+  @brief Get log page by file number and offset of the beginning of the page
 
-  SYNOPSIS
-    translog_get_page()
-    data                 validator data, which contains the page address
-    buffer               buffer for page placing
+  @param data            validator data, which contains the page address
+  @param buffer          buffer for page placing
                          (might not be used in some cache implementations)
+  @param direct_link     if it is not NULL then caller can accept direct
+                         link to the page cache
 
-  RETURN
-    NULL - Error
-    #      pointer to the page cache which should be used to read this page
+  @retval NULL Error
+  @retval #    pointer to the page cache which should be used to read this page
 */
 
-static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
+static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
+                                PAGECACHE_BLOCK_LINK **direct_link)
 {
   TRANSLOG_ADDRESS addr= *(data->addr), in_buffers;
   uint cache_index;
@@ -2324,6 +2328,9 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
   /* it is really page address */
   DBUG_ASSERT(LSN_OFFSET(addr) % TRANSLOG_PAGE_SIZE == 0);
 
+  if (direct_link)
+    *direct_link= NULL;
+
   in_buffers= translog_only_in_buffers();
   DBUG_PRINT("info", ("in_buffers: (%lu,0x%lx)",
                       LSN_IN_PARTS(in_buffers)));
@@ -2336,7 +2343,9 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
     if (cmp_translog_addr(addr, in_buffers) >= 0)
     {
       uint16 buffer_no= log_descriptor.bc.buffer_no;
+#ifndef DBUG_OFF
       uint16 buffer_start= buffer_no;
+#endif
       struct st_translog_buffer *buffer_unlock= log_descriptor.bc.buffer;
       struct st_translog_buffer *curr_buffer= log_descriptor.bc.buffer;
       for (;;)
@@ -2437,13 +2446,23 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
     }
     file.file= log_descriptor.log_file_num[cache_index];
 
-    buffer= (uchar*)
-      pagecache_valid_read(log_descriptor.pagecache, &file,
-                           LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
-                           3, (char*) buffer,
-                           PAGECACHE_PLAIN_PAGE,
-                           PAGECACHE_LOCK_LEFT_UNLOCKED, 0,
-                           &translog_page_validator, (uchar*) data);
+    buffer=
+      (uchar*) (direct_link ?
+                pagecache_valid_read(log_descriptor.pagecache, &file,
+                                     LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
+                                     3, NULL,
+                                     PAGECACHE_PLAIN_PAGE,
+                                     PAGECACHE_LOCK_READ, direct_link,
+                                     &translog_page_validator, (uchar*) data) :
+                pagecache_valid_read(log_descriptor.pagecache, &file,
+                                     LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
+                                     3, (char*) buffer,
+                                     PAGECACHE_PLAIN_PAGE,
+                                     PAGECACHE_LOCK_LEFT_UNLOCKED, direct_link,
+                                     &translog_page_validator, (uchar*) data));
+    DBUG_PRINT("info", ("Direct link is assigned to : 0x%lx * 0x%lx",
+                        (ulong) direct_link,
+                        (ulong)(direct_link ? *direct_link : NULL)));
   }
   else
   {
@@ -2468,6 +2487,24 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer)
   DBUG_RETURN(buffer);
 }
 
+/**
+  @brief free direct log page link
+
+  @param direct_link the direct log page link to be freed
+
+*/
+
+static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
+{
+  DBUG_ENTER("translog_free_link");
+  DBUG_PRINT("info", ("Direct link: 0x%lx",
+                      (ulong) direct_link));
+  if (direct_link)
+    pagecache_unlock_by_link(log_descriptor.pagecache, direct_link,
+                             PAGECACHE_LOCK_READ_UNLOCK, PAGECACHE_UNPIN,
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE);
+  DBUG_VOID_RETURN;
+}
 
 /*
   Finds last page of the given log file
@@ -2796,7 +2833,7 @@ my_bool translog_init(const char *directory,
         TRANSLOG_VALIDATOR_DATA data;
         uchar buffer[TRANSLOG_PAGE_SIZE], *page;
         data.addr= &current_page;
-        if ((page= translog_get_page(&data, buffer)) == NULL)
+        if ((page= translog_get_page(&data, buffer, NULL)) == NULL)
           DBUG_RETURN(1);
         if (data.was_recovered)
         {
@@ -2848,7 +2885,7 @@ my_bool translog_init(const char *directory,
       /* continue old log */
       DBUG_ASSERT(LSN_FILE_NO(last_valid_page)==
                   LSN_FILE_NO(log_descriptor.horizon));
-      if ((page= translog_get_page(&data, buffer)) == NULL ||
+      if ((page= translog_get_page(&data, buffer, NULL)) == NULL ||
           (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
         DBUG_RETURN(1);
 
@@ -5153,24 +5190,54 @@ static my_bool translog_scanner_set_last_page(TRANSLOG_SCANNER_DATA
 }
 
 
-/*
-  Initialize reader scanner
+/**
+  @brief Get page from page cache according to requested method
 
-  SYNOPSIS
-    translog_init_scanner()
-    lsn                  LSN with which it have to be inited
-    fixed_horizon        true if it is OK do not read records which was written
+  @param scanner         The scanner data
+
+  @return operation status
+  @retval 0 OK
+  @retval 1 Error
+*/
+
+static my_bool
+translog_scanner_get_page(TRANSLOG_SCANNER_DATA *scanner)
+{
+  TRANSLOG_VALIDATOR_DATA data;
+  DBUG_ENTER("translog_scanner_get_page");
+  data.addr= &scanner->page_addr;
+  data.was_recovered= 0;
+  DBUG_RETURN((scanner->page=
+               translog_get_page(&data, scanner->buffer,
+                                 (scanner->use_direct_link ?
+                                  &scanner->direct_link :
+                                  NULL))) ==
+               NULL);
+}
+
+
+/**
+  @brief Initialize reader scanner.
+
+  @param lsn             LSN with which it have to be inited
+  @param fixed_horizon   true if it is OK do not read records which was written
                          after scanning beginning
-    scanner              scanner which have to be inited
+  @param scanner         scanner which have to be inited
+  @param use_direct      prefer using direct lings from page handler
+                         where it is possible.
 
-  RETURN
-    0  OK
-    1  Error
+  @note If direct link was used translog_destroy_scanner should be
+        called after it using
+
+  @return status of the operation
+  @retval 0 OK
+  @retval 1 Error
 */
 
 my_bool translog_init_scanner(LSN lsn,
                               my_bool fixed_horizon,
-                              struct st_translog_scanner_data *scanner)
+                              TRANSLOG_SCANNER_DATA *scanner,
+                              my_bool use_direct)
 {
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_init_scanner");
@@ -5184,6 +5251,8 @@ my_bool translog_init_scanner(LSN lsn,
   scanner->page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
 
   scanner->fixed_horizon= fixed_horizon;
+  scanner->use_direct_link= use_direct;
+  scanner->direct_link= NULL;
 
   scanner->horizon= translog_get_horizon();
   DBUG_PRINT("info", ("horizon: (0x%lu,0x%lx)",
@@ -5198,9 +5267,21 @@ my_bool translog_init_scanner(LSN lsn,
   if (translog_scanner_set_last_page(scanner))
     DBUG_RETURN(1);
 
-  if ((scanner->page= translog_get_page(&data, scanner->buffer)) == NULL)
+  if (translog_scanner_get_page(scanner))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Destroy scanner object;
+
+  @param scanner         The scanner object to destroy
+*/
+
+void translog_destroy_scanner(TRANSLOG_SCANNER_DATA *scanner)
+{
+  translog_free_link(scanner->direct_link);
 }
 
 
@@ -5298,7 +5379,6 @@ static my_bool translog_scanner_eof(TRANSLOG_SCANNER_DATA *scanner)
               scanner->last_file_page);
 }
 
-
 /*
   Move scanner to the next chunk
 
@@ -5315,7 +5395,6 @@ static my_bool
 translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
 {
   uint16 len;
-  TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_get_next_chunk");
 
   if ((len= translog_get_total_chunk_length(scanner->page,
@@ -5331,6 +5410,8 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
   }
   if (translog_scanner_eop(scanner))
   {
+    /* before reading next page we should unpin current one if it was pinned */
+    translog_free_link(scanner->direct_link);
     if (translog_scanner_eof(scanner))
     {
       DBUG_PRINT("info", ("horizon: (%lu,0x%lx)  pageaddr: (%lu,0x%lx)",
@@ -5350,9 +5431,7 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
       scanner->page_addr+= TRANSLOG_PAGE_SIZE; /* offset increased */
     }
 
-    data.addr= &scanner->page_addr;
-    data.was_recovered= 0;
-    if ((scanner->page= translog_get_page(&data, scanner->buffer)) == NULL)
+    if (translog_scanner_get_page(scanner))
       DBUG_RETURN(1);
 
     scanner->page_offset= translog_get_first_chunk_offset(scanner->page);
@@ -5482,7 +5561,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
       {
         DBUG_PRINT("info", ("use internal scanner for header reading"));
         scanner= &internal_scanner;
-        if (translog_init_scanner(buff->lsn, 1, scanner))
+        if (translog_init_scanner(buff->lsn, 1, scanner, 0))
           DBUG_RETURN(RECHEADER_READ_ERROR);
       }
       if (translog_get_next_chunk(scanner))
@@ -5502,13 +5581,15 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
     }
 
     base_lsn= buff->groups[0].addr;
-    translog_init_scanner(base_lsn, 1, scanner);
+    translog_init_scanner(base_lsn, 1, scanner, scanner == &internal_scanner);
     /* first group chunk is always chunk type 2 */
     page= scanner->page;
     page_offset= scanner->page_offset;
     src= page + page_offset + 1;
     page_rest= TRANSLOG_PAGE_SIZE - (src - page);
     body_len= page_rest;
+    if (scanner == &internal_scanner)
+      translog_destroy_scanner(scanner);
   }
   if (lsns)
   {
@@ -5615,6 +5696,7 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
 {
   uchar buffer[TRANSLOG_PAGE_SIZE], *page;
   translog_size_t res, page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
+  PAGECACHE_BLOCK_LINK *direct_link;
   TRANSLOG_ADDRESS addr;
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_read_record_header");
@@ -5628,8 +5710,10 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
   data.was_recovered= 0;
   addr= lsn;
   addr-= page_offset; /* offset decreasing */
-  res= (!(page= translog_get_page(&data, buffer))) ? RECHEADER_READ_ERROR :
+  res= (!(page= translog_get_page(&data, buffer, &direct_link))) ?
+    RECHEADER_READ_ERROR :
     translog_read_record_header_from_buffer(page, page_offset, buff, 0);
+  translog_free_link(direct_link);
   DBUG_RETURN(res);
 }
 
@@ -5774,8 +5858,9 @@ static my_bool translog_record_read_next_chunk(struct st_translog_reader_data
     data->current_group++;
     data->current_chunk= 0;
     DBUG_PRINT("info", ("skip to group: #%u", data->current_group));
+    translog_destroy_scanner(&data->scanner);
     translog_init_scanner(data->header.groups[data->current_group].addr,
-                          1, &data->scanner);
+                          1, &data->scanner, 1);
   }
   else
   {
@@ -5794,7 +5879,8 @@ static my_bool translog_record_read_next_chunk(struct st_translog_reader_data
     DBUG_ASSERT(data->header.groups_no - 1 == data->current_group);
     DBUG_ASSERT(data->header.lsn ==
                 data->scanner.page_addr + data->scanner.page_offset);
-    translog_init_scanner(data->header.chunk0_data_addr, 1, &data->scanner);
+    translog_destroy_scanner(&data->scanner);
+    translog_init_scanner(data->header.chunk0_data_addr, 1, &data->scanner, 1);
     data->chunk_size= data->header.chunk0_data_len;
     data->body_offset= data->scanner.page_offset;
     data->current_offset= new_current_offset;
@@ -5844,7 +5930,7 @@ static my_bool translog_init_reader_data(LSN lsn,
 {
   int read_header;
   DBUG_ENTER("translog_init_reader_data");
-  if (translog_init_scanner(lsn, 1, &data->scanner) ||
+  if (translog_init_scanner(lsn, 1, &data->scanner, 1) ||
       ((read_header=
         translog_read_record_header_scan(&data->scanner, &data->header, 1))
        == RECHEADER_READ_ERROR))
@@ -5865,13 +5951,23 @@ static my_bool translog_init_reader_data(LSN lsn,
 }
 
 
+/**
+  @brief Destroy reader data object
+*/
+
+static void translog_destroy_reader_data(struct st_translog_reader_data *data)
+{
+  translog_destroy_scanner(&data->scanner);
+}
+
+
 /*
   Read a part of the record.
 
   SYNOPSIS
     translog_read_record_header()
     lsn                  log record serial number (address of the record)
-    offset               From the beginning of the record beginning (readÂ§
+    offset               From the beginning of the record beginning (read
                          by translog_read_record_header).
     length               Length of record part which have to be read.
     buffer               Buffer where to read the record part (have to be at
@@ -5924,7 +6020,10 @@ translog_size_t translog_read_record(LSN lsn,
     memcpy(buffer, data->header.header + offset, len);
     length-= len;
     if (length == 0)
+    {
+      translog_destroy_reader_data(data);
       DBUG_RETURN(requested_length);
+    }
     offset+= len;
     buffer+= len;
     DBUG_PRINT("info",
@@ -5952,7 +6051,10 @@ translog_size_t translog_read_record(LSN lsn,
               (offset - data->current_offset), len);
       length-= len;
       if (length == 0)
+      {
+        translog_destroy_reader_data(data);
         DBUG_RETURN(requested_length);
+      }
       offset+= len;
       buffer+= len;
       DBUG_PRINT("info",
@@ -5961,7 +6063,10 @@ translog_size_t translog_read_record(LSN lsn,
                   (ulong) length));
     }
     if (translog_record_read_next_chunk(data))
+    {
+      translog_destroy_reader_data(data);
       DBUG_RETURN(requested_length - length);
+    }
   }
 }
 
@@ -6624,6 +6729,7 @@ LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
 {
   uint chunk_type;
   TRANSLOG_SCANNER_DATA scanner;
+  LSN result;
   DBUG_ENTER("translog_next_LSN");
 
   if (horizon == LSN_IMPOSSIBLE)
@@ -6632,7 +6738,7 @@ LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
   if (addr == horizon)
     DBUG_RETURN(LSN_IMPOSSIBLE);
 
-  translog_init_scanner(addr, 0, &scanner);
+  translog_init_scanner(addr, 0, &scanner, 1);
 
   chunk_type= scanner.page[scanner.page_offset] & TRANSLOG_CHUNK_TYPE;
   DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
@@ -6647,9 +6753,13 @@ LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
     DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
                         (uint) scanner.page[scanner.page_offset]));
   }
+
   if (scanner.page[scanner.page_offset] == 0)
-    DBUG_RETURN(LSN_IMPOSSIBLE); /* reached page filler */
-  DBUG_RETURN(scanner.page_addr + scanner.page_offset);
+    result= LSN_IMPOSSIBLE; /* reached page filler */
+  else
+    result= scanner.page_addr + scanner.page_offset;
+  translog_destroy_scanner(&scanner);
+  DBUG_RETURN(result);
 }
 
 /**
@@ -6681,7 +6791,7 @@ LSN translog_first_lsn_in_log()
   data.addr= &addr;
   {
     uchar buffer[TRANSLOG_PAGE_SIZE];
-    if ((page= translog_get_page(&data, buffer)) == NULL ||
+    if ((page= translog_get_page(&data, buffer, NULL)) == NULL ||
         (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
       DBUG_RETURN(LSN_ERROR);
   }
@@ -6719,7 +6829,7 @@ LSN translog_first_theoretical_lsn()
 
   addr= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* the first page of the file */
   data.addr= &addr;
-  if ((page= translog_get_page(&data, buffer)) == NULL)
+  if ((page= translog_get_page(&data, buffer, NULL)) == NULL)
     DBUG_RETURN(LSN_ERROR);
 
   DBUG_RETURN(MAKE_LSN(1, TRANSLOG_PAGE_SIZE +
