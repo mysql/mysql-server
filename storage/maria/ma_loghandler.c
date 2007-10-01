@@ -5185,6 +5185,14 @@ static my_bool translog_scanner_set_last_page(TRANSLOG_SCANNER_DATA
                                               *scanner)
 {
   my_bool page_ok;
+  if (LSN_FILE_NO(scanner->page_addr) == LSN_FILE_NO(scanner->horizon))
+  {
+    /* It is last file => we can easy find last page address by horizon */
+    uint pagegrest= LSN_OFFSET(scanner->horizon) % TRANSLOG_PAGE_SIZE;
+    scanner->last_file_page= (scanner->horizon -
+                              (pagegrest ? pagegrest : TRANSLOG_PAGE_SIZE));
+    return (0);
+  }
   scanner->last_file_page= scanner->page_addr;
   return (translog_get_last_page_addr(&scanner->last_file_page, &page_ok));
 }
