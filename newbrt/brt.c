@@ -157,35 +157,6 @@ int kvpair_compare (const void *av, const void *bv) {
     return r;
 }
 
-#if 0
-/* in a leaf, they are already sorted because they are in a PMA */ 
-static void brtleaf_make_sorted_kvpairs (BRTNODE node, KVPAIR *pairs, int *n_pairs) {
-    int n_entries = mdict_n_entries(node->mdicts[0]);
-    KVPAIR result=my_calloc(n_entries, sizeof(*result));
-    int resultcounter=0;
-    assert(node->n_children==0 && node->height==0);
-    MDICT_ITERATE(node->mdicts[0], key, keylen, data, datalen, ({
-	result[resultcounter].key    = key;
-	result[resultcounter].keylen = keylen;
-	result[resultcounter].val    = data;
-	result[resultcounter].vallen = datalen;
-	resultcounter++;
-    }));
-    assert(resultcounter==n_entries);
-    qsort(result, resultcounter, sizeof(*result), kvpair_compare);
-    *pairs = result;
-    *n_pairs = resultcounter;
-//    {
-//	innt i;
-//	printf("Sorted pairs (sizeof *result=%d):\n", sizeof(*result));
-//	for (i=0; i<resultcounter; i++) {
-//	    printf(" %s\n", result[i].key);
-//	}
-//	    
-//    }
-}
-#endif
-
 /* Forgot to handle the case where there is something in the freelist. */
 diskoff malloc_diskblock_header_is_in_memory (BRT brt, int size) {
     diskoff result = brt->h->unused_memory;
@@ -462,61 +433,6 @@ void find_heaviest_child (BRTNODE node, int *childnum) {
     *childnum = max_child;
     if (0) printf("\n");
 }
-
-#if 0
-void find_heaviest_data (BRTNODE node, int *childnum_ret, KVPAIR *pairs_ret, int *n_pairs_ret) {
-    int child_weights[node->n_children];
-    int child_counts[node->n_children];
-    int i;
-    for (i=0; i<node->n_children; i++) child_weights[i] = child_counts[i] = 0;
-
-    HASHTABLE_ITERATE(node->hashtable, key, keylen, data __attribute__((__unused__)), datalen,
-		      ({
-			int cnum;
-			for (cnum=0; cnum<node->n_children-1; cnum++) {
-			  if (keycompare(key, keylen, node->childkeys[cnum], node->childkeylens[cnum])<=0) 
-			    break;
-			}
-			child_weights[cnum] += keylen + datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-			child_counts[cnum]++;
-		      }));
-    {
-	int maxchild=0, maxchildweight=child_weights[0];
-	for (i=1; i<node->n_children; i++) {
-	    if (maxchildweight<child_weights[i]) {
-		maxchildweight=child_weights[i];
-		maxchild = i;
-	    }
-	}
-	/* Now we know the maximum child. */
-	{
-	    int maxchildcount = child_counts[maxchild];
-	    KVPAIR pairs = my_calloc(maxchildcount, sizeof(*pairs));
-	    {
-		int pairs_count=0;
-		HASHTABLE_ITERATE(node->hashtable, key, keylen, data, datalen, ({
-		    int cnum;
-		    for (cnum=0; cnum<node->n_children-1; cnum++) {
-			if (keycompare(key, keylen, node->childkeys[cnum], node->childkeylens[cnum])<=0) 
-			    break;
-		    }
-		    if (cnum==maxchild) {
-			pairs[pairs_count].key = key;
-			pairs[pairs_count].keylen = keylen;
-			pairs[pairs_count].val = data;
-			pairs[pairs_count].vallen = datalen;
-			pairs_count++;
-		    }
-		}));
-	    }
-	    /* Now we have the pairs. */
-	    *childnum_ret = maxchild;
-	    *pairs_ret = pairs;
-	    *n_pairs_ret = maxchildcount;
-	}
-    }
-}
-#endif
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
@@ -1618,20 +1534,6 @@ int verify_brt (BRT brt) {
     if ((r = unpin_brt_header(brt))!=0) return r;
     return 0;
 }
-
-#if 0
-void brt_fsync (BRT brt) {
-    int r = cachetable_fsync(brt->cachetable);
-    assert(r==0);
-    r = fsync(brt->fd);
-    assert(r==0);
-}
-
-void brt_flush (BRT brt) {
-    int r = cachetable_flush(brt->cachetable, brt);
-    assert(r==0);
-}
-#endif
 
 int brt_flush_debug = 0;
 
