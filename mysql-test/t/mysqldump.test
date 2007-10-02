@@ -1582,13 +1582,16 @@ DROP TABLE t1,t2;
 --echo #
 
 --echo # --skip-dump-date:
---exec $MYSQL_DUMP --skip-dump-date test | grep 'Dump completed'
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*//
+--exec $MYSQL_DUMP --skip-dump-date test
 
 --echo # --dump-date:
---exec $MYSQL_DUMP --dump-date test | grep 'Dump completed' | tr -d '[0-9]'
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// /[0-9]+/x/
+--exec $MYSQL_DUMP --dump-date test
 
 --echo # --dump-date (default):
---exec $MYSQL_DUMP test | grep 'Dump completed' | tr -d '[0-9]'
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// /[0-9]+/x/
+--exec $MYSQL_DUMP test
 
 --echo #
 --echo # End of 5.0 tests

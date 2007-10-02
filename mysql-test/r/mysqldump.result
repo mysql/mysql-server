@@ -3548,11 +3548,23 @@ DROP TABLE t1,t2;
 #            "Dump completed on"
 #
 # --skip-dump-date:
+--
+
+
+
 -- Dump completed
 # --dump-date:
--- Dump completed on -- ::
+--
+
+
+
+-- Dump completed on x-x-x x:x:x
 # --dump-date (default):
--- Dump completed on -- ::
+--
+
+
+
+-- Dump completed on x-x-x x:x:x
 #
 # End of 5.0 tests
 #
