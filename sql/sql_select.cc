@@ -15493,7 +15493,7 @@ TABLE_LIST::print_index_hint(THD *thd, String *str,
   List_iterator_fast<String> li(indexes);
   String *idx;
   bool first= 1;
-  int find_length= strlen(primary_key_name);
+  size_t find_length= strlen(primary_key_name);
 
   str->append (' ');
   str->append (hint, hint_length);
