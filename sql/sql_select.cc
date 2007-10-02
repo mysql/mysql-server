@@ -15493,6 +15493,7 @@ TABLE_LIST::print_index_hint(THD *thd, String *str,
   List_iterator_fast<String> li(indexes);
   String *idx;
   bool first= 1;
+  int find_length= strlen(primary_key_name);
 
   str->append (' ');
   str->append (hint, hint_length);
@@ -15503,8 +15504,15 @@ TABLE_LIST::print_index_hint(THD *thd, String *str,
       first= 0;
     else
       str->append(',');
-    if (!my_strcasecmp (system_charset_info, idx->c_ptr_safe(), 
-                        primary_key_name))
+    /* 
+      It's safe to use ptr() here because we compare the length first
+      and we rely that my_strcasecmp will not access more than length()
+      chars from the string. See test_if_string_in_list() for similar
+      implementation.
+    */   
+    if (find_length == idx->length() &&
+        !my_strcasecmp (system_charset_info, primary_key_name, 
+                        idx->ptr()))
       str->append(primary_key_name);
     else
       append_identifier (thd, str, idx->ptr(), idx->length());
