@@ -749,6 +749,8 @@ public:
     collation= args[0]->collation;
     max_length= args[0]->max_length;
     decimals=args[0]->decimals; 
+    /* The item could be a NULL constant. */
+    null_value= args[0]->null_value;
   }
 };
 
