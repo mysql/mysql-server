@@ -869,7 +869,12 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     child_did_split = 0;
     r = brtnode_put_cmd(t, child, cmd,
                         &child_did_split, &childa, &childb, &childsplitk, debug, txn);
-    assert(r == 0);
+    if (r != 0) {
+        /* putting to the child failed for some reason, so unpin the child and return the error code */
+        int rr = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
+        assert(rr == 0);
+        return r;
+    }
     if (child_did_split) {
         if (0) printf("brt_nonleaf_insert child_split %p\n", child);
         assert(cmd->type == BRT_INSERT || cmd->type == BRT_DELETE);
@@ -881,8 +886,8 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
                                   k->app_private, db, txn);
         assert(r == 0);
     } else {
-        r = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
-        assert(r == 0);
+        int rr = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
+        assert(rr == 0);
     }
     return r;
 }
