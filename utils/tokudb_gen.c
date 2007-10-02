@@ -8,6 +8,8 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include "tokudb_common.h"
+
 extern char* optarg;
 extern int optind;
 extern int optopt;
@@ -26,15 +28,19 @@ char           dbt_delimiter  = '\n';
 char           sort_delimiter[2];
 char*          progname;
 bool           plaintext      = false;
-long           lengthmin      = -1;
-long           lengthlimit    = -1;
-int64_t        numkeys        = -1;
+uint32_t       lengthmin      = 0;
+bool           set_lengthmin  = false;
+uint32_t       lengthlimit    = 0;
+bool           set_lengthlimit= false;
+uint64_t       numkeys        = 0;
+bool           set_numkeys    = false;
 bool           header         = true;
 bool           footer         = true;
 bool           justheader     = false;
 bool           justfooter     = false;
 bool           outputkeys     = true;
-unsigned long  seed           = 1;
+uint32_t       seed           = 1;
+bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
 
@@ -123,53 +129,39 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('r'): {
-            char* test;
-            
-            seed = strtol(optarg, &test, 10);
-            if (optarg[0] == '\0' || *test != '\0') {              
+            if (strtouint32(optarg, &seed, 0, UINT32_MAX, 10)) {
                fprintf(stderr,
                        "%s: %s: (-r) Random seed invalid.",
                        progname, optarg);
             }
+            set_seed = true;
             break;
          }
          case ('m'): {
-            char* test;
-            
-            if (optarg[0] == '\0' ||
-               (lengthmin = strtol(optarg, &test, 10)) < 0 ||
-               *test != '\0')
-            {              
+            if (strtouint32(optarg, &lengthmin, 0, UINT32_MAX, 10)) {
                fprintf(stderr,
                        "%s: %s: (-m) Min length of keys/values invalid.",
                        progname, optarg);
             }
+            set_lengthmin = true;
             break;
          }
          case ('M'): {
-            char* test;
-            
-            if (optarg[0] == '\0' ||
-               (lengthlimit = strtol(optarg, &test, 10)) < 0 ||
-               *test != '\0')
-            {              
+            if (strtouint32(optarg, &lengthlimit, 1, UINT32_MAX, 10)) {
                fprintf(stderr,
                        "%s: %s: (-M) Limit of key/value length invalid.",
                        progname, optarg);
             }
+            set_lengthlimit = true;
             break;
          }
          case ('n'): {
-            char* test;
-            
-            if (optarg[0] == '\0' ||
-               (numkeys = strtoll(optarg, &test, 10)) <= 0 ||
-               *test != '\0')
-            {              
+            if (strtouint64(optarg, &numkeys, 0, UINT64_MAX, 10)) {
                fprintf(stderr,
                        "%s: %s: (-n) Number of keys to generate invalid.",
                        progname, optarg);
             }
+            set_numkeys = true;
             break;
          }
          case ('?'):
@@ -226,26 +218,26 @@ int main (int argc, char *argv[]) {
       }
    }
    if (justfooter || justheader) outputkeys = false;
-   else if (numkeys == -1)
+   else if (!set_numkeys)
    {
       fprintf(stderr,
               "%s: The -n option is required.\n",
               progname);
       return usage();
    }
-   if (outputkeys && seed == 1) {
+   if (outputkeys && !set_seed) {
       fprintf(stderr,
               "%s: Using default seed.  (-r 1).\n",
               progname);
       seed = 1;
    }
-   if (outputkeys && lengthmin == -1) {
+   if (outputkeys && !set_lengthmin) {
       fprintf(stderr,
               "%s: Using default lengthmin.  (-m 0).\n",
               progname);
       lengthmin = 0;
    }
-   if (outputkeys && lengthlimit == -1) {
+   if (outputkeys && !set_lengthlimit) {
       fprintf(stderr,
               "%s: Using default lengthlimit.  (-M 1024).\n",
               progname);
@@ -301,11 +293,11 @@ uint8_t randbyte()
    return retval;
 }
 
-/* Almost-uniformly random int from [0,max) */
-int32_t random_below(int32_t max)
+/* Almost-uniformly random int from [0,limit) */
+int32_t random_below(int32_t limit)
 {
-   assert(max > 0);
-   return random() % max;
+   assert(limit > 0);
+   return random() % limit;
 }
 
 void outputbyte(uint8_t ch)
@@ -330,8 +322,8 @@ void outputstring(char* str)
 void generate_keys()
 {
    bool     usedemptykey   = false;
-   int64_t  numgenerated   = 0;
-   int64_t  totalsize      = 0;
+   uint64_t  numgenerated   = 0;
+   uint64_t  totalsize      = 0;
    char     identifier[24]; /* 8 bytes * 2 = 16; 16+1=17; 17+null terminator = 18. Extra padding. */
    int      length;
    int      i;
