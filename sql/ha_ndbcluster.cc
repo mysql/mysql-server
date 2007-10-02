@@ -1643,6 +1643,30 @@ int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const uchar *re
   DBUG_RETURN(0);
 }
 
+bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
+{
+  KEY* key_info= table->key_info + keyno;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  uint i;
+  DBUG_ENTER("check_index_fields_in_write_set");
+
+  if (m_retrieve_all_fields)
+  {
+    DBUG_RETURN(true);
+  }
+  for (i= 0; key_part != end; key_part++, i++)
+  {
+    Field* field= key_part->field;
+    if (field->query_id != current_thd->query_id)
+    {
+      DBUG_RETURN(false);
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
 int ha_ndbcluster::set_index_key_from_record(NdbOperation *op, 
                                              const uchar *record, uint keyno)
 {
@@ -1961,8 +1985,8 @@ check_null_in_record(const KEY* key_info, const uchar *record)
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const uchar *record,
-				     bool check_pk)
+int ha_ndbcluster::peek_indexed_rows(const byte *record, 
+                                     NDB_WRITE_OP write_op)
 {
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
@@ -2721,7 +2745,7 @@ int ha_ndbcluster::write_row(uchar *record)
       start_bulk_insert will set parameters to ensure that each
       write_row is committed individually
     */
-    int peek_res= peek_indexed_rows(record, TRUE);
+    int peek_res= peek_indexed_rows(record, NDB_INSERT);
     
     if (!peek_res) 
     {
@@ -2965,7 +2989,8 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
                            thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
-    int peek_res= peek_indexed_rows(new_data, pk_update);
+    NDB_WRITE_OP write_op= (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
+    int peek_res= peek_indexed_rows(new_data, write_op);
     
     if (!peek_res) 
     {
