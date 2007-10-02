@@ -19,8 +19,8 @@ typedef struct cachefile *CACHEFILE;
  * Note: The cachetable should use a common pool of memory, flushing things across cachetables.
  *  (The first implementation doesn't)
  * If you pin something twice, you must unpin it twice.
- * table_size is the initial size of the cache table hash table
- * size limit is the upper bound of the sum of size of the entries in the cache table
+ * table_size is the initial size of the cache table hash table (in number of entries)
+ * size limit is the upper bound of the sum of size of the entries in the cache table (total number of bytes)
  */
 int create_cachetable_size(CACHETABLE */*result*/, int table_size, long size_limit);
 
@@ -33,10 +33,10 @@ typedef int (*cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void **value, lo
 
 /* Error if already present.  On success, pin the value. */
 int cachetable_put_size(CACHEFILE cf, CACHEKEY key, void* value, long size,
-                    cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
+			cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 int cachetable_get_and_pin_size(CACHEFILE, CACHEKEY, void**/*value*/, long *sizep,
-                            cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
+				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 /* If the the item is already in memory, then return 0 and store it in the void**.
  * If the item is not in memory, then return nonzero. */
@@ -62,7 +62,7 @@ int cachefile_fd (CACHEFILE);
 void cachetable_print_state (CACHETABLE ct);
 void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
 int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
-                         int *dirty_ptr, long long *pin_ptr, long *size_ptr);
+			     int *dirty_ptr, long long *pin_ptr, long *size_ptr);
 
 // Compat, will be removed
 static inline int create_cachetable (CACHETABLE *result, int table_size) {
