@@ -634,7 +634,7 @@ static void write_footer(FILE *sql_file)
                 time_str);
       }
       else
-        fprintf(sql_file, "-- Dump completed");
+        fprintf(sql_file, "-- Dump completed\n");
     }
     check_io(sql_file);
   }
