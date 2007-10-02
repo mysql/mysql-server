@@ -2003,7 +2003,7 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
 
 static LSN parse_checkpoint_record(LSN lsn)
 {
-  uint i;
+  ulong i;
   TRANSLOG_HEADER_BUFFER rec;
 
   tprint(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
@@ -2087,9 +2087,9 @@ static LSN parse_checkpoint_record(LSN lsn)
   }
 
   /* dirty pages */
-  uint nb_dirty_pages= uint4korr(ptr);
-  ptr+= 4;
-  tprint(tracef, "%u dirty pages\n", nb_dirty_pages);
+  ulong nb_dirty_pages= uint8korr(ptr);
+  ptr+= 8;
+  tprint(tracef, "%lu dirty pages\n", nb_dirty_pages);
   if (hash_init(&all_dirty_pages, &my_charset_bin, nb_dirty_pages,
                 offsetof(struct st_dirty_page, file_and_page_id),
                 sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),

@@ -3898,7 +3898,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
                                                   LSN *min_rec_lsn)
 {
   my_bool error= 0;
-  uint stored_list_size= 0;
+  ulong stored_list_size= 0;
   uint file_hash;
   char *ptr;
   LSN minimum_rec_lsn= LSN_MAX;
@@ -3941,8 +3941,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     }
   }
 
-  compile_time_assert(sizeof(pagecache->blocks) <= 4);
-  str->length= 4 + /* number of dirty pages */
+  compile_time_assert(sizeof(pagecache->blocks) <= 8);
+  str->length= 8 + /* number of dirty pages */
     (4 + /* file */
      4 + /* pageno */
      LSN_STORE_SIZE /* rec_lsn */
@@ -3950,8 +3950,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   if (NULL == (str->str= my_malloc(str->length, MYF(MY_WME))))
     goto err;
   ptr= str->str;
-  int4store(ptr, stored_list_size);
-  ptr+= 4;
+  int8store(ptr, (ulonglong)stored_list_size);
+  ptr+= 8;
   if (!stored_list_size)
     goto end;
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
