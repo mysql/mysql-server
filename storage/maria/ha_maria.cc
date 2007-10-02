@@ -2185,6 +2185,9 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       error;
       ?
     Why fool the user?
+    Shouldn't this test be pushed down to maria_create()? Because currently,
+    ma_test1 -T crashes: it creates a table with DYNAMIC_RECORD but has
+    born_transactional==1, which confuses some recovery-related code.
   */
 #endif
   create_info.transactional= (row_type == BLOCK_RECORD &&

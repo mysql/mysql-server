@@ -78,10 +78,10 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,uchar **sort_keys,
 static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile,BUFFPEK *buffpek,
                                          uint sort_length);
 static int NEAR_F write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,
-                                  char *key, uint sort_length, uint count);
+                                  uchar *key, uint sort_length, uint count);
 static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 					 IO_CACHE *to_file,
-					 char* key, uint sort_length,
+					 uchar* key, uint sort_length,
 					 uint count);
 static inline int
 my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
@@ -858,16 +858,15 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
 
 static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
-					 IO_CACHE *to_file,char* key,
+					 IO_CACHE *to_file, uchar* key,
                                          uint sort_length, uint count)
 {
   uint idx;
-
-  char *bufs = key;
+  uchar *bufs = key;
   for (idx=1;idx<=count;idx++)
   {
     int err;
-    if ((err= my_var_write(info,to_file, (uchar*) bufs)))
+    if ((err= my_var_write(info, to_file, bufs)))
       return (err);
     bufs=bufs+sort_length;
   }
@@ -876,10 +875,10 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 
 
 static int NEAR_F write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
-				  IO_CACHE *to_file, char* key,
+				  IO_CACHE *to_file, uchar* key,
 				  uint sort_length, uint count)
 {
-  return my_b_write(to_file,(uchar*) key,(uint) sort_length*count);
+  return my_b_write(to_file, key, (uint) sort_length * count);
 }
 
 /*

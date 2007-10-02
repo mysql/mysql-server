@@ -64,14 +64,15 @@ int maria_delete_all_rows(MARIA_HA *info)
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DELETE_ALL,
                                        info->trn, info, 0,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data) ||
+                                       log_array, log_data, NULL) ||
                  translog_flush(lsn)))
       goto err;
   }
 
   /*
     For recovery it matters that this is called after writing the log record,
-    so that resetting state.records actually happens under log's mutex.
+    so that resetting state.records and state.checksum actually happens under
+    log's mutex.
   */
   _ma_reset_status(info);
 
@@ -147,10 +148,6 @@ void _ma_reset_status(MARIA_HA *info)
   info->state->key_file_length= share->base.keystart;
   info->state->data_file_length= 0;
   info->state->empty= info->state->key_empty= 0;
-  /**
-     @todo RECOVERY BUG
-     the line below must happen under log's mutex when writing the REDO
-  */
   info->state->checksum= 0;
 
   /* Drop the delete key chain. */

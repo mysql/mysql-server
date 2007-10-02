@@ -3941,7 +3941,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     }
   }
 
-  compile_time_assert(sizeof(pagecache->blocks == 4));
+  compile_time_assert(sizeof(pagecache->blocks) <= 4);
   str->length= 4 + /* number of dirty pages */
     (4 + /* file */
      4 + /* pageno */
@@ -3963,8 +3963,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     {
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
-      compile_time_assert((4 == sizeof(block->hash_link->file.file)));
-      compile_time_assert((4 == sizeof(block->hash_link->pageno)));
+      compile_time_assert(sizeof(block->hash_link->file.file) <= 4);
+      compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
       int4store(ptr, block->hash_link->file.file);
       ptr+= 4;
       int4store(ptr, block->hash_link->pageno);

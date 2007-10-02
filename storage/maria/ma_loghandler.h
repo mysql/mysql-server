@@ -48,6 +48,7 @@ typedef uint16 SHORT_TRANSACTION_ID;
 
 struct st_maria_info;
 
+/* Changing one of the "SIZE" below will break backward-compatibility! */
 /* Length of CRC at end of pages */
 #define CRC_LENGTH 4
 /* Size of file id in logs */
@@ -57,16 +58,23 @@ struct st_maria_info;
 /* Size of page ranges in log */
 #define PAGERANGE_STORE_SIZE ROW_EXTENT_COUNT_SIZE
 #define DIRPOS_STORE_SIZE 1
+#define CLR_TYPE_STORE_SIZE 1
+/* If table has live checksum we store its changes in UNDOs */
+#define HA_CHECKSUM_STORE_SIZE 4
 
 /* Store methods to match the above sizes */
 #define fileid_store(T,A) int2store(T,A)
 #define page_store(T,A)   int5store(T,A)
 #define dirpos_store(T,A) ((*(uchar*) (T)) = A)
 #define pagerange_store(T,A) int2store(T,A)
+#define clr_type_store(T,A) ((*(uchar*) (T)) = A)
+#define ha_checksum_store(T,A) int4store(T,A)
 #define fileid_korr(P) uint2korr(P)
 #define page_korr(P)   uint5korr(P)
 #define dirpos_korr(P) ((P)[0])
 #define pagerange_korr(P) uint2korr(P)
+#define clr_type_korr(P) ((P)[0])
+#define ha_checksum_korr(P) uint4korr(P)
 
 /*
   Length of disk drive sector size (we assume that writing it
@@ -230,7 +238,8 @@ translog_write_record(LSN *lsn, enum translog_record_type type,
                       struct st_transaction *trn,
                       struct st_maria_info *tbl_info,
                       translog_size_t rec_len, uint part_no,
-                      LEX_STRING *parts_data, uchar *store_share_id);
+                      LEX_STRING *parts_data, uchar *store_share_id,
+                      void *hook_arg);
 
 extern void translog_destroy();
 
@@ -299,12 +308,11 @@ struct st_translog_parts
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
                                      TRN *trn, struct st_maria_info *tbl_info,
-                                     struct st_translog_parts *parts);
+                                     void *hook_arg);
 
 typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
                                     TRN *trn, struct st_maria_info *tbl_info,
-                                    LSN *lsn,
-                                    struct st_translog_parts *parts);
+                                    LSN *lsn, void *hook_arg);
 
 typedef uint16(*read_rec_hook) (enum translog_record_type type,
                                 uint16 read_length, uchar *read_buff,

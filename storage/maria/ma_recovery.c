@@ -50,6 +50,7 @@ static LSN current_group_end_lsn,
 static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
 static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
+static ulonglong now; /**< for tracking execution time of phases */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -312,8 +313,12 @@ end:
   log_record_buffer.length= 0;
   if (tracef != stdout && redo_phase_message_printed)
   {
+    ulonglong old_now= now;
+    now= my_getsystime();
+    float previous_phase_took= (now - old_now)/10000000.0;
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "\n");
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds)\n", previous_phase_took);
   }
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -1211,12 +1216,25 @@ prototype_redo_exec_hook(UNDO_ROW_INSERT)
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
     return 0;
+  MARIA_SHARE *share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
     tprint(tracef, "   state older than record, updating rows' count\n");
-    info->s->state.state.records++;
-    /** @todo RECOVERY BUG Also update the table's checksum */
+    share->state.state.records++;
+    if (share->calc_checksum)
+    {
+      uchar buff[HA_CHECKSUM_STORE_SIZE];
+      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                               PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+                               HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
+          HA_CHECKSUM_STORE_SIZE)
+      {
+        tprint(tracef, "Failed to read record\n");
+        return 1;
+      }
+      share->state.state.checksum+= ha_checksum_korr(buff);
+    }
     /**
        @todo some bits below will rather be set when executing UNDOs related
        to keys
@@ -1234,15 +1252,29 @@ prototype_redo_exec_hook(UNDO_ROW_DELETE)
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
     return 0;
+  MARIA_SHARE *share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
     tprint(tracef, "   state older than record, updating rows' count\n");
-    info->s->state.state.records--;
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    share->state.state.records--;
+    if (share->calc_checksum)
+    {
+      uchar buff[HA_CHECKSUM_STORE_SIZE];
+      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                               PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+                               HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
+          HA_CHECKSUM_STORE_SIZE)
+      {
+        tprint(tracef, "Failed to read record\n");
+        return 1;
+      }
+      share->state.state.checksum+= ha_checksum_korr(buff);
+    }
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
-  tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   return 0;
 }
 
@@ -1252,10 +1284,24 @@ prototype_redo_exec_hook(UNDO_ROW_UPDATE)
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
     return 0;
+  MARIA_SHARE *share= info->s;
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    if (share->calc_checksum)
+    {
+      uchar buff[HA_CHECKSUM_STORE_SIZE];
+      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                               PAGE_STORE_SIZE + DIRPOS_STORE_SIZE,
+                               HA_CHECKSUM_STORE_SIZE, buff, NULL) !=
+          HA_CHECKSUM_STORE_SIZE)
+      {
+        tprint(tracef, "Failed to read record\n");
+        return 1;
+      }
+      share->state.state.checksum+= ha_checksum_korr(buff);
+    }
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
   return 0;
@@ -1306,33 +1352,46 @@ prototype_redo_exec_hook(CLR_END)
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
   if (info == NULL)
     return 0;
+  MARIA_SHARE *share= info->s;
   LSN previous_undo_lsn= lsn_korr(rec->header);
   enum translog_record_type undone_record_type=
-    (rec->header)[LSN_STORE_SIZE + FILEID_STORE_SIZE];
+    clr_type_korr(rec->header + LSN_STORE_SIZE + FILEID_STORE_SIZE);
   const LOG_DESC *log_desc= &log_record_type_descriptor[undone_record_type];
 
   set_undo_lsn_for_active_trans(rec->short_trid, previous_undo_lsn);
   tprint(tracef, "   CLR_END was about %s, undo_lsn now LSN (%lu,0x%lx)\n",
          log_desc->name, LSN_IN_PARTS(previous_undo_lsn));
-  if (cmp_translog_addr(rec->lsn, info->s->state.is_of_horizon) >= 0)
+  if (cmp_translog_addr(rec->lsn, share->state.is_of_horizon) >= 0)
   {
     tprint(tracef, "   state older than record, updating rows' count\n");
+    if (share->calc_checksum)
+    {
+      uchar buff[HA_CHECKSUM_STORE_SIZE];
+      if (translog_read_record(rec->lsn, LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                               CLR_TYPE_STORE_SIZE, HA_CHECKSUM_STORE_SIZE,
+                               buff, NULL) != HA_CHECKSUM_STORE_SIZE)
+      {
+        tprint(tracef, "Failed to read record\n");
+        return 1;
+      }
+      share->state.state.checksum+= ha_checksum_korr(buff);
+    }
     switch (undone_record_type) {
     case LOGREC_UNDO_ROW_DELETE:
-      info->s->state.state.records++;
+      share->state.state.records++;
       break;
     case LOGREC_UNDO_ROW_INSERT:
-      info->s->state.state.records--;
+      share->state.state.records--;
       break;
     case LOGREC_UNDO_ROW_UPDATE:
       break;
     default:
       DBUG_ASSERT(0);
     }
-    info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+    share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
       STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
   }
-  tprint(tracef, "   rows' count %lu\n", (ulong)info->s->state.state.records);
+  tprint(tracef, "   rows' count %lu\n", (ulong)share->state.state.records);
   return 0;
 }
 
@@ -1353,12 +1412,33 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT)
     */
     return 1;
   }
-  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+  MARIA_SHARE *share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
     STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
+
+  const uchar *record_ptr= rec->header;
+  if (share->calc_checksum)
+  {
+    /*
+      We need to read more of the record to put the checksum into the record
+      buffer used by _ma_apply_undo_row_insert().
+      If the table has no live checksum, rec->header will be enough.
+    */
+    enlarge_buffer(rec);
+    if (log_record_buffer.str == NULL ||
+        translog_read_record(rec->lsn, 0, rec->record_length,
+                             log_record_buffer.str, NULL) !=
+        rec->record_length)
+    {
+      tprint(tracef, "Failed to read record\n");
+      return 1;
+    }
+    record_ptr= log_record_buffer.str;
+  }
 
   info->trn= trn;
   error= _ma_apply_undo_row_insert(info, previous_undo_lsn,
-                                   rec->header + LSN_STORE_SIZE +
+                                   record_ptr + LSN_STORE_SIZE +
                                    FILEID_STORE_SIZE);
   info->trn= 0;
   /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
@@ -1378,7 +1458,8 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
   if (info == NULL)
     return 1;
 
-  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+  MARIA_SHARE *share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
     STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
 
   enlarge_buffer(rec);
@@ -1405,8 +1486,7 @@ prototype_undo_exec_hook(UNDO_ROW_DELETE)
                                     PAGE_STORE_SIZE + DIRPOS_STORE_SIZE));
   info->trn= 0;
   tprint(tracef, "   rows' count %lu\n   undo_lsn now LSN (%lu,0x%lx)\n",
-         (ulong)info->s->state.state.records,
-         LSN_IN_PARTS(previous_undo_lsn));
+         (ulong)share->state.state.records, LSN_IN_PARTS(previous_undo_lsn));
   return error;
 }
 
@@ -1419,8 +1499,8 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
 
   if (info == NULL)
     return 1;
-
-  info->s->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
+  MARIA_SHARE *share= info->s;
+  share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED |
     STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES;
 
   enlarge_buffer(rec);
@@ -1634,7 +1714,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 
   hash_free(&all_dirty_pages);
   /*
-    hash_free() can be called multiple times probably, but be safe it that
+    hash_free() can be called multiple times probably, but be safe if that
     changes
   */
   bzero(&all_dirty_pages, sizeof(all_dirty_pages));
@@ -1652,11 +1732,8 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
     LSN gslsn= all_active_trans[sid].group_start_lsn;
     TRN *trn;
     if (gslsn != LSN_IMPOSSIBLE)
-    {
       tprint(tracef, "Group at LSN (%lu,0x%lx) short_trid %u aborted\n",
              LSN_IN_PARTS(gslsn), sid);
-      ALERT_USER();
-    }
     if (all_active_trans[sid].undo_lsn != LSN_IMPOSSIBLE)
     {
       char llbuf[22];
@@ -1734,8 +1811,12 @@ static int run_undo_phase(uint unfinished)
   {
     if (tracef != stdout)
     {
+      ulonglong old_now= now;
+      now= my_getsystime();
+      float previous_phase_took= (now - old_now)/10000000.0;
       /** @todo RECOVERY BUG all prints to stderr should go to error log */
-      fprintf(stderr, " 100%%; transactions to roll back:");
+      fprintf(stderr, " 100%% (%.1f seconds); transactions to roll back:",
+              previous_phase_took);
     }
     tprint(tracef, "%u transactions will be rolled back\n", unfinished);
     for( ; ; )
@@ -2070,8 +2151,11 @@ static int close_all_tables(void)
   tprint(tracef, "Closing all tables\n");
   if (tracef != stdout && redo_phase_message_printed)
   {
+    ulonglong old_now= now;
+    now= my_getsystime();
+    float previous_phase_took= (now - old_now)/10000000.0;
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "; flushing tables");
+    fprintf(stderr, " (%.1f seconds); flushing tables", previous_phase_took);
   }
 
   /*
@@ -2141,6 +2225,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
     fprintf(stderr, "Maria engine: starting recovery; recovered pages: 0%%");
     redo_phase_message_printed= TRUE;
+    now= my_getsystime();
   }
   if (end_logno == FILENO_IMPOSSIBLE)
   {
@@ -2166,7 +2251,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 }
 
 #ifdef MARIA_EXTERNAL_LOCKING
-#error Maria's Checkpoint and Recovery are really not ready for it
+#error Marias Checkpoint and Recovery are really not ready for it
 #endif
 
 /*

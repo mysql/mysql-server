@@ -266,7 +266,7 @@ static int really_execute_checkpoint(void)
                                        &dummy_transaction_object, NULL,
                                        total_rec_length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL) ||
+                                       log_array, NULL, NULL) ||
                  translog_flush(lsn)))
       goto err;
 
@@ -652,7 +652,7 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
       break;
 #if 0 /* good for testing, to do a lot of checkpoints, finds a lot of bugs */
     pthread_mutex_unlock(&LOCK_checkpoint);
-    my_sleep(100000); // a tenth of a second
+    my_sleep(100000); /* a tenth of a second */
     pthread_mutex_lock(&LOCK_checkpoint);
 #else
     /* To have a killable sleep, we use timedwait like our SQL GET_LOCK() */
@@ -893,7 +893,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
 
     filter_param.pages_covered_by_bitmap= share->bitmap.pages_covered;
     /* OS file descriptors are ints which we stored in 4 bytes */
-    compile_time_assert(sizeof(int) == 4);
+    compile_time_assert(sizeof(int) <= 4);
     pthread_mutex_lock(&share->intern_lock);
     /*
       Tables in a normal state have their two file descriptors open.

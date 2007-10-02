@@ -5602,11 +5602,10 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       record).
     */
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    uchar log_data[LSN_STORE_SIZE];
+    uchar log_data[FILEID_STORE_SIZE + 4];
     LSN lsn;
-    compile_time_assert(LSN_STORE_SIZE >= (FILEID_STORE_SIZE + 4));
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= FILEID_STORE_SIZE + 4;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
       testflag gives an idea of what REPAIR did (in particular T_QUICK
       or not: did it touch the data file or not?).
@@ -5614,10 +5613,9 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     int4store(log_data + FILEID_STORE_SIZE, param->testflag);
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
-                                       log_array[TRANSLOG_INTERNAL_PARTS +
-                                                 0].length,
+                                       sizeof(log_data),
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data) ||
+                                       log_array, log_data, NULL) ||
                  translog_flush(lsn)))
       return 1;
     /*

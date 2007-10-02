@@ -64,7 +64,7 @@ int ma_commit(TRN *trn)
   res= (translog_write_record(&commit_lsn, LOGREC_COMMIT,
                               trn, NULL, 0,
                               sizeof(log_array)/sizeof(log_array[0]),
-                              log_array, NULL) ||
+                              log_array, NULL, NULL) ||
         translog_flush(commit_lsn) ||
         trnman_commit_trn(trn));
   /*

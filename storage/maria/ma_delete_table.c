@@ -92,7 +92,7 @@ int maria_delete_table(const char *name)
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL) ||
+                                       log_array, NULL, NULL) ||
                  translog_flush(lsn)))
       DBUG_RETURN(1);
   }

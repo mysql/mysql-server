@@ -193,3 +193,28 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header, size_t length);
 my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header, size_t length);
+
+my_bool write_hook_for_redo(enum translog_record_type type,
+                            TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                            void *hook_arg);
+my_bool write_hook_for_undo(enum translog_record_type type,
+                            TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                            void *hook_arg);
+my_bool write_hook_for_redo_delete_all(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg);
+my_bool write_hook_for_undo_row_insert(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg);
+my_bool write_hook_for_undo_row_delete(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg);
+my_bool write_hook_for_undo_row_update(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg);
+my_bool write_hook_for_clr_end(enum translog_record_type type,
+                               TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                               void *hook_arg);
+my_bool write_hook_for_file_id(enum translog_record_type type,
+                               TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
+                               void *hook_arg);
