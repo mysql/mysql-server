@@ -844,6 +844,48 @@ static unsigned int brtnode_which_child (BRTNODE node , DBT *k, BRT t, DB *db) {
     return node->u.n.n_children-1;
 }
 
+static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
+			              int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
+                                      DBT *splitk, int debug, TOKUTXN txn, int childnum, int maybe) {
+    int r;
+    void *child_v;
+    BRTNODE child;
+    int child_did_split;
+    BRTNODE childa, childb;
+    DBT childsplitk;
+
+    *did_split = 0;
+
+    if (maybe) 
+        r = cachetable_maybe_get_and_pin(t->cf, node->u.n.children[childnum], &child_v);
+    else 
+        r = cachetable_get_and_pin(t->cf, node->u.n.children[childnum], &child_v,
+                                   brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)t->h->nodesize);
+    if (r != 0)
+        return r;
+
+    child = child_v;
+
+    child_did_split = 0;
+    r = brtnode_put_cmd(t, child, cmd,
+                        &child_did_split, &childa, &childb, &childsplitk, debug, txn);
+    assert(r == 0);
+    if (child_did_split) {
+        if (0) printf("brt_nonleaf_insert child_split %p\n", child);
+        assert(cmd->type == BRT_INSERT || cmd->type == BRT_DELETE);
+        DBT *k = cmd->u.id.key;
+        DB *db = cmd->u.id.db;
+        r = handle_split_of_child(t, node, childnum,
+                                  childa, childb, &childsplitk,
+                                  did_split, nodea, nodeb, splitk,
+                                  k->app_private, db, txn);
+        assert(r == 0);
+    } else {
+        r = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
+        assert(r == 0);
+    }
+    return r;
+}
 
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
@@ -864,39 +906,11 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     /* non-buffering mode when cursors are open on this child */
     if (node->u.n.n_cursors[childnum] > 0) {
-        int r;
-        void *child_v;
-        BRTNODE child;
-        int child_did_split;
-        BRTNODE childa, childb;
-        DBT childsplitk;
-
         assert(node->u.n.n_bytes_in_hashtable[childnum] == 0);
-        *did_split = 0;
-
-        r = cachetable_get_and_pin(t->cf, node->u.n.children[childnum], &child_v,
-                brtnode_flush_callback, brtnode_fetch_callback, (void*)(long)t->h->nodesize);
-        assert(r == 0);
-        child = child_v;
-
-        child_did_split = 0;
-        r = brtnode_put_cmd(t, child, cmd,
-			    &child_did_split, &childa, &childb, &childsplitk, 0, txn);
-        assert(r == 0);
-        if (child_did_split) {
-            if (0) printf("brt_nonleaf_insert child_split %p\n", child);
-            r = handle_split_of_child(t, node, childnum,
-				      childa, childb, &childsplitk,
-				      did_split, nodea, nodeb, splitk,
-				      k->app_private, db, txn);
-            assert(r == 0);
-        } else {
-            r = cachetable_unpin_size(t->cf, child->thisnodename, child->dirty, brtnode_size(child));
-            assert(r == 0);
-        }
-
+        int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 0);
         return r;
     }
+
 
     found = !toku_hash_find(node->u.n.htables[childnum], k->data, k->size, &olddata, &olddatalen, &type);
 
@@ -946,6 +960,14 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 	node->u.n.n_bytes_in_hashtable[childnum] -= diff;
         brtnode_set_dirty(node);
 	//printf("%s:%d deleted %d bytes\n", __FILE__, __LINE__, diff);
+    }
+
+    /* if the child is in the cache table then push the cmd to it 
+       otherwise just put it into this node's buffer */
+    if (1) {
+        int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 1);
+        if (r == 0)
+            return r;
     }
     {
 	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
