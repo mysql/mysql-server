@@ -26,7 +26,7 @@
 #endif
 
 static uint my_get_large_page_size_int(void);
-static gptr my_large_malloc_int(uint size, myf my_flags);
+static gptr my_large_malloc_int(size_t size, myf my_flags);
 static my_bool my_large_free_int(gptr ptr, myf my_flags);
 
 /* Gets the size of large pages from the OS */
@@ -48,7 +48,7 @@ uint my_get_large_page_size(void)
   my_malloc_lock() in case of failure
 */
 
-gptr my_large_malloc(uint size, myf my_flags)
+gptr my_large_malloc(size_t size, myf my_flags)
 {
   gptr ptr;
   DBUG_ENTER("my_large_malloc");
@@ -113,7 +113,7 @@ finish:
 #if HAVE_DECL_SHM_HUGETLB
 /* Linux-specific large pages allocator  */
     
-gptr my_large_malloc_int(uint size, myf my_flags)
+gptr my_large_malloc_int(size_t size, myf my_flags)
 {
   int shmid;
   gptr ptr;
@@ -123,13 +123,13 @@ gptr my_large_malloc_int(uint size, myf my_flags)
   /* Align block size to my_large_page_size */
   size = ((size - 1) & ~(my_large_page_size - 1)) + my_large_page_size;
   
-  shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
+  shmid = shmget(IPC_PRIVATE, size, SHM_HUGETLB | SHM_R | SHM_W);
   if (shmid < 0)
   {
     if (my_flags & MY_WME)
       fprintf(stderr,
-              "Warning: Failed to allocate %d bytes from HugeTLB memory."
-              " errno %d\n", size, errno);
+              "Warning: Failed to allocate %lu bytesx from HugeTLB memory."
+              " errno %d\n", (ulong) size, errno);
 
     DBUG_RETURN(NULL);
   }

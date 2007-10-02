@@ -46,7 +46,7 @@ typedef struct st_key_cache
   my_bool key_cache_inited;
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
-  ulong key_cache_mem_size;      /* specified size of the cache memory       */
+  size_t key_cache_mem_size;     /* specified size of the cache memory       */
   uint key_cache_block_size;     /* size of the page buffer of a cache block */
   ulong min_warm_blocks;         /* min number of warm blocks;               */
   ulong age_threshold;           /* age threshold for hot blocks             */
@@ -101,11 +101,11 @@ typedef struct st_key_cache
 extern KEY_CACHE dflt_key_cache_var, *dflt_key_cache;
 
 extern int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			  ulong use_mem, uint division_limit,
-			  uint age_threshold);
+                          size_t use_mem, uint division_limit,
+                          uint age_threshold);
 extern int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-			    ulong use_mem, uint division_limit,
-			    uint age_threshold);
+                            size_t use_mem, uint division_limit,
+                            uint age_threshold);
 extern void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 				   uint age_threshold);
 extern byte *key_cache_read(KEY_CACHE *keycache,
