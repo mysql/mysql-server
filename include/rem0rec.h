@@ -383,6 +383,7 @@ rec_offs_validate(
 	const dict_index_t*	index,	/* in: record descriptor or NULL */
 	const ulint*		offsets);/* in: array returned by
 					rec_get_offsets() */
+#ifdef UNIV_DEBUG
 /****************************************************************
 Updates debug data in offsets, in order to avoid bogus
 rec_offs_validate() failures. */
@@ -394,6 +395,9 @@ rec_offs_make_valid(
 	const dict_index_t*	index,	/* in: record descriptor */
 	ulint*			offsets);/* in: array returned by
 					rec_get_offsets() */
+#else
+# define rec_offs_make_valid(rec, index, offsets) ((void) 0)
+#endif /* UNIV_DEBUG */
 
 /****************************************************************
 The following function is used to get the offset to the nth
