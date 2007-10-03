@@ -286,7 +286,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
 
   return 0; /* Error is handled */
 }
-#pragma runtime_checks("", on)
+#pragma runtime_checks("", restore)
 #endif
 
 
