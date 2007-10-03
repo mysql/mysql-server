@@ -417,7 +417,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
   if (duplic == DUP_UPDATE ||
       duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT)
   {
-    *lock_type= TL_WRITE;
+    *lock_type= TL_WRITE_DEFAULT;
     return;
   }
 

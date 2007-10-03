@@ -1071,4 +1071,21 @@ connection default;
 drop user mysqltest_1@localhost;
 drop database mysqltest;
 
+#
+# Bug#27747 database metadata doesn't return sufficient column default info
+#
+create table t1 (
+  f1 varchar(50),
+  f2 varchar(50) not null,
+  f3 varchar(50) default '',
+  f4 varchar(50) default NULL,
+  f5 bigint not null,
+  f6 bigint not null default 10,
+  f7 datetime not null,
+  f8 datetime default '2006-01-01'
+);
+select column_default from information_schema.columns where table_name= 't1';
+show columns from t1;
+drop table t1;
+
 --echo End of 5.0 tests.

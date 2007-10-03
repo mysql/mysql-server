@@ -673,9 +673,14 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
-   0},
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,  0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1245,6 +1250,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   char buff[80], *pos, *out;
   COMMANDS *com;
   bool need_space= 0;
+  bool ss_comment= 0;
   DBUG_ENTER("add_line");
 
   if (!line[0] && buffer.is_empty())
@@ -1293,22 +1299,36 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       if ((com=find_command(NullS,(char) inchar)))
       {
-	const String tmp(line,(uint) (out-line), charset_info);
-	buffer.append(tmp);
-	if ((*com->func)(&buffer,pos-1) > 0)
-	  DBUG_RETURN(1);                       // Quit
-	if (com->takes_params)
-	{
-	  for (pos++ ;
-	       *pos && (*pos != *delimiter ||
-			!is_prefix(pos + 1, delimiter + 1)) ; pos++)
-	    ;	// Remove parameters
-	  if (!*pos)
-	    pos--;
-	  else 
-	    pos+= delimiter_length - 1; // Point at last delim char
-	}
-	out=line;
+        const String tmp(line,(uint) (out-line), charset_info);
+        buffer.append(tmp);
+        if ((*com->func)(&buffer,pos-1) > 0)
+          DBUG_RETURN(1);                       // Quit
+        if (com->takes_params)
+        {
+          if (ss_comment)
+          {
+            /*
+              If a client-side macro appears inside a server-side comment,
+              discard all characters in the comment after the macro (that is,
+              until the end of the comment rather than the next delimiter)
+            */
+            for (pos++; *pos && (*pos != '*' || *(pos + 1) != '/'); pos++)
+              ;
+            pos--;
+          }
+          else
+          {
+            for (pos++ ;
+                 *pos && (*pos != *delimiter ||
+                          !is_prefix(pos + 1, delimiter + 1)) ; pos++)
+              ;	// Remove parameters
+            if (!*pos)
+              pos--;
+            else 
+              pos+= delimiter_length - 1; // Point at last delim char
+          }
+        }
+        out=line;
       }
       else
       {
@@ -1368,7 +1388,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
         out=line;
       }
     }
-    else if (*ml_comment && inchar == '*' && *(pos + 1) == '/')
+    else if (*ml_comment && !ss_comment && inchar == '*' && *(pos + 1) == '/')
     {
       pos++;
       *ml_comment= 0;
@@ -1376,6 +1396,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }      
     else
     {						// Add found char to buffer
+      if (!*in_string && inchar == '/' && *(pos + 1) == '*' &&
+          *(pos + 2) == '!')
+        ss_comment= 1;
+      else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
+        ss_comment= 0;
       if (inchar == *in_string)
 	*in_string= 0;
       else if (!*ml_comment && !*in_string &&
