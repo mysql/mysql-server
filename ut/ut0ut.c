@@ -360,6 +360,8 @@ ut_print_buf(
 	const byte*	data;
 	ulint		i;
 
+	UNIV_MEM_ASSERT_RW(buf, len);
+
 	fprintf(file, " len %lu; hex ", len);
 
 	for (data = (const byte*)buf, i = 0; i < len; i++) {
