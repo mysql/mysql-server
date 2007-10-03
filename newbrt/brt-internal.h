@@ -24,6 +24,7 @@ struct brtnode {
     enum typ_tag tag;
     unsigned int nodesize;
     diskoff thisnodename;
+    BRTNODE parent_brtnode; /* Invariant: The parent of an in-memory node must be in main memory.  This is so we can find and update the down pointer when we change the diskoff of a node. */
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int dirty;
     union node {
