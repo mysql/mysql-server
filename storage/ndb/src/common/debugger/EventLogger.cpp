@@ -501,7 +501,7 @@ void getTextTransReportCounters(QQQQ) {
 		       "Read Count = %u, Simple Read Count = %u, "
 		       "Write Count = %u, AttrInfo Count = %u, "
 		       "Concurrent Operations = %u, Abort Count = %u"
-		       " Scans: %u Range scans: %u", 
+		       " Scans = %u Range scans = %u", 
 		       theData[1], 
 		       theData[2], 
 		       theData[3], 
