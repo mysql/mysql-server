@@ -901,6 +901,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
+  {"innodb_adaptive_hash_index", (char*) &innobase_adaptive_hash_index, SHOW_MY_BOOL},
   {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
   {sys_innodb_fast_shutdown.name,(char*) &sys_innodb_fast_shutdown, SHOW_SYS},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
