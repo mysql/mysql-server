@@ -179,7 +179,8 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_STATE		1
 	{STRUCT_FLD(field_name,		"trx_state"),
@@ -187,7 +188,8 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_STARTED		2
 	{STRUCT_FLD(field_name,		"trx_started"),
@@ -195,7 +197,8 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_WAIT_LOCK_ID	3
 	{STRUCT_FLD(field_name,		"trx_wait_lock_id"),
@@ -203,7 +206,8 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_WAIT_STARTED	4
 	{STRUCT_FLD(field_name,		"trx_wait_started"),
@@ -211,7 +215,8 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_MYSQL_THREAD_ID	5
 	{STRUCT_FLD(field_name,		"trx_mysql_thread_id"),
@@ -219,14 +224,16 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		NULL),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")}
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
 };
 
 /***********************************************************************
@@ -388,7 +395,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_TRX_ID		1
 	{STRUCT_FLD(field_name,		"lock_trx_id"),
@@ -396,7 +404,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_MODE		2
 	{STRUCT_FLD(field_name,		"lock_mode"),
@@ -404,7 +413,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_TYPE		3
 	{STRUCT_FLD(field_name,		"lock_type"),
@@ -412,7 +422,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_TABLE		4
 	{STRUCT_FLD(field_name,		"lock_table"),
@@ -420,7 +431,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_INDEX		5
 	{STRUCT_FLD(field_name,		"lock_index"),
@@ -428,7 +440,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_SPACE		6
 	{STRUCT_FLD(field_name,		"lock_space"),
@@ -436,7 +449,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_PAGE		7
 	{STRUCT_FLD(field_name,		"lock_page"),
@@ -444,7 +458,8 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_LOCK_REC		8
 	{STRUCT_FLD(field_name,		"lock_rec"),
@@ -452,14 +467,16 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		NULL),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")}
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
 };
 
 /***********************************************************************
@@ -622,7 +639,8 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_WAITED_LOCK_ID	1
 	{STRUCT_FLD(field_name,		"waited_lock_id"),
@@ -630,14 +648,16 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")},
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		NULL),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"")}
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
 };
 
 /***********************************************************************

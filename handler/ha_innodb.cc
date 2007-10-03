@@ -8042,16 +8042,17 @@ innobase_stat_zip_reset_fill(
 /* Fields of the dynamic table information_schema.innodb_zip. */
 static ST_FIELD_INFO innobase_stat_zip_fields[] =
 {
-  {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size"},
-  {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0, "Total Number of Relocations"},
+  {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size", SKIP_OPEN_TABLE},
+  {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0,
+   "Total Number of Relocations", SKIP_OPEN_TABLE},
   {"COMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Compressions"},
+   "Total Number of Compressions", SKIP_OPEN_TABLE},
   {"COMPRESSED_OK", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Successful Compressions"},
+   "Total Number of Successful Compressions", SKIP_OPEN_TABLE},
   {"DECOMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Decompressions"},
-  {"USED", 21, MYSQL_TYPE_LONG, 0, 0, "Currently in Use"},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+   "Total Number of Decompressions", SKIP_OPEN_TABLE},
+  {"USED", 21, MYSQL_TYPE_LONG, 0, 0, "Currently in Use", SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
 /***********************************************************************
