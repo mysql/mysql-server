@@ -425,7 +425,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_single_transaction, (uchar**) &opt_single_transaction, 0,
    GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",
-   (gptr*) &opt_dump_date, (gptr*) &opt_dump_date, 0,
+   (uchar**) &opt_dump_date, (uchar**) &opt_dump_date, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
