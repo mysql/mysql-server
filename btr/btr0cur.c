@@ -494,10 +494,11 @@ retry_page_get:
 
 		page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(rw_latch == RW_NO_LATCH
-		     || !buf_block_get_page_zip(block)
-		     || page_zip_validate(buf_block_get_page_zip(block),
-					  page));
+		if (rw_latch != RW_NO_LATCH) {
+			const page_zip_des_t*	page_zip
+				= buf_block_get_page_zip(block);
+			ut_a(!page_zip || page_zip_validate(page_zip, page));
+		}
 #endif /* UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
@@ -1048,8 +1049,10 @@ btr_cur_optimistic_insert(
 	/* If necessary for updating the insert buffer bitmap,
 	calculate the current maximum insert size on a compressed page. */
 	if (zip_size && UNIV_LIKELY(leaf) && !dict_index_is_clust(index)) {
-		lint	zip_max = page_zip_max_ins_size(
-			buf_block_get_page_zip(block), FALSE);
+		const page_zip_des_t*	page_zip
+			= buf_block_get_page_zip(block);
+		lint			zip_max
+			= page_zip_max_ins_size(page_zip, FALSE);
 
 		if (zip_max >= 0 && max_size > (ulint) zip_max) {
 			max_size_zip = (ulint) zip_max;

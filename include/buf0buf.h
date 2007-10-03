@@ -854,32 +854,26 @@ buf_block_get_zip_size(
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
-UNIV_INLINE
-page_zip_des_t*
-buf_block_get_page_zip(
-/*===================*/
-				/* out: compressed page descriptor, or NULL */
-	buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+#define buf_block_get_page_zip(block) \
+	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INLINE
-buf_block_t*
+const buf_block_t*
 buf_block_align(
 /*============*/
-			/* out: pointer to block */
-	byte*	ptr);	/* in: pointer to a frame */
+				/* out: pointer to block */
+	const byte*	ptr);	/* in: pointer to a frame */
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 UNIV_INLINE
-page_zip_des_t*
+const page_zip_des_t*
 buf_frame_get_page_zip(
 /*===================*/
-			/* out: compressed page descriptor, or NULL */
-	byte*	ptr)	/* in: pointer to the page */
-	__attribute((pure));
+				/* out: compressed page descriptor, or NULL */
+	const byte*	ptr);	/* in: pointer to the page */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 /************************************************************************
 This function is used to get info if there is an io operation

@@ -477,16 +477,18 @@ page_create_zip(
 	ulint		level,		/* in: the B-tree level of the page */
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
-	page_t*	page;
+	page_t*		page;
+	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 
-	ut_ad(block && buf_block_get_page_zip(block) && index);
+	ut_ad(block);
+	ut_ad(page_zip);
+	ut_ad(index);
 	ut_ad(dict_table_is_comp(index->table));
 
 	page = page_create_low(block, TRUE);
 	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(buf_block_get_page_zip(block),
-					     page, index, mtr))) {
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;

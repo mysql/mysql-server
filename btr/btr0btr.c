@@ -535,7 +535,7 @@ btr_node_ptr_get_child(
 	ulint	space;
 
 	ut_ad(rec_offs_validate(node_ptr, index, offsets));
-	space = page_get_space_id(page_align((rec_t*) node_ptr));
+	space = page_get_space_id(page_align(node_ptr));
 	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
 	return(btr_block_get(space, dict_table_zip_size(index->table),
@@ -2252,12 +2252,14 @@ btr_lift_page_up(
 	    (!page_copy_rec_list_end(father_block, block,
 				     page_get_infimum_rec(page),
 				     index, mtr))) {
+		const page_zip_des_t*	page_zip
+			= buf_block_get_page_zip(block);
 		ut_a(father_page_zip);
+		ut_a(page_zip);
 
 		/* Copy the page byte for byte. */
 		page_zip_copy(father_page_zip, father_page,
-			      buf_block_get_page_zip(block),
-			      page, index, mtr);
+			      page_zip, page, index, mtr);
 	}
 
 	lock_update_copy_and_discard(father_block, block);
@@ -2432,8 +2434,11 @@ err_exit:
 	merge_page_zip = buf_block_get_page_zip(merge_block);
 #ifdef UNIV_ZIP_DEBUG
 	if (UNIV_LIKELY_NULL(merge_page_zip)) {
+		const page_zip_des_t*	page_zip
+			= buf_block_get_page_zip(block);
+		ut_a(page_zip);
 		ut_a(page_zip_validate(merge_page_zip, merge_page));
-		ut_a(page_zip_validate(buf_block_get_page_zip(block), page));
+		ut_a(page_zip_validate(page_zip, page));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 

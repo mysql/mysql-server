@@ -358,9 +358,9 @@ UNIV_INLINE
 void*
 ut_align_down(
 /*==========*/
-				/* out: aligned pointer */
-	void*	ptr,		/* in: pointer */
-	ulint	align_no)	/* in: align by this number */
+					/* out: aligned pointer */
+	const void*	ptr,		/* in: pointer */
+	ulint		align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);

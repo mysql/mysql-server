@@ -573,7 +573,7 @@ lock_sec_rec_cons_read_sees(
 		return(FALSE);
 	}
 
-	max_trx_id = page_get_max_trx_id(page_align((rec_t*) rec));
+	max_trx_id = page_get_max_trx_id(page_align(rec));
 
 	return(ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
 }
@@ -1322,10 +1322,10 @@ lock_rec_get_prev(
 	const lock_t*	in_lock,/* in: record lock */
 	ulint		heap_no)/* in: heap number of the record */
 {
-	const lock_t*	lock;
-	ulint		space;
-	ulint		page_no;
-	const lock_t*	found_lock	= NULL;
+	lock_t*	lock;
+	ulint	space;
+	ulint	page_no;
+	lock_t*	found_lock	= NULL;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
@@ -1348,7 +1348,7 @@ lock_rec_get_prev(
 			found_lock = lock;
 		}
 
-		lock = lock_rec_get_next_on_page((lock_t*) lock);
+		lock = lock_rec_get_next_on_page(lock);
 	}
 }
 
@@ -1586,7 +1586,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 	dict_index_t*	index,	/* in: secondary index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
-	const page_t*	page = page_align((rec_t*) rec);
+	const page_t*	page = page_align(rec);
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(!dict_index_is_clust(index));
@@ -2774,8 +2774,8 @@ lock_move_rec_list_start(
 	lock_t*		lock;
 	const ulint	comp	= page_rec_is_comp(rec);
 
-	ut_ad(block->frame == page_align((rec_t*) rec));
-	ut_ad(new_block->frame == page_align((rec_t*) old_end));
+	ut_ad(block->frame == page_align(rec));
+	ut_ad(new_block->frame == page_align(old_end));
 
 	lock_mutex_enter_kernel();
 
@@ -3014,7 +3014,7 @@ lock_update_merge_left(
 {
 	const rec_t*	left_next_rec;
 
-	ut_ad(left_block->frame == page_align((rec_t*) orig_pred));
+	ut_ad(left_block->frame == page_align(orig_pred));
 
 	lock_mutex_enter_kernel();
 
@@ -3149,7 +3149,7 @@ lock_update_insert(
 	ulint	receiver_heap_no;
 	ulint	donator_heap_no;
 
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 
 	/* Inherit the gap-locking locks for rec, in gap mode, from the next
 	record */
@@ -3228,7 +3228,7 @@ lock_rec_store_on_page_infimum(
 {
 	ulint	heap_no = page_rec_get_heap_no(rec);
 
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 
 	lock_mutex_enter_kernel();
 
@@ -3899,7 +3899,7 @@ lock_rec_unlock(
 	ulint	heap_no;
 
 	ut_ad(trx && rec);
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -4569,7 +4569,7 @@ lock_rec_queue_validate(
 	ulint	heap_no;
 
 	ut_a(rec);
-	ut_a(block->frame == page_align((rec_t*) rec));
+	ut_a(block->frame == page_align(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
@@ -5044,7 +5044,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
@@ -5179,7 +5179,7 @@ lock_sec_rec_read_check_and_lock(
 	ulint	heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -5255,7 +5255,7 @@ lock_clust_rec_read_check_and_lock(
 	ulint	heap_no;
 
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(block->frame == page_align((rec_t*) rec));
+	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
 	      || gap_mode == LOCK_REC_NOT_GAP);
