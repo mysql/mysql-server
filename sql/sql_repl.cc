@@ -364,7 +364,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     name=0;					// Find first log
 
   linfo.index_file_offset = 0;
-  thd->current_linfo = &linfo;
 
   if (mysql_bin_log.find_log_pos(&linfo, name, 1))
   {
@@ -372,6 +371,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
+
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->current_linfo = &linfo;
+  pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
   {
@@ -1338,13 +1341,16 @@ bool mysql_show_binlog_events(THD* thd)
       name=0;					// Find first log
 
     linfo.index_file_offset = 0;
-    thd->current_linfo = &linfo;
 
     if (mysql_bin_log.find_log_pos(&linfo, name, 1))
     {
       errmsg = "Could not find target log";
       goto err;
     }
+
+    pthread_mutex_lock(&LOCK_thread_count);
+    thd->current_linfo = &linfo;
+    pthread_mutex_unlock(&LOCK_thread_count);
 
     if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
