@@ -1586,11 +1586,11 @@ DROP TABLE t1,t2;
 --exec $MYSQL_DUMP --skip-dump-date test
 
 --echo # --dump-date:
---replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// /[0-9]+/x/
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP --dump-date test
 
 --echo # --dump-date (default):
---replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// /[0-9]+/x/
+--replace_regex /-- [^D][^u][^m][^p].*// /\/\*!.*// / on [0-9 :-]+/ on DATE/
 --exec $MYSQL_DUMP test
 
 --echo #
