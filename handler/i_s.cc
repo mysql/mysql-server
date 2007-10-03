@@ -21,7 +21,10 @@ Created July 18, 2007 Vasil Dimov
 extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "buf0buddy.h" /* for i_s_zip */
 }
+
+static const char plugin_author[] = "Innobase Oy";
 
 #define OK(expr)		\
 	if ((expr) != 0) {	\
@@ -33,6 +36,15 @@ extern "C" {
 #else
 #define STRUCT_FLD(name, value)	value
 #endif
+
+static const ST_FIELD_INFO END_OF_ST_FIELD_INFO =
+	{STRUCT_FLD(field_name,		NULL),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)};
 
 /*
 Use the following types mapping:
@@ -84,8 +96,8 @@ trx_i_s_common_fill_table(
 Unbind a dynamic INFORMATION_SCHEMA table. */
 static
 int
-trx_i_s_common_deinit(
-/*==================*/
+i_s_common_deinit(
+/*==============*/
 			/* out: 0 on success */
 	void*	p);	/* in/out: table schema object */
 
@@ -227,13 +239,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		NULL),
-	 STRUCT_FLD(field_length,	0),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
+	END_OF_ST_FIELD_INFO
 };
 
 /***********************************************************************
@@ -332,7 +338,7 @@ innodb_trx_init(
 	DBUG_RETURN(0);
 }
 
-static st_mysql_information_schema	innodb_trx_info =
+static struct st_mysql_information_schema	i_s_info =
 {
 	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
@@ -345,7 +351,7 @@ struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &innodb_trx_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -353,7 +359,7 @@ struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -369,7 +375,7 @@ struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(deinit, trx_i_s_common_deinit),
+	STRUCT_FLD(deinit, i_s_common_deinit),
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
@@ -470,13 +476,7 @@ static ST_FIELD_INFO	innodb_locks_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		NULL),
-	 STRUCT_FLD(field_length,	0),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
+	END_OF_ST_FIELD_INFO
 };
 
 /***********************************************************************
@@ -576,11 +576,6 @@ innodb_locks_init(
 	DBUG_RETURN(0);
 }
 
-static st_mysql_information_schema	innodb_locks_info =
-{
-	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
-};
-
 struct st_mysql_plugin	i_s_innodb_locks =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
@@ -589,7 +584,7 @@ struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &innodb_locks_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -597,7 +592,7 @@ struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -613,7 +608,7 @@ struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(deinit, trx_i_s_common_deinit),
+	STRUCT_FLD(deinit, i_s_common_deinit),
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
@@ -651,13 +646,7 @@ static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		NULL),
-	 STRUCT_FLD(field_length,	0),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
+	END_OF_ST_FIELD_INFO
 };
 
 /***********************************************************************
@@ -737,11 +726,6 @@ innodb_lock_waits_init(
 	DBUG_RETURN(0);
 }
 
-static st_mysql_information_schema	innodb_lock_waits_info =
-{
-	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
-};
-
 struct st_mysql_plugin	i_s_innodb_lock_waits =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
@@ -750,7 +734,7 @@ struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &innodb_lock_waits_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -774,7 +758,7 @@ struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(deinit, trx_i_s_common_deinit),
+	STRUCT_FLD(deinit, i_s_common_deinit),
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
@@ -878,16 +862,299 @@ trx_i_s_common_fill_table(
 #endif
 }
 
+/* Fields of the dynamic table information_schema.innodb_zip. */
+static ST_FIELD_INFO	i_s_zip_fields_info[] =
+{
+	{STRUCT_FLD(field_name,		"size"),
+	 STRUCT_FLD(field_length,	5),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Block Size"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"relocated"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Relocations"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compressed"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Compressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compressed_ok"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of"
+					" Successful Compressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"decompressed"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Decompressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"used"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently in Use"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_zip or innodb_zip_reset. */
+static
+int
+i_s_zip_fill_low(
+/*=============*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond,	/* in: condition (ignored) */
+	ibool		reset)	/* in: TRUE=reset cumulated counts */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+	uint	y	= 0;
+
+	DBUG_ENTER("i_s_zip_fill_low");
+
+	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
+	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
+
+	mutex_enter(&buf_pool->mutex);
+
+	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+		table->field[0]->store(BUF_BUDDY_LOW << x);
+		table->field[1]->store(buf_buddy_relocated[x]);
+		if (reset) {
+			/* This is protected by buf_pool->mutex. */
+			buf_buddy_relocated[x] = 0;
+		}
+
+		if (x > y) {
+			/* The cumulated counts are not protected by
+			any mutex.  Thus, some operation in page0zip.c
+			could increment a counter between the time we
+			read it and clear it.  We could introduce
+			mutex protection, but it could cause a
+			measureable performance hit in page0zip.c. */
+			const uint i = x - y;
+			table->field[2]->store(page_zip_compress_count[i]);
+			table->field[3]->store(page_zip_compress_ok[i]);
+			table->field[4]->store(page_zip_decompress_count[i]);
+			if (reset) {
+				page_zip_compress_count[i] = 0;
+				page_zip_compress_ok[i] = 0;
+				page_zip_decompress_count[i] = 0;
+			}
+		} else {
+			table->field[2]->store(0);
+			table->field[3]->store(0);
+			table->field[4]->store(0);
+		}
+		table->field[5]->store(buf_buddy_used[x]);
+
+		if (schema_table_store_record(thd, table)) {
+			status = 1;
+			break;
+		}
+	}
+
+	mutex_exit(&buf_pool->mutex);
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_zip. */
+static
+int
+i_s_zip_fill(
+/*=========*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(i_s_zip_fill_low(thd, tables, cond, FALSE));
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_zip_reset. */
+static
+int
+i_s_zip_reset_fill(
+/*===============*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(i_s_zip_fill_low(thd, tables, cond, TRUE));
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_zip. */
+static
+int
+i_s_zip_init(
+/*=========*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_zip_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_zip_fields_info;
+	schema->fill_table = i_s_zip_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_zip_reset. */
+static
+int
+i_s_zip_reset_init(
+/*===============*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_zip_reset_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_zip_fields_info;
+	schema->fill_table = i_s_zip_reset_fill;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin	i_s_innodb_zip =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "innodb_zip"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_zip_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+struct st_mysql_plugin	i_s_innodb_zip_reset =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "innodb_zip_reset"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool;"
+		   " reset cumulated counts"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_zip_reset_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
 /***********************************************************************
 Unbind a dynamic INFORMATION_SCHEMA table. */
 static
 int
-trx_i_s_common_deinit(
-/*==================*/
+i_s_common_deinit(
+/*==============*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("trx_i_s_common_deinit");
+	DBUG_ENTER("i_s_common_deinit");
 
 	/* Do nothing */
 
