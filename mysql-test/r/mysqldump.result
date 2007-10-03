@@ -3558,13 +3558,13 @@ DROP TABLE t1,t2;
 
 
 
--- Dump completed on x-x-x x:x:x
+-- Dump completed on DATE
 # --dump-date (default):
 --
 
 
 
--- Dump completed on x-x-x x:x:x
+-- Dump completed on DATE
 #
 # End of 5.0 tests
 #
