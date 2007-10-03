@@ -1651,14 +1651,10 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
   uint i;
   DBUG_ENTER("check_index_fields_in_write_set");
 
-  if (m_retrieve_all_fields)
-  {
-    DBUG_RETURN(true);
-  }
   for (i= 0; key_part != end; key_part++, i++)
   {
     Field* field= key_part->field;
-    if (field->query_id != current_thd->query_id)
+    if (!bitmap_is_set(table->write_set, field->field_index))
     {
       DBUG_RETURN(false);
     }
@@ -1985,7 +1981,7 @@ check_null_in_record(const KEY* key_info, const uchar *record)
  * primary key or unique index values
 */
 
-int ha_ndbcluster::peek_indexed_rows(const byte *record, 
+int ha_ndbcluster::peek_indexed_rows(const uchar *record, 
                                      NDB_WRITE_OP write_op)
 {
   NdbTransaction *trans= m_active_trans;
@@ -1998,7 +1994,7 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record,
   NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   first= NULL;
-  if (check_pk && table->s->primary_key != MAX_KEY)
+  if (write_op != NDB_UPDATE && table->s->primary_key != MAX_KEY)
   {
     /*
      * Fetch any row with colliding primary key
@@ -2048,6 +2044,11 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record,
         DBUG_PRINT("info", ("skipping check for key with NULL"));
         continue;
       } 
+      if (write_op != NDB_INSERT && !check_index_fields_in_write_set(i))
+      {
+        DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
+        continue;
+      }
       NdbIndexOperation *iop;
       const NDBINDEX *unique_index = m_index[i].unique_index;
       key_part= key_info->key_part;
