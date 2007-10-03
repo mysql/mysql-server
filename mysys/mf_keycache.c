@@ -301,10 +301,11 @@ static uint next_power(uint value)
 */
 
 int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-		   ulong use_mem, uint division_limit,
-		   uint age_threshold)
+                   size_t use_mem, uint division_limit,
+                   uint age_threshold)
 {
-  uint blocks, hash_links, length;
+  ulong blocks, hash_links;
+  size_t length;
   int error;
   DBUG_ENTER("init_key_cache");
   DBUG_ASSERT(key_cache_block_size >= 512);
@@ -332,8 +333,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   DBUG_PRINT("info", ("key_cache_block_size: %u",
 		      key_cache_block_size));
 
-  blocks= (uint) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
-			     sizeof(HASH_LINK*) * 5/4 + key_cache_block_size));
+  blocks= (ulong) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
+                              sizeof(HASH_LINK*) * 5/4 + key_cache_block_size));
   /* It doesn't make sense to have too few blocks (less than 8) */
   if (blocks >= 8 && keycache->disk_blocks < 0)
   {
@@ -351,18 +352,18 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		       ALIGN_SIZE(hash_links * sizeof(HASH_LINK)) +
 		       ALIGN_SIZE(sizeof(HASH_LINK*) *
                                   keycache->hash_entries))) +
-	     ((ulong) blocks * keycache->key_cache_block_size) > use_mem)
+	     ((size_t) blocks * keycache->key_cache_block_size) > use_mem)
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
-	   my_large_malloc((ulong) blocks * keycache->key_cache_block_size,
-			  MYF(MY_WME))))
+           my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
+                           MYF(MY_WME))))
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
 	  For each block 2 hash links are allocated
         */
-        if ((keycache->block_root= (BLOCK_LINK*) my_malloc((uint) length,
+        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(length,
                                                            MYF(0))))
           break;
         my_large_free(keycache->block_mem, MYF(0));
@@ -375,7 +376,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       }
       blocks= blocks / 4*3;
     }
-    keycache->blocks_unused= (ulong) blocks;
+    keycache->blocks_unused= blocks;
     keycache->disk_blocks= (int) blocks;
     keycache->hash_links= hash_links;
     keycache->hash_root= (HASH_LINK**) ((char*) keycache->block_root +
@@ -480,8 +481,8 @@ err:
 */
 
 int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-		     ulong use_mem, uint division_limit,
-		     uint age_threshold)
+                     size_t use_mem, uint division_limit,
+                     uint age_threshold)
 {
   int blocks;
   struct st_my_thread_var *thread;

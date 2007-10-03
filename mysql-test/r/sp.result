@@ -2468,7 +2468,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -2520,7 +2520,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -6315,4 +6315,78 @@ CALL p1();
 NULL
 SET NAMES default;
 DROP PROCEDURE p1;
+create function f1()
+returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+declare x int(11);
+set x=-1;
+return x;
+end|
+create view v1 as select 1 as one, f1() as days;
+show create view test.v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+column_name
+one
+days
+drop view v1;
+drop function f1;
+
+# Bug#13675.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TABLE IF EXISTS t1;
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p1('text');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2(10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2('text');
+Warnings:
+Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
 End of 5.0 tests

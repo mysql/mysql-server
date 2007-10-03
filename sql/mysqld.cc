@@ -1300,8 +1300,21 @@ static void set_ports()
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysqld_port= MYSQL_PORT;
+
+    /*
+      if builder specifically requested a default port, use that
+      (even if it coincides with our factory default).
+      only if they didn't do we check /etc/services (and, failing
+      on that, fall back to the factory default of 3306).
+      either default can be overridden by the environment variable
+      MYSQL_TCP_PORT, which in turn can be overridden with command
+      line options.
+    */
+
+#if MYSQL_PORT_DEFAULT == 0
     if ((serv_ptr= getservbyname("mysql", "tcp")))
       mysqld_port= ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+#endif
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysqld_port= (uint) atoi(env);		/* purecov: inspected */
   }
@@ -5400,7 +5413,13 @@ Disable with --skip-ndbcluster (will save memory).",
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (gptr*) &pidfile_name_ptr, (gptr*) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &mysqld_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (gptr*) &mysqld_port,
    (gptr*) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
    "Maximum time in seconds to wait for the port to become free. "
@@ -5829,7 +5848,7 @@ log and this option does nothing anymore.",
    "The size of the buffer that is used for full joins.",
    (gptr*) &global_system_variables.join_buff_size,
    (gptr*) &max_system_variables.join_buff_size, 0, GET_ULONG,
-   REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD,
+   REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, UINT_MAX32, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"keep_files_on_create", OPT_KEEP_FILES_ON_CREATE,
    "Don't overwrite stale .MYD and .MYI even if no directory is specified.",
@@ -5998,7 +6017,7 @@ The minimum value for this variable is 4096.",
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, UINT_MAX32, 0, 1, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
@@ -6091,7 +6110,7 @@ The minimum value for this variable is 4096.",
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE,
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE,
    0},
   {"read_only", OPT_READONLY,
    "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
@@ -6103,12 +6122,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.read_rnd_buff_size,
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
@@ -6144,7 +6163,7 @@ The minimum value for this variable is 4096.",
    "Each thread that needs to do a sort allocates a buffer of this size.",
    (gptr*) &global_system_variables.sortbuff_size,
    (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
-   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
+   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, UINT_MAX32, MALLOC_OVERHEAD,
    1, 0},
 #ifdef HAVE_BERKELEY_DB
   {"sync-bdb-logs", OPT_BDB_SYNC,

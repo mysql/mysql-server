@@ -145,4 +145,4 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings)
-TARGET_LINK_LIBRARIES(udf_example wsock32)
+TARGET_LINK_LIBRARIES(udf_example strings wsock32)

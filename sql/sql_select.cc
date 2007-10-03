@@ -189,6 +189,7 @@ static bool setup_new_fields(THD *thd, List<Item> &fields,
 			     List<Item> &all_fields, ORDER *new_order);
 static ORDER *create_distinct_group(THD *thd, Item **ref_pointer_array,
                                     ORDER *order, List<Item> &fields,
+                                    List<Item> &all_fields,
 				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
@@ -536,6 +537,28 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (select_lex->inner_refs_list.elements &&
       fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
     DBUG_RETURN(-1);
+
+  if (group_list)
+  {
+    /*
+      Because HEAP tables can't index BIT fields we need to use an
+      additional hidden field for grouping because later it will be
+      converted to a LONG field. Original field will remain of the
+      BIT type and will be returned to a client.
+    */
+    for (ORDER *ord= group_list; ord; ord= ord->next)
+    {
+      if ((*ord->item)->type() == Item::FIELD_ITEM &&
+          (*ord->item)->field_type() == MYSQL_TYPE_BIT)
+      {
+        Item_field *field= new Item_field(thd, *(Item_field**)ord->item);
+        int el= all_fields.elements;
+        ref_pointer_array[el]= field;
+        all_fields.push_front(field);
+        ord->item= ref_pointer_array + el;
+      }
+    }
+  }
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
@@ -1030,6 +1053,14 @@ JOIN::optimize()
                                  find_field_in_order_list,
                                  (void *) group_list))
     {
+      /*
+        We have found that grouping can be removed since groups correspond to
+        only one row anyway, but we still have to guarantee correct result
+        order. The line below effectively rewrites the query from GROUP BY
+        <fields> to ORDER BY <fields>. One exception is if skip_sort_order is
+        set (see above), then we can simply skip GROUP BY.
+       */
+      order= skip_sort_order ? 0 : group_list;
       group_list= 0;
       group= 0;
     }
@@ -1068,12 +1099,13 @@ JOIN::optimize()
     if (order)
       skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
     if ((group_list=create_distinct_group(thd, select_lex->ref_pointer_array,
-                                          order, fields_list,
+                                          order, fields_list, all_fields,
 				          &all_order_fields_used)))
     {
       bool skip_group= (skip_sort_order &&
 			test_if_skip_sort_order(tab, group_list, select_limit,
 						1) != 0);
+      count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  select_limit == HA_POS_ERROR ||
 	  (order && !skip_sort_order))
@@ -4369,9 +4401,13 @@ choose_plan(JOIN *join, table_map join_tables)
 
   /* 
     Store the cost of this query into a user variable
-    Don't update last_query_cost for 'show status' command
+    Don't update last_query_cost for 'show status' command.
+    Don't update last_query_cost for statements that are not "flat joins" :
+    i.e. they have subqueries, unions or call stored procedures.
+    TODO: calculate a correct cost for a query with subqueries and UNIONs.
   */
-  if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
+  if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS &&
+      join->thd->lex->is_single_level_stmt())
     join->thd->status_var.last_query_cost= join->best_read;
   DBUG_RETURN(FALSE);
 }
@@ -12027,6 +12063,12 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
         for (; const_key_parts & 1 ; const_key_parts>>= 1)
           key_part++; 
+        /*
+         The primary and secondary key parts were all const (i.e. there's
+         one row).  The sorting doesn't matter.
+        */
+        if (key_part == key_part_end && reverse == 0)
+          DBUG_RETURN(1);
       }
       else
         DBUG_RETURN(0);
@@ -12444,7 +12486,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  }
 	  DBUG_RETURN(1);
 	}
-	if (tab->ref.key_parts < used_key_parts)
+	if (tab->ref.key_parts <= used_key_parts)
 	{
 	  /*
 	    SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
@@ -13024,7 +13066,8 @@ static int
 join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 {
   reg1 uint i;
-  uint length,blobs,size;
+  uint length, blobs;
+  size_t size;
   CACHE_FIELD *copy,**blob_ptr;
   JOIN_CACHE  *cache;
   JOIN_TAB *join_tab;
@@ -13140,7 +13183,7 @@ store_record_in_cache(JOIN_CACHE *cache)
   length=cache->length;
   if (cache->blobs)
     length+=used_blob_length(cache->blob_ptr);
-  if ((last_record=(length+cache->length > (uint) (cache->end - pos))))
+  if ((last_record= (length + cache->length > (size_t) (cache->end - pos))))
     cache->ptr_record=cache->records;
 
   /*
@@ -13186,7 +13229,7 @@ store_record_in_cache(JOIN_CACHE *cache)
     }
   }
   cache->pos=pos;
-  return last_record || (uint) (cache->end -pos) < cache->length;
+  return last_record || (size_t) (cache->end - pos) < cache->length;
 }
 
 
@@ -13629,11 +13672,12 @@ setup_new_fields(THD *thd, List<Item> &fields,
 
 static ORDER *
 create_distinct_group(THD *thd, Item **ref_pointer_array,
-                      ORDER *order_list, List<Item> &fields, 
+                      ORDER *order_list, List<Item> &fields,
+                      List<Item> &all_fields,
 		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
-  Item *item;
+  Item *item, **orig_ref_pointer_array= ref_pointer_array;
   ORDER *order,*group,**prev;
 
   *all_order_by_fields_used= 1;
@@ -13673,12 +13717,31 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
-      /*
-        We have here only field_list (not all_field_list), so we can use
-        simple indexing of ref_pointer_array (order in the array and in the
-        list are same)
-      */
-      ord->item= ref_pointer_array;
+
+      if (item->type() == Item::FIELD_ITEM &&
+          item->field_type() == MYSQL_TYPE_BIT)
+      {
+        /*
+          Because HEAP tables can't index BIT fields we need to use an
+          additional hidden field for grouping because later it will be
+          converted to a LONG field. Original field will remain of the
+          BIT type and will be returned to a client.
+        */
+        Item_field *new_item= new Item_field(thd, (Item_field*)item);
+        int el= all_fields.elements;
+        orig_ref_pointer_array[el]= new_item;
+        all_fields.push_front(new_item);
+        ord->item= orig_ref_pointer_array + el;
+      }
+      else
+      {
+        /*
+          We have here only field_list (not all_field_list), so we can use
+          simple indexing of ref_pointer_array (order in the array and in the
+          list are same)
+        */
+        ord->item= ref_pointer_array;
+      }
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
