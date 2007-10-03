@@ -390,7 +390,11 @@ mem_heap_free_top(
 				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	} else {
-		UNIV_MEM_FREE((byte*) block + mem_block_get_free(block), n);
+		/* Avoid a bogus UNIV_MEM_ASSERT_W() warning in a
+		subsequent invocation of mem_heap_free_top().
+		Originally, this was UNIV_MEM_FREE(), to catch writes
+		to freed memory. */
+		UNIV_MEM_ALLOC((byte*) block + mem_block_get_free(block), n);
 	}
 }
 
