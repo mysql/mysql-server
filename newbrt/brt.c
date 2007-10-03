@@ -892,6 +892,8 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     return r;
 }
 
+int brt_do_push_cmd = 1;
+
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
@@ -969,7 +971,7 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     /* if the child is in the cache table then push the cmd to it 
        otherwise just put it into this node's buffer */
-    if (1) {
+    if (brt_do_push_cmd) {
         int r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 1);
         if (r == 0)
             return r;
@@ -1570,7 +1572,7 @@ int brt_flush_debug = 0;
  * then reflect the node split up the cursor path towards the tree root.
  * If the root is reached then create a new root
  */  
-void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUTXN txn) {
+void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, void *app_private, DB *db, TOKUTXN txn) {
     int r;
     int child_did_split;
     BRTNODE childa, childb;
@@ -1583,7 +1585,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUT
 
     init_dbt(&child_splitk);
     r = push_some_brt_cmds_down(t, node, childnum, 
-				&child_did_split, &childa, &childb, &child_splitk, brt_flush_debug, 0, 0, txn);
+				&child_did_split, &childa, &childb, &child_splitk, brt_flush_debug, app_private, db, txn);
     assert(r == 0);
     if (brt_flush_debug) {
         printf("brt_flush_child done %lld %d\n", node->thisnodename, childnum);
@@ -1617,7 +1619,7 @@ void brt_flush_child(BRT t, BRTNODE node, int childnum, BRT_CURSOR cursor, TOKUT
                 r = handle_split_of_child(t, upnode, childnum,
 					  childa, childb, &child_splitk,
 					  &child_did_split, &childa, &childb, &child_splitk,
-					  0, 0, txn);
+					  app_private, db, txn);
                 assert(r == 0);
             }
         }
@@ -1893,7 +1895,7 @@ void brt_cursor_print(BRT_CURSOR cursor) {
     printf("\n");
 }
 
-int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
+int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, DB *db, TOKUTXN txn) {
     BRT brt=cursor->brt;
     void *node_v;
  
@@ -1916,7 +1918,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
 	cursor->pathcnum[cursor->path_len-1] = childnum;
 	brt_node_add_cursor(node, childnum, cursor);
         if (node->u.n.n_bytes_in_hashtable[childnum] > 0) {
-            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+            brt_flush_child(cursor->brt, node, childnum, cursor, 0, db, txn);
             /*
              * the flush may have been partially successfull.  it may have also
              * changed the tree such that the current node have expanded or been
@@ -1927,7 +1929,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_last_child;
         }
-        r=brtcurs_set_position_last (cursor, node->u.n.children[childnum], txn);
+        r=brtcurs_set_position_last (cursor, node->u.n.children[childnum], db, txn);
 	if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -1954,7 +1956,7 @@ int brtcurs_set_position_last (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
     }
 }
 
-int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
+int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, DB *db, TOKUTXN txn) {
     BRT brt=cursor->brt;
     void *node_v;
 
@@ -1977,7 +1979,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
 	cursor->pathcnum[cursor->path_len-1] = childnum;
         brt_node_add_cursor(node, childnum, cursor);        
         if (node->u.n.n_bytes_in_hashtable[childnum] > 0) {
-            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+            brt_flush_child(cursor->brt, node, childnum, cursor, 0, db, txn);
             /*
              * the flush may have been partially successfull.  it may have also
              * changed the tree such that the current node have expanded or been
@@ -1988,7 +1990,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
             brt_node_remove_cursor(node, childnum, cursor);
             goto try_first_child;
         }
-        r=brtcurs_set_position_first (cursor, node->u.n.children[childnum], txn);
+        r=brtcurs_set_position_first (cursor, node->u.n.children[childnum], db, txn);
         if (r == 0)
             return r;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2016,7 +2018,7 @@ int brtcurs_set_position_first (BRT_CURSOR cursor, diskoff off, TOKUTXN txn) {
     }
 }
 
-int brtcurs_set_position_next2(BRT_CURSOR cursor, TOKUTXN txn) {
+int brtcurs_set_position_next2(BRT_CURSOR cursor, DB *db, TOKUTXN txn) {
     BRTNODE node;
     int childnum;
     int r;
@@ -2047,11 +2049,11 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor, TOKUTXN txn) {
             more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more == 0)
                 break;
-            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+            brt_flush_child(cursor->brt, node, childnum, cursor, 0, db, txn);
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
 	}
-        r = brtcurs_set_position_first(cursor, node->u.n.children[childnum], txn);
+        r = brtcurs_set_position_first(cursor, node->u.n.children[childnum], db, txn);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2059,11 +2061,11 @@ int brtcurs_set_position_next2(BRT_CURSOR cursor, TOKUTXN txn) {
         childnum += 1;
     }
 
-    return brtcurs_set_position_next2(cursor, txn);
+    return brtcurs_set_position_next2(cursor, db, txn);
 }
 
 /* requires that the cursor is initialized. */
-int brtcurs_set_position_next (BRT_CURSOR cursor, TOKUTXN txn) {
+int brtcurs_set_position_next (BRT_CURSOR cursor, DB *db, TOKUTXN txn) {
     int r = pma_cursor_set_position_next(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	/* We fell off the end of the pma. */
@@ -2071,12 +2073,12 @@ int brtcurs_set_position_next (BRT_CURSOR cursor, TOKUTXN txn) {
         /* Part of the trickyness is we need to leave the cursor pointing at the current (possibly deleted) value if there is no next value. */
         r = pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
-        return brtcurs_set_position_next2(cursor, txn);
+        return brtcurs_set_position_next2(cursor, db, txn);
     }
     return 0;
 }
 
-int brtcurs_set_position_prev2(BRT_CURSOR cursor, TOKUTXN txn)  {
+int brtcurs_set_position_prev2(BRT_CURSOR cursor, DB *db, TOKUTXN txn)  {
     BRTNODE node;
     int childnum;
     int r;
@@ -2107,11 +2109,11 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor, TOKUTXN txn)  {
             more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more == 0)
                 break;
-            brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+            brt_flush_child(cursor->brt, node, childnum, cursor, 0, db, txn);
             node = cursor->path[cursor->path_len-1];
             childnum = cursor->pathcnum[cursor->path_len-1];
         }
-        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum], txn);
+        r = brtcurs_set_position_last(cursor, node->u.n.children[childnum], 0, txn);
         if (r == 0)
             return 0;
         assert(node == cursor->path[cursor->path_len-1]);
@@ -2119,17 +2121,17 @@ int brtcurs_set_position_prev2(BRT_CURSOR cursor, TOKUTXN txn)  {
         childnum -= 1;
     }
 
-    return brtcurs_set_position_prev2(cursor, txn);
+    return brtcurs_set_position_prev2(cursor, db, txn);
 }
 
-int brtcurs_set_position_prev (BRT_CURSOR cursor, TOKUTXN txn) {
+int brtcurs_set_position_prev (BRT_CURSOR cursor, DB *db, TOKUTXN txn) {
     int r = pma_cursor_set_position_prev(cursor->pmacurs);
     if (r==DB_NOTFOUND) {
 	if (cursor->path_len==1) 
             return DB_NOTFOUND;
         r = pma_cursor_free(&cursor->pmacurs);
         assert(r == 0);
-        return brtcurs_set_position_prev2(cursor, txn);
+        return brtcurs_set_position_prev2(cursor, db, txn);
     }
     return 0;
 }
@@ -2155,7 +2157,7 @@ int brtcurs_set_key(BRT_CURSOR cursor, diskoff off, DBT *key, DBT *val, int flag
             brt_node_add_cursor(node, childnum, cursor);
             int more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more > 0) {
-                brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+                brt_flush_child(cursor->brt, node, childnum, cursor, key->app_private, db, txn);
                 node = cursor->path[cursor->path_len-1];
                 childnum = cursor->pathcnum[cursor->path_len-1];
                 brt_node_remove_cursor(node, childnum, cursor);
@@ -2217,7 +2219,7 @@ int brtcurs_set_range(BRT_CURSOR cursor, diskoff off, DBT *key, DB *db, TOKUTXN 
             brt_node_add_cursor(node, childnum, cursor);
             int more = node->u.n.n_bytes_in_hashtable[childnum];
             if (more > 0) {
-                brt_flush_child(cursor->brt, node, childnum, cursor, txn);
+                brt_flush_child(cursor->brt, node, childnum, cursor, key->app_private, db, txn);
                 node = cursor->path[cursor->path_len-1];
                 childnum = cursor->pathcnum[cursor->path_len-1];
                 brt_node_remove_cursor(node, childnum, cursor);
@@ -2314,7 +2316,7 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
     do_db_last:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
-        r=brtcurs_set_position_last(cursor, *rootp, txn); if (r!=0) goto died0;
+        r=brtcurs_set_position_last(cursor, *rootp, db, txn); if (r!=0) goto died0;
         r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
@@ -2322,21 +2324,21 @@ int brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int flags, DB *db, TO
     do_db_first:
 	r=unpin_cursor(cursor); if (r!=0) goto died0;
 	assert(cursor->pmacurs == 0);
-        r=brtcurs_set_position_first(cursor, *rootp, txn); if (r!=0) goto died0;
+        r=brtcurs_set_position_first(cursor, *rootp, db, txn); if (r!=0) goto died0;
         r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt);
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_NEXT:
 	if (cursor->path_len<=0)
 	    goto do_db_first;
-	r=brtcurs_set_position_next(cursor, txn); if (r!=0) goto died0;
+	r=brtcurs_set_position_next(cursor, db, txn); if (r!=0) goto died0;
 	r=pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
 	if (r == 0) assert_cursor_path(cursor);
         break;
     case DB_PREV:
         if (cursor->path_len<= 0)
             goto do_db_last;
-        r = brtcurs_set_position_prev(cursor, txn); if (r!=0) goto died0;
+        r = brtcurs_set_position_prev(cursor, db, txn); if (r!=0) goto died0;
         r = pma_cursor_get_current(cursor->pmacurs, kbt, vbt); if (r!=0) goto died0;
         if (r == 0) assert_cursor_path(cursor);
         break;

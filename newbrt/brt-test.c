@@ -815,7 +815,22 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 
 int test_cursor_debug = 0;
 
-void assert_cursor_notfound(BRT brt, int position) {
+DB *test_db;
+
+void set_test_db(DB *db) {
+    test_db = db;
+}
+
+void clear_test_db() {
+    test_db = null_db;
+}
+
+int test_brt_cursor_keycompare(DB *db, const DBT *a, const DBT *b) {
+    assert(db == test_db);
+    return keycompare(a->data, a->size, b->data, b->size);
+}
+
+void assert_cursor_notfound(BRT brt, int position, DB *db) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -825,14 +840,14 @@ void assert_cursor_notfound(BRT brt, int position) {
 
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, position, null_db, null_txn);
+    r = brt_cursor_get(cursor, &kbt, &vbt, position, db, null_txn);
     assert(r == DB_NOTFOUND);
 
     r = brt_cursor_close(cursor);
     assert(r==0);
 }
 
-void assert_cursor_value(BRT brt, int position, long long value) {
+void assert_cursor_value(BRT brt, int position, long long value, DB *db) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -844,7 +859,7 @@ void assert_cursor_value(BRT brt, int position, long long value) {
     if (test_cursor_debug) printf("key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, position, null_db, null_txn);
+    r = brt_cursor_get(cursor, &kbt, &vbt, position, db, null_txn);
     assert(r == 0);
     if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -858,7 +873,7 @@ void assert_cursor_value(BRT brt, int position, long long value) {
     assert(r==0);
 }
 
-void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
+void assert_cursor_first_last(BRT brt, long long firstv, long long lastv, DB *db) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -870,7 +885,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     if (test_cursor_debug) printf("first key: ");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, null_db, null_txn);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, db, null_txn);
     assert(r == 0);
     if (test_cursor_debug) printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -883,7 +898,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     if (test_cursor_debug) printf("last key:");
     init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, null_db, null_txn);
+    r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, db, null_txn);
     assert(r == 0);
     if (test_cursor_debug)printf("%s ", (char*)kbt.data);
     assert(vbt.size == sizeof v);
@@ -897,21 +912,22 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
     assert(r==0);
 }
 
-void test_brt_cursor_first(int n) {
+void test_brt_cursor_first(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_first:%d\n", n);
+    printf("test_brt_cursor_first:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -923,40 +939,43 @@ void test_brt_cursor_first(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST);
+        assert_cursor_notfound(brt, DB_FIRST, db);
     else
-        assert_cursor_value(brt, DB_FIRST, 0);
+        assert_cursor_value(brt, DB_FIRST, 0, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_last(int n) {
+void test_brt_cursor_last(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_last:%d\n", n);
+    printf("test_brt_cursor_last:%d %p\n", n, db);
 
+    set_test_db(db);;
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
-    /* insert a bunch of kv pairs */
+    /* insert keys 0, 1, .. (n-1) */
     for (i=0; i<n; i++) {
         char key[8]; long long v;
         DBT kbt, vbt;
@@ -965,31 +984,34 @@ void test_brt_cursor_last(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_LAST);
+        assert_cursor_notfound(brt, DB_LAST, db);
     else
-        assert_cursor_value(brt, DB_LAST, n-1);
+        assert_cursor_value(brt, DB_LAST, n-1, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_first_last(int n) {
+void test_brt_cursor_first_last(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_first_last:%d\n", n);
+    printf("test_brt_cursor_first_last:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1007,41 +1029,44 @@ void test_brt_cursor_first_last(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     if (n == 0) {
-        assert_cursor_notfound(brt, DB_FIRST);
-        assert_cursor_notfound(brt, DB_LAST);
+        assert_cursor_notfound(brt, DB_FIRST, db);
+        assert_cursor_notfound(brt, DB_LAST, db);
     } else 
-        assert_cursor_first_last(brt, 0, n-1);
+        assert_cursor_first_last(brt, 0, n-1, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    
 }
 
-void test_brt_cursor_rfirst(int n) {
+void test_brt_cursor_rfirst(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_rfirst:%d\n", n);
+    printf("test_brt_cursor_rfirst:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
-    /* insert a bunch of kv pairs */
+    /* insert keys n-1, n-2, ... , 0 */
     for (i=n-1; i>=0; i--) {
         char key[8]; long long v;
         DBT kbt, vbt;
@@ -1050,23 +1075,25 @@ void test_brt_cursor_rfirst(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST);
+        assert_cursor_notfound(brt, DB_FIRST, db);
     else
-        assert_cursor_value(brt, DB_FIRST, 0);
+        assert_cursor_value(brt, DB_FIRST, 0, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void assert_cursor_walk(BRT brt, int n) {
+void assert_cursor_walk(BRT brt, int n, DB *db) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1081,7 +1108,7 @@ void assert_cursor_walk(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1098,21 +1125,22 @@ void assert_cursor_walk(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_walk(int n) {
+void test_brt_cursor_walk(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_walk:%d\n", n);
+    printf("test_brt_cursor_walk:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1124,21 +1152,23 @@ void test_brt_cursor_walk(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     /* walk the tree */
-    assert_cursor_walk(brt, n);
+    assert_cursor_walk(brt, n, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void assert_cursor_rwalk(BRT brt, int n) {
+void assert_cursor_rwalk(BRT brt, int n, DB *db) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1153,7 +1183,7 @@ void assert_cursor_rwalk(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, null_db, null_txn);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1170,21 +1200,22 @@ void assert_cursor_rwalk(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_rwalk(int n) {
+void test_brt_cursor_rwalk(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_rwalk:%d\n", n);
+    printf("test_brt_cursor_rwalk:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1196,21 +1227,23 @@ void test_brt_cursor_rwalk(int n) {
         fill_dbt(&kbt, &k, sizeof k);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
     /* walk the tree */
-    assert_cursor_rwalk(brt, n);
+    assert_cursor_rwalk(brt, n, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void assert_cursor_walk_inorder(BRT brt, int n) {
+void assert_cursor_walk_inorder(BRT brt, int n, DB *db) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1227,7 +1260,7 @@ void assert_cursor_walk_inorder(BRT brt, int n) {
 
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1248,21 +1281,22 @@ void assert_cursor_walk_inorder(BRT brt, int n) {
     assert(r==0);
 }
 
-void test_brt_cursor_rand(int n) {
+void test_brt_cursor_rand(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    printf("test_brt_cursor_rand:%d\n", n);
+    printf("test_brt_cursor_rand:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1276,28 +1310,30 @@ void test_brt_cursor_rand(int n) {
 	    fill_dbt(&kbt, key, strlen(key)+1);
 	    v = i;
 	    fill_dbt(&vbt, &v, sizeof v);
-	    r = brt_lookup(brt, &kbt, &vbt, 0);
+	    r = brt_lookup(brt, &kbt, &vbt, db);
 	    if (r == 0) {
                 printf("dup");
                 continue;
 	    }
-	    r = brt_insert(brt, &kbt, &vbt, 0, 0);
+	    r = brt_insert(brt, &kbt, &vbt, db, 0);
 	    assert(r==0);
 	    break;
         }
     }
 
     /* walk the tree */
-    assert_cursor_walk_inorder(brt, n);
+    assert_cursor_walk_inorder(brt, n, db);
 
     r = close_brt(brt);
     assert(r==0);
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_split(int n) {
+void test_brt_cursor_split(int n, DB *db) {
     const char *fname="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
@@ -1307,14 +1343,15 @@ void test_brt_cursor_split(int n) {
     int i;
     DBT kbt, vbt;
 
-    printf("test_brt_cursor_split:%d\n", n);
+    printf("test_brt_cursor_split:%d %p\n", n, db);
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1325,7 +1362,7 @@ void test_brt_cursor_split(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
@@ -1336,7 +1373,7 @@ void test_brt_cursor_split(int n) {
     for (i=0; i<n/2; i++) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         assert(r==0);
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
         toku_free(kbt.data);
@@ -1351,7 +1388,7 @@ void test_brt_cursor_split(int n) {
         fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
-        r = brt_insert(brt, &kbt, &vbt, 0, 0);
+        r = brt_insert(brt, &kbt, &vbt, db, 0);
         assert(r==0);
     }
 
@@ -1359,7 +1396,7 @@ void test_brt_cursor_split(int n) {
     for (;;) {
         init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
+        r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
             break;
         if (test_cursor_debug) printf("%s ", (char*)kbt.data);
@@ -1376,10 +1413,12 @@ void test_brt_cursor_split(int n) {
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_multiple_brt_cursors(int n) {
-    printf("test_multiple_brt_cursors:%d\n", n);
+void test_multiple_brt_cursors(int n, DB *db) {
+    printf("test_multiple_brt_cursors:%d %p\n", n, db);
 
     int r;
     char fname[]="testbrt.brt";
@@ -1387,12 +1426,13 @@ void test_multiple_brt_cursors(int n) {
     BRT brt;
     BRT_CURSOR cursors[n];
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     int i;
@@ -1411,6 +1451,8 @@ void test_multiple_brt_cursors(int n) {
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
 static int log16(int n) {
@@ -1423,8 +1465,8 @@ static int log16(int n) {
     return r;
 }
 
-void test_multiple_brt_cursor_walk(int n) {
-    printf("test_multiple_brt_cursor_walk:%d\n", n);
+void test_multiple_brt_cursor_walk(int n, DB *db) {
+    printf("test_multiple_brt_cursor_walk:%d %p\n", n, db);
 
     int r;
     char fname[]="testbrt.brt";
@@ -1434,6 +1476,7 @@ void test_multiple_brt_cursor_walk(int n) {
     const int ncursors = n/cursor_gap;
     BRT_CURSOR cursors[ncursors];
 
+    set_test_db(db);
     unlink(fname);
 
     int nodesize = 1<<12;
@@ -1442,7 +1485,7 @@ void test_multiple_brt_cursor_walk(int n) {
     r = brt_create_cachetable_size(&ct, 127, cachesize);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     int c;
@@ -1462,7 +1505,7 @@ void test_multiple_brt_cursor_walk(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0, 0);
+        r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
 
         /* point cursor i / cursor_gap to the current last key i */
@@ -1470,7 +1513,7 @@ void test_multiple_brt_cursor_walk(int n) {
             c = i / cursor_gap;
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = brt_cursor_get(cursors[c], &key, &val, DB_LAST, null_db, null_txn);
+            r = brt_cursor_get(cursors[c], &key, &val, DB_LAST, db, null_txn);
             assert(r == 0);
             toku_free(key.data);
             toku_free(val.data);
@@ -1482,7 +1525,7 @@ void test_multiple_brt_cursor_walk(int n) {
         for (c=0; c<ncursors; c++) {
             init_dbt(&key); key.flags = DB_DBT_MALLOC;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = brt_cursor_get(cursors[c], &key, &val, DB_NEXT, null_db, null_txn);
+            r = brt_cursor_get(cursors[c], &key, &val, DB_NEXT, db, null_txn);
             if (r == DB_NOTFOUND) {
                 /* we already consumed 1 previously */
                 assert(i == cursor_gap-1);
@@ -1508,23 +1551,26 @@ void test_multiple_brt_cursor_walk(int n) {
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_set(int n, int cursor_op) {
-    printf("test_brt_cursor_set:%d %d\n", n, cursor_op);
+void test_brt_cursor_set(int n, int cursor_op, DB *db) {
+    printf("test_brt_cursor_set:%d %d %p\n", n, cursor_op, db);
 
     int r;
     char fname[]="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
-
+    
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     int i;
@@ -1537,7 +1583,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         v = 10*i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0, 0);
+        r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
     }
 
@@ -1552,7 +1598,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         k = htonl(v);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, cursor_op, null_db, null_txn);
+        r = brt_cursor_get(cursor, &key, &val, cursor_op, db, null_txn);
         assert(r == 0);
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
@@ -1567,7 +1613,7 @@ void test_brt_cursor_set(int n, int cursor_op) {
         k = htonl(i);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, DB_SET, null_db, null_txn);
+        r = brt_cursor_get(cursor, &key, &val, DB_SET, db, null_txn);
         assert(r == DB_NOTFOUND);
     }
 
@@ -1579,10 +1625,12 @@ void test_brt_cursor_set(int n, int cursor_op) {
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_set_range(int n) {
-    printf("test_brt_cursor_set_range:%d\n", n);
+void test_brt_cursor_set_range(int n, DB *db) {
+    printf("test_brt_cursor_set_range:%d %p\n", n, db);
 
     int r;
     char fname[]="testbrt.brt";
@@ -1590,12 +1638,13 @@ void test_brt_cursor_set_range(int n) {
     BRT brt;
     BRT_CURSOR cursor;
 
+    set_test_db(db);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     int i;
@@ -1609,7 +1658,7 @@ void test_brt_cursor_set_range(int n) {
         v = 10*i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        r = brt_insert(brt, &key, &val, 0, 0);
+        r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
     }
 
@@ -1625,7 +1674,7 @@ void test_brt_cursor_set_range(int n) {
         k = htonl(v);
         fill_dbt(&key, &k, sizeof k);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_db, null_txn);
+        r = brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, db, null_txn);
         if (v > max_key)
             /* there is no smallest key if v > the max key */
             assert(r == DB_NOTFOUND);
@@ -1646,10 +1695,12 @@ void test_brt_cursor_set_range(int n) {
 
     r = cachetable_close(&ct);
     assert(r==0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_delete(int n) {
-    printf("test_brt_cursor_delete:%d\n", n);
+void test_brt_cursor_delete(int n, DB *db) {
+    printf("test_brt_cursor_delete:%d %p\n", n, db);
 
     int error;
     char fname[]="testbrt.brt";
@@ -1657,12 +1708,13 @@ void test_brt_cursor_delete(int n) {
     BRT brt;
     BRT_CURSOR cursor;
 
+    set_test_db(db);
     unlink(fname);
 
     error = brt_create_cachetable(&ct, 0);
     assert(error == 0);
 
-    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(error == 0);
 
     error = brt_cursor(brt, &cursor);
@@ -1678,7 +1730,7 @@ void test_brt_cursor_delete(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_insert(brt, &key, &val, 0, 0);
+        error = brt_insert(brt, &key, &val, db, 0);
         assert(error == 0);
     }
 
@@ -1686,7 +1738,7 @@ void test_brt_cursor_delete(int n) {
     for (;;) {
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        error = brt_cursor_get(cursor, &key, &val, DB_NEXT, null_db, null_txn);
+        error = brt_cursor_get(cursor, &key, &val, DB_NEXT, db, null_txn);
         if (error == DB_NOTFOUND)
             break;
         assert(error == 0);
@@ -1708,10 +1760,12 @@ void test_brt_cursor_delete(int n) {
 
     error = cachetable_close(&ct);
     assert(error == 0);
+
+    clear_test_db();
 }
 
-void test_brt_cursor_get_both(int n) {
-    printf("test_brt_cursor_get_both:%d\n", n);
+void test_brt_cursor_get_both(int n, DB *db) {
+    printf("test_brt_cursor_get_both:%d %p\n", n, db);
 
     int error;
     char fname[]="testbrt.brt";
@@ -1719,12 +1773,13 @@ void test_brt_cursor_get_both(int n) {
     BRT brt;
     BRT_CURSOR cursor;
 
+    set_test_db(db);
     unlink(fname);
 
     error = brt_create_cachetable(&ct, 0);
     assert(error == 0);
 
-    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    error = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(error == 0);
 
     error = brt_cursor(brt, &cursor);
@@ -1738,7 +1793,7 @@ void test_brt_cursor_get_both(int n) {
     v = n+1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
+    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
     assert(error == DB_NOTFOUND);
 
     int i;
@@ -1748,7 +1803,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_insert(brt, &key, &val, 0, 0);
+        error = brt_insert(brt, &key, &val, db, 0);
         assert(error == 0);
     }
 
@@ -1757,7 +1812,7 @@ void test_brt_cursor_get_both(int n) {
     v = n-1;
     fill_dbt(&key, &k, sizeof k);
     fill_dbt(&val, &v, sizeof v);
-    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
+    error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
     assert(error == DB_NOTFOUND);
 
     /* verify that key match but data mismatch fails */
@@ -1766,7 +1821,7 @@ void test_brt_cursor_get_both(int n) {
         v = i+1;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == DB_NOTFOUND);
     }
 
@@ -1776,7 +1831,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == 0);
 #ifdef DB_CURRENT 
         init_dbt(&key); key.flags = DB_DBT_MALLOC;
@@ -1797,7 +1852,7 @@ void test_brt_cursor_get_both(int n) {
         v = i;
         fill_dbt(&key, &k, sizeof k);
         fill_dbt(&val, &v, sizeof v);
-        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, null_db, null_txn);
+        error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == DB_NOTFOUND);
     }
 
@@ -1812,52 +1867,64 @@ void test_brt_cursor_get_both(int n) {
 
     error = cachetable_close(&ct);
     assert(error == 0);
+
+    clear_test_db();
 }
+
+
+extern int brt_do_push_cmd;
 
 int test_brt_cursor_inc = 1000;
 int test_brt_cursor_limit = 10000;
 
-void test_brt_cursor() {
+void test_brt_cursor(DB *db) {
     int n;
 
-    test_multiple_brt_cursors(1);
-    test_multiple_brt_cursors(2);
-    test_multiple_brt_cursors(3);
+    int old_brt_do_push_cmd = brt_do_push_cmd;
+    brt_do_push_cmd = 0;
+
+    test_multiple_brt_cursors(1, db);
+    test_multiple_brt_cursors(2, db);
+    test_multiple_brt_cursors(3, db);
 
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first(n); memory_check_all_free();
+        test_brt_cursor_first(n, db); memory_check_all_free();
+     }
+    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
+        test_brt_cursor_rfirst(n, db); memory_check_all_free();        
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rfirst(n); memory_check_all_free();
+        test_brt_cursor_walk(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_walk(n); memory_check_all_free();
+        test_brt_cursor_last(n, db); memory_check_all_free();        
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_last(n); memory_check_all_free();
+        test_brt_cursor_first_last(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first_last(n); memory_check_all_free();
+        test_brt_cursor_split(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_split(n); memory_check_all_free();
+        test_brt_cursor_rand(n, db); memory_check_all_free();
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rand(n); memory_check_all_free();
-    }
-    for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rwalk(n); memory_check_all_free();
+        test_brt_cursor_rwalk(n, db); memory_check_all_free();
     }
 
-    test_brt_cursor_set(1000, DB_SET); memory_check_all_free();
-    test_brt_cursor_set(10000, DB_SET); memory_check_all_free();
-    test_brt_cursor_set(1000, DB_SET_RANGE); memory_check_all_free();
-    test_brt_cursor_set_range(1000); memory_check_all_free();
-    test_brt_cursor_set_range(10000); memory_check_all_free();
-    test_brt_cursor_delete(1000); memory_check_all_free();
-    test_multiple_brt_cursor_walk(10000); memory_check_all_free();
-    test_multiple_brt_cursor_walk(100000); memory_check_all_free();
-    test_brt_cursor_get_both(1000); memory_check_all_free();
+    test_brt_cursor_set(1000, DB_SET, db); memory_check_all_free();
+    test_brt_cursor_set(10000, DB_SET, db); memory_check_all_free();
+    test_brt_cursor_set(1000, DB_SET_RANGE, db); memory_check_all_free();
+    test_brt_cursor_set_range(1000, db); memory_check_all_free();
+    test_brt_cursor_set_range(10000, db); memory_check_all_free();
+
+
+    test_brt_cursor_delete(1000, db); memory_check_all_free();
+    test_multiple_brt_cursor_walk(10000, db); memory_check_all_free();
+    test_multiple_brt_cursor_walk(100000, db); memory_check_all_free();
+    test_brt_cursor_get_both(1000, db); memory_check_all_free();
+    
+    brt_do_push_cmd = old_brt_do_push_cmd;
 }
 
 void test_large_kv(int bsize, int ksize, int vsize) {
@@ -2178,7 +2245,11 @@ static void brt_blackbox_test (void) {
     memory_check = 1;
 
     test_brt_limits();
-    test_brt_cursor();
+
+    DB a_db;
+    DB *db = &a_db;
+    test_brt_cursor(db);
+
     test_brt_delete();
 
 //    test3(1<<19, 1<<20, 0);
