@@ -31,12 +31,14 @@ const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif /* DBUG_OFF */
 static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent;
 static ulong opt_page_buffer_size;
+static const char *my_progname_short;
 
 int main(int argc, char **argv)
 {
   LSN lsn;
   char **default_argv;
   MY_INIT(argv[0]);
+  my_progname_short= my_progname+dirname_length(my_progname);
 
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
@@ -103,12 +105,12 @@ int main(int argc, char **argv)
   if (maria_apply_log(lsn, opt_apply, opt_silent ? NULL : stdout,
                       opt_apply_undo, FALSE))
     goto err;
-  fprintf(stdout, "%s: SUCCESS\n", my_progname);
+  fprintf(stdout, "%s: SUCCESS\n", my_progname_short);
 
   goto end;
 err:
   /* don't touch anything more, in case we hit a bug */
-  fprintf(stderr, "%s: FAILED\n", my_progname);
+  fprintf(stderr, "%s: FAILED\n", my_progname_short);
   exit(1);
 end:
   maria_end();
@@ -117,6 +119,9 @@ end:
   exit(0);
   return 0;				/* No compiler warning */
 }
+
+
+#include "ma_check_standalone.h"
 
 
 static struct my_option my_long_options[] =
@@ -155,7 +160,7 @@ static struct my_option my_long_options[] =
 static void print_version(void)
 {
   VOID(printf("%s Ver 1.1 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE));
+              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
 
@@ -169,7 +174,7 @@ static void usage(void)
 
   puts("Display and apply log records from a MARIA transaction log");
   puts("found in the current directory (for now)");
-  VOID(printf("\nUsage: %s OPTIONS\n", my_progname));
+  VOID(printf("\nUsage: %s OPTIONS\n", my_progname_short));
   puts("You need to use one of -o or -a");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -203,13 +208,11 @@ static void get_options(int *argc,char ***argv)
 {
   int ho_error;
 
-  my_progname= argv[0][0];
-
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (opt_apply_undo)
-    opt_apply= 1;
+  if (!opt_apply)
+    opt_apply_undo= FALSE;
 
   if ((opt_only_display + opt_apply) != 1)
   {

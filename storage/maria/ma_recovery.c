@@ -783,27 +783,17 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
     than the mapping, so we can repair.
   */
   tprint(tracef, "   repairing...\n");
-  /**
-     @todo RECOVERY BUG fix this:
-     the maria_chk_init() call causes a heap of linker errors in ha_maria.cc!
-  */
-#if 0
   HA_CHECK param;
   maria_chk_init(&param);
   param.isam_file_name= info->s->open_file_name;
   param.testflag= uint4korr(rec->header);
-  if (maria_repair(&param, info, info->s->open_file_name,
-                   param.testflag & T_QUICK))
+  if (maria_repair(&param, info, info->s->open_file_name, param.testflag))
     goto end;
   if (_ma_update_create_rename_lsn(info->s, rec->lsn, TRUE))
     goto end;
   error= 0;
 end:
   return error;
-#else
-  DBUG_ASSERT("fix this table repairing" == NULL);
-  return error;
-#endif
 }
 
 
