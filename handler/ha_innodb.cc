@@ -41,8 +41,6 @@
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
-/* Somehow this is not declared for plugins. */
-bool schema_table_store_record(THD *thd, TABLE *table);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
@@ -65,7 +63,6 @@ static handlerton *innodb_hton_ptr;
 extern "C" {
 #include "../storage/innobase/include/univ.i"
 #include "../storage/innobase/include/btr0sea.h"
-#include "../storage/innobase/include/buf0buddy.h"
 #include "../storage/innobase/include/os0file.h"
 #include "../storage/innobase/include/os0thread.h"
 #include "../storage/innobase/include/srv0start.h"
@@ -7947,163 +7944,6 @@ bool ha_innobase::check_if_incompatible_data(
 	return(COMPATIBLE_DATA_YES);
 }
 
-/***********************************************************************
-Fill the dynamic table information_schema.innodb_zip. */
-static
-int
-innobase_stat_zip_fill(
-/*===================*/
-				/* out: 0 on success, 1 on failure */
-	THD*		thd,	/* in: thread */
-	TABLE_LIST*	tables,	/* in/out: tables to fill */
-	COND*		cond,	/* in: condition (ignored) */
-	ibool		reset)	/* in: TRUE=reset cumulated counts */
-{
-	TABLE*	table	= (TABLE *) tables->table;
-	int	status	= 0;
-	uint	y	= 0;
-
-	DBUG_ENTER("innobase_stat_zip_fill");
-
-	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
-	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
-
-	mutex_enter(&buf_pool->mutex);
-
-	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
-		table->field[0]->store(BUF_BUDDY_LOW << x);
-		table->field[1]->store(buf_buddy_relocated[x]);
-		if (reset) {
-			/* This is protected by buf_pool->mutex. */
-			buf_buddy_relocated[x] = 0;
-		}
-
-		if (x > y) {
-			/* The cumulated counts are not protected by
-			any mutex.  Thus, some operation in page0zip.c
-			could increment a counter between the time we
-			read it and clear it.  We could introduce
-			mutex protection, but it could cause a
-			measureable performance hit in page0zip.c. */
-			const uint i = x - y;
-			table->field[2]->store(page_zip_compress_count[i]);
-			table->field[3]->store(page_zip_compress_ok[i]);
-			table->field[4]->store(page_zip_decompress_count[i]);
-			if (reset) {
-				page_zip_compress_count[i] = 0;
-				page_zip_compress_ok[i] = 0;
-				page_zip_decompress_count[i] = 0;
-			}
-		} else {
-			table->field[2]->store(0);
-			table->field[3]->store(0);
-			table->field[4]->store(0);
-		}
-		table->field[5]->store(buf_buddy_used[x]);
-
-		if (schema_table_store_record(thd, table)) {
-			status = 1;
-			break;
-		}
-	}
-
-	mutex_exit(&buf_pool->mutex);
-	DBUG_RETURN(status);
-}
-
-/***********************************************************************
-Fill the dynamic table information_schema.innodb_zip. */
-static
-int
-innobase_stat_zip_fill(
-/*===================*/
-				/* out: 0 on success, 1 on failure */
-	THD*		thd,	/* in: thread */
-	TABLE_LIST*	tables,	/* in/out: tables to fill */
-	COND*		cond)	/* in: condition (ignored) */
-{
-	return(innobase_stat_zip_fill(thd, tables, cond, FALSE));
-}
-
-/***********************************************************************
-Fill the dynamic table information_schema.innodb_zip_reset. */
-static
-int
-innobase_stat_zip_reset_fill(
-/*=========================*/
-				/* out: 0 on success, 1 on failure */
-	THD*		thd,	/* in: thread */
-	TABLE_LIST*	tables,	/* in/out: tables to fill */
-	COND*		cond)	/* in: condition (ignored) */
-{
-	return(innobase_stat_zip_fill(thd, tables, cond, TRUE));
-}
-
-/* Fields of the dynamic table information_schema.innodb_zip. */
-static ST_FIELD_INFO innobase_stat_zip_fields[] =
-{
-  {"SIZE", 5, MYSQL_TYPE_LONG, 0, 0, "Block Size", SKIP_OPEN_TABLE},
-  {"RELOCATED", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Relocations", SKIP_OPEN_TABLE},
-  {"COMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Compressions", SKIP_OPEN_TABLE},
-  {"COMPRESSED_OK", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Successful Compressions", SKIP_OPEN_TABLE},
-  {"DECOMPRESSED", 21, MYSQL_TYPE_LONG, 0, 0,
-   "Total Number of Decompressions", SKIP_OPEN_TABLE},
-  {"USED", 21, MYSQL_TYPE_LONG, 0, 0, "Currently in Use", SKIP_OPEN_TABLE},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
-};
-
-/***********************************************************************
-Bind the dynamic table information_schema.innodb_zip. */
-static
-int
-innobase_stat_zip_init(
-/*===================*/
-			/* out: 0 on success */
-	void*	p)	/* in/out: table schema object */
-{
-	DBUG_ENTER("innobase_stat_zip_init");
-	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = innobase_stat_zip_fields;
-	schema->fill_table = innobase_stat_zip_fill;
-
-	DBUG_RETURN(0);
-}
-
-/***********************************************************************
-Bind the dynamic table information_schema.innodb_zip_reset. */
-static
-int
-innobase_stat_zip_reset_init(
-/*=========================*/
-			/* out: 0 on success */
-	void*	p)	/* in/out: table schema object */
-{
-	DBUG_ENTER("innobase_stat_zip_reset_init");
-	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = innobase_stat_zip_fields;
-	schema->fill_table = innobase_stat_zip_reset_fill;
-
-	DBUG_RETURN(0);
-}
-
-/***********************************************************************
-Unbind a dynamic table in information_schema. */
-static
-int
-innobase_stat_zip_deinit(
-/*=====================*/
-			/* out: 0 on success */
-	void*	p)	/* in/out: table schema object */
-{
-	DBUG_ENTER("innobase_stat_zip_deinit");
-	DBUG_RETURN(0);
-}
-
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -8119,9 +7959,6 @@ static SHOW_VAR innodb_status_variables_export[]= {
 
 static struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
-
-static struct st_mysql_information_schema innobase_stat_zip=
-{ MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
 /* plugin options */
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -8369,7 +8206,7 @@ mysql_declare_plugin(innobase)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
   innobase_hton_name,
-  "Innobase OY",
+  "Innobase Oy",
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
@@ -8379,31 +8216,9 @@ mysql_declare_plugin(innobase)
   innobase_system_variables, /* system variables */
   NULL /* reserved */
 },
-{
-  MYSQL_INFORMATION_SCHEMA_PLUGIN,
-  &innobase_stat_zip,
-  "INNODB_ZIP",
-  "Innobase Oy",
-  "Statistics for the InnoDB compressed buffer pool",
-  PLUGIN_LICENSE_GPL,
-  innobase_stat_zip_init,
-  innobase_stat_zip_deinit,
-  0x0100 /* 1.0 */,
-  NULL, NULL, NULL
-},
-{
-  MYSQL_INFORMATION_SCHEMA_PLUGIN,
-  &innobase_stat_zip,
-  "INNODB_ZIP_RESET",
-  "Innobase Oy",
-  "Statistics for the InnoDB compressed buffer pool; reset cumulated counts",
-  PLUGIN_LICENSE_GPL,
-  innobase_stat_zip_reset_init,
-  innobase_stat_zip_deinit,
-  0x0100 /* 1.0 */,
-  NULL, NULL, NULL
-},
 i_s_innodb_trx,
 i_s_innodb_locks,
-i_s_innodb_lock_waits
+i_s_innodb_lock_waits,
+i_s_innodb_zip,
+i_s_innodb_zip_reset
 mysql_declare_plugin_end;
