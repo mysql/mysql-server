@@ -120,10 +120,10 @@ UNIV_INLINE
 ibool
 mtr_memo_contains(
 /*==============*/
-			/* out: TRUE if contains */
-	mtr_t*	mtr,	/* in: mtr */
-	void*	object,	/* in: object to search */
-	ulint	type)	/* in: type of object */
+				/* out: TRUE if contains */
+	mtr_t*		mtr,	/* in: mtr */
+	const void*	object,	/* in: object to search */
+	ulint		type)	/* in: type of object */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;

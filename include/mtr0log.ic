@@ -153,12 +153,14 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
 /*===============================*/
-			/* out: new value of log_ptr */
-	byte*	ptr,	/* in: pointer to (inside) a buffer frame holding the
-			file page where modification is made */
-	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
-	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
-	mtr_t*	mtr)	/* in: mtr */
+				/* out: new value of log_ptr */
+	const byte*	ptr,	/* in: pointer to (inside) a buffer
+				frame holding the file page where
+				modification is made */
+	byte		type,	/* in: log item type: MLOG_1BYTE, ... */
+	byte*		log_ptr,/* in: pointer to mtr log which has
+				been opened */
+	mtr_t*		mtr)	/* in: mtr */
 {
 #ifdef UNIV_DEBUG
 	buf_block_t*	block;
@@ -191,7 +193,7 @@ mlog_write_initial_log_record_fast(
 #ifdef UNIV_DEBUG
 	mutex_enter(&buf_pool->mutex);
 	/* We now assume that all x-latched pages have been modified! */
-	block = buf_block_align(ptr);
+	block = (buf_block_t*) buf_block_align(ptr);
 	mutex_exit(&buf_pool->mutex);
 
 	if (!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY)) {

@@ -226,9 +226,9 @@ UNIV_INLINE
 void*
 ut_align_down(
 /*==========*/
-				/* out: aligned pointer */
-	void*	ptr,		/* in: pointer */
-	ulint	align_no)	/* in: align by this number */
+					/* out: aligned pointer */
+	const void*	ptr,		/* in: pointer */
+	ulint		align_no)	/* in: align by this number */
 		__attribute__((const));
 /*************************************************************
 The following function computes the offset of a pointer from the nearest

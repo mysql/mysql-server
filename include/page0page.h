@@ -146,8 +146,8 @@ UNIV_INLINE
 page_t*
 page_align(
 /*=======*/
-			/* out: start of the page */
-	void*	ptr)	/* in: pointer to page frame */
+				/* out: start of the page */
+	const void*	ptr)	/* in: pointer to page frame */
 		__attribute__((const));
 /****************************************************************
 Gets the offset within a page. */
@@ -205,14 +205,22 @@ page_header_set_field(
 	ulint		field,	/* in: PAGE_N_DIR_SLOTS, ... */
 	ulint		val);	/* in: value */
 /*****************************************************************
-Returns the pointer stored in the given header field. */
+Returns the offset stored in the given header field. */
 UNIV_INLINE
-byte*
-page_header_get_ptr(
-/*================*/
-			/* out: pointer or NULL */
-	page_t*	page,	/* in: page */
-	ulint	field);	/* in: PAGE_FREE, ... */
+ulint
+page_header_get_offs(
+/*=================*/
+				/* out: offset from the start of the page,
+				or 0 */
+	const page_t*	page,	/* in: page */
+	ulint		field)	/* in: PAGE_FREE, ... */
+	__attribute__((nonnull, pure));
+
+/*****************************************************************
+Returns the pointer stored in the given header field, or NULL. */
+#define page_header_get_ptr(page, field)			\
+	(page_header_get_offs(page, field)			\
+	 ? page + page_header_get_offs(page, field) : NULL)
 /*****************************************************************
 Sets the pointer stored in the given header field. */
 UNIV_INLINE

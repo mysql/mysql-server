@@ -47,10 +47,11 @@ to the mtr memo that a buffer page has been modified. */
 void
 mlog_write_initial_log_record(
 /*==========================*/
-	byte*	ptr,	/* in: pointer to (inside) a buffer frame holding the
-			file page where modification is made */
-	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	const byte*	ptr,	/* in: pointer to (inside) a buffer
+				frame holding the file page where
+				modification is made */
+	byte		type,	/* in: log item type: MLOG_1BYTE, ... */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
