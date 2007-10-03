@@ -179,20 +179,40 @@ static uchar NEAR sort_order_euc_kr[]=
 
 /* Support for Korean(EUC_KR) characters, by powerm90@tinc.co.kr and mrpark@tinc.co.kr */
 
-#define iseuc_kr(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
+/*
+ Unicode mapping is done according to:
+ ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/KSC/KSC5601.TXT
+ 
+ Valid multi-byte characters:
+ 
+   [A1..FE][41..5A,61..7A,81..FE]
+ 
+ Note, 0x5C is not a valid MB tail,
+ so escape_with_backslash_is_dangerous is not set.
+*/
+
+#define iseuc_kr_head(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
+
+#define iseuc_kr_tail1(c)    ((uchar) (c) >= 0x41 && (uchar) (c) <= 0x5A)
+#define iseuc_kr_tail2(c)    ((uchar) (c) >= 0x61 && (uchar) (c) <= 0x7A)
+#define iseuc_kr_tail3(c)    ((uchar) (c) >= 0x81 && (uchar) (c) <= 0xFE)
+
+#define iseuc_kr_tail(c)     (iseuc_kr_tail1(c) || \
+                              iseuc_kr_tail2(c) || \
+                              iseuc_kr_tail3(c))
 
 
 static uint ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
                             const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
-          iseuc_kr(*(p)) && (e)-(p)>1 && iseuc_kr(*((p)+1))? 2:\
+          iseuc_kr_head(*(p)) && (e)-(p)>1 && iseuc_kr_tail(*((p)+1))? 2:\
           0);
 }
 
 static uint mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (iseuc_kr(c) ? 2 : 1);
+  return (iseuc_kr_head(c) ? 2 : 1);
 }
 
 
@@ -8654,7 +8674,7 @@ my_well_formed_len_euckr(CHARSET_INFO *cs __attribute__((unused)),
       /* Single byte ascii character */
       b++;
     }
-    else  if (b < emb && iseuc_kr(*b) && iseuc_kr(b[1]))
+    else  if (b < emb && iseuc_kr_head(*b) && iseuc_kr_tail(b[1]))
     {
       /* Double byte character */
       b+= 2;
