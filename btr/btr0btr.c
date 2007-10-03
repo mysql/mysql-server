@@ -3296,7 +3296,7 @@ loop:
 
 		/* Check father node pointers */
 
-		const rec_t*	node_ptr;
+		rec_t*	node_ptr;
 
 		offsets = btr_page_get_father_block(offsets, heap, index,
 						    block, &mtr, &node_cur);
@@ -3379,14 +3379,17 @@ loop:
 				     page_get_supremum_rec(father_page)));
 			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
 		} else {
+			const rec_t*	right_node_ptr
+				= page_rec_get_next(node_ptr);
+
 			offsets = btr_page_get_father_block(
 				offsets, heap, index, right_block,
 				&mtr, &right_node_cur);
-			if (page_rec_get_next((rec_t*) node_ptr)
+			if (right_node_ptr
 			    != page_get_supremum_rec(father_page)) {
 
 				if (btr_cur_get_rec(&right_node_cur)
-				    != page_rec_get_next((rec_t*) node_ptr)) {
+				    != right_node_ptr) {
 					ret = FALSE;
 					fputs("InnoDB: node pointer to"
 					      " the right page is wrong\n",
