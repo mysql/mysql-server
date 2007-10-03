@@ -40,30 +40,28 @@ void win_pthread_init(void)
   pthread_mutex_init(&THR_LOCK_thread,MY_MUTEX_INIT_FAST);
 }
 
+
 /**
    Adapter to @c pthread_mutex_trylock()
 
    @retval 0      Mutex was acquired
    @retval EBUSY  Mutex was already locked by a thread
-   @retval EINVAL Mutex could not be acquired due to other error
  */
 int
 win_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-  switch (WaitForSingleObject(mutex, 0)) {
-  case WAIT_TIMEOUT:
-    return EBUSY;
-
-  default:
-  case WAIT_FAILURE:
-    return EINVAL;
-
-  case WAIT_OBJECT_0:
-  case WAIT_ABANDONED: /* The mutex was acquired because it was
-                        * abandoned */
+  if (TryEnterCriticalSection(mutex))
+  {
+    /* Don't allow recursive lock */
+    if (mutex->RecursionCount > 1){
+      LeaveCriticalSection(mutex);
+      return EBUSY;
+    }
     return 0;
   }
+  return EBUSY;
 }
+
 
 /*
 ** We have tried to use '_beginthreadex' instead of '_beginthread' here
