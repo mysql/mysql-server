@@ -776,7 +776,7 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
-	page = page_align((rec_t*) rec);
+	page = page_align(rec);
 	{
 		ulint	page_no		= page_get_page_no(page);
 		ulint	space_id	= page_get_space_id(page);

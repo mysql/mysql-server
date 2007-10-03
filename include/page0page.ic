@@ -22,8 +22,8 @@ UNIV_INLINE
 page_t*
 page_align(
 /*=======*/
-			/* out: start of the page */
-	void*	ptr)	/* in: pointer to page frame */
+				/* out: start of the page */
+	const void*	ptr)	/* in: pointer to page frame */
 {
 	return((page_t*) ut_align_down(ptr, UNIV_PAGE_SIZE));
 }
@@ -112,14 +112,15 @@ page_header_set_field(
 }
 
 /*****************************************************************
-Returns the pointer stored in the given header field. */
+Returns the offset stored in the given header field. */
 UNIV_INLINE
-byte*
-page_header_get_ptr(
-/*================*/
-			/* out: pointer or NULL */
-	page_t*	page,	/* in: page */
-	ulint	field)	/* in: PAGE_FREE, ... */
+ulint
+page_header_get_offs(
+/*=================*/
+				/* out: offset from the start of the page,
+				or 0 */
+	const page_t*	page,	/* in: page */
+	ulint		field)	/* in: PAGE_FREE, ... */
 {
 	ulint	offs;
 
@@ -132,12 +133,7 @@ page_header_get_ptr(
 
 	ut_ad((field != PAGE_HEAP_TOP) || offs);
 
-	if (offs == 0) {
-
-		return(NULL);
-	}
-
-	return(page + offs);
+	return(offs);
 }
 
 /*****************************************************************
@@ -218,7 +214,7 @@ page_rec_is_comp(
 				/* out: nonzero if in compact format */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_is_comp(page_align((rec_t*) rec)));
+	return(page_is_comp(page_align(rec)));
 }
 
 /*******************************************************************
@@ -562,7 +558,7 @@ page_rec_check(
 				/* out: TRUE if succeed */
 	const rec_t*	rec)	/* in: record */
 {
-	const page_t*	page = page_align((rec_t*) rec);
+	const page_t*	page = page_align(rec);
 
 	ut_a(rec);
 
@@ -862,9 +858,10 @@ page_mem_alloc_free(
 	ulint		garbage;
 
 #ifdef UNIV_DEBUG
-	rec_t*		old_rec	= page_header_get_ptr(page, PAGE_FREE);
+	const rec_t*	old_rec	= page_header_get_ptr(page, PAGE_FREE);
 	ut_ad(old_rec);
-	ut_ad(next_rec == rec_get_next_ptr(old_rec, page_is_comp(page)));
+	ut_ad(next_rec == page + rec_get_next_offs(old_rec,
+						   page_is_comp(page)));
 #endif
 
 	page_header_set_ptr(page, page_zip, PAGE_FREE, next_rec);

@@ -598,41 +598,24 @@ buf_block_get_zip_size(
 	return(block->page.zip.ssize ? 512 << block->page.zip.ssize : 0);
 }
 
-/*************************************************************************
-Gets the compressed page descriptor corresponding to an uncompressed page
-if applicable. */
-UNIV_INLINE
-page_zip_des_t*
-buf_block_get_page_zip(
-/*===================*/
-				/* out: compressed page descriptor, or NULL */
-	buf_block_t*	block)	/* in: pointer to the control block */
-{
-	if (UNIV_LIKELY_NULL(block->page.zip.data)) {
-		return(&block->page.zip);
-	}
-
-	return(NULL);
-}
-
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INLINE
-buf_block_t*
+const buf_block_t*
 buf_block_align(
 /*============*/
-			/* out: pointer to block */
-	byte*	ptr)	/* in: pointer to a frame */
+				/* out: pointer to block */
+	const byte*	ptr)	/* in: pointer to a frame */
 {
-	buf_block_t*	block;
-	ulint		space_id, page_no;
+	const buf_block_t*	block;
+	ulint			space_id, page_no;
 
 	ptr = ut_align_down(ptr, UNIV_PAGE_SIZE);
 	page_no = mach_read_from_4(ptr + FIL_PAGE_OFFSET);
 	space_id = mach_read_from_4(ptr + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	block = (buf_block_t*) buf_page_hash_get(space_id, page_no);
+	block = (const buf_block_t*) buf_page_hash_get(space_id, page_no);
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->frame == ptr);
@@ -643,11 +626,11 @@ buf_block_align(
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 UNIV_INLINE
-page_zip_des_t*
+const page_zip_des_t*
 buf_frame_get_page_zip(
 /*===================*/
-			/* out: compressed page descriptor, or NULL */
-	byte*	ptr)	/* in: pointer to the page */
+				/* out: compressed page descriptor, or NULL */
+	const byte*	ptr)	/* in: pointer to the page */
 {
 	page_zip_des_t*	page_zip;
 	mutex_enter(&buf_pool->mutex);
@@ -668,7 +651,7 @@ buf_ptr_get_fsp_addr(
 	ulint*		space,	/* out: space id */
 	fil_addr_t*	addr)	/* out: page offset and byte offset */
 {
-	const page_t*	page = (const page_t*) ut_align_down((void*) ptr,
+	const page_t*	page = (const page_t*) ut_align_down(ptr,
 							     UNIV_PAGE_SIZE);
 
 	*space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);

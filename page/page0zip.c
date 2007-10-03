@@ -279,7 +279,7 @@ page_zip_get_n_prev_extern(
 					on a B-tree leaf page */
 	dict_index_t*		index)	/* in: record descriptor */
 {
-	const page_t*	page	= page_align((rec_t*) rec);
+	const page_t*	page	= page_align(rec);
 	ulint		n_ext	= 0;
 	ulint		i;
 	ulint		left;
@@ -2848,7 +2848,7 @@ page_zip_write_rec(
 	ulint		heap_no;
 	byte*		slot;
 
-	ut_ad(buf_frame_get_page_zip((byte*) rec) == page_zip);
+	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip_get_size(page_zip)
 	      > PAGE_DATA + page_zip_dir_size(page_zip));
@@ -2857,7 +2857,7 @@ page_zip_write_rec(
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
 
-	page = page_align((rec_t*) rec);
+	page = page_align(rec);
 
 	ut_ad(page_zip_header_cmp(page_zip, page));
 	ut_ad(page_simple_validate_new((page_t*) page));
@@ -2895,7 +2895,7 @@ page_zip_write_rec(
 	ut_ad(!*data);
 
 	{
-		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
+		const byte*	start	= rec - rec_offs_extra_size(offsets);
 		const byte*	b	= rec - REC_N_NEW_EXTRA_BYTES;
 
 		/* Write the extra bytes backwards, so that
@@ -3010,7 +3010,7 @@ page_zip_write_rec(
 	page_zip->m_nonempty = TRUE;
 
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page_align((byte*) rec)));
+	ut_a(page_zip_validate(page_zip, page_align(rec)));
 #endif /* UNIV_ZIP_DEBUG */
 }
 
@@ -3091,12 +3091,12 @@ page_zip_write_blob_ptr(
 {
 	const byte*	field;
 	byte*		externs;
-	page_t*		page	= page_align((byte*) rec);
+	const page_t*	page	= page_align(rec);
 	ulint		blob_no;
 	ulint		len;
 
-	ut_ad(buf_frame_get_page_zip((byte*) rec) == page_zip);
-	ut_ad(page_simple_validate_new(page));
+	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
+	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip_get_size(page_zip)
 	      > PAGE_DATA + page_zip_dir_size(page_zip));
@@ -3128,7 +3128,7 @@ page_zip_write_blob_ptr(
 	memcpy(externs, field, BTR_EXTERN_FIELD_REF_SIZE);
 
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page_align((rec_t*) rec)));
+	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (mtr) {

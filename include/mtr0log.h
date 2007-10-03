@@ -62,11 +62,11 @@ type and four-byte space and page numbers. */
 void
 mlog_write_initial_log_record(
 /*==========================*/
-	byte*	ptr,	/* in: pointer to (inside) a buffer frame
-			holding the file page where modification
-			is made */
-	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+	const byte*	ptr,	/* in: pointer to (inside) a buffer
+				frame holding the file page where
+				modification is made */
+	byte		type,	/* in: log item type: MLOG_1BYTE, ... */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
 Writes a log record about an .ibd file create/delete/rename. */
 UNIV_INLINE
@@ -140,12 +140,14 @@ UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
 /*===============================*/
-			/* out: new value of log_ptr */
-	byte*	ptr,	/* in: pointer to (inside) a buffer frame holding the
-			file page where modification is made */
-	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
-	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
-	mtr_t*	mtr);	/* in: mtr */
+				/* out: new value of log_ptr */
+	const byte*	ptr,	/* in: pointer to (inside) a buffer
+				frame holding the file page where
+				modification is made */
+	byte		type,	/* in: log item type: MLOG_1BYTE, ... */
+	byte*		log_ptr,/* in: pointer to mtr log which has
+				been opened */
+	mtr_t*		mtr);	/* in: mtr */
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
 
