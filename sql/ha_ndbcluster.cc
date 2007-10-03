@@ -1712,12 +1712,12 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record,
       */
       if (check_null_in_record(key_info, record))
       {
-	DBUG_PRINT("info", ("skipping check for key with NULL"));
+        DBUG_PRINT("info", ("skipping check for key with NULL"));
         continue;
       } 
       if (write_op != NDB_INSERT && !check_index_fields_in_write_set(i))
       {
-	DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
+        DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
         continue;
       }
 
