@@ -194,8 +194,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   trn->short_id= 0;
   trn->first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
   if (translog_write_record(&lsn, LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
-                            trn, NULL,
-                            6, TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
+                            trn, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1, parts,
+                            NULL, NULL))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
@@ -214,10 +214,9 @@ int main(int argc __attribute__((unused)), char *argv[])
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
       trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
-                                LOGREC_FIXED_RECORD_1LSN_EXAMPLE,
-                                trn, NULL,
-                                LSN_STORE_SIZE,
-                                TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
+                                LOGREC_FIXED_RECORD_1LSN_EXAMPLE, trn, NULL,
+                                LSN_STORE_SIZE, TRANSLOG_INTERNAL_PARTS + 1,
+                                parts, NULL, NULL))
       {
         fprintf(stderr, "1 Can't write reference before record #%lu\n",
                 (ulong) i);
@@ -237,7 +236,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE,
                                 trn, NULL, LSN_STORE_SIZE + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
-                                parts, NULL))
+                                parts, NULL, NULL))
       {
         fprintf(stderr, "1 Can't write var reference before record #%lu\n",
                 (ulong) i);
@@ -256,9 +255,8 @@ int main(int argc __attribute__((unused)), char *argv[])
       trn->short_id= i % 0xFFFF;
       if (translog_write_record(&lsn,
                                 LOGREC_FIXED_RECORD_2LSN_EXAMPLE,
-                                trn, NULL, 23,
-                                TRANSLOG_INTERNAL_PARTS + 1,
-                                parts, NULL))
+                                trn, NULL, 23, TRANSLOG_INTERNAL_PARTS + 1,
+                                parts, NULL, NULL))
       {
         fprintf(stderr, "0 Can't write reference before record #%lu\n",
                 (ulong) i);
@@ -279,7 +277,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                                 LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE,
                                 trn, NULL, LSN_STORE_SIZE * 2 + rec_len,
                                 TRANSLOG_INTERNAL_PARTS + 2,
-                                parts, NULL))
+                                parts, NULL, NULL))
       {
         fprintf(stderr, "0 Can't write var reference before record #%lu\n",
                 (ulong) i);
@@ -296,7 +294,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               trn, NULL, 6,
-                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
+                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) i);
       translog_destroy();
@@ -314,7 +312,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     if (translog_write_record(&lsn,
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
                               trn, NULL, rec_len,
-                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
+                              TRANSLOG_INTERNAL_PARTS + 1, parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
@@ -378,7 +376,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     ok(1, "read record");
     translog_free_record_header(&rec);
     lsn= first_lsn;
-    if (translog_init_scanner(first_lsn, 1, &scanner))
+    if (translog_init_scanner(first_lsn, 1, &scanner, 0))
     {
       fprintf(stderr, "scanner init failed\n");
       goto err;

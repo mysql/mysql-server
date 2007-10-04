@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
 enum options_mc {
   OPT_CHARSETS_DIR=256, OPT_SET_COLLATION,OPT_START_CHECK_POS,
-  OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE,
+  OPT_CORRECT_CHECKSUM, OPT_PAGE_BUFFER_SIZE,
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MARIA_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
@@ -296,7 +296,7 @@ static struct my_option my_long_options[] =
   {"wait", 'w',
    "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "key_buffer_size", OPT_KEY_BUFFER_SIZE, "",
+  { "page_buffer_size", OPT_PAGE_BUFFER_SIZE, "",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
@@ -1758,84 +1758,4 @@ err:
 } /* sort_record_index */
 
 
-
-/*
-  Check if maria_chk was killed by a signal
-  This is overloaded by other programs that want to be able to abort
-  sorting
-*/
-
-static int not_killed= 0;
-
-volatile int *_ma_killed_ptr(HA_CHECK *param __attribute__((unused)))
-{
-  return &not_killed;			/* always NULL */
-}
-
-	/* print warnings and errors */
-	/* VARARGS */
-
-void _ma_check_print_info(HA_CHECK *param __attribute__((unused)),
-			 const char *fmt,...)
-{
-  va_list args;
-  DBUG_ENTER("_ma_check_print_info");
-  DBUG_PRINT("enter", ("format: %s", fmt));
-
-  va_start(args,fmt);
-  VOID(vfprintf(stdout, fmt, args));
-  VOID(fputc('\n',stdout));
-  va_end(args);
-  DBUG_VOID_RETURN;
-}
-
-/* VARARGS */
-
-void _ma_check_print_warning(HA_CHECK *param, const char *fmt,...)
-{
-  va_list args;
-  DBUG_ENTER("_ma_check_print_warning");
-  DBUG_PRINT("enter", ("format: %s", fmt));
-
-  fflush(stdout);
-  if (!param->warning_printed && !param->error_printed)
-  {
-    if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MARIA file %s\n",my_progname_short,
-	      param->isam_file_name);
-    param->out_flag|= O_DATA_LOST;
-  }
-  param->warning_printed=1;
-  va_start(args,fmt);
-  fprintf(stderr,"%s: warning: ",my_progname_short);
-  VOID(vfprintf(stderr, fmt, args));
-  VOID(fputc('\n',stderr));
-  fflush(stderr);
-  va_end(args);
-  DBUG_VOID_RETURN;
-}
-
-/* VARARGS */
-
-void _ma_check_print_error(HA_CHECK *param, const char *fmt,...)
-{
-  va_list args;
-  DBUG_ENTER("_ma_check_print_error");
-  DBUG_PRINT("enter", ("format: %s", fmt));
-
-  fflush(stdout);
-  if (!param->warning_printed && !param->error_printed)
-  {
-    if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MARIA file %s\n",my_progname_short,param->isam_file_name);
-    param->out_flag|= O_DATA_LOST;
-  }
-  param->error_printed|=1;
-  va_start(args,fmt);
-  fprintf(stderr,"%s: error: ",my_progname_short);
-  VOID(vfprintf(stderr, fmt, args));
-  VOID(fputc('\n',stderr));
-  fflush(stderr);
-  va_end(args);
-  DBUG_VOID_RETURN;
-}
+#include "ma_check_standalone.h"

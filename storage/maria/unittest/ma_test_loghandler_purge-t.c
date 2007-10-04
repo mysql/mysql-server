@@ -80,7 +80,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             &dummy_transaction_object, NULL, 6,
                             TRANSLOG_INTERNAL_PARTS + 1,
-                            parts, NULL))
+                            parts, NULL, NULL))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();
@@ -102,7 +102,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &dummy_transaction_object, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1,
-                              parts, NULL))
+                              parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
       translog_destroy();
@@ -125,7 +125,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (translog_write_record(&lsn,
 			    LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
 			    &dummy_transaction_object, NULL, LONG_BUFFER_SIZE,
-			    TRANSLOG_INTERNAL_PARTS + 1, parts, NULL))
+			    TRANSLOG_INTERNAL_PARTS + 1, parts, NULL, NULL))
   {
     fprintf(stderr, "Can't write variable record\n");
     translog_destroy();
@@ -150,7 +150,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             &dummy_transaction_object, NULL, 6,
                             TRANSLOG_INTERNAL_PARTS + 1,
-                            parts, NULL))
+                            parts, NULL, NULL))
   {
     fprintf(stderr, "Can't write last record\n");
     translog_destroy();

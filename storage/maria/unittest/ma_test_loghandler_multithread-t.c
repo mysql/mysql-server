@@ -138,7 +138,7 @@ void writer(int num)
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &trn, NULL, 6, TRANSLOG_INTERNAL_PARTS + 1,
-                              parts, NULL))
+                              parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write LOGREC_FIXED_RECORD_0LSN_EXAMPLE record #%lu "
               "thread %i\n", (ulong) i, num);
@@ -155,7 +155,7 @@ void writer(int num)
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
                               &trn, NULL,
                               len, TRANSLOG_INTERNAL_PARTS + 1,
-                              parts, NULL))
+                              parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write variable record #%lu\n", (ulong) i);
       translog_destroy();
@@ -307,7 +307,7 @@ int main(int argc __attribute__((unused)),
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                               &dummy_transaction_object, NULL, 6,
                               TRANSLOG_INTERNAL_PARTS + 1,
-                              parts, NULL))
+                              parts, NULL, NULL))
     {
       fprintf(stderr, "Can't write the first record\n");
       translog_destroy();
@@ -373,7 +373,7 @@ int main(int argc __attribute__((unused)),
 
     bzero(indeces, sizeof(indeces));
 
-    if (translog_init_scanner(first_lsn, 1, &scanner))
+    if (translog_init_scanner(first_lsn, 1, &scanner, 0))
     {
       fprintf(stderr, "scanner init failed\n");
       goto err;

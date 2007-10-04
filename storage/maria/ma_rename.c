@@ -85,7 +85,7 @@ int maria_rename(const char *old_name, const char *new_name)
                                        &dummy_transaction_object, NULL,
                                        old_name_len + new_name_len,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL) ||
+                                       log_array, NULL, NULL) ||
                  translog_flush(lsn)))
     {
       maria_close(info);

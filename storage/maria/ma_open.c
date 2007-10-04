@@ -58,7 +58,7 @@ if (pos > end_pos)             \
 ** In MySQL the server will handle version issues.
 ******************************************************************************/
 
-MARIA_HA *_ma_test_if_reopen(char *filename)
+MARIA_HA *_ma_test_if_reopen(const char *filename)
 {
   LIST *pos;
 
@@ -177,7 +177,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
     share->delay_key_write=1;
 
   info.state= &share->state.state;	/* Change global values by default */
-  if (!share->base.born_transactional)   /* but for transactional ones ... */
+  if (!share->base.born_transactional)   /* For transactional ones ... */
     info.trn= &dummy_transaction_object; /* ... force crash if no trn given */
   pthread_mutex_unlock(&share->intern_lock);
 
@@ -1002,7 +1002,9 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   if (pWrite & 4)
     pthread_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
+  {
     safe_mutex_assert_owner(&share->intern_lock);
+  }
   if (share->base.born_transactional && translog_inited &&
       !maria_in_recovery)
   {

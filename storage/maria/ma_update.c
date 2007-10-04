@@ -27,11 +27,9 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   bool auto_key_changed=0;
   ulonglong changed;
   MARIA_SHARE *share=info->s;
-  ha_checksum old_checksum;
   DBUG_ENTER("maria_update");
   LINT_INIT(new_key);
   LINT_INIT(changed);
-  LINT_INIT(old_checksum);
 
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
                   maria_print_error(info->s, HA_ERR_CRASHED);
@@ -57,16 +55,6 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     save_errno= my_errno;
     DBUG_PRINT("warning", ("Got error from compare record"));
     goto err_end;			/* Record has changed */
-  }
-
-  if (share->calc_checksum)
-  {
-    /*
-      We can't use the row based checksum as this doesn't have enough
-      precision.
-    */
-    if (info->s->calc_checksum)
-      old_checksum= (*info->s->calc_checksum)(info, oldrec);
   }
 
   /* Calculate and check all unique constraints */
@@ -137,19 +125,23 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
       }
     }
   }
-  /*
-    If we are running with external locking, we must update the index file
-    that something has changed.
-  */
-  if (changed || !my_disable_locking)
-    key_changed|= HA_STATE_CHANGED;
 
   if (share->calc_checksum)
   {
-    info->cur_row.checksum= (*share->calc_checksum)(info,newrec);
-    info->state->checksum+= (info->cur_row.checksum - old_checksum);
-    /* Store new checksum in index file header */
-    key_changed|= HA_STATE_CHANGED;
+    /*
+      We can't use the row based checksum as this doesn't have enough
+      precision (one byte, while the table's is more bytes).
+      At least _ma_check_unique() modifies the 'newrec' record, so checksum
+      has to be computed _after_ it. Nobody apparently modifies 'oldrec'.
+      We need to pass the old row's checksum down to (*update_record)(), we do
+      this via info->new_row.checksum (not intuitive but existing code
+      mandated that cur_row is the new row).
+      If (*update_record)() fails, table will be marked corrupted so no need
+      to revert the live checksum change.
+    */
+    info->state->checksum+= !share->now_transactional *
+      ((info->cur_row.checksum= (*share->calc_checksum)(info, newrec)) -
+       (info->new_row.checksum= (*share->calc_checksum)(info, oldrec)));
   }
   {
     /*
@@ -165,14 +157,9 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     org_delete_link= share->state.dellink;
     if ((*share->update_record)(info, pos, oldrec, newrec))
       goto err;
-    if (!key_changed &&
-	(memcmp((char*) &state, (char*) info->state, sizeof(state)) ||
-	 org_split != share->state.split ||
-	 org_delete_link != share->state.dellink))
-      key_changed|= HA_STATE_CHANGED;		/* Must update index file */
   }
   if (auto_key_changed)
-    set_if_bigger(info->s->state.auto_increment,
+    set_if_bigger(share->state.auto_increment,
                   ma_retrieve_auto_increment(info, newrec));
 
   /*
@@ -195,8 +182,8 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
-    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->s->open_file_name));
-    (*info->invalidator)(info->s->open_file_name);
+    DBUG_PRINT("info", ("invalidator... '%s' (update)", share->open_file_name));
+    (*info->invalidator)(share->open_file_name);
     info->invalidator=0;
   }
   DBUG_RETURN(0);
@@ -232,7 +219,7 @@ err:
   }
   else
   {
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     maria_mark_crashed(info);
   }
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_ROW_CHANGED |
@@ -243,7 +230,7 @@ err:
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     save_errno=HA_ERR_CRASHED;
   }
   DBUG_RETURN(my_errno=save_errno);

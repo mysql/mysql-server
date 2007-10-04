@@ -106,7 +106,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                             LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
                             &dummy_transaction_object, NULL, 6,
                             TRANSLOG_INTERNAL_PARTS + 1,
-                            parts, NULL))
+                            parts, NULL, NULL))
   {
     fprintf(stderr, "Can't write record #%lu\n", (ulong) 0);
     translog_destroy();

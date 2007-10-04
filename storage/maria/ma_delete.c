@@ -44,10 +44,10 @@ int maria_delete(MARIA_HA *info,const uchar *record)
 	/* Test if record is in datafile */
 
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
-                  maria_print_error(info->s, HA_ERR_CRASHED);
+                  maria_print_error(share, HA_ERR_CRASHED);
                   DBUG_RETURN(my_errno= HA_ERR_CRASHED););
   DBUG_EXECUTE_IF("my_error_test_undefined_error",
-                  maria_print_error(info->s, INT_MAX);
+                  maria_print_error(share, INT_MAX);
                   DBUG_RETURN(my_errno= INT_MAX););
   if (!(info->update & HA_STATE_AKTIV))
   {
@@ -70,17 +70,17 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   old_key= info->lastkey2;
   for (i=0 ; i < share->base.keys ; i++ )
   {
-    if (maria_is_key_active(info->s->state.key_map, i))
+    if (maria_is_key_active(share->state.key_map, i))
     {
-      info->s->keyinfo[i].version++;
-      if (info->s->keyinfo[i].flag & HA_FULLTEXT )
+      share->keyinfo[i].version++;
+      if (share->keyinfo[i].flag & HA_FULLTEXT )
       {
         if (_ma_ft_del(info, i, old_key, record, info->cur_row.lastpos))
           goto err;
       }
       else
       {
-        if (info->s->keyinfo[i].ck_delete(info,i,old_key,
+        if (share->keyinfo[i].ck_delete(info,i,old_key,
 					  _ma_make_key(info, i, old_key,
 						       record,
 						       info->cur_row.lastpos)))
@@ -91,19 +91,20 @@ int maria_delete(MARIA_HA *info,const uchar *record)
     }
   }
 
+  if (share->calc_checksum)
+  {
+    /*
+      We can't use the row based checksum as this doesn't have enough
+      precision.
+    */
+    info->cur_row.checksum= (*share->calc_checksum)(info, record);
+  }
+
   if ((*share->delete_record)(info, record))
     goto err;				/* Remove record from database */
 
-  /*
-    We can't use the row based checksum as this doesn't have enough
-    precision.
-  */
-  if (info->s->calc_checksum)
-  {
-    info->cur_row.checksum= (*info->s->calc_checksum)(info,record);
-    info->state->checksum-= info->cur_row.checksum;
-  }
-
+  info->state->checksum+= - !share->now_transactional *
+    info->cur_row.checksum;
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
   info->state->records-= !share->now_transactional;
   share->state.changed|= STATE_NOT_OPTIMIZED_ROWS;
@@ -113,8 +114,8 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
-    DBUG_PRINT("info", ("invalidator... '%s' (delete)", info->s->open_file_name));
-    (*info->invalidator)(info->s->open_file_name);
+    DBUG_PRINT("info", ("invalidator... '%s' (delete)", share->open_file_name));
+    (*info->invalidator)(share->open_file_name);
     info->invalidator=0;
   }
   DBUG_RETURN(0);
@@ -124,7 +125,7 @@ err:
   mi_sizestore(lastpos, info->cur_row.lastpos);
   if (save_errno != HA_ERR_RECORD_CHANGED)
   {
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     maria_mark_crashed(info);		/* mark table crashed */
   }
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
@@ -133,7 +134,7 @@ err:
   my_errno=save_errno;
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    maria_print_error(share, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
   }
 

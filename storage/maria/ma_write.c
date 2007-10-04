@@ -162,10 +162,6 @@ int maria_write(MARIA_HA *info, uchar *record)
         rw_unlock(&share->key_root_lock[i]);
     }
   }
-  /**
-     @todo RECOVERY BUG
-     this += must happen under log's mutex when writing the UNDO
-  */
   if (share->calc_write_checksum)
     info->cur_row.checksum= (*share->calc_write_checksum)(info,record);
   if (filepos != HA_OFFSET_ERROR)
@@ -176,7 +172,8 @@ int maria_write(MARIA_HA *info, uchar *record)
        @todo when we enable multiple writers, we will have to protect
        'records' and 'checksum' somehow.
     */
-    info->state->checksum+= info->cur_row.checksum;
+    info->state->checksum+= !share->now_transactional *
+      info->cur_row.checksum;
   }
   if (share->base.auto_key)
     set_if_bigger(info->s->state.auto_increment,

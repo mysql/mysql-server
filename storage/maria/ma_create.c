@@ -998,7 +998,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                        &dummy_transaction_object, NULL,
                                        total_rec_length,
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, NULL) ||
+                                       log_array, NULL, NULL) ||
                  translog_flush(lsn)))
       goto err;
     /*

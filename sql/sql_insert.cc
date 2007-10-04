@@ -3488,10 +3488,12 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
    /*
      If error during the CREATE SELECT we drop the table, so no need for
-     engines to do logging of insertions (optimization).
+     engines to do logging of insertions (optimization). We don't do it for
+     temporary tables (yet) as re-enabling causes an undesirable commit.
    */
-   if (ha_enable_transaction(thd, FALSE))
-     DBUG_RETURN(-1);
+  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
+      ha_enable_transaction(thd, FALSE))
+    DBUG_RETURN(-1);
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
@@ -3632,11 +3634,12 @@ bool select_create::send_eof()
       nevertheless.
     */
     if (!table->s->tmp_table)
+    {
+      ha_enable_transaction(thd, TRUE);
       ha_commit(thd);               // Can fail, but we proceed anyway
-
+    }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    ha_enable_transaction(thd, TRUE);
     if (thd->extra_lock)
     {
       mysql_unlock_tables(thd, thd->extra_lock);
@@ -3659,6 +3662,9 @@ void select_create::abort()
   select_insert::abort();
   reenable_binlog(thd);
 
+  if (table && !table->s->tmp_table)
+    ha_enable_transaction(thd, TRUE);
+
   /*
     We roll back the statement, including truncating the transaction
     cache of the binary log, if the statement failed.
@@ -3674,8 +3680,6 @@ void select_create::abort()
   */
   if (thd->current_stmt_binlog_row_based)
     ha_rollback_stmt(thd);
-
-  ha_enable_transaction(thd, TRUE);
 
   if (thd->extra_lock)
   {
