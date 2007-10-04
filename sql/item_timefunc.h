@@ -1007,7 +1007,7 @@ class Item_func_str_to_date :public Item_str_func
   bool const_item;
 public:
   Item_func_str_to_date(Item *a, Item *b)
-    :Item_str_func(a, b)
+    :Item_str_func(a, b), const_item(false)
   {}
   String *val_str(String *str);
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
