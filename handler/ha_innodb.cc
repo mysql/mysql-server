@@ -1025,6 +1025,7 @@ innobase_register_stmt(
         handlerton*	hton,	/* in: Innobase hton */
 	THD*	thd)	/* in: MySQL thd (connection) object */
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 	/* Register the statement */
 	trans_register_ha(thd, FALSE, hton);
 }
@@ -1688,6 +1689,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 	int	err= 0;
 
 	DBUG_ENTER("innobase_end");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 #ifdef __NETWARE__	/* some special cleanup for NetWare */
 	if (nw_panic) {
@@ -1726,6 +1728,7 @@ innobase_flush_logs(handlerton *hton)
 	bool	result = 0;
 
 	DBUG_ENTER("innobase_flush_logs");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	log_buffer_flush_to_disk();
 
@@ -1780,6 +1783,7 @@ innobase_start_trx_and_assign_read_view(
 	trx_t*	trx;
 
 	DBUG_ENTER("innobase_start_trx_and_assign_read_view");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	/* Create a new trx struct for thd, if it does not yet have one */
 
@@ -1826,6 +1830,7 @@ innobase_commit(
 	trx_t*		trx;
 
 	DBUG_ENTER("innobase_commit");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 	DBUG_PRINT("trans", ("ending transaction"));
 
 	trx = check_trx_exists(thd);
@@ -1955,6 +1960,7 @@ innobase_rollback(
 	trx_t*	trx;
 
 	DBUG_ENTER("innobase_rollback");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
@@ -2040,6 +2046,7 @@ innobase_rollback_to_savepoint(
 	char		name[64];
 
 	DBUG_ENTER("innobase_rollback_to_savepoint");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx = check_trx_exists(thd);
 
@@ -2076,6 +2083,7 @@ innobase_release_savepoint(
 	char		name[64];
 
 	DBUG_ENTER("innobase_release_savepoint");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx = check_trx_exists(thd);
 
@@ -2103,6 +2111,7 @@ innobase_savepoint(
 	trx_t*	trx;
 
 	DBUG_ENTER("innobase_savepoint");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	/*
 	  In the autocommit mode there is no sense to set a savepoint
@@ -5308,6 +5317,8 @@ innobase_drop_database(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
@@ -6770,6 +6781,7 @@ innodb_show_status(
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
 	DBUG_ENTER("innodb_show_status");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx = check_trx_exists(thd);
 
@@ -6863,6 +6875,7 @@ innodb_mutex_show_status(
 #endif /* UNIV_DEBUG */
 	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	mutex_enter(&mutex_list_mutex);
 
@@ -6945,6 +6958,8 @@ bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type)
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	switch (stat_type) {
 	case HA_ENGINE_STATUS:
 		return innodb_show_status(hton, thd, stat_print);
@@ -7721,6 +7736,8 @@ innobase_xa_prepare(
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
 
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
 	{
@@ -7814,6 +7831,8 @@ innobase_xa_recover(
 	XID*	xid_list,	/* in/out: prepared transactions */
 	uint	len)		/* in: number of slots in xid_list */
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	if (len == 0 || xid_list == NULL) {
 
 		return(0);
@@ -7834,6 +7853,8 @@ innobase_commit_by_xid(
 	XID*	xid)	/* in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
+
+	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx = trx_get_trx_by_xid(xid);
 
@@ -7859,6 +7880,8 @@ innobase_rollback_by_xid(
 {
 	trx_t*	trx;
 
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	trx = trx_get_trx_by_xid(xid);
 
 	if (trx) {
@@ -7881,6 +7904,8 @@ innobase_create_cursor_view(
         handlerton *hton, /* in: innobase hton */
 	THD* thd)	  /* in: user thread handle */
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	return(read_cursor_view_create_for_mysql(check_trx_exists(thd)));
 }
 
@@ -7896,6 +7921,8 @@ innobase_close_cursor_view(
 	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent read view to be closed */
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	read_cursor_view_close_for_mysql(check_trx_exists(thd),
 					 (cursor_view_t*) curview);
 }
@@ -7913,6 +7940,8 @@ innobase_set_cursor_view(
 	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent cursor view to be set */
 {
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
 	read_cursor_set_for_mysql(check_trx_exists(thd),
 				  (cursor_view_t*) curview);
 }
