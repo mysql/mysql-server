@@ -1481,6 +1481,15 @@ ALTER TABLE t1 DROP PARTITION p1;
 DROP TABLE t1;
 
 #
+# Bug #30484: Partitions: crash with self-referencing trigger
+#
+
+create table t (s1 int) engine=myisam partition by key (s1);
+create trigger t_ad after delete on t for each row insert into t values (old.s1);
+insert into t values (1);
+drop table t;
+
+#
 # Bug #27816: Log tables ran with partitions crashes the server when logging
 # is enabled.
 #
