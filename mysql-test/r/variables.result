@@ -218,6 +218,8 @@ show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1024
 set net_buffer_length=2000000000;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '2000000000'
 show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
