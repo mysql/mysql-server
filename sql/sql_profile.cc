@@ -28,7 +28,7 @@ const char * const _unknown_func_ = "<unknown>";
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(THD *thd, struct st_table_list *tables, 
+int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, 
                                        Item *cond)
 {
 #ifdef ENABLED_PROFILING
@@ -480,7 +480,7 @@ void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.  
 */
-int PROFILING::fill_statistics_info(THD *thd, struct st_table_list *tables, Item *cond)
+int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("PROFILING::fill_statistics_info");
   TABLE *table= tables->table;
