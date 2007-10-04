@@ -815,22 +815,26 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 
 int test_cursor_debug = 0;
 
-DB *test_db;
+DB *test_db = 0;
+void *test_app_private = 0;
 
-void set_test_db(DB *db) {
+void set_test_db_app(DB *db, void *app_private) {
     test_db = db;
+    test_app_private = app_private;
 }
 
 void clear_test_db() {
     test_db = null_db;
+    test_app_private = 0;
 }
 
 int test_brt_cursor_keycompare(DB *db, const DBT *a, const DBT *b) {
     assert(db == test_db);
+    assert(a->app_private == test_app_private);
     return keycompare(a->data, a->size, b->data, b->size);
 }
 
-void assert_cursor_notfound(BRT brt, int position, DB *db) {
+void assert_cursor_notfound(BRT brt, int position, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -838,7 +842,7 @@ void assert_cursor_notfound(BRT brt, int position, DB *db) {
     r = brt_cursor(brt, &cursor);
     assert(r==0);
 
-    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_cursor_get(cursor, &kbt, &vbt, position, db, null_txn);
     assert(r == DB_NOTFOUND);
@@ -847,7 +851,7 @@ void assert_cursor_notfound(BRT brt, int position, DB *db) {
     assert(r==0);
 }
 
-void assert_cursor_value(BRT brt, int position, long long value, DB *db) {
+void assert_cursor_value(BRT brt, int position, long long value, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -857,7 +861,7 @@ void assert_cursor_value(BRT brt, int position, long long value, DB *db) {
     assert(r==0);
 
     if (test_cursor_debug) printf("key: ");
-    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_cursor_get(cursor, &kbt, &vbt, position, db, null_txn);
     assert(r == 0);
@@ -873,7 +877,7 @@ void assert_cursor_value(BRT brt, int position, long long value, DB *db) {
     assert(r==0);
 }
 
-void assert_cursor_first_last(BRT brt, long long firstv, long long lastv, DB *db) {
+void assert_cursor_first_last(BRT brt, long long firstv, long long lastv, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int r;
     DBT kbt, vbt;
@@ -883,7 +887,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv, DB *db
     assert(r==0);
 
     if (test_cursor_debug) printf("first key: ");
-    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_cursor_get(cursor, &kbt, &vbt, DB_FIRST, db, null_txn);
     assert(r == 0);
@@ -896,7 +900,7 @@ void assert_cursor_first_last(BRT brt, long long firstv, long long lastv, DB *db
     if (test_cursor_debug) printf("\n");
 
     if (test_cursor_debug) printf("last key:");
-    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+    init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
     init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
     r = brt_cursor_get(cursor, &kbt, &vbt, DB_LAST, db, null_txn);
     assert(r == 0);
@@ -918,10 +922,11 @@ void test_brt_cursor_first(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_first:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -936,7 +941,7 @@ void test_brt_cursor_first(int n, DB *db) {
         DBT kbt, vbt;
 
         snprintf(key, sizeof key, "%4.4d", i);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -944,9 +949,9 @@ void test_brt_cursor_first(int n, DB *db) {
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST, db);
+        assert_cursor_notfound(brt, DB_FIRST, db, &my_app_private);
     else
-        assert_cursor_value(brt, DB_FIRST, 0, db);
+        assert_cursor_value(brt, DB_FIRST, 0, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -963,10 +968,11 @@ void test_brt_cursor_last(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_last:%d %p\n", n, db);
 
-    set_test_db(db);;
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -981,7 +987,7 @@ void test_brt_cursor_last(int n, DB *db) {
         DBT kbt, vbt;
 
         snprintf(key, sizeof key, "%4.4d", i);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -989,9 +995,9 @@ void test_brt_cursor_last(int n, DB *db) {
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_LAST, db);
+        assert_cursor_notfound(brt, DB_LAST, db, &my_app_private);
     else
-        assert_cursor_value(brt, DB_LAST, n-1, db);
+        assert_cursor_value(brt, DB_LAST, n-1, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1008,16 +1014,17 @@ void test_brt_cursor_first_last(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_first_last:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
     assert(r==0);
 
-    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, default_compare_fun);  
+    r = open_brt(fname, 0, 1, &brt, 1<<12, ct, test_brt_cursor_keycompare);  
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -1026,7 +1033,7 @@ void test_brt_cursor_first_last(int n, DB *db) {
         DBT kbt, vbt;
 
         snprintf(key, sizeof key, "%4.4d", i);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1034,10 +1041,10 @@ void test_brt_cursor_first_last(int n, DB *db) {
     }
 
     if (n == 0) {
-        assert_cursor_notfound(brt, DB_FIRST, db);
-        assert_cursor_notfound(brt, DB_LAST, db);
+        assert_cursor_notfound(brt, DB_FIRST, db, &my_app_private);
+        assert_cursor_notfound(brt, DB_LAST, db, &my_app_private);
     } else 
-        assert_cursor_first_last(brt, 0, n-1, db);
+        assert_cursor_first_last(brt, 0, n-1, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1054,10 +1061,11 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_rfirst:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1072,7 +1080,7 @@ void test_brt_cursor_rfirst(int n, DB *db) {
         DBT kbt, vbt;
 
         snprintf(key, sizeof key, "%4.4d", i);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1080,9 +1088,9 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST, db);
+        assert_cursor_notfound(brt, DB_FIRST, db, &my_app_private);
     else
-        assert_cursor_value(brt, DB_FIRST, 0, db);
+        assert_cursor_value(brt, DB_FIRST, 0, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1093,7 +1101,7 @@ void test_brt_cursor_rfirst(int n, DB *db) {
     clear_test_db();
 }
 
-void assert_cursor_walk(BRT brt, int n, DB *db) {
+void assert_cursor_walk(BRT brt, int n, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1106,7 +1114,7 @@ void assert_cursor_walk(BRT brt, int n, DB *db) {
         DBT kbt, vbt;
         long long v;
 
-        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
@@ -1131,10 +1139,11 @@ void test_brt_cursor_walk(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_walk:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1149,7 +1158,7 @@ void test_brt_cursor_walk(int n, DB *db) {
         DBT kbt, vbt;
 
         snprintf(key, sizeof key, "%4.4d", i);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1157,7 +1166,7 @@ void test_brt_cursor_walk(int n, DB *db) {
     }
 
     /* walk the tree */
-    assert_cursor_walk(brt, n, db);
+    assert_cursor_walk(brt, n, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1168,7 +1177,7 @@ void test_brt_cursor_walk(int n, DB *db) {
     clear_test_db();
 }
 
-void assert_cursor_rwalk(BRT brt, int n, DB *db) {
+void assert_cursor_rwalk(BRT brt, int n, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1181,7 +1190,7 @@ void assert_cursor_rwalk(BRT brt, int n, DB *db) {
         DBT kbt, vbt;
         long long v;
 
-        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &kbt, &vbt, DB_PREV, db, null_txn);
         if (r != 0)
@@ -1206,10 +1215,11 @@ void test_brt_cursor_rwalk(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_rwalk:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1224,7 +1234,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
         DBT kbt, vbt;
 
         k = htonl(i);
-        fill_dbt(&kbt, &k, sizeof k);
+        fill_dbt_ap(&kbt, &k, sizeof k, &my_app_private);
         v = i;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1232,7 +1242,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
     }
 
     /* walk the tree */
-    assert_cursor_rwalk(brt, n, db);
+    assert_cursor_rwalk(brt, n, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1243,7 +1253,7 @@ void test_brt_cursor_rwalk(int n, DB *db) {
     clear_test_db();
 }
 
-void assert_cursor_walk_inorder(BRT brt, int n, DB *db) {
+void assert_cursor_walk_inorder(BRT brt, int n, DB *db, void *app_private) {
     BRT_CURSOR cursor;
     int i;
     int r;
@@ -1258,7 +1268,7 @@ void assert_cursor_walk_inorder(BRT brt, int n, DB *db) {
         DBT kbt, vbt;
         long long v;
 
-        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = app_private;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
@@ -1287,10 +1297,11 @@ void test_brt_cursor_rand(int n, DB *db) {
     BRT brt;
     int r;
     int i;
+    int my_app_private;
 
     printf("test_brt_cursor_rand:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1307,7 +1318,7 @@ void test_brt_cursor_rand(int n, DB *db) {
         for (;;) {
 	    v = ((long long) random() << 32) + random();
 	    snprintf(key, sizeof key, "%lld", v);
-	    fill_dbt(&kbt, key, strlen(key)+1);
+	    fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
 	    v = i;
 	    fill_dbt(&vbt, &v, sizeof v);
 	    r = brt_lookup(brt, &kbt, &vbt, db);
@@ -1322,7 +1333,7 @@ void test_brt_cursor_rand(int n, DB *db) {
     }
 
     /* walk the tree */
-    assert_cursor_walk_inorder(brt, n, db);
+    assert_cursor_walk_inorder(brt, n, db, &my_app_private);
 
     r = close_brt(brt);
     assert(r==0);
@@ -1342,10 +1353,11 @@ void test_brt_cursor_split(int n, DB *db) {
     int keyseqnum;
     int i;
     DBT kbt, vbt;
+    int my_app_private;
 
     printf("test_brt_cursor_split:%d %p\n", n, db);
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1359,7 +1371,7 @@ void test_brt_cursor_split(int n, DB *db) {
         char key[8]; long long v;
 
         snprintf(key, sizeof key, "%4.4d", keyseqnum);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1371,7 +1383,7 @@ void test_brt_cursor_split(int n, DB *db) {
 
     if (test_cursor_debug) printf("key: ");
     for (i=0; i<n/2; i++) {
-        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = &my_app_private;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         assert(r==0);
@@ -1385,7 +1397,7 @@ void test_brt_cursor_split(int n, DB *db) {
         char key[8]; long long v;
 
         snprintf(key, sizeof key, "%4.4d", keyseqnum);
-        fill_dbt(&kbt, key, strlen(key)+1);
+        fill_dbt_ap(&kbt, key, strlen(key)+1, &my_app_private);
         v = keyseqnum;
         fill_dbt(&vbt, &v, sizeof v);
         r = brt_insert(brt, &kbt, &vbt, db, 0);
@@ -1394,7 +1406,7 @@ void test_brt_cursor_split(int n, DB *db) {
 
     if (test_cursor_debug) printf("key: ");
     for (;;) {
-        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
+        init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC; kbt.app_private = &my_app_private;
         init_dbt(&vbt); vbt.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, db, null_txn);
         if (r != 0)
@@ -1425,8 +1437,9 @@ void test_multiple_brt_cursors(int n, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursors[n];
+    int my_app_private;
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1475,8 +1488,9 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     const int cursor_gap = 1000;
     const int ncursors = n/cursor_gap;
     BRT_CURSOR cursors[ncursors];
+    int my_app_private;
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     int nodesize = 1<<12;
@@ -1503,7 +1517,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         fill_dbt(&val, &v, sizeof v);
         r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
@@ -1511,7 +1525,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
         /* point cursor i / cursor_gap to the current last key i */
         if ((i % cursor_gap) == 0) {
             c = i / cursor_gap;
-            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&key); key.flags = DB_DBT_MALLOC; key.app_private = &my_app_private;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
             r = brt_cursor_get(cursors[c], &key, &val, DB_LAST, db, null_txn);
             assert(r == 0);
@@ -1523,7 +1537,7 @@ void test_multiple_brt_cursor_walk(int n, DB *db) {
     /* walk the cursors by cursor_gap */
     for (i=0; i<cursor_gap; i++) {
         for (c=0; c<ncursors; c++) {
-            init_dbt(&key); key.flags = DB_DBT_MALLOC;
+            init_dbt(&key); key.flags = DB_DBT_MALLOC; key.app_private = &my_app_private;
             init_dbt(&val); val.flags = DB_DBT_MALLOC;
             r = brt_cursor_get(cursors[c], &key, &val, DB_NEXT, db, null_txn);
             if (r == DB_NOTFOUND) {
@@ -1563,8 +1577,9 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
+    int my_app_private;
     
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1581,8 +1596,8 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(10*i);
         v = 10*i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
+        fill_dbt_ap(&val, &v, sizeof v, &my_app_private);
         r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
     }
@@ -1596,7 +1611,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
 
         v = 10*(random() % n);
         k = htonl(v);
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &key, &val, cursor_op, db, null_txn);
         assert(r == 0);
@@ -1611,7 +1626,7 @@ void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         if (i % 10 == 0) 
             continue;
         k = htonl(i);
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &key, &val, DB_SET, db, null_txn);
         assert(r == DB_NOTFOUND);
@@ -1637,8 +1652,9 @@ void test_brt_cursor_set_range(int n, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
+    int my_app_private;
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     r = brt_create_cachetable(&ct, 0);
@@ -1656,8 +1672,8 @@ void test_brt_cursor_set_range(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(10*i);
         v = 10*i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
+        fill_dbt_ap(&val, &v, sizeof v, &my_app_private);
         r = brt_insert(brt, &key, &val, db, 0);
         assert(r == 0);
     }
@@ -1672,7 +1688,7 @@ void test_brt_cursor_set_range(int n, DB *db) {
 
         v = random() % (10*n);
         k = htonl(v);
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         r = brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, db, null_txn);
         if (v > max_key)
@@ -1707,8 +1723,9 @@ void test_brt_cursor_delete(int n, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
+    int my_app_private;
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     error = brt_create_cachetable(&ct, 0);
@@ -1728,7 +1745,7 @@ void test_brt_cursor_delete(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         fill_dbt(&val, &v, sizeof v);
         error = brt_insert(brt, &key, &val, db, 0);
         assert(error == 0);
@@ -1736,7 +1753,7 @@ void test_brt_cursor_delete(int n, DB *db) {
 
     /* walk the tree and delete under the cursor */
     for (;;) {
-        init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        init_dbt(&key); key.flags = DB_DBT_MALLOC; key.app_private = &my_app_private;
         init_dbt(&val); val.flags = DB_DBT_MALLOC;
         error = brt_cursor_get(cursor, &key, &val, DB_NEXT, db, null_txn);
         if (error == DB_NOTFOUND)
@@ -1772,8 +1789,9 @@ void test_brt_cursor_get_both(int n, DB *db) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor;
+    int my_app_private;
 
-    set_test_db(db);
+    set_test_db_app(db, &my_app_private);
     unlink(fname);
 
     error = brt_create_cachetable(&ct, 0);
@@ -1791,7 +1809,7 @@ void test_brt_cursor_get_both(int n, DB *db) {
     /* verify get_both on an empty tree fails */
     k = htonl(n+1);
     v = n+1;
-    fill_dbt(&key, &k, sizeof k);
+    fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
     fill_dbt(&val, &v, sizeof v);
     error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
     assert(error == DB_NOTFOUND);
@@ -1801,7 +1819,7 @@ void test_brt_cursor_get_both(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
         fill_dbt(&val, &v, sizeof v);
         error = brt_insert(brt, &key, &val, db, 0);
         assert(error == 0);
@@ -1810,7 +1828,7 @@ void test_brt_cursor_get_both(int n, DB *db) {
     /* verify that keys not in the tree fail */
     k = htonl(n+1);
     v = n-1;
-    fill_dbt(&key, &k, sizeof k);
+    fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
     fill_dbt(&val, &v, sizeof v);
     error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
     assert(error == DB_NOTFOUND);
@@ -1819,8 +1837,8 @@ void test_brt_cursor_get_both(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i+1;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
+        fill_dbt_ap(&val, &v, sizeof v, &my_app_private);
         error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == DB_NOTFOUND);
     }
@@ -1829,8 +1847,8 @@ void test_brt_cursor_get_both(int n, DB *db) {
     for (i=0; i<n; i++) {
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
+        fill_dbt_ap(&val, &v, sizeof v, &my_app_private);
         error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == 0);
 #ifdef DB_CURRENT 
@@ -1850,8 +1868,8 @@ void test_brt_cursor_get_both(int n, DB *db) {
 
         k = htonl(i);
         v = i;
-        fill_dbt(&key, &k, sizeof k);
-        fill_dbt(&val, &v, sizeof v);
+        fill_dbt_ap(&key, &k, sizeof k, &my_app_private);
+        fill_dbt_ap(&val, &v, sizeof v, &my_app_private);
         error = brt_cursor_get(cursor, &key, &val, DB_GET_BOTH, db, null_txn);
         assert(error == DB_NOTFOUND);
     }
