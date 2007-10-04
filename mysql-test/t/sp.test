@@ -7354,4 +7354,294 @@ DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 
+###########################################################################
+
+#
+# Bug#31035: select from function, group by result crasher.
+#
+
+###########################################################################
+
+--echo
+
+--echo #
+--echo # Bug#31035.
+--echo #
+
+--echo
+
+--echo #
+--echo # - Prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Create required objects.
+--echo #
+
+--echo
+
+CREATE TABLE t1(c1 INT);
+
+--echo
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo
+
+CREATE FUNCTION f1()
+  RETURNS INT
+  NOT DETERMINISTIC
+    RETURN 1;
+
+--echo
+
+CREATE FUNCTION f2(p INT)
+  RETURNS INT
+  NOT DETERMINISTIC
+    RETURN 1;
+
+--echo
+
+CREATE FUNCTION f3()
+  RETURNS INT
+  DETERMINISTIC
+    RETURN 1;
+
+--echo
+
+CREATE FUNCTION f4(p INT)
+  RETURNS INT
+  DETERMINISTIC
+    RETURN 1;
+
+--echo
+
+--echo #
+--echo # - Check.
+--echo #
+
+--echo
+
+# Not deterministic function, no arguments.
+
+SELECT f1() AS a FROM t1 GROUP BY a;
+
+--echo
+
+# Not deterministic function, non-constant argument.
+
+SELECT f2(@a) AS a FROM t1 GROUP BY a;
+
+--echo
+
+# Deterministic function, no arguments.
+
+SELECT f3() AS a FROM t1 GROUP BY a;
+
+--echo
+
+# Deterministic function, constant argument.
+
+SELECT f4(0) AS a FROM t1 GROUP BY a;
+
+--echo
+
+# Deterministic function, non-constant argument.
+
+SELECT f4(@a) AS a FROM t1 GROUP BY a;
+
+--echo
+
+--echo #
+--echo # - Cleanup.
+--echo #
+
+--echo
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+
+--echo
+
+###########################################################################
+
+#
+# Bug#31191: JOIN in combination with stored function crashes the server.
+#
+
+###########################################################################
+
+--echo #
+--echo # Bug#31191.
+--echo #
+
+--echo
+
+--echo #
+--echo # - Prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Create required objects.
+--echo #
+
+--echo
+
+CREATE TABLE t1 (
+   id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+   barcode INT(8) UNSIGNED ZEROFILL nOT NULL,
+   PRIMARY KEY  (id),
+   UNIQUE KEY barcode (barcode)
+);
+
+--echo
+
+INSERT INTO t1 (id, barcode) VALUES (1, 12345678);
+INSERT INTO t1 (id, barcode) VALUES (2, 12345679);
+
+--echo
+
+CREATE TABLE test.t2 (
+   id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+   barcode BIGINT(11) UNSIGNED ZEROFILL NOT NULL,
+   PRIMARY KEY  (id)
+);
+
+--echo
+
+INSERT INTO test.t2 (id, barcode) VALUES (1, 12345106708);
+INSERT INTO test.t2 (id, barcode) VALUES (2, 12345106709);
+
+--echo
+
+CREATE FUNCTION f1(p INT(8))
+  RETURNS BIGINT(11) UNSIGNED
+  READS SQL DATA
+    RETURN FLOOR(p/1000)*1000000 + 100000 + FLOOR((p MOD 1000)/10)*100 + (p MOD 10);
+
+--echo
+
+--echo #
+--echo # - Check.
+--echo #
+
+--echo
+
+SELECT DISTINCT t1.barcode, f1(t1.barcode)
+FROM t1
+INNER JOIN t2
+ON f1(t1.barcode) = t2.barcode
+WHERE t1.barcode=12345678;
+
+--echo
+
+--echo #
+--echo # - Cleanup.
+--echo #
+
+--echo
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP FUNCTION f1;
+
+--echo
+
+###########################################################################
+
+#
+# Bug#31226: Group by function crashes mysql.
+#
+
+###########################################################################
+
+--echo #
+--echo # Bug#31226.
+--echo #
+
+--echo
+
+--echo #
+--echo # - Prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Create required objects.
+--echo #
+
+--echo
+
+CREATE TABLE t1(id INT);
+
+--echo
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo
+
+CREATE FUNCTION f1()
+  RETURNS DATETIME
+  NOT DETERMINISTIC NO SQL
+    RETURN NOW();
+
+--echo
+
+--echo #
+--echo # - Check.
+--echo #
+
+--echo
+
+--replace_column 1 <timestamp>
+SELECT f1() FROM t1 GROUP BY 1;
+
+--echo
+
+--echo #
+--echo # - Cleanup.
+--echo #
+
+--echo
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+--echo
+
+###########################################################################
+
 --echo End of 5.0 tests
