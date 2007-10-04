@@ -4546,6 +4546,8 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   4) Parameters only used by temporary tables for query processing
   5) Parameters only used by MyISAM internally
   6) Parameters not used at all
+  7) Parameters only used by federated tables for query processing
+  8) Parameters only used by NDB
 
   The partition handler need to handle category 1), 2) and 3).
 
@@ -4812,6 +4814,15 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_INSERT_WITH_UPDATE:
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
+
+  8) Parameters only used by NDB
+  ------------------------------
+  HA_EXTRA_DELETE_CANNOT_BATCH:
+  HA_EXTRA_UPDATE_CANNOT_BATCH:
+    Inform handler that delete_row()/update_row() cannot batch deletes/updates
+    and should perform them immediately. This may be needed when table has 
+    AFTER DELETE/UPDATE triggers which access to subject table.
+    These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -4896,6 +4907,13 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Category 7), used by federated handlers */
   case HA_EXTRA_INSERT_WITH_UPDATE:
     DBUG_RETURN(loop_extra(operation));
+    /* Category 8) Parameters only used by NDB */
+  case HA_EXTRA_DELETE_CANNOT_BATCH:
+  case HA_EXTRA_UPDATE_CANNOT_BATCH:
+  {
+    /* Currently only NDB use the *_CANNOT_BATCH */
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */
