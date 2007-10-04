@@ -1470,6 +1470,10 @@ f7	datetime	NO		NULL
 f8	datetime	YES		2006-01-01 00:00:00	
 drop table t1;
 End of 5.0 tests.
+show fields from information_schema.TABLE_NAMES;
+ERROR 42S02: Unknown table 'TABLE_NAMES' in information_schema
+show keys from information_schema.TABLE_NAMES;
+ERROR 42S02: Unknown table 'TABLE_NAMES' in information_schema
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
