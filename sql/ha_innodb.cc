@@ -174,6 +174,7 @@ my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 my_bool innobase_rollback_on_timeout		= FALSE;
 my_bool innobase_create_status_file		= FALSE;
+my_bool innobase_adaptive_hash_index		= TRUE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -1375,6 +1376,8 @@ innobase_init(void)
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
+
+	srv_use_adaptive_hash_indexes = (ibool) innobase_adaptive_hash_index;
 
 	os_use_large_pages = (ibool) innobase_use_large_pages;
 	os_large_page_size = (ulint) innobase_large_page_size;
