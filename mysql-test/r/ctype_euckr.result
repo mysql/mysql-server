@@ -54,6 +54,8 @@ location
 DROP TABLE t1;
 create table t1 (a set('a') not null);
 insert into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
 select cast(a as char(1)) from t1;
 cast(a as char(1))
 
