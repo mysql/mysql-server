@@ -3082,6 +3082,7 @@ sub install_db ($$) {
   mtr_appendfile_to_file("$path_sql_dir/fill_help_tables.sql",
 			 $bootstrap_sql_file);
 
+  # Remove anonymous users
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';");
 

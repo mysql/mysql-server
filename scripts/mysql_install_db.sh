@@ -407,7 +407,16 @@ then
     echo "To do so, start the server, then issue the following commands:"
     echo "$bindir/mysqladmin -u root password 'new-password'"
     echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
+    echo
+    echo "Alternatively you can run:"
+    echo "$bindir/mysql_secure_installation"
+    echo
+    echo "which will also give you the option of removing the test"
+    echo "databases and anonymous user created by default.  This is"
+    echo "strongly recommended for production servers."
+    echo
     echo "See the manual for more instructions."
+    echo
 
     if test "$in_rpm" -eq 0 -a "$source_install" -eq 0
     then
