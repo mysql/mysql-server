@@ -1,3 +1,14 @@
+#############################################################
+# Author: Tomas
+# Date: 2007-09
+# Purpose: online alter under load test
+##############################################################
+# Change Author: Jonathan
+# Date 2007-10
+# Purpose: Add testing for online alter w/partitions
+#          and some original test cleanup and additions
+##############################################################
+
 -- source include/have_multi_ndb.inc
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
@@ -6,16 +17,28 @@
 DROP TABLE IF EXISTS t1;
 CREATE DATABASE IF NOT EXISTS mysqlslap;
 --enable_warnings
-#
-# basic online alter test during load
-#
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ basic online alter test during load
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
 
 create table t1 (pk int key, a int) engine ndb;
 insert into t1 values (1,0);
 
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
 let $end_mysqlslap= 5000;
 --exec $MYSQL_SLAP --silent --query="update test.t1 set a=a+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
-
 
 # wait for 100 updates
 --disable_result_log
@@ -31,8 +54,31 @@ while ($val)
 --enable_result_log
 --enable_query_log
 
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 add column b
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+--echo
+
 # add a column online
-alter table t1 add b int;
+ALTER ONLINE TABLE t1 ADD b INT;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap using column b
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+--echo
+
 update t1 set b= 0;
 --exec $MYSQL_SLAP --silent --query="update test.t1 set b=b+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
 
@@ -50,8 +96,31 @@ while ($val)
 --enable_result_log
 --enable_query_log
 
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 add column c
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
 # add a column online
-alter table t1 add c int;
+ALTER ONLINE TABLE t1 ADD c INT;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Starting mysqlslap using column c
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
 update t1 set c= 0;
 --exec $MYSQL_SLAP --silent --query="update test.t1 set c=c+1 where pk=1" -i $end_mysqlslap >> $NDB_TOOLS_OUTPUT &
 
@@ -68,6 +137,31 @@ while ($val)
 }
 --enable_result_log
 --enable_query_log
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Alter table t1 and try to add partitions
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 PARTITION BY HASH(pk);
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ Check table t1 ID has not changed
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
+
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
+--echo
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo ~ cleanup section
+--echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--echo
 
 # drop the table
 drop table t1;
