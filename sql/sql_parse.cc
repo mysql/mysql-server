@@ -5770,8 +5770,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
           /*
             this check is used for show columns|keys from I_S hidden table
           */
-          lex->orig_sql_command == SQLCOM_SHOW_FIELDS ||
-          lex->orig_sql_command == SQLCOM_SHOW_KEYS)))
+          lex->sql_command == SQLCOM_SHOW_FIELDS ||
+          lex->sql_command == SQLCOM_SHOW_KEYS)))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->table_name, INFORMATION_SCHEMA_NAME.str);
