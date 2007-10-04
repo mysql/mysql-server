@@ -16,7 +16,7 @@ UTILS=            \
 
 all: $(UTILS)
 
-test: test_gen
+test: test_gen test_load
 
 test_gen: test_gen_hex
 
@@ -41,7 +41,9 @@ test_gen_hex:
 	./tokudb_gen -Fh  >> $@.gen_sorted.temp
 	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
 	rm $@.*.temp
-	
+
+test_load: test_load_hex
+	#Generating
 
 #if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
