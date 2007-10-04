@@ -1,0 +1,71 @@
+#
+# Testing replication delay reporting (bug#29309)
+# there is an unavoidable non-determinism in the test
+# please compare the results with the comments 
+#
+
+
+source include/master-slave.inc;
+
+connection master;
+#connection slave;
+sync_slave_with_master;
+--replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 #
+--query_vertical show slave status /* Second_behind reports 0 */;
+sleep 3;
+
+### bug emulation
+
+connection master;
+drop table if exists t1;
+create table t1 (f1 int);
+sleep 3;
+
+#connection slave;
+sync_slave_with_master;
+flush logs /* contaminate rli->last_master_timestamp */;
+
+connection slave;
+lock table t1 write;
+
+connection master;
+insert into t1 values (1);
+
+sleep 3;
+
+connection slave;
+--replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 #
+--query_vertical show slave status /* bug emulated: reports slave threads starting time about 3*3 not 3 secs */;
+unlock tables;
+
+connection master;
+sync_slave_with_master;
+
+### bugfix
+
+
+connection slave;
+flush logs /* this time rli->last_master_timestamp is not affected */;
+lock table t1 write;
+
+connection master;
+insert into t1 values (2);
+sleep 3;
+
+connection slave;
+--replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 #
+--query_vertical show slave status /* reports the correct diff with master query time about 3+3 secs */;
+unlock tables;
+
+connection master;
+drop table t1;
+
+#connection slave;
+sync_slave_with_master;
+
+
+# End of tests
+
