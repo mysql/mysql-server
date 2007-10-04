@@ -15999,7 +15999,7 @@ static void test_bug21635()
   char *query_end;
   MYSQL_RES *result;
   MYSQL_FIELD *field;
-  unsigned int field_count, i;
+  unsigned int field_count, i, j;
   int rc;
 
   DBUG_ENTER("test_bug21635");
@@ -16015,30 +16015,37 @@ static void test_bug21635()
   myquery(rc);
   rc= mysql_query(mysql, "CREATE TABLE t1 (i INT)");
   myquery(rc);
-  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
-  myquery(rc);
-
-  rc= mysql_real_query(mysql, query, query_end - query);
-  myquery(rc);
-
-  result= mysql_use_result(mysql);
-  DIE_UNLESS(result);
-
-  field_count= mysql_field_count(mysql);
-  for (i= 0; i < field_count; ++i)
+  /*
+    We need this loop to ensure correct behavior with both constant and
+    non-constant tables.
+  */
+  for (j= 0; j < 2 ; j++)
   {
-    field= mysql_fetch_field_direct(result, i);
-    if (!opt_silent)
-      printf("%s -> %s ... ", expr[i * 2], field->name);
-    fflush(stdout);
-    DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
-               field->table[0] == 0 && field->org_name[0] == 0);
-    DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
-    if (!opt_silent)
-      puts("OK");
-  }
+    rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+    myquery(rc);
 
-  mysql_free_result(result);
+    rc= mysql_real_query(mysql, query, query_end - query);
+    myquery(rc);
+
+    result= mysql_use_result(mysql);
+    DIE_UNLESS(result);
+
+    field_count= mysql_field_count(mysql);
+    for (i= 0; i < field_count; ++i)
+    {
+      field= mysql_fetch_field_direct(result, i);
+      if (!opt_silent)
+        printf("%s -> %s ... ", expr[i * 2], field->name);
+      fflush(stdout);
+      DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
+                 field->table[0] == 0 && field->org_name[0] == 0);
+      DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
+      if (!opt_silent)
+        puts("OK");
+    }
+
+    mysql_free_result(result);
+  }
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
