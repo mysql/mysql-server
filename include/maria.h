@@ -375,11 +375,11 @@ typedef struct st_maria_sort_param
   int (*key_read)(struct st_maria_sort_param *, uchar *);
   int (*key_write)(struct st_maria_sort_param *, const uchar *);
   void (*lock_in_memory)(HA_CHECK *);
-  NEAR int (*write_keys)(struct st_maria_sort_param *, register uchar **,
+  int (*write_keys)(struct st_maria_sort_param *, register uchar **,
                          uint , struct st_buffpek *, IO_CACHE *);
-  NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  NEAR int (*write_key)(struct st_maria_sort_param *, IO_CACHE *,char *,
-                        uint, uint);
+  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+  int (*write_key)(struct st_maria_sort_param *, IO_CACHE *,uchar *,
+                   uint, uint);
 } MARIA_SORT_PARAM;
 
 

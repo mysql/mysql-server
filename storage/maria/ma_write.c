@@ -134,7 +134,7 @@ int maria_write(MARIA_HA *info, uchar *record)
       }
       if (share->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_ma_ft_add(info,i,(char*) buff,record,filepos))
+        if (_ma_ft_add(info,i, buff,record,filepos))
         {
 	  if (local_lock_tree)
 	    rw_unlock(&share->key_root_lock[i]);
@@ -243,7 +243,7 @@ err:
         */
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
         {
-          if (_ma_ft_del(info,i,(char*) buff,record,filepos))
+          if (_ma_ft_del(info,i,buff,record,filepos))
 	  {
 	    if (local_lock_tree)
 	      rw_unlock(&share->key_root_lock[i]);
@@ -615,7 +615,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
              we cannot easily dispatch an empty page here */
           b+=blen+ft2len+2;
           for (a=anc_buff+a_length ; b < a ; b+=ft2len+2)
-            insert_dynamic(info->ft1_to_ft2, (char*) b);
+            insert_dynamic(info->ft1_to_ft2, b);
 
           /* fixing the page's length - it contains only one key now */
           maria_putint(anc_buff,2+blen+ft2len+2,0);
@@ -1041,7 +1041,7 @@ int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows)
     DBUG_RETURN(0);
 
   if (rows && rows*total_keylength < cache_size)
-    cache_size=rows;
+    cache_size= (ulong)rows;
   else
     cache_size/=total_keylength*16;
 

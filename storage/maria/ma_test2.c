@@ -40,7 +40,7 @@
 static void get_options(int argc, char *argv[]);
 static uint rnd(uint max_value);
 static void fix_length(uchar *record,uint length);
-static void put_blob_in_record(char *blob_pos,char **blob_buffer,
+static void put_blob_in_record(uchar *blob_pos,char **blob_buffer,
                                ulong *length);
 static void copy_key(struct st_maria_info *info,uint inx,
 		     uchar *record,uchar *key);
@@ -58,8 +58,8 @@ static enum data_file_type record_type= DYNAMIC_RECORD;
 static uint keys=MARIA_KEYS,recant=1000;
 static uint use_blob=0;
 static uint16 key1[1001],key3[5000];
-static char record[300],record2[300],key[100],key2[100],
-	    read_record[300],read_record2[300],read_record3[300];
+static uchar record[300],record2[300],key[100],key2[100];
+static uchar read_record[300],read_record2[300],read_record3[300];
 static HA_KEYSEG glob_keyseg[MARIA_KEYS][MAX_PARTS];
 
 		/* Test program */
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
     if (i == 72) goto end;
 #endif
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
-    sprintf(record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
+    sprintf((char*) record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
     int4store(record+STANDARD_LENGTH-4,(long) i);
     fix_length(record,(uint) STANDARD_LENGTH+rnd(60));
     put_blob_in_record(record+blob_pos,&blob_buffer, &blob_length);
@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
       for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
       if (!j)
 	for (j=999 ; j>0 && key1[j] == 0 ; j--) ;
-      sprintf(key,"%6d",j);
+      sprintf((char*) key,"%6d",j);
       if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("Test in loop: Can't find key: \"%s\"\n",key);
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
     {
-      sprintf(key,"%6d",j);
+      sprintf((char*) key,"%6d",j);
       if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
@@ -345,8 +345,8 @@ int main(int argc, char *argv[])
 	goto err;
       }
       opt_delete++;
-      key1[atoi(read_record+keyinfo[0].seg[0].start)]--;
-      key3[atoi(read_record+keyinfo[2].seg[0].start)]=0;
+      key1[atoi((char*) read_record+keyinfo[0].seg[0].start)]--;
+      key3[atoi((char*) read_record+keyinfo[2].seg[0].start)]=0;
     }
     else
       puts("Warning: Skipping delete test because no dupplicate keys");
@@ -361,17 +361,17 @@ int main(int argc, char *argv[])
   for (i=0 ; i<recant/10 ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
-    sprintf(record2,"%6d:%4d:%8d:XXX: %4d     ",n1,n2,n3,update);
+    sprintf((char*) record2,"%6d:%4d:%8d:XXX: %4d     ",n1,n2,n3,update);
     int4store(record2+STANDARD_LENGTH-4,(long) i);
     fix_length(record2,(uint) STANDARD_LENGTH+rnd(60));
 
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
     {
-      sprintf(key,"%6d",j);
+      sprintf((char*) key,"%6d",j);
       if (maria_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
-	printf("can't find key1: \"%s\"\n",key);
+	printf("can't find key1: \"%s\"\n", (char*) key);
 	goto err;
       }
       if (bcmp(read_record+keyinfo[0].seg[0].start,
@@ -405,8 +405,8 @@ int main(int argc, char *argv[])
       }
       else
       {
-	key1[atoi(read_record+keyinfo[0].seg[0].start)]--;
-	key3[atoi(read_record+keyinfo[2].seg[0].start)]=0;
+	key1[atoi((char*) read_record+keyinfo[0].seg[0].start)]--;
+	key3[atoi((char*) read_record+keyinfo[2].seg[0].start)]=0;
 	key1[n1]++; key3[n3]=1;
 	update++;
       }
@@ -422,7 +422,7 @@ int main(int argc, char *argv[])
       dupp_keys=key1[i]; j=i;
     }
   }
-  sprintf(key,"%6d",j);
+  sprintf((char*) key,"%6d",j);
   start=keyinfo[0].seg[0].start;
   length=keyinfo[0].seg[0].length;
   if (dupp_keys)
@@ -720,8 +720,8 @@ int main(int argc, char *argv[])
       key_range min_key, max_key;
       if (j > k)
 	swap_variables(int, j, k);
-      sprintf(key,"%6d",j);
-      sprintf(key2,"%6d",k);
+      sprintf((char*) key,"%6d",j);
+      sprintf((char*) key2,"%6d",k);
 
       min_key.key= key;
       min_key.keypart_map= HA_WHOLE_KEY;
@@ -797,13 +797,16 @@ int main(int argc, char *argv[])
   {
     printf("scan with cache: I can only find: %d records of %d\n",
 	   ant,write_count-opt_delete);
+    maria_scan_end(file);
     goto err;
   }
   if (maria_extra(file,HA_EXTRA_NO_CACHE,0))
   {
     puts("got error from maria_extra(HA_EXTRA_NO_CACHE)");
+    maria_scan_end(file);
     goto err;
   }
+  maria_scan_end(file);
 
   ant=0;
   maria_scan_init(file);
@@ -814,8 +817,10 @@ int main(int argc, char *argv[])
   {
     printf("scan with cache: I can only find: %d records of %d\n",
 	   ant,write_count-opt_delete);
+    maria_scan_end(file);
     goto err;
   }
+  maria_scan_end(file);
 
   if (testflag == 5)
     goto end;
@@ -885,16 +890,17 @@ int main(int argc, char *argv[])
     else
       found_parts++;
   }
-  maria_scan_end(file);
   if (my_errno != HA_ERR_END_OF_FILE && my_errno != HA_ERR_RECORD_DELETED)
     printf("error: %d from maria_rrnd\n",my_errno);
   if (write_count != opt_delete)
   {
     printf("Deleted only %d of %d records (%d parts)\n",opt_delete,write_count,
 	   found_parts);
+    maria_scan_end(file);
     goto err;
   }
 end:
+  maria_scan_end(file);
   if (die_in_middle_of_transaction)
   {
     /* As commit record is not done, UNDO entries needs to be rolled back */
@@ -967,7 +973,7 @@ reads:      %10lu\n",
            (ulong) maria_pagecache->global_cache_r_requests,
            (ulong) maria_pagecache->global_cache_read);
   }
-  end_pagecache(maria_pagecache,1);
+  maria_end();
   my_free(blob_buffer, MYF(MY_ALLOW_ZERO_PTR));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
@@ -1130,13 +1136,13 @@ static void fix_length(uchar *rec, uint length)
   bmove(rec+STANDARD_LENGTH,
 	"0123456789012345678901234567890123456789012345678901234567890",
 	length-STANDARD_LENGTH);
-  strfill(rec+length,STANDARD_LENGTH+60-length,' ');
+  strfill((char*) rec+length,STANDARD_LENGTH+60-length,' ');
 } /* fix_length */
 
 
 	/* Put maybe a blob in record */
 
-static void put_blob_in_record(char *blob_pos, char **blob_buffer,
+static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
                                ulong *blob_length)
 {
   ulong i,length;

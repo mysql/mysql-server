@@ -26,16 +26,15 @@ my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
   {
     my_off_t filepos=info->s->state.dellink;
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
-    if (info->s->file_read(info,(char*) &temp[0],info->s->base.rec_reflength,
+    if (info->s->file_read(info, &temp[0],info->s->base.rec_reflength,
 		info->s->state.dellink+1,
 		 MYF(MY_NABP)))
       goto err;
     info->s->state.dellink= _ma_rec_pos(info->s,temp);
     info->state->del--;
     info->state->empty-=info->s->base.pack_reclength;
-    if (info->s->file_write(info, (char*) record, info->s->base.reclength,
-		  filepos,
-		  MYF(MY_NABP)))
+    if (info->s->file_write(info, record, info->s->base.reclength,
+                            filepos, MYF(MY_NABP)))
       goto err;
   }
   else
@@ -48,29 +47,29 @@ my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
     }
     if (info->opt_flag & WRITE_CACHE_USED)
     {				/* Cash in use */
-      if (my_b_write(&info->rec_cache, (uchar*) record,
+      if (my_b_write(&info->rec_cache, record,
 		     info->s->base.reclength))
 	goto err;
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero((char*) temp,length);
-	if (my_b_write(&info->rec_cache, (uchar*) temp,length))
+	bzero(temp,length);
+	if (my_b_write(&info->rec_cache, temp,length))
 	  goto err;
       }
     }
     else
     {
       info->rec_cache.seek_not_done=1;		/* We have done a seek */
-      if (info->s->file_write(info,(char*) record,info->s->base.reclength,
+      if (info->s->file_write(info, record, info->s->base.reclength,
 		    info->state->data_file_length,
 		    info->s->write_flag))
         goto err;
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero((char*) temp,length);
-	if (info->s->file_write(info, (uchar*) temp,length,
+	bzero(temp,length);
+	if (info->s->file_write(info, temp,length,
 		      info->state->data_file_length+
 		      info->s->base.reclength,
 		      info->s->write_flag))
@@ -91,7 +90,7 @@ my_bool _ma_update_static_record(MARIA_HA *info, MARIA_RECORD_POS pos,
 {
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
   return (info->s->file_write(info,
-		    (char*) record,info->s->base.reclength,
+                              record, info->s->base.reclength,
 		    pos,
 		    MYF(MY_NABP)) != 0);
 }
@@ -132,13 +131,10 @@ my_bool _ma_cmp_static_record(register MARIA_HA *info,
   if ((info->opt_flag & READ_CHECK_USED))
   {						/* If check isn't disabled  */
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
-    if (info->s->file_read(info, (char*) info->rec_buff,
-                           info->s->base.reclength,
-                           info->cur_row.lastpos,
-                           MYF(MY_NABP)))
+    if (info->s->file_read(info, info->rec_buff, info->s->base.reclength,
+                           info->cur_row.lastpos, MYF(MY_NABP)))
       DBUG_RETURN(1);
-    if (memcmp((uchar*) info->rec_buff, (uchar*) old,
-	       (uint) info->s->base.reclength))
+    if (memcmp(info->rec_buff, old, (uint) info->s->base.reclength))
     {
       DBUG_DUMP("read",old,info->s->base.reclength);
       DBUG_DUMP("disk",info->rec_buff,info->s->base.reclength);
@@ -156,7 +152,7 @@ my_bool _ma_cmp_static_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
   DBUG_ENTER("_ma_cmp_static_unique");
 
   info->rec_cache.seek_not_done=1;		/* We have done a seek */
-  if (info->s->file_read(info, (char*) info->rec_buff, info->s->base.reclength,
+  if (info->s->file_read(info, info->rec_buff, info->s->base.reclength,
 	       pos, MYF(MY_NABP)))
     DBUG_RETURN(1);
   DBUG_RETURN(_ma_unique_comp(def, record, (uchar*) info->rec_buff,
@@ -186,7 +182,7 @@ int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
       return(my_errno);
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
 
-    error=info->s->file_read(info,(char*) record,info->s->base.reclength,
+    error=info->s->file_read(info, record,info->s->base.reclength,
                              pos, MYF(MY_NABP));
     if (! error)
     {

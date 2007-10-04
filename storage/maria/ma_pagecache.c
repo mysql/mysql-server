@@ -726,8 +726,7 @@ int init_pagecache(PAGECACHE *pagecache, size_t use_mem,
 	  For each block 2 hash links are allocated
         */
         if ((pagecache->block_root=
-             (PAGECACHE_BLOCK_LINK*) my_malloc((uint) length,
-                                                           MYF(0))))
+             (PAGECACHE_BLOCK_LINK*) my_malloc((uint) length, MYF(0))))
           break;
         my_large_free(pagecache->block_mem, MYF(0));
         pagecache->block_mem= 0;

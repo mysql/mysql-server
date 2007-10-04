@@ -764,7 +764,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       Replace the current file.
       Don't sync dir now if the data file has the same path.
     */
-    create_flag= MY_DELETE_OLD | (!ci->data_file_name ? 0 : sync_dir);
+    create_flag=  (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
+    create_flag|= (!ci->data_file_name ? 0 : sync_dir);
   }
 
   /*
@@ -1042,7 +1043,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       fn_format(filename,name,"", MARIA_NAME_DEXT,
                 MY_UNPACK_FILENAME | MY_APPEND_EXT);
       linkname_ptr= NullS;
-      create_flag=MY_DELETE_OLD;
+      create_flag= (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
     }
     if ((dfile=
          my_create_with_symlink(linkname_ptr, filename, 0, create_mode,

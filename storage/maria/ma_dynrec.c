@@ -88,7 +88,7 @@ my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size)
     DBUG_RETURN(1);
   }
 #if defined(HAVE_MADVISE)
-  madvise(info->s->file_map, size, MADV_RANDOM);
+  madvise((char*) info->s->file_map, size, MADV_RANDOM);
 #endif
   info->s->mmaped_length= size;
   DBUG_RETURN(0);
@@ -109,7 +109,7 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    VOID(my_munmap(info->s->file_map,
+    VOID(my_munmap((char*) info->s->file_map,
                    (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
     _ma_dynmap_file(info, size);
   }
@@ -132,8 +132,8 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size)
     0  ok
 */
 
-uint _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
-                    uint Count, my_off_t offset, myf MyFlags)
+size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
+		      size_t Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("maria_read with mmap %d\n", info->dfile.file));
   if (info->s->concurrent_insert)
@@ -164,8 +164,8 @@ uint _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
 
         /* wrapper for my_pread in case if mmap isn't used */
 
-uint _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
-                      uint Count, my_off_t offset, myf MyFlags)
+size_t _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
+			size_t Count, my_off_t offset, myf MyFlags)
 {
   return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
 }
@@ -187,8 +187,8 @@ uint _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
     !=0  error.  In this case return error from pwrite
 */
 
-uint _ma_mmap_pwrite(MARIA_HA *info, uchar *Buffer,
-                     uint Count, my_off_t offset, myf MyFlags)
+size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
+		       size_t Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("maria_write with mmap %d\n", info->dfile.file));
   if (info->s->concurrent_insert)
@@ -221,8 +221,8 @@ uint _ma_mmap_pwrite(MARIA_HA *info, uchar *Buffer,
 
         /* wrapper for my_pwrite in case if mmap isn't used */
 
-uint _ma_nommap_pwrite(MARIA_HA *info, uchar *Buffer,
-                      uint Count, my_off_t offset, myf MyFlags)
+size_t _ma_nommap_pwrite(MARIA_HA *info, const uchar *Buffer,
+			 size_t Count, my_off_t offset, myf MyFlags)
 {
   return my_pwrite(info->dfile.file, Buffer, Count, offset, MyFlags);
 }
@@ -428,7 +428,7 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
 	  & BLOCK_DELETED))
       DBUG_RETURN(1);				/* Something is wrong */
     mi_sizestore(tmp.header+4,block_info->next_filepos);
-    if (info->s->file_write(info,(char*) tmp.header+4,8,
+    if (info->s->file_write(info, tmp.header+4,8,
 		  block_info->prev_filepos+4, MYF(MY_NABP)))
       DBUG_RETURN(1);
     /* Unlink block from next block */
@@ -439,7 +439,7 @@ static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
 	    & BLOCK_DELETED))
 	DBUG_RETURN(1);				/* Something is wrong */
       mi_sizestore(tmp.header+12,block_info->prev_filepos);
-      if (info->s->file_write(info,(char*) tmp.header+12,8,
+      if (info->s->file_write(info, tmp.header+12,8,
 		    block_info->next_filepos+12,
 		    MYF(MY_NABP)))
 	DBUG_RETURN(1);
@@ -489,7 +489,7 @@ static my_bool update_backward_delete_link(MARIA_HA *info,
     if (_ma_get_block_info(&block_info, info->dfile.file, delete_block)
 	& BLOCK_DELETED)
     {
-      char buff[8];
+      uchar buff[8];
       mi_sizestore(buff,filepos);
       if (info->s->file_write(info,buff, 8, delete_block+12, MYF(MY_NABP)))
 	DBUG_RETURN(1);				/* Error on write */
@@ -1610,7 +1610,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
                               uint length)
 {
   uint next_length;
-  char temp_buff[IO_SIZE*2];
+  uchar temp_buff[IO_SIZE*2];
   DBUG_ENTER("_ma_cmp_buffer");
 
   next_length= IO_SIZE*2 - (uint) (filepos & (IO_SIZE-1));
@@ -1618,7 +1618,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
   while (length > IO_SIZE*2)
   {
     if (my_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
-	memcmp((uchar*) buff,temp_buff,next_length))
+	memcmp(buff, temp_buff, next_length))
       goto err;
     filepos+=next_length;
     buff+=next_length;
@@ -1627,7 +1627,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
   }
   if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
     goto err;
-  DBUG_RETURN(memcmp((uchar*) buff,temp_buff,length) != 0);
+  DBUG_RETURN(memcmp(buff, temp_buff, length) != 0);
 err:
   DBUG_RETURN(1);
 }
@@ -1851,11 +1851,11 @@ uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
       my_pread() may leave the file pointer untouched.
     */
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
-    if (my_read(file,(char*) header,sizeof(info->header),MYF(0)) !=
+    if (my_read(file, header, sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
       goto err;
   }
-  DBUG_DUMP("header",(uchar*) header,MARIA_BLOCK_INFO_HEADER_LENGTH);
+  DBUG_DUMP("header",header,MARIA_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
   {
     if (info->header[0] <= 6 || info->header[0] == 13)

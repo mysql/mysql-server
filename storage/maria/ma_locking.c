@@ -505,7 +505,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
 
 int _ma_mark_file_changed(MARIA_HA *info)
 {
-  char buff[3];
+  uchar buff[3];
   register MARIA_SHARE *share=info->s;
   DBUG_ENTER("_ma_mark_file_changed");
 
@@ -543,7 +543,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
 
 int _ma_decrement_open_count(MARIA_HA *info)
 {
-  char buff[2];
+  uchar buff[2];
   register MARIA_SHARE *share=info->s;
   int lock_error=0,write_error=0;
   if (share->global_changed)

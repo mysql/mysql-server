@@ -71,13 +71,13 @@ public:
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
   int delete_row(const uchar * buf);
-  int index_read(uchar * buf, const uchar * key, key_part_map keypart_map,
-                 enum ha_rkey_function find_flag);
-  int index_read_idx(uchar * buf, uint idx, const uchar * key,
-                     key_part_map keypart_map,
-                     enum ha_rkey_function find_flag);
-  int index_read_last(uchar * buf, const uchar * key,
-                      key_part_map keypart_map);
+  int index_read_map(uchar * buf, const uchar * key, key_part_map keypart_map,
+		     enum ha_rkey_function find_flag);
+  int index_read_idx_map(uchar * buf, uint idx, const uchar * key,
+			 key_part_map keypart_map,
+			 enum ha_rkey_function find_flag);
+  int index_read_last_map(uchar * buf, const uchar * key,
+			  key_part_map keypart_map);
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);
@@ -142,5 +142,12 @@ public:
 #ifdef HAVE_REPLICATION
   int dump(THD * thd, int fd);
   int net_read_dump(NET * net);
+#endif
+#ifdef HAVE_QUERY_CACHE
+  my_bool register_query_cache_table(THD *thd, char *table_key,
+                                     uint key_length,
+                                     qc_engine_callback
+                                     *engine_callback,
+                                     ulonglong *engine_data);
 #endif
 };

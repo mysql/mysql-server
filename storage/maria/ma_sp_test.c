@@ -24,11 +24,11 @@
 #define MAX_REC_LENGTH 1024
 #define KEYALG HA_KEY_ALG_RTREE
 
-static void create_linestring(char *record,uint rownr);
-static void print_record(char * record,my_off_t offs,const char * tail);
+static void create_linestring(uchar *record,uint rownr);
+static void print_record(uchar * record,my_off_t offs,const char * tail);
 
-static void create_key(char *key,uint rownr);
-static void print_key(const char *key,const char * tail);
+static void create_key(uchar *key,uint rownr);
+static void print_key(const uchar *key,const char * tail);
 
 static int run_test(const char *filename);
 static int read_with_pos(MARIA_HA * file, int silent);
@@ -65,9 +65,9 @@ int run_test(const char *filename)
   int i;
   int error;
   int row_count=0;
-  char record[MAX_REC_LENGTH];
-  char key[MAX_REC_LENGTH];
-  char read_record[MAX_REC_LENGTH];
+  uchar record[MAX_REC_LENGTH];
+  uchar key[MAX_REC_LENGTH];
+  uchar read_record[MAX_REC_LENGTH];
   int upd=10;
   ha_rows hrows;
 
@@ -277,7 +277,7 @@ static int read_with_pos (MARIA_HA * file,int silent)
 {
   int error;
   int i;
-  char read_record[MAX_REC_LENGTH];
+  uchar read_record[MAX_REC_LENGTH];
   int rows=0;
 
   if (!silent)
@@ -305,7 +305,7 @@ static int read_with_pos (MARIA_HA * file,int silent)
 
 
 #ifdef NOT_USED
-static void bprint_record(char * record,
+static void bprint_record(uchar * record,
 			  my_off_t offs __attribute__((unused)),
 			  const char * tail)
 {
@@ -324,9 +324,9 @@ static void bprint_record(char * record,
 #endif
 
 
-static void print_record(char * record, my_off_t offs,const char * tail)
+static void print_record(uchar * record, my_off_t offs,const char * tail)
 {
-  char *pos;
+  uchar *pos;
   char *ptr;
   uint len;
 
@@ -346,7 +346,7 @@ static void print_record(char * record, my_off_t offs,const char * tail)
 
 
 #ifdef NOT_USED
-static void create_point(char *record,uint rownr)
+static void create_point(uchar *record,uint rownr)
 {
    uint tmp;
    char *ptr;
@@ -373,11 +373,11 @@ static void create_point(char *record,uint rownr)
 #endif
 
 
-static void create_linestring(char *record,uint rownr)
+static void create_linestring(uchar *record,uint rownr)
 {
    uint tmp;
    char *ptr;
-   char *pos=record;
+   uchar *pos= record;
    double x[200];
    int i,j;
    int npoints=2;
@@ -401,10 +401,10 @@ static void create_linestring(char *record,uint rownr)
 }
 
 
-static void create_key(char *key,uint rownr)
+static void create_key(uchar *key,uint rownr)
 {
    double c=rownr;
-   char *pos;
+   uchar *pos;
    uint i;
 
    bzero(key,MAX_REC_LENGTH);
@@ -415,7 +415,7 @@ static void create_key(char *key,uint rownr)
    }
 }
 
-static void print_key(const char *key,const char * tail)
+static void print_key(const uchar *key,const char * tail)
 {
   double c;
   uint i;

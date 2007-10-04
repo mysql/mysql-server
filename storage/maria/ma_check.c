@@ -187,7 +187,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
 	printf(" %9s",llstr(next_link,buff));
       if (next_link >= info->state->data_file_length)
 	goto wrong;
-      if (my_pread(info->dfile.file, (char*) buff, delete_link_length,
+      if (my_pread(info->dfile.file, (uchar*) buff, delete_link_length,
 		   next_link,MYF(MY_NABP)))
       {
 	if (test_flag & T_VERBOSE) puts("");
@@ -264,7 +264,8 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
 {
   uint block_size= info->s->block_size;
   ha_rows records;
-  char llbuff[21], llbuff2[21], *buff;
+  char llbuff[21], llbuff2[21];
+  uchar *buff;
   DBUG_ENTER("check_k_link");
 
   records= (ha_rows) (info->state->key_file_length / block_size);
@@ -2347,7 +2348,7 @@ static int writekeys(MARIA_SORT_PARAM *sort_param)
     {
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_ma_ft_add(info,i,(char*) key,buff,filepos))
+        if (_ma_ft_add(info,i, key,buff,filepos))
 	  goto err;
       }
 #ifdef HAVE_SPATIAL
@@ -2378,7 +2379,7 @@ static int writekeys(MARIA_SORT_PARAM *sort_param)
       {
 	if (info->s->keyinfo[i].flag & HA_FULLTEXT)
         {
-          if (_ma_ft_del(info,i,(char*) key,buff,filepos))
+          if (_ma_ft_del(info,i,key,buff,filepos))
 	    break;
         }
         else
@@ -3421,7 +3422,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     sort_param[i].filepos=new_header_length;
     sort_param[i].max_pos=sort_param[i].pos=share->pack.header_length;
 
-    sort_param[i].record= (((char *)(sort_param+share->base.keys))+
+    sort_param[i].record= (((uchar *)(sort_param+share->base.keys))+
 			   (share->base.pack_reclength * i));
     if (_ma_alloc_buffer(&sort_param[i].rec_buff, &sort_param[i].rec_buff_size,
                          share->base.default_rec_buff_size))
@@ -5051,7 +5052,7 @@ int maria_write_data_suffix(MARIA_SORT_INFO *sort_info, my_bool fix_datafile)
 
   if (info->s->data_file_type == COMPRESSED_RECORD && fix_datafile)
   {
-    char buff[MEMMAP_EXTRA_MARGIN];
+    uchar buff[MEMMAP_EXTRA_MARGIN];
     bzero(buff,sizeof(buff));
     if (my_b_write(&info->rec_cache,buff,sizeof(buff)))
     {

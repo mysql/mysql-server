@@ -249,7 +249,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
-  char *disk_cache, *disk_pos, *end_pos;
+  uchar *disk_cache, *disk_pos, *end_pos;
   MARIA_HA info,*m_info,*old_info;
   MARIA_SHARE share_buff,*share;
   ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
@@ -275,7 +275,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     bzero((uchar*) &share_buff,sizeof(share_buff));
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
-    share_buff.pagecache= multi_pagecache_search(name_buff, strlen(name_buff),
+    share_buff.pagecache= multi_pagecache_search((uchar*) name_buff,
+						 strlen(name_buff),
                                                  maria_pagecache);
 
     DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_open",
@@ -293,7 +294,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     share->mode=open_mode;
     errpos= 1;
-    if (my_read(kfile,(char*) share->state.header.file_version,head_length,
+    if (my_read(kfile,share->state.header.file_version, head_length,
 		MYF(MY_NABP)))
     {
       my_errno= HA_ERR_NOT_A_TABLE;
@@ -337,7 +338,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos= mi_uint2korr(share->state.header.base_pos);
-    if (!(disk_cache=(char*) my_alloca(info_length+128)))
+    if (!(disk_cache= (uchar*) my_alloca(info_length+128)))
     {
       my_errno=ENOMEM;
       goto err;
@@ -688,7 +689,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
     share->block_size= share->base.block_size;
-    my_afree((uchar*) disk_cache);
+    my_afree(disk_cache);
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
@@ -1175,7 +1176,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
 {
-  char	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
+  uchar	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
   /* trick to detect transactional tables */
   DBUG_ASSERT(state->create_rename_lsn == LSN_IMPOSSIBLE);
@@ -1297,7 +1298,7 @@ uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *_ma_keydef_read(char *ptr, MARIA_KEYDEF *keydef)
+uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
 {
    keydef->keysegs	= (uint) *ptr++;
    keydef->key_alg	= *ptr++;		/* Rtree or Btree */
@@ -1341,7 +1342,7 @@ int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg)
 }
 
 
-char *_ma_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
+uchar *_ma_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg)
 {
    keyseg->type		= *ptr++;
    keyseg->language	= *ptr++;
@@ -1380,7 +1381,7 @@ uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *def)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *_ma_uniquedef_read(char *ptr, MARIA_UNIQUEDEF *def)
+uchar *_ma_uniquedef_read(uchar *ptr, MARIA_UNIQUEDEF *def)
 {
    def->keysegs = mi_uint2korr(ptr);
    def->key	= ptr[2];
@@ -1408,7 +1409,7 @@ uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
-char *_ma_columndef_read(char *ptr, MARIA_COLUMNDEF *columndef)
+uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef)
 {
   columndef->offset= mi_uint6korr(ptr);         ptr+= 6;
   columndef->type=   mi_sint2korr(ptr);		ptr+= 2;

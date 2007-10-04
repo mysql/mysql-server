@@ -108,7 +108,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     {
       if (type != HA_KEYTYPE_NUM)
       {
-        length= cs->cset->lengthsp(cs, pos, length);
+        length= cs->cset->lengthsp(cs, (char*) pos, length);
       }
       else
       {
@@ -383,7 +383,8 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
       {
         memcpy(pos,key,(size_t) length);
         keyseg->charset->cset->fill(keyseg->charset,
-                                    pos + length, keyseg->length - length,
+                                    (char*) pos + length,
+                                    keyseg->length - length,
                                     ' ');
       }
       else

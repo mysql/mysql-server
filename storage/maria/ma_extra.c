@@ -85,7 +85,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       if (_ma_memmap_file(info))
       {
 	/* We don't nead MADV_SEQUENTIAL if small file */
-	madvise(share->file_map,share->state.state.data_file_length,
+	madvise((char*) share->file_map, share->state.state.data_file_length,
 		share->state.state.data_file_length <= RECORD_CACHE_SIZE*16 ?
 		MADV_RANDOM : MADV_SEQUENTIAL);
 	pthread_mutex_unlock(&share->intern_lock);
@@ -167,7 +167,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
-      madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+      madvise((char*) share->file_map, share->state.state.data_file_length,
+              MADV_RANDOM);
 #endif
     break;
   case HA_EXTRA_FLUSH_CACHE:
@@ -313,8 +314,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       blocks to disk if this is not for a DROP TABLE. Otherwise they would be
       invisible to future openers; and they could even go to disk late and
       cancel the work of future openers.
-      On Windows, which cannot delete an open file (cannot drop an open table)
-      we have to close the table's files.
     */
     if (info->lock_type != F_UNLCK && !info->was_locked)
     {
@@ -343,11 +342,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     {
       if (do_flush)
       {
-        /*
-          Save the state so that others can find it from disk.
-          We have to sync now, as on Windows we are going to close the file
-          (so cannot sync later).
-        */
+        /* Save the state so that others can find it from disk. */
         if (_ma_state_info_write(share, 1 | 2) ||
             my_sync(share->kfile.file, MYF(0)))
           error= my_errno;
@@ -361,42 +356,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         /* be sure that state is not tried for write as file may be closed */
         share->changed= 0;
       }
-#ifdef __WIN__
-      if (my_close(share->kfile, MYF(0)))
-        error=my_errno;
-      share->kfile.file= -1;
-#endif
     }
     if (share->data_file_type == BLOCK_RECORD &&
         share->bitmap.file.file >= 0)
     {
       if (do_flush && my_sync(share->bitmap.file.file, MYF(0)))
         error= my_errno;
-#ifdef __WIN__
-      if (my_close(share->bitmap.file.file, MYF(0)))
-        error= my_errno;
-      share->bitmap.file.file= -1;
-#endif
     }
-#ifdef __WIN__
-    {
-      LIST *list_element ;
-      for (list_element=maria_open_list ;
-	   list_element ;
-	   list_element=list_element->next)
-      {
-	MARIA_HA *tmpinfo=(MARIA_HA*) list_element->data;
-	if (tmpinfo->s == info->s)
-	{
-	  if (share->data_file_type != BLOCK_RECORD &&
-              tmpinfo->dfile.file >= 0 &&
-              my_close(tmpinfo->dfile.file, MYF(0)))
-	    error = my_errno;
-	  tmpinfo->dfile.file= -1;
-	}
-      }
-    }
-#endif
     /* For protection against Checkpoint, we set under intern_lock: */
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&share->intern_lock);
@@ -544,7 +510,8 @@ int maria_reset(MARIA_HA *info)
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
-    madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+    madvise((char*) share->file_map, share->state.state.data_file_length,
+            MADV_RANDOM);
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode=0;

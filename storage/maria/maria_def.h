@@ -281,8 +281,8 @@ typedef struct st_maria_share
   my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
                             const uchar *record, MARIA_RECORD_POS pos);
   /* Mapings to read/write the data file */
-  uint (*file_read)(MARIA_HA *, uchar *, uint, my_off_t, myf);
-  uint (*file_write)(MARIA_HA *, uchar *, uint, my_off_t, myf);
+  uint (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
+  uint (*file_write)(MARIA_HA *, const uchar *, size_t, my_off_t, myf);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
@@ -864,27 +864,27 @@ extern uint _ma_save_pack_length(uint version, uchar * block_buff,
                                  ulong length);
 extern uint _ma_calc_pack_length(uint version, ulong length);
 extern ulong _ma_calc_blob_length(uint length, const uchar *pos);
-extern uint _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
-                           uint Count, my_off_t offset, myf MyFlags);
-extern uint _ma_mmap_pwrite(MARIA_HA *info, uchar *Buffer,
-                            uint Count, my_off_t offset, myf MyFlags);
-extern uint _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
-                             uint Count, my_off_t offset, myf MyFlags);
-extern uint _ma_nommap_pwrite(MARIA_HA *info, uchar *Buffer,
-                              uint Count, my_off_t offset, myf MyFlags);
+extern size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
+			     size_t Count, my_off_t offset, myf MyFlags);
+extern size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
+			      size_t Count, my_off_t offset, myf MyFlags);
+extern size_t _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
+			       size_t Count, my_off_t offset, myf MyFlags);
+extern size_t _ma_nommap_pwrite(MARIA_HA *info, const uchar *Buffer,
+				size_t Count, my_off_t offset, myf MyFlags);
 
 uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite);
 uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite);
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
 int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
-char *_ma_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
+uchar *_ma_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg);
 uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef);
-char *_ma_keydef_read(char *ptr, MARIA_KEYDEF *keydef);
+uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef);
 uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *keydef);
-char *_ma_uniquedef_read(char *ptr, MARIA_UNIQUEDEF *keydef);
+uchar *_ma_uniquedef_read(uchar *ptr, MARIA_UNIQUEDEF *keydef);
 uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef);
-char *_ma_columndef_read(char *ptr, MARIA_COLUMNDEF *columndef);
+uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef);
 ulong _ma_calc_total_blob_length(MARIA_HA *info, const uchar *record);
 ha_checksum _ma_checksum(MARIA_HA *info, const uchar *buf);
 ha_checksum _ma_static_checksum(MARIA_HA *info, const uchar *buf);

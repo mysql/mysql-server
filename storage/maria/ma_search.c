@@ -837,7 +837,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 	if (tot_length >= 255 && *start != 255)
 	{
 	  /* length prefix changed from a length of one to a length of 3 */
-	  bmove_upp((char*) key+length+3,(char*) key+length+1,length);
+	  bmove_upp(key+length+3, key+length+1, length);
 	  *key=255;
 	  mi_int2store(key+1,tot_length);
 	  key+=3+length;

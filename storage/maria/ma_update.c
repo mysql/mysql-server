@@ -110,7 +110,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 	    key_changed|=HA_STATE_WRITTEN;
 	  }
 	  changed|=((ulonglong) 1 << i);
-	  if (_ma_ft_update(info,i,(char*) old_key,oldrec,newrec,pos))
+	  if (_ma_ft_update(info,i,old_key,oldrec,newrec,pos))
 	    goto err;
 	}
       }
@@ -215,8 +215,8 @@ err:
       {
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-	  if ((flag++ && _ma_ft_del(info,i,(char*) new_key,newrec,pos)) ||
-	      _ma_ft_add(info,i,(char*) old_key,oldrec,pos))
+	  if ((flag++ && _ma_ft_del(info,i,new_key,newrec,pos)) ||
+	      _ma_ft_add(info,i,old_key,oldrec,pos))
 	    break;
 	}
 	else

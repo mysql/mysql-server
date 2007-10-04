@@ -116,7 +116,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                 int level)
 {
   my_off_t old_link;
-  char buff[8];
+  uchar buff[8];
   uint offset;
   pgcache_page_no_t page_no;
   DBUG_ENTER("_ma_dispose");
@@ -166,7 +166,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
   }
   else
   {
-    buff= alloca(info->s->block_size);
+    buff= my_alloca(info->s->block_size);
     DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
                 info->s->pagecache->block_size == info->s->block_size);
     /*
@@ -181,6 +181,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
       pos= HA_OFFSET_ERROR;
     else
       info->s->state.key_del= mi_sizekorr(buff);
+    my_afree(buff);
   }
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit",("Pos: %ld",(long) pos));

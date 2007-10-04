@@ -48,9 +48,9 @@ int test_read(MARIA_HA *,int),test_write(MARIA_HA *,int,int),
     test_update(MARIA_HA *,int,int),test_rrnd(MARIA_HA *,int);
 
 struct record {
-  char id[8];
-  char nr[4];
-  char text[10];
+  uchar id[8];
+  uchar nr[4];
+  uchar text[10];
 } record;
 
 
@@ -242,8 +242,8 @@ int test_read(MARIA_HA *file,int id)
   for (i=0 ; i < 100 ; i++)
   {
     find=rnd(100000);
-    if (!maria_rkey(file,record.id,1,(uchar*) &find,
-                    HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+    if (!maria_rkey(file,record.id,1,(uchar*) &find, HA_WHOLE_KEY,
+                    HA_READ_KEY_EXACT))
       found++;
     else
     {
@@ -361,8 +361,8 @@ int test_write(MARIA_HA *file,int id,int lock_type)
       maria_extra(file,HA_EXTRA_WRITE_CACHE,0);
   }
 
-  sprintf(record.id,"%7d",getpid());
-  strnmov(record.text,"Testing...", sizeof(record.text));
+  sprintf((char*) record.id,"%7d",getpid());
+  strnmov((char*) record.text,"Testing...", sizeof(record.text));
 
   tries=(uint) rnd(100)+10;
   for (i=count=0 ; i < tries ; i++)
@@ -418,15 +418,15 @@ int test_update(MARIA_HA *file,int id,int lock_type)
     }
   }
   bzero((char*) &new_record,sizeof(new_record));
-  strmov(new_record.text,"Updated");
+  strmov((char*) new_record.text,"Updated");
 
   found=next=prev=update=0;
   for (i=0 ; i < 100 ; i++)
   {
     tmp=rnd(100000);
     int4store(find,tmp);
-    if (!maria_rkey(file,record.id,1,(uchar*) find,
-                    HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+    if (!maria_rkey(file,record.id,1,(uchar*) find, HA_WHOLE_KEY,
+                    HA_READ_KEY_EXACT))
       found++;
     else
     {
