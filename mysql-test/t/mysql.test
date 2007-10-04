@@ -282,6 +282,15 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug21412.sql;
 #
 --exec $MYSQL test -e "/*! \C latin1 */ select 1;"
 
+#
+# Bug#29323 mysql client only accetps ANSI encoded files
+#
+--write_file $MYSQLTEST_VARDIR/tmp/bug29323.sql
+﻿select "This is a file starting with UTF8 BOM 0xEFBBBF";
+EOF
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29323.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bug29323.sql;
+
 --echo End of 5.0 tests
 
 #
