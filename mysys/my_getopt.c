@@ -19,6 +19,7 @@
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <my_getopt.h>
+#include <errno.h>
 
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
@@ -693,7 +694,15 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
   longlong num;
   
   *error= 0;
+  errno= 0;
   num= strtoll(argument, &endchar, 10);
+  if (errno == ERANGE)
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "Incorrect integer value: '%s'", argument);
+    *error= 1;
+    return 0;
+  }
   if (*endchar == 'k' || *endchar == 'K')
     num*= 1024L;
   else if (*endchar == 'm' || *endchar == 'M')
@@ -730,7 +739,14 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   num= eval_num_suffix(arg, err, (char*) optp->name);
   if (num > 0 && (ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
+  {
+    char buf[22];
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "Truncated incorrect %s value: '%s'", 
+                             optp->name, llstr(num, buf));
+    
     num= (ulonglong) optp->max_value;
+  }
   num= ((num - optp->sub_size) / block_size);
   num= (longlong) (num * block_size);
   return max(num, optp->min_value);
