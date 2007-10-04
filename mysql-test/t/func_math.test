@@ -224,4 +224,29 @@ select mod(cast(-2 as unsigned), 3), mod(18446744073709551614, 3), mod(-2, 3);
 select mod(5, cast(-2 as unsigned)), mod(5, 18446744073709551614), mod(5, -2);
 select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
 
+#
+# Bug #30587: mysql crashes when trying to group by TIME div NUMBER
+#
+
+CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
+INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
+SELECT a DIV 900 y FROM t1 GROUP BY y;
+SELECT DISTINCT a DIV 900 y FROM t1;
+SELECT b DIV 900 y FROM t1 GROUP BY y;
+SELECT c DIV 900 y FROM t1 GROUP BY y;
+DROP TABLE t1;
+
+CREATE TABLE t1(a LONGBLOB);
+INSERT INTO t1 VALUES('1'),('2'),('3');
+SELECT DISTINCT (a DIV 254576881) FROM t1;
+SELECT (a DIV 254576881) FROM t1 UNION ALL 
+  SELECT (a DIV 254576881) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a SET('a','b','c'));
+INSERT INTO t1 VALUES ('a');
+SELECT a DIV 2 FROM t1 UNION SELECT a DIV 2 FROM t1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests

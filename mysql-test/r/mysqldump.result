@@ -516,7 +516,7 @@ drop database mysqldump_test_db;
 # --default-character-set=xxx. However, we should dump in UTF8
 # if it is explicitely set.
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'ƒ÷‹ﬂ');
+INSERT INTO t1  VALUES (_latin1 '√Ñ√ñ√ú√ü');
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -574,7 +574,7 @@ SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('éôö·');
+INSERT INTO `t1` VALUES ('¬é¬ô¬ö√°');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -600,7 +600,7 @@ SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('éôö·');
+INSERT INTO `t1` VALUES ('¬é¬ô¬ö√°');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1739,11 +1739,11 @@ create table t1 (a text character set utf8, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
 a	b
-Osnabr¸ck	Kˆln
+Osnabr√ºck	K√∂ln
 test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
 select * from t1;
 a	b
-Osnabr¸ck	Kˆln
+Osnabr√ºck	K√∂ln
 drop table t1;
 #
 # BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
@@ -3848,6 +3848,145 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+  `a` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t2`,`t3`);
+SET character_set_client = @saved_cs_client;
+DROP TABLE IF EXISTS `t2`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+LOCK TABLES `t2` WRITE;
+/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
+/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+UNLOCK TABLES;
+DROP TABLE IF EXISTS `t3`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `t3` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+SET character_set_client = @saved_cs_client;
+
+LOCK TABLES `t3` WRITE;
+/*!40000 ALTER TABLE `t3` DISABLE KEYS */;
+/*!40000 ALTER TABLE `t3` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE t1, t2, t3;
+#
+# Bug #23491: MySQLDump prefix function call in a view by database name
+#
+create database bug23491_original;
+create database bug23491_restore;
+use bug23491_original;
+create table t1 (c1 int);
+create view v1 as select * from t1;
+create procedure p1() select 1;
+create function f1() returns int return 1;
+create view v2 as select f1();
+create function f2() returns int return f1();
+create view v3 as select bug23491_original.f1();
+use bug23491_restore;
+show create view bug23491_restore.v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `f1`() AS `f1()`
+show create view bug23491_restore.v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `bug23491_original`.`f1`() AS `bug23491_original.f1()`
+drop database bug23491_original;
+drop database bug23491_restore;
+use test;
+# 
+# Bug 27293: mysqldump crashes when dumping routines
+# defined by a different user
+#
+# Bug #22761: mysqldump reports no errors when using
+# --routines without mysql.proc privileges
+#
+create database mysqldump_test_db;
+grant all privileges on mysqldump_test_db.*  to user1;
+grant all privileges on mysqldump_test_db.*  to user2;
+create procedure mysqldump_test_db.sp1() select 'hello';
+
+/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;
+DELIMITER ;;
+
+-- insufficient privileges to SHOW CREATE PROCEDURE `sp1`
+-- does user2 have permissions on mysql.proc?
+
+DELIMITER ;
+
+/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;
+DELIMITER ;;
+/*!50003 SET SESSION SQL_MODE=""*/;;
+/*!50003 CREATE*/ /*!50020 DEFINER=`user1`@`%`*/ /*!50003 PROCEDURE `sp1`()
+select 'hello' */;;
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
+DELIMITER ;
+drop procedure sp1;
+drop user user1;
+drop user user2;
+drop database mysqldump_test_db;
+#
+# Bug #28522: buffer overrun by '\0' byte using --hex-blob.
+#
+CREATE TABLE t1 (c1 INT, c2 LONGBLOB);
+INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+CREATE TABLE `t1` (
+  `c1` int(11) default NULL,
+  `c2` longblob
+);
+SET character_set_client = @saved_cs_client;
+INSERT INTO `t1` VALUES (11,0x7171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171);
+DROP TABLE t1;
+#
+# Bug #28524: mysqldump --skip-add-drop-table is not
+#             compatible with views
+#
+CREATE VIEW v1 AS SELECT 1;
+DROP VIEW v1;
+SELECT * FROM v1;
+1
+1
+DROP VIEW v1;
+#
+# Bug #29788: mysqldump discards the NO_AUTO_VALUE_ON_ZERO value of
+#             the SQL_MODE variable after the dumping of triggers.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TRIGGER t1bd BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TABLE t2 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET @TMP_SQL_MODE = @@SQL_MODE;
+SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
+INSERT INTO t2 VALUES (0), (1), (2);
+SET SQL_MODE = @TMP_SQL_MODE;
+SELECT * FROM t2;
+c1
+0
+1
+2
+SELECT * FROM t2;
+c1
+0
+1
+2
+DROP TABLE t1,t2;
+#
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
@@ -4153,8 +4292,8 @@ DROP DATABASE IF EXISTS mysqldump_test_db;
 # Create objects.
 CREATE DATABASE mysqldump_test_db;
 set names koi8r;
-CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS ÀœÃœŒÀ¡1;
-CREATE VIEW mysqldump_test_db.v1 AS SELECT ÀœÃœŒÀ¡1 FROM mysqldump_test_db.v2;
+CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS √ã√è√å√è√é√ã√Å1;
+CREATE VIEW mysqldump_test_db.v1 AS SELECT √ã√è√å√è√é√ã√Å1 FROM mysqldump_test_db.v2;
 set names latin1;
 
 # Dump mysqldump_test_db to bug30027.sql.
