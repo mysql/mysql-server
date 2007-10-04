@@ -4842,7 +4842,8 @@ enum options_mysqld
   OPT_MERGE,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
-  OPT_KEEP_FILES_ON_CREATE
+  OPT_KEEP_FILES_ON_CREATE,
+  OPT_INNODB_ADAPTIVE_HASH_INDEX
 };
 
 
@@ -5070,6 +5071,12 @@ Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
    "The common part for InnoDB table spaces.", (gptr*) &innobase_data_home_dir,
    (gptr*) &innobase_data_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
+  {"innodb_adaptive_hash_index", OPT_INNODB_ADAPTIVE_HASH_INDEX,
+   "Enable InnoDB adaptive hash index (enabled by default).  "
+   "Disable with --skip-innodb-adaptive-hash-index.",
+   (gptr*) &innobase_adaptive_hash_index,
+   (gptr*) &innobase_adaptive_hash_index,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_doublewrite", OPT_INNODB_DOUBLEWRITE, "Enable InnoDB doublewrite buffer (enabled by default). \
 Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
