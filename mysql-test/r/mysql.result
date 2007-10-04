@@ -178,4 +178,6 @@ ERROR at line 1: DELIMITER cannot contain a backslash character
 1
 1
 1
+This is a file starting with UTF8 BOM 0xEFBBBF
+This is a file starting with UTF8 BOM 0xEFBBBF
 End of 5.0 tests
