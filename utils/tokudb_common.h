@@ -15,6 +15,7 @@ typedef uint8_t bool;
 #define REMOVE_BITS(bitvector, bits)   ((bitvector) &= ~(bits))
 #define IS_SET_ANY(bitvector, bits)    ((bitvector) & (bits))
 #define IS_SET_ALL(bitvector, bits)    (((bitvector) & (bits)) == (bits))
+
 #define IS_POWER_OF_2(num)             ((num) > 0 && ((num) & ((num) - 1)))
 
 int   strtoint32  (DB* db, char* progname, char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
@@ -23,15 +24,16 @@ int   strtoint64  (DB* db, char* progname, char* str,  int64_t* num,  int64_t mi
 int   strtouint64 (DB* db, char* progname, char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
 
 /*
- * Convert a string to an "type".  Uses base 10.
- * Allow range of [min, max].
+ * Convert a string to an integer of type "type".
  *
  *
  * Sets errno and returns:
- *    EINVAL: str == NULL, num == NULL, or string not of the form [ ]+[+-]?[0-9]+
- *    ERANGE: value out of range specified.
+ *    EINVAL: str == NULL, num == NULL, or string not of the form [ \t]*[+-]?[0-9]+
+ *    ERANGE: value out of range specified. (Range of [min, max])
  *
  * *num is unchanged on error.
+ * Returns:
+ *
  */
 #define DEF_STR_TO(name, type, bigtype, strtofunc, frmt)       \
 int name(DB* db, char* progname, char* str, type* num, type min, type max, int base)   \
@@ -46,6 +48,7 @@ int name(DB* db, char* progname, char* str, type* num, type min, type max, int b
    assert(base == 0 || (base >= 2 && base <= 36));             \
                                                                \
    errno = 0;                                                  \
+   while (isspace(*str)) str++;                                \
    value = strtofunc(str, &test, base);                        \
    if ((*test != '\0' && *test != '\n') || test == str) {      \
       if (db == NULL) fprintf(stderr, "%s: %s: Invalid numeric argument\n", progname, str);  \
@@ -53,7 +56,7 @@ int name(DB* db, char* progname, char* str, type* num, type min, type max, int b
       errno = EINVAL;                                          \
       goto error;                                              \
    }                                                           \
-   if (errno == ERANGE) {                                      \
+   if (errno != 0) {                                           \
       if (db == NULL) fprintf(stderr, "%s: %s: %s\n", progname, str, strerror(errno)); \
       else db->err(db, errno, "%s", str);                      \
       goto error;                                              \
@@ -69,7 +72,7 @@ int name(DB* db, char* progname, char* str, type* num, type min, type max, int b
       goto error;                                              \
    }                                                           \
    *num = value;                                               \
-   return 0;                                                   \
+   return EXIT_SUCCESS;                                        \
 error:                                                         \
    return errno;                                               \
 }

@@ -43,7 +43,6 @@ load_globals g;
 int   usage          ();
 int   longusage      ();
 int   load_database  ();
-
 int   create_init_env();
 int   read_header    ();
 int   open_database  ();
@@ -62,14 +61,13 @@ int main(int argc, char *argv[]) {
       { "plain_text",   no_argument,         NULL, 'T' },
       { "Version",      no_argument,         NULL, 'V' },
       { "config",       required_argument,   NULL, 'c' },
-      { "file",         required_argument,   NULL, 'f' },
+      { "input_file",   required_argument,   NULL, 'f' },
       { "home",         required_argument,   NULL, 'h' },
       { "password",     required_argument,   NULL, 'p' },
       { "type",         required_argument,   NULL, 't' },
       { NULL,           0,                   NULL, 0   }
    };
    char** next_config_option;
-   DB_ENV* dbenv;
 
    /* Set up the globals. */
    memset(&g, 0, sizeof(g));
@@ -153,18 +151,22 @@ int main(int argc, char *argv[]) {
    //TODO:  /* Handle possible interruptions/signals. */
 
    g.database = argv[0];
-
-   if (!create_init_env()) {
-      while (!g.eof) {
-         if (!load_database()) goto cleanup;
-      }
+   //TODO: flockfile(stdin);
+   if (create_init_env() != 0) goto error;
+   while (!g.eof) {
+//BOOKMARK
+      if (!load_database()) goto errorcleanup;
    }
-
+   if (false) {
+errorcleanup:
+      g.exitcode = EXIT_FAILURE;
+   }
 cleanup:
-   if ((retval = dbenv->close(dbenv, 0)) != 0) {
+   if ((retval = g.dbenv->close(g.dbenv, 0)) != 0) {
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: dbenv->close: %s\n", g.progname, db_strerror(retval));
    }
+   //TODO: funlockfile(stdin);
    //TODO:  /* Resend any caught signal. */
    free(g.config_options);
 
@@ -173,6 +175,7 @@ cleanup:
 error:
    fprintf(stderr, "%s: Quitting out due to errors.\n", g.progname);
    return EXIT_FAILURE;
+//TODO:free all malloced memory (may require static stuff turning global)
 }
 
 int load_database()
@@ -185,15 +188,16 @@ int load_database()
    retval = db_create(&g.db, g.dbenv, 0);
    if (retval != 0) {
       dbenv->err(dbenv, retval, "db_create");
-      goto cleanup;
+      return EXIT_FAILURE;
    }
    db = g.db;
 
-   if (g.header && read_header())   goto error;
+   if (g.header && read_header() != 0) goto error;
    if (g.eof) goto cleanup;
-   if (apply_commandline_options()) goto error;
+   if (apply_commandline_options() != 0) goto error;
    if (g.eof) goto cleanup;
 
+   //TODO: Only quit out if DB does NOT EXIST.
    if (g.dbtype == DB_UNKNOWN) {
       dbenv->errx(dbenv, "no database type specified");
       goto error;
@@ -205,9 +209,9 @@ int load_database()
       goto error;
    }
    */
-   if (open_database())   goto error;
+   if (open_database() != 0) goto error;
    if (g.eof) goto cleanup;
-   if (read_keys())       goto error;
+   if (read_keys() != 0) goto error;
    if (g.eof) goto cleanup;
 
    if (false) {
@@ -215,7 +219,7 @@ error:
       g.exitcode = EXIT_FAILURE;
    }
 cleanup:
-   if (close_database()) g.exitcode = EXIT_FAILURE;
+   if (close_database() != 0) g.exitcode = EXIT_FAILURE;
 
    return g.exitcode;
 }
@@ -244,6 +248,7 @@ int create_init_env()
    int retval;
    DB_ENV* dbenv;
    int flags;
+   //TODO: Experiments to determine right cache size for tokudb, or maybe command line argument.
    int cache = 1 << 20; /* 1 megabyte */
 
    retval = db_env_create(&dbenv, 0);
@@ -263,21 +268,25 @@ int create_init_env()
 
    /* Open the dbenvironment. */
    g.is_private = false;
-   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_USE_ENVIRON;
+   flags = DB_JOINENV | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
+   //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
    if (!dbenv->open(dbenv, g.homedir, flags, 0)) goto success;
 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
    if (retval) {
-      dbenv->err(dbenv, retval, "set_cachesize");
+      dbenv->err(dbenv, retval, "DB_ENV->set_cachesize");
       goto error;
    }
    g.is_private = true;
+   //TODO: Do we want to support transactions/logging even in single-process mode?
+   //Maybe if the db already exists.
+   //If db does not exist.. makes sense not to log or have transactions
    REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
 
    retval = dbenv->open(dbenv, g.homedir, flags, 0);
    if (retval) {
-      dbenv->err(dbenv, retval, "DB_dbenv->open");
+      dbenv->err(dbenv, retval, "DB_ENV->open");
       goto error;
    }
 success:
@@ -425,6 +434,7 @@ int read_header()
       while (true) {
          if ((ch = getchar()) == EOF) {
             g.eof = true;
+//TODO: Check ferror for every EOF test.
             if (ferror(stdin)) goto formaterror;
             break;
          }
@@ -471,7 +481,7 @@ int read_header()
             continue;
          }
          if (!strcmp(value, "hash") || strcmp(value, "recno") || strcmp(value, "queue")) {
-            fprintf(stderr, "%s: db type %s not supported.\n", g.progname, value);
+            db->errx(db, "db type %s not supported.\n", value);
             goto error;
          }
          db->errx(db, "line %lu: unknown type %s", g.linenumber, value);
@@ -479,6 +489,7 @@ int read_header()
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
          if (g.subdatabase != NULL) {
+            //TODO: Free before quitting main., clear at start too.. could be a new db without a name?
             free(g.subdatabase);
             g.subdatabase = NULL;
          }
@@ -636,7 +647,7 @@ int open_database()
    int open_flags = DB_CREATE;
    //TODO: Transaction auto commit stuff
    //if (TXN_ON(dbenv)) SET_BITS(open_flags, DB_AUTO_COMMIT);
-
+//TODO: First see if it exists.. THEN create it?
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    if (retval != 0) {
       db->err(db, retval, "DB->open: %s", g.database);
@@ -715,6 +726,7 @@ int get_dbt(DBT* pdbt)
    /* *pdbt should have been memset to 0 before being called. */
    which = 1 - which;
    if (data[which] == NULL) data[which] = (char*)malloc(datasize[which] * sizeof(char));
+   //TODO: Test for ENOMEM/error here.
    datum = data[which];
 
    if (g.plaintext) {
@@ -942,9 +954,3 @@ int close_database()
 error:
    return EXIT_FAILURE;
 }
-
-void read_footer(bool plaintext)
-{
-   printf("TODO: Implement %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-}
-
