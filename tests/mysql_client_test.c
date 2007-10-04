@@ -16035,13 +16035,15 @@ static void test_bug21635()
   {
     field= mysql_fetch_field_direct(result, i);
     if (!opt_silent)
-      printf("%s -> %s ... ", expr[i * 2], field->name);
+      if (!opt_silent)
+        printf("%s -> %s ... ", expr[i * 2], field->name);
     fflush(stdout);
     DIE_UNLESS(field->db[0] == 0 && field->org_table[0] == 0 &&
                field->table[0] == 0 && field->org_name[0] == 0);
     DIE_UNLESS(strcmp(field->name, expr[i * 2 + 1]) == 0);
     if (!opt_silent)
-      puts("OK");
+      if (!opt_silent)
+        puts("OK");
   }
 
     mysql_free_result(result);
