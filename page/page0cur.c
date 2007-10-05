@@ -921,6 +921,17 @@ page_cur_insert_rec_low(
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
 
+	/* The whole record must be writeable. */
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	/* All data bytes of the record must be valid. */
+	UNIV_MEM_ASSERT_W(rec_get_start(rec, offsets), rec_size);
+	/* The variable-length header must be valid. */
+	UNIV_MEM_ASSERT_RW(rec_get_start(rec, offsets),
+			   rec_offs_extra_size(offsets)
+			   - rec_offs_comp(offsets)
+			   ? REC_N_NEW_EXTRA_BYTES
+			   : REC_N_OLD_EXTRA_BYTES);
+
 	/* 2. Try to find suitable space from page memory management */
 
 	free_rec = page_header_get_ptr(page, PAGE_FREE);
@@ -1005,6 +1016,8 @@ use_heap:
 		rec_set_heap_no_old(insert_rec, heap_no);
 	}
 
+	UNIV_MEM_ASSERT_RW(rec_get_start(insert_rec, offsets),
+			   rec_offs_size(offsets));
 	/* 6. Update the last insertion info in page header */
 
 	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
@@ -1174,6 +1187,17 @@ page_cur_insert_rec_zip(
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
 
+	/* The whole record must be writeable. */
+	UNIV_MEM_ASSERT_RW(rec, rec_offs_data_size(offsets));
+	/* All data bytes of the record must be valid. */
+	UNIV_MEM_ASSERT_W(rec_get_start(rec, offsets), rec_size);
+	/* The variable-length header must be valid. */
+	UNIV_MEM_ASSERT_RW(rec_get_start(rec, offsets),
+			   rec_offs_extra_size(offsets)
+			   - rec_offs_comp(offsets)
+			   ? REC_N_NEW_EXTRA_BYTES
+			   : REC_N_OLD_EXTRA_BYTES);
+
 	/* 2. Try to find suitable space from page memory management */
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
 				rec_size, 1)) {
@@ -1283,6 +1307,9 @@ use_heap:
 	and set the heap_no field */
 	rec_set_n_owned_new(insert_rec, NULL, 0);
 	rec_set_heap_no_new(insert_rec, heap_no);
+
+	UNIV_MEM_ASSERT_RW(rec_get_start(insert_rec, offsets),
+			   rec_offs_size(offsets));
 
 	page_zip_dir_insert(page_zip, *current_rec, free_rec, insert_rec);
 

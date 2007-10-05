@@ -252,6 +252,7 @@ dtuple_validate(
 		if (!dfield_is_null(field)) {
 
 			data = field->data;
+			UNIV_MEM_ASSERT_RW(data, len);
 
 			for (j = 0; j < len; j++) {
 
