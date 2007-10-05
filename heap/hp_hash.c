@@ -808,6 +808,12 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
       if (!(*key++= (char) 1 - *old++))
       {
         k_len-= seg->length;
+        /* 
+          Take into account length (2 bytes) of varchar key parts 
+          stored before the data.
+         */
+        if (seg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
+          k_len-= 2;
         continue;
       }
     }
