@@ -5044,7 +5044,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
+  mtr_add_arg($args, '%s', $opt_valgrind_options);
 
   mtr_add_arg($args, $$exe);
 
@@ -5117,14 +5117,18 @@ Options to control what test suites or cases to run
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   ndb-extra             Run extra tests from ndb directory
-  do-test=PREFIX        Run test cases which name are prefixed with PREFIX
+  do-test=PREFIX or REGEX
+                        Run test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
+  skip-test=PREFIX or REGEX
+                        Skip test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
-  skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
 
