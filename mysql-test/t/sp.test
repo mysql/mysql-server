@@ -7549,3 +7549,87 @@ DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 
 --echo End of 5.0 tests
+
+###########################################################################
+
+#
+# Bug#20550: Stored function: wrong RETURN type metadata when used in a VIEW.
+#
+
+###########################################################################
+
+--echo
+
+--echo #
+--echo # Bug#20550.
+--echo #
+
+--echo
+
+--echo #
+--echo # - Prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Create required objects.
+--echo #
+
+--echo
+
+CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+
+--echo
+
+CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
+
+--echo
+
+CREATE VIEW v1 AS SELECT f1();
+
+--echo
+
+CREATE VIEW v2 AS SELECT f2();
+
+--echo
+
+--echo #
+--echo # - Check.
+--echo #
+
+--echo
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+
+--echo
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
+
+--echo
+
+--echo #
+--echo # - Cleanup.
+--echo #
+
+--echo
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1;
+DROP VIEW v2;
+
+--echo
+
+###########################################################################
+
+--echo End of 5.1 tests
