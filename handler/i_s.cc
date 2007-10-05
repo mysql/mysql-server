@@ -22,6 +22,7 @@ extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "buf0buddy.h" /* for i_s_zip */
+#include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 }
 
 static const char plugin_author[] = "Innobase Oy";
