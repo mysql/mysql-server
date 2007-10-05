@@ -539,7 +539,7 @@ ENGINE=NDB;
 Warnings:
 Warning	1475	Row format FIXED incompatible with dynamic attribute b
 -- t1 --
-Version: 18
+Version: #
 Fragment type: 5
 K Value: 6
 Min load factor: 78
@@ -569,7 +569,7 @@ CREATE TABLE t1
 (pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
 b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 -- t1 --
-Version: 19
+Version: #
 Fragment type: 5
 K Value: 6
 Min load factor: 78
