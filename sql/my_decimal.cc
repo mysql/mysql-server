@@ -68,24 +68,43 @@ int decimal_operation_results(int result)
 }
 
 
-/*
-  Converting decimal to string
+/**
+  @brief Converting decimal to string
 
-  SYNOPSIS
-     my_decimal2string()
+  @details Convert given my_decimal to String; allocate buffer as needed.
 
-  return
-    E_DEC_OK
-    E_DEC_TRUNCATED
-    E_DEC_OVERFLOW
-    E_DEC_OOM
+  @param[in]   mask        what problems to warn on (mask of E_DEC_* values)
+  @param[in]   d           the decimal to print
+  @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
+  @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
+  @param[in]   filler      what char to pad with (ZEROFILL et al.)
+  @param[out]  *str        where to store the resulting string
+
+  @return error coce
+    @retval E_DEC_OK
+    @retval E_DEC_TRUNCATED
+    @retval E_DEC_OVERFLOW
+    @retval E_DEC_OOM
 */
 
 int my_decimal2string(uint mask, const my_decimal *d,
                       uint fixed_prec, uint fixed_dec,
                       char filler, String *str)
 {
-  int length= (fixed_prec ? (fixed_prec + 1) : my_decimal_string_length(d));
+  /*
+    Calculate the size of the string: For DECIMAL(a,b), fixed_prec==a
+    holds true iff the type is also ZEROFILL, which in turn implies
+    UNSIGNED. Hence the buffer for a ZEROFILLed value is the length
+    the user requested, plus one for a possible decimal point, plus
+    one if the user only wanted decimal places, but we force a leading
+    zero on them. Because the type is implicitly UNSIGNED, we do not
+    need to reserve a character for the sign. For all other cases,
+    fixed_prec will be 0, and my_decimal_string_length() will be called
+    instead to calculate the required size of the buffer.
+  */
+  int length= (fixed_prec
+               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1)
+               : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
     return check_result(mask, E_DEC_OOM);
