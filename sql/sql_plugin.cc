@@ -3053,7 +3053,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
   st_mysql_sys_var **opt;
-  my_option *opts;
+  my_option *opts= NULL;
   char *p, *varname;
   int error;
   st_mysql_sys_var *o;
@@ -3153,7 +3153,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     sql_print_information("Plugin '%s' disabled by command line option",
                           tmp->name.str);
 err:
-  my_cleanup_options(opts);
+  if (opts)
+    my_cleanup_options(opts);
   DBUG_RETURN(error);
 }
 
