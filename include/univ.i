@@ -312,7 +312,8 @@ typedef void* os_thread_ret_t;
 	const void* _p = (const void*)					\
 		VALGRIND_CHECK_MEM_IS_DEFINED(addr, size);		\
 	if (UNIV_LIKELY_NULL(_p))					\
-		fprintf(stderr, "%p[%u] undefined at %d\n",		\
+		fprintf(stderr, "%s:%d: %p[%u] undefined at %d\n",	\
+			__FILE__, __LINE__,				\
 			(const void*) (addr), (unsigned) (size),	\
 			((const char*) _p) - ((const char*) (addr)));	\
 	} while (0)
@@ -320,7 +321,8 @@ typedef void* os_thread_ret_t;
 	const void* _p = (const void*)					\
 		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(addr, size);		\
 	if (UNIV_LIKELY_NULL(_p))					\
-		fprintf(stderr, "%p[%u] unwritable at %d\n",		\
+		fprintf(stderr, "%s:%d: %p[%u] unwritable at %d\n",	\
+			__FILE__, __LINE__,				\
 			(const void*) (addr), (unsigned) (size),	\
 			((const char*) _p) - ((const char*) (addr)));	\
 	} while (0)
