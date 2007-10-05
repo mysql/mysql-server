@@ -935,7 +935,7 @@ show_failed_diff ()
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
-    echo "http://dev.mysql.com/doc/mysql/en/reporting-mysqltest-bugs.html"
+    echo "http://forge.mysql.com/wiki/MySQL_Internals_Porting#Debugging_a_MySQL_Server"
     echo "to find the reason to this problem and how to report this."
     echo ""
   fi
