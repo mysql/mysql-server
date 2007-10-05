@@ -196,7 +196,7 @@ sub mtr_report_stats ($) {
       "of what went wrong.\n",
       "If you want to report this error, please read first ",
       "the documentation at\n",
-      "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
+      "http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n";
   }
   if (!$::opt_extern)
   {
