@@ -337,8 +337,6 @@ sub collect_one_test_case($$$$$$$$$) {
 
   my $path= "$testdir/$elem";
 
-
-  print "collect_one_test_case\n";
   # ----------------------------------------------------------------------
   # Skip some tests silently
   # ----------------------------------------------------------------------
