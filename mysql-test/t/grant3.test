@@ -34,3 +34,103 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
+
+#
+# Bug: #19828 Case sensitivity in Grant/Revoke
+#
+
+grant select on test.* to CUser@localhost;
+grant select on test.* to CUser@LOCALHOST;
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
+
+DROP USER CUser@localhost;
+DROP USER CUser@LOCALHOST;
+
+#### table grants
+create table t1 (a int);
+grant select on test.t1 to CUser@localhost;
+grant select on test.t1 to CUser@LOCALHOST;
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+DROP USER CUser@localhost;
+DROP USER CUser@LOCALHOST;
+
+### column grants
+
+grant select(a) on test.t1 to CUser@localhost;
+grant select(a) on test.t1 to CUser@LOCALHOST;
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
+SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
+
+DROP USER CUser@localhost;
+DROP USER CUser@LOCALHOST;
+
+drop table t1;
+
+# revoke on a specific DB only
+
+grant select on test.* to CUser2@localhost;
+grant select on test.* to CUser2@LOCALHOST;
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
+
+REVOKE SELECT ON test.* FROM 'CUser2'@'LOCALHOST';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
+
+REVOKE SELECT ON test.* FROM 'CUser2'@'localhost';
+flush privileges;
+
+SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
+SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
+
+DROP USER CUser2@localhost;
+DROP USER CUser2@LOCALHOST;
