@@ -231,7 +231,7 @@ then
   echo "Please do a cd to the mysql installation directory and restart"
   echo "this script from there as follows:"
   echo "./bin/mysqld_safe".
-  echo "See http://dev.mysql.com/doc/mysql/en/mysqld_safe.html for more"
+  echo "See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more"
   echo "information"
   exit 1
 fi

@@ -2143,7 +2143,7 @@ bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
 If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
 yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
+the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 	    thread_count);
   }
 #endif /* HAVE_LINUXTHREADS */
@@ -2163,7 +2163,7 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
   }
   fprintf(stderr, "\
-The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
+The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
