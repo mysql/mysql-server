@@ -274,6 +274,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
+    null_value= 1;                               // set NULL, stop processing
     return 0;
   }
   return date2my_decimal(&ltime, decimal_value);
