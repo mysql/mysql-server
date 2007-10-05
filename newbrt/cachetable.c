@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include "hashfun.h"
+#include "primes.h"
 
 //#define TRACE_CACHETABLE
 #ifdef TRACE_CACHETABLE
@@ -41,6 +42,7 @@ struct cachetable {
     PAIR  head,tail; // of LRU list.  head is the most recently used.  tail is least recently used.
     CACHEFILE cachefiles;
     long size_current, size_limit;
+    int primeidx;
 };
 
 struct fileid {
@@ -56,11 +58,12 @@ struct cachefile {
     struct fileid fileid;
 };
 
-int create_cachetable_size(CACHETABLE *result, int table_size, long size_limit) {
+int create_cachetable_size(CACHETABLE *result, int table_size __attribute__((unused)), long size_limit) {
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
-    t->table_size = table_size;
+    t->primeidx = 0;
+    t->table_size = get_prime(t->primeidx);
     MALLOC_N(t->table_size, t->table);
     assert(t->table);
     t->head = t->tail = 0;
@@ -183,6 +186,34 @@ static unsigned int hashit (CACHETABLE t, CACHEKEY key) {
     return hash_key((unsigned char*)&key, sizeof(key))%t->table_size;
 }
 
+static void cachetable_rehash (CACHETABLE t, int primeindexdelta) {
+    // printf("rehash %p %d %d %d\n", t, primeindexdelta, t->n_in_table, t->table_size);
+
+    int newprimeindex = primeindexdelta+t->primeidx;
+    if (newprimeindex < 0)
+        return;
+    int newtable_size = get_prime(newprimeindex);
+    PAIR *newtable = toku_calloc(newtable_size, sizeof(*t->table));
+    int i;
+    //printf("%s:%d newtable_size=%d\n", __FILE__, __LINE__, newtable_size);
+    assert(newtable!=0);
+    t->primeidx=newprimeindex;
+    for (i=0; i<newtable_size; i++) newtable[i]=0;
+    for (i=0; i<t->table_size; i++) {
+	PAIR p;
+	while ((p=t->table[i])!=0) {
+	    unsigned int h = hash_key((unsigned char *)&p->key, sizeof (p->key))%newtable_size;
+	    t->table[i] = p->hash_chain;
+	    p->hash_chain = newtable[h];
+	    newtable[h] = p;
+	}
+    }
+    toku_free(t->table);
+    // printf("Freed\n");
+    t->table=newtable;
+    t->table_size=newtable_size;
+    //printf("Done growing or shrinking\n");
+}
 
 static void lru_remove (CACHETABLE t, PAIR p) {
     if (p->next) {
@@ -249,6 +280,7 @@ static void flush_and_keep (PAIR flush_me) {
 }
 
 static int maybe_flush_some (CACHETABLE t, long size __attribute__((unused))) {
+    int r = 0;
 again:
 #if 0
     if (t->n_in_table >= t->table_size) {
@@ -265,14 +297,13 @@ again:
 	}
 	/* All were pinned. */
 	printf("All are pinned\n");
-	return 1;
+	r = 1;
     }
-#if 0
-    if (t->n_in_table > t->table_size)
-        printf("maybe %d %d - %ld %ld\n", t->n_in_table, t->table_size,
-               t->size_current, t->size_limit);
-#endif
-    return 0;
+
+    if (4 * t->n_in_table < t->table_size)
+        cachetable_rehash(t, -1);
+
+    return r;
 }
 
 static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value, long size,
@@ -297,6 +328,8 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     ct->table[h] = p;
     ct->n_in_table++;
     ct->size_current += size;
+    if (ct->n_in_table > ct->table_size)
+        cachetable_rehash(ct, +1);
     return 0;
 }
 
@@ -442,6 +475,10 @@ static int cachefile_flush_and_remove (CACHEFILE cf) {
 	}
     }
     assert_cachefile_is_flushed_and_removed(cf);
+
+    if (4 * t->n_in_table < t->table_size)
+        cachetable_rehash(t, -1);
+
     return 0;
 }
 
@@ -468,7 +505,9 @@ int cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     for (p=t->table[h]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    flush_and_remove(t, p, write_me);
-	    return 0;
+            if (4 * t->n_in_table < t->table_size)
+                cachetable_rehash(t, -1);
+            return 0;
 	}
     }
     return 0;
@@ -515,19 +554,19 @@ int cachefile_fd (CACHEFILE cf) {
 
 /* debug functions */
 
-void cachetable_print_state (CACHETABLE ct) {
-    int i;
-    for (i=0; i<ct->table_size; i++) {
-	PAIR p = ct->table[i];
-        if (p != 0) {
-	printf("t[%d]=", i);
-	for (p=ct->table[i]; p; p=p->hash_chain) {
-	    printf(" {%lld, %p, dirty=%d, pin=%lld, size=%ld}", p->key, p->cachefile, p->dirty, p->pinned, p->size);
-	}
-	printf("\n");
-        }
-    }
-}
+ void cachetable_print_state (CACHETABLE ct) {
+     int i;
+     for (i=0; i<ct->table_size; i++) {
+         PAIR p = ct->table[i];
+         if (p != 0) {
+             printf("t[%d]=", i);
+             for (p=ct->table[i]; p; p=p->hash_chain) {
+                 printf(" {%lld, %p, dirty=%d, pin=%lld, size=%ld}", p->key, p->cachefile, p->dirty, p->pinned, p->size);
+             }
+             printf("\n");
+         }
+     }
+ }
 
 void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
     if (num_entries_ptr) 
