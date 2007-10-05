@@ -1354,6 +1354,7 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
+  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
 
   #
   # Execute "mysqld --help --verbose" to get a list
@@ -1364,7 +1365,7 @@ sub collect_mysqld_features () {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$path_language --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1419,7 +1420,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-
+  rmtree($tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
