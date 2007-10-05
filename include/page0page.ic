@@ -859,9 +859,11 @@ page_mem_alloc_free(
 
 #ifdef UNIV_DEBUG
 	const rec_t*	old_rec	= page_header_get_ptr(page, PAGE_FREE);
+	ulint		next_offs;
+
 	ut_ad(old_rec);
-	ut_ad(next_rec == page + rec_get_next_offs(old_rec,
-						   page_is_comp(page)));
+	next_offs = rec_get_next_offs(old_rec, page_is_comp(page));
+	ut_ad(next_rec == (next_offs ? page + next_offs : NULL));
 #endif
 
 	page_header_set_ptr(page, page_zip, PAGE_FREE, next_rec);
