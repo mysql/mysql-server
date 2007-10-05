@@ -5007,7 +5007,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
+  mtr_add_arg($args, '%s', $opt_valgrind_options);
 
   mtr_add_arg($args, $$exe);
 
