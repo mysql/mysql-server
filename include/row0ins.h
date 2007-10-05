@@ -74,16 +74,6 @@ row_ins_index_entry(
 	ibool		foreign,/* in: TRUE=check foreign key constraints */
 	que_thr_t*	thr);	/* in: query thread */
 /***************************************************************
-Inserts a row to a table. */
-
-ulint
-row_ins(
-/*====*/
-				/* out: DB_SUCCESS if operation successfully
-				completed, else error code or DB_LOCK_WAIT */
-	ins_node_t*	node,	/* in: row insert node */
-	que_thr_t*	thr);	/* in: query thread */
-/***************************************************************
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs. */
 
