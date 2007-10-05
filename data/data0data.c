@@ -660,7 +660,13 @@ skip_field:
 						BTR_EXTERN_FIELD_REF_SIZE),
 				BTR_EXTERN_FIELD_REF_SIZE);
 		dfield_set_ext(dfield);
+#if 0
+		/* The following would fail the Valgrind checks in
+		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
+		The BLOB pointers in the record will be initialized after
+		the record and the BLOBs have been written. */
 		UNIV_MEM_ALLOC(dfield->data, BTR_EXTERN_FIELD_REF_SIZE);
+#endif
 		n_fields++;
 		(*n_ext)++;
 		ut_ad(n_fields < dtuple_get_n_fields(entry));
