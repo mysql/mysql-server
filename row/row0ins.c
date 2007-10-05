@@ -2360,7 +2360,7 @@ row_ins_get_row_from_select(
 
 /***************************************************************
 Inserts a row to a table. */
-
+static
 ulint
 row_ins(
 /*====*/
