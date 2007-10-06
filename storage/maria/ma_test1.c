@@ -588,7 +588,7 @@ static void create_record(uchar *record,uint rownr)
     sprintf((char*) pos+pack_length, "... row: %d", rownr);
     tmp= strlen((char*) pos+pack_length);
     if (pack_length == 1)
-      pos= (uchar) tmp;
+      *pos= (uchar) tmp;
     else
       int2store(pos,tmp);
   }

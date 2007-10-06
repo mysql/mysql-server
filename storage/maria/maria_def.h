@@ -281,8 +281,8 @@ typedef struct st_maria_share
   my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
                             const uchar *record, MARIA_RECORD_POS pos);
   /* Mapings to read/write the data file */
-  uint (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
-  uint (*file_write)(MARIA_HA *, const uchar *, size_t, my_off_t, myf);
+  size_t (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
+  size_t (*file_write)(MARIA_HA *, const uchar *, size_t, my_off_t, myf);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
