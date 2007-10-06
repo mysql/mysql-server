@@ -434,7 +434,7 @@ select * from t1 where (convert(f1,datetime)) != 1;
 f1
 15:44:44
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 45:44:44'
+Warning	1292	Incorrect datetime value: '0000-00-00 45:44:44'
 drop table t1;
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
