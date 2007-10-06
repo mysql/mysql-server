@@ -116,7 +116,6 @@ static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
-static void fix_maria_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
@@ -258,7 +257,7 @@ static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
-static sys_var_bool_ptr       
+static sys_var_bool_ptr
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
 static sys_var_bool_ptr
@@ -341,20 +340,10 @@ static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_t
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
                                             &opt_myisam_use_mmap);
-
 static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
-
-static sys_var_thd_ulonglong	sys_maria_max_sort_file_size(&vars, "maria_max_sort_file_size", &SV::maria_max_sort_file_size, fix_maria_max_sort_file_size, 1);
-static sys_var_thd_ulong       sys_maria_repair_threads(&vars, "maria_repair_threads", &SV::maria_repair_threads);
-static sys_var_thd_ulong	sys_maria_sort_buffer_size(&vars, "maria_sort_buffer_size", &SV::maria_sort_buff_size);
-static sys_var_thd_enum        sys_maria_stats_method(&vars, "maria_stats_method",
-                                                &SV::maria_stats_method,
-                                                &myisam_stats_method_typelib,
-                                                NULL);
-
 static sys_var_thd_ulong	sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
@@ -651,7 +640,7 @@ static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("cs
 static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
-static sys_var_have_variable sys_have_maria_db(&vars, "have_maria", &have_maria_db);
+static sys_var_have_plugin sys_have_maria(&vars, "have_maria", C_STRING_WITH_LEN("maria"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
@@ -866,16 +855,6 @@ fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;
 }
-
-static void
-fix_maria_max_sort_file_size(THD *thd, enum_var_type type)
-{
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  maria_max_temp_length=
-    (my_off_t) global_system_variables.myisam_max_sort_file_size;
-#endif
-}
-
 
 /*
   Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR

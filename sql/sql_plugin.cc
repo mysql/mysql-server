@@ -2168,9 +2168,11 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     size= sizeof(int);
     break;
   case PLUGIN_VAR_LONG:
+  case PLUGIN_VAR_ENUM:
     size= sizeof(long);
     break;
   case PLUGIN_VAR_LONGLONG:
+  case PLUGIN_VAR_SET:
     size= sizeof(ulonglong);
     break;
   case PLUGIN_VAR_STR:

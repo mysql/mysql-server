@@ -78,6 +78,32 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
+static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
+       PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+       "Block size to be used for MARIA index pages.", 0, 0,
+       MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
+       MARIA_MAX_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH);
+
+static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
+       maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
+       "Don't use the fast sort index method to created index if the "
+       "temporary file would get bigger than this.",
+       0, 0, MAX_FILE_SIZE, 0, MAX_FILE_SIZE, 1024*1024);
+
+static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
+       "Number of threads to use when repairing maria tables. The value of 1 "
+       "disables parallel repair.",
+       0, 0, 1, 1, ~0L, 1);
+
+static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
+       "The buffer that is allocated when sorting the index when doing a "
+       "REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
+       0, 0, 8192*1024, 4, ~0L, 1);
+
+static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
+       "Specifies how maria index statistics collection code should threat "
+       "NULLs. Possible values of name are \"nulls_unequal\", \"nulls_equal\", "
+       "and \"nulls_ignored\".", 0, 0, 0, &maria_stats_method_typelib);
 
 /*****************************************************************************
 ** MARIA tables
@@ -843,8 +869,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   param.db_name= table->s->db.str;
   param.table_name= table->alias;
   param.testflag= check_opt->flags | T_CHECK | T_SILENT;
-  param.stats_method= (enum_handler_stats_method) thd->variables.
-    maria_stats_method;
+  param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
 
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag |= T_STATISTICS;
@@ -935,8 +960,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache= 1;
-  param.stats_method= (enum_handler_stats_method) thd->variables.
-    maria_stats_method;
+  param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
@@ -1205,7 +1229,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       param.testflag |= T_STATISTICS;           // We get this for free
       statistics_done= 1;
       /* TODO: Remove BLOCK_RECORD test when parallel works with blocks */
-      if (thd->variables.maria_repair_threads > 1 &&
+      if (THDVAR(thd,repair_threads) > 1 &&
           file->s->data_file_type != BLOCK_RECORD)
       {
         char buf[40];
@@ -1521,9 +1545,8 @@ int ha_maria::enable_indexes(uint mode)
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS);
     param.myf_rw &= ~MY_WAIT_IF_FULL;
-    param.sort_buffer_length= thd->variables.maria_sort_buff_size;
-    param.stats_method=
-      (enum_handler_stats_method) thd->variables.maria_stats_method;
+    param.sort_buffer_length= THDVAR(thd,sort_buffer_size);
+    param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
     param.tmpdir= &mysql_tmpdir_list;
     if ((error= (repair(thd, param, 0) != HA_ADMIN_OK)) && param.retry_repair)
     {
@@ -2461,6 +2484,16 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 }
 #endif
 
+static struct st_mysql_sys_var* system_variables[]= {
+  MYSQL_SYSVAR(block_size),
+  MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(repair_threads),
+  MYSQL_SYSVAR(sort_buffer_size),
+  MYSQL_SYSVAR(stats_method),
+  NULL
+};
+
+
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
@@ -2473,11 +2506,11 @@ mysql_declare_plugin(maria)
   "MySQL AB",
   "Traditional transactional MySQL tables",
   PLUGIN_LICENSE_GPL,
-  ha_maria_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  0x0100, /* 1.0 */
+  ha_maria_init,              /* Plugin Init                     */
+  NULL,                       /* Plugin Deinit                   */
+  0x0100,                     /* 1.0                             */
   NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  system_variables,           /* system variables                */
+  NULL
 }
 mysql_declare_plugin_end;

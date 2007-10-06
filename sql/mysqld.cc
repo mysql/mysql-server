@@ -506,7 +506,6 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
-const char *maria_stats_method_str="nulls_unequal";
 
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -550,7 +549,7 @@ MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
-SHOW_COMP_OPTION have_crypt, have_compress, have_maria_db;
+SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
 
@@ -2208,7 +2207,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
 #ifdef WITH_MARIA_STORAGE_ENGINE
   fprintf(stderr, "page_buffer_size=%lu\n",
@@ -5059,10 +5058,6 @@ enum options_mysqld
   OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
   OPT_MYISAM_STATS_METHOD,
 
-  OPT_MARIA_BLOCK_SIZE,
-  OPT_MARIA_MAX_SORT_FILE_SIZE, OPT_MARIA_SORT_BUFFER_SIZE,
-  OPT_MARIA_USE_MMAP, OPT_MARIA_REPAIR_THREADS,
-  OPT_MARIA_STATS_METHOD,
   OPT_PAGECACHE_BUFFER_SIZE,
   OPT_PAGECACHE_DIVISION_LIMIT, OPT_PAGECACHE_AGE_THRESHOLD,
 
@@ -5079,7 +5074,7 @@ enum options_mysqld
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT, 
+  OPT_WAIT_TIMEOUT,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -6046,40 +6041,6 @@ log and this option does nothing anymore.",
     0
 #endif
    , 0, 2, 0, 1, 0},
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  {"maria_block_size", OPT_MARIA_BLOCK_SIZE,
-   "Block size to be used for MARIA index pages.",
-   (uchar**) &maria_block_size,
-   (uchar**) &maria_block_size, 0, GET_ULONG, REQUIRED_ARG,
-   MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
-   MARIA_MAX_KEY_BLOCK_LENGTH,
-   0, MARIA_MIN_KEY_BLOCK_LENGTH, 0},
-  {"maria_max_sort_file_size", OPT_MARIA_MAX_SORT_FILE_SIZE,
-   "Don't use the fast sort index method to created index if the temporary "
-   "file would get bigger than this.",
-   (uchar**) &global_system_variables.maria_max_sort_file_size,
-   (uchar**) &max_system_variables.maria_max_sort_file_size, 0,
-   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
-   0, 1024*1024, 0},
-  {"maria_repair_threads", OPT_MARIA_REPAIR_THREADS,
-   "Number of threads to use when repairing maria tables. The value of 1 "
-   "disables parallel repair.",
-   (uchar**) &global_system_variables.maria_repair_threads,
-   (uchar**) &max_system_variables.maria_repair_threads, 0,
-   GET_ULONG, REQUIRED_ARG, 1, 1, ~0L, 0, 1, 0},
-  {"maria_sort_buffer_size", OPT_MARIA_SORT_BUFFER_SIZE,
-   "The buffer that is allocated when sorting the index when doing a REPAIR "
-   "or when creating indexes with CREATE INDEX or ALTER TABLE.",
-   (uchar**) &global_system_variables.maria_sort_buff_size,
-   (uchar**) &max_system_variables.maria_sort_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
-  {"maria_stats_method", OPT_MARIA_STATS_METHOD,
-   "Specifies how maria index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
-   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
-   (uchar**) &maria_stats_method_str, (uchar**) &maria_stats_method_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (uchar**) &global_system_variables.max_allowed_packet,
@@ -7194,7 +7155,7 @@ static void mysql_init_variables(void)
   global_query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
-  myisam_stats_method_str= maria_stats_method_str= "nulls_unequal";
+  myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -7229,7 +7190,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -7257,7 +7218,6 @@ static void mysql_init_variables(void)
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-  global_system_variables.maria_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
