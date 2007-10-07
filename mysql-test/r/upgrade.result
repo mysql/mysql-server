@@ -59,3 +59,28 @@ drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 truncate t1;
 drop table t1;
+drop database if exists `tabc`;
+drop database if exists `a-b-c`;
+create database `tabc` default character set latin2;
+create table tabc.t1 (a int);
+FLUSH TABLES;
+show databases like '%a-b-c%';
+Database (%a-b-c%)
+#mysql50#a-b-c
+ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+show databases like '%a-b-c%';
+Database (%a-b-c%)
+a-b-c
+show create database `a-b-c`;
+Database	Create Database
+a-b-c	CREATE DATABASE `a-b-c` /*!40100 DEFAULT CHARACTER SET latin2 */
+show tables in `a-b-c`;
+Tables_in_a-b-c
+t1
+show create table `a-b-c`.`t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin2
+drop database `a-b-c`;
+drop database `tabc`;
