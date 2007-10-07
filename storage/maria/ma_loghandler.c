@@ -104,7 +104,7 @@ struct st_buffer_cursor
   struct st_translog_buffer *buffer;
   /* current page fill */
   uint16 current_page_fill;
-  /* how many times we finish this page to write it */
+  /* how many times we finish this page to write it (for sector protection) */
   uint16 write_counter;
   /* previous write offset */
   uint16 previous_offset;
@@ -6142,6 +6142,7 @@ static void translog_force_current_buffer_to_finish()
   write_counter= log_descriptor.bc.write_counter;
   previous_offset= log_descriptor.bc.previous_offset;
   translog_start_buffer(new_buffer, &log_descriptor.bc, new_buffer_no);
+  /* Fix buffer offset (which was incorrectly set to horizon) */
   log_descriptor.bc.buffer->offset= new_buff_beginning;
   log_descriptor.bc.write_counter= write_counter;
   log_descriptor.bc.previous_offset= previous_offset;
