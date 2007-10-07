@@ -9343,6 +9343,36 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
   /* Fall through */
   case Item::FUNC_ITEM:
+    if (((Item_func *) item)->functype() == Item_func::FUNC_SP)
+    {
+      Item_func_sp *item_func_sp= (Item_func_sp *) item;
+      Field *sp_result_field= item_func_sp->get_sp_result_field();
+
+      if (make_copy_field)
+      {
+        DBUG_ASSERT(item_func_sp->result_field);
+        *from_field= item_func_sp->result_field;
+      }
+      else
+      {
+        *((*copy_func)++)= item;
+      }
+
+      Field *result_field=
+        create_tmp_field_from_field(thd,
+                                    sp_result_field,
+                                    item_func_sp->name,
+                                    table,
+                                    NULL,
+                                    convert_blob_length);
+
+      if (modify_item)
+        item->set_result_field(result_field);
+
+      return result_field;
+    }
+
+    /* Fall through */
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
   case Item::FIELD_STD_ITEM:

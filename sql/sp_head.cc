@@ -2699,7 +2699,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
-  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
+  if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
     /*
