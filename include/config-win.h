@@ -19,6 +19,9 @@
 /* We have to do this define before including windows.h to get the AWE API
 functions */
 #define _WIN32_WINNT     0x0500
+#else
+/* Get NT 4.0 functions */
+#define _WIN32_WINNT     0x0400
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
