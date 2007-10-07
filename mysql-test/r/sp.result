@@ -4914,7 +4914,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` bigint(11) DEFAULT NULL
+  `j` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j
@@ -6621,3 +6621,51 @@ DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 End of 5.0 tests
+
+#
+# Bug#20550.
+#
+
+#
+# - Prepare.
+#
+
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+
+#
+# - Create required objects.
+#
+
+CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+
+CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
+
+CREATE VIEW v1 AS SELECT f1();
+
+CREATE VIEW v2 AS SELECT f2();
+
+#
+# - Check.
+#
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+DATA_TYPE
+varchar
+
+SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
+DATA_TYPE
+tinyint
+
+#
+# - Cleanup.
+#
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1;
+DROP VIEW v2;
+
+End of 5.1 tests

@@ -1261,7 +1261,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         clear_privileges flush_options flush_option
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
-        db_to_db table_to_table_list table_to_table opt_table_list opt_as
+        table_to_table_list table_to_table opt_table_list opt_as
         handler_rkey_function handler_read_or_scan
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
@@ -3362,7 +3362,6 @@ change_ts_option:
         ;
 
 tablespace_option_list:
-          /* empty */ {}
         tablespace_options
         ;
 
@@ -3384,7 +3383,6 @@ tablespace_option:
         ;
 
 alter_tablespace_option_list:
-          /* empty */ {}
         alter_tablespace_options
         ;
 
@@ -3403,7 +3401,6 @@ alter_tablespace_option:
         ;
 
 logfile_group_option_list:
-          /* empty */ {}
         logfile_group_options
         ;
 
@@ -3424,7 +3421,6 @@ logfile_group_option:
         ;
 
 alter_logfile_group_option_list:
-          /* empty */ {}
           alter_logfile_group_options
         ;
 
@@ -3669,7 +3665,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -3693,19 +3689,22 @@ create2:
 
 create2a:
           field_list ')' opt_create_table_options
-          opt_partitioning {}
+          opt_partitioning
           create3 {}
-        |  opt_partitioning {}
+        |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);} union_opt {}
+           { Select->set_braces(1);}
+           union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);} union_clause {}
+          { Select->set_braces(0);}
+          union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);} union_opt {}
+          { Select->set_braces(1);}
+          union_opt {}
         ;
 
 /*
@@ -3787,7 +3786,7 @@ partition_entry:
         ;
 
 partition:
-          BY part_type_def opt_no_parts {} opt_sub_part {} part_defs
+          BY part_type_def opt_no_parts opt_sub_part part_defs
         ;
 
 part_type_def:
@@ -3988,10 +3987,11 @@ part_definition:
             part_info->use_default_partitions= FALSE;
             part_info->use_default_no_partitions= FALSE;
           }
-          part_name {}
-          opt_part_values {}
-          opt_part_options {}
-          opt_sub_partition {}
+          part_name
+          opt_part_values
+          opt_part_options
+          opt_sub_partition
+          {}
         ;
 
 part_name:
@@ -4657,8 +4657,9 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            const char *key_name= $4 ? $4 : $1;
-            Key *key= new Foreign_key(key_name, lex->col_list,
+            const char *key_name= $1 ? $1 : $4;
+            const char *fkey_name = $4 ? $4 : key_name;
+            Key *key= new Foreign_key(fkey_name, lex->col_list,
                                       $8,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
@@ -5400,6 +5401,17 @@ alter:
             if (lex->name.str == NULL &&
                 lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
+          }
+        | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
+          {
+            LEX *lex= Lex;
+            if (lex->sphead)
+            {
+              my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
+              MYSQL_YYABORT;
+            }
+            lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
+            lex->name= $3;
           }
         | ALTER PROCEDURE sp_name
           {
@@ -6185,13 +6197,6 @@ rename:
           }
           table_to_table_list
           {}
-        | RENAME DATABASE
-          {
-            Lex->db_list.empty();
-            Lex->sql_command= SQLCOM_RENAME_DB;
-          }
-          db_to_db
-          {}
         | RENAME USER clear_privileges rename_list
           {
             Lex->sql_command = SQLCOM_RENAME_USER;
@@ -6225,18 +6230,6 @@ table_to_table:
                                        TL_IGNORE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
                                        TL_IGNORE))
-              MYSQL_YYABORT;
-          }
-        ;
-
-db_to_db:
-          ident TO_SYM ident
-          {
-            LEX *lex=Lex;
-            if (lex->db_list.push_back((LEX_STRING*)
-                                       sql_memdup(&$1, sizeof(LEX_STRING))) ||
-                lex->db_list.push_back((LEX_STRING*)
-                                       sql_memdup(&$3, sizeof(LEX_STRING))))
               MYSQL_YYABORT;
           }
         ;

@@ -539,13 +539,13 @@ static int process_all_tables_in_db(char *database)
 
 
 
-static int fix_object_name(const char *obj, const char *name)
+static int fix_table_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
   if (strncmp(name, "#mysql50#", 9))
     return 1;
-  sprintf(qbuf, "RENAME %s `%s` TO `%s`", obj, name, name + 9);
+  sprintf(qbuf, "RENAME TABLE `%s` TO `%s`", name, name + 9);
   if (mysql_query(sock, qbuf))
   {
     fprintf(stderr, "Failed to %s\n", qbuf);
@@ -557,6 +557,23 @@ static int fix_object_name(const char *obj, const char *name)
   return rc;
 }
 
+static int fix_database_storage_name(const char *name)
+{
+  char qbuf[100 + NAME_LEN*4];
+  int rc= 0;
+  if (strncmp(name, "#mysql50#", 9))
+    return 1;
+  sprintf(qbuf, "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY NAME", name);
+  if (mysql_query(sock, qbuf))
+  {
+    fprintf(stderr, "Failed to %s\n", qbuf);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    rc= 1;
+  }
+  if (verbose)
+    printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
+  return rc;
+}
 
 static int process_one_db(char *database)
 {
@@ -565,7 +582,7 @@ static int process_one_db(char *database)
     int rc= 0;
     if (opt_fix_db_names && !strncmp(database,"#mysql50#", 9))
     {
-      rc= fix_object_name("DATABASE", database);
+      rc= fix_database_storage_name(database);
       database+= 9;
     }
     if (rc || !opt_fix_table_names)
@@ -620,7 +637,7 @@ static int handle_request_for_tables(char *tables, uint length)
     op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
   case DO_UPGRADE:
-    return fix_object_name("TABLE", tables);
+    return fix_table_storage_name(tables);
   }
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
