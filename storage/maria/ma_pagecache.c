@@ -184,7 +184,6 @@ static const char *page_cache_page_type_str[]=
 static const char *page_cache_page_write_mode_str[]=
 {
   "DELAY",
-  "NOW",
   "DONE"
 };
 
@@ -2929,7 +2928,14 @@ restart:
 
     status= block->status;
     if (!buff)
+    {
       buff=  block->buffer;
+      /* if we lock for write we must link the block to changed blocks */
+      if ((lock == PAGECACHE_LOCK_WRITE ||
+           lock == PAGECACHE_LOCK_LEFT_WRITELOCKED) &&
+          !(block->status & PCBLOCK_CHANGED))
+          link_to_changed_list(pagecache, block);
+    }
     else
     {
       if (!(status & PCBLOCK_ERROR))

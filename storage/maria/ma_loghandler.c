@@ -6066,10 +6066,10 @@ translog_size_t translog_read_record(LSN lsn,
 
 
 /*
-  Force skipping to the next buffer
+  @brief Force skipping to the next buffer
 
-  SYNOPSIS
-    translog_force_current_buffer_to_finish()
+  @todo Do not copy old page content if all page protections are switched off
+  (because we do not need calculate something or change old parts of the page)
 */
 
 static void translog_force_current_buffer_to_finish()
