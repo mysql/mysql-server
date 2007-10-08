@@ -55,6 +55,7 @@
     DBUG_PRINT("error", E); \
     printf E; \
     putchar('\n'); \
+    DBUG_ASSERT(0); \
   } while(0);
 
 /* Maximum length of compressed LSNs (the worst case of whole LSN storing) */
