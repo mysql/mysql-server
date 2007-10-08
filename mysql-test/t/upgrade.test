@@ -1,5 +1,10 @@
 -- source include/not_embedded.inc
 
+# Temporary disabled on windows,
+# because of --exec mkdir
+# TODO: implement Bug#31004 and remove this limitation
+--source include/not_windows.inc
+
 --disable_warnings
 drop database if exists `mysqltest1`;
 drop database if exists `mysqltest-1`;
@@ -59,7 +64,6 @@ drop table t1;
 #
 # Bug#28360 (RENAME DATABASE destroys routines)
 #
-
 
 --disable_warnings
 drop database if exists `tabc`;
