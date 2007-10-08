@@ -209,12 +209,12 @@ private:
   void load_extent_page_callback(Signal*, Uint32, Uint32);
   void create_file_ref(Signal*, Ptr<Tablespace>, Ptr<Datafile>, 
 		       Uint32,Uint32,Uint32);
-  int update_page_free_bits(Signal*, Local_key*, unsigned committed_bits, 
-			    Uint64 lsn);
+  int update_page_free_bits(Signal*, Local_key*, unsigned committed_bits);
+
   int get_page_free_bits(Signal*, Local_key*, unsigned*, unsigned*);
   int unmap_page(Signal*, Local_key*, unsigned uncommitted_bits);
   int restart_undo_page_free_bits(Signal*, Uint32, Uint32, Local_key*, 
-				  unsigned committed_bits, Uint64, Uint64);
+				  unsigned committed_bits);
   
   int alloc_extent(Signal* signal, Uint32 tablespace, Local_key* key);
   int alloc_page_from_extent(Signal*, Uint32, Local_key*, Uint32 bits);
@@ -320,7 +320,7 @@ public:
   /**
    * Update page free bits
    */
-  int update_page_free_bits(Local_key*, unsigned bits, Uint64 lsn);
+  int update_page_free_bits(Local_key*, unsigned bits);
   
   /**
    * Get page free bits
@@ -336,8 +336,7 @@ public:
   /**
    * Undo handling of page bits
    */
-  int restart_undo_page_free_bits(Local_key*, unsigned bits, 
-				  Uint64 lsn, Uint64 page_lsn);
+  int restart_undo_page_free_bits(Local_key*, unsigned bits);
   
   /**
    * Get tablespace info
@@ -417,10 +416,9 @@ Tablespace_client::free_extent(Local_key* key, Uint64 lsn)
 inline
 int
 Tablespace_client::update_page_free_bits(Local_key *key, 
-					 unsigned committed_bits,
-					 Uint64 lsn)
+					 unsigned committed_bits)
 {
-  return m_tsman->update_page_free_bits(m_signal, key, committed_bits, lsn);
+  return m_tsman->update_page_free_bits(m_signal, key, committed_bits);
 }
 
 inline
@@ -442,17 +440,13 @@ Tablespace_client::unmap_page(Local_key *key, unsigned uncommitted_bits)
 inline
 int 
 Tablespace_client::restart_undo_page_free_bits(Local_key* key, 
-					       unsigned committed_bits,
-					       Uint64 lsn,
-					       Uint64 page_lsn)
+					       unsigned committed_bits)
 {
   return m_tsman->restart_undo_page_free_bits(m_signal,
 					      m_table_id,
 					      m_fragment_id,
 					      key, 
-					      committed_bits,
-					      lsn,
-					      page_lsn);
+					      committed_bits);
 }
 
 #endif

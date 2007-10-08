@@ -515,10 +515,10 @@ void getTextTransReportCounters(QQQQ) {
   // ------------------------------------------------------------------- 
   BaseString::snprintf(m_text, m_text_len, 
 		       "Trans. Count = %u, Commit Count = %u, "
-		       "Read Count = %u, Simple Read Count = %u,\n"
+		       "Read Count = %u, Simple Read Count = %u, "
 		       "Write Count = %u, AttrInfo Count = %u, "
-		       "Concurrent Operations = %u, Abort Count = %u\n"
-		       " Scans: %u Range scans: %u", 
+		       "Concurrent Operations = %u, Abort Count = %u"
+		       " Scans = %u Range scans = %u", 
 		       theData[1], 
 		       theData[2], 
 		       theData[3], 
@@ -814,9 +814,9 @@ void getTextBackupFailedToStart(QQQQ) {
 }
 void getTextBackupCompleted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "Backup %u started from node %u completed\n" 
-		       " StartGCP: %u StopGCP: %u\n"
-		       " #Records: %u #LogRecords: %u\n"
+		       "Backup %u started from node %u completed." 
+		       " StartGCP: %u StopGCP: %u"
+		       " #Records: %u #LogRecords: %u"
 		       " Data: %u bytes Log: %u bytes",
 		       theData[2], refToNode(theData[1]),
 		       theData[3], theData[4], theData[6], theData[8],
