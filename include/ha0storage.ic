@@ -108,3 +108,23 @@ ha_storage_free(
 	hash_table_free(storage->hash);
 	mem_heap_free(storage->heap);
 }
+
+/***********************************************************************
+Gets the size of the memory used by a storage. */
+UNIV_INLINE
+ulint
+ha_storage_get_size(
+/*================*/
+						/* out: bytes used */
+	const ha_storage_t*	storage)	/* in: hash storage */
+{
+	ulint	ret;
+
+	ret = mem_heap_get_size(storage->heap);
+
+	/* this assumes hash->heap and hash->heaps are NULL */
+	ret += sizeof(hash_table_t);
+	ret += sizeof(hash_cell_t) * hash_get_n_cells(storage->hash);
+
+	return(ret);
+}
