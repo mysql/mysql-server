@@ -14042,11 +14042,16 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;	
     }
 
-    c_tup->disk_restart_mark_no_lcp(tabptr.i, fragId);
+    c_tup->disk_restart_lcp_id(tabptr.i, fragId, RNIL);
     jamEntry();
-
     return;
-  }//if
+  }
+  else
+  {
+    jam();
+    c_tup->disk_restart_lcp_id(tabptr.i, fragId, lcpId);
+    jamEntry();
+  }
 
   c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
   c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
