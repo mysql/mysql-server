@@ -3356,6 +3356,7 @@ ha_ndbcluster::eventSetAnyValue(THD *thd, NdbOperation *op)
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
+#ifdef HAVE_NDB_BINLOG
   if (m_share == ndb_apply_status_share && current_thd->slave_thread)
   {
     uint32 sid, master_server_id= active_mi->master_server_id;
@@ -3368,6 +3369,7 @@ int ha_ndbcluster::write_row(uchar *record)
       active_mi->master_epoch= master_epoch;
     }
   }
+#endif /* HAVE_NDB_BINLOG */
   DBUG_RETURN(ndb_write_row(record, FALSE, FALSE));
 }
 
@@ -4050,7 +4052,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         abort();
       }
     }
-#endif
+#endif /* HAVE_NDB_BINLOG */
     if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
                                  m_ndb_record, (const char*)row, mask,
                                  NULL, NULL, code)))
