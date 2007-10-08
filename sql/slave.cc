@@ -846,14 +846,16 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)))
   {
+    ulong master_server_id= ULONG_MAX;
     if ((master_row= mysql_fetch_row(master_res)) &&
-        (::server_id == strtoul(master_row[1], 0, 10)) &&
+        (::server_id == (master_server_id= strtoul(master_row[1], 0, 10))) &&
         !mi->rli.replicate_same_server_id)
       errmsg= "The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
     mysql_free_result(master_res);
+    mi->master_server_id= (uint32)master_server_id;
   }
 
   /*

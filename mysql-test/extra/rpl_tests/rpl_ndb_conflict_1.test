@@ -14,7 +14,7 @@ commit;
 
 --sync_slave_with_master
 --connection slave
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
+--source include/ndb_conflict_info.inc
 
 select * from t1 order by a;
 select * from t2 order by a;
@@ -40,7 +40,7 @@ commit;
 
 --sync_slave_with_master
 --connection slave
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
+--source include/ndb_conflict_info.inc
 
 select * from t1 order by a;
 select * from t2 order by a;
@@ -57,7 +57,7 @@ commit;
 
 --sync_slave_with_master
 --connection slave
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME="NDB_CONFLICT_FN_MAX";
+--source include/ndb_conflict_info.inc
 
 select * from t1 order by a;
 select * from t2 order by a;
