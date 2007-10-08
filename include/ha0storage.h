@@ -77,6 +77,15 @@ ha_storage_free(
 /*============*/
 	ha_storage_t*	storage);	/* in/out: hash storage */
 
+/***********************************************************************
+Gets the size of the memory used by a storage. */
+UNIV_INLINE
+ulint
+ha_storage_get_size(
+/*================*/
+						/* out: bytes used */
+	const ha_storage_t*	storage);	/* in: hash storage */
+
 #ifndef UNIV_NONINL
 #include "ha0storage.ic"
 #endif
