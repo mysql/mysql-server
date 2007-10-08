@@ -131,7 +131,7 @@ NDBT_Thread::exit()
   m_state = Exit;
   signal();
   unlock();
-};
+}
 
 void
 NDBT_Thread::join()
