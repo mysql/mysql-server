@@ -956,7 +956,9 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 
     ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
     LocalDLList<Page> list(*pool, alloc.m_dirty_pages[idx]);
+    LocalDLList<Page> list2(*pool, alloc.m_unmap_pages);
     list.remove(pagePtr);
+    list2.add(pagePtr);
 
     if (dirty_count == 0)
     {
@@ -998,6 +1000,10 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       ndbout << "disk_page_unmap_callback(after) " << key 
 	     << " cnt: " << dirty_count << " " << (idx & ~0x8000) << endl;
     }
+
+    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
+    LocalDLList<Page> list(*pool, alloc.m_unmap_pages);
+    list.remove(pagePtr);
 
     Tablespace_client tsman(0, c_tsman,
 			    fragPtr.p->fragTableId,
