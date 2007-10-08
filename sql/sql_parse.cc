@@ -93,7 +93,9 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
+#ifndef EMBEDDED_LIBRARY
 static bool do_command(THD *thd);
+#endif // EMBEDDED_LIBRARY
 
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
