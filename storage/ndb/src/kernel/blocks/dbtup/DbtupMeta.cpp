@@ -146,6 +146,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
   regFragPtr.p->m_var_page_chunks = RNIL;  
+  regFragPtr.p->m_restore_lcp_id = RNIL;
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
       ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
@@ -673,11 +674,11 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   switch(ret){
   case 0:
     return;
+  case -1:
+    warningEvent("Failed to sync log for create of table: %u", regTabPtr.i);
   default:
-    ndbout_c("ret: %d", ret);
-    ndbrequire(false);
+    execute(signal, req.m_callback, regFragPtr.p->m_logfile_group_id);
   }
-  
 }
 
 void
@@ -958,8 +959,6 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     return;
   }
 
-#if NOT_YET_UNDO_DROP_TABLE
-#error "This code is complete, but I prefer not to enable it until I need it"
   if (logfile_group_id != RNIL)
   {
     Callback cb;
@@ -968,7 +967,14 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       safe_cast(&Dbtup::drop_table_log_buffer_callback);
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
-    
+    if (r0)
+    {
+      jam();
+      warningEvent("Failed to alloc log space for drop table: %u",
+ 		   tabPtr.i);
+      goto done;
+    }
+
     Logfile_client lgman(this, c_lgman, logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
     switch(res){
@@ -976,15 +982,18 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       ljam();
       return;
     case -1:
-      ndbrequire("NOT YET IMPLEMENTED" == 0);
+      warningEvent("Failed to get log buffer for drop table: %u",
+		   tabPtr.i);
+      c_lgman->free_log_space(logfile_group_id, sz);
+      goto done;
       break;
     default:
       execute(signal, cb, logfile_group_id);
       return;
     }
   }
-#endif
-  
+
+done:
   drop_table_logsync_callback(signal, tabPtr.i, RNIL);
 }
 
@@ -1163,9 +1172,10 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
   switch(ret){
   case 0:
     return;
+  case -1:
+    warningEvent("Failed to syn log for drop of table: %u", tablePtrI);
   default:
-    ndbout_c("ret: %d", ret);
-    ndbrequire(false);
+    execute(signal, req.m_callback, logfile_group_id);
   }
 }
 

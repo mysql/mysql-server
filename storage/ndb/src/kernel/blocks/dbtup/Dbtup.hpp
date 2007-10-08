@@ -624,7 +624,8 @@ struct Fragrecord {
   
   DLList<ScanOp>::Head m_scanList;
 
-  enum { UC_LCP = 1, UC_CREATE = 2 };
+  enum { UC_LCP = 1, UC_CREATE = 2, UC_SET_LCP = 3 };
+  Uint32 m_restore_lcp_id;
   Uint32 m_undo_complete;
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
@@ -2748,7 +2749,7 @@ private:
 public:
   int disk_page_load_hook(Uint32 page_id);
   
-  void disk_page_unmap_callback(Uint32 page_id, Uint32 dirty_count);
+  void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
   int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
 				const Local_key* key, Uint32 pages);
@@ -2769,11 +2770,11 @@ public:
     Local_key m_key;
   };
 
-  void disk_restart_mark_no_lcp(Uint32 table, Uint32 frag);
+  void disk_restart_lcp_id(Uint32 table, Uint32 frag, Uint32 lcpId);
   
 private:
   void disk_restart_undo_next(Signal*);
-  void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag);
+  void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
