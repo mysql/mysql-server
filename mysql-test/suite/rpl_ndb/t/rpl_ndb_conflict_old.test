@@ -20,16 +20,22 @@ CREATE TABLE mysql.ndb_replication
   ENGINE=NDB PARTITION BY KEY(db,table_name);
 drop table if exists `test`.`t1$EX`;
 drop table if exists `test`.`t2$EX`;
+create table `test`.`t1$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
 --enable_warnings
 --enable_query_log
 
 ##
-# test native NDB$MAX() conflict resolution
+# test native NDB$OLD() conflict resolution
 # test with both allowed "conflict column" types, uint32 and uint64
 #
 --echo **** Test 1 ****
 --connection master
-insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$OLD(X)");
 --let col_type = int unsigned
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
 # test that setting binlog update option via table works equally well
@@ -53,6 +59,11 @@ update mysql.ndb_replication set binlog_type=2;
 --source extra/rpl_tests/rpl_ndb_conflict_1.test
 
 --disable_query_log
+--connection slave
+stop slave;
+drop table mysql.ndb_replication;
+drop table `test`.`t1$EX`;
 --connection master
 drop table mysql.ndb_replication;
+drop table `test`.`t1$EX`;
 --enable_query_log
