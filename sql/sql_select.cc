@@ -12775,12 +12775,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     LINT_INIT(best_key_direction);
     LINT_INIT(best_records); 
 
-    /* 
-      filesort() and join cache are usually faster than reading in 
-      index order and not using join cache
-    */
-    if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
-      DBUG_RETURN(0);
     /*
       If not used with LIMIT, only use keys if the whole query can be
       resolved with a key;  This is because filesort() is usually faster than
@@ -12788,6 +12782,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if (select_limit >= table_records)
     {
+      /* 
+        filesort() and join cache are usually faster than reading in 
+        index order and not using join cache
+        */
+      if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
+        DBUG_RETURN(0);
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
 
