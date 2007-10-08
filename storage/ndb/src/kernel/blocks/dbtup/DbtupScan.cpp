@@ -771,7 +771,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  uncommitted = committed = ~(unsigned)0;
 	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
 	  ndbrequire(ret == 0);
-	  if (committed == 0) {
+	  if (committed == 0 && uncommitted == 0) {
 	    // skip empty page
 	    jam();
 	    pos.m_get = ScanPos::Get_next_page_dd;
