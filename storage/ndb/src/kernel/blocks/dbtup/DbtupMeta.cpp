@@ -967,7 +967,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     cb.m_callbackFunction = 
       safe_cast(&Dbtup::drop_table_log_buffer_callback);
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
-    (void) c_lgman->alloc_log_space(logfile_group_id, sz);
+    int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
     if (r0)
     {
       jam();
