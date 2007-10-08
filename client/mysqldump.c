@@ -1888,7 +1888,7 @@ static uint dump_events_for_db(char *db)
           if (create_delimiter(row[3], delimiter, sizeof(delimiter)) == NULL)
           {
             fprintf(stderr, "%s: Warning: Can't create delimiter for event '%s'\n",
-                    event_name, my_progname);
+                    my_progname, event_name);
             DBUG_RETURN(1);
           }
 
