@@ -533,3 +533,14 @@ select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
 select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_0123456789]');
 --error 1105
 select ExtractValue('<a>a</a>', '/a[@x=$y0123456789_0123456789_0123456789_0123456789]');
+
+#
+# Bug #31438: updatexml still crashes
+#
+
+select updatexml(NULL, 1, 1), updatexml(1, NULL, 1), updatexml(1, 1, NULL);
+select updatexml(NULL, NULL, 1), updatexml(1, NULL, NULL), 
+       updatexml(NULL, 1, NULL);
+select updatexml(NULL, NULL, NULL);
+
+--echo End of 5.1 tests
