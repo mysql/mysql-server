@@ -413,8 +413,7 @@ int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
   share->connect_count= g_ndb_cluster_connection->get_connect_count();
-  share->m_resolve_size= 0;
-  share->m_resolve_column= 0;
+  share->m_cfn_share= NULL;
 
   share->op= 0;
   share->new_op= 0;
@@ -2725,38 +2724,72 @@ set_binlog_flags(NDB_SHARE *share,
   set_binlog_logging(share);
 }
 static int
-slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index)
+slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
+                      enum_conflict_fn_type type)
 {
   DBUG_ENTER("slave_set_resolve_max");
+
+  if (share->m_cfn_share == NULL)
+  {
+    share->m_cfn_share= (NDB_CONFLICT_FN_SHARE*)
+      alloc_root(&share->mem_root, sizeof(NDB_CONFLICT_FN_SHARE));
+  }
+  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Ndb *ndb= thd_ndb->ndb;
+  NDBDICT *dict= ndb->getDictionary();
   const NDBCOL *c= ndbtab->getColumn(field_index);
+  uint sz;
   switch (c->getType())
   {
   case  NDBCOL::Unsigned:
-    share->m_resolve_size= sizeof(Uint32);
-    share->m_resolve_column= field_index;
+    sz= sizeof(Uint32);
     DBUG_PRINT("info", ("resolve column Uint32 %u",
-                        share->m_resolve_column));
-    DBUG_RETURN(0);
+                        field_index));
     break;
   case  NDBCOL::Bigunsigned:
-    share->m_resolve_size= sizeof(Uint64);
-    share->m_resolve_column= field_index;
+    sz= sizeof(Uint64);
     DBUG_PRINT("info", ("resolve column Uint64 %u",
-                        share->m_resolve_column));
-    DBUG_RETURN(0);
+                        field_index));
     break;
   default:
     DBUG_PRINT("info", ("resolve column %u has wrong type",
-                        share->m_resolve_column));
+                        field_index));
     DBUG_RETURN(-1);
     break;
   }
+  share->m_cfn_share->m_resolve_size= sz;
+  share->m_cfn_share->m_resolve_column= field_index;
+  share->m_cfn_share->m_resolve_cft= type;
+  share->m_cfn_share->m_ex_tab= NULL;
+  share->m_cfn_share->m_count= 0;
+  {
+    /* get exceptions table */
+    char extab_name[FN_REFLEN];
+    strxnmov(extab_name, sizeof(extab_name),
+             share->table_name, NDB_EXCEPTIONS_TABLE_SUFFIX, NullS);
+    ndb->setDatabaseName(share->db);
+    Ndb_table_guard ndbtab_g(dict, extab_name);
+    const NDBTAB *tab= ndbtab_g.get_table();
+    if (tab)
+    {
+      if (tab->getNoOfColumns() == 4 &&
+          tab->getColumn(0)->getType() == NDBCOL::Unsigned &&    /* server id */
+          tab->getColumn(1)->getType() == NDBCOL::Unsigned &&    /* master_server_id */
+          tab->getColumn(2)->getType() == NDBCOL::Bigunsigned && /* master_epoch */
+          tab->getColumn(3)->getType() == NDBCOL::Unsigned)      /* count */
+      {
+        share->m_cfn_share->m_ex_tab= tab;
+        ndbtab_g.release();
+        if (ndb_extra_logging)
+          sql_print_information("NDB Slave: log exceptions to %s", extab_name);
+      }
+      else
+        sql_print_warning("NDB Slave: exceptions table %s has wrong definition", extab_name);
+    }
+  }
+  DBUG_RETURN(0);
 }
 
-enum enum_conflict_fn_type
-{
-  CFT_NDB_MAX
-};
 enum enum_conflict_fn_arg_type
 {
   CFAT_END
@@ -2766,8 +2799,8 @@ struct st_conflict_fn_arg
 {
   enum_conflict_fn_arg_type type;
   const char *ptr;
-  uint len;
-  uint fieldno; // CFAT_COLUMN_NAME
+  uint32 len;
+  uint32 fieldno; // CFAT_COLUMN_NAME
 };
 struct st_conflict_fn_def
 {
@@ -2777,8 +2810,10 @@ struct st_conflict_fn_def
 };
 static struct st_conflict_fn_def conflict_fns[]=
 {
-  { "NDB$MAX", CFT_NDB_MAX, CFAT_COLUMN_NAME }
-  ,{ NULL,     CFT_NDB_MAX, CFAT_END }
+   { "NDB$MAX", CFT_NDB_MAX,   CFAT_COLUMN_NAME }
+  ,{ NULL,      CFT_NDB_MAX,   CFAT_END }
+  ,{ "NDB$OLD", CFT_NDB_OLD,   CFAT_COLUMN_NAME }
+  ,{ NULL,      CFT_NDB_OLD,   CFAT_END }
 };
 static unsigned n_conflict_fns=
 sizeof(conflict_fns) / sizeof(struct st_conflict_fn_def);
@@ -2792,8 +2827,8 @@ set_conflict_fn(NDB_SHARE *share,
 {
   DBUG_ENTER("set_conflict_fn");
   uint len= 0;
-  Ndb_event_data *event_data=
-    (share->event_data != 0) ? share->event_data : (Ndb_event_data *)share->op->getCustomData();
+  Ndb_event_data *event_data= (share->event_data != 0) ?
+    share->event_data : (Ndb_event_data *)share->op->getCustomData();
   switch (conflict_col->getArrayType())
   {
   case NDBCOL::ArrayTypeShortVar:
@@ -2817,6 +2852,8 @@ set_conflict_fn(NDB_SHARE *share,
   unsigned no_args= 0;
   struct st_conflict_fn_arg args[MAX_ARGS];
 
+  DBUG_PRINT("info", ("parsing %s", conflict_fn));
+
   for (unsigned i= 0; i < n_conflict_fns; i++)
   {
     struct st_conflict_fn_def &fn= conflict_fns[i];
@@ -2826,6 +2863,8 @@ set_conflict_fn(NDB_SHARE *share,
     uint len= strlen(fn.name);
     if (strncmp(ptr, fn.name, len))
       continue;
+
+    DBUG_PRINT("info", ("found function %s", fn.name));
 
     /* skip function name */
     ptr+= len;
@@ -2837,6 +2876,7 @@ set_conflict_fn(NDB_SHARE *share,
     if (*ptr != '(')
     {
       error_str= "missing '('";
+      DBUG_PRINT("info", ("parse error %s", error_str));
       break;
     }
     ptr++;
@@ -2867,6 +2907,7 @@ set_conflict_fn(NDB_SHARE *share,
       if (start_arg == end_arg)
       {
         error_str= "missing function argument";
+        DBUG_PRINT("info", ("parse error %s", error_str));
         break;
       }
 
@@ -2874,14 +2915,16 @@ set_conflict_fn(NDB_SHARE *share,
       args[no_args].type=    type;
       args[no_args].ptr=     start_arg;
       args[no_args].len=     len;
-      args[no_args].fieldno= (uint)-1;
+      args[no_args].fieldno= (uint32)-1;
  
+      DBUG_PRINT("info", ("found argument %s %u", start_arg, len));
+
       switch (type)
       {
       case CFAT_COLUMN_NAME:
       {
         /* find column in table */
-        DBUG_PRINT("info", ("serching for %s %u", start_arg, len));
+        DBUG_PRINT("info", ("searching for %s %u", start_arg, len));
         TABLE_SHARE *table_s= event_data->table_share;
         for (uint j= 0; j < table_s->fields; j++)
         {
@@ -2931,8 +2974,10 @@ set_conflict_fn(NDB_SHARE *share,
     switch (fn.type)
     {
     case CFT_NDB_MAX:
-      if (args[0].fieldno != (uint)-1 &&
-          slave_set_resolve_max(share, ndbtab, args[0].fieldno))
+    case CFT_NDB_OLD:
+      if (args[0].fieldno == (uint32)-1)
+        break;
+      if (slave_set_resolve_max(share, ndbtab, args[0].fieldno, fn.type))
       {
         /* wrong data type */
         TABLE_SHARE *table_s= event_data->table_share;
@@ -2942,9 +2987,17 @@ set_conflict_fn(NDB_SHARE *share,
         DBUG_PRINT("info", (msg));
         DBUG_RETURN(-1);
       }
+      if (ndb_extra_logging)
+      {
+        TABLE_SHARE *table_s= event_data->table_share;
+        sql_print_information("NDB Slave: conflict_fn %s on attribute %s",
+                              fn.name,
+                              table_s->field[args[0].fieldno]->field_name);
+      }
       break;
+    case CFT_NDB_UNDEF:
+      abort();
     }
-
     DBUG_RETURN(0);
   }
   /* parse error */
@@ -3162,6 +3215,15 @@ err:
                         ndbcluster_hton_name, msg);  
   }
   set_binlog_flags(share, NBT_DEFAULT);
+  if (ndberror.code && ndb_extra_logging)
+  {
+    List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+    MYSQL_ERROR *err;
+    while ((err= it++))
+    {
+      sql_print_warning("NDB: %s Error_code: %d", err->msg, err->code);
+    }
+  }
   DBUG_RETURN(ndberror.code);
 }
 
@@ -3583,13 +3645,18 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
 
   Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
+  uint len= strlen(share->table_name);
   if (!ndb_schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
     do_ndb_schema_share= 1;
   else if (!ndb_apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_ndb_apply_status_share= 1;
-  else if (!binlog_filter->db_ok(share->db) || !ndb_binlog_running)
+  else if (!binlog_filter->db_ok(share->db) ||
+           !ndb_binlog_running ||
+           (len >= sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX) &&
+            strcmp(share->table_name+len-sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX)+1,
+                   NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
   {
     share->flags|= NSF_NO_BINLOG;
     DBUG_RETURN(0);

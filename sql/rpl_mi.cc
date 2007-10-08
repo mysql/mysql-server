@@ -37,6 +37,9 @@ MASTER_INFO::MASTER_INFO()
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
 
+  master_server_id= (uint32)ULONG_MAX;
+  master_epoch= 0;
+
   bzero((char*) &file, sizeof(file));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
