@@ -1005,7 +1005,20 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 {
   if (tabPtr.p->m_no_of_disk_attributes)
   {
+    jam();
     Disk_alloc_info& alloc_info= fragPtr.p->m_disk_alloc_info;
+
+    if (!alloc_info.m_unmap_pages.isEmpty())
+    {
+      jam();
+      ndbout_c("waiting for unmape pages");
+      signal->theData[0] = ZUNMAP_PAGES;
+      signal->theData[1] = tabPtr.i;
+      signal->theData[2] = fragPtr.i;
+      signal->theData[3] = pos;
+      sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
+      return;
+    }
     while(alloc_info.m_dirty_pages[pos].isEmpty() && pos < MAX_FREE_LIST)
       pos++;
     
