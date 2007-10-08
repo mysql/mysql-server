@@ -6,6 +6,16 @@ DROP TABLE IF EXISTS t1;
 
 SHOW COLLATION LIKE 'cp1250_czech_cs';
 
+SET @test_character_set= 'cp1250';
+SET @test_collation= 'cp1250_general_ci';
+-- source include/ctype_common.inc
+
+SET @test_character_set= 'cp1250';
+SET @test_collation= 'cp1250_czech_cs';
+-- source include/ctype_common.inc
+
+
+
 #
 # Bugs: #8840: Empty string comparison and character set 'cp1250'
 #
