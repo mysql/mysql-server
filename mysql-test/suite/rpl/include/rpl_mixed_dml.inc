@@ -51,9 +51,9 @@ DELETE FROM t2 WHERE a = 2;
 
 --echo
 --echo ******************** LOAD DATA INFILE ********************
---exec cp ./suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/
+--copy_file ./suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
 LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
---exec rm $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
 SELECT * FROM t1;
 --source suite/rpl/include/rpl_mixed_check_select.inc
 --source suite/rpl/include/rpl_mixed_clear_tables.inc
