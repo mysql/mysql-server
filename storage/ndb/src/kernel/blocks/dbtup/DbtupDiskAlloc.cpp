@@ -1026,8 +1026,6 @@ Dbtup::disk_page_alloc(Signal* signal,
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
 
   Uint64 lsn;
-  Uint32 old_free = pagePtr.p->free_space;
-  Uint32 old_bits= alloc.calc_page_free_bits(old_free);
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
   {
     ddassert(pagePtr.p->uncommitted_used_space > 0);
@@ -1059,7 +1057,6 @@ Dbtup::disk_page_free(Signal *signal,
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 old_free= pagePtr.p->free_space;
-  Uint32 old_bits= alloc.calc_page_free_bits(old_free);
 
   Uint32 sz;
   Uint64 lsn;
@@ -1086,7 +1083,6 @@ Dbtup::disk_page_free(Signal *signal,
   }    
   
   Uint32 new_free = pagePtr.p->free_space;
-  Uint32 new_bits = alloc.calc_page_free_bits(new_free);
   
   Uint32 ext = pagePtr.p->m_extent_info_ptr;
   Uint32 used = pagePtr.p->uncommitted_used_space;
