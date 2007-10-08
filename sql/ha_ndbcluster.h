@@ -121,6 +121,21 @@ typedef enum {
   NSS_ALTERED 
 } NDB_SHARE_STATE;
 
+enum enum_conflict_fn_type
+{
+  CFT_NDB_UNDEF = 0
+  ,CFT_NDB_MAX
+  ,CFT_NDB_OLD
+};
+
+typedef struct st_ndbcluster_conflict_fn_share {
+  enum_conflict_fn_type m_resolve_cft;
+  uint32 m_resolve_column;
+  uint32 m_resolve_size;
+  const NdbDictionary::Table *m_ex_tab;
+  uint32 m_count;
+} NDB_CONFLICT_FN_SHARE;
+
 typedef struct st_ndbcluster_share {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
@@ -139,8 +154,7 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
-  uint32 m_resolve_column;
-  uint32 m_resolve_size;
+  NDB_CONFLICT_FN_SHARE *m_cfn_share;
   Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   NdbEventOperation *op;
   char *old_names; // for rename table
@@ -275,6 +289,9 @@ class Thd_ndb
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+
+  uint m_max_violation_count;
+  uint m_old_violation_count;
 };
 
 class ha_ndbcluster: public handler
@@ -461,8 +478,16 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
 #ifdef HAVE_NDB_BINLOG
-  int update_row_timestamp_resolve(const uchar *old_data, uchar *new_data,
-                                   NdbInterpretedCode *);
+  int update_row_conflict_fn(enum_conflict_fn_type cft,
+                             const uchar *old_data,
+                             uchar *new_data,
+                             NdbInterpretedCode *);
+  int update_row_conflict_fn_max(const uchar *old_data,
+                                 uchar *new_data,
+                                 NdbInterpretedCode *);
+  int update_row_conflict_fn_old(const uchar *old_data,
+                                 uchar *new_data,
+                                 NdbInterpretedCode *);
 #endif
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
@@ -609,6 +634,9 @@ private:
 
   void release_completed_operations(NdbTransaction*, bool);
 
+  int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
+  friend int check_completed_operations(Thd_ndb*, ha_ndbcluster*, NdbTransaction*,
+                                        const NdbOperation*);
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_commit(NdbTransaction *, int, int);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);

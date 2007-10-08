@@ -7,6 +7,7 @@ connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
 connection slave;
+source include/ndb_conflict_info_init.inc;
 # Check that server is compiled and started with support for NDB
 disable_query_log;
 --require r/true.require
@@ -18,3 +19,4 @@ enable_query_log;
 
 # Set the default connection to 'master'
 connection master;
+source include/ndb_conflict_info_init.inc;

@@ -4,7 +4,7 @@
 #
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/master-slave.inc
+--source include/ndb_master-slave.inc
 
 --disable_warnings
 --disable_query_log
@@ -18,6 +18,8 @@ CREATE TABLE mysql.ndb_replication
    conflict_fn VARBINARY(128),
    PRIMARY KEY USING HASH (db,table_name,server_id))
   ENGINE=NDB PARTITION BY KEY(db,table_name);
+drop table if exists `test`.`t1$EX`;
+drop table if exists `test`.`t2$EX`;
 --enable_warnings
 --enable_query_log
 

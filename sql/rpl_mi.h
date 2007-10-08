@@ -100,6 +100,9 @@ class MASTER_INFO : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+
+  uint32 master_server_id;
+  uint64 master_epoch;
 };
 
 void init_master_info_with_options(MASTER_INFO* mi);
