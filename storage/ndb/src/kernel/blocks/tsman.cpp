@@ -298,7 +298,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal){
 	Uint32 new_bits = curr_bits ^ rand();
 	Local_key key = chunks[chunk].start_page;
 	key.m_page_no += page;
-	ndbrequire(update_page_free_bits(signal, &key, new_bits, 0) == 0);
+	ndbrequire(update_page_free_bits(signal, &key, new_bits) == 0);
       }
       }
     }
@@ -363,6 +363,20 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
   ref->errorCode = err;
   sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
 	     CreateFilegroupImplRef::SignalLength, JBB);
+}
+
+NdbOut&
+operator<<(NdbOut& out, const File_formats::Datafile::Extent_header & obj)
+{
+  out << "table: " << obj.m_table 
+      << " fragment: " << obj.m_fragment_id << " ";
+  for(Uint32 i = 0; i<32; i++)
+  {
+    char t[2];
+    BaseString::snprintf(t, sizeof(t), "%x", obj.get_free_bits(i));
+    out << t;
+  }
+  return out;
 }
 
 void
@@ -1589,8 +1603,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 int
 Tsman::update_page_free_bits(Signal* signal, 
 			     Local_key *key, 
-			     unsigned committed_bits,
-			     Uint64 lsn)
+			     unsigned committed_bits)
 {
   jamEntry();
 
@@ -1625,6 +1638,18 @@ Tsman::update_page_free_bits(Signal* signal,
     File_formats::Datafile::Extent_header* header = 
       page->get_header(val.m_extent_no, val.m_extent_size);
     
+    if (header->m_table == RNIL)
+    {
+      ndbout << "update page free bits page: " << *key 
+	     << " " << *header << endl;
+    }
+
+    if (0)
+    {
+      ndbout << "update page free bits page(" << committed_bits << ") " 
+	     << *key << " " << *header << endl;
+    }
+
     ndbrequire(header->m_table != RNIL);
 
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
@@ -1636,7 +1661,7 @@ Tsman::update_page_free_bits(Signal* signal,
     Uint32 src = header->get_free_bits(page_no_in_extent) & UNCOMMITTED_MASK;
     header->update_free_bits(page_no_in_extent, src | committed_bits);
     
-    m_page_cache_client.update_lsn(preq.m_page, lsn);
+    m_page_cache_client.update_lsn(preq.m_page, 0);
 
     return 0;
   }
@@ -1724,6 +1749,11 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
     File_formats::Datafile::Extent_header* header = 
       page->get_header(val.m_extent_no, val.m_extent_size);
     
+    if (header->m_table == RNIL)
+    {
+      ndbout << "trying to unmap page: " << *key 
+	     << " " << *header << endl;
+    }
     ndbrequire(header->m_table != RNIL);
 
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
@@ -1745,9 +1775,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
 				   Uint32 tableId,
 				   Uint32 fragId,
 				   Local_key *key, 
-				   unsigned bits,
-				   Uint64 undo_lsn,
-				   Uint64 page_lsn)
+				   unsigned bits)
 {
   jamEntry();
   
@@ -1781,21 +1809,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
       (File_formats::Datafile::Extent_page*)ptr_p;
     File_formats::Datafile::Extent_header* header = 
       page->get_header(val.m_extent_no, val.m_extent_size);
-    
-    Uint64 lsn = 0;
-    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
-    lsn += page->m_page_header.m_page_lsn_lo;
-
-    if (undo_lsn > lsn && undo_lsn > page_lsn)
-    {
-      if (DBG_UNDO)
-	ndbout << "tsman: ignore " << undo_lsn << "(" << lsn << ", "
-	       << page_lsn << ") " 
-	       << *key << " "
-	       << " -> " << bits << endl;
-      return 0;
-    }
-    
+        
     if (header->m_table == RNIL)
     {
       if (DBG_UNDO)
@@ -1821,7 +1835,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
      */
     if (DBG_UNDO)
     {
-      ndbout << "tsman: apply " << undo_lsn << "(" << lsn << ") " 
+      ndbout << "tsman: apply " 
 	     << *key << " " << (src & COMMITTED_MASK) 
 	     << " -> " << bits << endl;
     }
@@ -1869,7 +1883,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   /**
    * Handling of unmapped extent header pages is not implemented
    */
-  int flags = 0;
+  int flags = Page_cache_client::DIRTY_REQ;
   int real_page_id;
   Uint32 page_no;
   Uint32 src_bits;
