@@ -1,150 +1,155 @@
--- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
+#############################################################
+# Author: Martin
+# Date: 2007-07
+# Purpose: basic online alter test
+##############################################################
+# Change Author: Jonathan
+# Date 2006-08-28
+# Purpose: Add more testing for online alter
+##############################################################
+--source include/have_multi_ndb.inc
+--source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-#
-# basic online alter test
-#
 
-CREATE TEMPORARY TABLE ndb_show_tables (id INT, type VARCHAR(20), state VARCHAR(20), logging VARCHAR(20), _database VARCHAR(255), _schema VARCHAR(20), name VARCHAR(255));
+######################################
+# basic online alter tests
+######################################
+--echo *******************************
+--echo * basic online alter tests
+--echo *******************************
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as CHAR
+--echo *******************************
 
 ALTER TABLE t1 ADD c CHAR(19);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as nullable INT
+--echo *******************************
+
 CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
 INSERT INTO t1 values (1,"a");
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 ALTER TABLE t1 ADD c INT;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,"a",1);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as nullable INT
+--echo *******************************
+
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 ALTER TABLE t1 ADD c INT;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select id,name from ndb_show_tables where id = @t1_id and name like '%t1%';
-
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%';
+truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,1,1);
 SELECT * FROM t1 ORDER BY a;
 
+--echo *******************************
+--echo * Create online Index ci
+--echo *******************************
+
 CREATE ONLINE INDEX ci on t1(c);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
+--source include/ndb_show_tables_result.inc
+select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
-select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
+--echo *******************************
+--echo * Create offline Index ci2
+--echo *******************************
  
 CREATE OFFLINE INDEX ci2 on t1(c);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
+--source include/ndb_show_tables_result.inc
+select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
-select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-
-truncate ndb_show_tables;
+--echo *******************************
+--echo * Drop online Index ci
+--echo *******************************
  
 DROP ONLINE INDEX ci on t1;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
+--source include/ndb_show_tables_result.inc
+select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
-select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
+--echo *******************************
+--echo * Drop offline Index ci2
+--echo *******************************
 
 DROP OFFLINE INDEX ci2 on t1;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select id,name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
 DROP TABLE t1;
 
-#
-# basic concurent online alter test
-#
+--echo *******************************
+--echo * basic concurent online alter test
+--echo *******************************
+--echo * With Commit
+--echo *******************************
+
 connection server1;
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
-insert into t1 values (1,1);
-insert into t1 values (2,2);
-insert into t1 values (3,3);
-insert into t1 values (4,4);
+let $v=4;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES($v,$v); 
+  dec $v;
+}
+enable_query_log;
+
 
 connection server2;
 begin;
@@ -152,8 +157,7 @@ update t1 set b = 0 where a = 1;
 update t1 set b = 1 where a = 2;
 delete from t1      where a = 3;
 
-insert into t1 values (5,5);
-insert into t1 values (6,6);
+insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 
 connection server1;
@@ -163,8 +167,7 @@ connection server2;
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
-insert into t1 values (7,0,null,null,null);
-insert into t1 values (8,0,'8','8','8');
+insert into t1 values (7,0,null,null,null),(8,0,'8','8','8');
 commit;
 
 connection server1;
@@ -172,13 +175,23 @@ SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
 
+--echo *******************************
+--echo * basic concurent online alter test
+--echo *******************************
+--echo * With Rollback
+--echo *******************************
+
 connection server1;
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ENGINE NDB;
-INSERT INTO t1 values (1,1);
-insert into t1 values (2,2);
-insert into t1 values (3,3);
-insert into t1 values (4,4);
+let $v=4;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES($v,$v); 
+  dec $v;
+}
+enable_query_log;
 
 connection server2;
 begin;
@@ -186,8 +199,7 @@ update t1 set b = 0 where a = 1;
 update t1 set b = 1 where a = 2;
 delete from t1      where a = 3;
 
-insert into t1 values (5,5);
-insert into t1 values (6,6);
+insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 
 connection server1;
@@ -197,8 +209,7 @@ connection server2;
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
-insert into t1 values (7,0,null,null,null);
-insert into t1 values (8,0,'8','8','8');
+insert into t1 values (7,0,null,null,null),(8,0,'8','8','8');
 rollback;
 
 connection server1;
@@ -206,174 +217,156 @@ SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
 
-# The following ALTER operations are not supported on-line
+--echo *******************************
+--echo * The following ALTER operations are not supported on-line
+--echo *******************************
+--echo * Not supported Test#1
+--echo *******************************
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=FIXED ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c CHAR(19);
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD c CHAR(19);
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo *******************************
+--echo * Not supported Test#2
+--echo *******************************
+
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
+--echo *******************************
+--echo * Not supported Test#3
+--echo *******************************
 
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD d INT AFTER b;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD d INT AFTER b;
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 SELECT * FROM t1 ORDER BY a;
 
+--echo *******************************
+--echo * Not supported Test#4
+--echo *******************************
+
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ENGINE MYISAM;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
 DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#5
+--echo *******************************
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD c TIMESTAMP;
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo *******************************
+--echo * Not supported Test#6
+--echo *******************************
+
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#7
+--echo *******************************
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-truncate ndb_show_tables;
 
 INSERT INTO t1 values (2,1,"a");
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#8
+--echo * Ndb doesn't support renaming attributes on-line
+--echo *******************************
 
 CREATE TABLE t1 (
   auto int(5) unsigned NOT NULL auto_increment,
@@ -405,41 +398,246 @@ CREATE TABLE t1 (
   PRIMARY KEY (auto)
 ) engine=ndb;
                                                                                                    
-
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-# Ndb doesn't support renaming attributes on-line
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-set @t1_id = (select id from ndb_show_tables where name like '%t1%' and type like '%UserTable%');
-truncate ndb_show_tables;
 
 create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
 
---disable_warnings
---exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
-LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
---exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
---enable_warnings
-
-select name from ndb_show_tables where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
 
 DROP TABLE t1;
 
-DROP TABLE ndb_show_tables;
+######################################
+# Alter dynmaic table, add TEXT column
+######################################
+# Bug:30205
+######################################
+--echo *******************************
+--echo * Add column c as nullable TEXT
+--echo *******************************
+CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  INSERT INTO t1 VALUES(NULL, DEFAULT); 
+  dec $v;
+}
+enable_query_log;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c TEXT;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+DROP TABLE t1;
+
+######################################
+# Alter dynmaic table, add column
+######################################
+
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v); 
+  dec $v;
+}
+enable_query_log;
+
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
+
+--echo *******************************
+--echo * Add column c as nullable FLOAT
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD c FLOAT;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column d as nullable DOUBLE
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD d DOUBLE UNSIGNED;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column e as nullable DECIMAL
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD e DECIMAL(5,2);
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column f as nullable DATETIME
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD f DATETIME;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00'); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column g as nullable BINARY
+--echo *******************************
+ALTER TABLE t1 ADD g BINARY(4);
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623157E+308, 345.21, '1000-01-01 00:00:00', '0101');
+  dec $v;
+}
+enable_query_log;
+
+
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
+
+SELECT COUNT(*) FROM t1 WHERE c IS NULL;
+SELECT COUNT(*) FROM t1 WHERE d IS NULL;
+SELECT COUNT(*) FROM t1 WHERE e IS NULL;
+SELECT COUNT(*) FROM t1 WHERE f IS NULL;
+SELECT COUNT(*) FROM t1 WHERE g IS NULL;
+
+##############################
+# Backup and restore section #
+##############################
+--echo *********************************
+--echo * Backup and restore tables w/ new column
+--echo *********************************
+
+--source include/ndb_backup.inc
+
+DROP TABLE t1;
+
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+
+DROP TABLE t1;
+
+###################################
+# Disk Data Error testing section #
+###################################
+--echo *********************************
+--echo * Disk Data error testing
+--echo *********************************
+
+set storage_engine=ndb;
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE = NDB;
+
+DROP TABLESPACE ts1
+ENGINE = NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE =NDB; 
+
+##############################
+# ROW_FORMAT testing section #
+##############################
+--echo ********************
+--echo * ROW_FORMAT testing
+--echo ********************
+
+# Bug:30276, should issue a warning 
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
+ENGINE=NDB;
+
+--replace_regex /Version: [0-9]+/Version: #/
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1
+
+DROP TABLE t1;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
+b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
+
+--replace_regex /Version: [0-9]+/Version: #/
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1
+
+--echo ********************
+--echo * Cleanup Section
+--echo ********************
+
+--exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
+DROP TABLE t1;
+DROP TABLE ndb_show_tables_results;
+# End of 5.1 Test Case
+
+

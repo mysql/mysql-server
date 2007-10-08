@@ -309,6 +309,7 @@ public:
     Uint8 noOfStartedChkpt;
 
     MasterLCPConf::State lcpStateAtTakeOver;
+    Uint32 m_remove_node_from_table_lcp_id;
   };
   typedef Ptr<NodeRecord> NodeRecordPtr;
   /**********************************************************************/
