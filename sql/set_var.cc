@@ -54,6 +54,9 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#endif
 
 #include "events.h"
 
@@ -121,6 +124,9 @@ static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+static PAGECACHE *create_pagecache(const char *name, uint length);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static uchar *get_error_count(THD *thd);
 static uchar *get_warning_count(THD *thd);
@@ -238,12 +244,20 @@ static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_div
 static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
 						     offsetof(KEY_CACHE,
 							      param_age_threshold));
+#ifdef WITH_MARIA_STORAGE_ENGINE
+sys_var_pagecache_long  sys_pagecache_division_limit("pagecache_division_limit",
+						     offsetof(PAGECACHE,
+							      param_division_limit));
+sys_var_pagecache_long  sys_pagecache_age_threshold("pagecache_age_threshold",
+						     offsetof(KEY_CACHE,
+							      param_age_threshold));
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 static sys_var_bool_ptr	sys_local_infile(&vars, "local_infile",
 					 &opt_local_infile);
 static sys_var_trust_routine_creators
 sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
                            &trust_function_creators);
-static sys_var_bool_ptr       
+static sys_var_bool_ptr
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
 static sys_var_bool_ptr
@@ -326,12 +340,10 @@ static sys_var_thd_ulong       sys_myisam_repair_threads(&vars, "myisam_repair_t
 static sys_var_thd_ulong	sys_myisam_sort_buffer_size(&vars, "myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 static sys_var_bool_ptr	sys_myisam_use_mmap(&vars, "myisam_use_mmap",
                                             &opt_myisam_use_mmap);
-
 static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_method",
                                                 &SV::myisam_stats_method,
                                                 &myisam_stats_method_typelib,
                                                 NULL);
-
 static sys_var_thd_ulong	sys_net_buffer_length(&vars, "net_buffer_length",
 					      &SV::net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
@@ -628,6 +640,7 @@ static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("cs
 static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_plugin sys_have_maria(&vars, "have_maria", C_STRING_WITH_LEN("maria"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
@@ -706,7 +719,7 @@ static SHOW_VAR fixed_vars[]= {
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
-  {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
 };
 
 
@@ -1906,15 +1919,30 @@ LEX_STRING default_key_cache_base= {(char *) "default", 7 };
 
 static KEY_CACHE zero_key_cache;
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+LEX_STRING maria_pagecache_base= {(char *) "default", 7 };
+static PAGECACHE zero_pagecache;
+#endif /* WITH_MARIA_STORAGE_ENGINE */
+
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
 {
   safe_mutex_assert_owner(&LOCK_global_system_variables);
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;
   return ((KEY_CACHE*) find_named(&key_caches,
-                                      cache_name->str, cache_name->length, 0));
+                                  cache_name->str, cache_name->length, 0));
 }
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+PAGECACHE *get_pagecache(LEX_STRING *cache_name)
+{
+  safe_mutex_assert_owner(&LOCK_global_system_variables);
+  if (!cache_name || ! cache_name->length)
+    cache_name= &default_key_cache_base;
+  return ((PAGECACHE*) find_named(&pagecaches,
+                                  cache_name->str, cache_name->length, 0));
+}
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 					 LEX_STRING *base)
@@ -1924,6 +1952,18 @@ uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
     key_cache= &zero_key_cache;
   return (uchar*) key_cache + offset ;
 }
+
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+uchar *sys_var_pagecache_param::value_ptr(THD *thd, enum_var_type type,
+					 LEX_STRING *base)
+{
+  PAGECACHE *pagecache= get_pagecache(base);
+  if (!pagecache)
+    pagecache= &zero_pagecache;
+  return (uchar*) pagecache + offset ;
+}
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
@@ -2060,6 +2100,60 @@ end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return error;
 }
+
+
+#ifdef WITH_MARIA_STORAGE_ENGINE
+bool sys_var_pagecache_long::update(THD *thd, set_var *var)
+{
+  ulong tmp= (ulong) var->value->val_int();
+  LEX_STRING *base_name= &var->base;
+  bool error= 0;
+
+  if (!base_name->length)
+    base_name= &maria_pagecache_base;
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  PAGECACHE *pagecache= get_pagecache(base_name);
+
+  if (!pagecache && !(pagecache= create_pagecache(base_name->str,
+						  base_name->length)))
+  {
+    error= 1;
+    goto end;
+  }
+
+  /*
+    Abort if some other thread is changing the key cache
+    TODO: This should be changed so that we wait until the previous
+    assignment is done and then do the new assign
+  */
+  if (pagecache->in_init)
+    goto end;
+
+  *((ulong*) (((char*) pagecache) + offset))=
+    (ulong) getopt_ull_limit_value(tmp, option_limits);
+
+  /*
+    Don't create a new key cache if it didn't exist
+    (pagecaches are created only when the user sets block_size)
+  */
+  pagecache->in_init= 1;
+
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+
+  /*
+    TODO: uncomment whan it will be implemented
+  error= (bool) (ha_resize_pagecache(pagecache));
+  */
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  pagecache->in_init= 0;
+
+end:
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return error;
+}
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 
 bool sys_var_log_state::update(THD *thd, set_var *var)
@@ -3600,11 +3694,84 @@ bool process_key_caches(process_key_cache_t func)
 }
 
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+
+static PAGECACHE *create_pagecache(const char *name, uint length)
+{
+  PAGECACHE *pagecache;
+  DBUG_ENTER("create_pagecache");
+  DBUG_PRINT("enter",("name: %.*s", length, name));
+
+  if ((pagecache= (PAGECACHE*) my_malloc(sizeof(PAGECACHE),
+                                         MYF(MY_ZEROFILL | MY_WME))))
+  {
+    if (!new NAMED_LIST(&pagecaches, name, length, (uchar*) pagecache))
+    {
+      my_free((char*) pagecache, MYF(0));
+      pagecache= 0;
+    }
+    else
+    {
+      /*
+	Set default values for a key cache
+	The values in maria_pagecache_var is set by my_getopt() at startup
+	We don't set 'buff_size' as this is used to enable the key cache
+      */
+      pagecache->param_buff_size=      (maria_pagecache_var.param_buff_size ?
+                                        maria_pagecache_var.param_buff_size:
+                                        KEY_CACHE_SIZE);
+      pagecache->param_division_limit= maria_pagecache_var.param_division_limit;
+      pagecache->param_age_threshold=  maria_pagecache_var.param_age_threshold;
+    }
+  }
+  DBUG_RETURN(pagecache);
+}
+
+
+PAGECACHE *get_or_create_pagecache(const char *name, uint length)
+{
+  LEX_STRING pagecache_name;
+  PAGECACHE *pagecache;
+
+  pagecache_name.str= (char *) name;
+  pagecache_name.length= length;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (!(pagecache= get_pagecache(&pagecache_name)))
+    pagecache= create_pagecache(name, length);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return pagecache;
+}
+
+
+void free_pagecache(const char *name, PAGECACHE *pagecache)
+{
+  ha_end_pagecache(pagecache);
+  my_free((char*) pagecache, MYF(0));
+}
+
+
+bool process_pagecaches(int (* func) (const char *name, PAGECACHE *))
+{
+  I_List_iterator<NAMED_LIST> it(pagecaches);
+  NAMED_LIST *element;
+
+  while ((element= it++))
+  {
+    PAGECACHE *pagecache= (PAGECACHE *) element->data;
+    func(element->name, pagecache);
+  }
+  return 0;
+}
+
+#endif /* WITH_MARIA_STORAGE_ENGINE */
+
+
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
   WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
                       "'log_bin_trust_function_creators'");
 }
+
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
 {

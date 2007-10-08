@@ -2428,7 +2428,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18,create_info->max_rows);
     int4store(fileinfo+22,create_info->min_rows);
+    /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
+    /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
@@ -2438,7 +2440,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 		   create_info->default_table_charset->number : 0);
     fileinfo[39]= (uchar) create_info->transactional;
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes were for RAID support */
+    /* Next few bytes where for RAID support */
     fileinfo[41]= 0;
     fileinfo[42]= 0;
     fileinfo[43]= 0;
@@ -2489,6 +2491,13 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
   create_info->comment= share->comment;
+  /**
+     @todo MARIA_HACK
+     See hack in mysql_truncate(); when this is properly fixed, the if() below
+     can be removed, the assignment can always be made.
+  */
+  if (create_info->transactional == HA_CHOICE_UNDEF)
+    create_info->transactional= share->transactional;
 
   DBUG_VOID_RETURN;
 }

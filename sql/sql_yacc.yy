@@ -4505,7 +4505,6 @@ create_table_option:
             Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
         				     HA_CHOICE_NO);
           }
-
         ;
 
 default_charset:

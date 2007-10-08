@@ -67,7 +67,7 @@
 # define bcopy(s, d, n)		memcpy((d), (s), (n))
 # define bcmp(A,B,C)		memcmp((A),(B),(C))
 # define bzero(A,B)		memset((A),0,(B))
-# define bmove_align(A,B,C)    memcpy((A),(B),(C))
+# define bmove_align(A,B,C)     memcpy((A),(B),(C))
 #endif
 
 #if defined(__cplusplus)
@@ -129,7 +129,10 @@ extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
 extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#endif
+#define bzero_if_purify(A,B) bzero(A,B)
+#else
+#define bzero_if_purify(A,B)
+#endif /* HAVE_purify */
 
 #ifndef bmove512
 extern	void bmove512(uchar *dst,const uchar *src,size_t len);

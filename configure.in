@@ -2461,8 +2461,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-
-
 # Include man pages, if desired, adapted to the configured parts.
 if test X"$with_man" = Xyes
 then

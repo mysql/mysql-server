@@ -45,5 +45,6 @@ fi
 
 # Make sure to enable all features that affect "make dist"
 ./configure \
+  --with-maria-storage-engine \
   --with-ndbcluster
 make

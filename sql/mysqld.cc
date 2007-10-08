@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
+#include <my_bit.h>
 #include "slave.h"
 #include "rpl_mi.h"
 #include "sql_repl.h"
@@ -27,6 +28,9 @@
 #include "events.h"
 
 #include "../storage/myisam/ha_myisam.h"
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
+#endif
 
 #include "rpl_injector.h"
 
@@ -441,7 +445,7 @@ uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
-ulong thread_stack, what_to_log;
+ulong what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -524,6 +528,9 @@ FILE *stderror_file=0;
 
 I_List<THD> threads;
 I_List<NAMED_LIST> key_caches;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+I_List<NAMED_LIST> pagecaches;
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 Rpl_filter* rpl_filter;
 Rpl_filter* binlog_filter;
 
@@ -1207,7 +1214,13 @@ void clean_up(bool print_message)
     tc_log->close();
   xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  delete_elements(&pagecaches, (void (*)(const char*, uchar*)) free_pagecache);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   multi_keycache_free();
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  multi_pagecache_free();
+#endif
   free_status_vars();
   end_thr_alarm(1);			/* Free allocated memory */
   my_free_open_file_info();
@@ -2194,8 +2207,12 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  fprintf(stderr, "page_buffer_size=%lu\n",
+          (ulong) maria_pagecache->mem_size);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
   fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
@@ -2203,6 +2220,9 @@ and this may fail.\n\n");
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
+#ifdef WITH_MARIA_STORAGE_ENGINE
+                     (ulong) maria_pagecache->mem_size +
+#endif /* WITH_MARIA_STORAGE_ENGINE */
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     thread_scheduler.max_threads +
@@ -2226,7 +2246,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
   {
     fprintf(stderr,"thd: 0x%lx\n",(long) thd);
     print_stacktrace(thd ? (uchar*) thd->thread_stack : (uchar*) 0,
-		     thread_stack);
+		     my_thread_stack_size);
   }
   if (thd)
   {
@@ -2385,9 +2405,9 @@ static void start_signal_handler(void)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&thr_attr,thread_stack);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
 #endif
 #endif
 
@@ -3397,6 +3417,21 @@ server.");
     using_update_log=1;
   }
 
+  /* call ha_init_key_cache() on all key caches to init them */
+  process_key_caches(&ha_init_key_cache);
+  /*
+    Maria's pagecache needs to be ready before Maria engine (Recovery uses
+    pagecache, and Checkpoint may happen at startup). Maria engine is taken up
+    in plugin_init().
+  */
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  process_pagecaches(&ha_init_pagecache);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
+
+  /* Allow storage engine to give real error messages */
+  if (ha_init_errors())
+    DBUG_RETURN(1);
+
   if (plugin_init(&defaults_argc, defaults_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -3562,9 +3597,6 @@ server.");
 
   if (opt_myisam_log)
     (void) mi_log(1);
-
-  /* call ha_init_key_cache() on all key caches to init them */
-  process_key_caches(&ha_init_key_cache);
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -3755,9 +3787,9 @@ int main(int argc, char **argv)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size);
 #endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
@@ -3768,15 +3800,15 @@ int main(int argc, char **argv)
     stack_size/= 2;
 #endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size < thread_stack)
+    if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %lu thread stack, but got %ld",
-			  thread_stack, (long) stack_size);
+			  my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
-      thread_stack= stack_size*2;
+      my_thread_stack_size= stack_size*2;
 #else
-      thread_stack= stack_size;
+      my_thread_stack_size= stack_size;
 #endif
     }
   }
@@ -5020,10 +5052,15 @@ enum options_mysqld
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
+
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
-  OPT_MYISAM_USE_MMAP,
+  OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
   OPT_MYISAM_STATS_METHOD,
+
+  OPT_PAGECACHE_BUFFER_SIZE,
+  OPT_PAGECACHE_DIVISION_LIMIT, OPT_PAGECACHE_AGE_THRESHOLD,
+
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -5037,7 +5074,7 @@ enum options_mysqld
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
+  OPT_WAIT_TIMEOUT,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -6112,12 +6149,6 @@ The minimum value for this variable is 4096.",
    (uchar**) &myisam_data_pointer_size,
    (uchar**) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
    6, 2, 7, 0, 1, 0},
-  {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Deprecated option",
-   (uchar**) &global_system_variables.myisam_max_extra_sort_file_size,
-   (uchar**) &max_system_variables.myisam_max_extra_sort_file_size,
-   0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this.",
    (uchar**) &global_system_variables.myisam_max_sort_file_size,
@@ -6165,7 +6196,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.net_write_timeout,
    (uchar**) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-  { "old", OPT_OLD_MODE, "Use compatible behavior.", 
+  {"old", OPT_OLD_MODE, "Use compatible behavior.", 
     (uchar**) &global_system_variables.old_mode,
     (uchar**) &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
@@ -6183,6 +6214,24 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.optimizer_search_depth,
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  {"pagecache_age_threshold", OPT_PAGECACHE_AGE_THRESHOLD,
+   "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
+   (uchar**) &maria_pagecache_var.param_age_threshold,
+   (uchar**) 0, 0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   300, 100, ~0L, 0, 100, 0},
+  {"pagecache_buffer_size", OPT_PAGECACHE_BUFFER_SIZE,
+   "The size of the buffer used for index blocks for Maria tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
+   (uchar**) &maria_pagecache_var.param_buff_size,
+   (uchar**) 0, 0, (GET_ULL | GET_ASK_ADDR), REQUIRED_ARG,
+   KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD, IO_SIZE, 0},
+  {"pagecache_division_limit", OPT_PAGECACHE_DIVISION_LIMIT,
+   "The minimum percentage of warm blocks in key cache",
+   (uchar**) &maria_pagecache_var.param_division_limit,
+   (uchar**) 0,
+   0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
+   1, 100, 0, 1, 0},
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
@@ -6193,10 +6242,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
-    "The size of the buffer that is allocated when preloading indexes",
-    (uchar**) &global_system_variables.preload_buff_size,
-    (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
-    REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
+   "The size of the buffer that is allocated when preloading indexes",
+   (uchar**) &global_system_variables.preload_buff_size,
+   (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
+   REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
   {"query_alloc_block_size", OPT_QUERY_ALLOC_BLOCK_SIZE,
    "Allocation block size for query parsing and execution",
    (uchar**) &global_system_variables.query_alloc_block_size,
@@ -6339,8 +6388,8 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
 #endif
   {"thread_stack", OPT_THREAD_STACK,
-   "The stack size for each thread.", (uchar**) &thread_stack,
-   (uchar**) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
+   "The stack size for each thread.", (uchar**) &my_thread_stack_size,
+   (uchar**) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
    1024L*128L, ~0L, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
@@ -6354,12 +6403,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
-   "Allocation block size for various transaction-related structures",
+   "Allocation block size for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_alloc_block_size,
    (uchar**) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
-   "Persistent buffer for various transaction-related structures",
+   "Persistent buffer for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_prealloc_size,
    (uchar**) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
@@ -7111,10 +7160,22 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  pagecaches.empty();
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
-					       default_key_cache_base.length)))
+                                                default_key_cache_base.length)))
     exit(1);
-  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
+
+  /* set key_cache_hash.default_value = dflt_key_cache */
+  multi_keycache_init();
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  if (!(maria_pagecache= get_or_create_pagecache(maria_pagecache_base.str,
+                                                 maria_pagecache_base.length)))
+    exit(1);
+  /* set pagecache_hash.default_value = maria_pagecache */
+  multi_pagecache_init();
+#endif
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -7129,7 +7190,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -7694,7 +7755,6 @@ mysqld_get_one_option(int optid,
     int method;
     LINT_INIT(method_conv);
 
-    myisam_stats_method_str= argument;
     method= find_type_or_exit(argument, &myisam_stats_method_typelib,
                               opt->name);
     switch (method-1) {
@@ -7781,8 +7841,26 @@ mysql_getopt_value(const char *keyname, uint key_length,
       return (uchar**) &key_cache->param_age_threshold;
     }
   }
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  case OPT_PAGECACHE_BUFFER_SIZE:
+  case OPT_PAGECACHE_DIVISION_LIMIT:
+  case OPT_PAGECACHE_AGE_THRESHOLD:
+  {
+    PAGECACHE *pagecache;
+    if (!(pagecache= get_or_create_pagecache(keyname, key_length)))
+      exit(1);
+    switch (option->id) {
+    case OPT_PAGECACHE_BUFFER_SIZE:
+      return (uchar**) &pagecache->param_buff_size;
+    case OPT_PAGECACHE_DIVISION_LIMIT:
+      return (uchar**) &pagecache->param_division_limit;
+    case OPT_PAGECACHE_AGE_THRESHOLD:
+      return (uchar**) &pagecache->param_age_threshold;
+    }
   }
- return option->value;
+#endif
+  }
+  return option->value;
 }
 
 
@@ -8184,6 +8262,9 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  process_pagecaches(reset_pagecache_counters);
+#endif /* WITH_MARIA_STORAGE_ENGINE */
   pthread_mutex_unlock(&LOCK_status);
 
   /*

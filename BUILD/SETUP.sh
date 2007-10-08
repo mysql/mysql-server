@@ -145,6 +145,7 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables"
+base_configs="$base_configs --with-plugin-maria"
 
 if test -d "$path/../cmd-line-utils/readline"
 then
@@ -170,10 +171,10 @@ max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server"
 # CPU and platform specific compilation flags.
 #
 alpha_cflags="$check_cpu_cflags -Wa,-m$cpu_flag"
-amd64_cflags="$check_cpu_cflags"
+amd64_cflags="$check_cpu_cflags  -DSTACK_DIRECTION=-1"
 amd64_cxxflags=""  # If dropping '--with-big-tables', add here  "-DBIG_TABLES"
-pentium_cflags="$check_cpu_cflags"
-pentium64_cflags="$check_cpu_cflags -m64"
+pentium_cflags="$check_cpu_cflags  -DSTACK_DIRECTION=-1"
+pentium64_cflags="$check_cpu_cflags -m64 -DSTACK_DIRECTION=-1"
 ppc_cflags="$check_cpu_cflags"
 sparc_cflags=""
 

@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This file includes constants used with all databases */
-/* Author: Michael Widenius */
 
 #ifndef _my_base_h
 #define _my_base_h
@@ -48,10 +47,11 @@
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
+#define HA_OPEN_COPY			256     /* Open copy (for repair) */
 /* Internal temp table, used for temporary results */
-#define HA_OPEN_INTERNAL_TABLE          256
+#define HA_OPEN_INTERNAL_TABLE          512
 
-	/* The following is parameter to ha_rkey() how to use key */
+/* The following is parameter to ha_rkey() how to use key */
 
 /*
   We define a complete-field prefix of a key value as a prefix where
@@ -137,7 +137,7 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
-  HA_EXTRA_PREPARE_FOR_DELETE,
+  HA_EXTRA_PREPARE_FOR_DROP,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
   /*
@@ -187,7 +187,9 @@ enum ha_extra_function {
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
-  HA_EXTRA_INSERT_WITH_UPDATE
+  HA_EXTRA_INSERT_WITH_UPDATE,
+  /* Inform handler that we will do a rename */
+  HA_EXTRA_PREPARE_FOR_RENAME
 };
 
 	/* The following is parameter to ha_panic() */
@@ -292,6 +294,7 @@ enum ha_base_keytype {
 #define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
 #define HA_OPTION_CREATE_FROM_ENGINE    256
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
+#define HA_OPTION_NULL_FIELDS		1024
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 
@@ -474,7 +477,7 @@ enum en_fieldtype {
 };
 
 enum data_file_type {
-  STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
+  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD
 };
 
 /* For key ranges */
@@ -525,5 +528,8 @@ typedef ulong		ha_rows;
 #endif
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
+
+/* invalidator function reference for Query Cache */
+typedef void (* invalidator_by_filename)(const char * filename);
 
 #endif /* _my_base_h */
