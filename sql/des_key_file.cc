@@ -21,17 +21,18 @@
 struct st_des_keyschedule des_keyschedule[10];
 uint   des_default_key;
 
-/*
- Function which loads DES keys from plaintext file into memory on MySQL
- server startup and on command FLUSH DES_KEY_FILE.
- Blame tonu@spam.ee on bugs ;)
+#define des_cs	&my_charset_latin1
 
- RETURN
-	0	ok
-	1	Error   
+/**
+  Load DES keys from plaintext file into
+  memory on MySQL server startup and on command FLUSH DES_KEY_FILE.
+
+  @retval
+    0  ok
+  @retval
+    1  Error   
 */
 
-#define des_cs	&my_charset_latin1
 
 bool
 load_des_key_file(const char *file_name)
