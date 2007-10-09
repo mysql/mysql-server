@@ -34,7 +34,8 @@ test_gen_hex:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	echo "Generating text input > db > text"
 	rm -f $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) | $(BDB_LOAD) $@.db.temp
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
+	$(BDB_LOAD) $@.db.temp < $@.gen.temp
 	$(BDB_DUMP) $@.db.temp > $@.load_dump.temp
 	./tokudb_gen -Hf > $@.gen_sorted.temp
 	./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp
@@ -42,9 +43,18 @@ test_gen_hex:
 	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
 	rm $@.*.temp
 
-test_load: test_load_hex
-	#Generating
-
+test_load: test_gen
+	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
+	echo "Generating text input > db > text"
+	rm -f $@.*.temp
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
+	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
+	./tokudb_load $@.tokudb.temp < $@.gen.temp
+	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
+	$(BDB_DUMP) $@.tokudb.temp > $@.dump.tokudb.temp
+	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	
+	
 #if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:
 	rm -rf *.so *.o $(UTILS) *.temp

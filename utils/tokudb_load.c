@@ -17,6 +17,7 @@ extern int optopt;
 extern int opterr;
 extern int optreset;
 
+
 typedef struct {
    bool     leadingspace;
    bool     plaintext;
@@ -151,11 +152,10 @@ int main(int argc, char *argv[]) {
    //TODO:  /* Handle possible interruptions/signals. */
 
    g.database = argv[0];
-   //TODO: flockfile(stdin);
    if (create_init_env() != 0) goto error;
    while (!g.eof) {
 //BOOKMARK
-      if (!load_database()) goto errorcleanup;
+      if (load_database() != 0) goto errorcleanup;
    }
    if (false) {
 errorcleanup:
@@ -166,7 +166,6 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: dbenv->close: %s\n", g.progname, db_strerror(retval));
    }
-   //TODO: funlockfile(stdin);
    //TODO:  /* Resend any caught signal. */
    free(g.config_options);
 
@@ -219,6 +218,7 @@ error:
       g.exitcode = EXIT_FAILURE;
    }
 cleanup:
+
    if (close_database() != 0) g.exitcode = EXIT_FAILURE;
 
    return g.exitcode;
@@ -237,7 +237,7 @@ int usage()
    return EXIT_FAILURE;
 }
 
-int longusage(const char* progname)
+int longusage()
 {
    printf("TODO: Implement %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
    return EXIT_FAILURE;
@@ -268,7 +268,8 @@ int create_init_env()
 
    /* Open the dbenvironment. */
    g.is_private = false;
-   flags = DB_JOINENV | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
+//   flags = DB_JOINENV | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
+   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
    //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
    if (!dbenv->open(dbenv, g.homedir, flags, 0)) goto success;
 
@@ -311,7 +312,7 @@ int printabletocstring(char* inputstr, char** poutputstr)
 
    cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
    if (cstring == NULL) {
-      dbenv->errx(dbenv, "%s", strerror(ENOMEM));
+      dbenv->err(dbenv, ENOMEM, "");
       goto error;
    }
 
@@ -370,14 +371,14 @@ if (!strcmp(field, match)) {                                               \
 if (!strcmp(field, match)) {                             \
    if (strtoint32(db, NULL, value, &num, 0, 1, 10)) {    \
       db->errx(db,                                       \
-               "%s: %s: boolean name=value pairs require a value of 0 or 1",  \
-               g.progname, field);                       \
+               "%s: boolean name=value pairs require a value of 0 or 1",  \
+               field);                                   \
       goto error;                                        \
    }                                                     \
    if ((retval = db->set_flags(db, flag)) != 0) {        \
       db->err(db, retval,                                \
-              "%s: set_flags: %s",                       \
-              g.progname, field);                        \
+              "set_flags: %s",                           \
+              field);                                    \
       goto error;                                        \
    }                                                     \
    continue;                                             \
@@ -387,8 +388,8 @@ if (!strcmp(field, match)) {                             \
 if (!strcmp(field, match)) {                             \
    if (strtoint32(db, NULL, value, &num, 0, 1, 10)) {    \
       db->errx(db,                                       \
-               "%s: %s: boolean name=value pairs require a value of 0 or 1",  \
-               g.progname, field);                       \
+               "%s: boolean name=value pairs require a value of 0 or 1",  \
+               field);                                   \
       goto error;                                        \
    }                                                     \
    db->errx(db, "%s option not supported.\n", field);    \
@@ -399,8 +400,8 @@ if (!strcmp(field, match)) {                             \
 if (!strcmp(field, match)) {                             \
    if (strlen(value) != 1) {                             \
       db->errx(db,                                       \
-               "%s: %s=%s: Expected 1-byte value",       \
-               g.progname, field, value);                \
+               "%s=%s: Expected 1-byte value",       \
+               field, value);                            \
       goto error;                                        \
    }                                                     \
    if ((retval = dbfunction(db, value[0])) != 0) {       \
@@ -420,11 +421,12 @@ int read_header()
    int32_t num;
    int retval;
    DB* db = g.db;
+   DB_ENV* dbenv = g.dbenv;
 
    assert(g.header);
 
    if (data == NULL && (data = (char*)malloc(datasize * sizeof(char))) == NULL) {
-      fprintf(stderr, "%s: %s\n", g.progname, strerror(errno));
+      dbenv->err(dbenv, errno, "");
       goto error;
    }
    while (!g.eof) {
@@ -446,6 +448,7 @@ int read_header()
          /* Ensure room exists for next character/null terminator. */
          if (index == datasize && doublechararray(&data, &datasize)) goto error;
       }
+      if (index == 0 && g.eof) goto success;
       data[index] = '\0';
 
       field = data;
@@ -457,7 +460,7 @@ int read_header()
 
       if (!strcmp(field, "HEADER")) break;
       if (!strcmp(field, "VERSION")) {
-         if (strtoint32(db, NULL, optarg, &g.version, 1, INT32_MAX, 10)) goto error;
+         if (strtoint32(db, NULL, value, &g.version, 1, INT32_MAX, 10)) goto error;
          if (g.version != 3) {
             db->errx(db, "line %lu: VERSION %d is unsupported", g.linenumber, g.version);
             goto error;
@@ -503,13 +506,13 @@ int read_header()
          int32_t temp;
          if (strtoint32(db, NULL, value, &temp, 0, 1, 10)) {
             db->errx(db,
-                     "%s: %s: boolean name=value pairs require a value of 0 or 1",
-                     g.progname, field);
+                     "%s: boolean name=value pairs require a value of 0 or 1",
+                     field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            db->errx(db, "%s: keys=0 not supported", g.progname, field);
+            db->errx(db, "keys=0 not supported", field);
             goto error;
          }
          continue;
@@ -531,11 +534,12 @@ int read_header()
       db->errx(db, "unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
+success:
    return EXIT_SUCCESS;
 
    if (false) {
 printerror:
-      db->err(db, retval, "%s: %s=%s", g.progname, field, value);
+      db->err(db, retval, "%s=%s", field, value);
    }
    if (false) {
 formaterror:
@@ -595,13 +599,13 @@ int apply_commandline_options()
          int32_t temp;
          if (strtoint32(db, NULL, value, &temp, 0, 1, 10)) {
             db->errx(db,
-                     "%s: %s: boolean name=value pairs require a value of 0 or 1",
-                     g.progname, field);
+                     "%s: boolean name=value pairs require a value of 0 or 1",
+                     field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            db->errx(db, "%s: keys=0 not supported", g.progname, field);
+            db->errx(db, "keys=0 not supported", field);
             goto error;
          }
          continue;
@@ -632,7 +636,7 @@ int apply_commandline_options()
 
    if (false) {
 printerror:
-      db->err(db, retval, "%s: %s=%s", g.progname, field, value);
+      db->err(db, retval, "%s=%s", field, value);
    }
 error:
    return EXIT_FAILURE;
@@ -698,11 +702,11 @@ int doublechararray(char** pmem, uint64_t* size)
    *size <<= 1;
    if (*size == 0) {
       /* Overflowed uint64_t. */
-      db->errx(db, "%s: Line %llu: Line too long.\n", g.progname, g.linenumber);
+      db->errx(db, "Line %llu: Line too long.\n", g.linenumber);
       goto error;
    }
    if ((*pmem = (char*)realloc(*pmem, *size)) == NULL) {
-      db->errx(db, "%s: %s\n", g.progname, strerror(errno));
+      db->err(db, errno, "");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -725,8 +729,12 @@ int get_dbt(DBT* pdbt)
 
    /* *pdbt should have been memset to 0 before being called. */
    which = 1 - which;
-   if (data[which] == NULL) data[which] = (char*)malloc(datasize[which] * sizeof(char));
-   //TODO: Test for ENOMEM/error here.
+   if (data[which] == NULL &&
+      (data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
+      db->err(db, errno, "");
+      goto error;
+   }
+   
    datum = data[which];
 
    if (g.plaintext) {
@@ -898,7 +906,7 @@ int read_keys()
             if (fgets(footer, sizeof("ATA=END\n"), stdin) != NULL &&
                (!strcmp(footer, "ATA=END") || !strcmp(footer, "ATA=END\n")))
             {
-               goto error;
+               goto success;
             }
             goto unexpectedinput;
          }
@@ -946,7 +954,7 @@ int close_database()
    int retval;
 
    assert(db);
-   if (db->close(db, 0)) {
+   if ((retval = db->close(db, 0)) != 0) {
       dbenv->err(dbenv, retval, "DB->close");
       goto error;
    }
