@@ -166,7 +166,7 @@ enum mysql_option
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
-  MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+  MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT, MYSQL_OPT_BIND,
   MYSQL_OPT_SSL_VERIFY_SERVER_CERT
 };
 
@@ -206,6 +206,8 @@ struct st_mysql_options {
 #endif
   enum mysql_option methods_to_use;
   char *client_ip;
+  char *bind_name;
+
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
   /* 0 - never report, 1 - always report (default) */
