@@ -1334,12 +1334,13 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
+  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
   # list of all features and settings
   #
-  my $list= `$exe_mysqld --no-defaults --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1394,7 +1395,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-
+  rmtree($tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -5006,7 +5007,7 @@ sub valgrind_arguments {
   }
 
   # Add valgrind options, can be overriden by user
-  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
+  mtr_add_arg($args, '%s', $opt_valgrind_options);
 
   mtr_add_arg($args, $$exe);
 
@@ -5079,12 +5080,16 @@ Options to control what test suites or cases to run
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
   ndb-extra             Run extra tests from ndb directory
-  do-test=PREFIX        Run test cases which name are prefixed with PREFIX
+  do-test=PREFIX or REGEX
+                        Run test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
+  skip-test=PREFIX or REGEX
+                        Skip test cases which name are prefixed with PREFIX
+                        or fulfills REGEX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
-  skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
 
