@@ -14,5 +14,8 @@ check32: sample_offsets_local
 	./sample_offsets_local
 	diff sample_offsets_local.h sample_offsets_32.h
 
+install: db.h
+	cp db.h ../include/
+
 # Note: To make the ompile work, you must cd to the ../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix
 # and do ../dist/configure
