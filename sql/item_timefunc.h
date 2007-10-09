@@ -962,7 +962,10 @@ class Item_func_maketime :public Item_str_timefunc
 {
 public:
   Item_func_maketime(Item *a, Item *b, Item *c)
-    :Item_str_timefunc(a, b ,c) {}
+    :Item_str_timefunc(a, b, c) 
+  {
+    maybe_null= TRUE;
+  }
   String *val_str(String *str);
   const char *func_name() const { return "maketime"; }
 };
