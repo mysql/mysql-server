@@ -1,4 +1,7 @@
 /* BDB offsets on a 64-bit machine */
+#define DB_VERSION_MAJOR_64 4
+#define DB_VERSION_MINOR_64 1
+#define DB_VERSION_STRING_64 "Berkeley DB Compatability Header 4.1"
 struct fieldinfo db_btree_stat_fields64[] = {
   {"u_int32_t bt_nkeys", 12, 4},
   {"u_int32_t bt_ndata", 16, 4},
@@ -12,7 +15,6 @@ struct fieldinfo db_env_fields64[] = {
   {"void (*set_errcall) (DB_ENV *, void (*)(const char *, char *))", 520, 8},
   {"void (*set_errpfx) (DB_ENV *, const char *)", 536, 8},
   {"int  (*set_flags) (DB_ENV *, u_int32_t, int)", 552, 8},
-  {"void (*set_noticecall) (DB_ENV *, void (*)(DB_ENV *, db_notices))", 560, 8},
   {"int  (*set_tmp_dir) (DB_ENV *, const char *)", 600, 8},
   {"int  (*set_verbose) (DB_ENV *, u_int32_t, int)", 608, 8},
   {"int  (*set_lg_bsize) (DB_ENV *, u_int32_t)", 624, 8},
@@ -59,6 +61,7 @@ struct fieldinfo db_txn_active_fields64[] = {
   {0, 16, 16} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields64[] = {
+  {"int (*abort) __P((DB_TXN *)", 128, 8},
   {"int (*commit) (DB_TXN*, u_int32_t)", 136, 8},
   {"u_int32_t (*id) (DB_TXN *)", 152, 8},
   {0, 184, 184} /* size of whole struct */
@@ -78,7 +81,6 @@ struct fieldinfo dbt_fields64[] = {
   {"void*data", 0, 8},
   {"u_int32_t size", 8, 4},
   {"u_int32_t ulen", 12, 4},
-  {"void*app_private", 24, 8},
   {"u_int32_t flags", 32, 4},
   {0, 40, 40} /* size of whole struct */
 };
