@@ -27,6 +27,26 @@ sub collect_one_test_case ($$$$$$$);
 
 sub mtr_options_from_test_file($$);
 
+my $do_test;
+my $skip_test;
+
+sub init_pattern {
+  my ($from, $what)= @_;
+  if ( $from =~ /[a-z0-9]/ ) {
+    # Does not contain any regex, make the pattern match
+    # beginning of string
+    $from= "^$from";
+  }
+  else {
+    # Check that pattern is a valid regex
+    eval { "" =~/$from/; 1 } or
+      mtr_error("Invalid regex '$from' passed to $what\nPerl says: $@");
+  }
+  return $from;
+}
+
+
+
 ##############################################################################
 #
 #  Collect information about test cases we are to run
@@ -38,6 +58,9 @@ sub collect_test_cases ($) {
 
   my $testdir;
   my $resdir;
+
+  $do_test= init_pattern($::opt_do_test, "--do-test");
+  $skip_test= init_pattern($::opt_skip_test, "--skip-test");
 
   if ( $suite eq "main" )
   {
@@ -162,8 +185,7 @@ sub collect_test_cases ($) {
       }
 
       # Skip tests that does not match the --do-test= filter
-      next if $::opt_do_test and
-	! defined mtr_match_prefix($elem,$::opt_do_test);
+      next if ($do_test and not $tname =~ /$do_test/o);
 
       collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
         $component_id);
@@ -288,7 +310,7 @@ sub collect_one_test_case($$$$$$$) {
   # Skip some tests but include in list, just mark them to skip
   # ----------------------------------------------------------------------
 
-  if ( $::opt_skip_test and defined mtr_match_prefix($tname,$::opt_skip_test) )
+  if ( $skip_test and $tname =~ /$skip_test/o )
   {
     $tinfo->{'skip'}= 1;
     return;
