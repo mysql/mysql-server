@@ -24,6 +24,7 @@
 #include "ma_recovery.h"
 #include "ma_blockrec.h"
 #include "trnman.h"
+#include "ma_checkpoint.h"
 
 struct st_trn_for_recovery /* used only in the REDO phase */
 {
@@ -106,7 +107,7 @@ static int new_table(uint16 sid, const char *name,
 static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
                     struct st_dirty_page *dirty_page);
 static int close_all_tables(void);
-static my_bool close_one_table(const char *name, LSN addr);
+static my_bool close_one_table(const char *name, TRANSLOG_ADDRESS addr);
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr);
 
 /** @brief global [out] buffer for translog_read_record(); never shrinks */
@@ -169,7 +170,7 @@ int maria_recover(void)
 #endif
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
-  res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE, TRUE);
+  res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE, TRUE, TRUE);
   if (!res)
     tprint(trace_file, "SUCCESS\n");
   if (trace_file)
@@ -186,8 +187,9 @@ int maria_recover(void)
                            LSN_IMPOSSIBLE means "use last checkpoint"
    @param  apply           if log records should be applied or not
    @param  trace_file      trace file where progress/debug messages will go
-   @param  skip_DDLs       Should DDL records (CREATE/RENAME/DROP/REPAIR)
+   @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
                            be skipped by the REDO phase or not
+   @param  take_checkpoints Should we take checkpoints or not.
 
    @todo This trace_file thing is primitive; soon we will make it similar to
    ma_check_print_warning() etc, and a successful recovery does not need to
@@ -199,7 +201,8 @@ int maria_recover(void)
 */
 
 int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
-                    my_bool should_run_undo_phase, my_bool skip_DDLs_arg)
+                    my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
+                    my_bool take_checkpoints)
 {
   int error= 0;
   uint unfinished_trans;
@@ -207,6 +210,8 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
 
   DBUG_ASSERT(apply || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
+  /* checkpoints can happen only if TRNs have been built */
+  DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
     my_malloc((SHORT_TRID_MAX + 1) * sizeof(struct st_trn_for_recovery),
               MYF(MY_ZEROFILL));
@@ -260,28 +265,34 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     else
     {
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
-      if (from_lsn == LSN_IMPOSSIBLE)
-        goto err;
-      from_lsn= translog_next_LSN(from_lsn, LSN_IMPOSSIBLE);
       if (from_lsn == LSN_ERROR)
         goto err;
-      /*
-        from_lsn LSN_IMPOSSIBLE will be correctly processed
-        by run_redo_phase()
-      */
     }
   }
 
   if (run_redo_phase(from_lsn, apply))
     goto err;
 
-  unfinished_trans= end_of_redo_phase(should_run_undo_phase);
-  if (unfinished_trans == (uint)-1)
+  if ((unfinished_trans=
+       end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
     goto err;
+
+  if (take_checkpoints)
+  {
+    /*
+      We take a checkpoint as it can save future recovery work if we crash
+      during the UNDO phase. But we don't flush pages, as UNDOs will change
+      them again probably.
+    */
+    if (ma_checkpoint_init(FALSE) ||
+        ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
+      goto err;
+  }
+
   if (should_run_undo_phase)
   {
     if (run_undo_phase(unfinished_trans))
-      return 1;
+      goto err;
   }
   else if (unfinished_trans > 0)
     tprint(tracef, "WARNING: %u unfinished transactions; some tables may be"
@@ -294,7 +305,13 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (close_all_tables())
     goto err;
 
-  /* If inside ha_maria, a checkpoint will soon be taken and save our work */
+  if (take_checkpoints)
+  {
+    /* No dirty pages, all tables are closed, no active transactions, save: */
+    if (ma_checkpoint_execute(CHECKPOINT_FULL, FALSE))
+      goto err;
+  }
+
   goto end;
 err:
   error= 1;
@@ -311,6 +328,7 @@ end:
   my_free(log_record_buffer.str, MYF(MY_ALLOW_ZERO_PTR));
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
+  ma_checkpoint_end();
   if (tracef != stdout && redo_phase_message_printed)
   {
     ulonglong old_now= now;
@@ -372,7 +390,14 @@ prototype_redo_exec_hook(LONG_TRANSACTION_ID)
   if (long_trid != 0)
   {
     LSN ulsn= all_active_trans[sid].undo_lsn;
-    if (ulsn != LSN_IMPOSSIBLE)
+    /*
+      If the first record of that transaction is after 'rec', it's probably
+      because that transaction was found in the checkpoint record, and then
+      it's ok, we can forget about that transaction (we'll meet it later
+      again in the REDO phase) and replace it with the one in 'rec'.
+    */
+    if ((ulsn != LSN_IMPOSSIBLE) &&
+        (cmp_translog_addr(ulsn, rec->lsn) < 0))
     {
       char llbuf[22];
       llstr(long_trid, llbuf);
@@ -442,6 +467,11 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   }
   name= log_record_buffer.str;
   tprint(tracef, "Table '%s'", name);
+  /*
+    TRUNCATE TABLE and REPAIR USE_FRM call maria_create(), so below we can
+    find a REDO_CREATE_TABLE for a table which we have open, that's why we
+    need to look for any open instances and close them first.
+  */
   if (close_one_table(name, rec->lsn))
   {
     tprint(tracef, " got error %d on close\n", my_errno);
@@ -620,10 +650,6 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
   if (info)
   {
     MARIA_SHARE *share= info->s;
-    /*
-      We may have open instances on this table. But it does not matter, the
-      maria_extra() below will take care of them.
-    */
     if (!share->base.born_transactional)
     {
       tprint(tracef, ", is not transactional, ignoring renaming\n");
@@ -645,12 +671,7 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
       ALERT_USER();
       goto end;
     }
-    /*
-      This maria_extra() call serves to signal that old open instances of
-      this table should not be used anymore, and (only on Windows) to close
-      open files so they can be renamed
-    */
-    if (maria_extra(info, HA_EXTRA_PREPARE_FOR_RENAME, NULL) ||
+    if (close_one_table(info->s->open_file_name, rec->lsn) ||
         maria_close(info))
       goto end;
     info= NULL;
@@ -822,10 +843,6 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
   if (info)
   {
     MARIA_SHARE *share= info->s;
-    /*
-      We may have open instances on this table. But it does not matter, the
-      maria_extra() below will take care of them.
-    */
     if (!share->base.born_transactional)
     {
       tprint(tracef, ", is not transactional, ignoring removal\n");
@@ -847,12 +864,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE)
       ALERT_USER();
       goto end;
     }
-    /*
-      This maria_extra() call serves to signal that old open instances of
-      this table should not be used anymore, and (only on Windows) to close
-      open files so they can be deleted
-    */
-    if (maria_extra(info, HA_EXTRA_PREPARE_FOR_DROP, NULL) ||
+    if (close_one_table(info->s->open_file_name, rec->lsn) ||
         maria_close(info))
       goto end;
     info= NULL;
@@ -942,7 +954,7 @@ static int new_table(uint16 sid, const char *name,
   {
     tprint(tracef, ", is absent (must have been dropped later?)"
            " or its header is so corrupted that we cannot open it;"
-           " we skip it\n");
+           " we skip it");
     error= 0;
     goto end;
   }
@@ -1692,8 +1704,6 @@ err:
    @brief Informs about any aborted groups or unfinished transactions,
    prepares for the UNDO phase if needed.
 
-   @param  prepare_for_undo_phase
-
    @note Observe that it may init trnman.
 */
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
@@ -1773,24 +1783,6 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
         translog_assign_id_to_share_from_recovery(info->s, sid);
     }
   }
-
-#if 0 /* will be enabled soon */
-  if (prepare_for_undo_phase)
-  {
-    /*
-      We take a checkpoint as it can save future recovery work if we crash
-      soon. But we don't flush pages, as UNDOs would change them again
-      probably.
-    */
-    if (ma_checkpoint_init(FALSE))
-      return -1;
-    int res= ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE);
-    ma_checkpoint_end();
-    if (res)
-      unfinished= -1;
-  }
-#endif
-
   return unfinished;
 }
 
@@ -1984,17 +1976,18 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
    @brief Parses checkpoint record.
 
    Builds from it the dirty_pages list (a hash), opens tables and maps them to
-   their 2-byte IDs,  recreates transactions (not real TRNs though).
+   their 2-byte IDs, recreates transactions (not real TRNs though).
 
-   @return From where in the log the REDO phase should start
-     @retval LSN_IMPOSSIBLE error
-     @retval other          ok
+   @return LSN from where in the log the REDO phase should start
+     @retval LSN_ERROR error
+     @retval other     ok
 */
 
 static LSN parse_checkpoint_record(LSN lsn)
 {
   ulong i;
   TRANSLOG_HEADER_BUFFER rec;
+  TRANSLOG_ADDRESS start_address;
 
   tprint(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
          LSN_IN_PARTS(lsn));
@@ -2003,7 +1996,7 @@ static LSN parse_checkpoint_record(LSN lsn)
   if (len == RECHEADER_READ_ERROR)
   {
     tprint(tracef, "Cannot find checkpoint record where it should be\n");
-    return LSN_IMPOSSIBLE;
+    return LSN_ERROR;
   }
 
   enlarge_buffer(&rec);
@@ -2013,11 +2006,11 @@ static LSN parse_checkpoint_record(LSN lsn)
       rec.record_length)
   {
     tprint(tracef, "Failed to read record\n");
-    return LSN_IMPOSSIBLE;
+    return LSN_ERROR;
   }
 
   char *ptr= log_record_buffer.str;
-  checkpoint_start= lsn_korr(ptr);
+  start_address= lsn_korr(ptr);
   ptr+= LSN_STORE_SIZE;
 
   /* transactions */
@@ -2031,7 +2024,7 @@ static LSN parse_checkpoint_record(LSN lsn)
     how much brain juice and discussions there was to come to writing this
     line
   */
-  set_if_smaller(checkpoint_start, minimum_rec_lsn_of_active_transactions);
+  set_if_smaller(start_address, minimum_rec_lsn_of_active_transactions);
 
   for (i= 0; i < nb_active_transactions; i++)
   {
@@ -2073,7 +2066,7 @@ static LSN parse_checkpoint_record(LSN lsn)
     ptr+= name_len;
     strnmov(name, ptr, sizeof(name));
     if (new_table(sid, name, kfile, dfile, first_log_write_lsn))
-      return LSN_IMPOSSIBLE;
+      return LSN_ERROR;
   }
 
   /* dirty pages */
@@ -2084,13 +2077,13 @@ static LSN parse_checkpoint_record(LSN lsn)
                 offsetof(struct st_dirty_page, file_and_page_id),
                 sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
                 NULL, NULL, 0))
-    return LSN_IMPOSSIBLE;
+    return LSN_ERROR;
   dirty_pages_pool=
     (struct st_dirty_page *)my_malloc(nb_dirty_pages *
                                       sizeof(struct st_dirty_page),
                                       MYF(MY_WME));
   if (unlikely(dirty_pages_pool == NULL))
-    return LSN_IMPOSSIBLE;
+    return LSN_ERROR;
   struct st_dirty_page *next_dirty_page_in_pool= dirty_pages_pool;
   LSN minimum_rec_lsn_of_dirty_pages= LSN_MAX;
   for (i= 0; i < nb_dirty_pages ; i++)
@@ -2102,7 +2095,7 @@ static LSN parse_checkpoint_record(LSN lsn)
     LSN rec_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     if (new_page(fileid, pageid, rec_lsn, next_dirty_page_in_pool++))
-      return LSN_IMPOSSIBLE;
+      return LSN_ERROR;
     set_if_smaller(minimum_rec_lsn_of_dirty_pages, rec_lsn);
   }
   /* after that, there will be no insert/delete into the hash */
@@ -2113,10 +2106,23 @@ static LSN parse_checkpoint_record(LSN lsn)
   if (ptr != (log_record_buffer.str + log_record_buffer.length))
   {
     tprint(tracef, "checkpoint record corrupted\n");
-    return LSN_IMPOSSIBLE;
+    return LSN_ERROR;
   }
-  set_if_smaller(checkpoint_start, minimum_rec_lsn_of_dirty_pages);
+  set_if_smaller(start_address, minimum_rec_lsn_of_dirty_pages);
 
+  /*
+    Find LSN higher or equal to this TRANSLOG_ADDRESS, suitable for
+    translog_read_record() functions
+  */
+  checkpoint_start= translog_next_LSN(start_address, LSN_IMPOSSIBLE);
+  if (checkpoint_start == LSN_IMPOSSIBLE)
+  {
+    /*
+      There must be a problem, as our checkpoint record exists and is >= the
+      address which is stored in its first bytes, which is >= start_address.
+    */
+    return LSN_ERROR;
+  }
   return checkpoint_start;
 }
 
@@ -2169,35 +2175,30 @@ end:
 }
 
 
-/* Close one table during redo phase */
+/**
+   @brief Close all table instances with a certain name which are present in
+   all_tables.
 
-static my_bool close_one_table(const char *open_name, LSN addr)
+   @param  name                Name of table
+   @param  addr                Log address passed to prepare_table_for_close()
+*/
+
+static my_bool close_one_table(const char *name, TRANSLOG_ADDRESS addr)
 {
   my_bool res= 0;
-  LIST *pos;
   /* There are no other threads using the tables, so we don't need any locks */
-  for (pos=maria_open_list ; pos ;)
+  struct st_table_for_recovery *internal_table, *end;
+  for (internal_table= all_tables, end= internal_table + SHARE_ID_MAX + 1;
+       internal_table < end ;
+       internal_table++)
   {
-    MARIA_HA *info= (MARIA_HA*) pos->data;
-    MARIA_SHARE *share= info->s;
-    pos= pos->next;
-    if (!strcmp(share->open_file_name, open_name))
+    MARIA_HA *info= internal_table->info;
+    if ((info != NULL) && !strcmp(info->s->open_file_name, name))
     {
-      struct st_table_for_recovery *internal_table, *end;
-
-      for (internal_table= all_tables, end= internal_table + SHARE_ID_MAX + 1;
-           internal_table < end ;
-           internal_table++)
-      {
-        if (internal_table->info == info)
-        {
-          internal_table->info= 0;
-          break;
-        }
-      }
       prepare_table_for_close(info, addr);
       if (maria_close(info))
         res= 1;
+      internal_table->info= NULL;
     }
   }
   return res;

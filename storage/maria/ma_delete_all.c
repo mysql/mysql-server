@@ -95,7 +95,8 @@ int maria_delete_all_rows(MARIA_HA *info)
     The operations above on the index/data file will be forced to disk at
     Checkpoint or maria_close() time. So we can reset:
   */
-  info->trn->rec_lsn= LSN_IMPOSSIBLE;
+  if (log_record)
+    info->trn->rec_lsn= LSN_IMPOSSIBLE;
 
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP

@@ -390,6 +390,7 @@ void ma_checkpoint_end(void)
     pthread_mutex_unlock(&LOCK_checkpoint);
     my_free((uchar *)dfiles, MYF(MY_ALLOW_ZERO_PTR));
     my_free((uchar *)kfiles, MYF(MY_ALLOW_ZERO_PTR));
+    dfiles= kfiles= NULL;
     pthread_mutex_destroy(&LOCK_checkpoint);
     pthread_cond_destroy(&COND_checkpoint);
     checkpoint_inited= FALSE;
@@ -563,6 +564,8 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
     TRANSLOG_ADDRESS log_horizon_at_last_checkpoint= LSN_IMPOSSIBLE;
     ulonglong pagecache_flushes_at_last_checkpoint= 0;
     struct timespec abstime;
+    LINT_INIT(kfile);
+    LINT_INIT(dfile);
     switch((sleeps++) % time_between_checkpoints)
     {
     case 0:
@@ -731,6 +734,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     *state_copies_end, /**< cache ends here */
     *state_copy; /**< iterator in cache */
   TRANSLOG_ADDRESS state_copies_horizon; /**< horizon of states' _copies_ */
+  LINT_INIT(state_copies_horizon);
   DBUG_ENTER("collect_tables");
 
   /* let's make a list of distinct shares */

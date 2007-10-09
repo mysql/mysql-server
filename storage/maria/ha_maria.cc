@@ -2401,9 +2401,7 @@ static int ha_maria_init(void *p)
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
     maria_recover() ||
-    ma_checkpoint_init(FALSE) ||
-    /* One checkpoint after Recovery */
-    ma_checkpoint_execute(CHECKPOINT_FULL, FALSE);
+    ma_checkpoint_init(FALSE);
   maria_multi_threaded= TRUE;
   return res;
 }

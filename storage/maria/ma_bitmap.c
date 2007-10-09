@@ -217,6 +217,9 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   bitmap->page= ~(ulonglong) 0;
   bitmap->used_size= bitmap->total_size;
   bfill(bitmap->map, share->block_size, 255);
+#ifndef DBUG_OFF
+  memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+#endif
   if (share->state.first_bitmap_with_space == ~(ulonglong) 0)
   {
     /* Start scanning for free space from start of file */
