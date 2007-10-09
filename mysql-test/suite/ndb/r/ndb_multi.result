@@ -121,3 +121,24 @@ show tables;
 Tables_in_db
 t2
 drop database db;
+use test;
+create table `test`.`t1$EX`
+ (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+primary key(server_id, master_server_id,
+master_epoch, count))
+engine ndb;
+show tables like '%$%';
+Tables_in_test (%$%)
+t1$EX
+use test;
+show tables like '%$%';
+Tables_in_test (%$%)
+t1$EX
+drop table `test`.`t1$EX`;
+show tables like '%$%';
+Tables_in_test (%$%)
+show tables like '%$%';
+Tables_in_test (%$%)
