@@ -456,7 +456,11 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   if (my_write(fd, query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
+  {
+    my_close(fd, MYF(0));
+    my_delete(query_file_path, MYF(0));
     die("Failed to write to '%s'", query_file_path);
+  }
 
   ret= run_tool(mysql_path,
                 ds_res,
