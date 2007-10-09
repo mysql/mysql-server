@@ -42,8 +42,7 @@ static uint rnd(uint max_value);
 static void fix_length(uchar *record,uint length);
 static void put_blob_in_record(char *blob_pos,char **blob_buffer,
                                ulong *length);
-static void copy_key(struct st_maria_info *info,uint inx,
-		     uchar *record,uchar *key);
+static void copy_key(MARIA_HA *info, uint inx, uchar *record, uchar *key);
 
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,pagecacheing=0,write_cacheing=0,locking=0,
@@ -300,8 +299,6 @@ int main(int argc, char *argv[])
       }
     }
   }
-  if (testflag == 2)
-    goto end;
 
   if (write_cacheing)
   {
@@ -311,6 +308,10 @@ int main(int argc, char *argv[])
       goto err;
     }
   }
+
+  if (testflag == 2)
+    goto end;
+
 #ifdef REMOVE_WHEN_WE_HAVE_RESIZE
   if (pagecacheing)
     resize_pagecache(maria_pagecache, maria_block_size,
@@ -453,7 +454,7 @@ int main(int argc, char *argv[])
       info.recpos= maria_position(file);
       int skr=maria_rnext(file,read_record2,0);
       if ((skr && my_errno != HA_ERR_END_OF_FILE) ||
-	  maria_rprev(file,read_record2,-1) ||
+	  maria_rprev(file,read_record2,0) ||
 	  memcmp(read_record,read_record2,reclength) != 0 ||
           info.recpos != maria_position(file))
       {
@@ -872,7 +873,7 @@ int main(int argc, char *argv[])
 	goto err;
       }
       opt_delete++;
-#if 0
+#if TO_BE_REMOVED
       /
       /*
         179 is ok, 180 causes a difference between runtime and log-applying.

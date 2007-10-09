@@ -902,6 +902,18 @@ int my_getpagesize(void);
 
 int my_msync(int, void *, size_t, int);
 
+#define MY_UUID_SIZE 16
+void my_uuid_init(ulong seed1, ulong seed2);
+void my_uuid(uchar *guid);
+
+struct my_rnd_struct {
+  unsigned long seed1,seed2,max_value;
+  double max_value_dbl;
+};
+
+void my_rnd_init(struct my_rnd_struct *rand_st, ulong seed1, ulong seed2);
+double my_rnd(struct my_rnd_struct *rand_st);
+
 /* character sets */
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);

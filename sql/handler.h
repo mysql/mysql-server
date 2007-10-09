@@ -327,6 +327,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
+#define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -786,6 +787,7 @@ typedef struct st_ha_create_information
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
+  enum ha_choice page_checksum;         /* If we have page_checksums */
 } HA_CREATE_INFO;
 
 

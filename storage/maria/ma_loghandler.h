@@ -46,7 +46,7 @@
 /* short transaction ID type */
 typedef uint16 SHORT_TRANSACTION_ID;
 
-struct st_maria_info;
+struct st_maria_handler;
 
 /* Length of CRC at end of pages */
 #define CRC_LENGTH 4
@@ -228,7 +228,7 @@ extern my_bool translog_init(const char *directory, uint32 log_file_max_size,
 extern my_bool
 translog_write_record(LSN *lsn, enum translog_record_type type,
                       struct st_transaction *trn,
-                      struct st_maria_info *tbl_info,
+                      MARIA_HA *tbl_info,
                       translog_size_t rec_len, uint part_no,
                       LEX_STRING *parts_data, uchar *store_share_id);
 
@@ -263,7 +263,7 @@ extern my_bool translog_unlock();
 extern void translog_lock_assert_owner();
 extern TRANSLOG_ADDRESS translog_get_horizon();
 extern TRANSLOG_ADDRESS translog_get_horizon_no_lock();
-extern int translog_assign_id_to_share(struct st_maria_info *tbl_info,
+extern int translog_assign_id_to_share(struct st_maria_handler *tbl_info,
                                        struct st_transaction *trn);
 extern void translog_deassign_id_from_share(struct st_maria_share *share);
 extern void
@@ -298,11 +298,13 @@ struct st_translog_parts
 };
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,
-                                     TRN *trn, struct st_maria_info *tbl_info,
+                                     TRN *trn,
+                                     struct st_maria_handler *tbl_info,
                                      struct st_translog_parts *parts);
 
 typedef my_bool(*inwrite_rec_hook) (enum translog_record_type type,
-                                    TRN *trn, struct st_maria_info *tbl_info,
+                                    TRN *trn,
+                                    struct st_maria_handler *tbl_info,
                                     LSN *lsn,
                                     struct st_translog_parts *parts);
 

@@ -830,6 +830,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
     case HA_ERR_OLD_FILE:
       _ma_check_print_error(param,"'%s' is a old type of MARIA-table", filename);
       break;
+    case HA_ERR_NEW_FILE:
+      _ma_check_print_error(param,"'%s' uses new features not supported by this version of the MARIA library", filename);
+      break;
     case HA_ERR_END_OF_FILE:
       _ma_check_print_error(param,"Couldn't read complete header from '%s'", filename);
       break;
@@ -1302,6 +1305,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
 
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      printf("Page checksums are used\n");
   }
   printf("Data records:        %16s  Deleted blocks:     %18s\n",
 	 llstr(info->state->records,llbuff),llstr(info->state->del,llbuff2));
@@ -1381,7 +1386,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     else
       buff[0]=0;
     if (param->testflag & T_VERBOSE)
-      printf("%11lu %12s %10d",
+      printf("%11.0g %12s %10d",
 	     share->state.rec_per_key_part[keyseg_nr++],
 	     buff,keyinfo->block_length);
     VOID(putchar('\n'));
@@ -1402,7 +1407,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       printf("    %-6ld%-3d         %-21s",
 	     (long) keyseg->start+1,keyseg->length,buff);
       if (param->testflag & T_VERBOSE)
-	printf("%11lu", share->state.rec_per_key_part[keyseg_nr++]);
+	printf("%11.0g", share->state.rec_per_key_part[keyseg_nr++]);
       VOID(putchar('\n'));
     }
     keyseg++;
@@ -1681,7 +1686,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   HA_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
-  nod_flag=_ma_test_if_nod(buff);
+  nod_flag=_ma_test_if_nod(info, buff);
   temp_buff=0;
 
   if (nod_flag)
@@ -1692,9 +1697,9 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       DBUG_RETURN(-1);
     }
   }
-  used_length= maria_data_on_page(buff);
-  keypos=buff+2+nod_flag;
-  endpos=buff+used_length;
+  used_length= _ma_get_page_used(info, buff);
+  keypos= buff + info->s->keypage_header + nod_flag;
+  endpos= buff + used_length;
   for ( ;; )
   {
     _sanity(__FILE__,__LINE__);

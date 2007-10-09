@@ -130,8 +130,11 @@
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
 
-/** all bitmap pages end with this 2-byte signature */
-uchar maria_bitmap_marker[2]= {(uchar) 'b',(uchar) 'm'};
+/* If we don't have page checksum enabled, the bitmap page ends with this */
+uchar maria_bitmap_marker[4]=
+{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 254};
+uchar maria_normal_page_marker[4]=
+{(uchar) 255, (uchar) 255, (uchar) 255, (uchar) 255};
 
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
@@ -186,7 +189,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   bitmap->changed= 0;
   bitmap->block_size= share->block_size;
   /* Size needs to be alligned on 6 */
-  aligned_bit_blocks= share->block_size / 6;
+  aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
   bitmap->total_size= aligned_bit_blocks * 6;
   /*
     In each 6 bytes, we have 6*8/3 = 16 pages covered
@@ -452,10 +455,6 @@ static void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap)
   fprintf(DBUG_FILE,"\nBitmap page changes at page %lu\n",
           (ulong) bitmap->page);
 
-  DBUG_ASSERT(memcmp(bitmap->map + bitmap->block_size -
-                     sizeof(maria_bitmap_marker),
-                     maria_bitmap_marker, sizeof(maria_bitmap_marker)) == 0);
-
   page= (ulong) bitmap->page+1;
   for (pos= bitmap->map, org_pos= bitmap->map + bitmap->block_size ;
        pos < end ;
@@ -541,14 +540,30 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
   }
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
-  res= ((pagecache_read(share->pagecache,
+  res= pagecache_read(share->pagecache,
                        (PAGECACHE_FILE*)&bitmap->file, page, 0,
                        (uchar*) bitmap->map,
                        PAGECACHE_PLAIN_PAGE,
-                       PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL) ||
-        memcmp(bitmap->map + bitmap->block_size -
-               sizeof(maria_bitmap_marker),
-               maria_bitmap_marker, sizeof(maria_bitmap_marker)));
+                      PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == NULL;
+
+  /*
+    We can't check maria_bitmap_marker here as if the bitmap page
+    previously had a true checksum and the user switched mode to not checksum
+    this may have any value, except maria_normal_page_marker.
+
+    Using maria_normal_page_marker gives us a protection against bugs
+    when running without any checksums.
+  */
+
+  if (!res && !(share->options & HA_OPTION_PAGE_CHECKSUM) &&
+      !memcmp(bitmap->map + bitmap->block_size -
+              sizeof(maria_normal_page_marker),
+              maria_normal_page_marker,
+              sizeof(maria_normal_page_marker)))
+  {
+    res= 1;
+    my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
+  }
 #ifndef DBUG_OFF
   if (!res)
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
@@ -1425,6 +1440,7 @@ static my_bool write_rest_of_head(MARIA_HA *info, uint position,
        row->space_on_head_page contains minimum number of bytes we
        expect to put on the head page.
     1  error
+       my_errno is set to error
 */
 
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
@@ -2065,9 +2081,16 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 { 
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
+  char marker[sizeof(maria_bitmap_marker)];
+
+  if (share->options & HA_OPTION_PAGE_CHECKSUM)
+    bzero(marker, sizeof(marker));
+  else
+    bmove(marker, maria_bitmap_marker, sizeof(marker));
+
   if (my_chsize(file, block_size - sizeof(maria_bitmap_marker),
                 0, MYF(MY_WME)) ||
-      my_pwrite(file, maria_bitmap_marker, sizeof(maria_bitmap_marker),
+      my_pwrite(file, marker, sizeof(maria_bitmap_marker),
                 block_size - sizeof(maria_bitmap_marker),
                 MYF(MY_NABP | MY_WME)))
     return 1;

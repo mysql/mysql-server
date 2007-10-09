@@ -64,10 +64,10 @@
 #define RT_CMP_KORR(type, korr_func, len, nextflag) \
 { \
   type amin, amax, bmin, bmax; \
-  amin = korr_func(a); \
-  bmin = korr_func(b); \
-  amax = korr_func(a+len); \
-  bmax = korr_func(b+len); \
+  amin= korr_func(a); \
+  bmin= korr_func(b); \
+  amax= korr_func(a+len); \
+  bmax= korr_func(b+len); \
   RT_CMP(nextflag); \
 }
 
@@ -153,7 +153,7 @@ int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
 end:
   if (nextflag & MBR_DATA)
   {
-    uchar *end = a + keyseg->length;
+    uchar *end= a + keyseg->length;
     do
     {
       if (*a++ != *b++)
@@ -166,8 +166,8 @@ end:
 #define RT_VOL_KORR(type, korr_func, len, cast) \
 { \
   type amin, amax; \
-  amin = korr_func(a); \
-  amax = korr_func(a+len); \
+  amin= korr_func(a); \
+  amax= korr_func(a+len); \
   res *= (cast(amax) - cast(amin)); \
 }
 
@@ -184,7 +184,7 @@ end:
 */
 double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
 {
-  double res = 1;
+  double res= 1;
   for (; (int)key_length > 0; keyseg += 2)
   {
     uint32 keyseg_length;
@@ -228,7 +228,7 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
       RT_VOL_GET(double, mi_float8get, 8, (double));
       break;
     case HA_KEYTYPE_END:
-      key_length = 0;
+      key_length= 0;
       break;
     default:
       return -1;
@@ -243,10 +243,10 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
 #define RT_D_MBR_KORR(type, korr_func, len, cast) \
 { \
   type amin, amax; \
-  amin = korr_func(a); \
-  amax = korr_func(a+len); \
-  *res++ = cast(amin); \
-  *res++ = cast(amax); \
+  amin= korr_func(a); \
+  amax= korr_func(a+len); \
+  *res++= cast(amin); \
+  *res++= cast(amax); \
 }
 
 #define RT_D_MBR_GET(type, get_func, len, cast) \
@@ -254,8 +254,8 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   type amin, amax; \
   get_func(amin, a); \
   get_func(amax, a+len); \
-  *res++ = cast(amin); \
-  *res++ = cast(amax); \
+  *res++= cast(amin); \
+  *res++= cast(amax); \
 }
 
 
@@ -308,7 +308,7 @@ int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
       RT_D_MBR_GET(double, mi_float8get, 8, (double));
       break;
     case HA_KEYTYPE_END:
-      key_length = 0;
+      key_length= 0;
       break;
     default:
       return 1;
@@ -323,12 +323,12 @@ int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
 #define RT_COMB_KORR(type, korr_func, store_func, len) \
 { \
   type amin, amax, bmin, bmax; \
-  amin = korr_func(a); \
-  bmin = korr_func(b); \
-  amax = korr_func(a+len); \
-  bmax = korr_func(b+len); \
-  amin = min(amin, bmin); \
-  amax = max(amax, bmax); \
+  amin= korr_func(a); \
+  bmin= korr_func(b); \
+  amax= korr_func(a+len); \
+  bmax= korr_func(b+len); \
+  amin= min(amin, bmin); \
+  amax= max(amax, bmax); \
   store_func(c, amin); \
   store_func(c+len, amax); \
 }
@@ -340,8 +340,8 @@ int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
   get_func(bmin, b); \
   get_func(amax, a+len); \
   get_func(bmax, b+len); \
-  amin = min(amin, bmin); \
-  amax = max(amax, bmax); \
+  amin= min(amin, bmin); \
+  amax= max(amax, bmax); \
   store_func(c, amin); \
   store_func(c+len, amax); \
 }
@@ -415,12 +415,12 @@ int maria_rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
 #define RT_OVL_AREA_KORR(type, korr_func, len) \
 { \
   type amin, amax, bmin, bmax; \
-  amin = korr_func(a); \
-  bmin = korr_func(b); \
-  amax = korr_func(a+len); \
-  bmax = korr_func(b+len); \
-  amin = max(amin, bmin); \
-  amax = min(amax, bmax); \
+  amin= korr_func(a); \
+  bmin= korr_func(b); \
+  amax= korr_func(a+len); \
+  bmax= korr_func(b+len); \
+  amin= max(amin, bmin); \
+  amax= min(amax, bmax); \
   if (amin >= amax) \
     return 0; \
   res *= amax - amin; \
@@ -433,8 +433,8 @@ int maria_rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
   get_func(bmin, b); \
   get_func(amax, a+len); \
   get_func(bmax, b+len); \
-  amin = max(amin, bmin); \
-  amax = min(amax, bmax); \
+  amin= max(amin, bmin); \
+  amax= min(amax, bmax); \
   if (amin >= amax)  \
     return 0; \
   res *= amax - amin; \
@@ -446,7 +446,7 @@ Calculates overlapping area of two MBRs a & b
 double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
                              uint key_length)
 {
-  double res = 1;
+  double res= 1;
   for (; (int) key_length > 0 ; keyseg += 2)
   {
     uint32 keyseg_length;
@@ -505,10 +505,10 @@ double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 #define RT_AREA_INC_KORR(type, korr_func, len) \
 { \
    type amin, amax, bmin, bmax; \
-   amin = korr_func(a); \
-   bmin = korr_func(b); \
-   amax = korr_func(a+len); \
-   bmax = korr_func(b+len); \
+   amin= korr_func(a); \
+   bmin= korr_func(b); \
+   amax= korr_func(a+len); \
+   bmax= korr_func(b+len); \
    a_area *= (((double)amax) - ((double)amin)); \
    loc_ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
 }
@@ -599,10 +599,10 @@ safe_end:
 #define RT_PERIM_INC_KORR(type, korr_func, len) \
 { \
    type amin, amax, bmin, bmax; \
-   amin = korr_func(a); \
-   bmin = korr_func(b); \
-   amax = korr_func(a+len); \
-   bmax = korr_func(b+len); \
+   amin= korr_func(a); \
+   bmin= korr_func(b); \
+   amax= korr_func(a+len); \
+   bmax= korr_func(b+len); \
    a_perim+= (((double)amax) - ((double)amin)); \
    *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
 }
@@ -624,7 +624,7 @@ Calculates MBR_PERIMETER(a+b) - MBR_PERIMETER(a)
 double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 				uint key_length, double *ab_perim)
 {
-  double a_perim = 0.0;
+  double a_perim= 0.0;
 
   *ab_perim= 0.0;
   for (; (int)key_length > 0; keyseg += 2)
@@ -690,17 +690,17 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 #define RT_PAGE_MBR_KORR(type, korr_func, store_func, len) \
 { \
   type amin, amax, bmin, bmax; \
-  amin = korr_func(k + inc); \
-  amax = korr_func(k + inc + len); \
-  k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag); \
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) \
+  amin= korr_func(k + inc); \
+  amax= korr_func(k + inc + len); \
+  k= rt_PAGE_NEXT_KEY(k, k_len, nod_flag); \
+  for (; k < last; k= rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) \
 { \
-    bmin = korr_func(k + inc); \
-    bmax = korr_func(k + inc + len); \
+    bmin= korr_func(k + inc); \
+    bmax= korr_func(k + inc + len); \
     if (amin > bmin) \
-      amin = bmin; \
+      amin= bmin; \
     if (amax < bmax) \
-      amax = bmax; \
+      amax= bmax; \
 } \
   store_func(c, amin); \
   c += len; \
@@ -714,15 +714,15 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   type amin, amax, bmin, bmax; \
   get_func(amin, k + inc); \
   get_func(amax, k + inc + len); \
-  k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag); \
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) \
+  k= rt_PAGE_NEXT_KEY(k, k_len, nod_flag); \
+  for (; k < last; k= rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) \
 { \
     get_func(bmin, k + inc); \
     get_func(bmax, k + inc + len); \
     if (amin > bmin) \
-      amin = bmin; \
+      amin= bmin; \
     if (amax < bmax) \
-      amax = bmax; \
+      amax= bmax; \
 } \
   store_func(c, amin); \
   c += len; \
@@ -732,16 +732,16 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 }
 
 /*
-  Calculates key page total MBR = MBR(key1) + MBR(key2) + ...
+  Calculates key page total MBR= MBR(key1) + MBR(key2) + ...
 */
 int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, uchar *page_buf,
                          uchar *c, uint key_length)
 {
-  uint inc = 0;
-  uint k_len = key_length;
-  uint nod_flag = _ma_test_if_nod(page_buf);
+  uint inc= 0;
+  uint k_len= key_length;
+  uint nod_flag= _ma_test_if_nod(info, page_buf);
   uchar *k;
-  uchar *last = rt_PAGE_END(page_buf);
+  uchar *last= rt_PAGE_END(info, page_buf);
 
   for (; (int)key_length > 0; keyseg += 2)
   {
@@ -753,7 +753,7 @@ int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, uchar *page_buf,
       return 1;
     }
 
-    k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
+    k= rt_PAGE_FIRST_KEY(info, page_buf, nod_flag);
 
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:

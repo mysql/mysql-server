@@ -122,7 +122,8 @@ static int run_test(const char *filename)
 
   /* Define 2*ndims columns for coordinates*/
 
-  for (i=1; i<=2*ndims ;i++){
+  for (i=1; i<=2*ndims ;i++)
+  {
     recinfo[i].type=FIELD_NORMAL;
     recinfo[i].length=key_length;
     rec_length+=key_length;
@@ -135,7 +136,8 @@ static int run_test(const char *filename)
   keyinfo[0].flag=0;
   keyinfo[0].key_alg=KEYALG;
 
-  for (i=0; i<2*ndims; i++){
+  for (i=0; i<2*ndims; i++)
+  {
     keyinfo[0].seg[i].type= key_type;
     keyinfo[0].seg[i].flag=0;          /* Things like HA_REVERSE_SORT */
     keyinfo[0].seg[i].start= (key_length*i)+1;

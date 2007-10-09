@@ -48,17 +48,21 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     DBUG_RETURN(0);
   }
   info->last_keypage=page;
-  page_size= maria_data_on_page(tmp);
-  if (page_size < 4 || page_size > keyinfo->block_length)
+#ifdef EXTRA_DEBUG
+  page_size= _ma_get_page_used(info, tmp);
+  if (page_size < 4 || page_size > keyinfo->block_length ||
+      _ma_get_keynr(info, tmp) > info->s->base.keys)
   {
-    DBUG_PRINT("error",("page %lu had wrong page length: %u",
-			(ulong) page, page_size));
+    DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
+			(ulong) page, page_size,
+                        _ma_get_keynr(info, tmp)));
     DBUG_DUMP("page", (char*) tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
     maria_print_error(info->s, HA_ERR_CRASHED);
     my_errno= HA_ERR_CRASHED;
     tmp= 0;
   }
+#endif
   DBUG_RETURN(tmp);
 } /* _ma_fetch_keypage */
 
@@ -84,19 +88,27 @@ int _ma_write_keypage(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff",(uchar*) buff,maria_data_on_page(buff));
+  DBUG_DUMP("buff", buff,_ma_get_page_used(info, buff));
 #endif
+
+  /* Verify that keynr is correct */
+  DBUG_ASSERT(_ma_get_keynr(info, buff) ==
+              (uint) (keyinfo - info->s->keyinfo));
 
 #ifdef HAVE_purify
   {
     /* Clear unitialized part of page to avoid valgrind/purify warnings */
-    uint length= maria_data_on_page(buff);
-    bzero((uchar*) buff+length,keyinfo->block_length-length);
+    uint length= _ma_get_page_used(info, buff);
+    bzero(buff+length, keyinfo->block_length-length);
     length=keyinfo->block_length;
   }
 #endif
 
   DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length);
+  if (!(info->s->options & HA_OPTION_PAGE_CHECKSUM))
+    bfill(buff + keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE,
+          KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
+
   /*
     TODO: replace PAGECACHE_PLAIN_PAGE with PAGECACHE_LSN_PAGE when
     LSN on the pages will be implemented
@@ -116,7 +128,7 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                 int level)
 {
   my_off_t old_link;
-  char buff[8];
+  char buff[MAX_KEYPAGE_HEADER_SIZE+8];
   uint offset;
   pgcache_page_no_t page_no;
   DBUG_ENTER("_ma_dispose");
@@ -126,7 +138,9 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
   info->s->state.key_del= pos;
   page_no= pos / keyinfo->block_length;
   offset= pos % keyinfo->block_length;
-  mi_sizestore(buff,old_link);
+  bzero(buff, info->s->keypage_header);
+  _ma_store_keynr(info, buff, (uchar) MARIA_DELETE_KEY_NR);
+  mi_sizestore(buff + info->s->keypage_header, old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
 
   DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
@@ -141,11 +155,11 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
                                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                                    PAGECACHE_PIN_LEFT_UNPINNED,
                                    PAGECACHE_WRITE_DELAY, 0,
-                                   offset, sizeof(buff), 0, 0));
+                                   offset, info->s->keypage_header+8, 0, 0));
 } /* _ma_dispose */
 
 
-	/* Make new page on disk */
+/* Make new page on disk */
 
 my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 {
@@ -166,6 +180,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
   }
   else
   {
+    /* QQ: Remove this alloc (We don't have to copy the page) */
     buff= alloca(info->s->block_size);
     DBUG_ASSERT(info->s->pagecache->block_size == keyinfo->block_length &&
                 info->s->pagecache->block_size == info->s->block_size);
@@ -180,7 +195,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
                         PAGECACHE_LOCK_LEFT_UNLOCKED, 0))
       pos= HA_OFFSET_ERROR;
     else
-      info->s->state.key_del= mi_sizekorr(buff);
+      info->s->state.key_del= mi_sizekorr(buff+info->s->keypage_header);
   }
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit",("Pos: %ld",(long) pos));

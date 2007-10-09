@@ -17,23 +17,40 @@
 
 #include "maria_def.h"
 
+/**
+   Calculate a checksum for the record
+
+   _ma_checksum()
+   @param info		Maria handler
+   @param record	Record
+
+   @note
+     To ensure that the checksum is independent of the row format
+     we need to always calculate the checksum in the original field order.
+
+   @return  checksum
+*/
+
 ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
 {
   ha_checksum crc=0;
-  MARIA_COLUMNDEF *column= info->s->columndef;
-  MARIA_COLUMNDEF *column_end= column+ info->s->base.fields;
+  uint i,end;
+  MARIA_COLUMNDEF *base_column= info->s->columndef;
+  uint16 *column_nr= info->s->column_nr;
 
   if (info->s->base.null_bytes)
     crc= my_checksum(crc, record, info->s->base.null_bytes);
 
-  for ( ; column != column_end ; column++)
+  for (i= 0, end= info->s->base.fields ; i < end ; i++)
   {
-    const uchar *pos= record + column->offset;
+    MARIA_COLUMNDEF *column= base_column + column_nr[i];
+    const uchar *pos;
     ulong length;
 
     if (record[column->null_pos] & column->null_bit)
       continue;                                 /* Null field */
 
+    pos= record + column->offset;
     switch (column->type) {
     case FIELD_BLOB:
     {

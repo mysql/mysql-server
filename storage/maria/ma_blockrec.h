@@ -13,22 +13,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
 /*
   Storage of records in block
 */
 
 #define LSN_SIZE		7
 #define DIR_COUNT_SIZE		1	/* Stores number of rows on page */
+#define DIR_FREE_SIZE		1	/* Pointer to first free dir entry */
 #define EMPTY_SPACE_SIZE	2	/* Stores empty space on page */
 #define PAGE_TYPE_SIZE		1
-#define PAGE_SUFFIX_SIZE	0	/* Bytes for page suffix */
-#define PAGE_HEADER_SIZE	(LSN_SIZE + DIR_COUNT_SIZE + EMPTY_SPACE_SIZE +\
-                                 PAGE_TYPE_SIZE)
+#define PAGE_SUFFIX_SIZE	4	/* Bytes for checksum */
+#define PAGE_HEADER_SIZE	(LSN_SIZE + DIR_COUNT_SIZE + DIR_FREE_SIZE +\
+                                 EMPTY_SPACE_SIZE + PAGE_TYPE_SIZE)
 #define PAGE_OVERHEAD_SIZE	(PAGE_HEADER_SIZE + DIR_ENTRY_SIZE + \
                                  PAGE_SUFFIX_SIZE)
 #define BLOCK_RECORD_POINTER_SIZE	6
 
-#define FULL_PAGE_SIZE(block_size) ((block_size) - LSN_SIZE - PAGE_TYPE_SIZE)
+#define FULL_PAGE_SIZE(block_size) ((block_size) - LSN_SIZE - PAGE_TYPE_SIZE - \
+                                    PAGE_SUFFIX_SIZE)
 
 #define ROW_EXTENT_PAGE_SIZE	5
 #define ROW_EXTENT_COUNT_SIZE   2
@@ -40,7 +43,6 @@
 #define EXTRA_LENGTH_FIELDS		3
 
 /* Size for the different parts in the row header (and head page) */
-
 #define FLAG_SIZE		1
 #define TRANSID_SIZE		6
 #define VERPTR_SIZE		7
@@ -51,12 +53,13 @@
 #define BASE_ROW_HEADER_SIZE FLAG_SIZE
 #define TRANS_ROW_EXTRA_HEADER_SIZE TRANSID_SIZE
 
-#define PAGE_TYPE_MASK 127
+#define PAGE_TYPE_MASK 7
 enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_TYPE };
 
 #define PAGE_TYPE_OFFSET        LSN_SIZE
-#define DIR_COUNT_OFFSET        LSN_SIZE+PAGE_TYPE_SIZE
-#define EMPTY_SPACE_OFFSET      (DIR_COUNT_OFFSET + DIR_COUNT_SIZE)
+#define DIR_COUNT_OFFSET        (LSN_SIZE+PAGE_TYPE_SIZE)
+#define DIR_FREE_OFFSET         (DIR_COUNT_OFFSET+DIR_COUNT_SIZE)
+#define EMPTY_SPACE_OFFSET      (DIR_FREE_OFFSET+DIR_FREE_SIZE)
 
 #define PAGE_CAN_BE_COMPACTED   128             /* Bit in PAGE_TYPE */
 
@@ -84,6 +87,7 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 
 /* We use 1 uchar in record header to store number of directory entries */
 #define MAX_ROWS_PER_PAGE	255
+#define END_OF_DIR_FREE_LIST	((uchar) 255)
 
 /* Bits for MARIA_BITMAP_BLOCKS->used */
 /* We stored data on disk in the block */
@@ -121,6 +125,12 @@ static inline my_off_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
 static inline uint ma_recordpos_to_dir_entry(MARIA_RECORD_POS record_pos)
 {
   return (uint) (record_pos & 255);
+}
+
+static inline uchar *dir_entry_pos(uchar *buff, uint block_size, uint pos)
+{
+  return (buff + block_size - DIR_ENTRY_SIZE * pos - PAGE_SUFFIX_SIZE -
+          DIR_ENTRY_SIZE);
 }
 
 /* ma_blockrec.c */

@@ -19,12 +19,12 @@
 
 #ifdef HAVE_RTREE_KEYS
 
-#define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
+#define rt_PAGE_FIRST_KEY(info, page, nod_flag) (page + info->s->keypage_header + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
               (nod_flag ? nod_flag : info->s->base.rec_reflength))
-#define rt_PAGE_END(page) (page + maria_data_on_page(page))
+#define rt_PAGE_END(info, page) (page + _ma_get_page_used(info, page))
 
-#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
+#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length - KEYPAGE_CHECKSUM_SIZE) / 3)
 
 int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key,
                        uint key_length);

@@ -40,12 +40,10 @@
 
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
 {
-  uint i;
   ulong length, block_length= 0;
   uchar *buff= NULL;
   MARIA_SHARE* share= info->s;
   uint keys= share->state.header.keys;
-  MARIA_KEYDEF *keyinfo= share->keyinfo;
   my_off_t key_file_length= share->state.state.key_file_length;
   my_off_t pos= share->base.keystart;
   DBUG_ENTER("maria_preload");
@@ -53,20 +51,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
   if (!keys || !maria_is_any_key_active(key_map) || key_file_length == pos)
     DBUG_RETURN(0);
 
-  block_length= keyinfo[0].block_length;
-
-  if (ignore_leaves)
-  {
-    /* Check whether all indexes use the same block size */
-    for (i= 1 ; i < keys ; i++)
-    {
-      if (keyinfo[i].block_length != block_length)
-        DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
-    }
-  }
-  else
-    block_length= share->pagecache->block_size;
-
+  block_length= share->pagecache->block_size;
   length= info->preload_buff_size/block_length * block_length;
   set_if_bigger(length, block_length);
 
@@ -78,6 +63,7 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
 
   do
   {
+    uchar *end;
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
@@ -85,41 +71,25 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
                  MYF(MY_FAE|MY_FNABP)))
       goto err;
 
-    if (ignore_leaves)
+    for (end= buff + length ; buff < end ; buff+= block_length)
     {
-      uchar *end= buff+length;
-      do
+      uint keynr= _ma_get_keynr(info, buff);
+      if ((ignore_leaves && !_ma_test_if_nod(info, buff)) ||
+          keynr == MARIA_DELETE_KEY_NR ||
+          !(key_map & ((ulonglong) 1 << keynr)))
       {
-        if (_ma_test_if_nod(buff))
-        {
-          DBUG_ASSERT(share->pagecache->block_size == block_length);
-          if (pagecache_write(share->pagecache,
-                              &share->kfile, pos / block_length,
-                              DFLT_INIT_HITS,
-                              (uchar*) buff,
-                              PAGECACHE_PLAIN_PAGE,
-                              PAGECACHE_LOCK_LEFT_UNLOCKED,
-                              PAGECACHE_PIN_LEFT_UNPINNED,
-                              PAGECACHE_WRITE_DONE, 0))
-	    goto err;
-	}
-        pos+= block_length;
+        DBUG_ASSERT(share->pagecache->block_size == block_length);
+        if (pagecache_write(share->pagecache,
+                            &share->kfile, pos / block_length,
+                            DFLT_INIT_HITS,
+                            (uchar*) buff,
+                            PAGECACHE_PLAIN_PAGE,
+                            PAGECACHE_LOCK_LEFT_UNLOCKED,
+                            PAGECACHE_PIN_LEFT_UNPINNED,
+                            PAGECACHE_WRITE_DONE, 0))
+          goto err;
       }
-      while ((buff+= block_length) != end);
-      buff= end-length;
-    }
-    else
-    {
-      if (pagecache_write(share->pagecache,
-                          &share->kfile, pos / block_length,
-                          DFLT_INIT_HITS,
-                          (uchar*) buff,
-                          PAGECACHE_PLAIN_PAGE,
-                          PAGECACHE_LOCK_LEFT_UNLOCKED,
-                          PAGECACHE_PIN_LEFT_UNPINNED,
-                          PAGECACHE_WRITE_DONE, 0))
-	goto err;
-      pos+= length;
+      pos+= block_length;
     }
   }
   while (pos != key_file_length);

@@ -372,8 +372,9 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
     - compare FULLTEXT keys;
     - compare SPATIAL keys;
     - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
-      (should be corretly detected in table2maria).
+      (should be correctly detected in table2maria).
 */
+
 int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
                            MARIA_COLUMNDEF *t1_recinfo,
                            uint t1_keys, uint t1_recs,
@@ -725,9 +726,6 @@ bool ha_maria::check_if_locking_is_allowed(uint sql_command,
 
 int ha_maria::open(const char *name, int mode, uint test_if_locked)
 {
-  MARIA_KEYDEF *keyinfo;
-  MARIA_COLUMNDEF *recinfo= 0;
-  uint recs;
   uint i;
 
 #ifdef NOT_USED
@@ -752,39 +750,6 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
-
-  /**
-     @todo ASK_MONTY
-    This is a protection for the case of a frm and MAI containing incompatible
-    table definitions (as in BUG#25908). This was merged from MyISAM.
-    But it breaks maria.test and ps_maria.test ("incorrect key file") if the
-    table is BLOCK_RECORD (does it have to do with column reordering done in
-    ma_create.c ?).
-  */
-  if (!table->s->tmp_table) /* No need to perform a check for tmp table */
-  {
-    if ((my_errno= table2maria(table, &keyinfo, &recinfo, &recs)))
-    {
-      /* purecov: begin inspected */
-      DBUG_PRINT("error", ("Failed to convert TABLE object to Maria "
-                           "key and column definition"));
-      goto err;
-      /* purecov: end */
-    }
-#ifdef ASK_MONTY
-    if (maria_check_definition(keyinfo, recinfo, table->s->keys, recs,
-                               file->s->keyinfo, file->s->columndef,
-                               file->s->base.keys, file->s->base.fields, true))
-#else
-    if (0)
-#endif
-    {
-      /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
-      goto err;
-      /* purecov: end */
-    }
-  }
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -817,16 +782,6 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   my_errno= 0;
-  goto end;
- err:
-  this->close();
- end:
-  /*
-    Both recinfo and keydef are allocated by my_multi_malloc(), thus only
-    recinfo must be freed.
-  */
-  if (recinfo)
-    my_free((uchar*) recinfo, MYF(0));
   return my_errno;
 }
 
@@ -1918,9 +1873,12 @@ int ha_maria::info(uint flag)
     share->keys_for_keyread.intersect(share->keys_in_use);
     share->db_record_offset= maria_info.record_offset;
     if (share->key_parts)
-      memcpy((char*) table->key_info[0].rec_per_key,
-             (char*) maria_info.rec_per_key,
-             sizeof(table->key_info[0].rec_per_key) * share->key_parts);
+    {
+      ulong *to= table->key_info[0].rec_per_key, *end;
+      double *from= maria_info.rec_per_key;
+      for (end= to+ share->key_parts ; to < end ; to++, from++)
+        *to= (ulong) (*from + 0.5);
+    }
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
@@ -2112,6 +2070,10 @@ void ha_maria::update_create_info(HA_CREATE_INFO *create_info)
   }
   create_info->data_file_name= data_file_name;
   create_info->index_file_name= index_file_name;
+  /* We need to restore the row type as Maria can change it */
+  if (create_info->row_type != ROW_TYPE_DEFAULT &&
+      !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT))
+    create_info->row_type= get_row_type();
 }
 
 
@@ -2161,7 +2123,16 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       break;
     }
   }
+  /* Note: BLOCK_RECORD is used if table is transactional */
   row_type= maria_row_type(ha_create_info);
+  if (ha_create_info->transactional == HA_CHOICE_YES &&
+      ha_create_info->row_type != ROW_TYPE_PAGE &&
+      ha_create_info->row_type != ROW_TYPE_NOT_USED &&
+      ha_create_info->row_type != ROW_TYPE_DEFAULT)
+    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_ILLEGAL_HA_CREATE_OPTION,
+                 "Row format set to PAGE because of TRANSACTIONAL=1 option");
+
   if ((error= table2maria(table_arg, &keydef, &recinfo, &records)))
     DBUG_RETURN(error); /* purecov: inspected */
   bzero((char*) &create_info, sizeof(create_info));
@@ -2175,18 +2146,13 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
-#ifdef ASK_MONTY
-  /**
-     @todo ASK_MONTY
-    Where "transactional" in the frm and in the engine can go out of sync.
-    Don't we want to do, after the setting, this test:
-    if (!create_info.transactional &&
-        ha_create_info->transactional == HA_CHOICE_YES)
-      error;
-      ?
-    Why fool the user?
+
+  /*
+    Table is transactional:
+    - If the user specify that table is transactional (in this case
+      row type is forced to BLOCK_RECORD)
+    - If they specify BLOCK_RECORD without specifying transactional behaviour
   */
-#endif
   create_info.transactional= (row_type == BLOCK_RECORD &&
                               ha_create_info->transactional != HA_CHOICE_NO);
 
@@ -2198,6 +2164,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_CHECKSUM;
   if (options & HA_OPTION_DELAY_KEY_WRITE)
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
+  if (ha_create_info->page_checksum != HA_CHOICE_NO)
+    create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
   /* TODO: Check that the following fn_format is really needed */
   error=
