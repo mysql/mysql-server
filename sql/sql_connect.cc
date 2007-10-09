@@ -973,21 +973,29 @@ void end_connection(THD *thd)
   plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
+
+  if (thd->killed ||
+      net->error && net->vio != 0 && net->report_error)
+  {
+    statistic_increment(aborted_threads,&LOCK_status);
+  }
+
   if (net->error && net->vio != 0 && net->report_error)
   {
-    Security_context *sctx= thd->security_ctx;
     if (!thd->killed && thd->variables.log_warnings > 1)
+    {
+      Security_context *sctx= thd->security_ctx;
+
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
                         (net->last_errno ? ER(net->last_errno) :
                          ER(ER_UNKNOWN_ERROR)));
+    }
+
     net_send_error(thd, net->last_errno, NullS);
-    statistic_increment(aborted_threads,&LOCK_status);
   }
-  else if (thd->killed)
-    statistic_increment(aborted_threads,&LOCK_status);
 }
 
 
