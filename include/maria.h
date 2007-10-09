@@ -244,7 +244,7 @@ typedef struct st_maria_columndef		/* column information */
 } MARIA_COLUMNDEF;
 
 
-extern ulong maria_block_size;
+extern ulong maria_block_size, maria_checkpoint_frequency;
 extern ulong maria_concurrent_insert;
 extern my_bool maria_flush, maria_single_user;
 extern my_bool maria_delay_key_write;

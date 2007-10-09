@@ -78,11 +78,21 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
+static void update_checkpoint_frequency(MYSQL_THD thd,
+                                        struct st_mysql_sys_var *var,
+                                        void *var_ptr, void *save);
+
 static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
        "Block size to be used for MARIA index pages.", 0, 0,
        MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
        MARIA_MAX_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_frequency, maria_checkpoint_frequency,
+       PLUGIN_VAR_RQCMDARG,
+       "Frequency of automatic checkpoints, in seconds;"
+       " 0 means 'no checkpoints'.",
+       NULL, update_checkpoint_frequency, 30, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
@@ -2401,7 +2411,7 @@ static int ha_maria_init(void *p)
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
     maria_recover() ||
-    ma_checkpoint_init(FALSE);
+    ma_checkpoint_init(TRUE);
   maria_multi_threaded= TRUE;
   return res;
 }
@@ -2484,6 +2494,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 
 static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
+  MYSQL_SYSVAR(checkpoint_frequency),
   MYSQL_SYSVAR(max_sort_file_size),
   MYSQL_SYSVAR(repair_threads),
   MYSQL_SYSVAR(sort_buffer_size),
@@ -2491,6 +2502,26 @@ static struct st_mysql_sys_var* system_variables[]= {
   NULL
 };
 
+
+/**
+   @brief Updates the checkpoint frequency and restarts the background thread.
+
+   Background thread has a loop which correctness depends on a constant
+   checkpoint frequency. So when the user wants to modify it, we stop and
+   restart the thread.
+*/
+static void update_checkpoint_frequency(MYSQL_THD thd,
+                                        struct st_mysql_sys_var *var,
+                                        void *var_ptr, void *save)
+{
+  ulong new_value= (ulong)(*(long *)save), *dest= (ulong *)var_ptr;
+  if (new_value != *dest) /* it's actually a change */
+  {
+    ma_checkpoint_end();
+    *dest= new_value;
+    ma_checkpoint_init(TRUE);
+  }
+}
 
 
 struct st_mysql_storage_engine maria_storage_engine=

@@ -51,6 +51,8 @@ static LSN current_group_end_lsn,
 static TrID max_long_trid= 0; /**< max long trid seen by REDO phase */
 static FILE *tracef; /**< trace file for debugging */
 static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
+/** @brief to avoid writing a checkpoint if recovery did nothing. */
+static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
 
 #define prototype_redo_exec_hook(R)                                          \
@@ -221,6 +223,9 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (!all_active_trans || !all_tables)
     goto err;
 
+  if (take_checkpoints && ma_checkpoint_init(FALSE))
+    goto err;
+
   redo_phase_message_printed= FALSE;
   tracef= trace_file;
   if (!(skip_DDLs= skip_DDLs_arg))
@@ -277,15 +282,14 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
     goto err;
 
-  if (take_checkpoints)
+  if (take_checkpoints && checkpoint_useful)
   {
     /*
       We take a checkpoint as it can save future recovery work if we crash
       during the UNDO phase. But we don't flush pages, as UNDOs will change
       them again probably.
     */
-    if (ma_checkpoint_init(FALSE) ||
-        ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
+    if (ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
       goto err;
   }
 
@@ -305,7 +309,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (close_all_tables())
     goto err;
 
-  if (take_checkpoints)
+  if (take_checkpoints && checkpoint_useful)
   {
     /* No dirty pages, all tables are closed, no active transactions, save: */
     if (ma_checkpoint_execute(CHECKPOINT_FULL, FALSE))
@@ -948,6 +952,7 @@ static int new_table(uint16 sid, const char *name,
   */
   int error= 1;
 
+  checkpoint_useful= TRUE;
   tprint(tracef, "Table '%s', id %u", name, sid);
   MARIA_HA *info= maria_open(name, O_RDWR, HA_OPEN_FOR_REPAIR);
   if (info == NULL)
@@ -1791,6 +1796,7 @@ static int run_undo_phase(uint unfinished)
 {
   if (unfinished > 0)
   {
+    checkpoint_useful= TRUE;
     if (tracef != stdout)
     {
       ulonglong old_now= now;

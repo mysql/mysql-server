@@ -42,6 +42,8 @@
 #include "ma_loghandler_lsn.h"
 
 
+/** @brief Frequency of background checkpoints, in seconds */
+ulong maria_checkpoint_frequency;
 /*
   Checkpoints currently happen only at ha_maria's startup (after recovery) and
   at shutdown, always when there is no open tables.
@@ -351,6 +353,10 @@ int ma_checkpoint_init(my_bool create_background_thread)
   DBUG_ENTER("ma_checkpoint_init");
   checkpoint_inited= TRUE;
   checkpoint_thread_die= 2; /* not yet born == dead */
+  /* Background thread will be enabled in a later changeset */
+  create_background_thread= FALSE;
+  if (maria_checkpoint_frequency == 0)
+    create_background_thread= FALSE;
   if (pthread_mutex_init(&LOCK_checkpoint, MY_MUTEX_INIT_SLOW) ||
       pthread_cond_init(&COND_checkpoint, 0))
     res= 1;
@@ -527,9 +533,10 @@ static int filter_flush_data_file_evenly(enum pagecache_page_type type,
 /**
    @brief Background thread which does checkpoints and flushes periodically.
 
-   Takes a checkpoint every 30th second. After taking a checkpoint, all pages
-   dirty at the time of that checkpoint are flushed evenly until it is time to
-   take another checkpoint (30 seconds later). This ensures that the REDO
+   Takes a checkpoint every maria_checkpoint_frequency-th second. After taking
+   a checkpoint, all pages dirty at the time of that checkpoint are flushed
+   evenly until it is time to take another checkpoint
+   (maria_checkpoint_frequency seconds later). This ensures that the REDO
    phase starts at earliest (in LSN time) at the next-to-last checkpoint
    record ("two-checkpoint rule").
 
@@ -544,10 +551,8 @@ static int filter_flush_data_file_evenly(enum pagecache_page_type type,
 
 pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
 {
-  const uint sleep_unit= 1 /* 1 second */,
-    time_between_checkpoints= 30, /* 30 sleep units */
-    /** @brief At least this of log/page bytes written between checkpoints */
-    checkpoint_min_activity= 2*1024*1024;
+  /** @brief At least this of log/page bytes written between checkpoints */
+  const uint checkpoint_min_activity= 2*1024*1024;
   uint sleeps= 0;
 
   my_thread_init();
@@ -566,7 +571,12 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
     struct timespec abstime;
     LINT_INIT(kfile);
     LINT_INIT(dfile);
-    switch((sleeps++) % time_between_checkpoints)
+    /*
+      If the frequency could be changed by the user while we are in this loop,
+      it could be annoying: for example it could cause "case 2" to be executed
+      right after "case 0", thus having 'dfile' unset.
+    */
+    switch((sleeps++) % maria_checkpoint_frequency)
     {
     case 0:
       /*
@@ -579,6 +589,9 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
         since last checkpoint. Such work includes log writing (lengthens
         recovery, checkpoint would shorten it), page flushing (checkpoint
         would decrease the amount of read pages in recovery).
+        In case of one short statement per minute (very low load), we don't
+        want to checkpoint every minute, hence the positive
+        checkpoint_min_activity.
       */
       if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
            (maria_pagecache->global_cache_write -
@@ -608,7 +621,7 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
       /* set up parameters for background page flushing */
       filter_param.up_to_lsn= last_checkpoint_lsn;
       pages_bunch_size= pages_to_flush_before_next_checkpoint /
-        time_between_checkpoints;
+        maria_checkpoint_frequency;
       dfile= dfiles;
       kfile= kfiles;
       /* fall through */
@@ -659,7 +672,7 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
     pthread_mutex_lock(&LOCK_checkpoint);
 #else
     /* To have a killable sleep, we use timedwait like our SQL GET_LOCK() */
-    set_timespec(abstime, sleep_unit);
+    set_timespec(abstime, 1);
     pthread_cond_timedwait(&COND_checkpoint, &LOCK_checkpoint, &abstime);
 #endif
     if (checkpoint_thread_die == 1)
