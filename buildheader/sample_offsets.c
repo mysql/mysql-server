@@ -15,7 +15,6 @@ struct fieldinfo {
 } fields[FIELD_LIMIT];
 int field_counter=0;
 
-
 int compare_fields (const void *av, const void *bv) {
     const struct fieldinfo *a = av;
     const struct fieldinfo *b = bv;
@@ -78,7 +77,7 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, set_lg_max, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, set_lk_detect, "int  (*%s) (DB_ENV *, u_int32_t)");
     STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, u_int32_t)");
-    STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
+    //STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
     STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
     STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
     STRUCT_SETUP(DB_ENV, txn_checkpoint, "int  (*%s) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)");
@@ -130,6 +129,7 @@ void sample_db_txn_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
     STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
+    STRUCT_SETUP(DB_TXN, abort,       "int (*%s) __P((DB_TXN *)");
     sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
@@ -150,7 +150,7 @@ void sample_dbc_offsets (void) {
 
 void sample_dbt_offsets (void) {
     field_counter=0;
-    STRUCT_SETUP(DBT,app_private, "void*%s");
+    //STRUCT_SETUP(DBT,app_private, "void*%s");
     STRUCT_SETUP(DBT,data,        "void*%s");
     STRUCT_SETUP(DBT,flags,       "u_int32_t %s");
     STRUCT_SETUP(DBT,size,        "u_int32_t %s");
@@ -161,6 +161,9 @@ void sample_dbt_offsets (void) {
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
+    fprintf(outf, "#define DB_VERSION_MAJOR_%d %d\n", __WORDSIZE, DB_VERSION_MAJOR);
+    fprintf(outf, "#define DB_VERSION_MINOR_%d %d\n", __WORDSIZE, DB_VERSION_MINOR);
+    fprintf(outf, "#define DB_VERSION_STRING_%d \"Berkeley DB Compatability Header %d.%d\"\n", __WORDSIZE, DB_VERSION_MAJOR, DB_VERSION_MINOR);
     sample_db_btree_stat_offsets();
     sample_db_env_offsets();
     sample_db_key_range_offsets();
