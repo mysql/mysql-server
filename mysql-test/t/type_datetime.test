@@ -299,9 +299,6 @@ drop table t1;
 create table t1 (a tinyint);
 insert into t1 values (), (), ();
 select sum(a) from t1 group by convert(a, datetime);
---enable_metadata
-select convert(a, datetime) from t1;
---disable_metadata
 drop table t1;
 
 --echo End of 5.0 tests

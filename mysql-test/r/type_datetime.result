@@ -441,12 +441,5 @@ insert into t1 values (), (), ();
 select sum(a) from t1 group by convert(a, datetime);
 sum(a)
 NULL
-select convert(a, datetime) from t1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					convert(a, datetime)	12	29	0	Y	128	6	63
-convert(a, datetime)
-NULL
-NULL
-NULL
 drop table t1;
 End of 5.0 tests
