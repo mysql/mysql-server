@@ -965,7 +965,6 @@ void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
 bool mysql_execute_command(THD *thd);
-bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
