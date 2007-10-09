@@ -1,5 +1,5 @@
 CFLAGS = -Wall -W -O2 -Werror -g
-CPPFLAGS=-I../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix/
+#CPPFLAGS=-I../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix/
 make_db_h.o: make_db_h.c sample_offsets_32.h sample_offsets_64.h
 sample_offsets:
 sample_offsets_local: ./db.h
