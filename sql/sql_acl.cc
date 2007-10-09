@@ -1132,7 +1132,7 @@ static void acl_update_db(const char *user, const char *host, const char *db,
     {
       if (!acl_db->host.hostname && !host[0] ||
 	  acl_db->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_db->host.hostname))
+          !strcmp(host, acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -4344,6 +4344,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_db->host.hostname))
       host= "";
 
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
@@ -4379,8 +4386,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	db.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
 	db.append (STRING_WITH_LEN("'@'"));
-	db.append(lex_user->host.str, lex_user->host.length,
-                  system_charset_info);
+	// host and lex_user->host are equal except for case
+	db.append(host, strlen(host), system_charset_info);
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
 	  db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4406,6 +4413,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       user= "";
     if (!(host= grant_table->host.hostname))
       host= "";
+
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
 
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
@@ -4487,8 +4501,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
-	global.append(lex_user->host.str,lex_user->host.length,
-		      system_charset_info);
+	// host and lex_user->host are equal except for case
+	global.append(host, strlen(host), system_charset_info);
 	global.append('\'');
 	if (table_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -4543,6 +4557,13 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
     if (!(host= grant_proc->host.hostname))
       host= "";
 
+    /*
+      We do not make SHOW GRANTS case-sensitive here (like REVOKE),
+      but make it case-insensitive because that's the way they are
+      actually applied, and showing fewer privileges than are applied
+      would be wrong from a security point of view.
+    */
+
     if (!strcmp(lex_user->user.str,user) &&
 	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
@@ -4586,8 +4607,8 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append(STRING_WITH_LEN("'@'"));
-	global.append(lex_user->host.str,lex_user->host.length,
-		      system_charset_info);
+	// host and lex_user->host are equal except for case
+	global.append(host, strlen(host), system_charset_info);
 	global.append('\'');
 	if (proc_access & GRANT_ACL)
 	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
@@ -5541,7 +5562,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~(ulong)0, 1))
 	  {
@@ -5572,7 +5593,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
 				  grant_table->db,
@@ -5618,7 +5639,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  host= "";
 
 	if (!strcmp(lex_user->user.str,user) &&
-	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+            !strcmp(lex_user->host.str, host))
 	{
 	  if (!replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
 				  grant_proc->db,

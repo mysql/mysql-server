@@ -1580,10 +1580,21 @@ void check_result(DYNAMIC_STRING* ds)
       and then show the diff
     */
     char reject_file[FN_REFLEN];
-    str_to_file(fn_format(reject_file, result_file_name, opt_logdir, ".reject",
-                          *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
-                          MY_REPLACE_EXT),
-                ds->str, ds->length);
+    dirname_part(reject_file, result_file_name);
+
+    if (access(reject_file, W_OK) == 0)
+    {
+      /* Result file directory is writable, save reject file there */
+      fn_format(reject_file, result_file_name, NULL,
+                ".reject", MY_REPLACE_EXT);
+    }
+    else
+    {
+      /* Put reject file in opt_logdir */
+      fn_format(reject_file, result_file_name, opt_logdir,
+                ".reject", MY_REPLACE_DIR | MY_REPLACE_EXT);
+    }
+    str_to_file(reject_file, ds->str, ds->length);
 
     dynstr_set(ds, NULL); /* Don't create a .log file */
 
