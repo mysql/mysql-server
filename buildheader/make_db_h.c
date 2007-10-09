@@ -13,11 +13,13 @@ void print_dbtype(void) {
     printf(" DB_BTREE=%d\n", DB_BTREE);
     printf("} DBTYPE;\n");
 }
+#if 0
 void print_db_notices (void) {
     printf("typedef enum { /* This appears to be a mysql-specific addition to the api. */ \n");
     printf(" DB_NOTICE_LOGFILE_CHANGED=%d\n", DB_NOTICE_LOGFILE_CHANGED);
     printf("} db_notices;\n");
 }
+#endif
 
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
@@ -191,7 +193,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef struct __toku_dbc DBC;\n");
     printf("typedef struct __toku_dbt DBT;\n");
     print_dbtype();
-    print_db_notices();
+//    print_db_notices();
     print_defines();
 
     printf("/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/\n");
