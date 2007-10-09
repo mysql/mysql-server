@@ -45,6 +45,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 LOAD DATA INFILE '../std_data_ln/rpl_loaddata.dat' INTO TABLE t1;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -85,6 +86,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1590
 Last_SQL_Error	Fatal error: Not enough memory
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 DROP TABLE t1;
