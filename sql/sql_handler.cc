@@ -182,7 +182,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen, counter;
   int           error;
-  TABLE         *backup_open_tables, *backup_handler_tables;
+  TABLE         *backup_open_tables;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -211,14 +211,20 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     }
   }
 
-  /* save open_ and handler_ tables state */
-  backup_open_tables= thd->open_tables;
-  backup_handler_tables= thd->handler_tables;
+  /*
+    Save and reset the open_tables list so that open_tables() won't
+    be able to access (or know about) the previous list. And on return
+    from open_tables(), thd->open_tables will contain only the opened
+    table.
 
-  /* no pre-opened tables */
+    The thd->handler_tables list is kept as-is to avoid deadlocks if
+    open_table(), called by open_tables(), needs to back-off because
+    of a pending name-lock on the table being opened.
+
+    See open_table() back-off comments for more details.
+  */
+  backup_open_tables= thd->open_tables;
   thd->open_tables= NULL;
-  /* to avoid flushes */
-  thd->handler_tables= NULL;
 
   /*
     open_tables() will set 'tables->table' if successful.
@@ -231,9 +237,12 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   error= open_tables(thd, &tables, &counter, 0);
 
   /* restore the state and merge the opened table into handler_tables list */
-  thd->handler_tables= thd->open_tables ?
-                       thd->open_tables->next= backup_handler_tables,
-                       thd->open_tables : backup_handler_tables;
+  if (thd->open_tables)
+  {
+    thd->open_tables->next= thd->handler_tables;
+    thd->handler_tables= thd->open_tables;
+  }
+
   thd->open_tables= backup_open_tables;
 
   if (error)
@@ -360,7 +369,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
-  TABLE         *table, *backup_open_tables, *backup_handler_tables;
+  TABLE         *table, *backup_open_tables;
   MYSQL_LOCK    *lock;
   List<Item>	list;
   Protocol	*protocol= thd->protocol;
@@ -437,20 +446,20 @@ retry:
   }
   tables->table=table;
 
-  /* save open_ and handler_ tables state */
+  /* save open_tables state */
   backup_open_tables= thd->open_tables;
-  backup_handler_tables= thd->handler_tables;
-
-  /* no pre-opened tables */
-  thd->open_tables= NULL;
-  /* to avoid flushes */
-  thd->handler_tables= NULL;
+  /*
+    mysql_lock_tables() needs thd->open_tables to be set correctly to
+    be able to handle aborts properly. When the abort happens, it's
+    safe to not protect thd->handler_tables because it won't close any
+    tables.
+  */
+  thd->open_tables= thd->handler_tables;
 
   lock= mysql_lock_tables(thd, &tables->table, 1,
                           MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
 
   /* restore previous context */
-  thd->handler_tables= backup_handler_tables;
   thd->open_tables= backup_open_tables;
 
   if (need_reopen)
