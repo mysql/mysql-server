@@ -292,3 +292,16 @@ insert into t1 set f1 = '45:44:44';
 insert into t1 set f1 = '15:44:44';
 select * from t1 where (convert(f1,datetime)) != 1;
 drop table t1;
+
+#
+# Bug #31249: problem with convert(..., datetime)
+#
+create table t1 (a tinyint);
+insert into t1 values (), (), ();
+select sum(a) from t1 group by convert(a, datetime);
+--enable_metadata
+select convert(a, datetime) from t1;
+--disable_metadata
+drop table t1;
+
+--echo End of 5.0 tests

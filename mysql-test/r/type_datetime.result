@@ -436,3 +436,17 @@ f1
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '0000-00-00 45:44:44'
 drop table t1;
+create table t1 (a tinyint);
+insert into t1 values (), (), ();
+select sum(a) from t1 group by convert(a, datetime);
+sum(a)
+NULL
+select convert(a, datetime) from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					convert(a, datetime)	12	29	0	Y	128	6	63
+convert(a, datetime)
+NULL
+NULL
+NULL
+drop table t1;
+End of 5.0 tests
