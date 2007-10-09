@@ -282,3 +282,16 @@ select * from t1 where f1 between 20020101 and 20070101000000;
 select * from t1 where f1 between 2002010 and 20070101000000;
 select * from t1 where f1 between 20020101 and 2007010100000;
 drop table t1;
+
+#
+# Bug #31249: problem with convert(..., datetime)
+#
+create table t1 (a tinyint);
+insert into t1 values (), (), ();
+select sum(a) from t1 group by convert(a, datetime);
+--enable_metadata
+select convert(a, datetime) from t1;
+--disable_metadata
+drop table t1;
+
+--echo End of 5.0 tests
