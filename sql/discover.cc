@@ -14,29 +14,33 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Functions for discover of frm file from handler */
+/**
+  @file
+
+  @brief
+  Functions for discover of frm file from handler
+*/
 
 #include "mysql_priv.h"
 #include <my_dir.h>
 
-/*
-  Read the contents of a .frm file
+/**
+  Read the contents of a .frm file.
 
-  SYNOPSIS
-    readfrm()
+  frmdata and len are set to 0 on error.
 
-    name           path to table-file "db/name"
-    frmdata        frm data
-    len            length of the read frmdata
+  @param name           path to table-file "db/name"
+  @param frmdata        frm data
+  @param len            length of the read frmdata
 
-  RETURN VALUES
-   0	ok
-   1	Could not open file
-   2    Could not stat file
-   3    Could not allocate data for read
-        Could not read file
-
-   frmdata and len are set to 0 on error
+  @retval
+    0	ok
+  @retval
+    1	Could not open file
+  @retval
+    2    Could not stat file
+  @retval
+    3    Could not allocate data for read.  Could not read file
 */
 
 int readfrm(const char *name, uchar **frmdata, size_t *len)
@@ -87,18 +91,16 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
 
 /*
   Write the content of a frm data pointer 
-  to a frm file
+  to a frm file.
 
-  SYNOPSIS
-    writefrm()
+  @param name           path to table-file "db/name"
+  @param frmdata        frm data
+  @param len            length of the frmdata
 
-    name           path to table-file "db/name"
-    frmdata        frm data
-    len            length of the frmdata
-
-  RETURN VALUES
-   0	ok
-   2    Could not write file
+  @retval
+    0	ok
+  @retval
+    2    Could not write file
 */
 
 int writefrm(const char *name, const uchar *frmdata, size_t len)
