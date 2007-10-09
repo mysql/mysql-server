@@ -1306,7 +1306,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
   field_list.push_back(new Item_empty_string("Last_IO_Error", 20));
   field_list.push_back(new Item_return_int("Last_SQL_Errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_SQL_Error", 20));
-
+  field_list.push_back(new Item_empty_string("Master_Bind",
+                                             sizeof(mi->bind_addr)));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
@@ -1424,6 +1425,8 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
+
+    protocol->store(mi->bind_addr, &my_charset_bin);
 
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
@@ -3272,6 +3275,12 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("BIND ADDR: %s",mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)

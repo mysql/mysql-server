@@ -1132,6 +1132,7 @@ public:
   int master_host_len;
   int master_log_len;
   uint16 master_port;
+  /* TODO add mysql_bind_addr here ? */
 
 #ifndef MYSQL_CLIENT
   Slave_log_event(THD* thd_arg, RELAY_LOG_INFO* rli);

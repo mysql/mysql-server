@@ -302,6 +302,7 @@ static SYMBOL symbols[] = {
   { "MASTER",           SYM(MASTER_SYM)},
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM)},
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM)},
+  { "MASTER_BIND",           SYM(MASTER_BIND_SYM)},
   { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM)},
   { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM)},
   { "MASTER_PASSWORD",           SYM(MASTER_PASSWORD_SYM)},

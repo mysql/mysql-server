@@ -773,6 +773,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_HOST_SYM
+%token  MASTER_BIND_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
 %token  MASTER_PASSWORD_SYM
@@ -1481,6 +1482,11 @@ master_def:
        MASTER_HOST_SYM EQ TEXT_STRING_sys
        {
 	 Lex->mi.host = $3.str;
+       }
+       |
+       MASTER_BIND_SYM EQ TEXT_STRING_sys
+       {
+	 Lex->mi.bind_addr = $3.str;
        }
        |
        MASTER_USER_SYM EQ TEXT_STRING_sys
