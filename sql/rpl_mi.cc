@@ -33,7 +33,7 @@ MASTER_INFO::MASTER_INFO()
    abort_slave(0),slave_running(0),
    ssl_verify_server_cert(0), slave_run_id(0)
 {
-  host[0] = 0; user[0] = 0; password[0] = 0;
+  host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
 
@@ -64,6 +64,8 @@ void init_master_info_with_options(MASTER_INFO* mi)
 
   mi->master_log_name[0] = 0;
   mi->master_log_pos = BIN_LOG_HEADER_SIZE;             // skip magic number
+
+  strmake(mi->bind_addr, "0.0.0.0", sizeof(mi->bind_addr));
 
   if (master_host)
     strmake(mi->host, master_host, sizeof(mi->host) - 1);
@@ -97,8 +99,10 @@ enum {
   /* 5.1.16 added value of master_ssl_verify_server_cert */
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
 
+  LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR= 16,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT
+  LINES_IN_MASTER_INFO= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR
 };
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
@@ -285,6 +289,11 @@ file '%s')", fname);
           init_intvar_from_file(&ssl_verify_server_cert, &mi->file, 0))
         goto errwithmsg;
 
+      if (lines >= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR &&
+          init_strvar_from_file(mi->bind_addr, sizeof(mi->bind_addr),
+                                &mi->file, ""))
+        goto errwithmsg;
+
     }
 
 #ifndef HAVE_OPENSSL
@@ -293,7 +302,6 @@ file '%s')", fname);
                       "('%s') are ignored because this MySQL slave was compiled "
                       "without SSL support.", fname);
 #endif /* HAVE_OPENSSL */
-
     /*
       This has to be handled here as init_intvar_from_file can't handle
       my_off_t types

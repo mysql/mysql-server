@@ -1122,6 +1122,8 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->bind_addr)
+    strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
   if (lex_mi->user)
     strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
