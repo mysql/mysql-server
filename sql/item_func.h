@@ -436,6 +436,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
+  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
