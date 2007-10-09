@@ -1452,3 +1452,16 @@ end
 until true end repeat retry;
 end//
 ERROR 42000: LEAVE with no matching label: retry
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT inexistent(), 1 + ,;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT inexistent();
+ERROR 42000: FUNCTION inexistent does not exist
+SELECT .inexistent();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()' at line 1
+SELECT ..inexistent();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
+USE test;
