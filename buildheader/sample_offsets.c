@@ -129,7 +129,7 @@ void sample_db_txn_offsets (void) {
     field_counter=0;
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
     STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
-    STRUCT_SETUP(DB_TXN, abort,       "int (*%s) __P((DB_TXN *)");
+    STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
     sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
