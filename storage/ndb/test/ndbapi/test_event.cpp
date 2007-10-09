@@ -1730,7 +1730,7 @@ runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) 
   {
-    if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, 
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), 0, abort, 
 				    parallelism) == NDBT_FAILED){
       return NDBT_FAILED;
     }

@@ -684,7 +684,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == records);
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-    CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+    CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == (records/2));
 
@@ -862,7 +862,7 @@ int runPkSizes(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == records);
       CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-      CHECK(hugoTrans.scanUpdateRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.scanUpdateRecords(pNdb, records/2) == 0);
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == (records/2));
       CHECK(utilTrans.clearTable(pNdb, records) == 0);
