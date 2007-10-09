@@ -16,7 +16,7 @@ typedef uint8_t bool;
 #define IS_SET_ANY(bitvector, bits)    ((bitvector) & (bits))
 #define IS_SET_ALL(bitvector, bits)    (((bitvector) & (bits)) == (bits))
 
-#define IS_POWER_OF_2(num)             ((num) > 0 && ((num) & ((num) - 1)))
+#define IS_POWER_OF_2(num)             ((num) > 0 && ((num) & ((num) - 1)) == 0)
 
 int   strtoint32  (DB* db, char* progname, char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
 int   strtouint32 (DB* db, char* progname, char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
