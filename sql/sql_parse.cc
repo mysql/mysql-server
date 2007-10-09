@@ -86,8 +86,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
-static bool do_command(THD *thd);
-
 static void unlock_locked_tables(THD *thd)
 {
   if (thd->locked_tables)
