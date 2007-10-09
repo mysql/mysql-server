@@ -86,6 +86,7 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
+static bool do_command(THD *thd);
 
 static void unlock_locked_tables(THD *thd)
 {
@@ -681,12 +682,12 @@ bool do_command(THD *thd)
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,
 		       vio_description(net->vio)));
+
     /* Check if we can continue without closing the connection */
+
     if (net->error != 3)
-    {
-      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
-    }
+
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
