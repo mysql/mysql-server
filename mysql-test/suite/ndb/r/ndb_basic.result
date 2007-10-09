@@ -14,6 +14,7 @@ Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_number_of_data_nodes	#
 Ndb_conflict_fn_max	#
+Ndb_conflict_fn_old	#
 SHOW GLOBAL VARIABLES LIKE 'ndb%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
