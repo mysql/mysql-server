@@ -1027,6 +1027,15 @@ fmtddate	field2
 Sep-4 12:00AM	abcd
 DROP TABLE testBug8868;
 SET NAMES DEFAULT;
+CREATE TABLE t1 (
+a TIMESTAMP
+);
+INSERT INTO t1 VALUES (now()), (now());
+SELECT 1 FROM t1 ORDER BY MAKETIME(1, 1, a);
+1
+1
+1
+DROP TABLE t1;
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H)
 union
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H);
