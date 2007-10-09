@@ -511,4 +511,18 @@ SELECT * FROM tm1;
 CHECK TABLE tm1;
 DROP TABLE tm1, t1, t2;
 
+#
+# Bug#15522 - create ... select and with merge tables
+#
+# This was fixed together with Bug#20662 (Infinite loop in CREATE TABLE
+# IF NOT EXISTS ... SELECT with locked tables).
+# The new behavior for MERGE tables is consistent with the
+# CREATE TABLE SELECT behavior for ordinary tables.
+#
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
+--error ER_UPDATE_TABLE_USED
+CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests
