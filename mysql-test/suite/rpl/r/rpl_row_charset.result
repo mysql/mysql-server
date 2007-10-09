@@ -40,7 +40,7 @@ show create database mysqltest3;
 Database	Create Database
 mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
 use mysqltest2;
-create table t1 (a int auto_increment primary key, b varchar(100));
+create table t1 (a int auto_increment primary key, b varchar(100))engine=myisam;;
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
 insert into t1 (b) values(@@collation_server);
@@ -117,7 +117,7 @@ master-bin.000001	#	Query	#	#	create database mysqltest2 character set latin2
 master-bin.000001	#	Query	#	#	create database mysqltest3
 master-bin.000001	#	Query	#	#	drop database mysqltest3
 master-bin.000001	#	Query	#	#	create database mysqltest3
-master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))
+master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))engine=myisam
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
@@ -177,14 +177,16 @@ select "--- --3943--" as "";
 
 --- --3943--
 use test;
-CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255));
+CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))ENGINE=myisam;;
 SET CHARACTER_SET_CLIENT=koi8r,
 CHARACTER_SET_CONNECTION=cp1251, 
 CHARACTER_SET_RESULTS=koi8r;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
+SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
+SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3

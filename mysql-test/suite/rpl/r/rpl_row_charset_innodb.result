@@ -40,7 +40,7 @@ show create database mysqltest3;
 Database	Create Database
 mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
 use mysqltest2;
-create table t1 (a int auto_increment primary key, b varchar(100))engine=NDB;;
+create table t1 (a int auto_increment primary key, b varchar(100))engine=innodb;;
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
 insert into t1 (b) values(@@collation_server);
@@ -117,27 +117,41 @@ master-bin.000001	#	Query	#	#	create database mysqltest2 character set latin2
 master-bin.000001	#	Query	#	#	create database mysqltest3
 master-bin.000001	#	Query	#	#	drop database mysqltest3
 master-bin.000001	#	Query	#	#	create database mysqltest3
-master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))engine=NDB
-master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))engine=innodb
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
-master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `mysqltest2`; truncate table t1
-master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest2.t1)
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	drop database mysqltest2
 master-bin.000001	#	Query	#	#	drop database mysqltest3
 select "--- --global--" as "";
@@ -175,7 +189,7 @@ select "--- --3943--" as "";
 
 --- --3943--
 use test;
-CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))ENGINE=NDB;;
+CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))ENGINE=innodb;;
 SET CHARACTER_SET_CLIENT=koi8r,
 CHARACTER_SET_CONNECTION=cp1251, 
 CHARACTER_SET_RESULTS=koi8r;
@@ -195,7 +209,7 @@ select "--- --6676--" as "";
 create table `t1` (
 `pk` varchar(10) not null default '', 
 primary key (`pk`)
-) engine=NDB default charset=latin1;
+) engine=innodb default charset=latin1;
 set @p=_latin1 'test';
 update t1 set pk='test' where pk=@p;
 drop table t1;
