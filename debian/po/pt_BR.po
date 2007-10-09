@@ -205,8 +205,8 @@ msgstr ""
 #~ "atribuirá a nenhum usuário mais direitos do que os mesmos já possuíam "
 #~ "anteriormente."
 
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
-#~ msgstr "Por favor, leia http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
+#~ msgstr "Por favor, leia http://dev.mysql.com/doc/mysql/en/upgrade.html"
 
 #, fuzzy
 #~ msgid "Install Hints"
