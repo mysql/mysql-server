@@ -199,7 +199,9 @@ SELECT NAME_CONST('test', UPPER('test'));
 
 SELECT NAME_CONST('test', NULL);
 SELECT NAME_CONST('test', 1);
+SELECT NAME_CONST('test', -1);
 SELECT NAME_CONST('test', 1.0);
+SELECT NAME_CONST('test', -1.0);
 SELECT NAME_CONST('test', 'test');
 
 --echo End of 5.0 tests
