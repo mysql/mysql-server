@@ -282,3 +282,23 @@ select * from t1 where f1 between 20020101 and 20070101000000;
 select * from t1 where f1 between 2002010 and 20070101000000;
 select * from t1 where f1 between 20020101 and 2007010100000;
 drop table t1;
+
+#
+# Bug #31253: crash comparing datetime to double
+# Should return 1st row only. Crashes if NULL propagation fails.
+#
+create table t1 (f1 time);
+insert into t1 set f1 = '45:44:44';
+insert into t1 set f1 = '15:44:44';
+select * from t1 where (convert(f1,datetime)) != 1;
+drop table t1;
+
+#
+# Bug #31249: problem with convert(..., datetime)
+#
+create table t1 (a tinyint);
+insert into t1 values (), (), ();
+select sum(a) from t1 group by convert(a, datetime);
+drop table t1;
+
+--echo End of 5.0 tests
