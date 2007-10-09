@@ -2580,7 +2580,8 @@ void Item_xml_str_func::fix_length_and_dec()
     return;
   }
 
-  xp= args[1]->val_str(&tmp);
+  if (!(xp= args[1]->val_str(&tmp)))
+    return;
   my_xpath_init(&xpath);
   xpath.cs= collation.collation;
   xpath.debug= 0;
