@@ -1570,13 +1570,15 @@ sp_name:
 	| ident
 	  {
             LEX *lex= Lex;
-            LEX_STRING db;
+            LEX_STRING db= {0,0};
+            THD *thd= YYTHD;
+
 	    if (check_routine_name($1))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      MYSQL_YYABORT;
 	    }
-            if (lex->copy_db_to(&db.str, &db.length))
+            if (thd->db && thd->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
 	    $$= new sp_name(db, $1, false);
             if ($$)
@@ -1626,6 +1628,13 @@ create_function_tail:
 	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
 	      MYSQL_YYABORT;
 	    }
+
+            if (!lex->spname->m_db.length)
+            {
+              my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+              MYSQL_YYABORT;
+            }
+
 	    /* Order is important here: new - reset - init */
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(thd);
@@ -5195,8 +5204,8 @@ simple_expr:
 #endif /* HAVE_DLOPEN */
             {
               THD *thd= lex->thd;
-              LEX_STRING db;
-              if (lex->copy_db_to(&db.str, &db.length))
+              LEX_STRING db= {0,0};
+              if (thd->db && thd->copy_db_to(&db.str, &db.length))
                 MYSQL_YYABORT;
               sp_name *name= new sp_name(db, $1, false);
               if (name)
@@ -9745,7 +9754,13 @@ trigger_tail:
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
 	    MYSQL_YYABORT;
 	  }
-	
+
+	  if (!$3->m_db.length)
+	  {
+	    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+	    MYSQL_YYABORT;
+	  }
+
 	  if (!(sp= new sp_head()))
 	    MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(thd);
@@ -9825,6 +9840,12 @@ sp_tail:
 	  if (lex->sphead)
 	  {
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
+	    MYSQL_YYABORT;
+	  }
+
+	  if (!$3->m_db.length)
+	  {
+	    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
 	    MYSQL_YYABORT;
 	  }
 
