@@ -57,6 +57,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 drop table t1;
 delete from mysql.user where user='rpl';
 drop table t1;
