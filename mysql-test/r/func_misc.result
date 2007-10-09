@@ -195,9 +195,15 @@ NULL
 SELECT NAME_CONST('test', 1);
 test
 1
+SELECT NAME_CONST('test', -1);
+test
+-1
 SELECT NAME_CONST('test', 1.0);
 test
 1.0
+SELECT NAME_CONST('test', -1.0);
+test
+-1.0
 SELECT NAME_CONST('test', 'test');
 test
 test
