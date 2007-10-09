@@ -28,6 +28,26 @@ sub collect_one_test_case ($$$$$$$$$);
 
 sub mtr_options_from_test_file($$);
 
+my $do_test;
+my $skip_test;
+
+sub init_pattern {
+  my ($from, $what)= @_;
+  if ( $from =~ /[a-z0-9]/ ) {
+    # Does not contain any regex, make the pattern match
+    # beginning of string
+    $from= "^$from";
+  }
+  else {
+    # Check that pattern is a valid regex
+    eval { "" =~/$from/; 1 } or
+      mtr_error("Invalid regex '$from' passed to $what\nPerl says: $@");
+  }
+  return $from;
+}
+
+
+
 ##############################################################################
 #
 #  Collect information about test cases we are to run
@@ -35,6 +55,9 @@ sub mtr_options_from_test_file($$);
 ##############################################################################
 
 sub collect_test_cases ($) {
+  $do_test= init_pattern($::opt_do_test, "--do-test");
+  $skip_test= init_pattern($::opt_skip_test, "--skip-test");
+
   my $suites= shift; # Semicolon separated list of test suites
   my $cases = [];    # Array of hash
 
@@ -48,13 +71,14 @@ sub collect_test_cases ($) {
   {
     # Check that the tests specified was found
     # in at least one suite
-    foreach my $tname ( @::opt_cases )
+    foreach my $test_name_spec ( @::opt_cases )
     {
       my $found= 0;
+      my ($sname, $tname, $extension)= split_testname($test_name_spec);
       foreach my $test ( @$cases )
       {
-	if ( $test->{'name'} eq $tname ||
-	     mtr_match_extension($test->{'name'}, $tname) )
+	# test->{name} is always in suite.name format
+	if ( $test->{name} =~ /.*\.$tname/ )
 	{
 	  $found= 1;
 	}
@@ -144,6 +168,45 @@ sub collect_test_cases ($) {
 
 }
 
+# Valid extensions and their corresonding component id
+my %exts = ( 'test' => 'mysqld',
+	     'imtest' => 'im'
+	   );
+
+
+# Returns (suitename, testname, extension)
+sub split_testname {
+  my ($test_name)= @_;
+
+  # Get rid of directory part and split name on .'s
+  my @parts= split(/\./, basename($test_name));
+
+  if (@parts == 1){
+    # Only testname given, ex: alias
+    return (undef , $parts[0], undef);
+  } elsif (@parts == 2) {
+    # Either testname.test or suite.testname given
+    # Ex. main.alias or alias.test
+
+    if (defined $exts{$parts[1]})
+    {
+      return (undef , $parts[0], $parts[1]);
+    }
+    else
+    {
+      return ($parts[0], $parts[1], undef);
+    }
+
+  } elsif (@parts == 3) {
+    # Fully specified suitename.testname.test
+    # ex main.alias.test
+    return ( $parts[0], $parts[1], $parts[2]);
+  }
+
+  mtr_error("Illegal format of test name: $test_name");
+}
+
+
 sub collect_one_suite($$)
 {
   my $suite= shift;  # Test suite name
@@ -189,77 +252,55 @@ sub collect_one_suite($$)
 
   if ( @::opt_cases )
   {
-    # Collect in specified order, no sort
-    foreach my $tname2 ( @::opt_cases )
+    # Collect in specified order
+    foreach my $test_name_spec ( @::opt_cases )
     {
-      my $tname= $tname2; # Don't modify @::opt_cases !
-      my $elem= undef;
-      my $component_id= undef;
+      my ($sname, $tname, $extension)= split_testname($test_name_spec);
 
-      # Get rid of directory part (path). Leave the extension since it is used
-      # to understand type of the test.
+      # The test name parts have now been defined
+      #print "  suite_name: $sname\n";
+      #print "  tname:      $tname\n";
+      #print "  extension:  $extension\n";
 
-      $tname = basename($tname);
+      # Check cirrect suite if suitename is defined
+      next if (defined $sname and $suite ne $sname);
 
-      # Get rid of suite part
-      $tname =~ s/^(.*)\.//;
-
-      # Check if the extenstion has been specified.
-
-      if ( mtr_match_extension($tname, "test") )
+      my $component_id;
+      if ( defined $extension )
       {
-        $elem= $tname;
-        $tname=~ s/\.test$//;
-        $component_id= 'mysqld';
-      }
-      elsif ( mtr_match_extension($tname, "imtest") )
-      {
-        $elem= $tname;
-        $tname =~ s/\.imtest$//;
-        $component_id= 'im';
-      }
-
-      # If target component is known, check that the specified test case
-      # exists.
-      #
-      # Otherwise, try to guess the target component.
-
-      if ( $component_id )
-      {
-        if ( ! -f "$testdir/$elem")
+	my $full_name= "$testdir/$tname.$extension";
+	# Extension was specified, check if the test exists
+        if ( ! -f $full_name)
         {
-          mtr_error("Test case $tname ($testdir/$elem) is not found");
+	  # This is only an error if suite was specified, otherwise it
+	  # could exist in another suite
+          mtr_error("Test '$full_name' was not found in suite '$sname'")
+	    if $sname;
+
+	  next;
         }
+	$component_id= $exts{$extension};
       }
       else
       {
-        my $mysqld_test_exists = -f "$testdir/$tname.test";
-        my $im_test_exists = -f "$testdir/$tname.imtest";
+	# No extension was specified
+	my ($ext, $component);
+	while (($ext, $component)= each %exts) {
+	  my $full_name= "$testdir/$tname.$ext";
 
-        if ( $mysqld_test_exists and $im_test_exists )
-        {
-          mtr_error("Ambiguous test case name ($tname)");
-        }
-        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
-        {
-	  # Silently skip, could exist in another suite
-	  next;
-        }
-        elsif ( $mysqld_test_exists )
-        {
-          $elem= "$tname.test";
-          $component_id= 'mysqld';
-        }
-        elsif ( $im_test_exists )
-        {
-          $elem= "$tname.imtest";
-          $component_id= 'im';
-        }
+	  if ( ! -f $full_name ) {
+	    next;
+	  }
+	  $component_id= $component;
+	  $extension= $ext;
+	}
+	# Test not found here, could exist in other suite
+	next unless $component_id;
       }
 
       collect_one_test_case($testdir,$resdir,$suite,$tname,
-                            $elem,$cases,\%disabled,$component_id,
-			    $suite_opts);
+                            "$tname.$extension",$cases,\%disabled,
+			    $component_id,$suite_opts);
     }
   }
   else
@@ -285,8 +326,7 @@ sub collect_one_suite($$)
       }
 
       # Skip tests that does not match the --do-test= filter
-      next if $::opt_do_test and
-	! defined mtr_match_prefix($elem,$::opt_do_test);
+      next if ($do_test and not $tname =~ /$do_test/o);
 
       collect_one_test_case($testdir,$resdir,$suite,$tname,
                             $elem,$cases,\%disabled,$component_id,
@@ -339,7 +379,7 @@ sub collect_one_test_case($$$$$$$$$) {
   # Skip some tests but include in list, just mark them to skip
   # ----------------------------------------------------------------------
 
-  if ( $::opt_skip_test and defined mtr_match_prefix($tname,$::opt_skip_test) )
+  if ( $skip_test and $tname =~ /$skip_test/o )
   {
     $tinfo->{'skip'}= 1;
     return;
