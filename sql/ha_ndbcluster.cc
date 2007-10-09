@@ -7570,7 +7570,8 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     NDB_INDEX_DATA& d=m_index[inx];
     const NDBINDEX* index= d.index;
     Ndb* ndb=get_ndb();
-    NdbTransaction* trans=NULL;
+    NdbTransaction* active_trans= m_thd_ndb ? m_thd_ndb->trans : NULL;
+    NdbTransaction* trans= NULL;
     NdbIndexScanOperation* op=NULL;
     int res=0;
     Uint64 rows;
@@ -7602,7 +7603,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       }
 
       // Define scan op for the range
-      if ((trans= m_thd_ndb->trans) == NULL || 
+      if ((trans= active_trans) == NULL || 
 	  trans->commitStatus() != NdbTransaction::Started)
       {
         DBUG_PRINT("info", ("no active trans"));
@@ -7631,9 +7632,9 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       d.index_stat_query_count++;
     } while (0);
 
-    if (trans != m_thd_ndb->trans && rows == 0)
+    if (trans != active_trans && rows == 0)
       rows = 1;
-    if (trans != m_thd_ndb->trans && trans != NULL)
+    if (trans != active_trans && trans != NULL)
       ndb->closeTransaction(trans);
     if (res != 0)
       DBUG_RETURN(HA_POS_ERROR);
