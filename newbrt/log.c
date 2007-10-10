@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "brttypes.h"
 #include "log-internal.h"
 #include "wbuf.h"
@@ -10,7 +11,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <unistd.h>
 
 int tokulogger_find_next_unused_log_file(const char *directory, long long *result) {
     DIR *d=opendir(directory);
