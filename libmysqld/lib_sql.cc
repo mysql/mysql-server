@@ -111,7 +111,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   thd->net.no_send_error= 0;
-  result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
+  result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
 
   if (!skip_check)
