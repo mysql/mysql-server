@@ -16819,6 +16819,176 @@ static void test_bug30472()
   mysql_close(&con);
 }
 
+static void bug20023_change_user(MYSQL *con)
+{
+  DIE_IF(mysql_change_user(con,
+                           opt_user,
+                           opt_password,
+                           opt_db ? opt_db : "test"));
+}
+
+static void bug20023_query_int_variable(MYSQL *con,
+                                        const char *var_name,
+                                        int *var_value)
+{
+  MYSQL_RES *rs;
+  MYSQL_ROW row;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  my_snprintf(query_buffer,
+          sizeof (query_buffer),
+          "SELECT @@%s",
+          (const char *) var_name);
+
+  DIE_IF(mysql_query(con, query_buffer));
+  DIE_UNLESS(rs= mysql_store_result(con));
+  DIE_UNLESS(row= mysql_fetch_row(rs));
+  *var_value= atoi(row[0]);
+  mysql_free_result(rs);
+}
+
+static void test_bug20023()
+{
+  MYSQL con;
+
+  int sql_big_selects_orig;
+  int max_join_size_orig;
+
+  int sql_big_selects_2;
+  int sql_big_selects_3;
+  int sql_big_selects_4;
+  int sql_big_selects_5;
+
+  char query_buffer[MAX_TEST_QUERY_LENGTH];
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /***********************************************************************
+   Remember original SQL_BIG_SELECTS, MAX_JOIN_SIZE values.
+  ***********************************************************************/
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_orig);
+
+  bug20023_query_int_variable(&con,
+                              "global.max_join_size",
+                              &max_join_size_orig);
+
+  /***********************************************************************
+   Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
+  ***********************************************************************/
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_2);
+
+  /* Check that SQL_BIG_SELECTS is reset properly. */
+
+  DIE_UNLESS(sql_big_selects_orig == sql_big_selects_2);
+
+  /***********************************************************************
+   Test that if MAX_JOIN_SIZE set to non-default value,
+   SQL_BIG_SELECTS will be 0.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to some non-default value. */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 10000"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_3);
+
+  /* Check that SQL_BIG_SELECTS is 0. */
+
+  DIE_UNLESS(sql_big_selects_3 == 0);
+
+  /***********************************************************************
+   Test that if MAX_JOIN_SIZE set to default value,
+   SQL_BIG_SELECTS will be 1.
+  ***********************************************************************/
+
+  /* Set MAX_JOIN_SIZE to the default value (-1). */
+
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_4);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_4 == 1);
+
+  /***********************************************************************
+   Restore MAX_JOIN_SIZE.
+   Check that SQL_BIG_SELECTS will be the original one.
+  ***********************************************************************/
+
+  /* Restore MAX_JOIN_SIZE. */
+
+  my_snprintf(query_buffer,
+           sizeof (query_buffer),
+           "SET @@global.max_join_size = %d",
+           (int) max_join_size_orig);
+
+  DIE_IF(mysql_query(&con, query_buffer));
+  DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
+
+  /* Issue COM_CHANGE_USER. */
+
+  bug20023_change_user(&con);
+
+  /* Query SQL_BIG_SELECTS. */
+
+  bug20023_query_int_variable(&con,
+                              "session.sql_big_selects",
+                              &sql_big_selects_5);
+
+  /* Check that SQL_BIG_SELECTS is 1. */
+
+  DIE_UNLESS(sql_big_selects_5 == sql_big_selects_orig);
+
+  /***********************************************************************
+   That's it. Cleanup.
+  ***********************************************************************/
+
+  mysql_close(&con);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -17115,6 +17285,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug29306", test_bug29306 },
   { "test_change_user", test_change_user },
   { "test_bug30472", test_bug30472 },
+  { "test_bug20023", test_bug20023 },
   { 0, 0 }
 };
 
