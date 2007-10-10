@@ -773,6 +773,8 @@ struct TABLE_LIST
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
+  void print_index_hint(THD *thd, String *str, const char *hint, 
+                        uint32 hint_length, List<String>);
   /*
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
