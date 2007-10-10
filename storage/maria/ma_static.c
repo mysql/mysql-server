@@ -24,10 +24,12 @@
 #endif
 
 LIST	*maria_open_list=0;
-uchar	NEAR maria_file_magic[]=
+uchar	maria_file_magic[]=
 { (uchar) 254, (uchar) 254, (uchar) 9, '\001', };
-uchar	NEAR maria_pack_file_magic[]=
+uchar	maria_pack_file_magic[]=
 { (uchar) 254, (uchar) 254, (uchar) 10, '\001', };
+/* Unique number for this maria instance */
+uchar   maria_uuid[MY_UUID_SIZE];
 uint	maria_quick_table_bits=9;
 ulong	maria_block_size= MARIA_KEY_BLOCK_LENGTH;
 my_bool maria_flush= 0, maria_single_user= 0;
@@ -64,7 +66,7 @@ uchar maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   Position is , == , >= , <= , > , <
 */
 
-uint NEAR maria_read_vec[]=
+uint maria_read_vec[]=
 {
   SEARCH_FIND, SEARCH_FIND | SEARCH_BIGGER, SEARCH_FIND | SEARCH_SMALLER,
   SEARCH_NO_FIND | SEARCH_BIGGER, SEARCH_NO_FIND | SEARCH_SMALLER,
@@ -72,7 +74,7 @@ uint NEAR maria_read_vec[]=
   MBR_CONTAIN, MBR_INTERSECT, MBR_WITHIN, MBR_DISJOINT, MBR_EQUAL
 };
 
-uint NEAR maria_readnext_vec[]=
+uint maria_readnext_vec[]=
 {
   SEARCH_BIGGER, SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_BIGGER, SEARCH_SMALLER,
   SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_SMALLER

@@ -32,8 +32,8 @@
 int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
                         uint key_length, uchar *page_buf, my_off_t *new_page)
 {
-  uint page_size = maria_data_on_page(page_buf);
-  uint nod_flag = _ma_test_if_nod(page_buf);
+  uint page_size= _ma_get_page_used(info, page_buf);
+  uint nod_flag= _ma_test_if_nod(info, page_buf);
   DBUG_ENTER("maria_rtree_add_key");
 
   if (page_size + key_length + info->s->base.rec_reflength <=
@@ -44,8 +44,9 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
     {
       /* save key */
       DBUG_ASSERT(_ma_kpos(nod_flag, key) < info->state->key_file_length);
-      memcpy(rt_PAGE_END(page_buf), key - nod_flag, key_length + nod_flag);
-      page_size += key_length + nod_flag;
+      memcpy(rt_PAGE_END(info, page_buf), key - nod_flag,
+             key_length + nod_flag);
+      page_size+= key_length + nod_flag;
     }
     else
     {
@@ -54,11 +55,11 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
                            info->s->base.rec_reflength) <
                   info->state->data_file_length +
                   info->s->base.pack_reclength);
-      memcpy(rt_PAGE_END(page_buf), key, key_length +
+      memcpy(rt_PAGE_END(info, page_buf), key, key_length +
                                          info->s->base.rec_reflength);
-      page_size += key_length + info->s->base.rec_reflength;
+      page_size+= key_length + info->s->base.rec_reflength;
     }
-    maria_putint(page_buf, page_size, nod_flag);
+    _ma_store_page_used(info, page_buf, page_size, nod_flag);
     DBUG_RETURN(0);
   }
 
@@ -74,18 +75,18 @@ int maria_rtree_add_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
 		     uint key_length, uint nod_flag)
 {
-  uint16 page_size = maria_data_on_page(page_buf);
+  uint16 page_size= _ma_get_page_used(info, page_buf);
   uchar *key_start;
 
   key_start= key - nod_flag;
   if (!nod_flag)
-    key_length += info->s->base.rec_reflength;
+    key_length+= info->s->base.rec_reflength;
 
   memmove(key_start, key + key_length, page_size - key_length -
 	  (key - page_buf));
   page_size-= key_length + nod_flag;
 
-  maria_putint(page_buf, page_size, nod_flag);
+  _ma_store_page_used(info, page_buf, page_size, nod_flag);
   return 0;
 }
 

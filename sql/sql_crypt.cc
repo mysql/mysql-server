@@ -38,7 +38,7 @@ SQL_CRYPT::SQL_CRYPT(const char *password)
 void SQL_CRYPT::crypt_init(ulong *rand_nr)
 {
   uint i;
-  randominit(&rand,rand_nr[0],rand_nr[1]);
+  my_rnd_init(&rand,rand_nr[0],rand_nr[1]);
 
   for (i=0 ; i<=255; i++)
    decode_buff[i]= (char) i;

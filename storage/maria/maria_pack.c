@@ -860,7 +860,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   ha_rows record_count;
   HUFF_COUNTS *count,*end_count;
   TREE_ELEMENT *element;
-  ha_checksum(*calc_checksum) (struct st_maria_info *, const uchar *);
+  ha_checksum(*calc_checksum)(MARIA_HA *, const uchar *);
   DBUG_ENTER("get_statistic");
 
   reclength=  mrg->file[0]->s->base.reclength;
@@ -873,8 +873,8 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   /* Check how to calculate checksum */
   if (mrg->file[0]->s->data_file_type == STATIC_RECORD)
     calc_checksum= _ma_static_checksum;
-    else
-      calc_checksum= _ma_checksum;
+  else
+    calc_checksum= _ma_checksum;
 
   mrg_reset(mrg);
   while ((error=mrg_rrnd(mrg,record)) != HA_ERR_END_OF_FILE)

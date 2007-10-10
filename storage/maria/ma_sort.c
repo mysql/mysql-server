@@ -92,7 +92,7 @@ my_var_write(MARIA_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
     _ma_create_index_by_sort()
     info		Sort parameters
     no_messages		Set to 1 if no output
-    sortbuff_size	Size if sortbuffer to allocate
+    sortbuff_size	Size of sortbuffer to allocate
 
   RESULT
     0	ok
@@ -100,10 +100,11 @@ my_var_write(MARIA_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 */
 
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
-                             ulong sortbuff_size)
+                             size_t sortbuff_size)
 {
   int error,maxbuffer,skr;
-  uint memavl,old_memavl,keys,sort_length;
+  size_t memavl,old_memavl;
+  uint keys,sort_length;
   DYNAMIC_ARRAY buffpek;
   ha_rows records;
   uchar **sort_keys;
@@ -313,8 +314,9 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
 {
   MARIA_SORT_PARAM *sort_param= (MARIA_SORT_PARAM*) arg;
   int error;
-  uint memavl,old_memavl,keys,sort_length;
-  uint idx, maxbuffer;
+  size_t memavl,old_memavl;
+  uint sort_length;
+  ulong idx, maxbuffer, keys;
   uchar **sort_keys=0;
 
   LINT_INIT(keys);
@@ -355,19 +357,18 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
 
     while (memavl >= MIN_SORT_MEMORY)
     {
-      if ((my_off_t) (idx+1)*(sort_length+sizeof(char*)) <=
-          (my_off_t) memavl)
+      if ((my_off_t) (idx+1)*(sort_length+sizeof(char*)) <= (my_off_t) memavl)
         keys= idx+1;
       else
       {
-        uint skr;
+        ulong skr;
         do
         {
           skr= maxbuffer;
           if (memavl < sizeof(BUFFPEK)*maxbuffer ||
               (keys=(memavl-sizeof(BUFFPEK)*maxbuffer)/
                (sort_length+sizeof(char*))) <= 1 ||
-              keys < (uint) maxbuffer)
+              keys < maxbuffer)
           {
             _ma_check_print_error(sort_param->sort_info->param,
                                   "maria_sort_buffer_size is too small");
@@ -403,8 +404,8 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
     }
 
     if (sort_param->sort_info->param->testflag & T_VERBOSE)
-      printf("Key %d - Allocating buffer for %d keys\n",
-             sort_param->key+1, keys);
+      printf("Key %d - Allocating buffer for %lu keys\n",
+             sort_param->key+1, (ulong) keys);
     sort_param->sort_keys= sort_keys;
 
     idx= error= 0;
@@ -492,7 +493,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
   MARIA_SORT_INFO *sort_info=sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
   ulong length, keys;
-  ulong *rec_per_key_part=param->rec_per_key_part;
+  double *rec_per_key_part= param->new_rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
   MARIA_HA *info=sort_info->info;

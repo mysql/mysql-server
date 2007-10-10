@@ -34,6 +34,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_vle.c my_atomic.c lf_hash.c \
 			lf_dynarray.c lf_alloc-pin.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
+			my_rnd.c my_uuid.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \

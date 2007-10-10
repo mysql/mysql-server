@@ -611,7 +611,7 @@ static char **defaults_argv;
 static char *opt_bin_logname;
 
 static my_socket unix_sock,ip_sock;
-struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
+struct my_rnd_struct sql_rand; // used by sql_class.cc:THD::THD()
 
 #ifndef EMBEDDED_LIBRARY
 struct passwd *user_info;
@@ -3248,7 +3248,7 @@ static int init_server_components()
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
   query_cache_resize(query_cache_size);
-  randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
+  my_rnd_init(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
 #ifdef HAVE_REPLICATION

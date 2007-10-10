@@ -81,8 +81,8 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
     share	Share of already open table
     mode	Mode of table (O_RDONLY | O_RDWR)
     data_file   Filedescriptor of data file to use < 0 if one should open
-	        open it.    
- 
+	        open it.
+
   RETURN
     #   Maria handler
     0   Error
@@ -252,7 +252,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MARIA_HA info,*m_info,*old_info;
   MARIA_SHARE share_buff,*share;
-  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  double rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  long   nulls_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   ulonglong max_key_file_length, max_data_file_length;
   File data_file= -1;
@@ -273,7 +274,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
-    share_buff.state.rec_per_key_part=rec_per_key_part;
+    share_buff.state.rec_per_key_part=   rec_per_key_part;
+    share_buff.state.nulls_per_key_part= nulls_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.pagecache= multi_pagecache_search((uchar*) name_buff,
 						 strlen(name_buff),
@@ -315,10 +317,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
           HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
-          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS))
+          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS |
+          HA_OPTION_PAGE_CHECKSUM))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
-      my_errno=HA_ERR_OLD_FILE;
+      my_errno=HA_ERR_NEW_FILE;
       goto err;
     }
     if ((share->options & HA_OPTION_RELIES_ON_SQL_LAYER) &&
@@ -442,7 +445,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     if (!my_multi_malloc(MY_WME,
 			 &share,sizeof(*share),
-			 &share->state.rec_per_key_part,sizeof(long)*key_parts,
+			 &share->state.rec_per_key_part,
+                         sizeof(double) * key_parts,
+                         &share->state.nulls_per_key_part,
+                         sizeof(long)* key_parts,
 			 &share->keyinfo,keys*sizeof(MARIA_KEYDEF),
 			 &share->uniqueinfo,uniques*sizeof(MARIA_UNIQUEDEF),
 			 &share->keyparts,
@@ -450,6 +456,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 			 sizeof(HA_KEYSEG),
 			 &share->columndef,
 			 (share->base.fields+1)*sizeof(MARIA_COLUMNDEF),
+                         &share->column_nr, share->base.fields*sizeof(uint16),
 			 &share->blobs,sizeof(MARIA_BLOB)*share->base.blobs,
 			 &share->unique_file_name,strlen(name_buff)+1,
 			 &share->index_file_name,strlen(index_name)+1,
@@ -466,7 +473,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     *share=share_buff;
     memcpy((char*) share->state.rec_per_key_part,
-	   (char*) rec_per_key_part, sizeof(long)*key_parts);
+	   (char*) rec_per_key_part, sizeof(double)*key_parts);
+    memcpy((char*) share->state.nulls_per_key_part,
+	   (char*) nulls_per_key_part, sizeof(long)*key_parts);
     memcpy((char*) share->state.key_root,
 	   (char*) key_root, sizeof(my_off_t)*keys);
     strmov(share->unique_file_name, name_buff);
@@ -596,6 +605,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
+    share->keypage_header= ((share->base.born_transactional ? LSN_STORE_SIZE :
+                             0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
+                            KEYPAGE_USED_SIZE);
+
     if (open_flags & HA_OPEN_COPY)
     {
       /*
@@ -667,6 +680,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
     share->columndef[i].type=(int) FIELD_LAST;	/* End marker */
+    disk_pos= _ma_column_nr_read(disk_pos, share->column_nr,
+                                 share->base.fields);
 
     if ((share->data_file_type == BLOCK_RECORD ||
          share->data_file_type == COMPRESSED_RECORD))
@@ -694,7 +709,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
     share->is_log_table= FALSE;
-    if (open_flags & HA_OPEN_TMP_TABLE) 
+    if (open_flags & HA_OPEN_TMP_TABLE)
       share->options|= HA_OPTION_TMP_TABLE;
     if (open_flags & HA_OPEN_DELAY_KEY_WRITE)
       share->options|= HA_OPTION_DELAY_KEY_WRITE;
@@ -772,7 +787,7 @@ err:
       VOID(my_close(data_file, MYF(0)));
     if (old_info)
       break;					/* Don't remove open table */
-    (*share->once_end)(share);    
+    (*share->once_end)(share);
     /* fall through */
   case 4:
     my_free((uchar*) share,MYF(0));
@@ -915,7 +930,7 @@ void _ma_setup_functions(register MARIA_SHARE *share)
   share->file_read= _ma_nommap_pread;
   share->file_write= _ma_nommap_pwrite;
   share->calc_check_checksum= share->calc_checksum;
-  
+
   if (!(share->options & HA_OPTION_CHECKSUM) &&
       share->data_file_type != COMPRESSED_RECORD)
     share->calc_checksum= share->calc_write_checksum= 0;
@@ -1096,10 +1111,13 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
     mi_int8store(ptr,(ulonglong) state->create_time);	ptr+= 8;
     mi_int8store(ptr,(ulonglong) state->recover_time);	ptr+= 8;
     mi_int8store(ptr,(ulonglong) state->check_time);	ptr+= 8;
-    mi_sizestore(ptr,state->rec_per_key_rows);		ptr+= 8;
+    mi_sizestore(ptr, state->records_at_analyze);	ptr+= 8;
+    /* reserve place for some information per key */
+    bzero(ptr, keys*4); 				ptr+= keys*4;
     for (i=0 ; i < key_parts ; i++)
     {
-      mi_int4store(ptr,state->rec_per_key_part[i]);  	ptr+=4;
+      float8store(ptr, state->rec_per_key_part[i]);  	ptr+= 8;
+      mi_int4store(ptr, state->nulls_per_key_part[i]);  ptr+= 4;
     }
   }
 
@@ -1136,7 +1154,9 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   state->state.key_empty= mi_sizekorr(ptr);		ptr+= 8;
   state->auto_increment=mi_uint8korr(ptr);		ptr+= 8;
   state->state.checksum=(ha_checksum) mi_uint8korr(ptr);ptr+= 8;
+  /* Not used (legacy from MyISAM) */
   state->process= mi_uint4korr(ptr);			ptr+= 4;
+  /* Not used (legacy from MyISAM) */
   state->unique = mi_uint4korr(ptr);			ptr+= 4;
   state->status = mi_uint4korr(ptr);			ptr+= 4;
   state->update_count=mi_uint4korr(ptr);		ptr+= 4;
@@ -1155,10 +1175,12 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   state->create_time = (time_t) mi_sizekorr(ptr);	ptr+= 8;
   state->recover_time =(time_t) mi_sizekorr(ptr);	ptr+= 8;
   state->check_time =  (time_t) mi_sizekorr(ptr);	ptr+= 8;
-  state->rec_per_key_rows=mi_sizekorr(ptr);		ptr+= 8;
+  state->records_at_analyze=    mi_sizekorr(ptr);	ptr+= 8;
+  ptr+= keys * 4;                               /* Skip reserved bytes */
   for (i=0 ; i < key_parts ; i++)
   {
-    state->rec_per_key_part[i]= mi_uint4korr(ptr);	ptr+=4;
+    float8get(state->rec_per_key_part[i], ptr);		ptr+= 8;
+    state->nulls_per_key_part[i]= mi_uint4korr(ptr);	ptr+= 4;
   }
   return ptr;
 }
@@ -1200,6 +1222,8 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
 {
   uchar buff[MARIA_BASE_INFO_SIZE], *ptr=buff;
 
+  bmove(ptr, maria_uuid, MY_UUID_SIZE);
+  ptr+= MY_UUID_SIZE;
   mi_sizestore(ptr,base->keystart);			ptr+= 8;
   mi_sizestore(ptr,base->max_data_file_length);		ptr+= 8;
   mi_sizestore(ptr,base->max_key_file_length);		ptr+= 8;
@@ -1216,7 +1240,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   mi_int2store(ptr,base->fixed_not_null_fields_length);	ptr+= 2;
   mi_int2store(ptr,base->max_field_lengths);		ptr+= 2;
   mi_int2store(ptr,base->pack_fields);			ptr+= 2;
-  mi_int2store(ptr,0);					ptr+= 2;
+  mi_int2store(ptr,base->extra_options)			ptr+= 2;
   mi_int2store(ptr,base->null_bytes);                   ptr+= 2;
   mi_int2store(ptr,base->original_null_bytes);	        ptr+= 2;
   mi_int2store(ptr,base->field_offsets);	        ptr+= 2;
@@ -1242,6 +1266,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
 
 static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
 {
+  bmove(base->uuid, ptr, MY_UUID_SIZE);                 ptr+= MY_UUID_SIZE;
   base->keystart= mi_sizekorr(ptr);			ptr+= 8;
   base->max_data_file_length= mi_sizekorr(ptr); 	ptr+= 8;
   base->max_key_file_length= mi_sizekorr(ptr);		ptr+= 8;
@@ -1258,7 +1283,7 @@ static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
   base->fixed_not_null_fields_length= mi_uint2korr(ptr);ptr+= 2;
   base->max_field_lengths= mi_uint2korr(ptr);	        ptr+= 2;
   base->pack_fields= mi_uint2korr(ptr);			ptr+= 2;
-  ptr+= 2;
+  base->extra_options= mi_uint2korr(ptr);		ptr+= 2;
   base->null_bytes= mi_uint2korr(ptr);			ptr+= 2;
   base->original_null_bytes= mi_uint2korr(ptr);		ptr+= 2;
   base->field_offsets= mi_uint2korr(ptr);		ptr+= 2;
@@ -1285,7 +1310,7 @@ static uchar *_ma_base_info_read(uchar *ptr, MARIA_BASE_INFO *base)
   maria_keydef
 ---------------------------------------------------------------------------*/
 
-uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef)
+my_bool _ma_keydef_write(File file, MARIA_KEYDEF *keydef)
 {
   uchar buff[MARIA_KEYDEF_SIZE];
   uchar *ptr=buff;
@@ -1321,7 +1346,7 @@ uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
 **  maria_keyseg
 ***************************************************************************/
 
-int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg)
+my_bool _ma_keyseg_write(File file, const HA_KEYSEG *keyseg)
 {
   uchar buff[HA_KEYSEG_SIZE];
   uchar *ptr=buff;
@@ -1371,7 +1396,7 @@ uchar *_ma_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg)
   maria_uniquedef
 ---------------------------------------------------------------------------*/
 
-uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *def)
+my_bool _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *def)
 {
   uchar buff[MARIA_UNIQUEDEF_SIZE];
   uchar *ptr=buff;
@@ -1395,12 +1420,12 @@ uchar *_ma_uniquedef_read(uchar *ptr, MARIA_UNIQUEDEF *def)
 **  MARIA_COLUMNDEF
 ***************************************************************************/
 
-uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
+my_bool _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
 {
   uchar buff[MARIA_COLUMNDEF_SIZE];
   uchar *ptr=buff;
 
-  mi_int6store(ptr,columndef->offset);	        ptr+= 6;
+  mi_int2store(ptr,(ulong) columndef->offset);	ptr+= 2;
   mi_int2store(ptr,columndef->type);		ptr+= 2;
   mi_int2store(ptr,columndef->length);		ptr+= 2;
   mi_int2store(ptr,columndef->fill_length);	ptr+= 2;
@@ -1408,12 +1433,13 @@ uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
   mi_int2store(ptr,columndef->empty_pos);	ptr+= 2;
   (*ptr++)= columndef->null_bit;
   (*ptr++)= columndef->empty_bit;
+  ptr[0]= ptr[1]= ptr[2]= ptr[3]= 0;            ptr+= 4;  /* For future */
   return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef)
 {
-  columndef->offset= mi_uint6korr(ptr);         ptr+= 6;
+  columndef->offset= mi_uint2korr(ptr);         ptr+= 2;
   columndef->type=   mi_sint2korr(ptr);		ptr+= 2;
   columndef->length= mi_uint2korr(ptr);		ptr+= 2;
   columndef->fill_length= mi_uint2korr(ptr);	ptr+= 2;
@@ -1421,8 +1447,35 @@ uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef)
   columndef->empty_pos= mi_uint2korr(ptr);	ptr+= 2;
   columndef->null_bit=  (uint8) *ptr++;
   columndef->empty_bit= (uint8) *ptr++;
+  ptr+= 4;
   return ptr;
 }
+
+my_bool _ma_column_nr_write(File file, uint16 *offsets, uint columns)
+{
+  uchar *buff, *ptr, *end;
+  size_t size= columns*2;
+  my_bool res;
+
+  if (!(buff= (uchar*) my_alloca(size)))
+    return 1;
+  for (ptr= buff, end= ptr + size; ptr < end ; ptr+= 2, offsets++)
+    int2store(ptr, *offsets);
+  res= my_write(file, buff, size, MYF(MY_NABP)) != 0;
+  my_afree(buff);
+  return res;
+}
+
+
+uchar *_ma_column_nr_read(uchar *ptr, uint16 *offsets, uint columns)
+{
+  uchar *end;
+  size_t size= columns*2;
+  for (end= ptr + size; ptr < end ; ptr+=2, offsets++)
+    *offsets= uint2korr(ptr);
+  return ptr;
+}
+
 
 /**************************************************************************
  Open data file

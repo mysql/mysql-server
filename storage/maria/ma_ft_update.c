@@ -327,9 +327,10 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   }
 
   /* creating pageful of keys */
-  maria_putint(info->buff,length+2,0);
-  memcpy(info->buff+2, key_ptr, length);
-  info->keyread_buff_used=info->page_changed=1;           /* info->buff is used */
+  _ma_store_keynr(info, info->buff, keynr);
+  _ma_store_page_used(info, info->buff, length + info->s->keypage_header, 0);
+  memcpy(info->buff + info->s->keypage_header, key_ptr, length);
+  info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
   if ((root= _ma_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info,keyinfo,root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);

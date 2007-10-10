@@ -128,9 +128,10 @@ typedef struct st_handler_check_param
   ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
   ha_checksum tmp_key_crc[HA_MAX_POSSIBLE_KEY];
   ha_checksum tmp_record_checksum;
-  ulong use_buffers, read_buffer_length, write_buffer_length;
-  ulong sort_buffer_length, sort_key_blocks;
+  size_t use_buffers, read_buffer_length, write_buffer_length;
+  size_t sort_buffer_length, sort_key_blocks;
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
+  double new_rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];
   uint out_flag, warning_printed, error_printed, verbose;
   uint opt_sort_key, total_files, max_level;
   uint testflag, key_cache_block_size, pagecache_block_size;

@@ -107,14 +107,14 @@ do
   table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
   $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
   checksum=`$maria_path/maria_chk -dss $table`
-  mv $table.MAD $tmp/$table.MAD.good
-  rm $table.MAI
+  mv $table.MAD $tmp/$table-good.MAD
+  mv $table.MAI $tmp/$table-good.MAI
   apply_log "shouldnotchangelog"
-  cmp $table.MAD $tmp/$table.MAD.good
+  cmp $table.MAD $tmp/$table-good.MAD
   check_table_is_same
   echo "testing idempotency"
   apply_log "shouldnotchangelog"
-  cmp $table.MAD $tmp/$table.MAD.good
+  cmp $table.MAD $tmp/$table-good.MAD
   check_table_is_same
   shift
 done
@@ -145,8 +145,8 @@ do
     table=`echo $prog | sed -e 's;.*ma_\(test[0-9]\).*;\1;' `
     $maria_path/maria_chk -dvv $table | grep -v "Creation time:"> $tmp/maria_chk_message.good.txt 2>&1
     checksum=`$maria_path/maria_chk -dss $table`
-    mv $table.MAD $tmp/$table.MAD.good
-    rm $table.MAI
+    mv $table.MAD $tmp/$table-good.MAD
+    mv $table.MAI $tmp/$table-good.MAI
     rm maria_log.* maria_log_control
     echo "TEST WITH $prog $abort_run_args$test_undo (additional aborted work)"
     $maria_path/$prog $abort_run_args$test_undo

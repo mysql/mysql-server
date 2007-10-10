@@ -50,7 +50,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,long_varchar_count,varchar_length,
        unique_key_parts,fulltext_keys,offset, not_block_record_extra_length;
-  uint max_field_lengths, extra_header_size;
+  uint max_field_lengths, extra_header_size, column_nr;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN], linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
@@ -62,7 +62,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   MARIA_UNIQUEDEF *uniquedef;
   HA_KEYSEG *keyseg,tmp_keyseg;
   MARIA_COLUMNDEF *column, *end_column;
-  ulong *rec_per_key_part;
+  double *rec_per_key_part;
+  ulong  *nulls_per_key_part;
+  uint16 *column_array;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], kfile_size_before_extension;
   MARIA_CREATE_INFO tmp_create_info;
   my_bool tmp_table= FALSE; /* cache for presence of HA_OPTION_TMP_TABLE */
@@ -111,9 +113,16 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     ci->reloc_rows=ci->max_rows;		/* Check if wrong parameter */
 
   if (!(rec_per_key_part=
-	(ulong*) my_malloc((keys + uniques)*HA_MAX_KEY_SEG*sizeof(long),
-			   MYF(MY_WME | MY_ZEROFILL))))
+	(double*) my_malloc((keys + uniques)*HA_MAX_KEY_SEG*sizeof(double) +
+                            (keys + uniques)*HA_MAX_KEY_SEG*sizeof(ulong) +
+                            sizeof(uint16) * columns,
+                            MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(my_errno);
+  nulls_per_key_part= (ulong*) (rec_per_key_part +
+                                (keys + uniques) * HA_MAX_KEY_SEG);
+  column_array= (uint16*) (nulls_per_key_part +
+                           (keys + uniques) * HA_MAX_KEY_SEG);
+
 
 	/* Start by checking fields and field-types used */
 
@@ -121,12 +130,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     pack_reclength= max_field_lengths= 0;
   reclength= min_pack_length= ci->null_bytes;
   forced_packed= 0;
+  column_nr= 0;
 
   for (column= columndef, end_column= column + columns ;
        column != end_column ;
        column++)
   {
     /* Fill in not used struct parts */
+    column->column_nr= column_nr++;
     column->offset= reclength;
     column->empty_pos= 0;
     column->empty_bit= 0;
@@ -282,6 +293,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     options|= HA_OPTION_DELAY_KEY_WRITE;
   if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)
     options|= HA_OPTION_RELIES_ON_SQL_LAYER;
+  if (flags & HA_CREATE_PAGE_CHECKSUM)
+    options|= HA_OPTION_PAGE_CHECKSUM;
 
   pack_bytes= (packed + 7) / 8;
   if (pack_reclength != INT_MAX32)
@@ -315,7 +328,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       ulonglong data_file_length= ci->data_file_length;
       if (!data_file_length)
         data_file_length= ((((ulonglong) 1 << ((BLOCK_RECORD_POINTER_SIZE-1) *
-                                               8)) -1));
+                                               8)) -1) * maria_block_size);
       if (rows_per_page > 0)
       {
         set_if_smaller(rows_per_page, MAX_ROWS_PER_PAGE);
@@ -335,15 +348,19 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   max_rows= (ulonglong) ci->max_rows;
   if (datafile_type == BLOCK_RECORD)
   {
-    /* The + 1 is for record position withing page */
+    /*
+      The + 1 is for record position withing page
+      The / 2 is because we need one bit for knowing if there is transid's
+      after the row pointer
+    */
     pointer= maria_get_pointer_length((ci->data_file_length /
-                                       maria_block_size), 3) + 1;
+                                       (maria_block_size * 2)), 3) + 1;
     set_if_smaller(pointer, BLOCK_RECORD_POINTER_SIZE);
 
     if (!max_rows)
       max_rows= (((((ulonglong) 1 << ((pointer-1)*8)) -1) * maria_block_size) /
-                 min_pack_length);
-  }
+                 min_pack_length / 2);
+                                      }
   else
   {
     if (datafile_type != STATIC_RECORD)
@@ -366,7 +383,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   max_key_length=0; tot_length=0 ; key_segs=0;
   fulltext_keys=0;
-  share.state.rec_per_key_part=rec_per_key_part;
+  share.state.rec_per_key_part=   rec_per_key_part;
+  share.state.nulls_per_key_part= nulls_per_key_part;
   share.state.key_root=key_root;
   share.state.key_del= HA_OFFSET_ERROR;
   if (uniques)
@@ -607,7 +625,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                 keys * MARIA_KEYDEF_SIZE+
                                 uniques * MARIA_UNIQUEDEF_SIZE +
                                 (key_segs + unique_key_parts)*HA_KEYSEG_SIZE+
-                                columns*MARIA_COLUMNDEF_SIZE);
+                                columns*(MARIA_COLUMNDEF_SIZE + 2));
 
  DBUG_PRINT("info", ("info_length: %u", info_length));
   /* There are only 16 bits for the total header length. */
@@ -621,9 +639,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
 
   bmove(share.state.header.file_version,(uchar*) maria_file_magic,4);
-  ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
-			HA_OPTION_COMPRESS_RECORD |
-			HA_OPTION_TEMP_COMPRESS_RECORD: 0);
+  ci->old_options=options | (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
+                             HA_OPTION_COMPRESS_RECORD |
+                             HA_OPTION_TEMP_COMPRESS_RECORD: 0);
   mi_int2store(share.state.header.options,ci->old_options);
   mi_int2store(share.state.header.header_length,info_length);
   mi_int2store(share.state.header.state_info_length,MARIA_STATE_INFO_SIZE);
@@ -901,6 +919,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
           (qsort_cmp) compare_columns);
     for (i=0 ; i < share.base.fields ; i++)
     {
+      column_array[col_order[i]->column_nr]= i;
       if (_ma_columndef_write(file, col_order[i]))
       {
         my_free((uchar*) col_order, MYF(0));
@@ -912,9 +931,14 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   else
   {
     for (i=0 ; i < share.base.fields ; i++)
+    {
+      column_array[i]= (uint16) i;
       if (_ma_columndef_write(file, &columndef[i]))
         goto err;
+    }
   }
+  if (_ma_column_nr_write(file, column_array, columns))
+    goto err;
 
   if ((kfile_size_before_extension= my_tell(file,MYF(0))) == MY_FILEPOS_ERROR)
     goto err;

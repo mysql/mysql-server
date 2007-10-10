@@ -638,6 +638,22 @@ checksum table t1;
 checksum table t2;
 drop table t1, t2;
 
+CREATE TABLE t1 (
+  twenty int(4),
+  hundred int(4) NOT NULL
+) CHECKSUM=1;
+INSERT INTO t1 VALUES (11,91);
+check table t1 extended;
+checksum table t1;
+checksum table t1 extended;
+alter table t1 row_format=static;
+checksum table t1;
+alter table t1 row_format=packed;
+checksum table t1;
+alter table t1 engine=myisam;
+checksum table t1;
+drop table t1;
+
 #
 # maria_stats_method variable.
 #
@@ -1130,10 +1146,19 @@ create table t1 (a int) row_format=dynamic transactional=1;
 show create table t1;
 alter table t1 row_format=PAGE;
 show create table t1;
+alter table t1 row_format=DYNAMIC;
+show create table t1;
 alter table t1 transactional=0;
+show create table t1;
+alter table t1 row_format=DYNAMIC;
 show create table t1;
 drop table t1;
 create table t1 (a int) row_format=PAGE;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=PAGE TRANSACTIONAL=DEFAULT;
+show create table t1;
+alter table t1 row_format=DYNAMIC;
 show create table t1;
 drop table t1;
 

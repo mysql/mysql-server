@@ -17,12 +17,12 @@
 #pragma implementation
 #endif
 
-#include "listener.h"
-
 #include <my_global.h>
 #include <mysql.h>
-#include <violite.h>
+#include <my_sys.h>
+#include "listener.h"
 
+#include <violite.h>
 #include <sys/stat.h>
 #ifndef __WIN__
 #include <sys/un.h>

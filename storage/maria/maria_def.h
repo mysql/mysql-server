@@ -25,13 +25,16 @@
 #else
 #include <my_no_pthread.h>
 #endif
-
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
 
+/* For testing recovery */
+#define IDENTICAL_PAGES_AFTER_RECOVERY 1
+/* Do extra sanity checking */
+#define SANITY_CHECKS 1
+
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
-#define SANITY_CHECKS
 
 struct st_transaction;
 
@@ -79,11 +82,12 @@ typedef struct st_maria_state_info
   ulong unique;				/* Unique number for this process */
   ulong update_count;			/* Updated for each write lock */
   ulong status;
-  ulong *rec_per_key_part;
+  double *rec_per_key_part;
+  ulong *nulls_per_key_part;
   ha_checksum checksum;                 /* Table checksum */
   my_off_t *key_root;			/* Start of key trees */
   my_off_t key_del;			/* delete links for index pages */
-  my_off_t rec_per_key_rows;		/* Rows when calculating rec_per_key */
+  my_off_t records_at_analyze;		/* Rows when calculating rec_per_key */
 
   ulong sec_index_changed;		/* Updated when new sec_index */
   ulong sec_index_used;			/* which extra index are in use */
@@ -108,18 +112,19 @@ typedef struct st_maria_state_info
 
 #define MARIA_STATE_INFO_SIZE	\
   (24 + LSN_STORE_SIZE*2 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
-#define MARIA_STATE_KEY_SIZE	8
+#define MARIA_STATE_KEY_SIZE	(8 + 4)
 #define MARIA_STATE_KEYBLOCK_SIZE  8
-#define MARIA_STATE_KEYSEG_SIZE	4
+#define MARIA_STATE_KEYSEG_SIZE	12
 #define MARIA_STATE_EXTRA_SIZE (MARIA_MAX_KEY*MARIA_STATE_KEY_SIZE + MARIA_MAX_KEY*HA_MAX_KEY_SEG*MARIA_STATE_KEYSEG_SIZE)
 #define MARIA_KEYDEF_SIZE		(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
 #define MARIA_COLUMNDEF_SIZE	(6+2+2+2+2+2+1+1)
-#define MARIA_BASE_INFO_SIZE	(5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
+#define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
 /* Internal management bytes needed to store 2 keys on an index page */
-#define MARIA_INDEX_MIN_OVERHEAD_SIZE (4 + (TRANSID_SIZE+1) * 2)
+#define MARIA_INDEX_OVERHEAD_SIZE (TRANSID_SIZE * 2)
+#define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*
   Basic information of the Maria table. This is stored on disk
@@ -171,9 +176,12 @@ typedef struct st_ma_base_info
   uint default_rec_buff_size;
   /* Extra number of bytes the row format require in the record buffer */
   uint extra_rec_buff_size;
+  /* Tuning flags that can be ignored by older Maria versions */
+  uint extra_options;
 
   /* The following are from the header */
   uint key_parts, all_key_parts;
+  uchar uuid[MY_UUID_SIZE];
   /**
      @brief If false, we disable logging, versioning, transaction etc. Observe
      difference with MARIA_SHARE::now_transactional
@@ -233,6 +241,7 @@ typedef struct st_maria_share
   MARIA_COLUMNDEF *columndef;		/* Pointer to column information */
   MARIA_PACK pack;			/* Data about packed records */
   MARIA_BLOB *blobs;			/* Pointer to blobs */
+  uint16 *column_nr;			/* Original column order */
   char *unique_file_name;		/* realpath() of index file */
   char *data_file_name;			/* Resolved path names from symlinks */
   char *index_file_name;
@@ -247,38 +256,38 @@ typedef struct st_maria_share
   /* Called when the last instance of the table is closed */
   my_bool (*once_end)(struct st_maria_share *);
   /* Is called for every open of the table */
-  my_bool (*init)(struct st_maria_info *);
+  my_bool (*init)(MARIA_HA *);
   /* Is called for every close of the table */
-  void (*end)(struct st_maria_info *);
+  void (*end)(MARIA_HA *);
   /* Called when we want to read a record from a specific position */
-  int (*read_record)(struct st_maria_info *, uchar *, MARIA_RECORD_POS);
+  int (*read_record)(MARIA_HA *, uchar *, MARIA_RECORD_POS);
   /* Initialize a scan */
-  my_bool (*scan_init)(struct st_maria_info *);
+  my_bool (*scan_init)(MARIA_HA *);
   /* Read next record while scanning */
-  int (*scan)(struct st_maria_info *, uchar *, MARIA_RECORD_POS, my_bool);
+  int (*scan)(MARIA_HA *, uchar *, MARIA_RECORD_POS, my_bool);
   /* End scan */
-  void (*scan_end)(struct st_maria_info *);
+  void (*scan_end)(MARIA_HA *);
   /* Pre-write of row (some handlers may do the actual write here) */
-  MARIA_RECORD_POS (*write_record_init)(struct st_maria_info *, const uchar *);
+  MARIA_RECORD_POS (*write_record_init)(MARIA_HA *, const uchar *);
   /* Write record (or accept write_record_init) */
-  my_bool (*write_record)(struct st_maria_info *, const uchar *);
+  my_bool (*write_record)(MARIA_HA *, const uchar *);
   /* Called when write failed */
-  my_bool (*write_record_abort)(struct st_maria_info *);
-  my_bool (*update_record)(struct st_maria_info *, MARIA_RECORD_POS,
+  my_bool (*write_record_abort)(MARIA_HA *);
+  my_bool (*update_record)(MARIA_HA *, MARIA_RECORD_POS,
                            const uchar *, const uchar *);
-  my_bool (*delete_record)(struct st_maria_info *, const uchar *record);
-  my_bool (*compare_record)(struct st_maria_info *, const uchar *);
+  my_bool (*delete_record)(MARIA_HA *, const uchar *record);
+  my_bool (*compare_record)(MARIA_HA *, const uchar *);
   /* calculate checksum for a row */
-  ha_checksum(*calc_checksum)(struct st_maria_info *, const uchar *);
+  ha_checksum(*calc_checksum)(MARIA_HA *, const uchar *);
   /*
     Calculate checksum for a row during write. May be 0 if we calculate
     the checksum in write_record_init()
   */
-  ha_checksum(*calc_write_checksum)(struct st_maria_info *, const uchar *);
+  ha_checksum(*calc_write_checksum)(MARIA_HA *, const uchar *);
   /* calculate checksum for a row during check table */
-  ha_checksum(*calc_check_checksum)(struct st_maria_info *, const uchar *);
+  ha_checksum(*calc_check_checksum)(MARIA_HA *, const uchar *);
   /* Compare a row in memory with a row on disk */
-  my_bool (*compare_unique)(struct st_maria_info *, MARIA_UNIQUEDEF *,
+  my_bool (*compare_unique)(MARIA_HA *, MARIA_UNIQUEDEF *,
                             const uchar *record, MARIA_RECORD_POS pos);
   /* Mapings to read/write the data file */
   size_t (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
@@ -293,6 +302,7 @@ typedef struct st_maria_share
   ulong state_diff_length;
   uint rec_reflength;			/* rec_reflength in use now */
   uint unique_name_length;
+  uint keypage_header;
   uint32 ftparsers;			/* Number of distinct ftparsers
 						   + 1 */
   PAGECACHE_FILE kfile;			/* Shared keyfile */
@@ -396,7 +406,7 @@ typedef struct st_maria_block_scan
 } MARIA_BLOCK_SCAN;
 
 
-struct st_maria_info
+struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   struct st_transaction *trn;           /* Pointer to active transaction */
@@ -424,7 +434,7 @@ struct st_maria_info
   uchar *update_field_data;		/* Used by update in rows-in-block */
   uint int_nod_flag;			/* -""- */
   uint32 int_keytree_version;		/* -""- */
-  int (*read_record) (struct st_maria_info *, uchar*, MARIA_RECORD_POS);
+  int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
@@ -513,10 +523,32 @@ struct st_maria_info
 #define READING_NEXT	1
 #define READING_HEADER	2
 
-#define maria_data_on_page(x)	((uint) mi_uint2korr(x) & 32767)
-#define maria_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
-			  mi_int2store(x,boh); }
-#define _ma_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
+/* Number of bytes on key pages to indicate used size */
+#define KEYPAGE_USED_SIZE  2
+#define KEYPAGE_KEYID_SIZE 1
+#define KEYPAGE_FLAG_SIZE  1
+#define KEYPAGE_CHECKSUM_SIZE 4
+#define MAX_KEYPAGE_HEADER_SIZE (LSN_STORE_SIZE + KEYPAGE_USED_SIZE + \
+                                 KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE)
+
+#define _ma_get_page_used(info,x) \
+  (((uint) mi_uint2korr(x + (info)->s->keypage_header - KEYPAGE_USED_SIZE)) & \
+   32767)
+#define _ma_store_page_used(info,x,y,nod) \
+{ uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);       \
+  mi_int2store(x + (info)->s->keypage_header - KEYPAGE_USED_SIZE, boh); }
+#define _ma_test_if_nod(info,x) \
+  (x[(info)->s->keypage_header-KEYPAGE_USED_SIZE] & 128 ? \
+   (info)->s->base.key_reflength : 0)
+#define _ma_get_used_and_nod(info,buff,length,nod) 			     \
+{									     \
+  nod= 0;                                                                    \
+  length= mi_uint2korr((buff) + (info)->s->keypage_header -                  \
+                       KEYPAGE_USED_SIZE);                                   \
+  if (length & 32768) {length&= 32767; nod= (info)->s->base.key_reflength; } \
+}
+#define _ma_store_keynr(info, x, nr) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= nr
+#define _ma_get_keynr(info, x) ((uchar) x[(info)->s->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
 #define maria_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
     DBUG_PRINT("error", ("Marked table crashed"));                      \
   }while(0)
@@ -559,7 +591,7 @@ struct st_maria_info
   { length=mi_uint2korr((key)+1)+3; } \
 }
 
-#define maria_max_key_length() ((maria_block_size - MARIA_INDEX_MIN_OVERHEAD_SIZE)/2)
+#define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/2 - MARIA_INDEX_OVERHEAD_SIZE)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 
 #define MARIA_MIN_BLOCK_LENGTH	20		/* Because of delete-link */
@@ -610,8 +642,9 @@ extern pthread_mutex_t THR_LOCK_maria;
 
 /* Some extern variables */
 extern LIST *maria_open_list;
-extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
-extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
+extern uchar maria_file_magic[], maria_pack_file_magic[];
+extern uchar maria_uuid[MY_UUID_SIZE];
+extern uint maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern const char *maria_data_root;
 extern uchar maria_zero_string[];
@@ -671,7 +704,8 @@ extern int _ma_insert(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
 extern int _ma_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           uchar *key, uchar *buff, uchar *key_buff,
                           my_bool insert_last);
-extern uchar *_ma_find_half_pos(uint nod_flag, MARIA_KEYDEF *keyinfo,
+extern uchar *_ma_find_half_pos(MARIA_HA *info, uint nod_flag,
+                                MARIA_KEYDEF *keyinfo,
                                 uchar *page, uchar *key,
                                 uint *return_key_length,
                                 uchar ** after_key);
@@ -714,7 +748,7 @@ extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
                       uint key_len, uint nextflag, my_off_t pos);
-extern int _ma_bin_search(struct st_maria_info *info, MARIA_KEYDEF *keyinfo,
+extern int _ma_bin_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           uchar *page, uchar *key, uint key_len,
                           uint comp_flag, uchar **ret_pos, uchar *buff,
                           my_bool *was_last_key);
@@ -877,14 +911,16 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite);
 uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite);
 uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state);
 uint _ma_base_info_write(File file, MARIA_BASE_INFO *base);
-int _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
+my_bool _ma_keyseg_write(File file, const HA_KEYSEG *keyseg);
 uchar *_ma_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg);
-uint _ma_keydef_write(File file, MARIA_KEYDEF *keydef);
+my_bool _ma_keydef_write(File file, MARIA_KEYDEF *keydef);
 uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef);
-uint _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *keydef);
+my_bool _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *keydef);
 uchar *_ma_uniquedef_read(uchar *ptr, MARIA_UNIQUEDEF *keydef);
-uint _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef);
+my_bool _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef);
 uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef);
+my_bool _ma_column_nr_write(File file, uint16 *offsets, uint columns);
+uchar *_ma_column_nr_read(uchar *ptr, uint16 *offsets, uint columns);
 ulong _ma_calc_total_blob_length(MARIA_HA *info, const uchar *record);
 ha_checksum _ma_checksum(MARIA_HA *info, const uchar *buf);
 ha_checksum _ma_static_checksum(MARIA_HA *info, const uchar *buf);
@@ -943,7 +979,7 @@ int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info);
 
 int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
-                             ulong);
+                             size_t);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
 int _ma_update_create_rename_lsn(MARIA_SHARE *share,
