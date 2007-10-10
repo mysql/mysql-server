@@ -269,7 +269,7 @@ int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           h->m_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= h->m_thd_ndb;
   thd_ndb->m_unsent_bytes= 0;
   if (res == -1)
     return -1;
@@ -295,7 +295,7 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
     int res= trans->execute(NdbTransaction::NoCommit,
                             NdbOperation::AbortOnError,
                             h->m_force_send);
-    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+    Thd_ndb *thd_ndb= h->m_thd_ndb;
     thd_ndb->m_unsent_bytes= 0;
     return res;
   }
@@ -307,7 +307,7 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
   int res= trans->execute(NdbTransaction::Commit,
                           NdbOperation::AbortOnError,
                           h->m_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= h->m_thd_ndb;
   thd_ndb->m_unsent_bytes= 0;
   return res;
 }
@@ -318,7 +318,7 @@ int execute_commit(THD *thd, NdbTransaction *trans)
   int res= trans->execute(NdbTransaction::Commit,
                           NdbOperation::AbortOnError,
                           thd->variables.ndb_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   thd_ndb->m_unsent_bytes= 0;
   return res;
 }
@@ -331,7 +331,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           h->m_force_send);
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= h->m_thd_ndb;
   thd_ndb->m_unsent_bytes= 0;
   return res;
 }
@@ -3556,7 +3556,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         // Undo delete_row(old_data)
         undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
         if (undo_res)
-          push_warning(current_thd, 
+          push_warning(thd, 
                        MYSQL_ERROR::WARN_LEVEL_WARN, 
                        undo_res, 
                        "NDB failed undoing delete at primary key update");
@@ -4645,8 +4645,8 @@ int ha_ndbcluster::end_bulk_insert()
   DBUG_ENTER("end_bulk_insert");
   // Check if last inserts need to be flushed
 
-  THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  THD *thd= table->in_use;
+  Thd_ndb *thd_ndb= m_thd_ndb;
   
   if ((thd->options & OPTION_ALLOW_BATCH) == 0 && thd_ndb->m_unsent_bytes)
   {
@@ -9495,7 +9495,7 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
   }
   if (!force_release)
   {
-    if (get_thd_ndb(current_thd)->query_state & NDB_QUERY_MULTI_READ_RANGE)
+    if (m_thd_ndb->query_state & NDB_QUERY_MULTI_READ_RANGE)
     {
       /* We are batching reads and have not consumed all fetched
 	 rows yet, releasing operation records is unsafe 
@@ -9594,7 +9594,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table_share->reclength;
   NdbOperation* op;
-  Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
+  Thd_ndb *thd_ndb= m_thd_ndb;
   struct read_multi_callback_data data;
 
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
@@ -9910,8 +9910,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 
   if (multi_range_curr == multi_range_end)
   {
-    Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-    thd_ndb->query_state&= NDB_QUERY_NORMAL;
+    m_thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
@@ -10166,7 +10165,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       if ((share->use_count - (int) (share->op != 0) - (int) (share->op != 0))
           <= 0)
         continue; // injector thread is the only user, skip statistics
-      share->util_lock= current_thd; // Mark that util thread has lock
+      share->util_lock= thd; // Mark that util thread has lock
 #endif /* HAVE_NDB_BINLOG */
       /* ndb_share reference temporary, free below */
       share->use_count++; /* Make sure the table can't be closed */
@@ -10477,10 +10476,9 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
   int ret_val;
   Uint64 tmp[4096];
   void *buf= (void*)&tmp[0];
-  Ndb *ndb;
+  Ndb *ndb= m_thd_ndb->ndb;
   DBUG_ENTER("ha_ndbcluster::calculate_key_hash_value");
 
-  ndb= check_ndb_in_thd(current_thd);
   do
   {
     Field *field= *field_array;
