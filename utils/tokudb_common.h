@@ -52,7 +52,7 @@ int name(DB* db, char* progname, char* str, type* num, type min, type max, int b
    value = strtofunc(str, &test, base);                        \
    if ((*test != '\0' && *test != '\n') || test == str) {      \
       if (db == NULL) fprintf(stderr, "%s: %s: Invalid numeric argument\n", progname, str);  \
-      else db->errx(db, "%s: Invalid numeric argument", str);   \
+      else db->errx(db, "%s: Invalid numeric argument", str);  \
       errno = EINVAL;                                          \
       goto error;                                              \
    }                                                           \
