@@ -216,4 +216,36 @@ t1.a4='UNcT5pIde4I6c2SheTo4gt92OV1jgJCVkXmzyf325R1DwLURkbYHwhydANIZMbKTgdcR5xS';
 
 DROP TABLE t1;
 
+#
+# Bug #28878: InnoDB tables with UTF8 character set and indexes cause wrong result for DML
+#
+
+CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
+INSERT INTO t1 VALUES ('uk'),('bg');
+SELECT * FROM t1 WHERE a = 'uk';
+DELETE FROM t1 WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+UPDATE t1 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t1 WHERE a = 'uk';
+
+CREATE TABLE t2 (a CHAR(2), KEY (a)) ENGINE = InnoDB;
+INSERT INTO t2 VALUES ('uk'),('bg');
+SELECT * FROM t2 WHERE a = 'uk';
+DELETE FROM t2 WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+INSERT INTO t2 VALUES ('uk');
+UPDATE t2 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t2 WHERE a = 'uk';
+
+CREATE TABLE t3 (a CHAR(2), KEY (a)) ENGINE = MyISAM;
+INSERT INTO t3 VALUES ('uk'),('bg');
+SELECT * FROM t3 WHERE a = 'uk';
+DELETE FROM t3 WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+INSERT INTO t3 VALUES ('uk');
+UPDATE t3 SET a = 'us' WHERE a = 'uk';
+SELECT * FROM t3 WHERE a = 'uk';
+
+DROP TABLE t1,t2,t3;
+
 --echo End of 4.1 tests
