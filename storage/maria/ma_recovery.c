@@ -54,6 +54,7 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 /** @brief to avoid writing a checkpoint if recovery did nothing. */
 static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
+static char preamble[]= "Maria engine: starting recovery; ";
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -124,7 +125,11 @@ static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   }
 }
-static my_bool redo_phase_message_printed;
+/** @brief Tells what kind of progress message was printed to the error log */
+static enum recovery_message_type
+{
+  REC_MSG_NONE= 0, REC_MSG_REDO, REC_MSG_UNDO, REC_MSG_FLUSH
+} recovery_message_printed;
 /** @brief Prints to a trace file if it is not NULL */
 void tprint(FILE *trace_file, const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
@@ -208,6 +213,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
 {
   int error= 0;
   uint unfinished_trans;
+  ulonglong old_now;
   DBUG_ENTER("maria_apply_log");
 
   DBUG_ASSERT(apply || !should_run_undo_phase);
@@ -226,7 +232,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (take_checkpoints && ma_checkpoint_init(FALSE))
     goto err;
 
-  redo_phase_message_printed= FALSE;
+  recovery_message_printed= REC_MSG_NONE;
   tracef= trace_file;
   if (!(skip_DDLs= skip_DDLs_arg))
   {
@@ -275,12 +281,22 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     }
   }
 
+  now= my_getsystime();
   if (run_redo_phase(from_lsn, apply))
     goto err;
 
   if ((unfinished_trans=
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
     goto err;
+
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_REDO)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
 
   if (take_checkpoints && checkpoint_useful)
   {
@@ -302,12 +318,30 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     tprint(tracef, "WARNING: %u unfinished transactions; some tables may be"
            " left inconsistent!\n", unfinished_trans);
 
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_UNDO)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
+
   /*
     we don't use maria_panic() because it would maria_end(), and Recovery does
     not want that (we want to keep some modules initialized for runtime).
   */
   if (close_all_tables())
     goto err;
+
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_FLUSH)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
 
   if (take_checkpoints && checkpoint_useful)
   {
@@ -333,14 +367,10 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
-  if (tracef != stdout && redo_phase_message_printed)
+  if (recovery_message_printed != REC_MSG_NONE)
   {
-    ulonglong old_now= now;
-    now= my_getsystime();
-    float previous_phase_took= (now - old_now)/10000000.0;
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, " (%.1f seconds)\n", previous_phase_took);
+    fprintf(stderr, "done.\n");
   }
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -1697,6 +1727,11 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   }
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
+  if (recovery_message_printed == REC_MSG_REDO)
+  {
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " 100%%");
+  }
   return 0;
 
 err:
@@ -1799,17 +1834,16 @@ static int run_undo_phase(uint unfinished)
     checkpoint_useful= TRUE;
     if (tracef != stdout)
     {
-      ulonglong old_now= now;
-      now= my_getsystime();
-      float previous_phase_took= (now - old_now)/10000000.0;
+      if (recovery_message_printed == REC_MSG_NONE)
+        fprintf(stderr, preamble);
       /** @todo RECOVERY BUG all prints to stderr should go to error log */
-      fprintf(stderr, " 100%% (%.1f seconds); transactions to roll back:",
-              previous_phase_took);
+      fprintf(stderr, "transactions to roll back:");
+      recovery_message_printed= REC_MSG_UNDO;
     }
     tprint(tracef, "%u transactions will be rolled back\n", unfinished);
     for( ; ; )
     {
-      if (tracef != stdout)
+      if (recovery_message_printed == REC_MSG_UNDO)
         fprintf(stderr, " %u", unfinished);
       if ((unfinished--) == 0)
         break;
@@ -2145,29 +2179,38 @@ static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
 static int close_all_tables(void)
 {
   int error= 0;
+  uint count;
   LIST *list_element, *next_open;
   MARIA_HA *info;
   pthread_mutex_lock(&THR_LOCK_maria);
   if (maria_open_list == NULL)
     goto end;
   tprint(tracef, "Closing all tables\n");
-  if (tracef != stdout && redo_phase_message_printed)
+  if (tracef != stdout)
   {
-    ulonglong old_now= now;
-    now= my_getsystime();
-    float previous_phase_took= (now - old_now)/10000000.0;
+    if (recovery_message_printed == REC_MSG_NONE)
+      fprintf(stderr, preamble);
+    for (count= 0, list_element= maria_open_list ;
+         list_element ; count++, (list_element= list_element->next))
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, " (%.1f seconds); flushing tables", previous_phase_took);
+      fprintf(stderr, "tables to flush:");
+    recovery_message_printed= REC_MSG_FLUSH;
   }
-
   /*
     Since the end of end_of_redo_phase(), we may have written new records
     (if UNDO phase ran)  and thus the state is newer than at
     end_of_redo_phase(), we need to bump is_of_horizon again.
   */
   TRANSLOG_ADDRESS addr= translog_get_horizon();
-  for (list_element= maria_open_list ; list_element ; list_element= next_open)
+  for (list_element= maria_open_list ; ; list_element= next_open)
   {
+    if (recovery_message_printed == REC_MSG_FLUSH)
+      fprintf(stderr, " %u", count);
+    if ((count--) == 0)
+    {
+      DBUG_ASSERT(list_element == NULL);
+      break;
+    }
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
     pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
@@ -2217,12 +2260,12 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
   static ulonglong initial_remainder= -1;
   if (tracef == stdout)
     return;
-  if (!redo_phase_message_printed)
+  if (recovery_message_printed == REC_MSG_NONE)
   {
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "Maria engine: starting recovery; recovered pages: 0%%");
-    redo_phase_message_printed= TRUE;
-    now= my_getsystime();
+    fprintf(stderr, preamble);
+    fprintf(stderr, "recovered pages: 0%%");
+    recovery_message_printed= REC_MSG_REDO;
   }
   if (end_logno == FILENO_IMPOSSIBLE)
   {
