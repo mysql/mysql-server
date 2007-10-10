@@ -637,8 +637,6 @@ private:
   int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
   friend int check_completed_operations(Thd_ndb*, ha_ndbcluster*, NdbTransaction*,
                                         const NdbOperation*);
-  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_commit(NdbTransaction *, int, int);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
@@ -647,7 +645,7 @@ private:
   int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
   int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
 
-  NdbTransaction *m_active_trans;
+  Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
   /*
