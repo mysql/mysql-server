@@ -2729,11 +2729,6 @@ slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
 {
   DBUG_ENTER("slave_set_resolve_max");
 
-  if (share->m_cfn_share == NULL)
-  {
-    share->m_cfn_share= (NDB_CONFLICT_FN_SHARE*)
-      alloc_root(&share->mem_root, sizeof(NDB_CONFLICT_FN_SHARE));
-  }
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
@@ -2756,6 +2751,11 @@ slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
                         field_index));
     DBUG_RETURN(-1);
     break;
+  }
+  if (share->m_cfn_share == NULL)
+  {
+    share->m_cfn_share= (NDB_CONFLICT_FN_SHARE*)
+      alloc_root(&share->mem_root, sizeof(NDB_CONFLICT_FN_SHARE));
   }
   share->m_cfn_share->m_resolve_size= sz;
   share->m_cfn_share->m_resolve_column= field_index;
