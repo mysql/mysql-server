@@ -2725,8 +2725,11 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 
 void mark_transaction_to_rollback(THD *thd, bool all)
 {
-  thd->is_fatal_sub_stmt_error= TRUE;
-  thd->transaction_rollback_request= all;
+  if (thd)
+  {
+    thd->is_fatal_sub_stmt_error= TRUE;
+    thd->transaction_rollback_request= all;
+  }
 }
 /***************************************************************************
   Handling of XA id cacheing
