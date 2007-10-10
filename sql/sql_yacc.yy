@@ -6900,11 +6900,11 @@ opt_table_sym:
 
 opt_profile_defs:
   /* empty */
-  | profile_defs
+  | profile_defs;
 
 profile_defs:
   profile_def
-  | profile_defs ',' profile_def
+  | profile_defs ',' profile_def;
 
 profile_def:
   CPU_SYM
