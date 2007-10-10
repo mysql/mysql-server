@@ -12,11 +12,14 @@
 # The README for the partitioning testcases is at the end of this file.        #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
-# Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Original Author: mleich                                                      #
+# Original Date:   2006-03-05                                                  #
+# Change Author:   mleich                                                      #
+# Change Date:     2007-10-08                                                  #
+# Change:          Minor cleanup and fix for                                   #
+#                  Bug#31243 Test "partition_basic_myisam" truncates path names#
+#                  - Blow column file_list up to VARBINARY(10000)              #
+#                  - remove reference to fixed bugs #17455, #19305             #
 ################################################################################
 
 # Set the session storage engine
@@ -31,9 +34,6 @@ if (`SELECT @@session.storage_engine IN('ndbcluster')`)
 {
 --echo # #18730, Bug#18735
 }
---echo # The expected results suffer from the following bugs
---echo # harmless #17455, #19305
---echo # which cannot be suppressed because of technical reasons.
 --echo #------------------------------------------------------------------------
 # Attention: Only bugs appearing in all storage engines should be mentioned above.
 #            The top level test wrapper (example: t/partition_basic_ndb.test)
@@ -164,7 +164,7 @@ DROP TABLE IF EXISTS t0_definition;
 CREATE TABLE t0_definition (
 state CHAR(3),
 create_command VARBINARY(5000),
-file_list      VARBINARY(5000),
+file_list      VARBINARY(10000),
 PRIMARY KEY (state)
 ) ENGINE = MEMORY;
 
