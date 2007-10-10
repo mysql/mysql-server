@@ -1,4 +1,5 @@
- #include "pma.h"
+#include "pma.h"
+#include "mempool.h"
 
 struct pma_cursor {
     PMA pma;
@@ -24,6 +25,7 @@ struct pma {
     struct list cursors;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     void *skey, *sval; /* used in dbts */
+    struct mempool kvspace;
 };
 
 int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi);

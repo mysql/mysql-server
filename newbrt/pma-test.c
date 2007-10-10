@@ -27,7 +27,7 @@ static void test_make_space_at (void) {
     key = "B";
     key_B = kv_pair_malloc(key, strlen(key)+1, 0, 0);
 
-    r=pma_create(&pma, default_compare_fun);
+    r=pma_create(&pma, default_compare_fun, 0);
     assert(r==0);
     assert(pma_n_entries(pma)==0);
     r=pmainternal_make_space_at(pma, 2);
@@ -255,7 +255,7 @@ static void test_count_region (void) {
 
 static void test_pma_random_pick (void) {
     PMA pma;
-    int r = pma_create(&pma, default_compare_fun);
+    int r = pma_create(&pma, default_compare_fun, 0);
     bytevec key,val;
     ITEMLEN keylen,vallen;
     DBT k,v;
@@ -315,7 +315,7 @@ static void test_find_insert (void) {
     PMA pma;
     int r;
     DBT k,v;
-    pma_create(&pma, default_compare_fun);
+    pma_create(&pma, default_compare_fun, 0);
     r=pma_lookup(pma, fill_dbt(&k, "aaa", 3), &v, 0);
     assert(r==DB_NOTFOUND);
 
@@ -350,7 +350,7 @@ static void test_find_insert (void) {
     assert((unsigned long)pma->pairs[pma_index_limit(pma)]==0xdeadbeefL);
 
     r=pma_free(&pma); assert(r==0); assert(pma==0);
-    pma_create(&pma, default_compare_fun); assert(pma!=0);
+    pma_create(&pma, default_compare_fun, 0); assert(pma!=0);
 
     {
 	int i;
@@ -387,7 +387,7 @@ static void test_pma_iterate (void) {
     PMA pma;
     int r;
     DBT k,v;
-    pma_create(&pma, default_compare_fun);
+    pma_create(&pma, default_compare_fun, 0);
     r=pma_insert(pma, fill_dbt(&k, "42", 3), fill_dbt(&v, "-19", 4), NULL_ARGS);
     assert(r==BRT_OK);
     test_pma_iterate_internal(pma, 42, -19);
@@ -404,8 +404,8 @@ static void test_pma_iterate2 (void) {
     int sum=0;
     int n_items=0;
     DBT k,v;
-    r=pma_create(&pma0, default_compare_fun); assert(r==0);
-    r=pma_create(&pma1, default_compare_fun); assert(r==0);
+    r=pma_create(&pma0, default_compare_fun, 0); assert(r==0);
+    r=pma_create(&pma1, default_compare_fun, 0); assert(r==0);
     pma_insert(pma0, fill_dbt(&k, "a", 2), fill_dbt(&v, "aval", 5), NULL_ARGS);
     pma_insert(pma0, fill_dbt(&k, "b", 2), fill_dbt(&v, "bval", 5), NULL_ARGS);
     pma_insert(pma1, fill_dbt(&k, "x", 2), fill_dbt(&v, "xval", 5), NULL_ARGS);
@@ -422,7 +422,7 @@ void test_pma_cursor_0 (void) {
     PMA pma;
     PMA_CURSOR c=0;
     int r;
-    r=pma_create(&pma, default_compare_fun); assert(r==0);
+    r=pma_create(&pma, default_compare_fun, 0); assert(r==0);
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     printf("%s:%d\n", __FILE__, __LINE__);
     r=pma_free(&pma);      assert(r!=0); /* didn't deallocate the cursor. */
@@ -440,7 +440,7 @@ void test_pma_cursor_1 (void) {
     int r;
     int order;
     for (order=0; order<6; order++) {
-	r=pma_create(&pma, default_compare_fun); assert(r==0);
+	r=pma_create(&pma, default_compare_fun, 0); assert(r==0);
 	r=pma_cursor(pma, &c0); assert(r==0); assert(c0!=0);
 	r=pma_cursor(pma, &c1); assert(r==0); assert(c1!=0);
 	r=pma_cursor(pma, &c2); assert(r==0); assert(c2!=0);
@@ -471,7 +471,7 @@ void test_pma_cursor_2 (void) {
     DBT key,val;
     init_dbt(&key); key.flags=DB_DBT_REALLOC;
     init_dbt(&val); val.flags=DB_DBT_REALLOC;
-    r=pma_create(&pma, default_compare_fun); assert(r==0);
+    r=pma_create(&pma, default_compare_fun, 0); assert(r==0);
     r=pma_cursor(pma, &c); assert(r==0); assert(c!=0);
     r=pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
     r=pma_cursor_free(&c); assert(r==0);
@@ -484,7 +484,7 @@ void test_pma_cursor_3 (void) {
     int r;
     DBT key,val;
     DBT k,v;
-    r=pma_create(&pma, default_compare_fun); assert(r==0);
+    r=pma_create(&pma, default_compare_fun, 0); assert(r==0);
     r=pma_insert(pma, fill_dbt(&k, "x", 2),  fill_dbt(&v, "xx", 3), NULL_ARGS); assert(r==BRT_OK);
     r=pma_insert(pma, fill_dbt(&k, "m", 2),  fill_dbt(&v, "mm", 3), NULL_ARGS); assert(r==BRT_OK);
     r=pma_insert(pma, fill_dbt(&k, "aa", 3), fill_dbt(&v,"a", 2),   NULL_ARGS); assert(r==BRT_OK);
@@ -546,7 +546,7 @@ void test_pma_cursor_4 (void) {
     int i;
 
     printf("test_pma_cursor_4\n");
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     for (i=1; i<=4; i += 1) {
@@ -621,7 +621,7 @@ void test_pma_cursor_delete(int n) {
     PMA pma;
     int error;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     /* insert 1 -> 42 */
@@ -730,7 +730,7 @@ void test_pma_compare_fun (int wrong_endian_p) {
     char **expected_keys = wrong_endian_p ? wrong_endian_expected_keys : right_endian_expected_keys;
     int i;
     DBT k,v;
-    r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun); assert(r==0);
+    r = pma_create(&pma, wrong_endian_p ? wrong_endian_compare_fun : default_compare_fun, 0); assert(r==0);
     r = pma_insert(pma, fill_dbt(&k, "10", 3), fill_dbt(&v, "10v", 4), NULL_ARGS); assert(r==BRT_OK);
     r = pma_insert(pma, fill_dbt(&k, "00", 3), fill_dbt(&v, "00v", 4), NULL_ARGS); assert(r==BRT_OK);
     r = pma_insert(pma, fill_dbt(&k, "01", 3), fill_dbt(&v, "01v", 4), NULL_ARGS); assert(r==BRT_OK);
@@ -769,11 +769,11 @@ void test_pma_split_n(int n) {
 
     printf("test_pma_split_n:%d\n", n);
 
-    error = pma_create(&pmaa, default_compare_fun);
+    error = pma_create(&pmaa, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, default_compare_fun);
+    error = pma_create(&pmab, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, default_compare_fun);
+    error = pma_create(&pmac, default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -823,11 +823,11 @@ void test_pma_split_varkey(void) {
 
     printf("test_pma_split_varkey\n");
 
-    error = pma_create(&pmaa, default_compare_fun);
+    error = pma_create(&pmaa, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, default_compare_fun);
+    error = pma_create(&pmab, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, default_compare_fun);
+    error = pma_create(&pmac, default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -933,11 +933,11 @@ void test_pma_split_cursor(void) {
 
     printf("test_pma_split_cursor\n");
 
-    error = pma_create(&pmaa, default_compare_fun);
+    error = pma_create(&pmaa, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmab, default_compare_fun);
+    error = pma_create(&pmab, default_compare_fun, 0);
     assert(error == 0);
-    error = pma_create(&pmac, default_compare_fun);
+    error = pma_create(&pmac, default_compare_fun, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
@@ -1047,7 +1047,7 @@ void test_pma_bulk_insert_n(int n) {
 
     printf("test_pma_bulk_insert_n: %d\n", n);
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     /* init n kv pairs */
@@ -1122,7 +1122,7 @@ void test_pma_insert_or_replace(void) {
     int r;
     DBT dbtk, dbtv;
     int n_diff=-2;
-    r = pma_create(&pma, default_compare_fun);
+    r = pma_create(&pma, default_compare_fun, 0);
     assert(r==0);
     r = pma_insert_or_replace(pma, fill_dbt(&dbtk, "aaa", 4), fill_dbt(&dbtv, "zzz", 4), &n_diff, NULL_ARGS);
     assert(r==0); assert(n_diff==-1);
@@ -1162,7 +1162,7 @@ void test_pma_delete_shrink(int n) {
 
     printf("test_pma_delete_shrink:%d\n", n);
 
-    r = pma_create(&pma, default_compare_fun);
+    r = pma_create(&pma, default_compare_fun, n*(8 + 11 + sizeof (int)));
     assert(r == 0);
 
     /* insert */
@@ -1207,7 +1207,7 @@ void test_pma_delete_random(int n) {
 
     printf("test_pma_delete_random:%d\n", n);
 
-    r = pma_create(&pma, default_compare_fun);
+    r = pma_create(&pma, default_compare_fun, n * (8 + 11 + sizeof (int)));
     assert(r == 0);
 
     for (i=0; i<n; i++) {
@@ -1282,7 +1282,7 @@ void test_pma_delete_cursor(int n) {
     PMA pma;
     int r;
 
-    r = pma_create(&pma, default_compare_fun);
+    r = pma_create(&pma, default_compare_fun, 0);
     assert(r == 0);
 
     int i;
@@ -1347,7 +1347,7 @@ void test_pma_delete_insert() {
     PMA pma;
     int error;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     PMA_CURSOR pmacursor;
@@ -1400,7 +1400,7 @@ void test_pma_double_delete() {
     PMA pma;
     int error;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     PMA_CURSOR pmacursor;
@@ -1445,7 +1445,7 @@ void test_pma_cursor_first_delete_last() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1493,7 +1493,7 @@ void test_pma_cursor_last_delete_first() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1551,7 +1551,7 @@ void test_pma_already_there() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1575,7 +1575,7 @@ void test_pma_cursor_set_key() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1630,7 +1630,7 @@ void test_pma_cursor_set_range() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    error = pma_create(&pma, default_compare_fun, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -1687,7 +1687,9 @@ void test_pma_cursor_delete_under() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    const int n = 1000;
+
+    error = pma_create(&pma, default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
 
     PMA_CURSOR cursor;
@@ -1699,8 +1701,6 @@ void test_pma_cursor_delete_under() {
     /* delete under an uninitialized cursor should fail */
     error = pma_cursor_delete_under(cursor, &kvsize);
     assert(error == DB_NOTFOUND);
-
-    const int n = 1000;
 
     DBT key, val;
     int k, v;
@@ -1758,14 +1758,14 @@ void test_pma_cursor_set_both() {
     int error;
     PMA pma;
 
-    error = pma_create(&pma, default_compare_fun);
+    const int n = 1000;
+
+    error = pma_create(&pma, default_compare_fun, n * (8 + sizeof (int) + sizeof (int)));
     assert(error == 0);
 
     PMA_CURSOR cursor;
     error = pma_cursor(pma, &cursor);
     assert(error == 0);
-
-    const int n = 1000;
 
     DBT key, val;
     int k, v;

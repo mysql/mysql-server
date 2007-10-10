@@ -64,13 +64,13 @@ check-fanout:
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 key.o: brttypes.h key.h
 pma-test.o: pma-internal.h pma.h yerror.h memory.h  ../include/db.h list.h kv-pair.h brttypes.h ybt.h yerror.h
-pma-test: pma.o memory.o key.o ybt.o log.o
+pma-test: pma.o memory.o key.o ybt.o log.o mempool.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h  ../include/db.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h
-brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o mempool.o
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: pma.h yerror.h brt.h ../include/db.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h ../include/db.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
@@ -86,7 +86,7 @@ brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o hashtable.o brt-seria
 brt-bigtest.o: brt.h ../include/db.h
 log-test: log.o memory.o
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o
 
 cachetable-test.o: cachetable.h memory.h 
 cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
@@ -94,7 +94,7 @@ cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
 cachetable-test2.o: cachetable.h memory.h
 cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
 
-benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o
 benchmark-test.o: brt.h ../include/db.h
 
 clean:

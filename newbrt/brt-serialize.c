@@ -241,7 +241,7 @@ int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesiz
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	int r=pma_create(&result->u.l.buffer, default_compare_fun);
+	int r=pma_create(&result->u.l.buffer, default_compare_fun, nodesize);
 	if (r!=0) {
 	    if (0) { died_21: pma_free(&result->u.l.buffer); }
 	    goto died1;
