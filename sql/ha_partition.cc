@@ -2924,12 +2924,7 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   handler **file;
   DBUG_ENTER("ha_partition::start_bulk_insert");
 
-  if (!rows)
-  {
-    /* Avoid allocation big caches in all underlaying handlers */
-    DBUG_VOID_RETURN;
-  }
-  rows= rows/m_tot_parts + 1;
+  rows= rows ? rows/m_tot_parts + 1 : 0;
   file= m_file;
   do
   {

@@ -1651,6 +1651,9 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff);
 
 static SHOW_VAR fixed_vars[]= {
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
+  {"relay_log" , (char*) &opt_relay_logname, SHOW_CHAR_PTR},
+  {"relay_log_index", (char*) &opt_relaylog_index_name, SHOW_CHAR_PTR},
+  {"relay_log_info_file", (char*) &relay_log_info_file, SHOW_CHAR_PTR},
   {"relay_log_space_limit",   (char*) &relay_log_space_limit,       SHOW_LONGLONG},
   {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
   {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},

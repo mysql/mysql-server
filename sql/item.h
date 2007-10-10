@@ -1243,6 +1243,8 @@ public:
   Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
   {
+    if(!value_item->basic_const_item())
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
     Item::maybe_null= TRUE;
   }
 
