@@ -5667,7 +5667,6 @@ t3_id_1	t3_id_2	t4_id
 DROP PROCEDURE p1|
 DROP VIEW v1, v2|
 DROP TABLE t3, t4|
-End of 5.0 tests
 DROP TABLE IF EXISTS bug23760|
 DROP TABLE IF EXISTS bug23760_log|
 DROP PROCEDURE IF EXISTS bug23760_update_log|
@@ -6145,7 +6144,6 @@ Procedure	sql_mode	Create Procedure
 proc_21513		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_21513`()
 `my_label`:BEGIN END
 drop procedure proc_21513|
-End of 5.0 tests.
 drop table t1,t2;
 CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
 CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
@@ -6565,4 +6563,6 @@ f1()
 DROP TABLE t1;
 DROP FUNCTION f1;
 
-End of 5.0 tests
+# ------------------------------------------------------------------
+# -- End of 5.0 tests
+# ------------------------------------------------------------------

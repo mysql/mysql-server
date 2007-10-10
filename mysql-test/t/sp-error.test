@@ -2090,6 +2090,26 @@ end//
 delimiter ;//
 
 #
+# Bug#29816 Syntactically wrong query fails with misleading error message
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+--error ER_PARSE_ERROR
+SELECT inexistent(), 1 + ,;
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent();
+--error ER_PARSE_ERROR
+SELECT .inexistent();
+--error ER_PARSE_ERROR
+SELECT ..inexistent();
+USE test;
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

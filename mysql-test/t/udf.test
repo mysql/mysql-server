@@ -311,5 +311,19 @@ drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
 
+#
+# Bug#28318  CREATE FUNCTION (UDF) requires a schema
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
 
 --echo End of 5.0 tests.

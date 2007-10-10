@@ -296,4 +296,11 @@ Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
 End of 5.0 tests.
