@@ -205,6 +205,21 @@ ut_strreplace(
 	const char*	s1,	/* in: string to replace */
 	const char*	s2);	/* in: string to replace s1 with */
 
+/**************************************************************************
+Converts a raw binary data to a '\0'-terminated hex string. The output is
+truncated if there is not enough space in "hex", make sure "hex_size" is at
+least (2 * raw_size + 1) if you do not want this to happen. Returns the
+actual number of characters written to "hex" (including the '\0'). */
+UNIV_INLINE
+ulint
+ut_raw_to_hex(
+/*==========*/
+					/* out: number of chars written */
+	const void*	raw,		/* in: raw data */
+	ulint		raw_size,	/* in: "raw" length in bytes */
+	char*		hex,		/* out: hex string */
+	ulint		hex_size);	/* in: "hex" size in bytes */
+
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"
 #endif
