@@ -198,6 +198,21 @@ drop table table_26093;
 drop function func_26093_a;
 drop function func_26093_b;
 
+#
+# Bug #30832: Assertion + crash with select name_const('test',now());
+#
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('test', NOW());
+--error ER_WRONG_ARGUMENTS
+SELECT NAME_CONST('test', UPPER('test'));
+
+SELECT NAME_CONST('test', NULL);
+SELECT NAME_CONST('test', 1);
+SELECT NAME_CONST('test', -1);
+SELECT NAME_CONST('test', 1.0);
+SELECT NAME_CONST('test', -1.0);
+SELECT NAME_CONST('test', 'test');
+
 --echo End of 5.0 tests
 
 #
