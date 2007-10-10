@@ -1865,8 +1865,8 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
                            OPTION_TABLE_LOCK)) && !trx->all)
       {
 	/* We have to start a master transaction */
-	DBUG_PRINT("trans",("starting transaction all:  options: 0x%lx",
-                            (ulong) thd->options));
+	DBUG_PRINT("trans",("starting transaction all:  options: 0x%llx",
+                            thd->options));
         if ((error=txn_begin(db_env, 0, &trx->all, 0)))
 	{
           trx->bdb_lock_count--;        // We didn't get the lock
