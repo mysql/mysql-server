@@ -933,7 +933,7 @@ bool login_connection(THD *thd)
   NET *net= &thd->net;
   Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("login_connection");
-  DBUG_PRINT("info", ("handle_one_connection called by thread %lu",
+  DBUG_PRINT("info", ("login_connection called by thread %lu",
                       thd->thread_id));
 
   net->no_send_error= 0;
@@ -1003,7 +1003,7 @@ void end_connection(THD *thd)
   Initialize THD to handle queries
 */
 
-void prepare_new_connection_state(THD* thd)
+static void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
