@@ -1040,6 +1040,9 @@ struct show_var_st init_vars[]= {
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
 #ifdef HAVE_REPLICATION
+  {"relay_log" , (char*) &opt_relay_logname, SHOW_CHAR_PTR},
+  {"relay_log_index", (char*) &opt_relaylog_index_name, SHOW_CHAR_PTR},
+  {"relay_log_info_file", (char*) &relay_log_info_file, SHOW_CHAR_PTR},
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
   {"relay_log_space_limit",  (char*) &relay_log_space_limit,        SHOW_LONGLONG},
 #endif
