@@ -436,6 +436,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
+  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
@@ -699,7 +700,8 @@ class Item_func_min_max :public Item_func
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *datetime_item;
   THD *thd;
-
+protected:
+  enum_field_types cached_field_type;
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
     cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
@@ -712,6 +714,7 @@ public:
   enum Item_result result_type () const { return cmp_type; }
   bool result_as_longlong() { return compare_as_dates; };
   uint cmp_datetimes(ulonglong *value);
+  enum_field_types field_type() const { return cached_field_type; }
 };
 
 class Item_func_min :public Item_func_min_max
@@ -754,6 +757,8 @@ public:
     collation= args[0]->collation;
     max_length= args[0]->max_length;
     decimals=args[0]->decimals; 
+    /* The item could be a NULL constant. */
+    null_value= args[0]->null_value;
   }
 };
 

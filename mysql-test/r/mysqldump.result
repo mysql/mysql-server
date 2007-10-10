@@ -3805,6 +3805,28 @@ c1
 2
 DROP TABLE t1,t2;
 #
+# Bug#29815: new option for suppressing last line of mysqldump:
+#            "Dump completed on"
+#
+# --skip-dump-date:
+--
+
+
+
+-- Dump completed
+# --dump-date:
+--
+
+
+
+-- Dump completed on DATE
+# --dump-date (default):
+--
+
+
+
+-- Dump completed on DATE
+#
 # End of 5.0 tests
 #
 drop table if exists t1;

@@ -372,3 +372,15 @@ INSERT INTO t1 (prev_id) SELECT id
 SELECT * FROM t1;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#30384: Having SQL_BUFFER_RESULT option in the
+--echo #            CREATE .. KEY(..) .. SELECT led to creating corrupted index.
+--echo #
+create table t1(f1 int);
+insert into t1 values(1),(2),(3);
+create table t2 (key(f1)) engine=myisam select sql_buffer_result f1 from t1;
+check table t2 extended;
+drop table t1,t2;
+--echo ##################################################################
+

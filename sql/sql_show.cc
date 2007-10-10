@@ -3339,7 +3339,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
   /*
     If we have lookup db value we should check that the database exists
   */
-  if(lookup_field_vals.db_value.str && !lookup_field_vals.wild_db_value)
+  if(lookup_field_vals.db_value.str && !lookup_field_vals.wild_db_value &&
+     !with_i_schema)
   {
     char path[FN_REFLEN+16];
     uint path_len;
