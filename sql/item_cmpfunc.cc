@@ -2020,10 +2020,20 @@ Item_func_ifnull::fix_length_and_dec()
   agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
-  max_length= (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) ?
-    (max(args[0]->max_length - args[0]->decimals,
-         args[1]->max_length - args[1]->decimals) + decimals) :
-    max(args[0]->max_length, args[1]->max_length);
+  unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
+
+  if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
+  {
+    int len0= args[0]->max_length - args[0]->decimals
+      - (args[0]->unsigned_flag ? 0 : 1);
+
+    int len1= args[1]->max_length - args[1]->decimals
+      - (args[1]->unsigned_flag ? 0 : 1);
+
+    max_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+  }
+  else
+    max_length= max(args[0]->max_length, args[1]->max_length);
 
   switch (hybrid_type) {
   case STRING_RESULT:
