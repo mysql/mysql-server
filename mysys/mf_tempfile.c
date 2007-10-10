@@ -59,11 +59,25 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 		      myf MyFlags __attribute__((unused)))
 {
   File file= -1;
+#ifdef __WIN__
+  TCHAR path_buf[MAX_PATH-14];
+#endif
 
   DBUG_ENTER("create_temp_file");
   DBUG_PRINT("enter", ("dir: %s, prefix: %s", dir, prefix));
 #if defined (__WIN__)
 
+   /*
+     Use GetTempPath to determine path for temporary files.
+     This is because the documentation for GetTempFileName 
+     has the following to say about this parameter:
+     "If this parameter is NULL, the function fails."
+   */
+   if (!dir)
+   {
+     if(GetTempPath(sizeof(path_buf), path_buf) > 0) 
+       dir = path_buf;
+   }
    /*
      Use GetTempFileName to generate a unique filename, create
      the file and release it's handle
