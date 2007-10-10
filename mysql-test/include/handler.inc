@@ -498,3 +498,38 @@ handler t1_alias read a next;
 handler t1_alias READ a next where inexistent > 0;
 handler t1_alias close;
 drop table t1;
+
+#
+# Bug#21587 FLUSH TABLES causes server crash when used with HANDLER statements
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (c1 int);
+create table t2 (c1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+--echo connection: default
+handler t1 open;
+handler t1 read first;
+connect (flush,localhost,root,,);
+connection flush;
+--echo connection: flush
+--send flush tables;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+handler t2 open;
+handler t2 read first;
+handler t1 read next;
+handler t1 close;
+handler t2 close;
+connection flush;
+reap;
+connection default;
+drop table t1,t2;
+disconnect flush;
