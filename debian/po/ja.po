@@ -274,5 +274,5 @@ msgstr ""
 #~ "す。スクリプトは、どのようなユーザに対しても、以前に保持していた以上の権限"
 #~ "を与えるようにはなっていません。"
 
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
-#~ msgstr "http://www.mysql.com/doc/ja/Upgrade.html も参照してください"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
+#~ msgstr "http://dev.mysql.com/doc/mysql/ja/upgrade.html も参照してください"

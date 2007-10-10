@@ -215,8 +215,8 @@ msgstr ""
 #~ "kan blive ødelagt! Dette script forbedrer også rettighedstabellerne, men "
 #~ "burde ikke give nogen bruger flere rettigheder, end han havde tidligere,"
 
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
-#~ msgstr "Læs også http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
+#~ msgstr "Læs også http://dev.mysql.com/doc/mysql/en/upgrade.html"
 
 #~ msgid "Install Hints"
 #~ msgstr "Installationstips"

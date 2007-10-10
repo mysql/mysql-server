@@ -162,9 +162,9 @@ msgid ""
 msgstr ""
 
 #, fuzzy
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
 #~ msgstr ""
-#~ "Feu una ullada al document: http://www.mysql.com/doc/en/Upgrade.html"
+#~ "Feu una ullada al document: http://dev.mysql.com/doc/mysql/en/upgrade.html"
 
 #, fuzzy
 #~ msgid ""

@@ -211,8 +211,8 @@ msgstr ""
 #~ "privilexios, pero non se supón que vaia dar a ningún usuario máis "
 #~ "dereitos dos que tiña antes."
 
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
-#~ msgstr "Lea tamén http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
+#~ msgstr "Lea tamén http://dev.mysql.com/doc/mysql/en/upgrade.html"
 
 #~ msgid "Install Hints"
 #~ msgstr "Consellos de instalación"
