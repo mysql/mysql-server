@@ -18,5 +18,7 @@ INSERT INTO tmp_user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','
 set @hostname= @@hostname;
 REPLACE INTO tmp_user VALUES (@hostname,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 REPLACE INTO tmp_user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO tmp_user (host,user) VALUES ('localhost','');
+INSERT INTO tmp_user (host,user) VALUES (@@hostname,'');
 INSERT INTO user SELECT * FROM tmp_user WHERE @had_user_table=0;
 DROP TABLE tmp_user;
