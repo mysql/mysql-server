@@ -1267,4 +1267,24 @@ ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
 ERROR HY000: Incorrect usage of PARTITION and log table
 ALTER TABLE general_log ENGINE = CSV;
 SET GLOBAL general_log = default;
+use test;
+create table t2 (b int);
+create table t1 (b int)
+PARTITION BY RANGE (t2.b) (
+PARTITION p1 VALUES LESS THAN (10),
+PARTITION p2 VALUES LESS THAN (20)
+) select * from t2;
+ERROR 42S22: Unknown column 't2.b' in 'partition function'
+create table t1 (a int)
+PARTITION BY RANGE (b) (
+PARTITION p1 VALUES LESS THAN (10),
+PARTITION p2 VALUES LESS THAN (20)
+) select * from t2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (b) (PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION p2 VALUES LESS THAN (20) ENGINE = MyISAM) */
+drop table t1, t2;
 End of 5.1 tests
