@@ -2549,21 +2549,20 @@ CREATE TABLE t1(
   fName varchar(25) NOT NULL,
   lName varchar(25) NOT NULL,
   DOB date NOT NULL,
+  test_date date NOT NULL,
   uID int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY);
  
-INSERT INTO t1(fName, lName, DOB) VALUES
-  ('Hank', 'Hill', '1964-09-29'),
-  ('Tom', 'Adams', '1908-02-14'),
-  ('Homer', 'Simpson', '1968-03-05');
+INSERT INTO t1(fName, lName, DOB, test_date) VALUES
+  ('Hank', 'Hill', '1964-09-29', '2007-01-01'),
+  ('Tom', 'Adams', '1908-02-14', '2007-01-01'),
+  ('Homer', 'Simpson', '1968-03-05', '2007-01-01');
 
 CREATE VIEW v1 AS
-  SELECT (year(now())-year(DOB)) AS Age
+  SELECT (year(test_date)-year(DOB)) AS Age
     FROM t1 HAVING Age < 75; 
 SHOW CREATE VIEW v1;           
 
-set timestamp=1136066400;
-SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
-set timestamp=1136066400;
+SELECT (year(test_date)-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 SELECT * FROM v1;
 
 DROP VIEW v1;
