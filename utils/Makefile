@@ -1,7 +1,5 @@
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -I /usr/local/Berkeleydb.4.1/include/ -ldb
-LFLAGS = -l CPPFLAGS = -I../include -I../newbrt
-
-#cc  $(CPPFLAGS) $(DBBINS) -shared -o libdb.so $(CFLAGS)
+LFLAGS = -l CPPFLAGS = 
 
 BDB_DUMP=/usr/local/Berkeleydb.4.1/bin/db_dump
 BDB_LOAD=/usr/local/Berkeleydb.4.1/bin/db_load
@@ -12,7 +10,7 @@ UTILS=            \
 #   tokudb_dump    \
 #End
 
-.PHONY: all clean test test_gen test_gen_hex
+.PHONY: all clean test test_gen test_gen_hex test_load
 
 all: $(UTILS)
 
@@ -53,7 +51,6 @@ test_load: test_gen
 	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
 	$(BDB_DUMP) $@.tokudb.temp > $@.dump.tokudb.temp
 	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
-	
 	
 #if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:

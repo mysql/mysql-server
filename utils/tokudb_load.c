@@ -6,17 +6,16 @@
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
-
 #include <db.h>
-
 #include "tokudb_common.h"
 
-extern char* optarg;
-extern int optind;
-extern int optopt;
-extern int opterr;
-extern int optreset;
+typedef struct {
+   char*    data[2];
+} gdbt;
 
+typedef struct {
+   char*    data;
+} rhdr;
 
 typedef struct {
    bool     leadingspace;
@@ -37,6 +36,12 @@ typedef struct {
    DBTYPE   dbtype;
    DB*      db;
    DB_ENV*  dbenv;
+   struct {
+      char* data[2];
+   }        get_dbt;
+   struct {
+      char* data;
+   }        read_header;
 } load_globals;
 
 load_globals g;
@@ -92,7 +97,8 @@ int main(int argc, char *argv[]) {
             goto error;
          }
          case ('H'): {
-            return longusage();
+            g.exitcode = longusage();
+            goto cleanup;
          }
          case ('T'): {
             g.plaintext    = true;
@@ -141,40 +147,43 @@ int main(int argc, char *argv[]) {
          }
          case ('?'):
          default: {
-            return usage();
+            g.exitcode = usage();
+            goto cleanup;
          }
       }
    }
    argc -= optind;
    argv += optind;
 
-   if (argc != 1) return usage();
+   if (argc != 1) {
+      g.exitcode = usage();
+      goto cleanup;
+   }
    //TODO:  /* Handle possible interruptions/signals. */
 
    g.database = argv[0];
    if (create_init_env() != 0) goto error;
    while (!g.eof) {
-//BOOKMARK
-      if (load_database() != 0) goto errorcleanup;
+      if (load_database() != 0) goto error;
    }
    if (false) {
-errorcleanup:
+error:
       g.exitcode = EXIT_FAILURE;
+      fprintf(stderr, "%s: Quitting out due to errors.\n", g.progname);
    }
 cleanup:
-   if ((retval = g.dbenv->close(g.dbenv, 0)) != 0) {
+   if (g.dbenv && (retval = g.dbenv->close(g.dbenv, 0)) != 0) {
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: dbenv->close: %s\n", g.progname, db_strerror(retval));
    }
    //TODO:  /* Resend any caught signal. */
-   free(g.config_options);
+   if (g.config_options)   free(g.config_options);
+   if (g.subdatabase)      free(g.subdatabase);
+   if (g.read_header.data) free(g.read_header.data);
+   if (g.get_dbt.data[0])  free(g.get_dbt.data[0]);
+   if (g.get_dbt.data[1])  free(g.get_dbt.data[1]);
 
    return g.exitcode;
-
-error:
-   fprintf(stderr, "%s: Quitting out due to errors.\n", g.progname);
-   return EXIT_FAILURE;
-//TODO:free all malloced memory (may require static stuff turning global)
 }
 
 int load_database()
@@ -256,7 +265,7 @@ int create_init_env()
       fprintf(stderr, "%s: db_dbenv_create: %s\n", g.progname, db_strerror(retval));
       goto error;
    }
-   dbenv->set_errfile(dbenv, stderr);
+   ///TODO: UNCOMMENT/IMPLEMENT dbenv->set_errfile(dbenv, stderr);
    dbenv->set_errpfx(dbenv, g.progname);
    /*
    TODO: If/when supporting encryption
@@ -269,11 +278,18 @@ int create_init_env()
    /* Open the dbenvironment. */
    g.is_private = false;
 //   flags = DB_JOINENV | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
-   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
+   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
    //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
+   
+   /*
+   ///TODO: UNCOMMENT/IMPLEMENT  Notes:  We require DB_PRIVATE
    if (!dbenv->open(dbenv, g.homedir, flags, 0)) goto success;
+   */
 
+   /*
+   ///TODO: UNCOMMENT/IMPLEMENT 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
+   */
    if (retval) {
       dbenv->err(dbenv, retval, "DB_ENV->set_cachesize");
       goto error;
@@ -285,7 +301,7 @@ int create_init_env()
    REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
 
-   retval = dbenv->open(dbenv, g.homedir, flags, 0);
+   retval = dbenv->open(dbenv, g.homedir ? g.homedir : ".", flags, 0);
    if (retval) {
       dbenv->err(dbenv, retval, "DB_ENV->open");
       goto error;
@@ -309,6 +325,7 @@ int printabletocstring(char* inputstr, char** poutputstr)
 
    assert(inputstr);
    assert(poutputstr);
+   assert(*poutputstr == NULL);
 
    cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
    if (cstring == NULL) {
@@ -353,13 +370,15 @@ error:
    return EXIT_FAILURE;
 }
 
+///TODO: IMPLEMENT/Replace original line.
 #define PARSE_NUMBER(match, dbfunction)                                    \
 if (!strcmp(field, match)) {                                               \
    if (strtoint32(db, NULL, value, &num, 1, INT32_MAX, 10)) goto error;    \
-   if ((retval = dbfunction(db, num)) != 0) goto printerror;               \
+   /*if ((retval = dbfunction(db, num)) != 0) goto printerror;*/           \
    continue;                                                               \
 }
 
+///TODO: IMPLEMENT/Replace original line.
 #define PARSE_UNSUPPORTEDNUMBER(match, dbfunction)                         \
 if (!strcmp(field, match)) {                                               \
    if (strtoint32(db, NULL, value, &num, 1, INT32_MAX, 10)) goto error;    \
@@ -412,7 +431,6 @@ if (!strcmp(field, match)) {                             \
 
 int read_header()
 {
-   static char* data = NULL;
    static uint64_t datasize = 1 << 10;
    uint64_t index = 0;
    char* field;
@@ -425,7 +443,7 @@ int read_header()
 
    assert(g.header);
 
-   if (data == NULL && (data = (char*)malloc(datasize * sizeof(char))) == NULL) {
+   if (g.read_header.data == NULL && (g.read_header.data = (char*)malloc(datasize * sizeof(char))) == NULL) {
       dbenv->err(dbenv, errno, "");
       goto error;
    }
@@ -442,17 +460,17 @@ int read_header()
          }
          if (ch == '\n') break;
 
-         data[index] = ch;
+         g.read_header.data[index] = ch;
          index++;
 
          /* Ensure room exists for next character/null terminator. */
-         if (index == datasize && doublechararray(&data, &datasize)) goto error;
+         if (index == datasize && doublechararray(&g.read_header.data, &datasize)) goto error;
       }
       if (index == 0 && g.eof) goto success;
-      data[index] = '\0';
+      g.read_header.data[index] = '\0';
 
-      field = data;
-      if ((value = strchr(data, '=')) == NULL) goto formaterror;
+      field = g.read_header.data;
+      if ((value = strchr(g.read_header.data, '=')) == NULL) goto formaterror;
       value[0] = '\0';
       value++;
 
@@ -610,6 +628,8 @@ int apply_commandline_options()
          }
          continue;
       }
+      /*
+      ///TODO: UNCOMMENT/IMPLEMENT
       PARSE_NUMBER(           "bt_minkey",   db->set_bt_minkey);
       PARSE_NUMBER(           "db_lorder",   db->set_lorder);
       PARSE_NUMBER(           "db_pagesize", db->set_pagesize);
@@ -623,6 +643,7 @@ int apply_commandline_options()
       PARSE_FLAG(             "dupsort",     DB_DUPSORT);
       PARSE_FLAG(             "recnum",      DB_RECNUM);
       PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
+      */
 
       db->errx(db, "unknown input-file header configuration keyword \"%s\"", field);
       goto error;
@@ -660,6 +681,9 @@ int open_database()
    //TODO: Ensure we have enough cache to store some min number of btree pages.
    //NOTE: This may require closing db, environment, and creating new ones.
 
+
+/*
+///TODO: UNCOMMENT/IMPLEMENT
    DBTYPE existingtype;
    retval = db->get_type(db, &existingtype);
    if (retval != 0) {
@@ -671,6 +695,7 @@ int open_database()
       fprintf(stderr, "Existing database is not a dictionary (DB_BTREE).\n");
       goto error;
    }
+   */
    return EXIT_SUCCESS;
 error:
    fprintf(stderr, "Quitting out due to errors.\n");
@@ -718,7 +743,6 @@ error:
 int get_dbt(DBT* pdbt)
 {
    /* Need to store a key and value. */
-   static char* data[2] = {NULL, NULL};
    static uint64_t datasize[2] = {1 << 10, 1 << 10};
    static int which = 0;
    char* datum;
@@ -729,13 +753,13 @@ int get_dbt(DBT* pdbt)
 
    /* *pdbt should have been memset to 0 before being called. */
    which = 1 - which;
-   if (data[which] == NULL &&
-      (data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
+   if (g.get_dbt.data[which] == NULL &&
+      (g.get_dbt.data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
       db->err(db, errno, "");
       goto error;
    }
    
-   datum = data[which];
+   datum = g.get_dbt.data[which];
 
    if (g.plaintext) {
       int firstch;
@@ -793,8 +817,8 @@ int get_dbt(DBT* pdbt)
          }
          if (index == datasize[which]) {
             /* Overflow, double the memory. */
-            if (doublechararray(&data[which], &datasize[which])) goto error;
-            datum = data[which];
+            if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
+            datum = g.get_dbt.data[which];
          }
          datum[index] = nextch;
          index++;
@@ -824,8 +848,8 @@ int get_dbt(DBT* pdbt)
          }
          if (index == datasize[which]) {
             /* Overflow, double the memory. */
-            if (doublechararray(&data[which], &datasize[which])) goto error;
-            datum = data[which];
+            if (doublechararray(&g.get_dbt.data[which], &datasize[which])) goto error;
+            datum = g.get_dbt.data[which];
          }
          datum[index] = (hextoint(highch) << 4) | hextoint(lowch);
          index++;
