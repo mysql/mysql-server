@@ -3216,7 +3216,7 @@ type:
 spatial_type:
 	GEOMETRY_SYM	      { $$= Field::GEOM_GEOMETRY; }
 	| GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
-	| POINT_SYM           { Lex->length= (char*)"21";
+	| POINT_SYM           { Lex->length= (char*)"25";
                                 $$= Field::GEOM_POINT;
                               }
 	| MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }

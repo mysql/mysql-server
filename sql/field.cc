@@ -7416,36 +7416,6 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 #ifdef HAVE_SPATIAL
 
-uint Field_geom::get_key_image(char *buff, uint length, imagetype type)
-{
-  char *blob;
-  const char *dummy;
-  MBR mbr;
-  ulong blob_length= get_length(ptr);
-  Geometry_buffer buffer;
-  Geometry *gobj;
-  const uint image_length= SIZEOF_STORED_DOUBLE*4;
-
-  if (blob_length < SRID_SIZE)
-  {
-    bzero(buff, image_length);
-    return image_length;
-  }
-  get_ptr(&blob);
-  gobj= Geometry::construct(&buffer, blob, blob_length);
-  if (!gobj || gobj->get_mbr(&mbr, &dummy))
-    bzero(buff, image_length);
-  else
-  {
-    float8store(buff, mbr.xmin);
-    float8store(buff + 8, mbr.xmax);
-    float8store(buff + 16, mbr.ymin);
-    float8store(buff + 24, mbr.ymax);
-  }
-  return image_length;
-}
-
-
 void Field_geom::sql_type(String &res) const
 {
   CHARSET_INFO *cs= &my_charset_latin1;
