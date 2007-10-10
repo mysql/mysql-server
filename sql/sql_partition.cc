@@ -902,6 +902,7 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   const char *save_where;
   char* db_name;
   char db_name_string[FN_REFLEN];
+  bool save_use_only_table_context;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -958,7 +959,13 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
+
+  save_use_only_table_context= thd->lex->use_only_table_context;
+  thd->lex->use_only_table_context= TRUE;
+  
   error= func_expr->fix_fields(thd, (Item**)0);
+
+  thd->lex->use_only_table_context= save_use_only_table_context;
 
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
