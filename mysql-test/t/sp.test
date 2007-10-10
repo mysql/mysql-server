@@ -6642,9 +6642,6 @@ DROP VIEW v1, v2|
 DROP TABLE t3, t4|
 
 
---echo End of 5.0 tests
-
-
 #
 # BUG#23760: ROW_COUNT() and store procedure not owrking together
 #
@@ -7075,9 +7072,6 @@ create procedure proc_21513()`my_label`:BEGIN END|
 show create procedure proc_21513|
 
 drop procedure proc_21513|
-
-###
---echo End of 5.0 tests.
 
 #
 # BUG#NNNN: New bug synopsis
@@ -7677,4 +7671,6 @@ DROP FUNCTION f1;
 
 ###########################################################################
 
---echo End of 5.0 tests
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.0 tests
+--echo # ------------------------------------------------------------------
