@@ -698,6 +698,8 @@ row_ins_foreign_report_add_err(
 	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
+		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
+		It would be better to only display the user columns. */
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in parent table ", ef);
