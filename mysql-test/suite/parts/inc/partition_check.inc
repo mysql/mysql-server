@@ -35,11 +35,15 @@
 #                      This is useful for cleanups.                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
-# Original Author: ML                                                          #
-# Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Original Author: mleich                                                      #
+# Original Date:   2006-03-05                                                  #
+# Change Author:   mleich                                                      #
+# Change Date:     2007-10-08                                                  #
+# Change:          Around fix for                                              #
+#                  Bug#31243 Test "partition_basic_myisam" truncates path names#
+#                  Adjustments of expected error codes:                        #
+#                  ER_NO_PARTITION_FOR_GIVEN_VALUE is now 1525                 #
+#                  ER_SAME_NAME_PARTITION is now 1516                          #
 ################################################################################
 
 
@@ -495,7 +499,7 @@ WHERE f_charbig = '#SINGLE#' AND f_int1 IN (-1,@cur_value);
 # 4.7  Insert one record with such a big value for f_int1, so that in case
 #      - f_int1 is used within the partitioning algorithm
 #      - we use range partitioning
-#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE (1523)
+#      we get error ER_NO_PARTITION_FOR_GIVEN_VALUE (1525)
 #         "Table has no partition for value ...."
 #      or ER_SAME_NAME_PARTITION (1514)
 --disable_abort_on_error
@@ -506,11 +510,11 @@ if ($no_debug)
 --disable_query_log
 }
 eval SET @my_errno = $mysql_errno;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1514,1523)`;
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1514,1525)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1514,1523
+   --echo #      Expected/handled SQL codes are 0,1514,1525
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
