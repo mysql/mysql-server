@@ -133,10 +133,23 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       {
 	struct servent *serv_ptr;
 	char	*env;
-	if ((serv_ptr = getservbyname("mysql", "tcp")))
-	  mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
-	if ((env = getenv("MYSQL_TCP_PORT")))
-	  mysql_port =(uint) atoi(env);
+
+        /*
+          if builder specifically requested a default port, use that
+          (even if it coincides with our factory default).
+          only if they didn't do we check /etc/services (and, failing
+          on that, fall back to the factory default of 3306).
+          either default can be overridden by the environment variable
+          MYSQL_TCP_PORT, which in turn can be overridden with command
+          line options.
+        */
+
+#if MYSQL_PORT_DEFAULT == 0
+        if ((serv_ptr = getservbyname("mysql", "tcp")))
+          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+#endif
+        if ((env = getenv("MYSQL_TCP_PORT")))
+          mysql_port =(uint) atoi(env);
       }
 #endif
     }
@@ -4679,7 +4692,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   NET        *net;
 
   DBUG_ENTER("cli_read_binary_rows");
-  
+
   if (!mysql)
   {
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);

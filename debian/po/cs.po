@@ -213,8 +213,8 @@ msgstr ""
 #~ "se tabulky mohly narušit! Tento skript také rozšiřuje tabulky privilegií, "
 #~ "ovšem neměl by uživatelům přidat více práv, než měli dosud."
 
-#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
-#~ msgstr "Také si přečtěte http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgid "Please also read http://dev.mysql.com/doc/mysql/en/upgrade.html"
+#~ msgstr "Také si přečtěte http://dev.mysql.com/doc/mysql/en/upgrade.html"
 
 #~ msgid ""
 #~ "MySQL will only install if you have a non-numeric hostname that is "
