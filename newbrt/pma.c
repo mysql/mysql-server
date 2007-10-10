@@ -19,6 +19,58 @@
 /* get KEY_VALUE_OVERHEAD */
 #include "brt-internal.h"
 
+/* allocate a kv pair from the pma kv memory pool */
+static struct kv_pair *kv_pair_malloc_mempool(void *key, int keylen, void *val, int vallen, struct mempool *mp) {
+    struct kv_pair *kv = mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
+    if (kv)
+        kv_pair_init(kv, key, keylen, val, vallen);
+    return kv;
+}
+
+/* compress all of the kv pairs to the left edge of the memory pool and
+   update the pma index with the new kv pair locations */
+static int pma_compress_kvspace(PMA pma) {
+    if (mempool_get_frag_size(&pma->kvspace) == 0)
+        return -1;
+    void *mp = toku_malloc(pma->kvspace.size);
+    if (mp == 0)
+        return -2;
+    struct mempool new_kvspace;
+    mempool_init(&new_kvspace, mp, pma->kvspace.size);
+    int i;
+    for (i=0; i<pma->N; i++) {
+        struct kv_pair *kv = pma->pairs[i];
+        if (kv_pair_inuse(kv)) {
+            kv = kv_pair_ptr(kv);
+            struct kv_pair *newkv = mempool_malloc(&new_kvspace, kv_pair_size(kv), 4);
+            assert(newkv);
+            memcpy(newkv, kv, kv_pair_size(kv));
+            if (kv_pair_deleted(pma->pairs[i]))
+                kv_pair_set_deleted(newkv);
+            pma->pairs[i] = newkv;
+        }
+    }
+    toku_free(pma->kvspace.base);
+    pma->kvspace = new_kvspace;
+    return 0;
+}
+
+/* malloc space for a kv pair from the pma memory pool and initialize it.
+   if the allocation fails, try to compress the memory pool and try again. */
+static struct kv_pair *pma_malloc_kv_pair(PMA pma, void *k, int ksize, void *v, int vsize) {
+    struct kv_pair *kv = kv_pair_malloc_mempool(k, ksize, v, vsize, &pma->kvspace);
+    if (kv == 0) {
+        if (0 == pma_compress_kvspace(pma))
+            kv = kv_pair_malloc_mempool(k, ksize, v, vsize, &pma->kvspace);
+    }
+    return kv;
+}
+
+static void pma_mfree_kv_pair(PMA pma, struct kv_pair *kv) {
+    kv = kv_pair_ptr(kv);
+    mempool_mfree(&pma->kvspace, kv, kv_pair_size(kv));
+}
+
 int pma_n_entries (PMA pma) {
     return pma->n_pairs_present;
 }
@@ -303,7 +355,7 @@ int pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
     return n;
 }
 
-int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
+int pma_create(PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*), int maxsize) {
     int error;
     TAGMALLOC(PMA, result);
     if (result==0) return -1;
@@ -315,12 +367,16 @@ int pma_create (PMA *pma, int (*compare_fun)(DB*,const DBT*,const DBT*)) {
     result->sval = 0;
     result->N = PMA_MIN_ARRAY_SIZE;
     result->pairs = 0;
-
     error = __pma_resize_array(result, result->N, 0);
     if (error) {
         toku_free(result);
         return -1;
     }
+    if (maxsize == 0)
+        maxsize = 4*1024;
+    maxsize = maxsize + maxsize/4;
+    void *mpbase = toku_malloc(maxsize); assert(mpbase);
+    mempool_init(&result->kvspace, mpbase, maxsize);
 
     *pma = result;
     assert((unsigned long)result->pairs[result->N]==0xdeadbeefL);
@@ -633,13 +689,15 @@ int pma_free (PMA *pmap) {
         for (i=0; i < pma->N; i++) {
             struct kv_pair *kv = pma->pairs[i];
             if (kv_pair_inuse(kv)) {
-                kv_pair_free(kv_pair_ptr(kv));
+                pma_mfree_kv_pair(pma, kv);
                 pma->pairs[i] = 0;
                 pma->n_pairs_present--;
             }
         }
     }
     assert(pma->n_pairs_present == 0);
+    mempool_fini(&pma->kvspace);
+    void *mpbase; int mpsize; mempool_get_base_size(&pma->kvspace, &mpbase, &mpsize); toku_free(mpbase);
     toku_free(pma->pairs);
     if (pma->skey) toku_free(pma->skey);
     if (pma->sval) toku_free(pma->sval);
@@ -656,8 +714,9 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, diskoff diskoff) {
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[idx]);
         if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
             if (kv_pair_deleted(pma->pairs[idx])) {
-                pma->pairs[idx] = kv_pair_realloc_same_key(kv, v->data, v->size);
-		int r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+                pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
+                assert(pma->pairs[idx]);
+                int r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
                 return r;
             } else
                 return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
@@ -667,7 +726,7 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, diskoff diskoff) {
         idx = pmainternal_make_space_at (pma, idx); /* returns the new idx. */
     }
     assert(!kv_pair_inuse(pma->pairs[idx]));
-    pma->pairs[idx] = kv_pair_malloc(k->data, k->size, v->data, v->size);
+    pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
     return tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 1, pma->pairs[idx]);
@@ -697,7 +756,7 @@ void __pma_delete_finish(PMA pma, int here) {
     struct kv_pair *kv = pma->pairs[here];
     if (!kv_pair_inuse(kv))
         return;
-    kv_pair_free(kv_pair_ptr(kv));
+    pma_mfree_kv_pair(pma, kv);
     pma->pairs[here] = 0;
     pma->n_pairs_present--;
     __pma_delete_at(pma, here);
@@ -789,8 +848,14 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 		r=tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, kv);
 		if (r!=0) return r;
 	    }
-	    pma->pairs[idx] = kv_pair_realloc_same_key(kv, v->data, v->size);
-	    r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+            if (v->size == (unsigned int) kv_pair_vallen(kv)) {
+                memcpy(kv_pair_val(kv), v->data, v->size);
+            } else {
+                mempool_mfree(&pma->kvspace, kv, kv_pair_size(kv));
+                pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
+                assert(pma->pairs[idx]);
+            }
+            r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
             return r;
         }
     }
@@ -799,7 +864,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     }
     assert(!kv_pair_inuse(pma->pairs[idx]));
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
-    pma->pairs[idx] = kv_pair_malloc(k->data, k->size, v->data, v->size);
+    pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
     *replaced_v_size = -1;
@@ -904,6 +969,18 @@ struct kv_pair_tag *__pma_extract_pairs(PMA pma, int npairs, int lo, int hi) {
     return pairs;
 }
 
+static void __pma_relocate_kvpairs(PMA pma) {
+    int i;
+    for (i=0; i<pma->N; i++) {
+        struct kv_pair *kv = pma->pairs[i];
+        if (kv) {
+            pma->pairs[i] = kv_pair_malloc_mempool(kv_pair_key(kv), kv_pair_keylen(kv), kv_pair_val(kv),
+                                                   kv_pair_vallen(kv), &pma->kvspace);
+            assert(pma->pairs[i]);
+        }
+    }
+}
+
 int pma_split(PMA origpma, unsigned int *origpma_size, 
               PMA leftpma, unsigned int *leftpma_size,
               PMA rightpma, unsigned int *rightpma_size) {
@@ -960,6 +1037,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
     error = __pma_resize_array(leftpma, n + n/4, 0);
     assert(error == 0);
     distribute_data(leftpma->pairs, pma_index_limit(leftpma), &pairs[0], n, leftpma);
+    __pma_relocate_kvpairs(leftpma);
     __pma_update_cursors(leftpma, &cursors, &pairs[0], spliti);
     leftpma->n_pairs_present = spliti;
 
@@ -968,6 +1046,7 @@ int pma_split(PMA origpma, unsigned int *origpma_size,
     error = __pma_resize_array(rightpma, n + n/4, 0);
     assert(error == 0);
     distribute_data(rightpma->pairs, pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
+    __pma_relocate_kvpairs(rightpma);
     __pma_update_cursors(rightpma, &cursors, &pairs[spliti], n);
     rightpma->n_pairs_present = n;
 
@@ -1011,12 +1090,12 @@ int pma_get_last(PMA pma, DBT *key, DBT *val) {
     return 0;
 }
 
-void __pma_bulk_cleanup(struct kv_pair_tag *pairs, int n) {
+void __pma_bulk_cleanup(struct pma *pma, struct kv_pair_tag *pairs, int n) {
     int i;
 
     for (i=0; i<n; i++)
         if (pairs[i].pair)
-            kv_pair_free(pairs[i].pair);
+            pma_mfree_kv_pair(pma, pairs[i].pair);
 }
 
 int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs) {
@@ -1038,10 +1117,10 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs) {
     }
 
     for (i=0; i<n_newpairs; i++) {
-        newpairs[i].pair = kv_pair_malloc(keys[i].data, keys[i].size, 
-            vals[i].data, vals[i].size);
+        newpairs[i].pair = kv_pair_malloc_mempool(keys[i].data, keys[i].size, 
+                                                  vals[i].data, vals[i].size, &pma->kvspace);
         if (newpairs[i].pair == 0) {
-            __pma_bulk_cleanup(newpairs, i);
+            __pma_bulk_cleanup(pma, newpairs, i);
             toku_free(newpairs);
             error = -4; return error;
         }
@@ -1049,7 +1128,7 @@ int pma_bulk_insert(PMA pma, DBT *keys, DBT *vals, int n_newpairs) {
 
     error = __pma_resize_array(pma, n_newpairs + n_newpairs/4, 0);
     if (error) {
-        __pma_bulk_cleanup(newpairs, n_newpairs);
+        __pma_bulk_cleanup(pma, newpairs, n_newpairs);
         toku_free(newpairs);
         error = -5; return error;
     }

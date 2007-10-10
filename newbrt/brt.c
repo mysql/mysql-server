@@ -64,6 +64,7 @@ void brtnode_free (BRTNODE *nodep) {
 
 long brtnode_size(BRTNODE node) {
     long size;
+    assert(node->tag == TYP_BRTNODE);
     if (node->height > 0)
         size = node->u.n.n_bytes_in_hashtables;
     else
@@ -258,7 +259,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, diskoff nodename, int height) 
 	}
 	n->u.n.n_bytes_in_hashtables = 0;
     } else {
-	int r = pma_create(&n->u.l.buffer, t->compare_fun);
+	int r = pma_create(&n->u.l.buffer, t->compare_fun, n->nodesize);
 	static int rcount=0;
 	assert(r==0);
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
@@ -1345,6 +1346,7 @@ int brt_lookup_node (BRT brt, diskoff off, DBT *k, DBT *v, DB *db, BRTNODE paren
         return r;
 
     BRTNODE node = node_v;
+    assert(node->tag == TYP_BRTNODE);
     int childnum;
 
     //printf("%s:%d pin %p height=%d children=%d\n", __FILE__, __LINE__, node_v, node->height, node->u.n.n_children);
