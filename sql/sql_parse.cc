@@ -650,7 +650,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     1  request of thread shutdown (see dispatch_command() description)
 */
 
-bool do_command(THD *thd)
+static bool do_command(THD *thd)
 {
   char *packet= 0;
   ulong packet_length;
