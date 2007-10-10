@@ -1562,7 +1562,8 @@ void check_result(DYNAMIC_STRING* ds)
       Result mismatched, dump results to .reject file
       and then show the diff
     */
-    char reject_file[FN_REFLEN], reject_length;
+    char reject_file[FN_REFLEN];
+    size_t reject_length;
     dirname_part(reject_file, result_file_name, &reject_length);
 
     if (access(reject_file, W_OK) == 0)
