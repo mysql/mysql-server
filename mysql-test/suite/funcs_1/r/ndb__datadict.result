@@ -10,8 +10,9 @@
 . *__datadict.test are started. This can be a result of showing e.g. maximum
 . values of the number of rows of tables.
 .
-. This .result file has been checked OK with Linux 5.0.23-bk,
-. ChangeSet@1.2211, 2006-06-28 10:11:43-07:00.
+. This .result file has been checked OK with Linux 5.0.48,
+. build tree ChangeSet@1.2477.6.3, 2007-07-30
+. except that the not fixed Bug#30020 causes a difference.
 .
 --------------------------------------------------------------------------------
 
@@ -20,10 +21,20 @@ FIXME: There are subtests that are switched off due to known bugs:
 SELECT 1 AS "have_bug_11589";
 have_bug_11589
 1
+SELECT 1 AS "have_bug_30689";
+have_bug_30689
+1
 
 There are some statements where the ps-protocol is switched off.
 This may come from the bug listed below, ir from other problems.
 Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill
+--------------------------------------------------------------------------------
+
+Selects on INFORMATION_SCHEMA.VIEWS present incomplete
+content for the column VIEW_DEFINITION in cases where
+the view selects(=is based) on an INFORMATION_SCHEMA table.
+---> VIEWS vu and vu1
+Bug#30689 Wrong content in I_S.VIEWS.VIEW_DEFINITION if VIEW is based on I_S
 --------------------------------------------------------------------------------
 SET @NO_REFRESH = IF( '' = '', 0, 1);
 DROP DATABASE IF EXISTS test1;
@@ -720,7 +731,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -910,90 +922,6 @@ TABLE_COLLATION	utf8_general_ci
 CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	General log
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	37
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	424
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	901
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	479
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	host
@@ -1478,90 +1406,6 @@ CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	
 TABLE_CATALOG	NULL
-TABLE_SCHEMA	test
-TABLE_NAME	tb1
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	10
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	latin1_swedish_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	test
-TABLE_NAME	tb2
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	54
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	latin1_swedish_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	test
-TABLE_NAME	tb3
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	11
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	latin1_swedish_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	test
-TABLE_NAME	tb4
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	10
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	latin1_swedish_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	
-TABLE_CATALOG	NULL
 TABLE_SCHEMA	test4
 TABLE_NAME	t6
 TABLE_TYPE	BASE TABLE
@@ -1642,8 +1486,8 @@ NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
-NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
-NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
+NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
+NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
@@ -1710,8 +1554,8 @@ NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
-NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
-NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
+NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
+NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
@@ -1778,8 +1622,8 @@ NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
-NULL	mysql	latin1	SYSTEM VIEW	MEMORY
-NULL	mysql	latin1	SYSTEM VIEW	MEMORY
+NULL	mysql	latin1	SYSTEM VIEW	MyISAM
+NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
@@ -1846,8 +1690,8 @@ NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
-NULL	test	latin1	SYSTEM VIEW	MEMORY
-NULL	test	latin1	SYSTEM VIEW	MEMORY
+NULL	test	latin1	SYSTEM VIEW	MyISAM
+NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
@@ -1914,8 +1758,8 @@ NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
-NULL	test1	latin1	SYSTEM VIEW	MEMORY
-NULL	test1	latin1	SYSTEM VIEW	MEMORY
+NULL	test1	latin1	SYSTEM VIEW	MyISAM
+NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
@@ -1982,8 +1826,8 @@ NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
-NULL	test4	latin1	SYSTEM VIEW	MEMORY
-NULL	test4	latin1	SYSTEM VIEW	MEMORY
+NULL	test4	latin1	SYSTEM VIEW	MyISAM
+NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
@@ -2023,7 +1867,7 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -2047,12 +1891,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -2190,7 +2034,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -2267,7 +2111,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -2275,8 +2119,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -2287,7 +2131,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -2869,7 +2713,7 @@ cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
 eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
 select sum(id) from collations;
 sum(id)
-10840
+11094
 select collation_name, character_set_name into @x,@y
 from collation_character_set_applicability limit 1;
 select @x, @y;
@@ -2883,7 +2727,8 @@ END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh
 select count(*) from routines;
 count(*)
 1
-select * from statistics;
+select * from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	user	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	user	0	mysql	PRIMARY	2	User	A	3	NULL	NULL		BTREE	
@@ -2899,14 +2744,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_apply_status	0	mysql	PRIMARY	1	server_id	NULL	0	NULL	NULL		HASH	
@@ -3138,9 +2975,10 @@ NULL	mysql	PRIMARY	NULL	mysql	time_zone_transition_type	Transition_type_id	2	NUL
 select count(*) as max_recs from key_column_usage;
 max_recs
 46
-select max(cardinality) from statistics;
+select max(cardinality) from statistics
+where not (table_schema = 'mysql' and table_name like 'help_%');
 max(cardinality)
-901
+393
 select concat("View '",
 table_name, "' is associated with the database '", table_schema, "'.")
 AS "Who is Who for the Views"
@@ -4031,7 +3869,8 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema')
+AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	db_datadict
 TABLE_NAME	v1
@@ -4221,90 +4060,6 @@ TABLE_COLLATION	utf8_general_ci
 CHECKSUM	NULL
 CREATE_OPTIONS	
 TABLE_COMMENT	General log
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_category
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	37
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help categories
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_keyword
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	424
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help keywords
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_relation
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Fixed
-TABLE_ROWS	901
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	keyword-topic relation
-TABLE_CATALOG	NULL
-TABLE_SCHEMA	mysql
-TABLE_NAME	help_topic
-TABLE_TYPE	BASE TABLE
-ENGINE	MyISAM
-VERSION	10
-ROW_FORMAT	Dynamic
-TABLE_ROWS	479
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	YYYY-MM-DD hh:mm:ss
-UPDATE_TIME	YYYY-MM-DD hh:mm:ss
-CHECK_TIME	YYYY-MM-DD hh:mm:ss
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	
-TABLE_COMMENT	help topics
 TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	host
@@ -4953,8 +4708,8 @@ NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
-NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
-NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
+NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
+NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
@@ -5021,8 +4776,8 @@ NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
-NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
-NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
+NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
+NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
 NULL	information_schema	utf8	SYSTEM VIEW	MyISAM
@@ -5089,8 +4844,8 @@ NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
-NULL	mysql	latin1	SYSTEM VIEW	MEMORY
-NULL	mysql	latin1	SYSTEM VIEW	MEMORY
+NULL	mysql	latin1	SYSTEM VIEW	MyISAM
+NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
@@ -5157,8 +4912,8 @@ NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
-NULL	test	latin1	SYSTEM VIEW	MEMORY
-NULL	test	latin1	SYSTEM VIEW	MEMORY
+NULL	test	latin1	SYSTEM VIEW	MyISAM
+NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
 NULL	test	latin1	SYSTEM VIEW	MyISAM
@@ -5225,8 +4980,8 @@ NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
-NULL	test1	latin1	SYSTEM VIEW	MEMORY
-NULL	test1	latin1	SYSTEM VIEW	MEMORY
+NULL	test1	latin1	SYSTEM VIEW	MyISAM
+NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
@@ -5293,8 +5048,8 @@ NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
-NULL	test4	latin1	SYSTEM VIEW	MEMORY
-NULL	test4	latin1	SYSTEM VIEW	MEMORY
+NULL	test4	latin1	SYSTEM VIEW	MyISAM
+NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
 NULL	test4	latin1	SYSTEM VIEW	MyISAM
@@ -5394,19 +5149,19 @@ COUNT(*)
 6
 SELECT COUNT(*) FROM information_schema. tables                                ;
 COUNT(*)
-68
+64
 SELECT COUNT(*) FROM information_schema. columns                               ;
 COUNT(*)
-832
+590
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
 SELECT COUNT(*) FROM information_schema. collations                            ;
 COUNT(*)
-127
+128
 SELECT COUNT(*) FROM information_schema. collation_character_set_applicability ;
 COUNT(*)
-128
+129
 SELECT COUNT(*) FROM information_schema. routines                              ;
 COUNT(*)
 1
@@ -5459,10 +5214,10 @@ NULL	test1	latin1
 NULL	test4	latin1
 select count(*) as tot_tabs from tables;
 tot_tabs
-65
+61
 select count(*) as the_cols from columns;
 the_cols
-807
+565
 select max(maxlen) as the_max from character_sets;
 the_max
 3
@@ -5483,10 +5238,10 @@ utf8_esperanto_ci	utf8
 utf8_estonian_ci	utf8
 select routine_definition from routines;
 routine_definition
-select * from statistics group by index_name asc  limit 0, 5;
+select * from statistics where table_name not like 'help_%'
+group by index_name asc  limit 0, 5;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
 NULL	mysql	user	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE	
 select concat(table_schema, ', ', table_name, ', ', view_definition) view_info
@@ -5600,9 +5355,9 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 NULL	test1	latin1	latin1_swedish_ci	NULL
 select distinct grantee from user_privileges;
 grantee
-'root'@'localhost'
-'root'@'<SERVER_NAME>'
 'root'@'127.0.0.1'
+'root'@'<SERVER_NAME>'
+'root'@'localhost'
 select all      grantee from user_privileges order by grantee, privilege_type;
 grantee
 'root'@'127.0.0.1'
@@ -7552,7 +7307,7 @@ Testcase 3.2.1.14:
 DROP DATABASE IF EXISTS db_datadict;
 CREATE DATABASE db_datadict;
 USE db_datadict;
-create table res_t_401014(f1 char(10), f2 text(25), f3 int);
+create table res_t_401014(f1 char(10), f2 varchar(25), f3 int);
 create view res_v_401014 as select * from res_t_401014;
 create procedure sp_6_401014() select 'db_datadict';
 create function fn_6_401014() returns int return 0;
@@ -7575,10 +7330,10 @@ from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f1	1	NULL	YES	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)			select,insert,update,references	
-NULL	db_datadict	res_v_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_v_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
 from information_schema.views
@@ -7697,7 +7452,7 @@ WHERE trigger_schema LIKE 'db_datadict%';
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 use db_datadict;
 alter table res_t_401014 change f1 ff1 int;
-alter table res_t_401014 engine = innodb;
+alter table res_t_401014 engine = MEMORY;
 alter table res_t_401014 change f3 f3_new bigint;
 alter view res_v_401014 as select ff1 from res_t_401014;
 alter procedure sp_6_401014 sql security invoker;
@@ -7715,14 +7470,14 @@ select table_catalog, table_schema, engine
 from information_schema.tables
 where table_schema like 'db_datadict%';
 table_catalog	table_schema	engine
-NULL	db_datadict	InnoDB
+NULL	db_datadict	MEMORY
 NULL	db_datadict	NULL
 select *
 from information_schema.columns
 where table_schema like 'db_datadict%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	db_datadict	res_t_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	db_datadict	res_t_401014	f2	2	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
+NULL	db_datadict	res_t_401014	f2	2	NULL	YES	varchar	25	25	NULL	NULL	latin1	latin1_swedish_ci	varchar(25)			select,insert,update,references	
 NULL	db_datadict	res_t_401014	f3_new	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 NULL	db_datadict	res_v_401014	ff1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 select table_schema, table_name, is_updatable
@@ -8363,6 +8118,7 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
+utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -9161,6 +8917,7 @@ utf8_roman_ci
 utf8_persian_ci
 utf8_esperanto_ci
 utf8_hungarian_ci
+utf8_general_cs
 ucs2_general_ci
 ucs2_bin
 ucs2_unicode_ci
@@ -9526,6 +9283,7 @@ utf8_roman_ci	utf8	207		Yes	8
 utf8_persian_ci	utf8	208		Yes	8
 utf8_esperanto_ci	utf8	209		Yes	8
 utf8_hungarian_ci	utf8	210		Yes	8
+utf8_general_cs	utf8	254		Yes	1
 ucs2_general_ci	ucs2	35	Yes	Yes	1
 ucs2_bin	ucs2	90		Yes	1
 ucs2_unicode_ci	ucs2	128		Yes	8
@@ -9689,6 +9447,7 @@ utf8_roman_ci	utf8
 utf8_persian_ci	utf8
 utf8_esperanto_ci	utf8
 utf8_hungarian_ci	utf8
+utf8_general_cs	utf8
 ucs2_general_ci	ucs2
 ucs2_bin	ucs2
 ucs2_unicode_ci	ucs2
@@ -9924,7 +9683,7 @@ NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL
 NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
-COLUMN_TYPE	longtext	NO			
+COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
 EXTRA	varchar(20)	NO			
 PRIVILEGES	varchar(80)	NO			
@@ -9977,7 +9736,7 @@ NULL	information_schema	columns	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	columns	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	columns	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	columns	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	columns	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	columns	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	columns	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	columns	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	columns	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -10032,7 +9791,7 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -10056,12 +9815,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -10199,7 +9958,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -10276,7 +10035,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -10284,8 +10043,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -10296,7 +10055,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -10845,7 +10604,7 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -10869,12 +10628,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -11012,7 +10771,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11089,7 +10848,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11097,8 +10856,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11109,7 +10868,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -11434,7 +11193,7 @@ NULL	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	1
 NULL	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	COLUMNS	COLUMN_TYPE	15		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	COLUMNS	EXTRA	17		NO	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	COLUMNS	PRIVILEGES	18		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -11458,12 +11217,12 @@ NULL	information_schema	EVENTS	EVENT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	ut
 NULL	information_schema	EVENTS	DEFINER	4		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	EVENTS	EVENT_BODY	6		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-NULL	information_schema	EVENTS	EVENT_DEFINITION	7		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	EVENT_DEFINITION	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	EVENT_TYPE	8		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	EVENTS	EXECUTE_AT	9	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	INTERVAL_VALUE	10	NULL	YES	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
 NULL	information_schema	EVENTS	INTERVAL_FIELD	11	NULL	YES	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ENDS	14	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
@@ -11601,7 +11360,7 @@ NULL	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	ROUTINES	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	ROUTINES	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	ROUTINES	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11678,7 +11437,7 @@ NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	TRIGGERS	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11686,8 +11445,8 @@ NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	TRIGGERS	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -11698,7 +11457,7 @@ NULL	information_schema	USER_PRIVILEGES	IS_GRANTABLE	4		NO	varchar	3	9	NULL	NULL
 NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	VIEWS	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	VIEWS	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	VIEWS	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	VIEWS	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -13076,7 +12835,7 @@ SQL_PATH	varchar(64)	YES		NULL
 SECURITY_TYPE	varchar(7)	NO			
 CREATED	datetime	NO		0000-00-00 00:00:00	
 LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
-SQL_MODE	longtext	NO			
+SQL_MODE	longtext	NO		NULL	
 ROUTINE_COMMENT	varchar(64)	NO			
 DEFINER	varchar(77)	NO			
 CHARACTER_SET_CLIENT	varchar(32)	NO			
@@ -13137,7 +12896,7 @@ NULL	information_schema	routines	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	u
 NULL	information_schema	routines	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 NULL	information_schema	routines	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	routines	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	routines	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	routines	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	routines	ROUTINE_COMMENT	19		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	routines	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	routines	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -13845,15 +13604,15 @@ NULL	db_datadict	tb1	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NUL
 NULL	db_datadict	tb2	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	tb3	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	v3	VIEW	NULL	NULL	NULL	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	NULL	NULL	NULL	VIEW
-NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
+NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
 NULL	test	tb1	BASE TABLE	MyISAM	10	Dynamic	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb2	BASE TABLE	MyISAM	10	Dynamic	54	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb3	BASE TABLE	MyISAM	10	Dynamic	11	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -13894,15 +13653,15 @@ WHERE NOT( table_schema = 'information_schema');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 NULL	db_datadict	tb1	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	tb3	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
+NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
 NULL	test	tb1	BASE TABLE	MyISAM	10	Dynamic	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb2	BASE TABLE	MyISAM	10	Dynamic	54	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb3	BASE TABLE	MyISAM	10	Dynamic	11	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -13943,15 +13702,15 @@ WHERE NOT( table_schema = 'information_schema');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 NULL	db_datadict	tb3	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	v3	VIEW	NULL	NULL	NULL	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	NULL	NULL	NULL	VIEW
-NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
+NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
 NULL	test	tb1	BASE TABLE	MyISAM	10	Dynamic	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb2	BASE TABLE	MyISAM	10	Dynamic	54	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb3	BASE TABLE	MyISAM	10	Dynamic	11	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -13989,7 +13748,7 @@ NULL	information_schema	TRIGGERS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#
 NULL	information_schema	USER_PRIVILEGES	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	VIEWS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 SELECT * FROM information_schema.tables
-WHERE NOT( table_schema = 'information_schema');
+WHERE NOT( table_schema = 'information_schema') AND NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 NULL	db_datadict	tb1	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	db_datadict	tb2	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -14001,10 +13760,6 @@ NULL	mysql	db	BASE TABLE	MyISAM	10	Fixed	3	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-
 NULL	mysql	event	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Events
 NULL	mysql	func	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		User defined functions
 NULL	mysql	general_log	BASE TABLE	CSV	10	Dynamic	1	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		General log
-NULL	mysql	help_category	BASE TABLE	MyISAM	10	Fixed	37	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help categories
-NULL	mysql	help_keyword	BASE TABLE	MyISAM	10	Fixed	424	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help keywords
-NULL	mysql	help_relation	BASE TABLE	MyISAM	10	Fixed	901	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		keyword-topic relation
-NULL	mysql	help_topic	BASE TABLE	MyISAM	10	Dynamic	479	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		help topics
 NULL	mysql	host	BASE TABLE	MyISAM	10	Fixed	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_bin	NULL		Host privileges;  Merged with database privileges
 NULL	mysql	ndb_apply_status	BASE TABLE	ndbcluster	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	mysql	ndb_binlog_index	BASE TABLE	MyISAM	10	Dynamic	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
@@ -14019,20 +13774,20 @@ NULL	mysql	time_zone_leap_second	BASE TABLE	MyISAM	10	Fixed	22	#ARL#	#DL#	#MDL#	
 NULL	mysql	time_zone_name	BASE TABLE	MyISAM	10	Fixed	6	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Time zone names
 NULL	mysql	time_zone_transition	BASE TABLE	MyISAM	10	Fixed	393	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Time zone transitions
 NULL	mysql	time_zone_transition_type	BASE TABLE	MyISAM	10	Fixed	31	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL		Time zone transition types
-NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
+NULL	test	t1	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t10	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t11	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t2	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t3	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t4	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t7	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t8	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
+NULL	test	t9	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
 NULL	test	tb1	BASE TABLE	MyISAM	10	Dynamic	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb2	BASE TABLE	MyISAM	10	Dynamic	54	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb3	BASE TABLE	MyISAM	10	Dynamic	11	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
 NULL	test	tb4	BASE TABLE	MyISAM	10	Dynamic	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
-NULL	test4	t6	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		
+NULL	test4	t6	BASE TABLE	ndbcluster	10	Fixed	10	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	latin1_swedish_ci	NULL		number_of_replicas: 2
 DROP USER 'user_1'@'localhost';
 DROP USER 'user_2'@'localhost';
 DROP USER 'user_3'@'localhost';
@@ -14050,7 +13805,7 @@ Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(4096)	YES		NULL	
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
-VIEW_DEFINITION	longtext	NO			
+VIEW_DEFINITION	longtext	NO		NULL	
 CHECK_OPTION	varchar(8)	NO			
 IS_UPDATABLE	varchar(3)	NO			
 DEFINER	varchar(77)	NO			
@@ -14085,7 +13840,7 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAUL
 NULL	information_schema	views	TABLE_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	views	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	views	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	views	VIEW_DEFINITION	4		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	views	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	views	CHECK_OPTION	5		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 NULL	information_schema	views	IS_UPDATABLE	6		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	views	DEFINER	7		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
@@ -14232,7 +13987,8 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_
 	
 root@localhost	db_datadict_2
 REVOKE SELECT ON db_datadict.tb_6_401402_1 FROM 'user_1'@'localhost';
-SELECT * FROM information_schema.statistics;
+SELECT * FROM information_schema.statistics
+WHERE NOT (table_schema = 'mysql' AND table_name LIKE 'help_%');
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	db_datadict	tb_6_401402_1	0	db_datadict	PRIMARY	1	f1	A	0	NULL	NULL		BTREE	
 NULL	db_datadict	tb_6_401402_1	1	db_datadict	f2_ind	1	f2	A	NULL	NULL	NULL	YES	BTREE	
@@ -14256,14 +14012,6 @@ NULL	mysql	db	1	mysql	User	1	User	A	1	NULL	NULL		BTREE
 NULL	mysql	event	0	mysql	PRIMARY	1	db	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	event	0	mysql	PRIMARY	2	name	A	0	NULL	NULL		BTREE	
 NULL	mysql	func	0	mysql	PRIMARY	1	name	A	0	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_category	0	mysql	name	1	name	A	37	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_keyword	0	mysql	name	1	name	A	424	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	NULL	NULL	NULL		BTREE	
-NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	901	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	479	NULL	NULL		BTREE	
-NULL	mysql	help_topic	0	mysql	name	1	name	A	479	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
 NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	0	NULL	NULL		BTREE	
 NULL	mysql	ndb_apply_status	0	mysql	PRIMARY	1	server_id	NULL	0	NULL	NULL		HASH	
@@ -14866,7 +14614,7 @@ EVENT_OBJECT_SCHEMA	varchar(64)	NO
 EVENT_OBJECT_TABLE	varchar(64)	NO			
 ACTION_ORDER	bigint(4)	NO		0	
 ACTION_CONDITION	longtext	YES		NULL	
-ACTION_STATEMENT	longtext	NO			
+ACTION_STATEMENT	longtext	NO		NULL	
 ACTION_ORIENTATION	varchar(9)	NO			
 ACTION_TIMING	varchar(6)	NO			
 ACTION_REFERENCE_OLD_TABLE	varchar(64)	YES		NULL	
@@ -14874,8 +14622,8 @@ ACTION_REFERENCE_NEW_TABLE	varchar(64)	YES		NULL
 ACTION_REFERENCE_OLD_ROW	varchar(3)	NO			
 ACTION_REFERENCE_NEW_ROW	varchar(3)	NO			
 CREATED	datetime	YES		NULL	
-SQL_MODE	longtext	NO			
-DEFINER	longtext	NO			
+SQL_MODE	longtext	NO		NULL	
+DEFINER	longtext	NO		NULL	
 CHARACTER_SET_CLIENT	varchar(32)	NO			
 COLLATION_CONNECTION	varchar(32)	NO			
 DATABASE_COLLATION	varchar(32)	NO			
@@ -14925,7 +14673,7 @@ NULL	information_schema	triggers	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	N
 NULL	information_schema	triggers	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	triggers	ACTION_ORDER	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(4)			select	
 NULL	information_schema	triggers	ACTION_CONDITION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	triggers	ACTION_STATEMENT	10		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	triggers	ACTION_ORIENTATION	11		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
 NULL	information_schema	triggers	ACTION_TIMING	12		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	triggers	ACTION_REFERENCE_OLD_TABLE	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -14933,8 +14681,8 @@ NULL	information_schema	triggers	ACTION_REFERENCE_NEW_TABLE	14	NULL	YES	varchar	
 NULL	information_schema	triggers	ACTION_REFERENCE_OLD_ROW	15		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	triggers	ACTION_REFERENCE_NEW_ROW	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	triggers	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	triggers	SQL_MODE	18		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-NULL	information_schema	triggers	DEFINER	19		NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	triggers	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	triggers	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	triggers	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	triggers	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
