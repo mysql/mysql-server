@@ -249,7 +249,7 @@ PARTITION BY RANGE(f_int1)
 --echo #      This is a limitation of MySQL 5.1, which could be removed in
 --echo #      later releases.
 --echo #------------------------------------------------------------------------
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list,
 PRIMARY KEY (f_int1)
@@ -324,7 +324,7 @@ PARTITION BY RANGE(f_int1)
 --echo #------------------------------------------------------------------------
 --echo #  3.5.1 NULL in RANGE partitioning clause
 --echo #  3.5.1.1 VALUE LESS THAN (NULL) is not allowed
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -332,7 +332,7 @@ PARTITION BY RANGE(f_int1)
 ( PARTITION part1 VALUES LESS THAN (NULL),
   PARTITION part2 VALUES LESS THAN (1000));
 --echo #  3.5.1.2 VALUE LESS THAN (NULL) is not allowed
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -456,17 +456,17 @@ let $part3_Y= `SELECT @AUX`;
 eval $part01 $column_list $part02 $part1_N $part2_N $part3_N ;
 DROP TABLE t1;
 # Bug#15407 Partitions: crash if subpartition
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_N $part2_N $part3_Y ;
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_N $part2_Y $part3_N ;
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_N $part2_Y $part3_Y ;
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_Y $part2_N $part3_N ;
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_Y $part2_N $part3_Y ;
---error 1064
+--error ER_PARSE_ERROR
 eval $part01 $column_list $part02 $part1_Y $part2_Y $part3_N ;
 eval $part01 $column_list $part02 $part1_Y $part2_Y $part3_Y ;
 --source suite/parts/inc/partition_layout_check1.inc
@@ -640,12 +640,12 @@ let $part_number= "GARBAGE";
 
 --echo # 4.2.6 (negative) partition/subpartition numbers per @variables
 SET @aux = 5;
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY HASH(f_int1) PARTITIONS @aux;
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -685,13 +685,13 @@ DROP TABLE t1;
 --echo #                  already checked above
 --echo # 4.3.3 (negative) number of partitions/subpartitions
 --echo #                         > number of named partitions/subpartitions
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2 ( PARTITION part1 ) ;
 # Wrong number of named subpartitions in first partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -703,7 +703,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
     (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
 # Wrong number of named subpartitions in non first/non last partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -717,7 +717,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
     (SUBPARTITION subpart31, SUBPARTITION subpart32)
 );
 # Wrong number of named subpartitions in last partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -729,13 +729,13 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
     (SUBPARTITION subpart21                        )
 );
 --echo # 4.3.4 (negative) number of partitions < number of named partitions
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY HASH(f_int1) PARTITIONS 1 ( PARTITION part1, PARTITION part2 ) ;
 # Wrong number of named subpartitions in first partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -747,7 +747,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 1
     (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
 # Wrong number of named subpartitions in non first/non last partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -761,7 +761,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 1
     (SUBPARTITION subpart31, SUBPARTITION subpart32)
 );
 # Wrong number of named subpartitions in last partition
---error 1064
+--error ER_PARSE_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
