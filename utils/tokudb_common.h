@@ -18,10 +18,10 @@ typedef uint8_t bool;
 
 #define IS_POWER_OF_2(num)             ((num) > 0 && ((num) & ((num) - 1)) == 0)
 
-int   strtoint32  (DB* db, char* progname, char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
-int   strtouint32 (DB* db, char* progname, char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
-int   strtoint64  (DB* db, char* progname, char* str,  int64_t* num,  int64_t min,  int64_t max, int base);
-int   strtouint64 (DB* db, char* progname, char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
+int   strtoint32  (DB_ENV* dbenv, char* progname, char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
+int   strtouint32 (DB_ENV* dbenv, char* progname, char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
+int   strtoint64  (DB_ENV* dbenv, char* progname, char* str,  int64_t* num,  int64_t min,  int64_t max, int base);
+int   strtouint64 (DB_ENV* dbenv, char* progname, char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
 
 /*
  * Convert a string to an integer of type "type".
@@ -36,7 +36,7 @@ int   strtouint64 (DB* db, char* progname, char* str, uint64_t* num, uint64_t mi
  *
  */
 #define DEF_STR_TO(name, type, bigtype, strtofunc, frmt)       \
-int name(DB* db, char* progname, char* str, type* num, type min, type max, int base)   \
+int name(DB_ENV* dbenv, char* progname, char* str, type* num, type min, type max, int base)   \
 {                                                              \
    char* test;                                                 \
    bigtype value;                                              \
@@ -44,31 +44,31 @@ int name(DB* db, char* progname, char* str, type* num, type min, type max, int b
    assert(str);                                                \
    assert(num);                                                \
    assert(min <= max);                                         \
-   assert(db || progname);                                     \
+   assert(dbenv || progname);                                  \
    assert(base == 0 || (base >= 2 && base <= 36));             \
                                                                \
    errno = 0;                                                  \
    while (isspace(*str)) str++;                                \
    value = strtofunc(str, &test, base);                        \
    if ((*test != '\0' && *test != '\n') || test == str) {      \
-      if (db == NULL) fprintf(stderr, "%s: %s: Invalid numeric argument\n", progname, str);  \
-      else db->errx(db, "%s: Invalid numeric argument", str);  \
+      if (dbenv == NULL) fprintf(stderr, "%s: %s: Invalid numeric argument\n", progname, str);  \
+      else dbenv->err(dbenv, 0, "%s: Invalid numeric argument", str);  \
       errno = EINVAL;                                          \
       goto error;                                              \
    }                                                           \
    if (errno != 0) {                                           \
-      if (db == NULL) fprintf(stderr, "%s: %s: %s\n", progname, str, strerror(errno)); \
-      else db->err(db, errno, "%s", str);                      \
+      if (dbenv == NULL) fprintf(stderr, "%s: %s: %s\n", progname, str, strerror(errno)); \
+      else dbenv->err(dbenv, errno, "%s", str);                \
       goto error;                                              \
    }                                                           \
    if (value < min) {                                          \
-      if (db == NULL) fprintf(stderr, "%s: %s: Less than minimum value (%" frmt ")\n", progname, str, min); \
-      else db->errx(db, "%s: Less than minimum value (%" frmt ")", str, min); \
+      if (dbenv == NULL) fprintf(stderr, "%s: %s: Less than minimum value (%" frmt ")\n", progname, str, min); \
+      else dbenv->err(dbenv, 0, "%s: Less than minimum value (%" frmt ")", str, min); \
       goto error;                                              \
    }                                                           \
    if (value > max) {                                          \
-      if (db == NULL) fprintf(stderr, "%s: %s: Greater than maximum value (%" frmt ")\n", progname, str, max); \
-      else db->errx(db, "%s: Greater than maximum value (%" frmt ")", str, max); \
+      if (dbenv == NULL) fprintf(stderr, "%s: %s: Greater than maximum value (%" frmt ")\n", progname, str, max); \
+      else dbenv->err(dbenv, 0, "%s: Greater than maximum value (%" frmt ")", str, max); \
       goto error;                                              \
    }                                                           \
    *num = value;                                               \
