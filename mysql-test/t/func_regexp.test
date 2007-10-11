@@ -74,4 +74,13 @@ execute stmt1 using @a;
 deallocate prepare stmt1;
 drop table t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+
+#
+# Bug #31440: 'select 1 regex null' asserts debug server
+#
+
+SELECT 1 REGEXP NULL;
+
+--echo End of 5.0 tests
