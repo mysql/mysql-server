@@ -189,7 +189,6 @@ cleanup:
 int load_database()
 {
    DB_ENV* dbenv = g.dbenv;
-   DB* db;
    int retval;
 
    /* Create a database handle. */
@@ -198,7 +197,6 @@ int load_database()
       dbenv->err(dbenv, retval, "db_create");
       return EXIT_FAILURE;
    }
-   db = g.db;
 
    if (g.header && read_header() != 0) goto error;
    if (g.eof) goto cleanup;
@@ -207,13 +205,13 @@ int load_database()
 
    //TODO: Only quit out if DB does NOT EXIST.
    if (g.dbtype == DB_UNKNOWN) {
-      dbenv->errx(dbenv, "no database type specified");
+      dbenv->err(dbenv, 0, "no database type specified");
       goto error;
    }
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = db->set_flags(db, DB_ENCRYPT))) {
-      db->err(db, ret, "DB->set_flags: DB_ENCRYPT");
+      dbenv->err(dbenv, ret, "DB->set_flags: DB_ENCRYPT");
       goto error;
    }
    */
@@ -340,21 +338,21 @@ int printabletocstring(char* inputstr, char** poutputstr)
             continue;
          }
          if (highch == '\0' || (lowch = *++inputstr) == '\0') {
-            dbenv->errx(dbenv, "unexpected end of input data or key/data pair");
+            dbenv->err(dbenv, 0, "unexpected end of input data or key/data pair");
             goto error;
          }
          if (!isxdigit(highch)) {
-            dbenv->errx(dbenv, "Unexpected '%c' (non-hex) input.\n", highch);
+            dbenv->err(dbenv, 0, "Unexpected '%c' (non-hex) input.\n", highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            dbenv->errx(dbenv, "Unexpected '%c' (non-hex) input.\n", lowch);
+            dbenv->err(dbenv, 0, "Unexpected '%c' (non-hex) input.\n", lowch);
             goto error;
          }
          nextch = (hextoint(highch) << 4) | hextoint(lowch);
          if (nextch == '\0') {
             /* Database names are c strings, and cannot have extra NULL terminators. */
-            dbenv->errx(dbenv, "Unexpected '\\00' in input.\n");
+            dbenv->err(dbenv, 0, "Unexpected '\\00' in input.\n");
             goto error;
          }
          *cstring++ = nextch;
@@ -366,14 +364,14 @@ int printabletocstring(char* inputstr, char** poutputstr)
    return EXIT_SUCCESS;
 
 error:
-   dbenv->errx(dbenv, "Quitting out due to errors.\n");
+   dbenv->err(dbenv, 0, "Quitting out due to errors.\n");
    return EXIT_FAILURE;
 }
 
 ///TODO: IMPLEMENT/Replace original line.
 #define PARSE_NUMBER(match, dbfunction)                                    \
 if (!strcmp(field, match)) {                                               \
-   if (strtoint32(db, NULL, value, &num, 1, INT32_MAX, 10)) goto error;    \
+   if (strtoint32(dbenv, NULL, value, &num, 1, INT32_MAX, 10)) goto error; \
    /*if ((retval = dbfunction(db, num)) != 0) goto printerror;*/           \
    continue;                                                               \
 }
@@ -381,21 +379,21 @@ if (!strcmp(field, match)) {                                               \
 ///TODO: IMPLEMENT/Replace original line.
 #define PARSE_UNSUPPORTEDNUMBER(match, dbfunction)                         \
 if (!strcmp(field, match)) {                                               \
-   if (strtoint32(db, NULL, value, &num, 1, INT32_MAX, 10)) goto error;    \
-   db->errx(db, "%s option not supported.\n", field);                      \
+   if (strtoint32(dbenv, NULL, value, &num, 1, INT32_MAX, 10)) goto error; \
+   dbenv->err(dbenv, 0, "%s option not supported.\n", field);              \
    goto error;                                                             \
 }
 
 #define PARSE_FLAG(match, flag)                          \
 if (!strcmp(field, match)) {                             \
-   if (strtoint32(db, NULL, value, &num, 0, 1, 10)) {    \
-      db->errx(db,                                       \
+   if (strtoint32(dbenv, NULL, value, &num, 0, 1, 10)) { \
+      dbenv->err(dbenv, 0,                               \
                "%s: boolean name=value pairs require a value of 0 or 1",  \
                field);                                   \
       goto error;                                        \
    }                                                     \
    if ((retval = db->set_flags(db, flag)) != 0) {        \
-      db->err(db, retval,                                \
+      dbenv->err(dbenv, retval,                          \
               "set_flags: %s",                           \
               field);                                    \
       goto error;                                        \
@@ -405,21 +403,21 @@ if (!strcmp(field, match)) {                             \
 
 #define PARSE_UNSUPPORTEDFLAG(match, flag)               \
 if (!strcmp(field, match)) {                             \
-   if (strtoint32(db, NULL, value, &num, 0, 1, 10)) {    \
-      db->errx(db,                                       \
+   if (strtoint32(dbenv, NULL, value, &num, 0, 1, 10)) { \
+      dbenv->err(dbenv, 0,                               \
                "%s: boolean name=value pairs require a value of 0 or 1",  \
                field);                                   \
       goto error;                                        \
    }                                                     \
-   db->errx(db, "%s option not supported.\n", field);    \
+   dbenv->err(dbenv, 0, "%s option not supported.\n", field);    \
    goto error;                                           \
 }
 
 #define PARSE_CHAR(match, dbfunction)                    \
 if (!strcmp(field, match)) {                             \
    if (strlen(value) != 1) {                             \
-      db->errx(db,                                       \
-               "%s=%s: Expected 1-byte value",       \
+      dbenv->err(dbenv, 0,                               \
+               "%s=%s: Expected 1-byte value",           \
                field, value);                            \
       goto error;                                        \
    }                                                     \
@@ -478,9 +476,9 @@ int read_header()
 
       if (!strcmp(field, "HEADER")) break;
       if (!strcmp(field, "VERSION")) {
-         if (strtoint32(db, NULL, value, &g.version, 1, INT32_MAX, 10)) goto error;
+         if (strtoint32(dbenv, NULL, value, &g.version, 1, INT32_MAX, 10)) goto error;
          if (g.version != 3) {
-            db->errx(db, "line %lu: VERSION %d is unsupported", g.linenumber, g.version);
+            dbenv->err(dbenv, 0, "line %lu: VERSION %d is unsupported", g.linenumber, g.version);
             goto error;
          }
          continue;
@@ -502,10 +500,10 @@ int read_header()
             continue;
          }
          if (!strcmp(value, "hash") || strcmp(value, "recno") || strcmp(value, "queue")) {
-            db->errx(db, "db type %s not supported.\n", value);
+            dbenv->err(dbenv, 0, "db type %s not supported.\n", value);
             goto error;
          }
-         db->errx(db, "line %lu: unknown type %s", g.linenumber, value);
+         dbenv->err(dbenv, 0, "line %lu: unknown type %s", g.linenumber, value);
          goto error;
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
@@ -515,22 +513,22 @@ int read_header()
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            db->err(db, retval, "error reading db name");
+            dbenv->err(dbenv, retval, "error reading db name");
             goto error;
          }
          continue;
       }
       if (!strcmp(field, "keys")) {
          int32_t temp;
-         if (strtoint32(db, NULL, value, &temp, 0, 1, 10)) {
-            db->errx(db,
+         if (strtoint32(dbenv, NULL, value, &temp, 0, 1, 10)) {
+            dbenv->err(dbenv, 0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            db->errx(db, "keys=0 not supported", field);
+            dbenv->err(dbenv, 0, "keys=0 not supported", field);
             goto error;
          }
          continue;
@@ -549,7 +547,7 @@ int read_header()
       PARSE_FLAG(             "recnum",      DB_RECNUM);
       PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
 
-      db->errx(db, "unknown input-file header configuration keyword \"%s\"", field);
+      dbenv->err(dbenv, 0, "unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
 success:
@@ -557,11 +555,11 @@ success:
 
    if (false) {
 printerror:
-      db->err(db, retval, "%s=%s", field, value);
+      dbenv->err(dbenv, retval, "%s=%s", field, value);
    }
    if (false) {
 formaterror:
-      db->errx(db, "line %lu: unexpected format", g.linenumber);
+      dbenv->err(dbenv, 0, "line %lu: unexpected format", g.linenumber);
    }
 error:
    return EXIT_FAILURE;
@@ -591,14 +589,14 @@ int apply_commandline_options()
       field = g.config_options[index];
 
       if ((value = strchr(field, '=')) == NULL) {
-         db->errx(db, "command-line configuration uses name=value format");
+         dbenv->err(dbenv, 0, "command-line configuration uses name=value format");
          goto error;
       }
       value[0] = '\0';
       value++;
 
       if (field[0] == '\0' || value[0] == '\0') {
-         db->errx(db, "command-line configuration uses name=value format");
+         dbenv->err(dbenv, 0, "command-line configuration uses name=value format");
          goto error;
       }
 
@@ -608,22 +606,22 @@ int apply_commandline_options()
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            db->err(db, retval, "error reading db name");
+            dbenv->err(dbenv, retval, "error reading db name");
             goto error;
          }
          continue;
       }
       if (!strcmp(field, "keys")) {
          int32_t temp;
-         if (strtoint32(db, NULL, value, &temp, 0, 1, 10)) {
-            db->errx(db,
+         if (strtoint32(dbenv, NULL, value, &temp, 0, 1, 10)) {
+            dbenv->err(dbenv, 0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            db->errx(db, "keys=0 not supported", field);
+            dbenv->err(dbenv, 0, "keys=0 not supported", field);
             goto error;
          }
          continue;
@@ -645,7 +643,7 @@ int apply_commandline_options()
       PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
       */
 
-      db->errx(db, "unknown input-file header configuration keyword \"%s\"", field);
+      dbenv->err(dbenv, 0, "unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
    if (value) {
@@ -657,7 +655,7 @@ int apply_commandline_options()
 
    if (false) {
 printerror:
-      db->err(db, retval, "%s=%s", field, value);
+      dbenv->err(dbenv, retval, "%s=%s", field, value);
    }
 error:
    return EXIT_FAILURE;
@@ -675,7 +673,7 @@ int open_database()
 //TODO: First see if it exists.. THEN create it?
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    if (retval != 0) {
-      db->err(db, retval, "DB->open: %s", g.database);
+      dbenv->err(dbenv, retval, "DB->open: %s", g.database);
       goto error;
    }
    //TODO: Ensure we have enough cache to store some min number of btree pages.
@@ -687,7 +685,7 @@ int open_database()
    DBTYPE existingtype;
    retval = db->get_type(db, &existingtype);
    if (retval != 0) {
-      db->err(db, retval, "DB->get_type: %s", g.database);
+      dbenv->err(dbenv, retval, "DB->get_type: %s", g.database);
       goto error;
    }
    assert(g.dbtype == DB_BTREE);
@@ -718,7 +716,7 @@ int hextoint(int ch)
 
 int doublechararray(char** pmem, uint64_t* size)
 {
-   DB* db = g.db;
+   DB_ENV* dbenv = g.dbenv;
 
    assert(pmem);
    assert(size);
@@ -727,11 +725,11 @@ int doublechararray(char** pmem, uint64_t* size)
    *size <<= 1;
    if (*size == 0) {
       /* Overflowed uint64_t. */
-      db->errx(db, "Line %llu: Line too long.\n", g.linenumber);
+      dbenv->err(dbenv, 0, "Line %llu: Line too long.\n", g.linenumber);
       goto error;
    }
    if ((*pmem = (char*)realloc(*pmem, *size)) == NULL) {
-      db->err(db, errno, "");
+      dbenv->err(dbenv, errno, "");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -742,6 +740,7 @@ error:
 
 int get_dbt(DBT* pdbt)
 {
+   DB_ENV* dbenv = g.dbenv;
    /* Need to store a key and value. */
    static uint64_t datasize[2] = {1 << 10, 1 << 10};
    static int which = 0;
@@ -755,7 +754,7 @@ int get_dbt(DBT* pdbt)
    which = 1 - which;
    if (g.get_dbt.data[which] == NULL &&
       (g.get_dbt.data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
-      db->err(db, errno, "");
+      dbenv->err(dbenv, errno, "");
       goto error;
    }
    
@@ -781,22 +780,22 @@ int get_dbt(DBT* pdbt)
                }
                else if (highch == EOF) {
                   g.eof = true;
-                  db->errx(db, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(highch)) {
-                  db->errx(db, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+                  dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
                   goto error;
                }
 
                lowch = getchar();
                if (lowch == EOF) {
                   g.eof = true;
-                  db->errx(db, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(lowch)) {
-                  db->errx(db, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+                  dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
                   goto error;
                }
 
@@ -808,7 +807,7 @@ int get_dbt(DBT* pdbt)
                   nextch = firstch;
                   break;
                }
-               db->errx(db, "Line %llu: Nonprintable character found.", g.linenumber);
+               dbenv->err(dbenv, 0, "Line %llu: Nonprintable character found.", g.linenumber);
                goto error;
             }
          }
@@ -835,15 +834,15 @@ int get_dbt(DBT* pdbt)
          lowch = getchar();
          if (lowch == EOF) {
             g.eof = true;
-            db->errx(db, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
             goto error;
          }
          if (!isxdigit(highch)) {
-            db->errx(db, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            db->errx(db, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
             goto error;
          }
          if (index == datasize[which]) {
@@ -867,12 +866,13 @@ error:
 
 int insert_pair(DBT* key, DBT* data)
 {
+   DB_ENV* dbenv = g.dbenv;
    DB* db = g.db;
 
    int retval = db->put(db, NULL, key, data, g.overwritekeys ? 0 : DB_NOOVERWRITE);
    if (retval != 0) {
       //TODO: Check for transaction failures/etc.. retry if necessary.
-      db->err(db, retval, "DB->put");
+      dbenv->err(dbenv, retval, "DB->put");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -904,7 +904,7 @@ int read_keys()
          g.linenumber++;
          if (get_dbt(&key) != 0) goto error;
          if (g.eof) {
-            db->errx(db, "Line %llu: Key exists but value missing.", g.linenumber);
+            dbenv->err(dbenv, 0, "Line %llu: Key exists but value missing.", g.linenumber);
             goto error;
          }
          g.linenumber++;
@@ -936,13 +936,13 @@ int read_keys()
          }
          default: {
 unexpectedinput:
-            db->errx(db, "Line %llu: Unexpected input while reading key.\n", g.linenumber);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected input while reading key.\n", g.linenumber);
             goto error;
          }
       }
 
       if (g.eof) {
-         db->errx(db, "Line %llu: Key exists but value missing.", g.linenumber);
+         dbenv->err(dbenv, 0, "Line %llu: Key exists but value missing.", g.linenumber);
          goto error;
       }
       g.linenumber++;
@@ -950,7 +950,7 @@ unexpectedinput:
       switch (spacech) {
          case (EOF): {
             g.eof = true;
-            db->errx(db, "Line %llu: Unexpected end of file while reading value.\n", g.linenumber);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file while reading value.\n", g.linenumber);
             goto error;
          }
          case (' '): {
@@ -959,7 +959,7 @@ unexpectedinput:
             break;
          }
          default: {
-            db->errx(db, "Line %llu: Unexpected input while reading value.\n", g.linenumber);
+            dbenv->err(dbenv, 0, "Line %llu: Unexpected input while reading value.\n", g.linenumber);
             goto error;
          }
       }
