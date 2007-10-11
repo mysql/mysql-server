@@ -2205,12 +2205,9 @@ static int close_all_tables(void)
   for (list_element= maria_open_list ; ; list_element= next_open)
   {
     if (recovery_message_printed == REC_MSG_FLUSH)
-      fprintf(stderr, " %u", count);
-    if ((count--) == 0)
-    {
-      DBUG_ASSERT(list_element == NULL);
+      fprintf(stderr, " %u", count--);
+    if (list_element == NULL)
       break;
-    }
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
     pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
