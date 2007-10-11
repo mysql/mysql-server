@@ -481,8 +481,8 @@ int main(int argc,char **argv)
   printf("\nstatic unsigned int symbols_max_len=%d;\n\n", max_len2);
 
   printf("\
-static inline SYMBOL *get_hash_symbol(const char *s,\n\
-                                    unsigned int len,bool function)\n\
+static SYMBOL *get_hash_symbol(const char *s,\n\
+                               unsigned int len,bool function)\n\
 {\n\
   register uchar *hash_map;\n\
   register const char *cur_str= s;\n\
