@@ -15,13 +15,18 @@
 
 #include "mysql_priv.h"
 
-/*
+/**
   Row items used for comparing rows and IN operations on rows:
 
+  @verbatim
   (a, b, c) > (10, 10, 30)
   (a, b, c) = (select c, d, e, from t1 where x=12)
   (a, b, c) IN ((1,2,2), (3,4,5), (6,7,8)
   (a, b, c) IN (select c, d, e, from t1)
+  @endverbatim
+
+  @todo
+    think placing 2-3 component items in item (as it done for function
 */
 
 Item_row::Item_row(List<Item> &arg):

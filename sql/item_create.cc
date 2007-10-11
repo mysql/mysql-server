@@ -13,7 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Functions to create an item. Used by sql_yacc.yy */
+/**
+  @file
+
+  @brief
+  Functions to create an item. Used by sql_yac.yy
+*/
 
 #include "mysql_priv.h"
 #include "item_create.h"
