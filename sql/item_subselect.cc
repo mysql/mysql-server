@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-   subselect Item
+/**
+  @file
 
-SUBSELECT TODO:
-   - add function from mysql_select that use JOIN* as parameter to JOIN methods
-     (sql_select.h/sql_select.cc)
+  @brief
+  subselect Item
+
+  @todo
+    - add function from mysql_select that use JOIN* as parameter to JOIN
+    methods (sql_select.h/sql_select.cc)
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -403,6 +406,16 @@ void Item_singlerow_subselect::reset()
 }
 
 
+/**
+  @todo
+  - We cant change name of Item_field or Item_ref, because it will
+  prevent it's correct resolving, but we should save name of
+  removed item => we do not make optimization if top item of
+  list is field or reference.
+  - switch off this optimization for prepare statement,
+  because we do not rollback this changes.
+  Make rollback for it, or special name resolving mode in 5.0.
+*/
 Item_subselect::trans_res
 Item_singlerow_subselect::select_transformer(JOIN *join)
 {
@@ -1445,24 +1458,24 @@ Item_in_subselect::select_transformer(JOIN *join)
 }
 
 
-/*
+/**
   Prepare IN/ALL/ANY/SOME subquery transformation and call appropriate
-  transformation function
+  transformation function.
 
-  SYNOPSIS
-    Item_in_subselect::select_in_like_transformer()
-    join    JOIN object of transforming subquery
-    func    creator of condition function of subquery
-
-  DESCRIPTION
     To decide which transformation procedure (scalar or row) applicable here
     we have to call fix_fields() for left expression to be able to call
     cols() method on it. Also this method make arena management for
     underlying transformation methods.
 
-  RETURN
+  @param join    JOIN object of transforming subquery
+  @param func    creator of condition function of subquery
+
+  @retval
     RES_OK      OK
-    RES_REDUCE  OK, and current subquery was reduced during transformation
+  @retval
+    RES_REDUCE  OK, and current subquery was reduced during
+    transformation
+  @retval
     RES_ERROR   Error
 */
 
@@ -2412,16 +2425,15 @@ void subselect_indexsubquery_engine::print(String *str)
   str->append(')');
 }
 
-/*
-  change select_result object of engine
+/**
+  change select_result object of engine.
 
-  SYNOPSIS
-    subselect_single_select_engine::change_result()
-    si		new subselect Item
-    res		new select_result object
+  @param si		new subselect Item
+  @param res		new select_result object
 
-  RETURN
+  @retval
     FALSE OK
+  @retval
     TRUE  error
 */
 
@@ -2434,16 +2446,15 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 }
 
 
-/*
-  change select_result object of engine
+/**
+  change select_result object of engine.
 
-  SYNOPSIS
-    subselect_single_select_engine::change_result()
-    si		new subselect Item
-    res		new select_result object
+  @param si		new subselect Item
+  @param res		new select_result object
 
-  RETURN
+  @retval
     FALSE OK
+  @retval
     TRUE  error
 */
 
@@ -2457,16 +2468,15 @@ bool subselect_union_engine::change_result(Item_subselect *si,
 }
 
 
-/*
-  change select_result emulation, never should be called
+/**
+  change select_result emulation, never should be called.
 
-  SYNOPSIS
-    subselect_single_select_engine::change_result()
-    si		new subselect Item
-    res		new select_result object
+  @param si		new subselect Item
+  @param res		new select_result object
 
-  RETURN
+  @retval
     FALSE OK
+  @retval
     TRUE  error
 */
 
@@ -2478,14 +2488,12 @@ bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
 }
 
 
-/*
-  Report about presence of tables in subquery
+/**
+  Report about presence of tables in subquery.
 
-  SYNOPSIS
-    subselect_single_select_engine::no_tables()
-
-  RETURN
+  @retval
     TRUE  there are not tables used in subquery
+  @retval
     FALSE there are some tables in subquery
 */
 bool subselect_single_select_engine::no_tables()
@@ -2510,14 +2518,12 @@ bool subselect_single_select_engine::may_be_null()
 }
 
 
-/*
-  Report about presence of tables in subquery
+/**
+  Report about presence of tables in subquery.
 
-  SYNOPSIS
-    subselect_union_engine::no_tables()
-
-  RETURN
+  @retval
     TRUE  there are not tables used in subquery
+  @retval
     FALSE there are some tables in subquery
 */
 bool subselect_union_engine::no_tables()
@@ -2531,14 +2537,12 @@ bool subselect_union_engine::no_tables()
 }
 
 
-/*
-  Report about presence of tables in subquery
+/**
+  Report about presence of tables in subquery.
 
-  SYNOPSIS
-    subselect_uniquesubquery_engine::no_tables()
-
-  RETURN
+  @retval
     TRUE  there are not tables used in subquery
+  @retval
     FALSE there are some tables in subquery
 */
 
