@@ -1,8 +1,12 @@
-/* ------------------------------------------------------------------------
-   Windows NT Service class library
-   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
-   This file is public domain and comes with NO WARRANTY of any kind
- -------------------------------------------------------------------------- */
+/**
+  @file
+
+  @brief
+  Windows NT Service class library.
+
+  Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
+  This file is public domain and comes with NO WARRANTY of any kind
+*/
 #include <windows.h>
 #include <process.h>
 #include <stdio.h>
@@ -73,12 +77,13 @@ BOOL NTService::GetOS()
 }
 
 
-/* ------------------------------------------------------------------------
- Init()  Registers the main service thread with the service manager
+/**
+  Registers the main service thread with the service manager.
 
-    ServiceThread - pointer to the main programs entry function
-		    when the service is started
- -------------------------------------------------------------------------- */
+  @param ServiceThread  pointer to the main programs entry function
+                        when the service is started
+*/
+
 
 long NTService::Init(LPCSTR szInternName,void *ServiceThread)
 {
@@ -99,13 +104,15 @@ long NTService::Init(LPCSTR szInternName,void *ServiceThread)
 }
 
 
-/* ------------------------------------------------------------------------
-  Install() - Installs the service with Service manager
+/**
+  Installs the service with Service manager.
+
   nError values:
-	0  success
-	1  Can't open the Service manager
-	2  Failed to create service
- -------------------------------------------------------------------------- */
+  - 0  success
+  - 1  Can't open the Service manager
+  - 2  Failed to create service.
+*/
+
 
 BOOL NTService::Install(int startType, LPCSTR szInternName,
 			LPCSTR szDisplayName,
@@ -155,14 +162,16 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
 }
 
 
-/* ------------------------------------------------------------------------
-  Remove() - Removes  the service
+/**
+  Removes  the service.
+
   nError values:
-	0  success
-	1  Can't open the Service manager
-	2  Failed to locate service
-	3  Failed to delete service
- -------------------------------------------------------------------------- */
+  - 0  success
+  - 1  Can't open the Service manager
+  - 2  Failed to locate service
+  - 3  Failed to delete service.
+*/
+
 
 BOOL NTService::Remove(LPCSTR szInternName)
 {
@@ -199,10 +208,10 @@ BOOL NTService::Remove(LPCSTR szInternName)
   return ret_value;
 }
 
-/* ------------------------------------------------------------------------
-   Stop() - this function should be called before the app. exits to stop
-	    the service
- -------------------------------------------------------------------------- */
+/**
+  this function should be called before the app. exits to stop
+  the service
+*/
 void NTService::Stop(void)
 {
   SetStatus(SERVICE_STOP_PENDING,NO_ERROR, 0, 1, 60000);
@@ -210,10 +219,11 @@ void NTService::Stop(void)
   SetStatus(SERVICE_STOPPED, NO_ERROR, 0, 1, 1000);
 }
 
-/* ------------------------------------------------------------------------
-  ServiceMain() - This is the function that is called from the
-		  service manager to start the service
- -------------------------------------------------------------------------- */
+/**
+  This is the function that is called from the
+  service manager to start the service.
+*/
+
 
 void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
 {
@@ -264,9 +274,9 @@ error:
   return;
 }
 
-/* ------------------------------------------------------------------------
-   StartService() - starts the appliaction thread
- -------------------------------------------------------------------------- */
+/**
+  starts the appliaction thread.
+*/
 
 BOOL NTService::StartService()
 {

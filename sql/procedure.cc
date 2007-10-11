@@ -68,10 +68,13 @@ my_decimal *Item_proc_real::val_decimal(my_decimal *decimal_value)
 }
 
 
-/*****************************************************************************
-** Setup handling of procedure
-** Return 0 if everything is ok
-*****************************************************************************/
+/**
+  Setup handling of procedure.
+
+  @return
+    Return 0 if everything is ok
+*/
+
 
 Procedure *
 setup_procedure(THD *thd,ORDER *param,select_result *result,

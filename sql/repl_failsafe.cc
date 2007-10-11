@@ -13,6 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @file
+
+  All of the functions defined in this file which are not used (the ones to
+  handle failsafe) are not used; their code has not been updated for more
+  than one year now so should be considered as BADLY BROKEN. Do not enable
+  it. The used functions (to handle LOAD DATA FROM MASTER, plus some small
+  functions like register_slave()) are working.
+*/
+
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
 
@@ -144,12 +154,13 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
 }
 
 
-/*
-  Register slave in 'slave_list' hash table
+/**
+  Register slave in 'slave_list' hash table.
 
-  RETURN VALUES
-  0	ok
-  1	Error.   Error message sent to client
+  @return
+    0	ok
+  @return
+    1	Error.   Error message sent to client
 */
 
 int register_slave(THD* thd, uchar* packet, uint packet_length)
@@ -252,7 +263,8 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   /* Impossible */
 }
 
-/* 
+/**
+  @details 
   Before 4.0.15 we had a member of THD called log_pos, it was meant for
   failsafe replication code in repl_failsafe.cc which is disabled until
   it is reworked. Event's log_pos used to be preserved through 
@@ -388,8 +400,8 @@ err:
 }
 
 
-/*
-  Caller must delete result when done
+/**
+  Caller must delete result when done.
 */
 
 static Slave_log_event* find_slave_event(IO_CACHE* log,
@@ -428,9 +440,11 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   return (Slave_log_event*)ev;
 }
 
-/*
-   This function is broken now. See comment for translate_master().
- */
+/**
+  This function is broken now. 
+
+  @seealso translate_master()
+*/
 
 bool show_new_master(THD* thd)
 {
@@ -466,20 +480,19 @@ bool show_new_master(THD* thd)
   }
 }
 
-/*
+/**
   Asks the master for the list of its other connected slaves.
-  This is for failsafe replication: 
+
+  This is for failsafe replication:
   in order for failsafe replication to work, the servers involved in
   replication must know of each other. We accomplish this by having each
   slave report to the master how to reach it, and on connection, each
   slave receives information about where the other slaves are.
 
-  SYNOPSIS
-    update_slave_list()
-    mysql           pre-existing connection to the master
-    mi              master info
+  @param mysql           pre-existing connection to the master
+  @param mi              master info
 
-  NOTES
+  @note
     mi is used only to give detailed error messages which include the
     hostname/port of the master, the username used by the slave to connect to
     the master.
@@ -487,10 +500,11 @@ bool show_new_master(THD* thd)
     REPLICATION SLAVE privilege, it will pop in this function because
     SHOW SLAVE HOSTS will fail on the master.
 
-  RETURN VALUES
+  @retval
     1           error
+  @retval
     0           success
- */
+*/
 
 int update_slave_list(MYSQL* mysql, Master_info* mi)
 {
@@ -754,11 +768,16 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
   return 0;
 }
 
-/*
+/**
   Load all MyISAM tables from master to this slave.
 
   REQUIREMENTS
-   - No active transaction (flush_relay_log_info would not work in this case)
+    - No active transaction (flush_relay_log_info would not work in this case).
+
+  @todo
+    - add special option, not enabled
+    by default, to allow inclusion of mysql database into load
+    data from master
 */
 
 bool load_master_data(THD* thd)
