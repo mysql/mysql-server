@@ -639,9 +639,6 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
-public:
-private:
-
   int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
