@@ -3,7 +3,8 @@
 # Simple test for the partition storage engine
 # Taken fromm the select test
 #
--- source include/have_partition.inc
+source include/have_partition.inc;
+source include/have_archive.inc;
 
 --disable_warnings
 drop table if exists t1;
