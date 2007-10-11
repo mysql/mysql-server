@@ -14,14 +14,23 @@ extern int optopt;
 extern int opterr;
 extern int optreset;
 
+typedef struct {
+   bool        plaintext;
+} gen_globals;
+
+gen_globals g;
+#include "tokudb_common_funcs.h"
+
 int   usage(void);
 void  generate_keys(void);
 int   get_delimiter(char* str);
 
+
+
 char           dbt_delimiter  = '\n';
 char           sort_delimiter[2];
 char*          progname;
-bool           plaintext      = false;
+
 uint32_t       lengthmin      = 0;
 bool           set_lengthmin  = false;
 uint32_t       lengthlimit    = 0;
@@ -38,8 +47,12 @@ bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
 
+
 int main (int argc, char *argv[]) {
    int ch;
+
+   /* Set up the globals. */
+   memset(&g, 0, sizeof(g));
 
    progname = argv[0];
    strcpy(sort_delimiter, "");
@@ -67,14 +80,14 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('T'): {
-            plaintext      = true;
+            g.plaintext      = true;
             leadingspace   = false;
             header         = false;
             footer         = false;
             break;
          }
          case ('p'): {
-            plaintext      = true;
+            g.plaintext      = true;
             leadingspace   = true;
             break;
          }
@@ -239,7 +252,7 @@ int main (int argc, char *argv[]) {
              "type=btree\n"
              "db_pagesize=4096\n"
              "HEADER=END\n",
-             plaintext ? "print" : "bytevalue");
+             g.plaintext ? "print" : "bytevalue");
    }
    if (outputkeys) generate_keys();
    if (footer)     printf("DATA=END\n");
@@ -281,16 +294,6 @@ int32_t random_below(int32_t limit)
 {
    assert(limit > 0);
    return random() % limit;
-}
-
-void outputbyte(uint8_t ch)
-{
-   if (plaintext) {
-      if (ch == '\\')         printf("\\\\");
-      else if (isprint(ch))   printf("%c", ch);
-      else                    printf("\\%02x", ch);
-   }
-   else printf("%02x", ch);
 }
 
 void outputstring(char* str)
