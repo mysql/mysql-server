@@ -632,7 +632,7 @@ buf_frame_get_page_zip(
 				/* out: compressed page descriptor, or NULL */
 	const byte*	ptr)	/* in: pointer to the page */
 {
-	page_zip_des_t*	page_zip;
+	const page_zip_des_t*	page_zip;
 	mutex_enter(&buf_pool->mutex);
 	page_zip = buf_block_get_page_zip(buf_block_align(ptr));
 	mutex_exit(&buf_pool->mutex);
