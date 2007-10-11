@@ -5697,7 +5697,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                *description_event)
   : Log_event(buf, description_event),
     m_row_count(0),
+#ifndef MYSQL_CLIENT
     m_table(NULL),
+#endif
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0),
     m_curr_row(NULL), m_curr_row_end(NULL),
     m_key(NULL)
@@ -6168,6 +6170,8 @@ int Rows_log_event::do_apply_event(RELAY_LOG_INFO const *rli)
         unpack_current_row(rli);
   
       // at this moment m_curr_row_end should be set
+      DBUG_PRINT("debug", ("m_curr_row_end: 0x%lx; m_curr_row: 0x%lx; m_rows_end: 0x%lx",
+                           m_curr_row_end, m_curr_row, m_rows_end));
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
       DBUG_ASSERT(error || m_curr_row < m_curr_row_end);
       DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
