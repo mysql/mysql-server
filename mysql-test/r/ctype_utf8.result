@@ -1538,12 +1538,12 @@ char(53647 using utf8)
 —è
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
-ˇè
+
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
-ˇè
+
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
@@ -1730,3 +1730,65 @@ i
 1
 –Ω1234567890
 DROP TABLE t1, t2;
+set sql_mode=traditional;
+select hex(char(0xFF using utf8));
+hex(char(0xFF using utf8))
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(convert(0xFF using utf8));
+hex(convert(0xFF using utf8))
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 0x616263FF);
+hex(_utf8 0x616263FF)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 X'616263FF');
+hex(_utf8 X'616263FF')
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 B'001111111111');
+hex(_utf8 B'001111111111')
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+select (_utf8 X'616263FF');
+(_utf8 X'616263FF')
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF'
+set sql_mode=default;
+select hex(char(0xFF using utf8));
+hex(char(0xFF using utf8))
+
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(convert(0xFF using utf8));
+hex(convert(0xFF using utf8))
+
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 0x616263FF);
+hex(_utf8 0x616263FF)
+616263
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 X'616263FF');
+hex(_utf8 X'616263FF')
+616263
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select hex(_utf8 B'001111111111');
+hex(_utf8 B'001111111111')
+03
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
+select (_utf8 X'616263FF');
+(_utf8 X'616263FF')
+abc
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF'
