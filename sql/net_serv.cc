@@ -13,15 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
+/**
+  @file
+
   This file is the net layer API for the MySQL client/server protocol,
   which is a tightly coupled, proprietary protocol owned by MySQL AB.
+  @note
   Any re-implementations of this protocol must also be under GPL
   unless one has got an license from MySQL AB stating otherwise.
-*/
 
-/*
-  Write and read of logical packets to/from socket
+  Write and read of logical packets to/from socket.
 
   Writes are cached into net_buffer_length big packets.
   Read packets are reallocated dynamicly when reading big packets.
@@ -111,7 +112,7 @@ extern void query_cache_insert(NET *net, const char *packet, ulong length);
 static my_bool net_write_buff(NET *net,const uchar *packet,ulong len);
 
 
-	/* Init with packet info */
+/** Init with packet info. */
 
 my_bool my_net_init(NET *net, Vio* vio)
 {
@@ -163,7 +164,7 @@ void net_end(NET *net)
 }
 
 
-/* Realloc the packet buffer */
+/** Realloc the packet buffer. */
 
 my_bool net_realloc(NET *net, size_t length)
 {
@@ -201,20 +202,17 @@ my_bool net_realloc(NET *net, size_t length)
 }
 
 
-/*
-  Check if there is any data to be read from the socket
+/**
+  Check if there is any data to be read from the socket.
 
-  SYNOPSIS
-    net_data_is_ready()
-    sd   socket descriptor
+  @param sd   socket descriptor
 
-  DESCRIPTION
-    Check if there is any data to be read from the socket.
-
-  RETURN VALUES
-    0	No data to read
-    1	Data or EOF to read
-    -1  Don't know if data is ready or not
+  @retval
+    0  No data to read
+  @retval
+    1  Data or EOF to read
+  @retval
+    -1   Don't know if data is ready or not
 */
 
 #if !defined(EMBEDDED_LIBRARY)
@@ -258,16 +256,10 @@ static int net_data_is_ready(my_socket sd)
 
 #endif /* EMBEDDED_LIBRARY */
 
-/*
+/**
   Remove unwanted characters from connection
-  and check if disconnected
+  and check if disconnected.
 
-  SYNOPSIS
-    net_clear()
-    net			NET handler
-    clear_buffer	If <> 0, then clear all data from communication buffer
-
-  DESCRIPTION
     Read from socket until there is nothing more to read. Discard
     what is read.
 
@@ -278,6 +270,8 @@ static int net_data_is_ready(my_socket sd)
     a FIN packet), then select() considers a socket "ready to read",
     in the sense that there's EOF to read, but read() returns 0.
 
+  @param net			NET handler
+  @param clear_buffer           if <> 0, then clear all data from comm buff
 */
 
 void net_clear(NET *net, my_bool clear_buffer)
@@ -335,7 +329,7 @@ void net_clear(NET *net, my_bool clear_buffer)
 }
 
 
-	/* Flush write_buffer if not empty. */
+/** Flush write_buffer if not empty. */
 
 my_bool net_flush(NET *net)
 {
@@ -358,12 +352,13 @@ my_bool net_flush(NET *net)
 ** Write something to server/client buffer
 *****************************************************************************/
 
-/*
-  Write a logical packet with packet header
+/**
+  Write a logical packet with packet header.
+
   Format: Packet length (3 bytes), packet number(1 byte)
   When compression is used a 3 byte compression length is added
 
-  NOTE
+  @note
     If compression is used the original package is modified!
 */
 
@@ -400,19 +395,9 @@ my_net_write(NET *net,const uchar *packet,size_t len)
   return test(net_write_buff(net,packet,len));
 }
 
-/*
+/**
   Send a command to the server.
 
-  SYNOPSIS
-    net_write_command()
-    net			NET handler
-    command		Command in MySQL server (enum enum_server_command)
-    header		Header to write after command
-    head_len		Length of header
-    packet		Query or parameter to query
-    len			Length of packet
-
-  DESCRIPTION
     The reason for having both header and packet is so that libmysql
     can easy add a header to a special command (like prepared statements)
     without having to re-alloc the string.
@@ -420,11 +405,20 @@ my_net_write(NET *net,const uchar *packet,size_t len)
     As the command is part of the first data packet, we have to do some data
     juggling to put the command in there, without having to create a new
     packet.
+  
     This function will split big packets into sub-packets if needed.
     (Each sub packet can only be 2^24 bytes)
 
-  RETURN VALUES
+  @param net		NET handler
+  @param command	Command in MySQL server (enum enum_server_command)
+  @param header	Header to write after command
+  @param head_len	Length of header
+  @param packet	Query or parameter to query
+  @param len		Length of packet
+
+  @retval
     0	ok
+  @retval
     1	error
 */
 
@@ -468,33 +462,30 @@ net_write_command(NET *net,uchar command,
                    net_write_buff(net, packet, len) || net_flush(net)));
 }
 
-/*
+/**
   Caching the data in a local buffer before sending it.
 
-  SYNOPSIS
-    net_write_buff()
-    net		Network handler
-    packet	Packet to send
-    len		Length of packet
-
-  DESCRIPTION
-    Fill up net->buffer and send it to the client when full.
+   Fill up net->buffer and send it to the client when full.
 
     If the rest of the to-be-sent-packet is bigger than buffer,
     send it in one big block (to avoid copying to internal buffer).
     If not, copy the rest of the data to the buffer and return without
     sending data.
 
-  NOTES
-    The cached buffer can be sent as it is with 'net_flush()'.
+  @param net		Network handler
+  @param packet	Packet to send
+  @param len		Length of packet
 
+  @note
+    The cached buffer can be sent as it is with 'net_flush()'.
     In this code we have to be careful to not send a packet longer than
     MAX_PACKET_LENGTH to net_real_write() if we are using the compressed
     protocol as we store the length of the compressed packet in 3 bytes.
 
-  RETURN
-  0	ok
-  1
+  @retval
+    0	ok
+  @retval
+    1
 */
 
 static my_bool
@@ -547,9 +538,12 @@ net_write_buff(NET *net, const uchar *packet, ulong len)
 }
 
 
-/*
+/**
   Read and write one packet using timeouts.
   If needed, the packet is compressed before sending.
+
+  @todo
+    - TODO is it needed to set this variable if we have no socket
 */
 
 int
@@ -726,18 +720,17 @@ static my_bool net_safe_read(NET *net, uchar *buff, size_t length,
   return 0;
 }
 
-/*
+/**
   Help function to clear the commuication buffer when we get a too big packet.
 
-  SYNOPSIS
-    my_net_skip_rest()
-    net		Communication handle
-    remain	Bytes to read
-    alarmed	Parameter for thr_alarm()
-    alarm_buff	Parameter for thr_alarm()
+  @param net		Communication handle
+  @param remain	Bytes to read
+  @param alarmed	Parameter for thr_alarm()
+  @param alarm_buff	Parameter for thr_alarm()
 
-  RETURN VALUES
+  @retval
    0	Was able to read the whole packet
+  @retval
    1	Got mailformed packet from client
 */
 
@@ -780,10 +773,13 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 #endif /* NO_ALARM */
 
 
-/*
-  Reads one packet to net->buff + net->where_b
-  Returns length of packet.  Long packets are handled by my_net_read().
+/**
+  Reads one packet to net->buff + net->where_b.
+  Long packets are handled by my_net_read().
   This function reallocates the net->buff buffer if necessary.
+
+  @return
+    Returns length of packet.
 */
 
 static ulong
@@ -972,15 +968,18 @@ end:
 }
 
 
-/*
+/**
   Read a packet from the client/server and return it without the internal
   package header.
+
   If the packet is the first packet of a multi-packet packet
   (which is indicated by the length of the packet = 0xffffff) then
   all sub packets are read and concatenated.
+
   If the packet was compressed, its uncompressed and the length of the
   uncompressed packet is returned.
 
+  @return
   The function returns the length of the found packet or packet_error.
   net->read_pos points to the read data.
 */

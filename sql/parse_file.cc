@@ -13,7 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// Text .frm files management routines
+/**
+  @file
+
+  @brief
+  Text .frm files management routines
+*/
 
 #include "mysql_priv.h"
 #include <errno.h>
@@ -22,17 +27,16 @@
 #include <my_dir.h>
 
 
-/*
-  write string with escaping
+/**
+  Write string with escaping.
 
-  SYNOPSIS
-    write_escaped_string()
-    file	- IO_CACHE for record
-    val_s	- string for writing
+  @param file	  IO_CACHE for record
+  @param val_s	  string for writing
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
 
 static my_bool
@@ -77,20 +81,20 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
 }
 
 
-/*
-  write parameter value to IO_CACHE
+/**
+  Write parameter value to IO_CACHE.
 
-  SYNOPSIS
-    write_parameter()
-    file	pointer to IO_CACHE structure for writing
-    base	pointer to data structure
-    parameter	pointer to parameter descriptor
-    old_version	for returning back old version number value
+  @param file          pointer to IO_CACHE structure for writing
+  @param base          pointer to data structure
+  @param parameter     pointer to parameter descriptor
+  @param old_version   for returning back old version number value
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
+
 
 static my_bool
 write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
@@ -191,23 +195,23 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter,
 }
 
 
-/*
-  write new .frm
+/**
+  Write new .frm.
 
-  SYNOPSIS
-    sql_create_definition_file()
-    dir			directory where put .frm
-    file		.frm file name
-    type		.frm type string (VIEW, TABLE)
-    base		base address for parameter reading (structure like
-			TABLE)
-    parameters		parameters description
-    max_versions	number of versions to save
+  @param dir           directory where put .frm
+  @param file_name     .frm file name
+  @param type          .frm type string (VIEW, TABLE)
+  @param base          base address for parameter reading (structure like
+                       TABLE)
+  @param parameters    parameters description
+  @param max_versions  number of versions to save
 
-  RETURN
-    FALSE - OK
-    TRUE - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
+
 
 my_bool
 sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
@@ -345,21 +349,19 @@ err_w_file:
   DBUG_RETURN(TRUE);
 }
 
-/*
-  Renames a frm file (including backups) in same schema
+/**
+  Renames a frm file (including backups) in same schema.
 
-  SYNOPSIS
-    rename_in_schema_file
-    schema            name of given schema           
-    old_name          original file name
-    new_name          new file name
-    revision          revision number
-    num_view_backups  number of backups
+  @param schema            name of given schema
+  @param old_name          original file name
+  @param new_name          new file name
+  @param revision          revision number
+  @param num_view_backups  number of backups
 
-  RETURN
-    0 - OK 
-    1 - Error (only if renaming of frm failed)
-
+  @retval
+    0   OK
+  @retval
+    1   Error (only if renaming of frm failed)
 */
 my_bool rename_in_schema_file(const char *schema, const char *old_name, 
                               const char *new_name, ulonglong revision, 
@@ -401,21 +403,20 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
   return 0;
 }
 
-/*
-  Prepare frm to parse (read to memory)
+/**
+  Prepare frm to parse (read to memory).
 
-  SYNOPSIS
-    sql_parse_prepare()
-    file_name		- path & filename to .frm file
-    mem_root		- MEM_ROOT for buffer allocation
-    bad_format_errors	- send errors on bad content
+  @param file_name		  path & filename to .frm file
+  @param mem_root		  MEM_ROOT for buffer allocation
+  @param bad_format_errors	  send errors on bad content
 
-  RETURN
-    0 - error
-    parser object
-
-  NOTE
+  @note
     returned pointer + 1 will be type of .frm
+
+  @return
+    0 - error
+  @return
+    parser object
 */
 
 File_parser * 
@@ -506,21 +507,21 @@ frm_error:
 }
 
 
-/*
-  parse LEX_STRING
+/**
+  parse LEX_STRING.
 
-  SYNOPSIS
-    parse_string()
-    ptr		- pointer on string beginning
-    end		- pointer on symbol after parsed string end (still owned
-		  by buffer and can be accessed
-    mem_root	- MEM_ROOT for parameter allocation
-    str		- pointer on string, where results should be stored
+  @param ptr		  pointer on string beginning
+  @param end		  pointer on symbol after parsed string end (still owned
+                         by buffer and can be accessed
+  @param mem_root	  MEM_ROOT for parameter allocation
+  @param str		  pointer on string, where results should be stored
 
-  RETURN
-    0	- error
-    #	- pointer on symbol after string
+  @retval
+    0	  error
+  @retval
+    \#	  pointer on symbol after string
 */
+
 
 static char *
 parse_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
@@ -539,18 +540,17 @@ parse_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
 }
 
 
-/*
-  read escaped string from ptr to eol in already allocated str
+/**
+  read escaped string from ptr to eol in already allocated str.
 
-  SYNOPSIS
-    read_escaped_string()
-    ptr		- pointer on string beginning
-    eol		- pointer on character after end of string
-    str		- target string
+  @param ptr		  pointer on string beginning
+  @param eol		  pointer on character after end of string
+  @param str		  target string
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
 
 my_bool
@@ -598,21 +598,21 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
 }
 
 
-/*
-  parse \n delimited escaped string
+/**
+  parse \\n delimited escaped string.
 
-  SYNOPSIS
-    parse_escaped_string()
-    ptr		- pointer on string beginning
-    end		- pointer on symbol after parsed string end (still owned
-		  by buffer and can be accessed
-    mem_root	- MEM_ROOT for parameter allocation
-    str		- pointer on string, where results should be stored
+  @param ptr		  pointer on string beginning
+  @param end		  pointer on symbol after parsed string end (still owned
+                         by buffer and can be accessed
+  @param mem_root	  MEM_ROOT for parameter allocation
+  @param str		  pointer on string, where results should be stored
 
-  RETURN
-    0	- error
-    #	- pointer on symbol after string
+  @retval
+    0	  error
+  @retval
+    \#	  pointer on symbol after string
 */
+
 
 char *
 parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
@@ -628,20 +628,19 @@ parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
 }
 
 
-/*
-  parse '' delimited escaped string
+/**
+  parse '' delimited escaped string.
 
-  SYNOPSIS
-    parse_quoted_escaped_string()
-    ptr		- pointer on string beginning
-    end		- pointer on symbol after parsed string end (still owned
-		  by buffer and can be accessed
-    mem_root	- MEM_ROOT for parameter allocation
-    str		- pointer on string, where results should be stored
+  @param ptr		  pointer on string beginning
+  @param end		  pointer on symbol after parsed string end (still owned
+                         by buffer and can be accessed
+  @param mem_root	  MEM_ROOT for parameter allocation
+  @param str		  pointer on string, where results should be stored
 
-  RETURN
-    0	- error
-    #	- pointer on symbol after string
+  @retval
+    0	  error
+  @retval
+    \#	  pointer on symbol after string
 */
 
 static char *
@@ -673,18 +672,16 @@ parse_quoted_escaped_string(char *ptr, char *end,
 }
 
 
-/*
+/**
   Parser for FILE_OPTIONS_ULLLIST type value.
 
-  SYNOPSIS
-    get_file_options_ulllist()
-    ptr                  [in/out] pointer to parameter
-    end                  [in] end of the configuration
-    line                 [in] pointer to the line begining
-    base                 [in] base address for parameter writing (structure
-                              like TABLE)
-    parameter            [in] description
-    mem_root             [in] MEM_ROOT for parameters allocation
+  @param[in,out] ptr          pointer to parameter
+  @param[in] end              end of the configuration
+  @param[in] line             pointer to the line begining
+  @param[in] base             base address for parameter writing (structure
+    like TABLE)
+  @param[in] parameter        description
+  @param[in] mem_root         MEM_ROOT for parameters allocation
 */
 
 bool get_file_options_ulllist(char *&ptr, char *end, char *line,
@@ -728,27 +725,27 @@ nlist_err:
 }
 
 
-/*
-  parse parameters
+/**
+  parse parameters.
 
-  SYNOPSIS
-    File_parser::parse()
-    base                base address for parameter writing (structure like
-                        TABLE)
-    mem_root            MEM_ROOT for parameters allocation
-    parameters          parameters description
-    required            number of parameters in the above list. If the file
-                        contains more parameters than "required", they will
-                        be ignored. If the file contains less parameters
-                        then "required", non-existing parameters will
-                        remain their values.
-    hook                hook called for unknown keys
-    hook_data           some data specific for the hook
+  @param base                base address for parameter writing (structure like
+                             TABLE)
+  @param mem_root            MEM_ROOT for parameters allocation
+  @param parameters          parameters description
+  @param required            number of required parameters in above list. If the file
+                             contains more parameters than "required", they will
+                             be ignored. If the file contains less parameters
+                             then "required", non-existing parameters will
+                             remain their values.
+  @param hook                hook called for unknown keys
+  @param hook_data           some data specific for the hook
 
-  RETURN
-    FALSE - OK
-    TRUE - error
+  @retval
+    FALSE   OK
+  @retval
+    TRUE    error
 */
+
 
 my_bool
 File_parser::parse(uchar* base, MEM_ROOT *mem_root,
@@ -935,26 +932,25 @@ list_err:
 }
 
 
-/*
-  Dummy unknown key hook
+/**
+  Dummy unknown key hook.
 
-  SYNOPSIS
-    File_parser_dummy_hook::process_unknown_string()
-    unknown_key          [in/out] reference on the line with unknown
-                                  parameter and the parsing point
-    base                 [in] base address for parameter writing (structure like
-                              TABLE)
-    mem_root             [in] MEM_ROOT for parameters allocation
-    end                  [in] the end of the configuration
+  @param[in,out] unknown_key       reference on the line with unknown
+    parameter and the parsing point
+  @param[in] base                  base address for parameter writing
+    (structure like TABLE)
+  @param[in] mem_root              MEM_ROOT for parameters allocation
+  @param[in] end                   the end of the configuration
 
-  NOTE
+  @note
     This hook used to catch no longer supported keys and process them for
     backward compatibility, but it will not slow down processing of modern
     format files.
     This hook does nothing except debug output.
 
-  RETURN
+  @retval
     FALSE OK
+  @retval
     TRUE  Error
 */
 
