@@ -514,10 +514,9 @@ fill_innodb_locks_from_cache(
 				cache, I_S_INNODB_LOCKS, i);
 
 		/* lock_id */
-		OK(field_store_string(
-			   fields[IDX_LOCK_ID],
-			   trx_i_s_create_lock_id(
-				   row, lock_id, sizeof(lock_id))));
+		trx_i_s_create_lock_id(row, lock_id, sizeof(lock_id));
+		OK(field_store_string(fields[IDX_LOCK_ID],
+				      lock_id));
 
 		/* lock_trx_id */
 		OK(fields[IDX_LOCK_TRX_ID]->store(row->lock_trx_id));
