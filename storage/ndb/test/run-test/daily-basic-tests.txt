@@ -555,7 +555,7 @@ args: -n Bug25554 T1
 
 max-time: 3000
 cmd: testNodeRestart
-args: -n Bug25984
+args: -n Bug25984 T1
 
 max-time: 1000
 cmd: testNodeRestart
@@ -1017,4 +1017,8 @@ args: -n SR_DD_2_LCP D2
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2b_LCP D2
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug31525 T1
 
