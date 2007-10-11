@@ -9958,7 +9958,7 @@ literal:
             $$= new Item_string(NULL, /* name will be set in select_item */
                                 str ? str->ptr() : "",
                                 str ? str->length() : 0,
-                                Lex->underscore_charset);
+                                $1);
             if ($$ && !$$->check_well_formed_result(&$$->str_value))
             {
               $$= new Item_null();
