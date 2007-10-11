@@ -1176,6 +1176,7 @@ static my_bool find_blob(MARIA_HA *info, ulong length)
   MARIA_BITMAP_BLOCK *first_block= 0;
   DBUG_ENTER("find_blob");
   DBUG_PRINT("enter", ("length: %lu", length));
+  LINT_INIT(first_block_pos);
 
   pages= length / full_page_size;
   rest_length= (uint) (length - pages * full_page_size);
@@ -2007,6 +2008,9 @@ my_bool _ma_check_bitmap_data(MARIA_HA *info,
   case BLOB_PAGE:
     bits= FULL_TAIL_PAGE;
     break;
+  default:
+    bits= 0; /* to satisfy compiler */
+    DBUG_ASSERT(0);
   }
   return (*bitmap_pattern= get_page_bits(info, &info->s->bitmap, page)) !=
     bits;
