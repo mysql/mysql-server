@@ -870,6 +870,7 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+  String *check_well_formed_result(String *str);
 };
 
 
