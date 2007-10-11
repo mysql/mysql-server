@@ -2026,7 +2026,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         IPaddr.sin_family = AF_INET;
         IPaddr.sin_addr.s_addr = bind_addr;
         IPaddr.sin_port = 0;
-        if (bind(sock, &IPaddr, sizeof(IPaddr))) {
+        if (bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
           net->last_errno=CR_IPSOCK_ERROR;
           strmov(net->sqlstate, unknown_sqlstate);
           my_snprintf(net->last_error, sizeof(net->last_error)-1,
