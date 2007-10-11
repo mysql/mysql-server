@@ -5514,6 +5514,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   MARIA_RECORD_POS record_pos;
   ha_checksum checksum_delta;
   DBUG_ENTER("_ma_apply_undo_row_update");
+  LINT_INIT(checksum_delta);
 
   page=  page_korr(header);
   header+= PAGE_STORE_SIZE;
