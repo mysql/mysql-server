@@ -10853,6 +10853,8 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
 
+  CRASH_INSERTION(7191);
+
 #if 0
   g_eventLogger.info("LCP_COMPLETE_REP"); 
   printLCP_COMPLETE_REP(stdout, 
@@ -13603,6 +13605,7 @@ void Dbdih::setLcpActiveStatusStart(Signal* signal)
 	// It must be taken over with the copy fragment process after a system
 	// crash. We indicate this by setting the active status to TAKE_OVER.
 	/*-------------------------------------------------------------------*/
+	c_lcpState.m_participatingLQH.set(nodePtr.i);
         nodePtr.p->activeStatus = Sysfile::NS_TakeOver;
         //break; // Fall through
       case Sysfile::NS_TakeOver:{
@@ -13645,6 +13648,7 @@ void Dbdih::setLcpActiveStatusStart(Signal* signal)
         break;
       case Sysfile::NS_ActiveMissed_2:
         jam();
+        CRASH_INSERTION(7192);
         if ((nodePtr.p->nodeStatus == NodeRecord::ALIVE) &&
             (!nodePtr.p->copyCompleted)) {
           jam();
