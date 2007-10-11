@@ -272,6 +272,7 @@ class Thd_ndb
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
+  bool m_force_send;
   int m_error_code;
   uint32 m_query_id; /* query id whn m_error_code was set */
   uint32 options;
@@ -405,6 +406,12 @@ class ha_ndbcluster: public handler
  
 static void set_dbname(const char *pathname, char *dbname);
 static void set_tabname(const char *pathname, char *tabname);
+
+  /*
+    static member function as it needs to access private
+    NdbTransaction methods
+  */
+  static void release_completed_operations(Thd_ndb*, NdbTransaction*, bool);
 
   /*
     Condition pushdown
@@ -632,15 +639,13 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
-  void release_completed_operations(NdbTransaction*, bool);
+public:
+private:
 
   int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
-  friend int check_completed_operations(Thd_ndb*, ha_ndbcluster*, NdbTransaction*,
-                                        const NdbOperation*);
-  friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
-
+  friend int check_completed_operations_pre_commit(Thd_ndb*,
+                                                   NdbTransaction*,
+                                                   const NdbOperation*);
   void transaction_checks(THD *thd);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
   int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
@@ -739,7 +744,6 @@ private:
   uint m_dupkey;
   // set from thread variables at external lock
   bool m_ha_not_exact_count;
-  bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
 
