@@ -7,7 +7,7 @@ BDB_LOAD=/usr/local/Berkeleydb.4.1/bin/db_load
 UTILS=            \
    tokudb_gen     \
    tokudb_load    \
-#   tokudb_dump    \
+   tokudb_dump    \
 #End
 
 .PHONY: all clean test test_gen test_gen_hex test_load

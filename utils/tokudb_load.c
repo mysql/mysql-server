@@ -45,6 +45,7 @@ typedef struct {
 } load_globals;
 
 load_globals g;
+#include "tokudb_common_funcs.h"
 
 int   usage          ();
 int   longusage      ();
@@ -287,11 +288,11 @@ int create_init_env()
    /*
    ///TODO: UNCOMMENT/IMPLEMENT 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
-   */
    if (retval) {
       dbenv->err(dbenv, retval, "DB_ENV->set_cachesize");
       goto error;
    }
+   */
    g.is_private = true;
    //TODO: Do we want to support transactions/logging even in single-process mode?
    //Maybe if the db already exists.
