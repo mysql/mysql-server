@@ -82,8 +82,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
@@ -452,7 +452,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       if (share->rec[i].type == (int) FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->rec[i].length-mi_portable_sizeof_char_ptr;;
+	  share->rec[i].length-portable_sizeof_char_ptr;
 	share->blobs[j].offset=offset;
 	j++;
       }

@@ -290,7 +290,8 @@ handler *get_ha_partition(partition_info *part_info)
     0           OK
     != 0        Error
 */
-static int ha_init_errors(void)
+
+int ha_init_errors(void)
 {
 #define SETMSG(nr, msg) errmsgs[(nr) - HA_ERR_FIRST]= (msg)
   const char    **errmsgs;
@@ -504,9 +505,6 @@ int ha_init()
 {
   int error= 0;
   DBUG_ENTER("ha_init");
-
-  if (ha_init_errors())
-    DBUG_RETURN(1);
 
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
@@ -2505,8 +2503,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  thd->transaction.on= on;
-  if (on)
+  if ((thd->transaction.on= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.
