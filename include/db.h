@@ -165,7 +165,7 @@ struct __toku_db_txn {
   struct __toku_db_txn_internal *i;
   void* __toku_dummy0[18];
   char __toku_dummy1[24];
-  int (*abort) __P((DB_TXN *); /* 32-bit offset=100 size=4, 64=bit offset=176 size=8 */
+  int (*abort) (DB_TXN *); /* 32-bit offset=100 size=4, 64=bit offset=176 size=8 */
   int (*commit) (DB_TXN*, u_int32_t); /* 32-bit offset=104 size=4, 64=bit offset=184 size=8 */
   void* __toku_dummy2[1];
   u_int32_t (*id) (DB_TXN *); /* 32-bit offset=112 size=4, 64=bit offset=200 size=8 */
