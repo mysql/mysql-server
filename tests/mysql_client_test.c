@@ -16827,25 +16827,34 @@ static void bug20023_change_user(MYSQL *con)
                            opt_db ? opt_db : "test"));
 }
 
-static void bug20023_query_int_variable(MYSQL *con,
-                                        const char *var_name,
-                                        int *var_value)
+static bool query_int_variable(MYSQL *con,
+                               const char *var_name,
+                               int *var_value)
 {
   MYSQL_RES *rs;
   MYSQL_ROW row;
 
   char query_buffer[MAX_TEST_QUERY_LENGTH];
 
+  bool is_null;
+
   my_snprintf(query_buffer,
           sizeof (query_buffer),
-          "SELECT @@%s",
+          "SELECT %s",
           (const char *) var_name);
 
   DIE_IF(mysql_query(con, query_buffer));
   DIE_UNLESS(rs= mysql_store_result(con));
   DIE_UNLESS(row= mysql_fetch_row(rs));
-  *var_value= atoi(row[0]);
+
+  is_null= row[0] == NULL;
+
+  if (!is_null)
+    *var_value= atoi(row[0]);
+
   mysql_free_result(rs);
+
+  return is_null;
 }
 
 static void test_bug20023()
@@ -16876,19 +16885,19 @@ static void test_bug20023()
                                 CLIENT_FOUND_ROWS));
 
   /***********************************************************************
-   Remember original SQL_BIG_SELECTS, MAX_JOIN_SIZE values.
+    Remember original SQL_BIG_SELECTS, MAX_JOIN_SIZE values.
   ***********************************************************************/
 
-  bug20023_query_int_variable(&con,
-                              "session.sql_big_selects",
-                              &sql_big_selects_orig);
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_orig);
 
-  bug20023_query_int_variable(&con,
-                              "global.max_join_size",
-                              &max_join_size_orig);
+  query_int_variable(&con,
+                     "@@global.max_join_size",
+                     &max_join_size_orig);
 
   /***********************************************************************
-   Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
+    Test that COM_CHANGE_USER resets the SQL_BIG_SELECTS to the initial value.
   ***********************************************************************/
 
   /* Issue COM_CHANGE_USER. */
@@ -16897,17 +16906,17 @@ static void test_bug20023()
 
   /* Query SQL_BIG_SELECTS. */
 
-  bug20023_query_int_variable(&con,
-                              "session.sql_big_selects",
-                              &sql_big_selects_2);
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_2);
 
   /* Check that SQL_BIG_SELECTS is reset properly. */
 
   DIE_UNLESS(sql_big_selects_orig == sql_big_selects_2);
 
   /***********************************************************************
-   Test that if MAX_JOIN_SIZE set to non-default value,
-   SQL_BIG_SELECTS will be 0.
+    Test that if MAX_JOIN_SIZE set to non-default value,
+    SQL_BIG_SELECTS will be 0.
   ***********************************************************************/
 
   /* Set MAX_JOIN_SIZE to some non-default value. */
@@ -16921,17 +16930,17 @@ static void test_bug20023()
 
   /* Query SQL_BIG_SELECTS. */
 
-  bug20023_query_int_variable(&con,
-                              "session.sql_big_selects",
-                              &sql_big_selects_3);
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_3);
 
   /* Check that SQL_BIG_SELECTS is 0. */
 
   DIE_UNLESS(sql_big_selects_3 == 0);
 
   /***********************************************************************
-   Test that if MAX_JOIN_SIZE set to default value,
-   SQL_BIG_SELECTS will be 1.
+    Test that if MAX_JOIN_SIZE set to default value,
+    SQL_BIG_SELECTS will be 1.
   ***********************************************************************/
 
   /* Set MAX_JOIN_SIZE to the default value (-1). */
@@ -16945,17 +16954,17 @@ static void test_bug20023()
 
   /* Query SQL_BIG_SELECTS. */
 
-  bug20023_query_int_variable(&con,
-                              "session.sql_big_selects",
-                              &sql_big_selects_4);
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_4);
 
   /* Check that SQL_BIG_SELECTS is 1. */
 
   DIE_UNLESS(sql_big_selects_4 == 1);
 
   /***********************************************************************
-   Restore MAX_JOIN_SIZE.
-   Check that SQL_BIG_SELECTS will be the original one.
+    Restore MAX_JOIN_SIZE.
+    Check that SQL_BIG_SELECTS will be the original one.
   ***********************************************************************/
 
   /* Restore MAX_JOIN_SIZE. */
@@ -16974,19 +16983,111 @@ static void test_bug20023()
 
   /* Query SQL_BIG_SELECTS. */
 
-  bug20023_query_int_variable(&con,
-                              "session.sql_big_selects",
-                              &sql_big_selects_5);
+  query_int_variable(&con,
+                     "@@session.sql_big_selects",
+                     &sql_big_selects_5);
 
   /* Check that SQL_BIG_SELECTS is 1. */
 
   DIE_UNLESS(sql_big_selects_5 == sql_big_selects_orig);
 
   /***********************************************************************
+    That's it. Cleanup.
+  ***********************************************************************/
+
+  mysql_close(&con);
+}
+
+static void bug31418_impl()
+{
+  MYSQL con;
+
+  bool is_null;
+  int rc;
+
+  /* Create a new connection. */
+
+  DIE_UNLESS(mysql_init(&con));
+
+  DIE_UNLESS(mysql_real_connect(&con,
+                                opt_host,
+                                opt_user,
+                                opt_password,
+                                opt_db ? opt_db : "test",
+                                opt_port,
+                                opt_unix_socket,
+                                CLIENT_FOUND_ROWS));
+
+  /***********************************************************************
+    Check that lock is free:
+      - IS_FREE_LOCK() should return 1;
+      - IS_USED_LOCK() should return NULL;
+  ***********************************************************************/
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(is_null);
+
+  /***********************************************************************
+    Acquire lock and check the lock status (the lock must be in use):
+      - IS_FREE_LOCK() should return 0;
+      - IS_USED_LOCK() should return non-zero thread id;
+  ***********************************************************************/
+
+  query_int_variable(&con, "GET_LOCK('bug31418', 1)", &rc);
+  DIE_UNLESS(rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && !rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  /***********************************************************************
+    Issue COM_CHANGE_USER command and check the lock status
+    (the lock must be free):
+      - IS_FREE_LOCK() should return 1;
+      - IS_USED_LOCK() should return NULL;
+  **********************************************************************/
+
+  bug20023_change_user(&con);
+
+  is_null= query_int_variable(&con,
+                              "IS_FREE_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(!is_null && rc);
+
+  is_null= query_int_variable(&con,
+                              "IS_USED_LOCK('bug31418')",
+                              &rc);
+  DIE_UNLESS(is_null);
+
+  /***********************************************************************
    That's it. Cleanup.
   ***********************************************************************/
 
   mysql_close(&con);
+}
+
+static void test_bug31418()
+{
+  /* Run test case for BUG#31418 for three different connections. */
+
+  bug31418_impl();
+
+  bug31418_impl();
+
+  bug31418_impl();
 }
 
 
@@ -17286,6 +17387,7 @@ static struct my_tests_st my_tests[]= {
   { "test_change_user", test_change_user },
   { "test_bug30472", test_bug30472 },
   { "test_bug20023", test_bug20023 },
+  { "test_bug31418", test_bug31418 },
   { 0, 0 }
 };
 
