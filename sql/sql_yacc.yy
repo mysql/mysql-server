@@ -7716,11 +7716,19 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(str ? str->ptr() : "",
+            $$= new Item_string(NULL, /* name will be set in select_item */
+                                str ? str->ptr() : "",
                                 str ? str->length() : 0,
                                 Lex->underscore_charset);
             if ($$)
+            {
               ((Item_string *) $$)->set_repertoire_from_value();
+              if (!$$->check_well_formed_result(&$$->str_value))
+              {
+                $$= new Item_null();
+                $$->set_name(NULL, 0, system_charset_info);
+              }
+            }
           }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
@@ -7732,9 +7740,15 @@ literal:
 	    String *str= tmp ?
 	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
 	      (String*) 0;
-	    $$= new Item_string(str ? str->ptr() : "",
-				str ? str->length() : 0,
-				Lex->charset);
+            $$= new Item_string(NULL, /* name will be set in select_item */
+                                str ? str->ptr() : "",
+                                str ? str->length() : 0,
+                                Lex->underscore_charset);
+            if ($$ && !$$->check_well_formed_result(&$$->str_value))
+            {
+              $$= new Item_null();
+              $$->set_name(NULL, 0, system_charset_info);
+            }
           }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
