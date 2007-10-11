@@ -196,7 +196,7 @@ select f(10)|
 
 drop function f|
 
---error 1322
+--error ER_PARSE_ERROR
 create procedure p()
 begin
   declare c cursor for insert into test.t1 values ("foo", 42);
@@ -2177,6 +2177,27 @@ END//
 
 delimiter ;//
 
+
+#
+# Bug#29223 declare cursor c for SHOW .....
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+--delimiter |
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c char(100);
+  DECLARE cur1 CURSOR FOR SHOW TABLES;
+
+  OPEN cur1;
+  FETCH cur1 INTO c;
+  select c;
+  CLOSE cur1;
+END|
+--delimiter ;
 
 #
 # BUG#NNNN: New bug synopsis

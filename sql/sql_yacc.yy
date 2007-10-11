@@ -2540,25 +2540,13 @@ sp_decl:
 sp_cursor_stmt:
           {
             Lex->sphead->reset_lex(YYTHD);
-
-            /*
-             We use statement here just be able to get a better
-              error message. Using 'select' works too, but will then
-             result in a generic "syntax error" if a non-select
-             statement is given.
-            */
           }
-          statement
+          select
           {
             LEX *lex= Lex;
 
-            if (lex->sql_command != SQLCOM_SELECT &&
-               !(sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND))
-            {
-              my_message(ER_SP_BAD_CURSOR_QUERY, ER(ER_SP_BAD_CURSOR_QUERY),
-                         MYF(0));
-              MYSQL_YYABORT;
-            }
+            DBUG_ASSERT(lex->sql_command == SQLCOM_SELECT);
+
             if (lex->result)
             {
               my_message(ER_SP_BAD_CURSOR_SELECT, ER(ER_SP_BAD_CURSOR_SELECT),
