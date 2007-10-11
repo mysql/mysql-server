@@ -554,6 +554,24 @@ c1
 2
 handler t1 read next;
 c1
+1
 handler t1 close;
 handler t2 close;
 drop table t1,t2;
+drop table if exists t1,t2;
+create table t1 (c1 int);
+connection: default
+handler t1 open;
+handler t1 read first;
+c1
+connection: flush
+rename table t1 to t2;;
+connection: default
+handler t2 open;
+handler t2 read first;
+c1
+handler t1 read next;
+ERROR 42S02: Table 'test.t1' doesn't exist
+handler t1 close;
+handler t2 close;
+drop table t2;
