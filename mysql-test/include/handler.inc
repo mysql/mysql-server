@@ -533,3 +533,36 @@ reap;
 connection default;
 drop table t1,t2;
 disconnect flush;
+
+#
+# Bug#31409 RENAME TABLE causes server crash or deadlock when used with HANDLER statements
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (c1 int);
+--echo connection: default
+handler t1 open;
+handler t1 read first;
+connect (flush,localhost,root,,);
+connection flush;
+--echo connection: flush
+--send rename table t1 to t2;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t1 to t2";
+--source include/wait_condition.inc
+handler t2 open;
+handler t2 read first;
+--error ER_NO_SUCH_TABLE
+handler t1 read next;
+handler t1 close;
+handler t2 close;
+connection flush;
+reap;
+connection default;
+drop table t2;
+disconnect flush;
