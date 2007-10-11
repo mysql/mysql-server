@@ -142,7 +142,10 @@ declare c cursor for insert into test.t1 values ("foo", 42);
 open c;
 close c;
 end|
-ERROR 42000: Cursor statement must be a SELECT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insert into test.t1 values ("foo", 42);
+open c;
+close c;
+end' at line 3
 create procedure p()
 begin
 declare x int;
@@ -1491,3 +1494,19 @@ ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
 RETURN 0;
 END//
 ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c char(100);
+DECLARE cur1 CURSOR FOR SHOW TABLES;
+OPEN cur1;
+FETCH cur1 INTO c;
+select c;
+CLOSE cur1;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SHOW TABLES;
+OPEN cur1;
+FETCH cur1 INTO c;
+select c;
+CLOSE cur1;
+END' at line 4
