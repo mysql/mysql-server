@@ -270,6 +270,10 @@ use mysql;
 lock tables general_log read local, help_category read local;
 ERROR HY000: You can't use locks with log tables.
 unlock tables;
+drop table if exists mysql.renamed_general_log;
+drop table if exists mysql.renamed_slow_log;
+drop table if exists mysql.general_log_new;
+drop table if exists mysql.slow_log_new;
 use mysql;
 RENAME TABLE general_log TO renamed_general_log;
 ERROR HY000: Cannot rename 'general_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'general_log'
