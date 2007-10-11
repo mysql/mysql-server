@@ -5,6 +5,14 @@ b INT NOT NULL,
 c INT NOT NULL
 ) ENGINE=ndbcluster;
 INSERT INTO t1 VALUES (0, 0, 0);
+BEGIN;
+INSERT INTO t1 VALUES (1, 1, 1);
+INSERT INTO t1 VALUES (0, 0, 0);
+ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+COMMIT;
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
 pk1	b	c
 0	0	0
