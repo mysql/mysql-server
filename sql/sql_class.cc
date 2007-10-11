@@ -698,6 +698,7 @@ void THD::cleanup(void)
     pthread_mutex_lock(&LOCK_user_locks);
     item_user_lock_release(ull);
     pthread_mutex_unlock(&LOCK_user_locks);
+    ull= NULL;
   }
 
   cleanup_done=1;
