@@ -67,7 +67,7 @@ void __toku_db_env_err (const DB_ENV *env __attribute__((__unused__)), int error
 void print_flags (u_int32_t flags) {
   u_int32_t gotit=0;
   int doneone=0;
-#define doit(flag) if (flag & flags) { if (doneone) printf(" | "); printf("%s", #flag);  doneone=1; gotit|=flag; }
+#define doit(flag) if (flag & flags) { if (doneone) fprintf(stderr, " | "); fprintf(stderr, "%s", #flag);  doneone=1; gotit|=flag; }
   printf(" flags=");
   doit(DB_INIT_LOCK);
   doit(DB_INIT_LOG);
@@ -78,7 +78,7 @@ void print_flags (u_int32_t flags) {
   doit(DB_RECOVER);
   doit(DB_PRIVATE);
   if (gotit!=flags) printf("  flags 0x%x not accounted for", flags&~gotit);
-  printf("\n");
+  fprintf(stderr, "\n");
 }
 
 struct __toku_db_env_internal {
@@ -88,7 +88,8 @@ struct __toku_db_env_internal {
     const char *errpfx;
     char *dir; /* A malloc'd copy of the directory. */
     char *tmp_dir;
-    void (*noticecall)(DB_ENV *, db_notices);
+    char *data_dir;
+    //void (*noticecall)(DB_ENV *, db_notices);
     int n_files;
     int files_array_limit; // How big is *files ?
     struct ydb_file **files;
@@ -136,12 +137,12 @@ int  __toku_db_env_log_flush (DB_ENV * env, const DB_LSN * lsn) {
   return 1;
 }
 int  __toku_db_env_set_cachesize (DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
-  barf();
-  return 1;
+    fprintf(stderr, "%s:%d set_cachsize %d %d %d\n", __FILE__, __LINE__, gbytes, bytes, ncache);
+    return 1;
 }
 int  __toku_db_env_set_data_dir (DB_ENV * env, const char *dir) {
-  barf();
-  return 1;
+    env->i->data_dir = strdup(dir);
+    return 1;
 }
 void __toku_db_env_set_errcall (DB_ENV *env, void (*errcall)(const char *, char *)) {
   env->i->errcall=errcall;
@@ -150,32 +151,32 @@ void __toku_db_env_set_errpfx (DB_ENV * env, const char *errpfx) {
     env->i->errpfx = strdup(errpfx);
 }
 int  __toku_db_env_set_flags (DB_ENV *env, u_int32_t flags, int onoff) {
-  barf();
-  return 1;
+    assert(flags==0);
+    return 1;
 }
 int  __toku_db_env_set_lg_bsize (DB_ENV * env, u_int32_t bsize) {
-  barf();
-  return 1;
+    barff("lg_bsize=%d\n", bsize);
+    return 1;
 }
 int  __toku_db_env_set_lg_dir (DB_ENV * env, const char * dir) {
   barf();
   return 1;
 }
 int  __toku_db_env_set_lg_max (DB_ENV *env, u_int32_t lg_max) {
-  barf();
-  return 1;
+    barff("lg_max=%d\n", lg_max);
+    return 1;
 }
 int  __toku_db_env_set_lk_detect (DB_ENV *env, u_int32_t detect) {
-  barf();
-  return 1;
+    barff("detect=%d\n", detect);
+    return 1;
 }
 int  __toku_db_env_set_lk_max (DB_ENV *env, u_int32_t lk_max) {
-  barf();
-  return 0;
+    barff("lk_max=%d\n", lk_max);
+    return 0;
 }
-void __toku_db_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
-    env->i->noticecall = noticecall;
-}
+//void __toku_db_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
+//    env->i->noticecall = noticecall;
+//}
 int  __toku_db_env_set_tmp_dir (DB_ENV * env, const char *tmp_dir) {
     env->i->tmp_dir = strdup(tmp_dir);
     return 0;
@@ -209,7 +210,7 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
   result->log_flush = __toku_db_env_log_flush;
   result->set_errcall = __toku_db_env_set_errcall;
   result->set_errpfx = __toku_db_env_set_errpfx;
-  result->set_noticecall = __toku_db_env_set_noticecall;
+  //result->set_noticecall = __toku_db_env_set_noticecall;
   result->set_flags = __toku_db_env_set_flags;
   result->set_data_dir = __toku_db_env_set_data_dir;
   result->set_tmp_dir = __toku_db_env_set_tmp_dir;
@@ -226,7 +227,7 @@ int db_env_create (DB_ENV **envp, u_int32_t flags) {
 
   result->i = malloc_zero(sizeof(*result->i));
   result->i->dir = 0;
-  result->i->noticecall = 0;
+  //result->i->noticecall = 0;
   result->i->tmp_dir = 0;
 
   result->i->errcall =  __toku_default_errcall;
