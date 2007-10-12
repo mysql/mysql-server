@@ -166,7 +166,7 @@ ibuf_count_check(
 	}
 
 	fprintf(stderr,
-		"InnoDB: UNIV_IBUF_DEBUG limits space_id and page_no\n"
+		"InnoDB: UNIV_IBUF_COUNT_DEBUG limits space_id and page_no\n"
 		"InnoDB: and breaks crash recovery.\n"
 		"InnoDB: space_id=%lu, should be 0<=space_id<%lu\n"
 		"InnoDB: page_no=%lu, should be 0<=page_no<%lu\n",
@@ -2585,6 +2585,7 @@ ibuf_insert_low(
 
 	ut_a(!dict_index_is_clust(index));
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(ut_is_2pow(zip_size));
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
@@ -2825,6 +2826,7 @@ ibuf_insert(
 
 	ut_a(trx_sys_multiple_tablespace_format);
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(ut_is_2pow(zip_size));
 
 	ut_a(!dict_index_is_clust(index));
 
@@ -2941,7 +2943,7 @@ dump:
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-				"InnoDB: Error: Insert buffer insert"
+				"  InnoDB: Error: Insert buffer insert"
 				" fails; page free %lu,"
 				" dtuple size %lu\n",
 				(ulong) page_get_max_insert_size(
@@ -2967,8 +2969,11 @@ dump:
 				bitmap_page, page_no, zip_size,
 				IBUF_BITMAP_FREE, mtr);
 
-			fprintf(stderr, "Bitmap bits %lu\n",
-				(ulong) old_bits);
+			fprintf(stderr,
+				"InnoDB: space %lu, page %lu,"
+				" zip_size %lu, bitmap bits %lu\n",
+				(ulong) space, (ulong) page_no,
+				(ulong) zip_size, (ulong) old_bits);
 
 			fputs("InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
