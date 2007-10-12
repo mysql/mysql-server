@@ -7962,6 +7962,7 @@ const uchar *Field_blob::unpack(uchar *to,
     param_data > 0 ? param_data & 0xFF : packlength;
   uint32 const length= get_length(from, master_packlength, low_byte_first);
   DBUG_DUMP("packed", from, length + master_packlength);
+  bitmap_set_bit(table->write_set, field_index);
   store(reinterpret_cast<const char*>(from) + master_packlength,
         length, field_charset);
   DBUG_DUMP("record", to, table->s->reclength);
