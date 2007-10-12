@@ -348,6 +348,10 @@ NdbScanFilter::isfalse(){
   return 0;
 }
 
+NdbOperation * 
+NdbScanFilter::getNdbOperation(){
+  return m_impl.m_operation; 
+}
 
 #define action(x, y, z)
 
