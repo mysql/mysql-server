@@ -870,6 +870,8 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+  virtual Field::geometry_type get_geometry_type() const
+    { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str);
 };
 
@@ -1338,7 +1340,7 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(byte *select_arg);
   void print(String *str);
-  Field::geometry_type get_geometry_type()
+  Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
@@ -2640,7 +2642,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
-  Field::geometry_type get_geometry_type() { return geometry_type; };
+  Field::geometry_type get_geometry_type() const { return geometry_type; };
 };
 
 
