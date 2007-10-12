@@ -769,11 +769,6 @@ long calc_daynr(uint year,uint month,uint day)
 
   if (year == 0 && month == 0 && day == 0)
     DBUG_RETURN(0);				/* Skip errors */
-  if (year < 200)
-  {
-    if ((year=year+1900) < 1900+YY_PART_YEAR)
-      year+=100;
-  }
   delsum= (long) (365L * year+ 31*(month-1) +day);
   if (month <= 2)
       year--;
