@@ -1039,7 +1039,7 @@ sync_thread_add_level(
 		if (!sync_thread_levels_g(array, level)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
-				"does not hold!\n", level);
+				" does not hold!\n", level);
 			ut_error;
 		}
 		break;
