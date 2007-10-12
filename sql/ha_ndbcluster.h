@@ -273,6 +273,7 @@ class Thd_ndb
   bool m_error;
   bool m_slow_path;
   bool m_force_send;
+  bool m_transaction_on;
   int m_error_code;
   uint32 m_query_id; /* query id whn m_error_code was set */
   uint32 options;
@@ -639,13 +640,28 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
+  NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
+  inline NdbTransaction *get_transaction_part_id(uint32 part_id, int &error)
+  {
+    if (m_thd_ndb->trans)
+      return m_thd_ndb->trans;
+    return start_transaction_part_id(part_id, error);
+  }
+
+  NdbTransaction *start_transaction(int &error);
+  inline NdbTransaction *get_transaction(int &error)
+  {
+    if (m_thd_ndb->trans)
+      return m_thd_ndb->trans;
+    return start_transaction(error);
+  }
+
   int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
                                                    const NdbOperation*);
-  void transaction_checks(THD *thd);
-  int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
-  int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
+  int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
+  int init_handler_for_statement(THD *thd);
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
@@ -742,7 +758,6 @@ private:
   // set from thread variables at external lock
   bool m_ha_not_exact_count;
   ha_rows m_autoincrement_prefetch;
-  bool m_transaction_on;
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
