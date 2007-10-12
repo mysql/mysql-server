@@ -1014,7 +1014,6 @@ btr_cur_optimistic_insert(
 	buf_block_t*	block;
 	page_t*		page;
 	ulint		max_size;
-	ulint		max_size_zip	= 0;
 	rec_t*		dummy_rec;
 	ibool		leaf;
 	ibool		reorg;
@@ -1045,19 +1044,6 @@ btr_cur_optimistic_insert(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	leaf = page_is_leaf(page);
-
-	/* If necessary for updating the insert buffer bitmap,
-	calculate the current maximum insert size on a compressed page. */
-	if (zip_size && UNIV_LIKELY(leaf) && !dict_index_is_clust(index)) {
-		const page_zip_des_t*	page_zip
-			= buf_block_get_page_zip(block);
-		lint			zip_max
-			= page_zip_max_ins_size(page_zip, FALSE);
-
-		if (zip_max >= 0 && max_size > (ulint) zip_max) {
-			max_size_zip = (ulint) zip_max;
-		}
-	}
 
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, n_ext);
@@ -1206,8 +1192,7 @@ fail_err:
 
 		if (zip_size) {
 			/* Update the bits in the same mini-transaction. */
-			ibuf_update_free_bits_low(zip_size, block,
-						  max_size_zip, mtr);
+			ibuf_update_free_bits_zip(block, mtr);
 		} else {
 			/* Decrement the bits in a separate
 			mini-transaction. */
@@ -1752,8 +1737,7 @@ btr_cur_update_in_place(
 	if (page_zip && !dict_index_is_clust(index)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_low(buf_block_get_zip_size(block),
-					  block, UNIV_PAGE_SIZE, mtr);
+		ibuf_update_free_bits_zip(block, mtr);
 	}
 
 	btr_cur_update_in_place_log(flags, rec, index, update,
@@ -1956,8 +1940,7 @@ err_exit:
 	if (page_zip && !dict_index_is_clust(index)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_low(buf_block_get_zip_size(block), block,
-					  UNIV_PAGE_SIZE, mtr);
+		ibuf_update_free_bits_zip(block, mtr);
 	}
 
 	if (!rec_get_deleted_flag(rec, page_is_comp(page))) {
@@ -2224,9 +2207,7 @@ btr_cur_pessimistic_update(
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_low(
-				buf_block_get_zip_size(block), block,
-				UNIV_PAGE_SIZE, mtr);
+			ibuf_update_free_bits_zip(block, mtr);
 		}
 
 		err = DB_SUCCESS;
@@ -2708,7 +2689,6 @@ btr_cur_optimistic_delete(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	block;
-	ulint		max_ins_size;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -2736,24 +2716,15 @@ btr_cur_optimistic_delete(
 
 		page_t*		page	= buf_block_get_frame(block);
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
-		ulint		zip_size= buf_block_get_zip_size(block);
+		ulint		max_ins	= 0;
 
 		lock_update_delete(block, rec);
 
 		btr_search_update_hash_on_delete(cursor);
 
-		max_ins_size = page_get_max_insert_size_after_reorganize(
-			page, 1);
-		if (zip_size) {
-			lint	zip_max_ins = page_zip_max_ins_size(
-				page_zip, FALSE/* not clustered */);
-
-			if (UNIV_UNLIKELY(zip_max_ins < 0)) {
-				max_ins_size = 0;
-			} else if (UNIV_LIKELY
-				   (max_ins_size > (ulint) zip_max_ins)) {
-				max_ins_size = (ulint) zip_max_ins;
-			}
+		if (!page_zip) {
+			max_ins = page_get_max_insert_size_after_reorganize(
+				page, 1);
 		}
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
@@ -2764,10 +2735,15 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		if (!dict_index_is_clust(cursor->index)
-		    && page_is_leaf(page)) {
-			ibuf_update_free_bits_low(zip_size, block,
-						  max_ins_size, mtr);
+		if (dict_index_is_clust(cursor->index)
+		    || !page_is_leaf(page)) {
+			/* The insert buffer does not handle
+			inserts to clustered indexes or to non-leaf
+			pages of secondary index B-trees. */
+		} else if (page_zip) {
+			ibuf_update_free_bits_zip(block, mtr);
+		} else {
+			ibuf_update_free_bits_low(block, max_ins, mtr);
 		}
 	}
 
