@@ -18,6 +18,18 @@ CREATE TABLE t1 (
   c INT NOT NULL
 ) ENGINE=ndbcluster;
 
+#
+# Bug 31320: Ensure statement error leads to transaction rollback
+#
+INSERT INTO t1 VALUES (0, 0, 0);
+BEGIN;
+INSERT INTO t1 VALUES (1, 1, 1);
+--error 1062
+INSERT INTO t1 VALUES (0, 0, 0);
+--error 1296
+COMMIT;
+DELETE FROM t1;
+
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
 
