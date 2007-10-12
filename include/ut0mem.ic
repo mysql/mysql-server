@@ -181,7 +181,7 @@ ut_raw_to_hex(
 		);
 	}
 
-	if (hex_size == 2 * raw_size) {
+	if (hex_size <= 2 * raw_size && hex_size % 2 == 0) {
 
 		hex--;
 	}
