@@ -5589,8 +5589,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
-  if (trans == NULL || (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (trans == NULL)
   {
     /* Ignore end-of-statement until real rollback or commit is called */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
@@ -5608,6 +5607,12 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     res= ndb_to_mysql_error(&err);
     if (res != -1) 
       ndbcluster_print_error(res, error_op);
+  }
+  if (!all &&
+      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  {
+    DBUG_PRINT("info", ("Rollback transaction at statement error"));
+    DBUG_RETURN(res);
   }
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
