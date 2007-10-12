@@ -834,11 +834,21 @@ trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/* out: cache to init */
 {
-	rw_lock_create(&cache->rw_lock, SYNC_INFORMATION_SCHEMA);
+	/* The latching is done in the following order:
+	acquire trx_i_s_cache_t::rw_lock, X
+	acquire kernel_mutex
+	release kernel_mutex
+	release trx_i_s_cache_t::rw_lock
+	acquire trx_i_s_cache_t::rw_lock, S
+	acquire trx_i_s_cache_t::last_read_mutex
+	release trx_i_s_cache_t::last_read_mutex
+	release trx_i_s_cache_t::rw_lock */
+
+	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
 
-	mutex_create(&cache->last_read_mutex, SYNC_INFORMATION_SCHEMA);
+	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
