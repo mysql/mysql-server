@@ -170,6 +170,13 @@ public:
 #endif
   };
 
+  /**
+   * Convenience method to fetch this transactions Ndb* object 
+   */
+  Ndb * getNdb() { 
+    return theNdb; 
+  }
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Get an NdbOperation for a table.
