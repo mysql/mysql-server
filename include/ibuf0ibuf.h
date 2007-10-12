@@ -67,10 +67,11 @@ ibuf_reset_free_bits(
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
 /****************************************************************************
-Updates the free bits of the page in the ibuf bitmap if there is not enough
-free on the page any more. This is done in a separate mini-transaction, hence
-this operation does not restrict further work to only ibuf bitmap operations,
-which would result if the latch to the bitmap page were kept. */
+Updates the free bits of an uncompressed page in the ibuf bitmap if
+there is not enough free on the page any more. This is done in a
+separate mini-transaction, hence this operation does not restrict
+further work to only ibuf bitmap operations, which would result if the
+latch to the bitmap page were kept. */
 UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
@@ -87,20 +88,30 @@ ibuf_update_free_bits_if_full(
 				used in the latest operation, if known, or
 				ULINT_UNDEFINED */
 /**************************************************************************
-Updates the free bits for the page to reflect the present state. Does this
-in the mtr given, which means that the latching order rules virtually
+Updates the free bits for an uncompressed page to reflect the present state.
+Does this in the mtr given, which means that the latching order rules virtually
 prevent any further operations for this OS thread until mtr is committed. */
 
 void
 ibuf_update_free_bits_low(
 /*======================*/
-	ulint		zip_size,	/* in: compressed page size in bytes;
-					0 for uncompressed pages */
-	buf_block_t*	block,		/* in: index page */
-	ulint		max_ins_size,	/* in: value of maximum insert size
-					with reorganize before the latest
-					operation performed to the page */
-	mtr_t*		mtr);		/* in: mtr */
+	const buf_block_t*	block,		/* in: index page */
+	ulint			max_ins_size,	/* in: value of
+						maximum insert size
+						with reorganize before
+						the latest operation
+						performed to the page */
+	mtr_t*			mtr);		/* in/out: mtr */
+/**************************************************************************
+Updates the free bits for a compressed page to reflect the present state.
+Does this in the mtr given, which means that the latching order rules virtually
+prevent any further operations for this OS thread until mtr is committed. */
+
+void
+ibuf_update_free_bits_zip(
+/*======================*/
+	const buf_block_t*	block,	/* in: index page */
+	mtr_t*			mtr);	/* in/out: mtr */
 /**************************************************************************
 Updates the free bits for the two pages to reflect the present state. Does
 this in the mtr given, which means that the latching order rules virtually

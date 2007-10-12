@@ -790,13 +790,13 @@ UNIV_INLINE
 void
 ibuf_set_free_bits_low(
 /*===================*/
-	ulint		zip_size,/* in: compressed page size in bytes;
-				0 for uncompressed pages */
-	buf_block_t*	block,	/* in: index page; free bits are set if
-				the index is non-clustered and page
-				level is 0 */
-	ulint		val,	/* in: value to set: < 4 */
-	mtr_t*		mtr)	/* in: mtr */
+	ulint			zip_size,/* in: compressed page size in bytes;
+					0 for uncompressed pages */
+	const buf_block_t*	block,	/* in: index page; free bits are set if
+					the index is non-clustered and page
+					level is 0 */
+	ulint			val,	/* in: value to set: < 4 */
+	mtr_t*			mtr)	/* in/out: mtr */
 {
 	page_t*	bitmap_page;
 	ulint	space;
@@ -911,31 +911,68 @@ ibuf_reset_free_bits(
 }
 
 /**************************************************************************
-Updates the free bits for a page to reflect the present state. Does this
-in the mtr given, which means that the latching order rules virtually prevent
-any further operations for this OS thread until mtr is committed. */
+Updates the free bits for an uncompressed page to reflect the present state.
+Does this in the mtr given, which means that the latching order rules virtually
+prevent any further operations for this OS thread until mtr is committed. */
 
 void
 ibuf_update_free_bits_low(
 /*======================*/
-	ulint		zip_size,	/* in: compressed page size in bytes;
-					0 for uncompressed pages */
-	buf_block_t*	block,		/* in: index page */
-	ulint		max_ins_size,	/* in: value of maximum insert size
-					with reorganize before the latest
-					operation performed to the page */
-	mtr_t*		mtr)		/* in: mtr */
+	const buf_block_t*	block,		/* in: index page */
+	ulint			max_ins_size,	/* in: value of
+						maximum insert size
+						with reorganize before
+						the latest operation
+						performed to the page */
+	mtr_t*			mtr)		/* in/out: mtr */
 {
 	ulint	before;
 	ulint	after;
 
-	before = ibuf_index_page_calc_free_bits(zip_size, max_ins_size);
+	ut_a(!buf_block_get_page_zip(block));
 
-	after = ibuf_index_page_calc_free(zip_size, block);
+	before = ibuf_index_page_calc_free_bits(0, max_ins_size);
 
+	after = ibuf_index_page_calc_free(0, block);
+
+	/* This approach cannot be used on compressed pages, since the
+	computed value of "before" often does not match the current
+	state of the bitmap.  This is because the free space may
+	increase or decrease when a compressed page is reorganized. */
 	if (before != after) {
-		ibuf_set_free_bits_low(zip_size, block, after, mtr);
+		ibuf_set_free_bits_low(0, block, after, mtr);
 	}
+}
+
+/**************************************************************************
+Updates the free bits for a compressed page to reflect the present state.
+Does this in the mtr given, which means that the latching order rules virtually
+prevent any further operations for this OS thread until mtr is committed. */
+
+void
+ibuf_update_free_bits_zip(
+/*======================*/
+	const buf_block_t*	block,	/* in: index page */
+	mtr_t*			mtr)	/* in/out: mtr */
+{
+	page_t*	bitmap_page;
+	ulint	space;
+	ulint	page_no;
+	ulint	zip_size;
+	ulint	after;
+
+	space = buf_block_get_space(block);
+	page_no = buf_block_get_page_no(block);
+	zip_size = buf_block_get_zip_size(block);
+
+	ut_a(page_is_leaf(buf_block_get_frame(block)));
+	ut_a(zip_size);
+
+	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
+
+	after = ibuf_index_page_calc_free_zip(zip_size, block);
+	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
+				  IBUF_BITMAP_FREE, after, mtr);
 }
 
 /**************************************************************************
