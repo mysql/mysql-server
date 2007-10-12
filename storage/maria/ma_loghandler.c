@@ -20,9 +20,6 @@
 /**
    @file
    @brief Module which writes and reads to a transaction log
-
-   @todo LOG: in functions where the log's lock is required, a
-   translog_assert_owner() could be added.
 */
 
 #define TRANSLOG_FILLER 0xFF
@@ -1219,7 +1216,7 @@ static my_bool translog_buffer_lock(struct st_translog_buffer *buffer)
               (uint) buffer->buffer_no, (ulong) buffer,
               (ulong) &buffer->mutex));
   res= (translog_mutex_lock(&buffer->mutex) != 0);
-  DBUG_RETURN(res);
+  DBUG_RETURN(test(res));
 }
 #else
 #define translog_buffer_lock(B) \
@@ -1698,7 +1695,10 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
   if (chasing)
     translog_cursor_init(cursor, new_buffer, new_buffer_no);
   else
+  {
+    translog_lock_assert_owner();
     translog_start_buffer(new_buffer, cursor, new_buffer_no);
+  }
   log_descriptor.buffers[old_buffer_no].next_buffer_offset= new_buffer->offset;
   translog_new_page_header(horizon, cursor);
   DBUG_RETURN(0);
@@ -2026,6 +2026,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
               buffer->file,
               LSN_IN_PARTS(buffer->offset),
               (ulong) buffer->size));
+  translog_buffer_lock_assert_owner(buffer);
 
   DBUG_ASSERT(buffer->file != -1);
 
@@ -2505,6 +2506,7 @@ static uchar *translog_get_page(TRANSLOG_VALIDATOR_DATA *data, uchar *buffer,
   DBUG_RETURN(buffer);
 }
 
+
 /**
   @brief free direct log page link
 
@@ -2523,6 +2525,7 @@ static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
                              LSN_IMPOSSIBLE, LSN_IMPOSSIBLE);
   DBUG_VOID_RETURN;
 }
+
 
 /*
   Finds last page of the given log file
@@ -3041,7 +3044,9 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
        We ignore errors here, because we can't do something about it
        (it is shutting down)
     */
+    translog_buffer_lock(buffer);
     translog_buffer_flush(buffer);
+    translog_buffer_unlock(buffer);
   }
   DBUG_PRINT("info", ("Destroy mutex: 0x%lx", (ulong) &buffer->mutex));
   pthread_mutex_destroy(&buffer->mutex);
