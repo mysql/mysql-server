@@ -387,7 +387,7 @@ const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024]= {0};
 unsigned opt_ndb_constrbuf_len= 0;
-my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
+my_bool	opt_ndb_shm;
 ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
 ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
@@ -5606,9 +5606,9 @@ master-ssl",
    0, GET_BOOL, OPT_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0},
   {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
    "Select nodes for transactions in a more optimal way.",
-   (uchar**) &opt_ndb_optimized_node_selection,
-   (uchar**) &opt_ndb_optimized_node_selection,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+   (uchar**) &global_system_variables.ndb_optimized_node_selection,
+   (uchar**) &global_system_variables.ndb_optimized_node_selection,
+   0, GET_ULONG, OPT_ARG, 3, 0, 3, 0, 0, 0},
   { "ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
     "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
     (uchar**) &opt_ndb_cache_check_time, (uchar**) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
