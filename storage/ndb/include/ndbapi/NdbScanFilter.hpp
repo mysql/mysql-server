@@ -190,7 +190,9 @@ public:
    * immediately.
    */
   const class NdbError & getNdbError() const;
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbOperation * getNdbOperation();
+#endif
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbScanFilterImpl;
