@@ -845,7 +845,7 @@ protected:
 
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  NdbTransation* getNdbTransaction();
+  NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 #endif
