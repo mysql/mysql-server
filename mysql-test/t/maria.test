@@ -1262,6 +1262,10 @@ update t1 set s1=2 where seq=1;
 check table t1 extended;
 drop table t1;
 
+show variables like 'maria%';
+--replace_column 2 #
+show status like 'maria%';
+
 # End of 5.2 tests
 
 --disable_result_log

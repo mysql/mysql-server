@@ -1973,3 +1973,23 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+show variables like 'maria%';
+Variable_name	Value
+maria_block_size	8192
+maria_checkpoint_frequency	30
+maria_max_sort_file_size	9223372036854775807
+maria_pagecache_age_threshold	300
+maria_pagecache_buffer_size	8388572
+maria_pagecache_division_limit	100
+maria_repair_threads	1
+maria_sort_buffer_size	8388608
+maria_stats_method	nulls_unequal
+show status like 'maria%';
+Variable_name	Value
+Maria_pagecache_blocks_not_flushed	#
+Maria_pagecache_blocks_unused	#
+Maria_pagecache_blocks_used	#
+Maria_pagecache_read_requests	#
+Maria_pagecache_reads	#
+Maria_pagecache_write_requests	#
+Maria_pagecache_writes	#
