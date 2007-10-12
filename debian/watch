@@ -1,3 +1,0 @@
-version=3
-opts="uversionmangle=s/-(rc|beta)/$1/" \
-  ftp://ftp.mysql.com/pub/mysql/src/mysql-([\d\.]*(?:-beta|-rc)?).tar.gz debian
