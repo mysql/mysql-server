@@ -5427,8 +5427,10 @@ translog_get_next_chunk(TRANSLOG_SCANNER_DATA *scanner)
   uint16 len;
   DBUG_ENTER("translog_get_next_chunk");
 
-  if ((len= translog_get_total_chunk_length(scanner->page,
-                                            scanner->page_offset)) == 0)
+  if (translog_scanner_eop(scanner))
+    len= TRANSLOG_PAGE_SIZE - scanner->page_offset;
+  else if ((len= translog_get_total_chunk_length(scanner->page,
+                                                 scanner->page_offset)) == 0)
     DBUG_RETURN(1);
   scanner->page_offset+= len;
 
@@ -6625,6 +6627,20 @@ LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
     DBUG_RETURN(LSN_IMPOSSIBLE);
 
   translog_init_scanner(addr, 0, &scanner, 1);
+  /* addr can point not to a chunk beginning but to a page end */
+  if (translog_scanner_eop(&scanner))
+  {
+    if (translog_get_next_chunk(&scanner))
+    {
+      result= LSN_ERROR;
+      goto out;
+    }
+    if (scanner.page == END_OF_LOG)
+    {
+      result= LSN_IMPOSSIBLE;
+      goto out;
+    }
+  }
 
   chunk_type= scanner.page[scanner.page_offset] & TRANSLOG_CHUNK_TYPE;
   DBUG_PRINT("info", ("type: %x  byte: %x", (uint) chunk_type,
@@ -6656,6 +6672,7 @@ out:
   translog_destroy_scanner(&scanner);
   DBUG_RETURN(result);
 }
+
 
 /**
    @brief returns the LSN of the first record starting in this log
