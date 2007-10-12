@@ -170,12 +170,14 @@ public:
 #endif
   };
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
-   * Convenience method to fetch this transactions Ndb* object 
+   * Convenience method to fetch this transaction's Ndb* object 
    */
   Ndb * getNdb() { 
     return theNdb; 
   }
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
