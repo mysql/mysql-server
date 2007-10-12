@@ -9,15 +9,29 @@ void mempool_init(struct mempool *mp, void *base, int size) {
     mp->size = size;
     mp->free_offset = 0;
     mp->frag_size = 0;
+    mp->compress_func = 0;
+    mp->compress_arg = 0;
 }
 
 void mempool_fini(struct mempool *mp __attribute__((unused))) {
     // printf("mempool_fini %p %p %d %d\n", mp, mp->base, mp->size, mp->frag_size);
 }
 
-void mempool_get_base_size(struct mempool *mp, void **base_ptr, int *size_ptr) {
-    *base_ptr = mp->base;
-    *size_ptr = mp->size;
+void mempool_set_compress_func(struct mempool *mp, mempool_compress_func compress_func, void *compress_arg) {
+    mp->compress_func = compress_func;
+    mp->compress_arg = compress_arg;
+}
+
+void mempool_call_compress_func(struct mempool *mp) {
+    mp->compress_func(mp, mp->compress_arg);
+}
+
+void *mempool_get_base(struct mempool *mp) {
+    return mp->base;
+}
+
+int mempool_get_size(struct mempool *mp) {
+    return mp->size;
 }
 
 int mempool_get_frag_size(struct mempool *mp) {
