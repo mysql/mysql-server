@@ -3577,9 +3577,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("info",("OPTION_BIN_LOG is %s, db_ok('%s') == %d",
-                         (thd->options & OPTION_BIN_LOG) ? "set" : "clear",
-                         local_db, binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
