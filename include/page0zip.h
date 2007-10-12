@@ -139,8 +139,11 @@ UNIV_INLINE
 lint
 page_zip_max_ins_size(
 /*==================*/
-					/* out: TRUE if page_zip_write_rec()
-					will succeed */
+					/* out: a positive number
+					indicating the maximum size of
+					a record whose insertion is
+					guaranteed to succeed, or
+					zero or negative */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	ibool			is_clust)/* in: TRUE if clustered index */
 	__attribute__((warn_unused_result, nonnull, pure));
