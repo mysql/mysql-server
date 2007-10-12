@@ -523,6 +523,9 @@ static sys_var_long_ptr
 sys_ndb_extra_logging(&vars, "ndb_extra_logging", &ndb_extra_logging);
 static sys_var_thd_bool
 sys_ndb_use_copying_alter_table(&vars, "ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
+static sys_var_thd_ulong
+sys_ndb_optimized_node_selection(&vars, "ndb_optimized_node_selection",
+                                 &SV::ndb_optimized_node_selection);
 #endif //WITH_NDBCLUSTER_STORAGE_ENGINE
 
 /* Time/date/datetime formats */
