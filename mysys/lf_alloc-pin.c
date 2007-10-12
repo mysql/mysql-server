@@ -416,14 +416,17 @@ static void alloc_free(struct st_lf_alloc_node *first,
                        struct st_lf_alloc_node volatile *last,
                        LF_ALLOCATOR *allocator)
 {
-  struct st_lf_alloc_node * volatile tmp;
-  tmp= allocator->top;
+  /*
+    we need a union here to access type-punned pointer reliably.
+    otherwise gcc -fstrict-aliasing will not see 'tmp' changed in the loop
+  */
+  union { struct st_lf_alloc_node * node; void *ptr; } tmp;
+  tmp.node= allocator->top;
   do
   {
-    last->next= tmp;
+    last->next= tmp.node;
   } while (!my_atomic_casptr((void **)(char *)&allocator->top,
-                             (void **)(char *)&tmp, first) &&
-           LF_BACKOFF);
+                             (void **)&tmp.ptr, first) && LF_BACKOFF);
 }
 
 /*
