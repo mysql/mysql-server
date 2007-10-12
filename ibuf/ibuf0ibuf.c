@@ -2553,6 +2553,8 @@ ibuf_insert_low(
 				/* out: DB_SUCCESS, DB_FAIL, DB_STRONG_FAIL */
 	ulint		mode,	/* in: BTR_MODIFY_PREV or BTR_MODIFY_TREE */
 	const dtuple_t*	entry,	/* in: index entry to insert */
+	ulint		entry_size,
+				/* in: rec_get_converted_size(index, entry) */
 	dict_index_t*	index,	/* in: index where to insert; must not be
 				unique or clustered */
 	ulint		space,	/* in: space id where to insert */
@@ -2561,7 +2563,6 @@ ibuf_insert_low(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	big_rec_t*	dummy_big_rec;
-	ulint		entry_size;
 	btr_pcur_t	pcur;
 	btr_cur_t*	cursor;
 	dtuple_t*	ibuf_entry;
@@ -2648,8 +2649,6 @@ ibuf_insert_low(
 	} else {
 		ibuf_enter();
 	}
-
-	entry_size = rec_get_converted_size(index, entry, 0);
 
 	heap = mem_heap_create(512);
 
@@ -2823,6 +2822,7 @@ ibuf_insert(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ulint	err;
+	ulint	entry_size;
 
 	ut_a(trx_sys_multiple_tablespace_format);
 	ut_ad(dtuple_check_typed(entry));
@@ -2830,17 +2830,19 @@ ibuf_insert(
 
 	ut_a(!dict_index_is_clust(index));
 
-	if (rec_get_converted_size(index, entry, 0)
+	entry_size = rec_get_converted_size(index, entry, 0);
+
+	if (entry_size
 	    >= (page_get_free_space_of_empty(dict_table_is_comp(index->table))
 		/ 2)) {
 		return(FALSE);
 	}
 
-	err = ibuf_insert_low(BTR_MODIFY_PREV, entry, index,
-			      space, zip_size, page_no, thr);
+	err = ibuf_insert_low(BTR_MODIFY_PREV, entry, entry_size,
+			      index, space, zip_size, page_no, thr);
 	if (err == DB_FAIL) {
-		err = ibuf_insert_low(BTR_MODIFY_TREE, entry, index,
-				      space, zip_size, page_no, thr);
+		err = ibuf_insert_low(BTR_MODIFY_TREE, entry, entry_size,
+				      index, space, zip_size, page_no, thr);
 	}
 
 	if (err == DB_SUCCESS) {
