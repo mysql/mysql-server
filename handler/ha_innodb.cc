@@ -2334,13 +2334,18 @@ ha_innobase::open(
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
-		sql_print_error("Cannot find table %s from the internal data "
-				"dictionary\nof InnoDB though the .frm file "
-				"for the table exists. Maybe you\nhave "
-				"deleted and recreated InnoDB data files but "
-				"have forgotten\nto delete the corresponding "
-				".frm files of InnoDB tables, or you\n"
-				"have moved .frm files to another database?\n"
+		sql_print_error("Cannot find or open table %s from\n"
+				"the internal data dictionary of InnoDB "
+				"though the .frm file for the\n"
+				"table exists. Maybe you have deleted and "
+				"recreated InnoDB data\n"
+				"files but have forgotten to delete the "
+				"corresponding .frm files\n"
+				"of InnoDB tables, or you have moved .frm "
+				"files to another database?\n"
+				"or, the table contains indexes that this "
+				"version of the engine\n"
+				"doesn't support.\n"
 				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
