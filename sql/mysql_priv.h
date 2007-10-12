@@ -1853,9 +1853,6 @@ extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
-#ifdef WITH_MARIA_STORAGE_ENGINE
-extern I_List<NAMED_LIST> pagecaches;
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
@@ -1868,6 +1865,9 @@ extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
+
+extern handlerton *maria_hton; /* @todo remove, make it static in ha_maria.cc
+                                  currently it's needed for sql_delete.cc */
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
