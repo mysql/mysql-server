@@ -6,6 +6,8 @@ Memory primitives
 Created 5/30/1994 Heikki Tuuri
 ************************************************************************/
 
+#include "ut0byte.h"
+
 UNIV_INLINE
 void*
 ut_memcpy(void* dest, const void* sour, ulint n)
@@ -166,7 +168,7 @@ ut_raw_to_hex(
 		rawc++;				\
 	}
 
-	if ((ullint) hex % 2 == 0) {
+	if (ut_align_offset(hex, 2) == 0) {
 
 		LOOP_READ_BYTES(
 			*(uint16*) hex = hex_map[*rawc]
