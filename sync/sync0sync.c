@@ -1036,6 +1036,8 @@ sync_thread_add_level(
 	case SYNC_DICT_AUTOINC_MUTEX:
 	case SYNC_DICT_OPERATION:
 	case SYNC_DICT_HEADER:
+	case SYNC_TRX_I_S_RWLOCK:
+	case SYNC_TRX_I_S_LAST_READ:
 		if (!sync_thread_levels_g(array, level)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
