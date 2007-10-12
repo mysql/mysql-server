@@ -7172,6 +7172,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_merge_db= SHOW_OPTION_YES;
     else
       have_merge_db= SHOW_OPTION_DISABLED;
+    break;
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
     /* Deprecated option */
@@ -7311,6 +7312,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
       exit(1);
     }
+    break;
   }
   case OPT_MYISAM_STATS_METHOD:
   {
