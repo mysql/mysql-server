@@ -843,10 +843,9 @@ protected:
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
 
-  NdbTransation* getNdbTransaction();
-
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransation* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 #endif
