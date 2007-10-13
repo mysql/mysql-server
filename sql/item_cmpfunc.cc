@@ -4295,6 +4295,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
+      fixed= 1;
       return FALSE;
     }
     int error;
