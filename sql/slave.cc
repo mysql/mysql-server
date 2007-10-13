@@ -3581,7 +3581,16 @@ static Log_event* next_event(Relay_log_info* rli)
           a new event and is queuing it; the false "0" will exist until SQL
           finishes executing the new event; it will be look abnormal only if
           the events have old timestamps (then you get "many", 0, "many").
-          Transient phases like this can't really be fixed.
+
+          Transient phases like this can be fixed with implemeting
+          Heartbeat event which provides the slave the status of the
+          master at time the master does not have any new update to send.
+          Seconds_Behind_Master would be zero only when master has no
+          more updates in binlog for slave. The heartbeat can be sent
+          in a (small) fraction of slave_net_timeout. Until it's done
+          rli->last_master_timestamp is temporarely (for time of
+          waiting for the following event) reset whenever EOF is
+          reached.
         */
         time_t save_timestamp= rli->last_master_timestamp;
         rli->last_master_timestamp= 0;

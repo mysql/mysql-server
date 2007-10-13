@@ -114,6 +114,9 @@ private:
   flag_set m_flags;
 };
 
+#ifndef DBUG_OFF
+uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
+#endif
 
 /*
   pretty_print_str()

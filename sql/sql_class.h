@@ -2436,6 +2436,11 @@ class multi_delete :public select_result_interceptor
   /* True if at least one table we delete from is not transactional */
   bool normal_tables;
   bool delete_while_scanning;
+  /*
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
@@ -2471,6 +2476,11 @@ class multi_update :public select_result_interceptor
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
   bool ignore;
+  /* 
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled;
 
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
