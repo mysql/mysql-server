@@ -28,7 +28,7 @@ public:
   ThreadConfig();
   ~ThreadConfig();
 
-  void ipControlLoop();
+  void ipControlLoop(Uint32 thread_index);
 
   int doStart(NodeState::StartLevel startLevel);
 private:

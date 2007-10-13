@@ -60,6 +60,21 @@ static int indexToNumber(int index)
  * Call back functions
  *****************************************************************************/
 
+void* ndb_thread_add_thread_id(void *param)
+{
+  return NULL;
+}
+
+void *ndb_thread_remove_thread_id(void *param)
+{
+  return NULL;
+}
+
+void ndb_thread_fill_thread_object(void *param, uint *len, bool server)
+{
+  *len = 0;
+}
+
 void
 reportError(void * callbackObj, NodeId nodeId,
 	    TransporterError errorCode, const char *info)

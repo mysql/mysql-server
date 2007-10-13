@@ -666,6 +666,12 @@ void getTextJobStatistic(QQQQ) {
 		       "Mean loop Counter in doJob last 8192 times = %u",
 		       theData[1]);
 }
+void getTextThreadConfigLoop(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+  "8192 loops,tot %u usec,exec %u extra:loops = %u,time %u,const %u",
+		       theData[1], theData[3], theData[4], theData[5],
+                       theData[2]);
+}
 void getTextSendBytesStatistic(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean send size to Node = %d last 4096 sends = %u bytes",
@@ -1061,6 +1067,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(OperationReportCounters, LogLevel::llStatistic,   8, Logger::LL_INFO ), 
   ROW(TableCreated,            LogLevel::llStatistic,   7, Logger::LL_INFO ),
   ROW(JobStatistic,            LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(ThreadConfigLoop,        LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),

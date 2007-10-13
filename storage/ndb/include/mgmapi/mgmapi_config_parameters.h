@@ -123,6 +123,12 @@
 #define CFG_DB_MICRO_GCP_INTERVAL     170 /* micro gcp */
 #define CFG_DB_MICRO_GCP_TIMEOUT      171
 
+#define CFG_DB_SCHED_EXEC_TIME        174
+#define CFG_DB_SCHED_SPIN_TIME        175
+#define CFG_DB_REALTIME_SCHEDULER     176
+#define CFG_DB_EXECUTE_LOCK_CPU       177
+#define CFG_DB_MAINT_LOCK_CPU         178
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
