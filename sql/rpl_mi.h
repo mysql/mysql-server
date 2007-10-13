@@ -83,6 +83,8 @@ class MASTER_INFO : public Slave_reporting_capability
   RELAY_LOG_INFO rli;
   uint port;
   uint connect_retry;
+  float heartbeat_period;         // interface with CHANGE MASTER or master.info
+  ulonglong received_heartbeats;  // counter of received heartbeat events
 #ifndef DBUG_OFF
   int events_till_disconnect;
 #endif
