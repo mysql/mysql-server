@@ -12,7 +12,7 @@
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
 flush logs;
---exec $MYSQL_BINLOG --start-position=555 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+--exec $MYSQL_BINLOG --start-position=556 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
@@ -53,8 +53,7 @@ rollback;
 
 select count(*) from tt /* 2 */;
 show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from ti /* that is what slave would miss - a bug */;
@@ -78,8 +77,7 @@ rollback;
 # check
 
 show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from tt /* that is what otherwise slave missed - the bug */;

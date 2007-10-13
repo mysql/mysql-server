@@ -34,14 +34,14 @@ master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
 master-bin.000001	#	Write_rows	1	#	table_id: #
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
-show binlog events from 106 limit 1;
+show binlog events from 107 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
-show binlog events from 106 limit 2;
+show binlog events from 107 limit 2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-show binlog events from 106 limit 2,1;
+show binlog events from 107 limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 flush logs;
@@ -228,13 +228,13 @@ master-bin.000002	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Query	1	#	COMMIT
 show binary logs;
 Log_name	File_size
-master-bin.000001	1760
-master-bin.000002	623
+master-bin.000001	1761
+master-bin.000002	624
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1855
-slave-bin.000002	202
+slave-bin.000001	1856
+slave-bin.000002	203
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
@@ -272,7 +272,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000002
-Read_Master_Log_Pos	623
+Read_Master_Log_Pos	624
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000002
@@ -287,7 +287,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	623
+Exec_Master_Log_Pos	624
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
