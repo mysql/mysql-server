@@ -126,7 +126,9 @@ drop table t1,t2;
 #
 CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
 CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
-CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique) ENGINE=MyISAM;
+CREATE TABLE t4 (a int, PRIMARY KEY (a), b int unique) ENGINE=Innodb;
+CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 
 
 #
@@ -169,7 +171,7 @@ CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
  select count(*) from t1 /* must be 2 */;
 
 #
-# UPDATE (multi-update see bug#27716)
+# UPDATE inc multi-update
 #
 
 # prepare
@@ -185,9 +187,48 @@ CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
  source include/show_binlog_events.inc; # must be events of the query
  select count(*) from t1 /* must be 2 */;
 
+## multi_update::send_eof() branch
+
+# prepare
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1);
+ insert into t4 values (1,1),(2,2);
+
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
+
+# check
+ source include/show_binlog_events.inc; # the offset must denote there is the query
+ select count(*) from t1 /* must be 4 */;
+
+## send_error() branch of multi_update
+
+# prepare
+ delete from t1;
+ delete from t3;
+ delete from t4;
+ insert into t3 values (1,1),(2,2);
+ insert into t4 values (1,1),(2,2);
+
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+
+# check
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop table t4;
+
 
 #
-# DELETE (for multi-delete see Bug #29136)
+# DELETE incl multi-delete
 #
 
 # prepare
@@ -203,6 +244,27 @@ CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
 # execute
  --error ER_DUP_ENTRY
  delete from t2;
+# check
+ source include/show_binlog_events.inc; # the offset must denote there is the query
+ select count(*) from t1 /* must be 1 */;
+
+# cleanup
+ drop trigger trg_del;
+
+# prepare
+ delete from t1;
+ delete from t2;
+ delete from t5;
+ create trigger trg_del_t2 after  delete on t2 for each row
+   insert into t1 values (1);
+ insert into t2 values (2),(3);
+ insert into t5 values (1),(2);
+ reset master;
+
+# execute
+ --error ER_DUP_ENTRY
+ delete t2.* from t2,t5 where t2.a=t5.a + 1;
+
 # check
  source include/show_binlog_events.inc; # must be events of the query
  select count(*) from t1 /* must be 1 */;
@@ -229,6 +291,8 @@ CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
 #
 # bug#23333 cleanup
 #
-drop trigger trg_del;
-drop table t1,t2,t3,t4;
+
+
+drop trigger trg_del_t2;
+drop table t1,t2,t3,t4,t5;
 drop function bug27417;
