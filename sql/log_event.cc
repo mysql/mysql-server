@@ -558,8 +558,32 @@ int Log_event::do_update_pos(Relay_log_info *rli)
     Matz: I don't think we will need this check with this refactoring.
   */
   if (rli)
-    rli->stmt_done(log_pos, when);
-
+  {
+    /*
+      bug#29309 simulation: resetting the flag to force
+      wrong behaviour of artificial event to update
+      rli->last_master_timestamp for only one time -
+      the first FLUSH LOGS in the test.
+    */
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 1
+                        && is_artificial_event())
+                    {
+                      debug_not_change_ts_if_art_event= 0;
+                    });
+#ifndef DBUG_OFF
+    rli->stmt_done(log_pos, 
+                   is_artificial_event() &&
+                   debug_not_change_ts_if_art_event > 0 ? 0 : when);
+#else
+    rli->stmt_done(log_pos, is_artificial_event()? 0 : when);
+#endif
+    DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
+                    if (debug_not_change_ts_if_art_event == 0)
+                    {
+                      debug_not_change_ts_if_art_event= 2;
+                    });
+  }
   return 0;                                   // Cannot fail currently
 }
 

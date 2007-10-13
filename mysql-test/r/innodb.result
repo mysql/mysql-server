@@ -1086,6 +1086,19 @@ n	d
 1	30
 2	20
 drop table t1,t2;
+drop table if exists t1, t2;
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
+delete t2 from t2;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
+count(*)
+2
+drop table t1, t2;
 create table t1 (a int, b int) engine=innodb;
 insert into t1 values(20,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
@@ -1751,10 +1764,10 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	70
+Innodb_rows_deleted	71
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1083
+Innodb_rows_inserted	1085
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	886
