@@ -588,6 +588,7 @@ CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
 
 # as the test is about to see erroed queries in binlog
+set @sav_binlog_format=  @@session.binlog_format;
 set @@session.binlog_format= mixed;
 
 
@@ -614,6 +615,7 @@ show master status /* there must be the UPDATE query event */;
 
 # cleanup bug#27716
 drop table t1, t2;
+set @@session.binlog_format= @sav_binlog_format;
 
 #
 # Bug #29136  	erred multi-delete on trans table does not rollback 
@@ -642,11 +644,13 @@ delete t3.* from t2,t3 where t2.a=t3.a;
 # check
 select count(*) from t1 /* must be 1 */;
 select count(*) from t3 /* must be 1 */;
-# the query must be in binlog (no surprise though)
-source include/show_binlog_events.inc;
 
 # cleanup bug#29136
 drop table t1, t2, t3;
+
+#
+# Add further tests from here
+#
 
 
 --echo end of tests
