@@ -2018,9 +2018,9 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
-    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
-    "row number", ARG_STRING, TRUE, &ds_row, "Number for row",
+    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"},
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -5007,7 +5007,7 @@ static struct my_option my_long_options[] =
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
-   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, 0, 0,
+   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (uchar**) &unix_sock, (uchar**) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
