@@ -569,6 +569,42 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_EXECUTE_LOCK_CPU,
+    "LockExecuteThreadToCPU",
+    DB_TOKEN,
+    "CPU ID indicating which CPU will run the execution thread",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "65535",
+    "0",
+    "65535" },
+
+  {
+    CFG_DB_MAINT_LOCK_CPU,
+    "LockMaintThreadsToCPU",
+    DB_TOKEN,
+    "CPU ID indicating which CPU will run the maintenance threads",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "65535",
+    "0",
+    "65535" },
+
+  {
+    CFG_DB_REALTIME_SCHEDULER,
+    "RealtimeScheduler",
+    DB_TOKEN,
+    "If yes, then NDB Cluster threads will be scheduled as real-time threads",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_DB_MEMLOCK,
     "LockPagesInMainMemory",
     DB_TOKEN,
@@ -591,6 +627,30 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "6000",
     "70",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_SCHED_EXEC_TIME,
+    "SchedulerExecutionTimer",
+    DB_TOKEN,
+    "Number of microseconds to execute in scheduler before sending",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "50",
+    "0",
+    "11000" },
+
+  {
+    CFG_DB_SCHED_SPIN_TIME,
+    "SchedulerSpinTimer",
+    DB_TOKEN,
+    "Number of microseconds to execute in scheduler before sleeping",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "500" },
 
   {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,

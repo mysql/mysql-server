@@ -30,6 +30,7 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <Configuration.hpp>
 
 // use this to test broken pread code
 //#define HAVE_BROKEN_PREAD 
@@ -110,6 +111,7 @@ AsyncFile::doStart()
   const NDB_THREAD_STACKSIZE stackSize = 8192;
 
   char buf[16];
+  struct ThreadContainer container;
   numAsyncFiles++;
   BaseString::snprintf(buf, sizeof(buf), "AsyncFile%d", numAsyncFiles);
 
@@ -117,11 +119,19 @@ AsyncFile::doStart()
   theStartConditionPtr = NdbCondition_Create();
   NdbMutex_Lock(theStartMutexPtr);
   theStartFlag = false;
-  theThreadPtr = NdbThread_Create(runAsyncFile,
+  container.conf = globalEmulatorData.theConfiguration;
+  container.type = NdbfsThread;
+  theThreadPtr = NdbThread_CreateWithFunc(runAsyncFile,
                                   (void**)this,
                                   stackSize,
                                   (char*)&buf,
-                                  NDB_THREAD_PRIO_MEAN);
+                                  NDB_THREAD_PRIO_MEAN,
+                                  ndb_thread_add_thread_id,
+                                  &container,
+                                  sizeof(container),
+                                  ndb_thread_remove_thread_id,
+                                  &container,
+                                  sizeof(container));
   if (theThreadPtr == 0)
     ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "","Could not allocate file system thread");
 

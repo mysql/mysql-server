@@ -1076,7 +1076,31 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
-  
+  if (arg == DumpStateOrd::CmvmiSchedulerExecutionTimer)
+  {
+    Uint32 exec_time = signal->theData[1];
+    globalEmulatorData.theConfiguration->schedulerExecutionTimer(exec_time);
+  }
+  if (arg == DumpStateOrd::CmvmiSchedulerSpinTimer)
+  {
+    Uint32 spin_time = signal->theData[1];
+    globalEmulatorData.theConfiguration->schedulerSpinTimer(spin_time);
+  } 
+  if (arg == DumpStateOrd::CmvmiRealtimeScheduler)
+  {
+    bool realtime_on = signal->theData[1];
+    globalEmulatorData.theConfiguration->realtimeScheduler(realtime_on);
+  }
+  if (arg == DumpStateOrd::CmvmiExecuteLockCPU)
+  {
+    Uint32 exec_cpu_id = signal->theData[1];
+    globalEmulatorData.theConfiguration->executeLockCPU(exec_cpu_id);
+  }
+  if (arg == DumpStateOrd::CmvmiMaintLockCPU)
+  {
+    Uint32 maint_cpu_id = signal->theData[1];
+    globalEmulatorData.theConfiguration->maintLockCPU(maint_cpu_id);
+  }
   if (arg == DumpStateOrd::CmvmiSetRestartOnErrorInsert)
   {
     if(signal->getLength() == 1)

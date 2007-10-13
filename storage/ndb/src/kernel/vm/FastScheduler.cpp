@@ -497,3 +497,37 @@ FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 
+void 
+FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
+                                      Uint32 extra_constant,
+                                      Uint32 *no_exec_loops,
+                                      Uint32 *tot_exec_time,
+                                      Uint32 *no_extra_loops,
+                                      Uint32 *tot_extra_time)
+{
+  SignalT<6> signalT;
+  Signal &signal= *(Signal*)&signalT;
+
+  memset(&signal.header, 0, sizeof(signal.header));
+  signal.header.theLength = 6;
+  signal.header.theSendersSignalId = 0;
+  signal.header.theSendersBlockRef = numberToRef(0, 0);  
+
+  signal.theData[0] = NDB_LE_ThreadConfigLoop;
+  signal.theData[1] = expired_time;
+  signal.theData[2] = extra_constant;
+  signal.theData[3] = (*tot_exec_time)/(*no_exec_loops);
+  signal.theData[4] = *no_extra_loops;
+  if (*no_extra_loops > 0)
+    signal.theData[5] = (*tot_extra_time)/(*no_extra_loops);
+  else
+    signal.theData[5] = 0;
+
+  *no_exec_loops = 0;
+  *tot_exec_time = 0;
+  *no_extra_loops = 0;
+  *tot_extra_time = 0;
+
+  execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+}
+

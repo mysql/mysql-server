@@ -115,7 +115,10 @@ public:
   void insertTimeQueue(Signal* aSignal, BlockNumber bnr,
 		       GlobalSignalNumber gsn, Uint32 aIndex);
   void scheduleTimeQueue(Uint32 aIndex);
-  
+  void reportThreadConfigLoop(Uint32 expired_time, Uint32 extra_constant,
+                              Uint32 *no_exec_loops, Uint32 *tot_exec_time,
+                              Uint32 *no_extra_loops, Uint32 *tot_extra_time);
+
 private:
   void highestAvailablePrio(Priority prio);
   void reportJob(Priority aPriority);
