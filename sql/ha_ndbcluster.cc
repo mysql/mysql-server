@@ -5304,48 +5304,6 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
-{
-  if (thd->lex->sql_command == SQLCOM_LOAD ||
-      !thd->transaction.on)
-    thd_ndb->m_transaction_on= FALSE;
-  else
-    thd_ndb->m_transaction_on= thd->variables.ndb_use_transactions;
-  thd_ndb->m_force_send= thd->variables.ndb_force_send;
-}
-
-static int check_start_transaction(THD *thd, Thd_ndb *thd_ndb)
-{
-  DBUG_ENTER("ha_ndbcluster::check_start_transaction");
-
-  DBUG_PRINT("enter", ("optimized_node_selection: %lu"
-                       "  thd->slave_thread: %d"
-                       "  thd->lex->sql_command: %d",
-                       thd->variables.ndb_optimized_node_selection,
-                       thd->slave_thread,
-                       thd->lex->sql_command));
-  if (thd->slave_thread ||
-      !(thd->variables.ndb_optimized_node_selection & 2) ||
-      !(thd->lex->sql_command == SQLCOM_SELECT ||
-        thd->lex->sql_command == SQLCOM_UPDATE ||
-        thd->lex->sql_command == SQLCOM_INSERT ||
-        thd->lex->sql_command == SQLCOM_DELETE ||
-        thd->lex->sql_command == SQLCOM_REPLACE))
-  {
-    /*
-      For most transactions we delay the start of the transaction
-      to ensure that we can if possible pick a suitable node
-      as transaction coordinator.
-      We only apply this optimisation to DML operations like
-      SELECT, INSERT, UPDATE, DELETE and REPLACE.
-    */
-    DBUG_PRINT("info", ("start transaction"));
-    DBUG_RETURN(1);
-  }
-  DBUG_PRINT("info", ("defer start transaction"));
-  DBUG_RETURN(0);
-}
-
 int ha_ndbcluster::start_statement(THD *thd,
                                    Thd_ndb *thd_ndb,
                                    uint table_count)
@@ -5373,9 +5331,24 @@ int ha_ndbcluster::start_statement(THD *thd,
       table_count == 1 indicates join in which case we do not defer start transaction
       m_use_partition_pruning == false will not defer start transaction
     */
+    DBUG_PRINT("enter", ("optimized_node_selection: %lu"
+                         "  table_count: %d"
+                         "  m_use_partition_pruning: %d"
+                         "  thd->slave_thread: %d"
+                         "  thd->lex->sql_command: %d",
+                         thd->variables.ndb_optimized_node_selection,
+                         table_count, m_use_partition_pruning,
+                         thd->slave_thread,
+                         thd->lex->sql_command));
     if (table_count ||
         !m_use_partition_pruning ||
-        check_start_transaction(thd, thd_ndb))
+        thd->slave_thread ||
+        !(thd->variables.ndb_optimized_node_selection & 2) ||
+        !(thd->lex->sql_command == SQLCOM_SELECT ||
+          thd->lex->sql_command == SQLCOM_UPDATE ||
+          thd->lex->sql_command == SQLCOM_INSERT ||
+          thd->lex->sql_command == SQLCOM_DELETE ||
+          thd->lex->sql_command == SQLCOM_REPLACE))
     {
       if (unlikely(start_transaction(error) == NULL))
       {
@@ -5619,6 +5592,16 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 error:
   thd_ndb->start_stmt_count--;
   DBUG_RETURN(error);
+}
+
+static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
+{
+  if (thd->lex->sql_command == SQLCOM_LOAD ||
+      !thd->transaction.on)
+    thd_ndb->m_transaction_on= FALSE;
+  else
+    thd_ndb->m_transaction_on= thd->variables.ndb_use_transactions;
+  thd_ndb->m_force_send= thd->variables.ndb_force_send;
 }
 
 NdbTransaction *
