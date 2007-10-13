@@ -915,7 +915,9 @@ bool Item_sum_distinct::setup(THD *thd)
   List<Create_field> field_list;
   Create_field field_def;                              /* field definition */
   DBUG_ENTER("Item_sum_distinct::setup");
-  DBUG_ASSERT(tree == 0);
+  /* It's legal to call setup() more than once when in a subquery */
+  if (tree)
+    return FALSE;
 
   /*
     Virtual table and the tree are created anew on each re-execution of
@@ -2462,6 +2464,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   /*
     Setup can be called twice for ROLLUP items. This is a bug.
     Please add DBUG_ASSERT(tree == 0) here when it's fixed.
+    It's legal to call setup() more than once when in a subquery
   */
   if (tree || table || tmp_table_param)
     return FALSE;
