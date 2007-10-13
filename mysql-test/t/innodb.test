@@ -754,6 +754,77 @@ select * from t2;
 drop table t1,t2;
 
 #
+# Bug#27716  	multi-update did partially and has not binlogged
+#
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+
+CREATE TABLE `t2` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
+
+# A. testing multi_update::send_eof() execution branch
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+reset master;
+--error ER_DUP_ENTRY
+UPDATE t2,t1 SET t2.a=t1.a+2;
+# check
+select * from t2 /* must be (3,1), (4,4) */;
+show master status /* there must no UPDATE in binlog */;
+
+# B. testing multi_update::send_error() execution branch
+delete from t1;
+delete from t2;
+insert into t1 values (1,2),(3,4),(4,4);
+insert into t2 values (1,2),(3,4),(4,4);
+reset master;
+--error ER_DUP_ENTRY
+UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
+show master status /* there must be no UPDATE query event */;
+
+# cleanup bug#27716
+drop table t1, t2;
+
+#
+# Bug #29136  	erred multi-delete on trans table does not rollback 
+#
+
+# prepare
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+       insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
+
+
+# exec cases A, B - see multi_update.test
+
+# A. send_error() w/o send_eof() branch
+
+--error ER_DUP_ENTRY
+delete t2 from t2;
+
+# check
+
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
+
+# cleanup bug#29136
+
+drop table t1, t2;
+
+
+#
 # Testing of IFNULL
 #
 create table t1 (a int, b int) engine=innodb;
