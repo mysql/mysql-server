@@ -21,6 +21,8 @@ check32: sample_offsets_local
 	./sample_offsets_local
 	diff sample_offsets_local.h sample_offsets_32.h
 
+clean:
+	rm sample_offsets_mysql sample_offsets
 install: db.h
 	cp db.h ../include/
 
