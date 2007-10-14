@@ -860,6 +860,11 @@ public:
   NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
+
+  void* getCustomData() const { return m_customData; }
+  void setCustomData(void* p) { m_customData = p; }
+protected:
+  void* m_customData;
 #endif
 protected:
 
