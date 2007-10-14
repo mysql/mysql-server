@@ -675,6 +675,7 @@ ha_ndbcluster::set_hidden_key(uchar *row, Uint64 auto_value)
 {
   /* The hidden primary key is stored just after the normal row data. */
   uint32 offset= offset_hidden_key();
+  DBUG_ASSERT(offset + NDB_HIDDEN_PRIMARY_KEY_LENGTH <= table->s->reclength + m_extra_reclength);
   memcpy(&row[offset], &auto_value, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
 }
 
@@ -720,6 +721,7 @@ ha_ndbcluster::set_partition_function_value(uchar *row, uint32 func_value)
   /* The partition function value is stored just after the hidden primary
      key (if any). */
   uint32 offset= offset_user_partition_function();
+  DBUG_ASSERT(offset + 4 <= table->s->reclength + m_extra_reclength);
   memcpy(&row[offset], &func_value, 4);
 }
 
