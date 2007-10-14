@@ -35,7 +35,7 @@ void open_file (void) {
 #ifdef LOCAL
     snprintf(fname, 100, "sample_offsets_local.h");
 #else
-    snprintf(fname, 100, "sample_offsets_%d.h", __WORDSIZE);
+    snprintf(fname, 100, "sample_offsets_%d_%d_%d.h", __WORDSIZE, DB_VERSION_MAJOR, DB_VERSION_MINOR);
 #endif
     outf = fopen(fname, "w");
     assert(outf);
@@ -150,7 +150,9 @@ void sample_dbc_offsets (void) {
 
 void sample_dbt_offsets (void) {
     field_counter=0;
-    //STRUCT_SETUP(DBT,app_private, "void*%s");
+#if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==1
+    STRUCT_SETUP(DBT,app_private, "void*%s");
+#endif
     STRUCT_SETUP(DBT,data,        "void*%s");
     STRUCT_SETUP(DBT,flags,       "u_int32_t %s");
     STRUCT_SETUP(DBT,size,        "u_int32_t %s");
