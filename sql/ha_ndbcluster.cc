@@ -902,6 +902,7 @@ ha_ndbcluster::set_hidden_key(uchar *row, Uint64 auto_value)
 {
   /* The hidden primary key is stored just after the normal row data. */
   uint32 offset= offset_hidden_key();
+  DBUG_ASSERT(offset + NDB_HIDDEN_PRIMARY_KEY_LENGTH <= table->s->reclength + m_extra_reclength);
   memcpy(&row[offset], &auto_value, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
 }
 
