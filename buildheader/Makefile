@@ -5,7 +5,7 @@ runs_mysql: ./sample_offsets_mysql
 	./sample_offsets_mysql
 runs_installed: sample_offsets
 	./sample_offsets
-sample_offsets_mysql: CPPFLAGS=-I../../mysql-5.0.27/mysql-5.0.27/mysql/build_unix/
+sample_offsets_mysql: CPPFLAGS=-I../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix/
 sample_offsets_mysql: sample_offsets.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $< -o $@
 
