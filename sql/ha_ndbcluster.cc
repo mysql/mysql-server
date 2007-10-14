@@ -3587,7 +3587,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
   if (use_tc_selection)
   {
-    DBUG_ASSERT(trans == 0);
     longlong func_value= 0;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
     error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
