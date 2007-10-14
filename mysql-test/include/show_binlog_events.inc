@@ -1,4 +1,4 @@
---let $binlog_start=106
+--let $binlog_start=107
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/

@@ -44,7 +44,7 @@ select @@server_id;
 select * from t1;
 --replace_column 1 # 8 # 9 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_PORT
-show slave status;
+--query_vertical show slave status;
 connection master;
 drop table t1;
 sync_with_master;

@@ -17,7 +17,7 @@ sync_slave_with_master;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 
-change master to master_log_pos=75;
+change master to master_log_pos=76;
 source include/show_slave_status.inc;
 start slave;
 let $slave_param= Slave_SQL_Running;
@@ -39,7 +39,7 @@ create table t1 (n int);
 insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
-change master to master_log_pos=106;
+change master to master_log_pos=107;
 start slave;
 sync_with_master;
 select * from t1 ORDER BY n;
