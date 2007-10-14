@@ -239,6 +239,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("int db_env_create(DB_ENV **, u_int32_t);\n");
     printf("int db_create(DB **, DB_ENV *, u_int32_t);\n");
     printf("char *db_strerror(int);\n");
+    printf("const char *db_version(int*,int *,int *);\n");
     printf("int log_compare (const DB_LSN*, const DB_LSN *);\n");
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
