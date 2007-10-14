@@ -6110,4 +6110,6 @@ ER_NDB_REPLICATION_SCHEMA_ERROR
         eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
 ER_CONFLICT_FN_PARSE_ERROR
         eng "Error in parsing conflict function. Message: %-.64s"
+ER_EXCEPTIONS_WRITE_ERROR
+        eng "Write to exceptions table failed. Message: %-.128s""
 

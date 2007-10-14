@@ -111,6 +111,8 @@ static uint ndbcluster_alter_partition_flags()
 #define NDB_AUTO_INCREMENT_RETRIES 10
 #define BATCH_FLUSH_SIZE (32768)
 
+static void set_ndb_err(THD *thd, const NdbError &err);
+
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 
@@ -280,30 +282,28 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 }
 
 #ifdef HAVE_NDB_BINLOG
-/*
-  Write conflicting row to exceptions table.  This is not really
-  binlog specific except for hardcoded assumptions.
-*/
+/* Write conflicting row to exceptions table. */
 int
 ha_ndbcluster::write_conflict_row(NdbTransaction* trans,
-                                  const NdbOperation* op, NdbError& err)
+                                  const uchar* row,
+                                  NdbError& err)
 {
   DBUG_ENTER("write_conflict_row");
 
   /* get exceptions table */
-  const NDBTAB *extab= m_share->m_cfn_share->m_ex_tab;
-  DBUG_ASSERT(extab != NULL);
+  const NDBTAB *ex_tab= m_share->m_cfn_share->m_ex_tab;
+  DBUG_ASSERT(ex_tab != NULL);
 
   /* get insert op */
-  NdbOperation *exop = trans->getNdbOperation(extab);
-  if (exop == NULL)
+  NdbOperation *ex_op= trans->getNdbOperation(ex_tab);
+  if (ex_op == NULL)
   {
     err= trans->getNdbError();
     DBUG_RETURN(-1);
   }
-  if (exop->insertTuple() == -1)
+  if (ex_op->insertTuple() == -1)
   {
-    err= exop->getNdbError();
+    err= ex_op->getNdbError();
     DBUG_RETURN(-1);
   }
   {
@@ -312,45 +312,43 @@ ha_ndbcluster::write_conflict_row(NdbTransaction* trans,
     uint32 master_server_id= (uint32)active_mi->master_server_id;
     uint64 master_epoch= (uint64)active_mi->master_epoch;
     uint32 count= (uint32)m_share->m_cfn_share->m_count;
-    if (exop->setValue((Uint32)0, (const char *)&(server_id)) ||
-        exop->setValue((Uint32)1, (const char *)&(master_server_id)) ||
-        exop->setValue((Uint32)2, (const char *)&(master_epoch)) ||
-        exop->setValue((Uint32)3, (const char *)&(count)))
+    if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
+        ex_op->setValue((Uint32)1, (const char *)&(master_server_id)) ||
+        ex_op->setValue((Uint32)2, (const char *)&(master_epoch)) ||
+        ex_op->setValue((Uint32)3, (const char *)&(count)))
     {
-      err= exop->getNdbError();
+      err= ex_op->getNdbError();
       DBUG_RETURN(-1);
     }
   }
-#if 0
   /* copy primary keys */
   {
-    const NDBTAB *tab= m_table;
-    int n= tab->getNoOfColumns();
-    int i;
-    for (i= 0; i < n; i++)
+    const int fixed_cols= 4;
+    const NDBTAB* tab= m_table;
+    int ncol= tab->getNoOfColumns();
+    int nkey= tab->getNoOfPrimaryKeys();
+    int i, k;
+    for (i= k= 0; i < ncol && k < nkey; i++)
     {
       const NdbDictionary::Column* col= tab->getColumn(i);
       if (col->getPrimaryKey())
       {
-        const char* col_name= col->getName();
-        const char* data= 0; // TODO
-        if (exop->setValue(col_name, data) == -1)
+        DBUG_ASSERT(row != NULL);
+        ptrdiff_t offset= table->field[i]->ptr - table->record[0];
+        const uchar* data= row + offset;
+        if (ex_op->setValue((Uint32)(fixed_cols + k), (const char*)data) == -1)
         {
-          err= exop->getNdbError();
+          err= ex_op->getNdbError();
           DBUG_RETURN(-1);
         }
+        k++;
       }
     }
   }
-#endif
   DBUG_RETURN(0);
 }
 #endif
 
-/*
-  This can be called only from execute with no commit
-  since it may write exceptions to another table.
-*/
 inline int
 check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans, const NdbOperation *first)
 {
@@ -370,6 +368,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans, c
         err.classification != NdbError::NoDataFound)
     {
 #ifdef HAVE_NDB_BINLOG
+      DBUG_PRINT("info", ("ndb error: %d", err.code));
       if (err.code == (int) error_conflict_fn_max_violation)
       {
         thd_ndb->m_max_violation_count++;
@@ -377,16 +376,60 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans, c
       else if (err.code == (int) error_conflict_fn_old_violation)
       {
         thd_ndb->m_old_violation_count++;
-        ha_ndbcluster *h= NULL;
-        if (h)
+        const void* buffer= first->getCustomData();
+        if (buffer != NULL)
         {
-          const NDB_CONFLICT_FN_SHARE* cfn_share= h->m_share->m_cfn_share;
-          NdbError exerr;
+          Ndb_exceptions_data ex_data;
+          memcpy(&ex_data, buffer, sizeof(ex_data));
+          ha_ndbcluster* h= ex_data.handler;
+          const uchar* row= ex_data.row;
+          DBUG_ASSERT(h != NULL && row != NULL);
+
+          NDB_SHARE* share= h->m_share;
+          NDB_CONFLICT_FN_SHARE* cfn_share= share->m_cfn_share;
           if (cfn_share && cfn_share->m_ex_tab)
-            if (h->write_conflict_row(trans, first, exerr))
-              ;
+          {
+            NdbError ex_err;
+            if (h->write_conflict_row(trans, row, ex_err))
+            {
+              char msg[FN_REFLEN];
+              my_snprintf(msg, sizeof(msg), "table %s%s NDB error %d '%s'",
+                          share->table_name, NDB_EXCEPTIONS_TABLE_SUFFIX,
+                          ex_err.code, ex_err.message);
+
+              NdbDictionary::Dictionary* dict= thd_ndb->ndb->getDictionary();
+
+              if (ex_err.classification == NdbError::SchemaError)
+              {
+                sql_print_warning("NDB Slave: exceptions table invalid, conflict logging stopped: %s", msg);
+                dict->removeTableGlobal(*(cfn_share->m_ex_tab), false);
+                cfn_share->m_ex_tab= NULL;
+              }
+              else if (ex_err.status == NdbError::TemporaryError)
+              {
+                /* Slave will roll back and retry entire transaction. */
+                ERR_RETURN(ex_err);
+              }
+              else
+              {
+                push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                    ER_EXCEPTIONS_WRITE_ERROR,
+                                    ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                /* Slave will stop replication. */
+                DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+              }
+            }
             else
               conflict_rows_written++;
+          }
+          else
+          {
+            DBUG_PRINT("info", ("missing %s", !cfn_share ? "cfn_share" : "ex_tab"));
+          }
+        }
+        else
+        {
+          DBUG_PRINT("info", ("missing custom data"));
         }
       }
       else
@@ -4114,6 +4157,20 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
                                  m_ndb_record, (const char*)row, mask,
                                  NULL, NULL, code)))
       ERR_RETURN(trans->getNdbError());  
+#ifdef HAVE_NDB_BINLOG
+    {
+      Ndb_exceptions_data ex_data;
+      ex_data.handler= this;
+      ex_data.row= row;
+      uchar* buffer= get_buffer(sizeof(ex_data));
+      if (buffer == NULL)
+      {
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+      memcpy(buffer, &ex_data, sizeof(ex_data));
+      op->setCustomData((void*)buffer);
+    }
+#endif
   }
 
   if (m_user_defined_partitioning)

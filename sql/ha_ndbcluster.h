@@ -128,6 +128,12 @@ enum enum_conflict_fn_type
   ,CFT_NDB_OLD
 };
 
+/* NdbOperation custom data which points out handler and record. */
+struct Ndb_exceptions_data {
+  class ha_ndbcluster* handler;
+  const uchar* row;
+};
+
 typedef struct st_ndbcluster_conflict_fn_share {
   enum_conflict_fn_type m_resolve_cft;
   uint32 m_resolve_column;
@@ -656,7 +662,7 @@ private:
     return start_transaction(error);
   }
 
-  int write_conflict_row(NdbTransaction*, const NdbOperation*, NdbError&);
+  int write_conflict_row(NdbTransaction*, const uchar* row, NdbError&);
   friend int check_completed_operations_pre_commit(Thd_ndb*,
                                                    NdbTransaction*,
                                                    const NdbOperation*);
