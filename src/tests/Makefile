@@ -10,11 +10,13 @@ check_log1: ./test_log1
 	valgrind --quiet ./test_log1
 check_db_close_no_open: ./test_db_close_no_open
 	valgrind --quiet ./test_db_close_no_open
+check_db_version: ./test_db_version
+	valgrind --quiet ./test_db_version
 
 .PHONY: check_log0 make_libs
 make_libs:
 	cd ..;make
-check: make_libs check_log0 check_log1 check_db_close_no_open
+check: make_libs check_log0 check_log1 check_db_close_no_open check_db_version
 
 test_log1.bdb: test_log1.c
 	cc -Wall -Werror -O2 -g test_log1.c -o $@ -ldb -DDBVERSION=\"bdb\"
