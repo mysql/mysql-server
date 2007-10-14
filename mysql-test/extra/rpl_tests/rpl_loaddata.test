@@ -79,7 +79,7 @@ start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+--query_vertical show slave status;
 
 # Trigger error again to test CHANGE MASTER
 
@@ -101,7 +101,7 @@ change master to master_user='test';
 change master to master_user='root';
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+--query_vertical show slave status;
 
 # Trigger error again to test RESET SLAVE
 
@@ -123,7 +123,7 @@ stop slave;
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+--query_vertical show slave status;
 
 # Finally, see if logging is done ok on master for a failing LOAD DATA INFILE
 

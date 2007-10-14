@@ -26,12 +26,14 @@
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 			  const char *default_val);
+int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 
 MASTER_INFO::MASTER_INFO()
   :Slave_reporting_capability("I/O"),
    ssl(0), fd(-1),  io_thd(0), inited(0),
    abort_slave(0),slave_running(0),
-   ssl_verify_server_cert(0), slave_run_id(0)
+   ssl_verify_server_cert(0), slave_run_id(0),
+   heartbeat_period(0), received_heartbeats(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -75,6 +77,11 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->password, master_password, MAX_PASSWORD_LENGTH);
   mi->port = master_port;
   mi->connect_retry = master_connect_retry;
+  /* 
+    always request heartbeat unless master_heartbeat_period is set explicitly zero.
+    Here is the default value for heartbeat period if CHANGE MASTER did not specify it:
+  */
+  mi->heartbeat_period= slave_net_timeout/2.0;
 
   mi->ssl= master_ssl;
   if (master_ssl_ca)
@@ -99,7 +106,10 @@ enum {
   /* 5.1.16 added value of master_ssl_verify_server_cert */
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
 
-  LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR= 16,
+  /* 5.1.23 added value of master_heartbeat_period */
+  LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
+
+  LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR= 17,
 
   /* Number of lines currently used when saving master info file */
   LINES_IN_MASTER_INFO= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR
@@ -204,6 +214,7 @@ file '%s')", fname);
     mi->fd = fd;
     int port, connect_retry, master_log_pos, lines;
     int ssl= 0, ssl_verify_server_cert= 0;
+    float master_heartbeat_period= 0.0;
     char *first_non_digit;
 
     /*
@@ -289,11 +300,18 @@ file '%s')", fname);
           init_intvar_from_file(&ssl_verify_server_cert, &mi->file, 0))
         goto errwithmsg;
 
+      /*
+        Starting from 5.1.23 master_heartbeat_period might be
+        in the file
+      */
+      if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD &&
+          init_floatvar_from_file(&master_heartbeat_period, &mi->file, 0.0))
+        goto errwithmsg;
+
       if (lines >= LINES_IN_MASTER_INFO_WITH_SSL_AND_BIND_ADDR &&
           init_strvar_from_file(mi->bind_addr, sizeof(mi->bind_addr),
                                 &mi->file, ""))
         goto errwithmsg;
-
     }
 
 #ifndef HAVE_OPENSSL
@@ -311,6 +329,7 @@ file '%s')", fname);
     mi->connect_retry= (uint) connect_retry;
     mi->ssl= (my_bool) ssl;
     mi->ssl_verify_server_cert= ssl_verify_server_cert;
+    mi->heartbeat_period= master_heartbeat_period;
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -389,16 +408,18 @@ int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
      contents of file). But because of number of lines in the first line
      of file we don't care about this garbage.
   */
-
+  char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
+  my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
-              mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert);
+              mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
+              heartbeat_buf);
   DBUG_RETURN(-flush_io_cache(file));
 }
 

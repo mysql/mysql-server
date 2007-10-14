@@ -54,10 +54,10 @@ DELETE FROM t1 WHERE a = 0;
 UPDATE t1 SET a=99 WHERE a = 0;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server ver: SERVER_VERSION, Binlog ver: 4
-master-bin.000001	106	Query	1	192	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	192	Table_map	1	233	table_id: # (test.t1)
-master-bin.000001	233	Write_rows	1	272	table_id: # flags: STMT_END_F
+master-bin.000001	4	Format_desc	1	107	Server ver: SERVER_VERSION, Binlog ver: 4
+master-bin.000001	107	Query	1	193	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	193	Table_map	1	234	table_id: # (test.t1)
+master-bin.000001	234	Write_rows	1	273	table_id: # flags: STMT_END_F
 DROP TABLE t1;
 ================ Test for BUG#17620 ================
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
