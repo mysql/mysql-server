@@ -6106,10 +6106,14 @@ ER_EVENT_INVALID_CREATION_CTX
 ER_TRG_CANT_OPEN_TABLE
   eng "Cannot open table for trigger `%-.64s`.`%-.64s`"
 
+ER_SLAVE_HEARTBEAT_FAILURE
+  eng "Unexpected master's heartbeat data: %s"
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
+  eng "The requested value for the heartbeat period %s %s"
+
 ER_NDB_REPLICATION_SCHEMA_ERROR
         eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
 ER_CONFLICT_FN_PARSE_ERROR
         eng "Error in parsing conflict function. Message: %-.64s"
 ER_EXCEPTIONS_WRITE_ERROR
         eng "Write to exceptions table failed. Message: %-.128s""
-
