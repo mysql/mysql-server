@@ -9,7 +9,7 @@ extern "C" {
 #define DB_VERSION_MINOR 1
 #define DB_VERSION_PATCH 24
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.1.24"
 #else
 #define DB_VERSION_STRING "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -202,6 +202,7 @@ struct __toku_dbt {
 int db_env_create(DB_ENV **, u_int32_t);
 int db_create(DB **, DB_ENV *, u_int32_t);
 char *db_strerror(int);
+const char *db_version(int*,int *,int *);
 int log_compare (const DB_LSN*, const DB_LSN *);
 #if defined(__cplusplus)
 }
