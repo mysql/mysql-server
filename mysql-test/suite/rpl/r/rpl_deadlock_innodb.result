@@ -85,7 +85,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 stop slave;
 delete from t3;
-change master to master_log_pos=548;
+change master to master_log_pos=549;
 begin;
 select * from t2 for update;
 a
@@ -146,7 +146,7 @@ set @my_max_relay_log_size= @@global.max_relay_log_size;
 set global max_relay_log_size=0;
 stop slave;
 delete from t3;
-change master to master_log_pos=548;
+change master to master_log_pos=549;
 begin;
 select * from t2 for update;
 a

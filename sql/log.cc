@@ -4033,36 +4033,60 @@ err:
 }
 
 
-/*
-  Wait until we get a signal that the binary log has been updated
+/**
+  Wait until we get a signal that the relay log has been updated
 
-  SYNOPSIS
-    wait_for_update()
-    thd			Thread variable
-    is_slave            If 0, the caller is the Binlog_dump thread from master;
-                        if 1, the caller is the SQL thread from the slave. This
-                        influences only thd->proc_info.
-
-  NOTES
-    One must have a lock on LOCK_log before calling this function.
-    This lock will be released before return! That's required by
-    THD::enter_cond() (see NOTES in sql_class.h).
+  @param[in] thd   a THD struct
+  @note
+    LOCK_log must be taken before calling this function.
+    It will be released at the end of the function.
 */
 
-void MYSQL_BIN_LOG::wait_for_update(THD* thd, bool is_slave)
+void MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd)
 {
   const char *old_msg;
   DBUG_ENTER("wait_for_update");
-
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           is_slave ?
-                           "Has read all relay log; waiting for the slave I/O "
-                           "thread to update it" :
-                           "Has sent all binlog to slave; waiting for binlog "
-                           "to be updated");
+                           "Slave has read all relay log; " 
+                           "waiting for the slave I/O "
+                           "thread to update it" );
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Wait until we get a signal that the binary log has been updated.
+  Applies to master only.
+     
+  NOTES
+  @param[in] thd        a THD struct
+  @param[in] timeout    a pointer to a timespec;
+                        NULL means to wait w/o timeout.
+  @retval    0          if got signalled on update
+  @retval    non-0      if wait timeout elapsed
+  @note
+    LOCK_log must be taken before calling this function.
+    LOCK_log is being released while the thread is waiting.
+    LOCK_log is released by the caller.
+*/
+
+int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
+                                           const struct timespec *timeout)
+{
+  int ret= 0;
+  const char* old_msg = thd->proc_info;
+  DBUG_ENTER("wait_for_update_bin_log");
+  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
+                           "Master has sent all binlog to slave; "
+                           "waiting for binlog to be updated");
+  if (!timeout)
+    pthread_cond_wait(&update_cond, &LOCK_log);
+  else
+    ret= pthread_cond_timedwait(&update_cond, &LOCK_log,
+                                const_cast<struct timespec *>(timeout));
+  DBUG_RETURN(ret);
 }
 
 
