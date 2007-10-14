@@ -82,8 +82,15 @@ struct fieldinfo {
     unsigned int size;
 };
 
-#include "sample_offsets_32.h"
-#include "sample_offsets_64.h"
+#if USE_MAJOR==4 && USE_MINOR==1
+#include "sample_offsets_32_4_1.h"
+#include "sample_offsets_64_4_1.h"
+#elif USE_MAJOR==4 && USE_MINOR==3
+#include "sample_offsets_32_4_3.h"
+#include "sample_offsets_64_4_3.h"
+#else
+#error
+#endif
 
 void print_struct (const char *structname, int need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N) {
     unsigned int i;
@@ -166,11 +173,13 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus)\nextern \"C\" {\n#endif\n");
 
+    assert(DB_VERSION_MAJOR==DB_VERSION_MAJOR_32);
+    assert(DB_VERSION_MINOR==DB_VERSION_MINOR_32);
     dodefine(DB_VERSION_MAJOR);
     dodefine(DB_VERSION_MINOR);
     dodefine(DB_VERSION_PATCH);
     printf("#ifndef _TOKUDB_WRAP_H\n");
-    printf("#define DB_VERSION_STRING \"Tokutek: TokuDB\"\n");
+    printf("#define DB_VERSION_STRING \"Tokutek: TokuDB %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
     printf("#else\n");
     printf("#define DB_VERSION_STRING \"Tokutek: TokuDB (wrapped bdb)\"\n");
     printf("#endif\n");
