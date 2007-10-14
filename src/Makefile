@@ -22,7 +22,7 @@ install: $(LIBNAME)
 clean:
 	rm -rf *.$(LIBEXT) *.o
 ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h
-DBBINS = ydb.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/cachetable.o ../newbrt/hashtable.o ../newbrt/header-io.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o
+DBBINS = ydb.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/cachetable.o ../newbrt/hashtable.o ../newbrt/header-io.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/mempool.o
 $(LIBNAME): $(DBBINS)
 	cc  $(CPPFLAGS) $(DBBINS) $(SHARED) -o $@ $(CFLAGS)
 libdb.a(ydb.o): ydb.o

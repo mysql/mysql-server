@@ -521,3 +521,10 @@ char *db_strerror (int error) {
 	goto unknown;
     }
 }
+
+const char *db_version (int *major, int *minor, int *patch) {
+    if (major) *major=DB_VERSION_MAJOR;
+    if (minor) *minor=DB_VERSION_MINOR;
+    if (patch) *patch=DB_VERSION_PATCH;
+    return DB_VERSION_STRING;
+}
