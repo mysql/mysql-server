@@ -22,6 +22,7 @@
 #include <Interpreter.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include "NdbApiSignal.hpp"
+#include "NdbUtil.hpp"
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>
@@ -621,12 +622,43 @@ NdbScanFilterImpl::handle_filter_too_large()
   op->theStatus = m_initial_op_status;
 
   // reset interpreter state to initial
+
+  NdbBranch* tBranch = op->theFirstBranch;
+  while (tBranch != NULL) {
+    NdbBranch* tmp = tBranch;
+    tBranch = tBranch->theNext;
+    op->theNdb->releaseNdbBranch(tmp);
+  }
   op->theFirstBranch = NULL;
   op->theLastBranch = NULL;
+
+  NdbLabel* tLabel = op->theFirstLabel;
+  while (tLabel != NULL) {
+    NdbLabel* tmp = tLabel;
+    tLabel = tLabel->theNext;
+    op->theNdb->releaseNdbLabel(tmp);
+  }
+  op->theFirstLabel = NULL;
+  op->theLastLabel = NULL;
+
+  NdbCall* tCall = op->theFirstCall;
+  while (tCall != NULL) {
+    NdbCall* tmp = tCall;
+    tCall = tCall->theNext;
+    op->theNdb->releaseNdbCall(tmp);
+  }
   op->theFirstCall = NULL;
   op->theLastCall = NULL;
+
+  NdbSubroutine* tSubroutine = op->theFirstSubroutine;
+  while (tSubroutine != NULL) {
+    NdbSubroutine* tmp = tSubroutine;
+    tSubroutine = tSubroutine->theNext;
+    op->theNdb->releaseNdbSubroutine(tmp);
+  }
   op->theFirstSubroutine = NULL;
   op->theLastSubroutine = NULL;
+
   op->theNoOfLabels = 0;
   op->theNoOfSubroutines = 0;
 
