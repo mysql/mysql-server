@@ -917,7 +917,7 @@ bool Item_sum_distinct::setup(THD *thd)
   DBUG_ENTER("Item_sum_distinct::setup");
   /* It's legal to call setup() more than once when in a subquery */
   if (tree)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   /*
     Virtual table and the tree are created anew on each re-execution of
@@ -925,7 +925,7 @@ bool Item_sum_distinct::setup(THD *thd)
     mem_root.
   */
   if (field_list.push_back(&field_def))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   null_value= maybe_null= 1;
   quick_group= 0;
@@ -937,7 +937,7 @@ bool Item_sum_distinct::setup(THD *thd)
                                args[0]->unsigned_flag);
 
   if (! (table= create_virtual_tmp_table(thd, field_list)))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   /* XXX: check that the case of CHAR(0) works OK */
   tree_key_length= table->s->reclength - table->s->null_bytes;
