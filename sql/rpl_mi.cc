@@ -78,7 +78,7 @@ void init_master_info_with_options(MASTER_INFO* mi)
     if CHANGE MASTER did not specify it.  (no data loss in conversion
     as hb period has a max)
   */
-  mi->heartbeat_period= (float) slave_net_timeout/2.0;
+  mi->heartbeat_period= (float) (slave_net_timeout/2.0);
 
   mi->ssl= master_ssl;
   if (master_ssl_ca)
