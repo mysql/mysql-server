@@ -21,11 +21,12 @@ enum { NODE_SIZE = 1<<20 };
 CACHETABLE ct;
 BRT t;
 
-void setup (void) {
+void setup (int nodesize) {
+    printf("nodesize=%d\n", nodesize);
     int r;
     unlink(fname);
     r = brt_create_cachetable(&ct, 0); assert(r==0);
-    r = open_brt(fname, 0, 1, &t, NODE_SIZE, ct, default_compare_fun); assert(r==0);
+    r = open_brt(fname, 0, 1, &t, nodesize, ct, default_compare_fun); assert(r==0);
 }
 
 void shutdown (void) {
@@ -87,23 +88,47 @@ void biginsert (long long n_elements, struct timeval *starttime) {
     }
 }
 
-
+void usage() {
+    printf("benchmark-test [--nodesize NODESIZE] [TOTALITEMS]\n");
+}
 
 int main (int argc, char *argv[]) {
+    /* set defaults */
+    int nodesize = NODE_SIZE;
+
+    /* parse parameters */
+    int i;
+    for (i=1; i<argc; i++) {
+        char *arg = argv[i];
+        if (arg[0] != '-')
+            break;
+        if (strcmp(arg, "--nodesize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                nodesize = atoi(argv[i]);
+            }
+            continue;
+        }
+
+        usage();
+        return 1;
+    }
+
     struct timeval t1,t2,t3;
     long long total_n_items;
-    if (argc==2) {
+    if (i < argc) {
 	char *end;
 	errno=0;
-	total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long) strtol(argv[1], &end, 10);
+	total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long) strtol(argv[i], &end, 10);
 	assert(errno==0);
 	assert(*end==0);
-	assert(end!=argv[1]);
+	assert(end!=argv[i]);
     } else {
 	total_n_items = 1LL<<22; // 1LL<<16
     }
+
     printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
-    setup();
+    setup(nodesize);
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
