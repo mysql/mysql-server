@@ -1,6 +1,7 @@
 CFLAGS = -Wall -W -O2 -Werror -g
 MYSQL_H = -I../../mysql-5.0.27/mysql-5.0.27/bdb/build_unix/
 runs: runs_mysql runs_installed
+hs: db.h_4_3 db.h_4_1
 # the mysql versions use the header in the mysql distribution.
 runs_mysql: ./sample_offsets_mysql
 	./sample_offsets_mysql

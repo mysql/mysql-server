@@ -147,7 +147,8 @@ struct __toku_db {
   int (*set_flags) (DB *, u_int32_t); /* 32-bit offset=380 size=4, 64=bit offset=664 size=8 */
   void* __toku_dummy6[3];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=396 size=4, 64=bit offset=696 size=8 */
-  void* __toku_dummy7[3];
+  void* __toku_dummy7[2];
+  int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=408 size=4, 64=bit offset=720 size=8 */
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=412 size=4, 64=bit offset=728 size=8 */
   void* __toku_dummy8[15]; /* Padding at the end */ 
   char __toku_dummy9[8];  /* Padding at the end */ 
