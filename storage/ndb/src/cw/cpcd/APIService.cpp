@@ -145,7 +145,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
   : SocketServer::Session(sock)
   , m_cpcd(cpcd)
 {
-  m_input = new SocketInputStream(sock);
+  m_input = new SocketInputStream(sock, 7*24*60*60000);
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input, true, true, true);
 }
