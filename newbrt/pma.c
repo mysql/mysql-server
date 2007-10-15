@@ -737,7 +737,7 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, diskoff diskoff) {
                 pma_mfree_kv_pair(pma, pma->pairs[idx]);
                 pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
                 assert(pma->pairs[idx]);
-                int r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+                int r = tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, pma->pairs[idx]);
                 return r;
             } else
                 return BRT_ALREADY_THERE; /* It is already here.  Return an error. */
@@ -750,7 +750,7 @@ int pma_insert (PMA pma, DBT *k, DBT *v, DB* db, TOKUTXN txn, diskoff diskoff) {
     pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
     assert(pma->pairs[idx]);
     pma->n_pairs_present++;
-    return tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 1, pma->pairs[idx]);
+    return tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 1, pma->pairs[idx]);
 }    
 
 int pma_delete (PMA pma, DBT *k, DB *db) {
@@ -866,7 +866,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         if (0==pma->compare_fun(db, k, fill_dbt(&k2, kv->key, kv->keylen))) {
             if (!kv_pair_deleted(pma->pairs[idx])) {
                 *replaced_v_size = kv->vallen;
-		r=tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, kv);
+		r=tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, kv);
 		if (r!=0) return r;
 	    }
             if (v->size == (unsigned int) kv_pair_vallen(kv)) {
@@ -876,7 +876,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
                 pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
                 assert(pma->pairs[idx]);
             }
-            r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 0, pma->pairs[idx]);
+            r = tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 0, pma->pairs[idx]);
             return r;
         }
     }
@@ -890,7 +890,7 @@ int pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     pma->n_pairs_present++;
     *replaced_v_size = -1;
     //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
-    r = tokulogger_log_phys_add_or_delete_in_leaf(txn, diskoff, 1, pma->pairs[idx]);
+    r = tokulogger_log_phys_add_or_delete_in_leaf(db, txn, diskoff, 1, pma->pairs[idx]);
     return r;
 }
 
