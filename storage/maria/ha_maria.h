@@ -18,7 +18,7 @@
 #pragma interface                               /* gcc class implementation */
 #endif
 
-/* class for the the maria handler */
+/* class for the maria handler */
 
 #include <maria.h>
 

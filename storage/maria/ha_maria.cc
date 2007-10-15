@@ -432,7 +432,7 @@ int table2maria(TABLE *table_arg, MARIA_KEYDEF **keydef_out,
     - compare FULLTEXT keys;
     - compare SPATIAL keys;
     - compare FIELD_SKIP_ZERO which is converted to FIELD_NORMAL correctly
-      (should be corretly detected in table2maria).
+      (should be correctly detected in table2maria).
 */
 int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
                            MARIA_COLUMNDEF *t1_recinfo,
@@ -764,7 +764,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     growing files. Using an open_flag instead of calling ma_extra(...
     HA_EXTRA_MMAP ...) after maxs_open() has the advantage that the
     mapping is not repeated for every open, but just done on the initial
-    open, when the MyISAM share is created. Everytime the server
+    open, when the MyISAM share is created. Every time the server
     requires to open a new instance of a table it calls this method. We
     will always supply HA_OPEN_MMAP for a permanent table. However, the
     Maria storage engine will ignore this flag if this is a secondary
@@ -2463,7 +2463,7 @@ static int ha_maria_init(void *p)
 
   @return The error code. The engine_data and engine_callback will be set to 0.
     @retval TRUE Success
-    @retval FALSE An error occured
+    @retval FALSE An error occurred
 */
 
 my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
