@@ -466,6 +466,12 @@ retry:
   {
     mysql_ha_close_table(thd, tables);
     hash_tables->table= NULL;
+    /*
+      The lock might have been aborted, we need to manually reset
+      thd->some_tables_deleted because handler's tables are closed
+      in a non-standard way. Otherwise we might loop indefinitely.
+    */
+    thd->some_tables_deleted= 0;
     goto retry;
   }
 
