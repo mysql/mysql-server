@@ -295,6 +295,13 @@ unlock tables;
 # Bug #21785 Server crashes after rename of the log table
 #
 
+--disable_warnings
+drop table if exists mysql.renamed_general_log;
+drop table if exists mysql.renamed_slow_log;
+drop table if exists mysql.general_log_new;
+drop table if exists mysql.slow_log_new;
+--enable_warnings
+
 use mysql;
 # Should result in error
 --error ER_CANT_RENAME_LOG_TABLE
@@ -357,6 +364,55 @@ flush logs;
 flush logs;
 drop table renamed_general_log, renamed_slow_log;
 use test;
+
+#
+# Bug#27858 (Failing to log to a log table doesn't log anything to error log)
+#
+# This test works as expected, it's a negative test.
+# The message "[ERROR] Failed to write to mysql.general_log"
+# is printed to master.err when writing to the table mysql.general_log
+# failed.
+# However, this message is picked up by mysql-test-run.pl,
+# and reported as a test failure, which is a false negative.
+# There is no current way to *selectively* filter out these expected error conditions
+# (see mysql-test/lib/mtr_report.pl, mtr_report_stats()).
+# Instead of filtering all occurences of "Failed to write to
+# mysql.general_log", which could hide bugs when the error is not expected,
+# this test case is commented instead.
+# TODO: improve filtering of expected errors in master.err in
+# mysql-test-run.pl (based on the test name ?), and uncomment this test.
+
+# --disable_warnings
+# drop table if exists mysql.bad_general_log;
+# drop table if exists mysql.bad_slow_log;
+# drop table if exists mysql.general_log_hide;
+# drop table if exists mysql.slow_log_hide;
+# --enable_warnings
+# 
+# create table mysql.bad_general_log (a int) engine= CSV;
+# create table mysql.bad_slow_log (a int) engine= CSV;
+# 
+# # Rename does not perform checks on the table structure,
+# # exploiting this to force a failure to log
+# rename table mysql.general_log to mysql.general_log_hide, mysql.bad_general_log TO mysql.general_log;
+# rename table mysql.slow_log to mysql.slow_log_hide, mysql.bad_slow_log TO mysql.slow_log;
+# 
+# # The following message should be printed in master.log:
+# # [ERROR] Failed to write to mysql.general_log
+# # TODO: See how verifying this could be automated
+# 
+# flush tables;
+# select "logging this should fail";
+# 
+# # Restore the log tables
+# 
+# rename table mysql.general_log to mysql.bad_general_log, mysql.general_log_hide TO mysql.general_log;
+# rename table mysql.slow_log to mysql.bad_slow_log, mysql.slow_log_hide TO mysql.slow_log;
+# 
+# flush tables;
+# 
+# drop table mysql.bad_general_log;
+# drop table mysql.bad_slow_log;
 
 #
 # Bug #21966 Strange warnings on repair of the log tables
