@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include <brt.h>
-#include <db.h>
+#include "ydb-internal.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -17,27 +17,6 @@
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
-
-struct db_header {
-    int n_databases; // Or there can be >=1 named databases.  This is the count.
-    char *database_names; // These are the names
-    BRT  *database_brts;  // These 
-};
-
-struct __toku_db_internal {
-    int freed;
-    int (*bt_compare)(DB *, const DBT *, const DBT *);
-    struct db_header *header;
-    int database_number; // -1 if it is the single unnamed database.  Nonnengative number otherwise.
-    DB_ENV *env;
-    char *full_fname;
-    char *database_name;
-    //int fd;
-    u_int32_t open_flags;
-    int open_mode;
-    BRT brt;
-    int is_db_dup;
-};
 
 static inline void *malloc_zero(size_t size) {
     void *vp = toku_malloc(size);

@@ -1,8 +1,8 @@
 #include <unistd.h>
-#include "brttypes.h"
 #include "log-internal.h"
 #include "wbuf.h"
 #include "memory.h"
+#include "../src/ydb-internal.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -131,16 +131,22 @@ n
 }
 #endif
 
-int tokulogger_log_phys_add_or_delete_in_leaf    (TOKUTXN txn, diskoff diskoff, int is_add, const struct kv_pair *pair) {
+int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, diskoff diskoff, int is_add, const struct kv_pair *pair) {
     if (txn==0) return 0;
     int keylen = pair->keylen;
     int vallen = pair->vallen;
-    int buflen=30+keylen+vallen;
+    int buflen=(keylen+vallen+4+4 // the key and value
+		+1 // log command
+		+8 // txnid
+		+8 // fileid
+		+8 // diskoff
+		);
     unsigned char buf[buflen];
     struct wbuf wbuf;
     wbuf_init(&wbuf, buf, buflen) ;
     wbuf_char(&wbuf, is_add ? LT_INSERT_WITH_NO_OVERWRITE : LT_DELETE);
     wbuf_txnid(&wbuf, txn->txnid64);
+    wbuf_fileid(&wbuf, db->i->fileid);
     wbuf_diskoff(&wbuf, diskoff);
     wbuf_bytes(&wbuf, kv_pair_key_const(pair), keylen);
     wbuf_bytes(&wbuf, kv_pair_val_const(pair), vallen);

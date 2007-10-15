@@ -27,3 +27,5 @@ test_log1.bdb_link: test_log1.c
 test_log1.tokudb_link: test_log1.c
 	cc -Wall -Werror -O2 -g test_log1.c -o $@ $(LOADLIBES)
 
+clean:
+	rm -f test_log0 test_log1 test_db_close_no_open test_db_version
