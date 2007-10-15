@@ -17,6 +17,7 @@
 #include <my_dir.h>
 #include "mysys_err.h"
 #include <errno.h>
+#include <my_sys.h>
 #if defined(__WIN__)
 #include <share.h>
 #endif
