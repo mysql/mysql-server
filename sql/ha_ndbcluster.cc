@@ -393,8 +393,8 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans, c
             if (h->write_conflict_row(trans, row, ex_err))
             {
               char msg[FN_REFLEN];
-              my_snprintf(msg, sizeof(msg), "table %s%s NDB error %d '%s'",
-                          share->table_name, NDB_EXCEPTIONS_TABLE_SUFFIX,
+              my_snprintf(msg, sizeof(msg), "table %s NDB error %d '%s'",
+                          cfn_share->m_ex_tab->getName(),
                           ex_err.code, ex_err.message);
 
               NdbDictionary::Dictionary* dict= thd_ndb->ndb->getDictionary();

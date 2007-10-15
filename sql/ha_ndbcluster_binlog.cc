@@ -2765,8 +2765,9 @@ slave_set_resolve_max(NDB_SHARE *share, const NDBTAB *ndbtab, uint field_index,
   {
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
-    strxnmov(ex_tab_name, sizeof(ex_tab_name),
-             share->table_name, NDB_EXCEPTIONS_TABLE_SUFFIX, NullS);
+    strxnmov(ex_tab_name, sizeof(ex_tab_name), share->table_name,
+             lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
+             NDB_EXCEPTIONS_TABLE_SUFFIX, NullS);
     ndb->setDatabaseName(share->db);
     Ndb_table_guard ndbtab_g(dict, ex_tab_name);
     const NDBTAB *ex_tab= ndbtab_g.get_table();
@@ -3683,6 +3684,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
            !ndb_binlog_running ||
            (len >= sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX) &&
             strcmp(share->table_name+len-sizeof(NDB_EXCEPTIONS_TABLE_SUFFIX)+1,
+                   lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
                    NDB_EXCEPTIONS_TABLE_SUFFIX) == 0))
   {
     share->flags|= NSF_NO_BINLOG;

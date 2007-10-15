@@ -98,6 +98,7 @@ static const char share_prefix[]= "./";
 
 #ifdef HAVE_NDB_BINLOG
 #define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
+#define NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER "$ex"
 
 const uint error_conflict_fn_old_violation= 9998;
 const uint error_conflict_fn_max_violation= 9999;
