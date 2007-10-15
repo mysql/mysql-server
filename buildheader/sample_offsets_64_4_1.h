@@ -52,6 +52,7 @@ struct fieldinfo db_fields64[] = {
   {"int (*rename) (DB *, const char *, const char *, const char *, u_int32_t)", 568, 8},
   {"int (*set_flags) (DB *, u_int32_t)", 664, 8},
   {"int (*stat) (DB *, void *, u_int32_t)", 696, 8},
+  {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 720, 8},
   {"int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *))", 728, 8},
   {0, 864, 864} /* size of whole struct */
 };
