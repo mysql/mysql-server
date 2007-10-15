@@ -3496,7 +3496,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->dirtyOp       = LqhKeyReq::getDirtyFlag(Treqinfo);
   regTcPtr->opExec        = LqhKeyReq::getInterpretedFlag(Treqinfo);
   regTcPtr->opSimple      = LqhKeyReq::getSimpleFlag(Treqinfo);
-  regTcPtr->simpleRead    = op == ZREAD && regTcPtr->opSimple;
   regTcPtr->seqNoReplica  = LqhKeyReq::getSeqNoReplica(Treqinfo);
   UintR TreclenAiLqhkey   = LqhKeyReq::getAIInLqhKeyReq(Treqinfo);
   regTcPtr->apiVersionNo  = 0; 
@@ -3513,9 +3512,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->lockType = 
       op == ZREAD_EX ? ZUPDATE : (Operation_t) op == ZWRITE ? ZINSERT : (Operation_t) op;
   }
+
+  if (regTcPtr->dirtyOp)
+  {
+    ndbrequire(regTcPtr->opSimple);
+  }
   
-  CRASH_INSERTION2(5041, regTcPtr->simpleRead && 
-		   refToNode(signal->senderBlockRef()) != cownNodeid);
+  CRASH_INSERTION2(5041, (op == ZREAD && 
+                          (regTcPtr->opSimple || regTcPtr->dirtyOp) &&
+                          refToNode(signal->senderBlockRef()) != cownNodeid));
   
   regTcPtr->reclenAiLqhkey = TreclenAiLqhkey;
   regTcPtr->currReclenAi = TreclenAiLqhkey;
@@ -3687,8 +3692,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint8 TdistKey = LqhKeyReq::getDistributionKey(TtotReclenAi);
   if ((tfragDistKey != TdistKey) &&
       (regTcPtr->seqNoReplica == 0) &&
-      (regTcPtr->dirtyOp == ZFALSE) &&
-      (regTcPtr->simpleRead == ZFALSE)) {
+      (regTcPtr->dirtyOp == ZFALSE)) 
+  {
     /* ----------------------------------------------------------------------
      * WE HAVE DIFFERENT OPINION THAN THE DIH THAT STARTED THE TRANSACTION. 
      * THE REASON COULD BE THAT THIS IS AN OLD DISTRIBUTION WHICH IS NO LONGER
@@ -4778,7 +4783,18 @@ void Dblqh::tupkeyConfLab(Signal* signal)
 
   TRACE_OP(regTcPtr, "TUPKEYCONF");
 
-  if (regTcPtr->simpleRead) {
+  if (readLen != 0) 
+  {
+    jam();
+
+    /* SET BIT 15 IN REQINFO */
+    LqhKeyReq::setApplicationAddressFlag(regTcPtr->reqinfo, 1);
+    regTcPtr->readlenAi = readLen;
+  }//if
+
+  if (regTcPtr->operation == ZREAD && 
+      (regTcPtr->opSimple || regTcPtr->dirtyOp))
+  {
     jam();
     /* ----------------------------------------------------------------------
      * THE OPERATION IS A SIMPLE READ. 
@@ -4791,14 +4807,6 @@ void Dblqh::tupkeyConfLab(Signal* signal)
      * --------------------------------------------------------------------- */
     commitContinueAfterBlockedLab(signal);
     return;
-  }//if
-  if (readLen != 0) 
-  {
-    jam();
-
-    /* SET BIT 15 IN REQINFO */
-    LqhKeyReq::setApplicationAddressFlag(regTcPtr->reqinfo, 1);
-    regTcPtr->readlenAi = readLen;
   }//if
   regTcPtr->totSendlenAi = writeLen;
   ndbrequire(regTcPtr->totSendlenAi == regTcPtr->currTupAiLen);
@@ -5178,12 +5186,15 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
     sendLqhkeyconfTc(signal, regTcPtr->tcBlockref);
-    if (regTcPtr->dirtyOp != ZTRUE) {
+    if (! (regTcPtr->dirtyOp || 
+           (regTcPtr->operation == ZREAD && regTcPtr->opSimple)))
+    {
       jam();
       regTcPtr->transactionState = TcConnectionrec::PREPARED;
       releaseOprec(signal);
     } else {
       jam();
+
 /*************************************************************>*/
 /*       DIRTY WRITES ARE USED IN TWO SITUATIONS. THE FIRST    */
 /*       SITUATION IS WHEN THEY ARE USED TO UPDATE COUNTERS AND*/
@@ -6406,8 +6417,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Ptr<TcConnectionrec> regTcPtr = tcConnectptr;
   Ptr<Fragrecord> regFragptr = fragptr;
   Uint32 operation = regTcPtr.p->operation;
-  Uint32 simpleRead = regTcPtr.p->simpleRead;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
+  Uint32 opSimple = regTcPtr.p->opSimple;
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
       TupCommitReq * const tupCommitReq = 
@@ -6465,20 +6476,29 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
       
-      if (simpleRead) {
+      if (dirtyOp) 
+      {
 	jam();
-/* ------------------------------------------------------------------------- */
-/*THE OPERATION WAS A SIMPLE READ THUS THE COMMIT PHASE IS ONLY NEEDED TO    */
-/*RELEASE THE LOCKS. AT THIS POINT IN THE CODE THE LOCKS ARE RELEASED AND WE */
-/*ARE IN A POSITION TO SEND LQHKEYCONF TO TC. WE WILL ALSO RELEASE ALL       */
-/*RESOURCES BELONGING TO THIS OPERATION SINCE NO MORE WORK WILL BE           */
-/*PERFORMED.                                                                 */
-/* ------------------------------------------------------------------------- */
+        /**
+         * The dirtyRead does not send anything but TRANSID_AI from LDM
+         */
 	fragptr = regFragptr;
 	tcConnectptr = regTcPtr;
 	cleanUp(signal);
 	return;
-      }//if
+      }
+
+      /**
+       * The simpleRead will send a LQHKEYCONF
+       *   but have already released the locks
+       */
+      if (opSimple)
+      {
+	fragptr = regFragptr;
+	tcConnectptr = regTcPtr;
+        packLqhkeyreqLab(signal);
+        return;
+      }
     }
   }//if
   jamEntry();
@@ -7088,7 +7108,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
       return;
     }//if
-    if (regTcPtr->simpleRead) {
+    if (regTcPtr->opSimple) {
       jam();
 /* ------------------------------------------------------------------------- */
 /*A SIMPLE READ IS CURRENTLY RELEASING THE LOCKS OR WAITING FOR ACCESS TO    */
@@ -7356,7 +7376,8 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->simpleRead) {
+  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp)
+  {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
     
@@ -19027,7 +19048,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbout << " operation = " << tcRec.p->operation<<endl;
     ndbout << " tcNodeFailrec = " << tcRec.p->tcNodeFailrec
 	   << " seqNoReplica = " << tcRec.p->seqNoReplica
-	   << " simpleRead = " << tcRec.p->simpleRead
 	   << endl;
     ndbout << " replicaType = " << tcRec.p->replicaType
 	   << " reclenAiLqhkey = " << tcRec.p->reclenAiLqhkey
