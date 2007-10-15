@@ -131,6 +131,8 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
   case LM_CommittedRead:
     return committedRead();
     break;
+  case LM_SimpleRead:
+    return simpleRead();
   default:
     return -1;
   };
@@ -185,24 +187,22 @@ NdbOperation::readTupleExclusive()
 int
 NdbOperation::simpleRead()
 {
-  /**
-   * Currently/still disabled
-   */
-  return readTuple();
-#if 0
+  NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     theOperationType = ReadRequest;
     theSimpleIndicator = 1;
+    theDirtyIndicator = 0;
     theErrorLine = tErrorLine++;
-    theLockMode = LM_Read;
+    theLockMode = LM_SimpleRead;
+    m_abortOption = AO_IgnoreError;
+    tNdbCon->theSimpleState = 0;
     return 0;
   } else {
     setErrorCode(4200);
     return -1;
   }//if
-#endif
 }//NdbOperation::simpleRead()
 
 /*****************************************************************************
@@ -338,28 +338,32 @@ NdbOperation::setReadLockMode(LockMode lockMode)
 {
   /* We only support changing lock mode for read operations at this time. */
   assert(theOperationType == ReadRequest || theOperationType == ReadExclusive);
-  switch (lockMode)
-  {
-    case LM_CommittedRead:
-      theOperationType= ReadRequest;
-      theSimpleIndicator= 1;
-      theDirtyIndicator= 1;
-      break;
-    case LM_Read:
-      theNdbCon->theSimpleState= 0;
-      theOperationType= ReadRequest;
-      theSimpleIndicator= 0;
-      theDirtyIndicator= 0;
-      break;
-    case LM_Exclusive:
-      theNdbCon->theSimpleState= 0;
-      theOperationType= ReadExclusive;
-      theSimpleIndicator= 0;
-      theDirtyIndicator= 0;
-      break;
-    default:
-      /* Not supported / invalid. */
-      assert(false);
+  switch (lockMode) {
+  case LM_CommittedRead: /* TODO, check theNdbCon->theSimpleState */
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 1;
+    theDirtyIndicator= 1;
+    break;
+  case LM_SimpleRead: /* TODO, check theNdbCon->theSimpleState */
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 1;
+    theDirtyIndicator= 0;
+    break;
+  case LM_Read:
+    theNdbCon->theSimpleState= 0;
+    theOperationType= ReadRequest;
+    theSimpleIndicator= 0;
+    theDirtyIndicator= 0;
+    break;
+  case LM_Exclusive:
+    theNdbCon->theSimpleState= 0;
+    theOperationType= ReadExclusive;
+    theSimpleIndicator= 0;
+    theDirtyIndicator= 0;
+    break;
+  default:
+    /* Not supported / invalid. */
+    assert(false);
   }
   theLockMode= lockMode;
 }
