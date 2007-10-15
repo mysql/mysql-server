@@ -53,11 +53,22 @@ static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
-/*
-  This needs to exist until the query cache callback is removed
-  or learns to pass hton.
-*/
-static handlerton *innodb_hton_ptr;
+#ifdef MYSQL_DYNAMIC_PLUGIN
+/* These must be weak global variables in the dynamic plugin. */
+struct handlerton* innodb_hton_ptr;
+int builtin_innobase_plugin;
+/********************************************************************
+Copy InnoDB system variables from the static InnoDB to the dynamic
+plugin. */
+static
+bool
+innodb_plugin_init(void);
+/*====================*/
+		/* out: TRUE if the dynamic InnoDB plugin should start */
+#else /* MYSQL_DYNAMIC_PLUGIN */
+/* This must be a global variable in the statically linked InnoDB. */
+struct handlerton* innodb_hton_ptr = NULL;
+#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 /* Include necessary InnoDB headers */
 extern "C" {
@@ -131,6 +142,8 @@ static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
+static my_bool	innobase_dynamic;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -169,8 +182,11 @@ innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
 
+#ifdef MYSQL_DYNAMIC_PLUGIN
+static const char innobase_hton_name[]= "InnoDBzip";
+#else
 static const char innobase_hton_name[]= "InnoDB";
-
+#endif
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -1422,6 +1438,27 @@ innobase_init(
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
+
+#ifdef MYSQL_DYNAMIC_PLUGIN
+	if (!innodb_plugin_init()) {
+		sql_print_error("InnoDB plugin init failed."
+				" Did you set innodb_dynamic=1?");
+		DBUG_RETURN(-1);
+	}
+
+	if (innodb_hton_ptr) {
+		/* Patch the statically linked handlerton and variables */
+		innobase_hton = innodb_hton_ptr;
+	}
+#else /* MYSQL_DYNAMIC_PLUGIN */
+	if (innobase_dynamic) {
+		innobase_hton->state = SHOW_OPTION_NO;
+		/* Disable the built-in InnoDB */
+		sql_print_error("Builtin InnoDB disabled by innodb_dynamic");
+		DBUG_RETURN(-1);
+	}
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+
         innodb_hton_ptr = innobase_hton;
 
         innobase_hton->state = SHOW_OPTION_YES;
@@ -1672,6 +1709,12 @@ innobase_init(
 	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
+#ifdef MYSQL_DYNAMIC_PLUGIN
+	if (innobase_hton != p) {
+		innobase_hton = reinterpret_cast<handlerton*>(p);
+		*innobase_hton = *innodb_hton_ptr;
+	}
+#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 	DBUG_RETURN(FALSE);
 error:
@@ -8007,6 +8050,11 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(dynamic, innobase_dynamic,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable a dynamic InnoDB plugin (and disable a built-in InnoDB).",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -8196,6 +8244,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(dynamic),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),
@@ -8229,6 +8278,87 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoinc_lock_mode),
   NULL
 };
+
+#ifdef MYSQL_DYNAMIC_PLUGIN
+struct st_mysql_sys_var
+{
+	MYSQL_PLUGIN_VAR_HEADER;
+	void* value;
+};
+
+/********************************************************************
+Copy InnoDB system variables from the static InnoDB to the dynamic
+plugin. */
+static
+bool
+innodb_plugin_init(void)
+/*====================*/
+		/* out: TRUE if the dynamic InnoDB plugin should start */
+{
+# if !MYSQL_STORAGE_ENGINE_PLUGIN
+#  error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
+# endif
+	switch (builtin_innobase_plugin) {
+	case 0:
+		return(TRUE);
+	case MYSQL_STORAGE_ENGINE_PLUGIN:
+		break;
+	default:
+		return(FALSE);
+	}
+
+	/* Copy the system variables. */
+	struct st_mysql_plugin* builtin
+		= (struct st_mysql_plugin*) &builtin_innobase_plugin;
+	struct st_mysql_sys_var** v = builtin->system_vars;
+	struct st_mysql_sys_var** w = innobase_system_variables;
+
+	for (; *v; v++, w++) {
+		if (UNIV_UNLIKELY(!*w)) {
+			fprintf(stderr, "InnoDB: unknown parameter %s,0x%x\n",
+				(*v)->name, (*v)->flags);
+			return(FALSE);
+		}
+
+		if (UNIV_UNLIKELY((*v)->flags != (*w)->flags
+				  || strcmp((*v)->name, (*w)->name))) {
+			fprintf(stderr,
+				"InnoDB: parameter mismatch:"
+				" %s,%s,0x%x,0x%x\n",
+				(*v)->name, (*w)->name,
+				(*v)->flags, (*w)->flags);
+			return(FALSE);
+		}
+
+		if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
+			continue;
+		}
+
+		switch ((*v)->flags
+			& ~(PLUGIN_VAR_MASK | PLUGIN_VAR_UNSIGNED)) {
+# define COPY_VAR(label, type)						\
+		case label:						\
+			*(type*)(*w)->value = *(type*)(*v)->value;	\
+			break;
+
+			COPY_VAR(PLUGIN_VAR_BOOL, char);
+			COPY_VAR(PLUGIN_VAR_INT, int);
+			COPY_VAR(PLUGIN_VAR_LONG, long);
+			COPY_VAR(PLUGIN_VAR_LONGLONG, long long);
+			COPY_VAR(PLUGIN_VAR_STR, char*);
+
+		default:
+			fprintf(stderr, "InnoDB: unknown flags 0x%x for %s\n",
+				(*v)->flags, (*v)->name);
+		}
+
+		/* Make the static InnoDB variable point to the dynamic one */
+		(*v)->value = (*w)->value;
+	}
+
+	return(innobase_dynamic);
+}
+#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 mysql_declare_plugin(innobase)
 {
