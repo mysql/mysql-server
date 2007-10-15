@@ -1837,11 +1837,7 @@ ha_ndbcluster::add_table_ndb_record(NDBDICT *dict)
   else
     m_ndb_record_fragment= NULL;
 
-  /*
-    allways allocate atleast 4 bytes extra that can be used to store
-    partion id for TC selection. See set_partition_function_value()
-  */
-  m_extra_reclength= size ? size : 4;
+  m_extra_reclength= size;
 
   rec= ndb_get_table_statistics_ndbrecord(dict, m_table);
   if (! rec)
@@ -3473,11 +3469,11 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
                                  bool primary_key_update,
                                  bool batched_update)
 {
-  bool has_auto_increment, use_tc_selection;
+  bool has_auto_increment;
   NdbOperation *op;
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= m_thd_ndb;
-  NdbTransaction *trans= thd_ndb->trans;
+  NdbTransaction *trans;
   uint32 part_id;
   uchar *row;
   bool need_execute;
@@ -3485,8 +3481,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
 
   has_auto_increment= (table->next_number_field && record == table->record[0]);
-  use_tc_selection=
-    m_user_defined_partitioning || (m_use_partition_pruning && !trans);
 
   if (has_auto_increment && table_share->primary_key != MAX_KEY) 
   {
@@ -3549,7 +3543,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   {
     DBUG_PRINT("info", ("Non-bulk insert."));
     need_execute= TRUE;
-    if (table_share->primary_key == MAX_KEY || use_tc_selection)
+    if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
     {
       DBUG_PRINT("info", ("Getting single buffer for oversize record."));
       row= copy_row_to_buffer(thd_ndb, record);
@@ -3585,29 +3579,36 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     set_hidden_key(row, auto_value);
   } 
 
-  if (use_tc_selection)
+  trans= thd_ndb->trans;
+  if (m_user_defined_partitioning || !trans)
   {
+    DBUG_ASSERT(m_use_partition_pruning);
     longlong func_value= 0;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
     error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
     dbug_tmp_restore_column_map(table->read_set, old_map);
-    if (error)
+    if (unlikely(error))
     {
       m_part_info->err_value= func_value;
       DBUG_RETURN(error);
     }
-
-    /*
-      We need to set the value of the partition function value in
-      NDB since the NDB kernel doesn't have easy access to the function
-      to calculate the value.
-    */
-    if (func_value >= INT_MAX32)
-      func_value= INT_MAX32;
-    set_partition_function_value(row, (uint32)func_value);
-    if (!(trans= get_transaction_part_id(part_id, error)))
+    if (m_user_defined_partitioning)
     {
-      DBUG_RETURN(error);
+      /*
+        We need to set the value of the partition function value in
+        NDB since the NDB kernel doesn't have easy access to the function
+        to calculate the value.
+      */
+      if (func_value >= INT_MAX32)
+        func_value= INT_MAX32;
+      set_partition_function_value(row, (uint32)func_value);
+    }
+    if (!trans)
+    {
+      if (!(trans= start_transaction_part_id(part_id, error)))
+      {
+        DBUG_RETURN(error);
+      }
     }
   }
   DBUG_ASSERT(trans);
