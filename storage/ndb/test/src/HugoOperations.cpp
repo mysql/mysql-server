@@ -93,6 +93,7 @@ rand_lock_mode:
     case NdbOperation::LM_Read:
     case NdbOperation::LM_Exclusive:
     case NdbOperation::LM_CommittedRead:
+    case NdbOperation::LM_SimpleRead:
       if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
 	 pIndexScanOp == 0)
       {
