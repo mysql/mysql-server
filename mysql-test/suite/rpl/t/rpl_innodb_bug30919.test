@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_partition.inc
 --vertical_results
 let $engine_type= 'innodb';
 
