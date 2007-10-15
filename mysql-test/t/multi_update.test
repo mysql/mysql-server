@@ -588,6 +588,7 @@ CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
 
 # as the test is about to see erroed queries in binlog
+set @sav_binlog_format=  @@session.binlog_format;
 set @@session.binlog_format= mixed;
 
 
@@ -614,5 +615,42 @@ show master status /* there must be the UPDATE query event */;
 
 # cleanup bug#27716
 drop table t1, t2;
+set @@session.binlog_format= @sav_binlog_format;
+
+#
+# Bug #29136  	erred multi-delete on trans table does not rollback 
+#
+
+# prepare
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a));
+CREATE TABLE t3 (a int, PRIMARY KEY (a)) ENGINE=MyISAM;
+create trigger trg_del_t3 before  delete on t3 for each row insert into t1 values (1);
+
+insert into t2 values (1),(2);
+insert into t3 values (1),(2);
+reset master;
+
+# exec cases B, A - see innodb.test
+
+# B. send_eof() and send_error() afterward
+
+--error ER_DUP_ENTRY
+delete t3.* from t2,t3 where t2.a=t3.a;
+
+# check
+select count(*) from t1 /* must be 1 */;
+select count(*) from t3 /* must be 1 */;
+
+# cleanup bug#29136
+drop table t1, t2, t3;
+
+#
+# Add further tests from here
+#
+
 
 --echo end of tests
