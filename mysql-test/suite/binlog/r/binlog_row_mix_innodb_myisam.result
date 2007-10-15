@@ -520,7 +520,9 @@ count(*)
 drop table t1,t2;
 CREATE TABLE t1 (a int  NOT NULL auto_increment primary key) ENGINE=MyISAM;
 CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
-CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique);
+CREATE TABLE t3 (a int, PRIMARY KEY (a), b int unique) ENGINE=MyISAM;
+CREATE TABLE t4 (a int, PRIMARY KEY (a), b int unique) ENGINE=Innodb;
+CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 insert into t2 values (1);
 reset master;
 insert into t2 values (bug27417(1));
@@ -559,6 +561,33 @@ master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
+delete from t3;
+delete from t4;
+insert into t3 values (1,1);
+insert into t4 values (1,1),(2,2);
+reset master;
+UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Intvar	#	#	INSERT_ID=6
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 4 */;
+count(*)
+4
+delete from t1;
+delete from t3;
+delete from t4;
+insert into t3 values (1,1),(2,2);
+insert into t4 values (1,1),(2,2);
+reset master;
+UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+drop table t4;
 delete from t1;
 delete from t2;
 delete from t3;
@@ -571,8 +600,26 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Intvar	#	#	INSERT_ID=6
+master-bin.000001	#	Intvar	#	#	INSERT_ID=9
 master-bin.000001	#	Query	#	#	use `test`; delete from t2
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+select count(*) from t1 /* must be 1 */;
+count(*)
+1
+drop trigger trg_del;
+delete from t1;
+delete from t2;
+delete from t5;
+create trigger trg_del_t2 after  delete on t2 for each row
+insert into t1 values (1);
+insert into t2 values (2),(3);
+insert into t5 values (1),(2);
+reset master;
+delete t2.* from t2,t5 where t2.a=t5.a + 1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; delete t2.* from t2,t5 where t2.a=t5.a + 1
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 1 */;
 count(*)
@@ -591,11 +638,11 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Intvar	#	#	INSERT_ID=7
+master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=12
-master-bin.000001	#	Intvar	#	#	INSERT_ID=7
+master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=1
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
-drop trigger trg_del;
-drop table t1,t2,t3,t4;
+drop trigger trg_del_t2;
+drop table t1,t2,t3,t4,t5;
 drop function bug27417;
