@@ -15,6 +15,7 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include <my_sys.h>
 
 int my_delete(const char *name, myf MyFlags)
 {
