@@ -666,7 +666,10 @@ buf_chunk_init(
 	the start of the memory block. */
 	chunk->blocks = chunk->mem;
 
-	/* Align pointer to the first frame */
+	/* Align a pointer to the first frame.  Note that when
+	os_large_page_size is smaller than UNIV_PAGE_SIZE,
+	we may allocate one fewer block than requested.  When
+	it is bigger, we may allocate more blocks than requested. */
 
 	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
 	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
