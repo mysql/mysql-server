@@ -1622,7 +1622,7 @@ NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
        * table tuple does not fully protect blob parts since DBTUP
        * commits each tuple separately.
        */
-      tOp->readTuple() == -1 ||
+      tOp->readTuple(NdbOperation::LM_SimpleRead) == -1 ||
       setPartKeyValue(tOp, part) == -1 ||
       getPartDataValue(tOp, buf, &len) == -1) {
     setErrorCode(tOp);
