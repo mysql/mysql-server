@@ -1423,7 +1423,14 @@ bool select_to_file::send_eof()
   if (my_close(file,MYF(MY_WME)))
     error= 1;
   if (!error)
+  {
+    /*
+      In order to remember the value of affected rows for ROW_COUNT()
+      function, SELECT INTO has to have an own SQLCOM.
+      TODO: split from SQLCOM_SELECT
+    */
     ::send_ok(thd,row_count);
+  }
   file= -1;
   return error;
 }
@@ -2338,6 +2345,11 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+  /*
+    In order to remember the value of affected rows for ROW_COUNT()
+    function, SELECT INTO has to have an own SQLCOM.
+    TODO: split from SQLCOM_SELECT
+  */
   ::send_ok(thd,row_count);
   return 0;
 }
