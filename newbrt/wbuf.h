@@ -69,4 +69,8 @@ static inline void wbuf_txnid (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
 }
 
+static inline void wbuf_fileid (struct wbuf *w, unsigned long long fileid) {
+    wbuf_ulonglong(w, fileid);
+}
+
 #endif
