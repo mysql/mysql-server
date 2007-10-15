@@ -1019,12 +1019,14 @@ sub command_line_setup () {
   {
     $opt_testcase_timeout= $default_testcase_timeout;
     $opt_testcase_timeout*= 10 if $opt_valgrind;
+    $opt_testcase_timeout*= 10 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
     $opt_suite_timeout*= 6 if $opt_valgrind;
+    $opt_suite_timeout*= 6 if ($opt_debug and $glob_win32);
   }
 
   if ( ! $opt_user )
