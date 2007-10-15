@@ -3307,15 +3307,34 @@ bool Item_func_group_concat::setup(THD *thd)
   count_field_types(select_lex, tmp_table_param, all_fields, 0);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
-  /*
-    Currently we have to force conversion of BLOB values to VARCHAR's
-    if we are to store them in TREE objects used for ORDER BY and
-    DISTINCT. This leads to truncation if the BLOB's size exceeds
-    Field_varstring::MAX_SIZE.
-  */
   if (arg_count_order > 0 || distinct)
+  {
+    /*
+      Currently we have to force conversion of BLOB values to VARCHAR's
+      if we are to store them in TREE objects used for ORDER BY and
+      DISTINCT. This leads to truncation if the BLOB's size exceeds
+      Field_varstring::MAX_SIZE.
+    */
     set_if_smaller(tmp_table_param->convert_blob_length, 
                    Field_varstring::MAX_SIZE);
+
+    /*
+      Force the create_tmp_table() to convert BIT columns to INT
+      as we cannot compare two table records containg BIT fields
+      stored in the the tree used for distinct/order by.
+      Moreover we don't even save in the tree record null bits 
+      where BIT fields store parts of their data.
+    */
+    List_iterator_fast<Item> li(all_fields);
+    Item *item;
+    while ((item= li++))
+    {
+      if (item->type() == Item::FIELD_ITEM && 
+          ((Item_field*) item)->field->type() == FIELD_TYPE_BIT)
+        item->marker= 4;
+    }
+  }
+
   /*
     We have to create a temporary table to get descriptions of fields
     (types, sizes and so on).
