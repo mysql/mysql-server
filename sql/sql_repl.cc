@@ -418,8 +418,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   if (heartbeat_period != LL(0))
   {
     heartbeat_ts= &heartbeat_buf;
-    heartbeat_ts->tv_sec= 0;
-    heartbeat_ts->tv_nsec= 0;
+    set_timespec_nsec(*heartbeat_ts, 0);
     coord= &coord_buf;
     coord->file_name= log_file_name; // initialization basing on what slave remembers
     coord->pos= pos;

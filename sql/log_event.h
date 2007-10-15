@@ -623,7 +623,7 @@ typedef struct st_print_event_info
 struct event_coordinates
 {
   char * file_name; // binlog file name (directories stripped)
-  ulong  pos;       // event's position in the binlog file
+  my_off_t  pos;       // event's position in the binlog file
 };
 
 /*****************************************************************************
