@@ -1056,6 +1056,7 @@ class Ndb
   friend class NdbBlob;
   friend class NdbImpl;
   friend class Ndb_internal;
+  friend class NdbScanFilterImpl;
 #endif
 
 public:

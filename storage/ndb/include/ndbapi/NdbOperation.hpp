@@ -842,8 +842,10 @@ protected:
   virtual ~NdbOperation();
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
+
 public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
 #endif

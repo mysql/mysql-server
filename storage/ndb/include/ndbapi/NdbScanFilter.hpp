@@ -17,6 +17,7 @@
 #define NDB_SCAN_FILTER_HPP
 
 #include <ndb_types.h>
+#include <ndbapi_limits.h>
 
 /**
  * @class NdbScanFilter
@@ -31,8 +32,13 @@ public:
   /**
    * Constructor
    * @param op  The NdbOperation that the filter belongs to (is applied to).
+   * @param abort_on_too_large  abort transaction on filter too large
+   *                            default: true
+   * @param max_size  Maximum size of generated filter in words
    */
-  NdbScanFilter(class NdbOperation * op);
+  NdbScanFilter(class NdbOperation * op,
+                bool abort_on_too_large = true,
+                Uint32 max_size = NDB_MAX_SCANFILTER_SIZE_IN_WORDS);
   ~NdbScanFilter();
   
   /**
@@ -166,6 +172,27 @@ public:
   /** @} *********************************************************************/
 #endif
 
+  enum Error {
+    FilterTooLarge = 4294
+  };
+
+  /**
+   * Get filter level error.
+   *
+   * Most errors are set only on operation level, and they abort the
+   * transaction.  The error FilterTooLarge is set on filter level and
+   * by default it propagates to operation level and also aborts the
+   * transaction.
+   *
+   * If option abort_on_too_large is set to false, then FilterTooLarge
+   * does not propagate.  One can then either ignore this error (in
+   * which case no filtering is done) or try to define a new filter
+   * immediately.
+   */
+  const class NdbError & getNdbError() const;
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbOperation * getNdbOperation();
+#endif
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbScanFilterImpl;
