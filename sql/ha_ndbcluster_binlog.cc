@@ -62,6 +62,7 @@ int ndb_binlog_thread_running= 0;
 */
 my_bool ndb_binlog_running= FALSE;
 my_bool ndb_binlog_tables_inited= FALSE;
+my_bool ndb_binlog_is_ready= FALSE;
 
 /*
   Global reference to the ndb injector thread THD oject
@@ -1977,6 +1978,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                ndb_schema_share->use_count));
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
+      ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
@@ -4947,6 +4949,12 @@ restart:
       }
     }
   }
+  /*
+    binlog thread is ready to receive events
+    - client threads may now start updating data, i.e. tables are
+    no longer read only
+  */
+  ndb_binlog_is_ready= TRUE;
   {
     static char db[]= "";
     thd->db= db;
