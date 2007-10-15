@@ -65,6 +65,14 @@ args: -n PkRead
 
 max-time: 500
 cmd: testBasic
+args: -n PkSimpleRead
+
+max-time: 500
+cmd: testBasic
+args: -n PkDirtyRead
+
+max-time: 500
+cmd: testBasic
 args: -n PkUpdate 
 
 max-time: 500
