@@ -636,7 +636,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     m_received_result_length = tmp;
     m_record.m_row+= m_record.m_row_offset;
 
-    return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
+    return (tmp == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
   }
 
   /* The old way, using getValue() and NdbRecAttr. */
@@ -699,7 +699,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   Uint32 tmp = m_received_result_length + aLength;
   m_received_result_length = tmp;
 
-  return (tmp == exp || (exp > TcKeyConf::SimpleReadBit) ? 1 : 0);
+  return (tmp == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
 }
 
 int
