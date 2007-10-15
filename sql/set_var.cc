@@ -620,216 +620,39 @@ static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
 
 sys_var_thd_bool  sys_keep_files_on_create(&vars, "keep_files_on_create", 
                                            &SV::keep_files_on_create);
+/* Read only variables */
 
-/*
-  List of all variables for initialisation and storage in hash
-  This is sorted in alphabetical order to make it easy to add new variables
-
-  If the variable is not in this list, it can't be changed with
-  SET variable_name=
-*/
-
-sys_var *sys_variables[]=
-{
-  &sys_auto_is_null,
-  &sys_auto_increment_increment,
-  &sys_auto_increment_offset,
-  &sys_autocommit,
-  &sys_automatic_sp_privileges,
-  &sys_basedir,
-  &sys_big_tables,
-  &sys_big_selects,
-  &sys_binlog_cache_size,
-  &sys_buffer_results,
-  &sys_bulk_insert_buff_size,
-  &sys_character_set_server,
-  &sys_character_set_database,
-  &sys_character_set_client,
-  &sys_character_set_connection,
-  &sys_character_set_results,
-  &sys_character_set_filesystem,
-  &sys_charset_system,
-  &sys_collation_connection,
-  &sys_collation_database,
-  &sys_collation_server,
-  &sys_completion_type,
-  &sys_concurrent_insert,
-  &sys_connect_timeout,
-  &sys_datadir,
-  &sys_date_format,
-  &sys_datetime_format,
-  &sys_div_precincrement,
-  &sys_default_week_format,
-  &sys_delay_key_write,
-  &sys_delayed_insert_limit,
-  &sys_delayed_insert_timeout,
-  &sys_delayed_queue_size,
-  &sys_keep_files_on_create,
-  &sys_error_count,
-  &sys_expire_logs_days,
-  &sys_flush,
-  &sys_flush_time,
-  &sys_ft_boolean_syntax,
-  &sys_foreign_key_checks,
-  &sys_group_concat_max_len,
-  &sys_have_innodb,
-  &sys_hostname,
-  &sys_identity,
-  &sys_init_connect,
-  &sys_init_slave,
-  &sys_insert_id,
-  &sys_interactive_timeout,
-  &sys_join_buffer_size,
-  &sys_key_buffer_size,
-  &sys_key_cache_block_size,
-  &sys_key_cache_division_limit,
-  &sys_key_cache_age_threshold,
-  &sys_last_insert_id,
-  &sys_lc_time_names,
-  &sys_license,
-  &sys_local_infile,
-  &sys_log_binlog,
-  &sys_log_off,
-  &sys_log_queries_not_using_indexes,
-  &sys_log_update,
-  &sys_log_warnings,
-  &sys_long_query_time,
-  &sys_low_priority_updates,
-  &sys_max_allowed_packet,
-  &sys_max_binlog_cache_size,
-  &sys_max_binlog_size,
-  &sys_max_connect_errors,
-  &sys_max_connections,
-  &sys_max_delayed_threads,
-  &sys_max_error_count,
-  &sys_max_insert_delayed_threads,
-  &sys_max_heap_table_size,
-  &sys_max_join_size,
-  &sys_max_length_for_sort_data,
-  &sys_max_prepared_stmt_count,
-  &sys_max_relay_log_size,
-  &sys_max_seeks_for_key,
-  &sys_max_sort_length,
-  &sys_max_sp_recursion_depth,
-  &sys_max_tmp_tables,
-  &sys_max_user_connections,
-  &sys_max_write_lock_count,
-  &sys_multi_range_count,
-  &sys_myisam_data_pointer_size,
-  &sys_myisam_max_sort_file_size,
-  &sys_myisam_repair_threads,
-  &sys_myisam_sort_buffer_size,
-  &sys_myisam_stats_method,
-  &sys_net_buffer_length,
-  &sys_net_read_timeout,
-  &sys_net_retry_count,
-  &sys_net_wait_timeout,
-  &sys_net_write_timeout,
-  &sys_new_mode,
-  &sys_old_passwords,
-  &sys_optimizer_prune_level,
-  &sys_optimizer_search_depth,
-  &sys_preload_buff_size,
-  &sys_pseudo_thread_id,
-  &sys_query_alloc_block_size,
-  &sys_query_cache_size,
-  &sys_query_prealloc_size,
-#ifdef HAVE_QUERY_CACHE
-  &sys_query_cache_limit,
-  &sys_query_cache_min_res_unit,
-  &sys_query_cache_type,
-  &sys_query_cache_wlock_invalidate,
-#endif /* HAVE_QUERY_CACHE */
-  &sys_quote_show_create,
-  &sys_rand_seed1,
-  &sys_rand_seed2,
-  &sys_range_alloc_block_size,
-  &sys_readonly,
-  &sys_read_buff_size,
-  &sys_read_rnd_buff_size,
-#ifdef HAVE_REPLICATION
-  &sys_relay_log_purge,
-#endif
-  &sys_rpl_recovery_rank,
-  &sys_safe_updates,
-  &sys_secure_auth,
-  &sys_secure_file_priv,
-  &sys_select_limit,
-  &sys_server_id,
-#ifdef HAVE_REPLICATION
-  &sys_slave_compressed_protocol,
-  &sys_slave_net_timeout,
-  &sys_slave_trans_retries,
-  &sys_slave_skip_counter,
-#endif
-  &sys_slow_launch_time,
-  &sys_sort_buffer,
-  &sys_sql_big_tables,
-  &sys_sql_low_priority_updates,
-  &sys_sql_max_join_size,
-  &sys_sql_mode,
-  &sys_sql_warnings,
-  &sys_sql_notes,
-  &sys_ssl_ca,
-  &sys_ssl_capath,
-  &sys_ssl_cert,
-  &sys_ssl_cipher,
-  &sys_ssl_key,
-  &sys_storage_engine,
-#ifdef HAVE_REPLICATION
-  &sys_sync_binlog_period,
-#endif
-  &sys_sync_frm,
-  &sys_system_time_zone,
-  &sys_table_cache_size,
-  &sys_table_lock_wait_timeout,
-  &sys_table_type,
-  &sys_thread_cache_size,
-  &sys_time_format,
-  &sys_timed_mutexes,
-  &sys_timestamp,
-  &sys_time_zone,
-  &sys_tmpdir,
-  &sys_tmp_table_size,
-  &sys_trans_alloc_block_size,
-  &sys_trans_prealloc_size,
-  &sys_tx_isolation,
-  &sys_version,
-#ifdef HAVE_BERKELEY_DB
-  &sys_version_bdb,
-#endif
-  &sys_version_comment,
-  &sys_version_compile_machine,
-  &sys_version_compile_os,
-#ifdef HAVE_INNOBASE_DB
-  &sys_innodb_fast_shutdown,
-  &sys_innodb_max_dirty_pages_pct,
-  &sys_innodb_max_purge_lag,
-  &sys_innodb_table_locks,
-  &sys_innodb_support_xa,
-  &sys_innodb_autoextend_increment,
-  &sys_innodb_sync_spin_loops,
-  &sys_innodb_concurrency_tickets,
-  &sys_innodb_thread_sleep_delay,
-  &sys_innodb_thread_concurrency,
-  &sys_innodb_commit_concurrency,
-  &sys_innodb_flush_log_at_trx_commit,
-#endif
-  &sys_trust_routine_creators,
-  &sys_trust_function_creators,
-  &sys_engine_condition_pushdown,
-#ifdef HAVE_NDBCLUSTER_DB
-  &sys_ndb_autoincrement_prefetch_sz,
-  &sys_ndb_cache_check_time,
-  &sys_ndb_connectstring,
-  &sys_ndb_force_send,
-  &sys_ndb_use_exact_count,
-  &sys_ndb_use_transactions,
-#endif
-  &sys_unique_checks,
-  &sys_updatable_views_with_limit,
-  &sys_warning_count
-};
+static sys_var_have_variable sys_have_compress(&vars, "have_compress", &have_compress);
+static sys_var_have_variable sys_have_crypt(&vars, "have_crypt", &have_crypt);
+static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("csv"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
+static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
+static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
+static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);
+static sys_var_have_plugin sys_have_partition_db(&vars, "have_partitioning", C_STRING_WITH_LEN("partition"), MYSQL_STORAGE_ENGINE_PLUGIN);
+static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
+                                           &have_query_cache);
+static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
+static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
+/* Global read-only variable describing server license */
+static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
+/* Global variables which enable|disable logging */
+static sys_var_log_state sys_var_general_log(&vars, "general_log", &opt_log,
+                                      QUERY_LOG_GENERAL);
+static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
+                                         QUERY_LOG_SLOW);
+sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
+				     sys_update_general_log_path,
+				     sys_default_general_log_path,
+				     opt_logname);
+sys_var_str sys_var_slow_log_path(&vars, "slow_query_log_file", sys_check_log_path,
+				  sys_update_slow_log_path, 
+				  sys_default_slow_log_path,
+				  opt_slow_logname);
+static sys_var_log_output sys_var_log_output_state(&vars, "log_output", &log_output_options,
+					    &log_output_typelib, 0);
 
 
 /*
