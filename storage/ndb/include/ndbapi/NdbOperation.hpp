@@ -96,8 +96,9 @@ public:
     ,LM_CommittedRead       ///< Ignore locks, read last committed value
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     = 2,
-    LM_Dirty = 2
+    LM_Dirty = 2,
 #endif
+    LM_SimpleRead = 3       ///< Read with shared lock, but release lock directly
   };
 
   /**
