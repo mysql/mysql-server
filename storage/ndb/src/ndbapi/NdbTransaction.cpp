@@ -2259,8 +2259,14 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
     op->theDirtyIndicator= 1;
     op->theSimpleIndicator= 1;
   }
-  else
+  else 
   {
+    if (op->theLockMode == NdbOperation::LM_SimpleRead)
+    {
+      op->theSimpleIndicator = 1;
+    }
+    
+    
     theSimpleState= 0;
   }
 
