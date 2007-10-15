@@ -4247,7 +4247,7 @@ bool Item::is_datetime()
 }
 
 
-String *Item::check_well_formed_result(String *str)
+String *Item::check_well_formed_result(String *str, bool send_error)
 {
   /* Check whether we got a well-formed string */
   CHARSET_INFO *cs= str->charset();
@@ -4263,8 +4263,14 @@ String *Item::check_well_formed_result(String *str)
     uint diff= str->length() - wlen;
     set_if_smaller(diff, 3);
     octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (thd->variables.sql_mode &
-        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    if (send_error)
+    {
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+               cs->csname,  hexbuf);
+      return 0;
+    }
+    if ((thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
       level= MYSQL_ERROR::WARN_LEVEL_ERROR;
       null_value= 1;
