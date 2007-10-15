@@ -1526,7 +1526,7 @@ master_def:
          }
        | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
          {
-           Lex->mi.heartbeat_period= $3->val_real();
+           Lex->mi.heartbeat_period= (float) $3->val_real();
            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
                Lex->mi.heartbeat_period < 0.0)
            {
