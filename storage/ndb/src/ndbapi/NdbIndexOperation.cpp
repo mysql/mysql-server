@@ -86,6 +86,9 @@ int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
   case LM_CommittedRead:
     return readTuple();
     break;
+  case LM_SimpleRead:
+    return readTuple();
+    break;
   default:
     return -1;
   };
