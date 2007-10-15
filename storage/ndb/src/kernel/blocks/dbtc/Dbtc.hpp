@@ -786,6 +786,7 @@ public:
     UintR apiConnect;                      /* POINTER TO API CONNECT RECORD */
     UintR nextTcConnect;                   /* NEXT TC RECORD*/
     Uint8 dirtyOp;
+    Uint8 opSimple;   
     Uint8 lastReplicaNo;     /* NUMBER OF THE LAST REPLICA IN THE OPERATION */
     Uint8 noOfNodes;         /* TOTAL NUMBER OF NODES IN OPERATION          */
     Uint8 operation;         /* OPERATION TYPE                              */
@@ -886,13 +887,8 @@ public:
     Uint8  opExec;     
 
     Uint8  unused;
+    Uint8  unused1;
 
-    /** 
-     * IS THE OPERATION A SIMPLE TRANSACTION            
-     * 0 = NO, 1 = YES                                 
-     */
-    Uint8  opSimple;   
-    
     //---------------------------------------------------
     // Second 16 byte cache line in second 64 byte cache
     // line. Diverse use.
@@ -1467,7 +1463,7 @@ private:
   void releaseAttrinfo();
   void releaseGcp(Signal* signal);
   void releaseKeys();
-  void releaseSimpleRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
+  void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
@@ -1623,7 +1619,7 @@ private:
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
-					ApiConnectRecord * const regApiPtr);
+					Ptr<ApiConnectRecord> regApiPtr);
 
   void checkDropTab(Signal* signal);
 

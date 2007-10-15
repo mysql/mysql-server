@@ -2027,7 +2027,6 @@ public:
     Uint8 reclenAiLqhkey;
     Uint8 m_offset_current_keybuf;
     Uint8 replicaType;
-    Uint8 simpleRead;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
