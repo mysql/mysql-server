@@ -387,10 +387,15 @@ bool Log_to_csv_event_handler::
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
       table->field[2]->store((longlong) thread_id, TRUE) ||
       table->field[3]->store((longlong) server_id, TRUE) ||
-      table->field[4]->store(command_type, command_type_len, client_cs) ||
-      table->field[5]->store(sql_text, sql_text_len, client_cs))
+      table->field[4]->store(command_type, command_type_len, client_cs))
     goto err;
 
+  /*
+    A positive return value in store() means truncation.
+    Still logging a message in the log in this case.
+  */
+  if (table->field[5]->store(sql_text, sql_text_len, client_cs) < 0)
+    goto err;
 
   /* mark all fields as not null */
   table->field[1]->set_notnull();
@@ -407,19 +412,14 @@ bool Log_to_csv_event_handler::
 
   /* log table entries are not replicated */
   if (table->file->ha_write_row(table->record[0]))
-  {
-    struct tm start;
-    localtime_r(&event_time, &start);
-
-    sql_print_error("%02d%02d%02d %2d:%02d:%02d - Failed to write to mysql.general_log",
-                    start.tm_year % 100, start.tm_mon + 1,
-                    start.tm_mday, start.tm_hour,
-                    start.tm_min, start.tm_sec);
-  }
+    goto err;
 
   result= FALSE;
 
 err:
+  if (result)
+    sql_print_error("Failed to write to mysql.general_log");
+
   if (need_rnd_end)
   {
     table->file->ha_rnd_end();
@@ -595,25 +595,24 @@ bool Log_to_csv_event_handler::
     goto err;
   table->field[9]->set_notnull();
 
-  /* sql_text */
-  if (table->field[10]->store(sql_text,sql_text_len, client_cs))
+  /*
+    Column sql_text.
+    A positive return value in store() means truncation.
+    Still logging a message in the log in this case.
+  */
+  if (table->field[10]->store(sql_text, sql_text_len, client_cs) < 0)
     goto err;
 
   /* log table entries are not replicated */
   if (table->file->ha_write_row(table->record[0]))
-  {
-    struct tm start;
-    localtime_r(&current_time, &start);
-
-    sql_print_error("%02d%02d%02d %2d:%02d:%02d - Failed to write to mysql.slow_log",
-                    start.tm_year % 100, start.tm_mon + 1,
-                    start.tm_mday, start.tm_hour,
-                    start.tm_min, start.tm_sec);
-  }
+    goto err;
 
   result= FALSE;
 
 err:
+  if (result)
+    sql_print_error("Failed to write to mysql.slow_log");
+
   if (need_rnd_end)
   {
     table->file->ha_rnd_end();
