@@ -77,7 +77,8 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
     struct wbuf w;
     int i;
     unsigned int calculated_size = serialize_brtnode_size(node);
-    char buf[size];
+    //char buf[size];
+    char *MALLOC_N(size,buf);
     assert(size>0);
     wbuf_init(&w, buf, size);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
@@ -124,6 +125,7 @@ void serialize_brtnode_to(int fd, diskoff off, diskoff size, BRTNODE node) {
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
     assert(w.ndone<=size);
+    toku_free(buf);
 }
 
 int deserialize_brtnode_from (int fd, diskoff off, BRTNODE *brtnode, int nodesize) {
