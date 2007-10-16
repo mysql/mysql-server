@@ -66,8 +66,8 @@ struct Query_cache_result;
 class Query_cache;
 
 /**
-  @brief This class represents a node in the linked chain of queries
-         belonging to one table.
+  This class represents a node in the linked chain of queries
+  belonging to one table.
 
   @note The root of this linked list is not a query-type block, but the table-
         type block which all queries has in common.

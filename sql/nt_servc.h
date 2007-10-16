@@ -1,8 +1,12 @@
-/* ------------------------------------------------------------------------
-   Windows NT Service class library
-   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
-   This file is public domain and comes with NO WARRANTY of any kind
- -------------------------------------------------------------------------- */
+/**
+  @file
+
+  @brief
+  Windows NT Service class library
+
+  Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
+  This file is public domain and comes with NO WARRANTY of any kind
+*/
 
 // main application thread
 typedef void (*THREAD_FC)(void *);
@@ -13,7 +17,7 @@ class NTService
     NTService();
    ~NTService();
 
-    BOOL    bOsNT;	      // true if OS is NT, false for Win95
+    BOOL    bOsNT;	      ///< true if OS is NT, false for Win95
     //install optinos
     DWORD   dwDesiredAccess;
     DWORD   dwServiceType;

@@ -110,7 +110,7 @@ public:
 };
 
 
-/* Class used for the old (MySQL 4.0 protocol) */
+/** Class used for the old (MySQL 4.0 protocol). */
 
 class Protocol_text :public Protocol
 {
