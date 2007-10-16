@@ -1763,7 +1763,7 @@ drop procedure bug15091;
 drop function if exists bug16896;
 --enable_warnings
 
---error ER_SP_NO_AGGREGATE
+--error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
 
 #
@@ -2198,6 +2198,29 @@ BEGIN
   CLOSE cur1;
 END|
 --delimiter ;
+
+#
+# Bug#29816 Syntactically wrong query fails with misleading error message
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
+# the result is implementation dependent:
+# See Bug#29816 for details
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent(), 1 + ,;
+--error ER_SP_DOES_NOT_EXIST
+SELECT inexistent();
+--error ER_PARSE_ERROR
+SELECT .inexistent();
+--error ER_PARSE_ERROR
+SELECT ..inexistent();
+USE test;
 
 #
 # BUG#NNNN: New bug synopsis
