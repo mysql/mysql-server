@@ -6,28 +6,9 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (s1 char(64),s2 char(64));
+set names latin1;
+--source include/ctype_regex.inc
 
-insert into t1 values('aaa','aaa');
-insert into t1 values('aaa|qqq','qqq');
-insert into t1 values('gheis','^[^a-dXYZ]+$');
-insert into t1 values('aab','^aa?b');
-insert into t1 values('Baaan','^Ba*n');
-insert into t1 values('aaa','qqq|aaa');
-insert into t1 values('qqq','qqq|aaa');
-
-insert into t1 values('bbb','qqq|aaa');
-insert into t1 values('bbb','qqq');
-insert into t1 values('aaa','aba');
-
-insert into t1 values(null,'abc');
-insert into t1 values('def',null);
-insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
-
-select HIGH_PRIORITY s1 regexp s2 from t1;
-
-drop table t1;
 
 #
 # This test a bug in regexp on Alpha
