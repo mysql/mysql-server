@@ -493,12 +493,17 @@ static void ndbcluster_binlog_wait(THD *thd)
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
-    while (count && ndb_binlog_running &&
-           ndb_latest_handled_binlog_epoch < wait_epoch)
+    pthread_mutex_lock(&injector_mutex);
+    while (!thd->killed && count && ndb_binlog_running &&
+           (ndb_latest_handled_binlog_epoch == 0 ||
+            ndb_latest_handled_binlog_epoch < wait_epoch))
     {
       count--;
-      sleep(1);
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
+    pthread_mutex_unlock(&injector_mutex);
     if (thd)
       thd->proc_info= save_info;
     DBUG_VOID_RETURN;
