@@ -3495,6 +3495,7 @@ no_commit:
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
+		ulint		err;
 		ulonglong	auto_inc;
 
 		/* Note the number of rows processed for this statement, used
@@ -3548,7 +3549,11 @@ set_max_autoinc:
 				ut_a(prebuilt->table->autoinc_increment > 0);
 				auto_inc += prebuilt->table->autoinc_increment;
 
-				innobase_set_max_autoinc(auto_inc);
+				err = innobase_set_max_autoinc(auto_inc);
+
+				if (err != DB_SUCCESS) {
+					error = err;
+				}
 			}
 			break;
 		}
@@ -3784,7 +3789,7 @@ ha_innobase::update_row(
 		if (auto_inc != 0) {
 			auto_inc += prebuilt->table->autoinc_increment;
 
-			innobase_set_max_autoinc(auto_inc);
+			error = innobase_set_max_autoinc(auto_inc);
 		}
 	}
 
