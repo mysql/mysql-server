@@ -6563,6 +6563,21 @@ f1()
 DROP TABLE t1;
 DROP FUNCTION f1;
 
+DROP PROCEDURE IF EXISTS db28318_a.t1;
+DROP PROCEDURE IF EXISTS db28318_b.t2;
+DROP DATABASE IF EXISTS db28318_a;
+DROP DATABASE IF EXISTS db28318_b;
+CREATE DATABASE db28318_a;
+CREATE DATABASE db28318_b;
+CREATE PROCEDURE db28318_a.t1() SELECT "db28318_a.t1";
+CREATE PROCEDURE db28318_b.t2() CALL t1();
+use db28318_a;
+CALL db28318_b.t2();
+ERROR 42000: PROCEDURE db28318_b.t1 does not exist
+DROP PROCEDURE db28318_a.t1;
+DROP PROCEDURE db28318_b.t2;
+DROP DATABASE db28318_a;
+DROP DATABASE db28318_b;
 # ------------------------------------------------------------------
 # -- End of 5.0 tests
 # ------------------------------------------------------------------
