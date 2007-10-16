@@ -1744,7 +1744,7 @@ drop procedure bug15091;
 drop function if exists bug16896;
 --enable_warnings
 
---error ER_SP_NO_AGGREGATE
+--error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
 
 
@@ -2099,7 +2099,10 @@ DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
---error ER_PARSE_ERROR
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
+# the result is implementation dependent:
+# See Bug#29816 for details
+--error ER_SP_DOES_NOT_EXIST
 SELECT inexistent(), 1 + ,;
 --error ER_SP_DOES_NOT_EXIST
 SELECT inexistent();

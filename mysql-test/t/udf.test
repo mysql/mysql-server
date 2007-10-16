@@ -113,11 +113,11 @@ DROP TABLE bug19904;
 # Bug#21269: DEFINER-clause is allowed for UDF-functions
 #
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 #
