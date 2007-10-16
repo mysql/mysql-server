@@ -88,7 +88,7 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT);
 prototype_undo_exec_hook(UNDO_ROW_DELETE);
 prototype_undo_exec_hook(UNDO_ROW_UPDATE);
 
-static int run_redo_phase(LSN lsn, my_bool apply);
+static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
 static int run_undo_phase(uint unfinished);
 static void display_record_position(const LOG_DESC *log_desc,
@@ -136,13 +136,11 @@ void tprint(FILE *trace_file, const char *format, ...)
 void tprint(FILE *trace_file __attribute__ ((unused)),
             const char *format __attribute__ ((unused)), ...)
 {
-#ifdef EXTRA_DEBUG
   va_list args;
   va_start(args, format);
   if (trace_file != NULL)
     vfprintf(trace_file, format, args);
   va_end(args);
-#endif
 }
 
 #define ALERT_USER() DBUG_ASSERT(0)
@@ -177,7 +175,8 @@ int maria_recover(void)
 #endif
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
-  res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE, TRUE, TRUE);
+  res= maria_apply_log(LSN_IMPOSSIBLE, MARIA_LOG_APPLY, trace_file,
+                       TRUE, TRUE, TRUE);
   if (!res)
     tprint(trace_file, "SUCCESS\n");
   if (trace_file)
@@ -192,7 +191,7 @@ int maria_recover(void)
 
    @param  from_lsn        LSN from which log reading/applying should start;
                            LSN_IMPOSSIBLE means "use last checkpoint"
-   @param  apply           if log records should be applied or not
+   @param  apply           how log records should be applied or not
    @param  trace_file      trace file where progress/debug messages will go
    @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
                            be skipped by the REDO phase or not
@@ -207,7 +206,8 @@ int maria_recover(void)
      @retval !=0    Error
 */
 
-int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
+int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
+                    FILE *trace_file,
                     my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
                     my_bool take_checkpoints)
 {
@@ -216,7 +216,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   ulonglong old_now;
   DBUG_ENTER("maria_apply_log");
 
-  DBUG_ASSERT(apply || !should_run_undo_phase);
+  DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
@@ -370,7 +370,7 @@ end:
   if (recovery_message_printed != REC_MSG_NONE)
   {
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "done.\n");
+    fprintf(stderr, "%s.\n", error ? " failed" : "done");
   }
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -981,10 +981,21 @@ static int new_table(uint16 sid, const char *name,
     0 (success): leave table open and return 0.
   */
   int error= 1;
+  MARIA_HA *info;
 
   checkpoint_useful= TRUE;
+  if ((name == NULL) || (name[0] == 0))
+  {
+    /*
+      we didn't use DBUG_ASSERT() because such record corruption could
+      silently pass in the "info == NULL" test below.
+    */
+    tprint(tracef, ", record is corrupted");
+    info= NULL;
+    goto end;
+  }
   tprint(tracef, "Table '%s', id %u", name, sid);
-  MARIA_HA *info= maria_open(name, O_RDWR, HA_OPEN_FOR_REPAIR);
+  info= maria_open(name, O_RDWR, HA_OPEN_FOR_REPAIR);
   if (info == NULL)
   {
     tprint(tracef, ", is absent (must have been dropped later?)"
@@ -1563,7 +1574,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
 }
 
 
-static int run_redo_phase(LSN lsn, my_bool apply)
+static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 {
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
@@ -1676,7 +1687,21 @@ static int run_redo_phase(LSN lsn, my_bool apply)
             {
               const LOG_DESC *log_desc2= &log_record_type_descriptor[rec2.type];
               display_record_position(log_desc2, &rec2, 0);
-              if (apply && display_and_apply_record(log_desc2, &rec2))
+              if (apply == MARIA_LOG_CHECK)
+              {
+                enlarge_buffer(&rec2);
+                translog_size_t read_len=
+                  translog_read_record(rec2.lsn, 0, rec2.record_length,
+                                       log_record_buffer.str, NULL);
+                if (read_len != rec2.record_length)
+                {
+                  tprint(tracef, "Cannot read record's body: read %u of"
+                         " %u bytes\n", read_len, rec2.record_length);
+                  goto err;
+                }
+              }
+              if (apply == MARIA_LOG_APPLY &&
+                  display_and_apply_record(log_desc2, &rec2))
               {
                 translog_destroy_scanner(&scanner2);
                 goto err;
@@ -1698,7 +1723,8 @@ static int run_redo_phase(LSN lsn, my_bool apply)
           translog_destroy_scanner(&scanner2);
         }
       }
-      if (apply && display_and_apply_record(log_desc, &rec))
+      if (apply == MARIA_LOG_APPLY &&
+          display_and_apply_record(log_desc, &rec))
         goto err;
     }
     else /* record does not end group */
@@ -1904,7 +1930,10 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
   */
   if (cmp_translog_addr(share->state.is_of_horizon, horizon) < 0 &&
       cmp_translog_addr(share->lsn_of_file_id, horizon) < 0)
+  {
     share->state.is_of_horizon= horizon;
+    _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
+  }
   _ma_reenable_logging_for_table(share);
 }
 
@@ -2103,8 +2132,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     LSN first_log_write_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     uint name_len= strlen(ptr) + 1;
+    strmake(name, ptr, sizeof(name)-1);
     ptr+= name_len;
-    strnmov(name, ptr, sizeof(name));
     if (new_table(sid, name, kfile, dfile, first_log_write_lsn))
       return LSN_ERROR;
   }
