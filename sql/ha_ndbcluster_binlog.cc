@@ -4858,7 +4858,8 @@ restart:
 
     pthread_mutex_lock(&injector_mutex);
     while (!ndb_schema_share ||
-           (ndb_binlog_running && !ndb_apply_status_share))
+           (ndb_binlog_running && !ndb_apply_status_share) ||
+           !ndb_binlog_tables_inited)
     {
       /* ndb not connected yet */
       struct timespec abstime;
