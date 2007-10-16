@@ -20,12 +20,14 @@
 #pragma interface                              /* gcc class interface */
 #endif
 
-/*
+/**
+  @file
+
   Declarations for implementation of server side cursors. Only
   read-only non-scrollable cursors are currently implemented.
 */
 
-/*
+/**
   Server_side_cursor -- an interface for materialized and
   sensitive (non-materialized) implementation of cursors. All
   cursors are self-contained (created in their own memory root).
@@ -36,7 +38,7 @@
 class Server_side_cursor: protected Query_arena, public Sql_alloc
 {
 protected:
-  /* Row destination used for fetch */
+  /** Row destination used for fetch */
   select_result *result;
 public:
   Server_side_cursor(MEM_ROOT *mem_root_arg, select_result *result_arg)
@@ -58,8 +60,7 @@ int mysql_open_cursor(THD *thd, uint flags,
                       select_result *result,
                       Server_side_cursor **res);
 
-/* Possible values for flags */
-
+/** Possible values for flags */
 enum { ANY_CURSOR= 1, ALWAYS_MATERIALIZED_CURSOR= 2 };
 
 #endif /* _sql_cusor_h_ */
