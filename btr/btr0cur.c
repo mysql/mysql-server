@@ -2150,7 +2150,8 @@ btr_cur_pessimistic_update(
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
-	n_ext = btr_push_update_extern_fields(new_entry, offsets, update);
+	n_ext = btr_push_update_extern_fields(new_entry, index, offsets,
+					      update);
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
 							  n_ext),
@@ -3525,10 +3526,13 @@ update. */
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-				/* out: number of externally stored columns */
-	dtuple_t*	tuple,	/* in/out: data tuple */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	const upd_t*	update)	/* in: update vector or NULL */
+					/* out: number of externally
+					stored columns */
+	dtuple_t*		tuple,	/* in/out: data tuple */
+	const dict_index_t*	index,	/* in: clustered index */
+	const ulint*		offsets,/* in: array returned by
+					rec_get_offsets() */
+	const upd_t*		update)	/* in: update vector or NULL */
 {
 	ulint	n_pushed	= 0;
 	ulint	n;
@@ -3536,7 +3540,7 @@ btr_push_update_extern_fields(
 
 	ut_ad(tuple);
 	ut_ad(offsets);
-	ut_ad(dtuple_get_n_fields(tuple) == rec_offs_n_fields(offsets));
+	ut_ad(dict_index_is_clust(index));
 #ifdef UNIV_DEBUG
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 		ut_ad(!dfield_is_ext(dtuple_get_nth_field(tuple, i)));
@@ -3567,8 +3571,12 @@ btr_push_update_extern_fields(
 
 	for (i = 0; i < n; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
-			dfield_t*	dfield
-				= dtuple_get_nth_field(tuple, i);
+			const dict_field_t*	ifield
+				= dict_index_get_nth_field(index, i);
+			ulint			col_no
+				= dict_col_get_no(dict_field_get_col(ifield));
+			dfield_t*		dfield
+				= dtuple_get_nth_field(tuple, col_no);
 
 			/* Check it is not flagged already */
 			if (!dfield_is_ext(dfield)) {
