@@ -3240,7 +3240,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     table_count++;
-#ifdef HAVE_QUERY_CACHE
+#ifndef NO_EMBEDDED_ACCESS_CHECKS 
     /*
       Disable any attempt to store this statement if there are
       column level grants on any referenced tables.
