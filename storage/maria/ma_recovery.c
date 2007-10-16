@@ -404,7 +404,7 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
-    tprint(tracef, "Got error when executing redo on record\n");
+    tprint(tracef, "Got error when executing record\n");
   return error;
 }
 
@@ -557,10 +557,31 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   else /* one or two files absent, or header corrupted... */
     tprint(tracef, " can't be opened, probably does not exist");
   /* if does not exist, or is older, overwrite it */
-  /** @todo symlinks */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
     tprint(tracef, ", we will only touch index file");
+  ptr++;
+  kfile_size_before_extension= uint2korr(ptr);
+  ptr+= 2;
+  keystart= uint2korr(ptr);
+  ptr+= 2;
+  uchar *kfile_header= ptr;
+  ptr+= kfile_size_before_extension;
+  /* set create_rename_lsn (for maria_read_log to be idempotent) */
+  lsn_store(kfile_header + sizeof(info->s->state.header) + 2, rec->lsn);
+  /* we also set is_of_horizon, like maria_create() does */
+  lsn_store(kfile_header + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
+            rec->lsn);
+  uchar *data_file_name= ptr;
+  ptr+= strlen(data_file_name) + 1;
+  uchar *index_file_name= ptr;
+  ptr+= strlen(index_file_name) + 1;
+  /** @todo handle symlinks */
+  if (data_file_name[0] || index_file_name[0])
+  {
+    tprint(tracef, ", DATA|INDEX DIRECTORY clauses are not handled\n");
+    goto end;
+  }
   fn_format(filename, name, "", MARIA_NAME_IEXT,
             (MY_UNPACK_FILENAME |
              (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
@@ -574,17 +595,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     tprint(tracef, " Failed to create index file\n");
     goto end;
   }
-  ptr++;
-  kfile_size_before_extension= uint2korr(ptr);
-  ptr+= 2;
-  keystart= uint2korr(ptr);
-  ptr+= 2;
-  /* set create_rename_lsn (for maria_read_log to be idempotent) */
-  lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
-  /* we also set is_of_horizon, like maria_create() does */
-  lsn_store(ptr + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
-            rec->lsn);
-  if (my_pwrite(kfile, ptr,
+  if (my_pwrite(kfile, kfile_header,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
   {
@@ -1621,7 +1632,6 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 
   len= translog_read_record_header(lsn, &rec);
 
-  /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
   {
     tprint(tracef, "Failed to read header of the first record.\n");
@@ -1949,15 +1959,20 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   print_redo_phase_progress(rec->lsn);
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
-  /**
-     @todo RECOVERY BUG
-     - for REDO_PURGE_BLOCKS, page is not at this pos
-     - for DELETE_ALL, record ends here! buffer overrun!
-     Solution: caller should pass a param enum { i_am_about_data_file,
-     i_am_about_index_file, none }.
-  */
-  llstr(page, llbuf);
-  tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
+  switch(rec->type)
+  {
+    /* not all REDO records have a page: */
+  case LOGREC_REDO_INSERT_ROW_HEAD:
+  case LOGREC_REDO_INSERT_ROW_TAIL:
+  case LOGREC_REDO_PURGE_ROW_HEAD:
+  case LOGREC_REDO_PURGE_ROW_TAIL:
+    llstr(page, llbuf);
+    tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
+    break;
+    /* other types could print their info here too */
+  default:
+    break;
+  }
   info= all_tables[sid].info;
   if (info == NULL)
   {
