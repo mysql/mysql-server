@@ -931,8 +931,8 @@ select null, null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(64) character set ucs2 default NULL,
-  `s2` varchar(64) character set ucs2 default NULL
+  `s1` varchar(64) CHARACTER SET ucs2 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 delete from t1;
 insert into t1 values('aaa','aaa');
