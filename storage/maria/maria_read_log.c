@@ -29,7 +29,8 @@ const char *default_dbug_option= "d:t:i:O,\\maria_read_log.trace";
 const char *default_dbug_option= "d:t:i:o,/tmp/maria_read_log.trace";
 #endif
 #endif /* DBUG_OFF */
-static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent;
+static my_bool opt_only_display, opt_apply, opt_apply_undo, opt_silent,
+  opt_check;
 static ulong opt_page_buffer_size;
 static const char *my_progname_short;
 
@@ -102,7 +103,9 @@ int main(int argc, char **argv)
           LSN_IN_PARTS(lsn));
 
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_apply, opt_silent ? NULL : stdout,
+  if (maria_apply_log(lsn, opt_apply ?  MARIA_LOG_APPLY :
+                      (opt_check ? MARIA_LOG_CHECK :
+                       MARIA_LOG_DISPLAY_HEADER), opt_silent ? NULL : stdout,
                       opt_apply_undo, FALSE, FALSE))
     goto err;
   fprintf(stdout, "%s: SUCCESS\n", my_progname_short);
@@ -129,6 +132,10 @@ static struct my_option my_long_options[] =
   {"apply", 'a',
    "Apply log to tables. Will display a lot of information if not run with --silent",
    (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"check", 'c',
+   "if --only-display, check if record is fully readable (for debugging)",
+   (uchar **) &opt_check, (uchar **) &opt_check, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",

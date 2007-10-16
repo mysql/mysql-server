@@ -5274,7 +5274,6 @@ my_bool translog_init_scanner(LSN lsn,
   DBUG_ENTER("translog_init_scanner");
   DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (0x%lu,0x%lx)",
                        (ulong) scanner, LSN_IN_PARTS(lsn)));
-  DBUG_ASSERT(LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE != 0);
   DBUG_ASSERT(translog_inited == 1);
 
   data.addr= &scanner->page_addr;
@@ -6632,6 +6631,26 @@ LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon)
     DBUG_RETURN(LSN_IMPOSSIBLE);
 
   translog_init_scanner(addr, 0, &scanner, 1);
+  /*
+    addr can point not to a chunk beginning but page end so next
+    page beginning.
+  */
+  if (addr % TRANSLOG_PAGE_SIZE == 0)
+  {
+    /*
+      We are emulating the page end which cased such horizon value to
+      trigger translog_scanner_eop().
+
+      We can't just increase addr on page header overhead because it
+      can be file end so we allow translog_get_next_chunk() to skip
+      to the next page in correct way
+    */
+    scanner.page_addr-= TRANSLOG_PAGE_SIZE;
+    scanner.page_offset= TRANSLOG_PAGE_SIZE;
+#ifndef DBUG_OFF
+    scanner.page= NULL; /* prevent using incorrect page content */
+#endif
+  }
   /* addr can point not to a chunk beginning but to a page end */
   if (translog_scanner_eop(&scanner))
   {
