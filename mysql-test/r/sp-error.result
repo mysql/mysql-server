@@ -1211,7 +1211,7 @@ ERROR 42S02: Unknown table 'c' in field list
 drop procedure bug15091;
 drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
-ERROR 42000: AGGREGATE is not supported for stored functions
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '() returns int return 1' at line 1
 DROP PROCEDURE IF EXISTS bug14702;
 CREATE IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
@@ -1457,7 +1457,7 @@ CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
 SELECT inexistent(), 1 + ,;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: FUNCTION inexistent does not exist
 SELECT inexistent();
 ERROR 42000: FUNCTION inexistent does not exist
 SELECT .inexistent();
