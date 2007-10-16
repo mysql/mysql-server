@@ -1524,7 +1524,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 
 
 /**
-  @brief Synchronize the thread with any flushing operations.
+  Synchronize the thread with any flushing operations.
 
   This helper function is called whenever a thread needs to operate on the
   query cache structure (example: during invalidation). If a table flush is in
@@ -1565,7 +1565,7 @@ void Query_cache::wait_while_table_flush_is_in_progress(bool *interrupt)
 
 
 /**
-   @brief Remove all cached queries that uses the given database
+   Remove all cached queries that uses the given database.
 */
 
 void Query_cache::invalidate(char *db)
@@ -1675,8 +1675,8 @@ void Query_cache::flush()
 
 
 /**
-  @brief Rearrange the memory blocks and join result in cache in 1 block (if
-    result length > join_limit)
+  Rearrange the memory blocks and join result in cache in 1 block (if
+  result length > join_limit)
 
   @param[in] join_limit If the minimum length of a result block to be joined.
   @param[in] iteration_limit The maximum number of packing and joining
@@ -1946,7 +1946,7 @@ void Query_cache::make_disabled()
 
 /**
   @class Query_cache
-  @brief Free all resources allocated by the cache.
+  Free all resources allocated by the cache.
 
   This function frees all resources allocated by the cache.  You
   have to call init_cache() before using the cache again. This function
@@ -1970,7 +1970,7 @@ void Query_cache::free_cache()
 
 
 /**
-  @brief Flush the cache.
+  Flush the cache.
 
   This function will flush cache contents.  It assumes we have
   'structure_guard_mutex' locked. The function sets the m_cache_status flag and
@@ -2516,7 +2516,7 @@ Query_cache::invalidate_table_internal(THD *thd, uchar *key, uint32 key_length)
 }
 
 /**
-  @brief Invalidate a linked list of query cache blocks.
+  Invalidate a linked list of query cache blocks.
 
   Each block tries to aquire a block level lock before
   free_query is a called. This function will in turn affect
@@ -2684,7 +2684,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
 
 /**
-  @brief Insert used table name into the cache.
+  Insert used table name into the cache.
 
   @return Error status
     @retval FALSE On error
@@ -3413,8 +3413,8 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
 
 
 /**
-  @brief Rearrange all memory blocks so that free memory joins at the
-    'bottom' of the allocated memory block containing all cache data.
+  Rearrange all memory blocks so that free memory joins at the
+  'bottom' of the allocated memory block containing all cache data.
   @see Query_cache::pack(ulong join_limit, uint iteration_limit)
 */
 
@@ -4028,7 +4028,7 @@ void Query_cache::tables_dump()
 
 
 /**
-  @brief Checks integrity of the various linked lists
+  Checks integrity of the various linked lists
 
   @return Error status code
     @retval FALSE Query cache is operational.
