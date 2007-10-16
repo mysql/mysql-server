@@ -113,11 +113,11 @@ DROP TABLE bug19904;
 # Bug#21269: DEFINER-clause is allowed for UDF-functions
 #
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
 RETURNS STRING SONAME "should_not_parse.so";
 #
@@ -363,6 +363,20 @@ drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
 
+#
+# Bug#28318  CREATE FUNCTION (UDF) requires a schema
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+DROP FUNCTION metaphon;
+USE test;
 
 #
 # Bug #29804  UDF parameters don't contain correct string length
