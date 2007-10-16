@@ -1230,7 +1230,7 @@ row_upd_store_row(
 			      &node->ext, node->heap);
 	if (UNIV_LIKELY_NULL(node->ext)) {
 		node->n_ext = btr_push_update_extern_fields(
-			node->row, offsets,
+			node->row, clust_index, offsets,
 			node->is_delete ? NULL : node->update);
 	} else {
 		node->n_ext = 0;
