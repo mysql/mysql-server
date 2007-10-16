@@ -560,10 +560,13 @@ update. */
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-				/* out: number of externally stored columns */
-	dtuple_t*	tuple,	/* in/out: data tuple */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	const upd_t*	update);/* in: update vector or NULL */
+					/* out: number of externally
+					stored columns */
+	dtuple_t*		tuple,	/* in/out: data tuple */
+	const dict_index_t*	index,	/* in: clustered index */
+	const ulint*		offsets,/* in: array returned by
+					rec_get_offsets() */
+	const upd_t*		update);/* in: update vector or NULL */
 
 /*######################################################################*/
 

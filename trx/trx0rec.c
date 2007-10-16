@@ -1398,7 +1398,8 @@ trx_undo_prev_version_build(
 
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
 					       heap);
-		n_ext = btr_push_update_extern_fields(entry, offsets, update);
+		n_ext = btr_push_update_extern_fields(entry, index, offsets,
+						      update);
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap, rec_get_converted_size(index, entry,
