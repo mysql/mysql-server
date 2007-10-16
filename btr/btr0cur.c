@@ -3427,7 +3427,7 @@ btr_cur_mark_dtuple_inherited_extern(
 {
 	ulint		i;
 
-	for (i = 0; dtuple_get_n_fields(entry); i++) {
+	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
 		dfield_t*	dfield = dtuple_get_nth_field(entry, i);
 		byte*		data;
