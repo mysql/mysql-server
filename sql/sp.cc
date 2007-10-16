@@ -1591,12 +1591,12 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
-                                          key->length);
+                                          key->length + 1);
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
     rn->key.length= key->length;
     rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
-    memcpy(rn->key.str, key->str, key->length);
+    memcpy(rn->key.str, key->str, key->length + 1);
     my_hash_insert(&lex->sroutines, (uchar *)rn);
     lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
@@ -1779,7 +1779,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
 
   for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
   {
-    sp_name name(rt->key.str, rt->key.length);
+    sp_name name(thd, rt->key.str, rt->key.length);
     int type= rt->key.str[0];
     sp_head *sp;
 
@@ -1787,13 +1787,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                               &thd->sp_func_cache : &thd->sp_proc_cache),
                               &name)))
     {
-      name.m_name.str= strchr(name.m_qname.str, '.');
-      name.m_db.length= name.m_name.str - name.m_qname.str;
-      name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
-                                  name.m_db.length);
-      name.m_name.str+= 1;
-      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
-
       switch ((ret= db_find_routine(thd, type, &name, &sp)))
       {
       case SP_OK:

@@ -3357,12 +3357,6 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                        &thd->sp_func_cache, FALSE))
-    {
-      my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
-      goto error;
-    }
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
