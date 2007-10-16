@@ -2080,5 +2080,23 @@ eval $show_statement;
 
 drop table t1;
 
+# ----------------------------------------------------------------------------
+# Test change_user command
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "--change_user root,,inexistent" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--change_user inexistent,,test" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--change_user root,inexistent,test" | $MYSQL_TEST 2>&1
+
+--change_user
+--change_user root
+--change_user root,,
+--change_user root,,test
+
 --echo End of tests
 
