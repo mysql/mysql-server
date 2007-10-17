@@ -99,7 +99,9 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
           length is stored in little-endian format, since this is the
           format used for the binlog.
         */
+#ifndef DBUG_OFF
         const uchar *old_pack_ptr= pack_ptr;
+#endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
                               field->max_data_length(), TRUE);
         DBUG_PRINT("debug", ("field: %s; pack_ptr: 0x%lx;"
@@ -234,7 +236,9 @@ unpack_row(Relay_log_info const *rli,
           normal unpack operation.
         */
         uint16 const metadata= tabledef->field_metadata(i);
+#ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
+#endif
         pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
