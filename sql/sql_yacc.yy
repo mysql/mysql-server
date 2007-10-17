@@ -9935,15 +9935,11 @@ literal:
                                 str ? str->ptr() : "",
                                 str ? str->length() : 0,
                                 $1);
-            if ($$)
+            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
             {
-              ((Item_string *) $$)->set_repertoire_from_value();
-              if (!$$->check_well_formed_result(&$$->str_value))
-              {
-                $$= new Item_null();
-                $$->set_name(NULL, 0, system_charset_info);
-              }
+              MYSQL_YYABORT;
             }
+            ((Item_string *) $$)->set_repertoire_from_value();
           }
         | UNDERSCORE_CHARSET BIN_NUM
           {
@@ -9959,10 +9955,9 @@ literal:
                                 str ? str->ptr() : "",
                                 str ? str->length() : 0,
                                 $1);
-            if ($$ && !$$->check_well_formed_result(&$$->str_value))
+            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
             {
-              $$= new Item_null();
-              $$->set_name(NULL, 0, system_charset_info);
+              MYSQL_YYABORT;
             }
           }
 	| DATE_SYM text_literal { $$ = $2; }
