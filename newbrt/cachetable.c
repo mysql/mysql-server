@@ -32,6 +32,7 @@ struct ctpair {
     cachetable_flush_func_t flush_callback;
     cachetable_fetch_func_t fetch_callback;
     void*extraargs;
+    int      verify_flag; /* Used in verify_cachetable() */
 };
 
 struct cachetable {
@@ -257,7 +258,6 @@ static PAIR remove_from_hash_chain (PAIR remove_me, PAIR list) {
 }
 
 static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
-    unsigned int h = hashit(t, remove_me->key);
     lru_remove(t, remove_me);
     //printf("flush_callback(%lld,%p)\n", remove_me->key, remove_me->value);
     WHEN_TRACE_CT(printf("%s:%d CT flush_callback(%lld, %p, dirty=%d, 0)\n", __FILE__, __LINE__, remove_me->key, remove_me->value, remove_me->dirty && write_me)); 
@@ -266,7 +266,10 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     remove_me->flush_callback(remove_me->cachefile, remove_me->key, remove_me->value, remove_me->size, remove_me->dirty && write_me, 0);
     t->n_in_table--;
     // Remove it from the hash chain.
-    t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
+    {
+	unsigned int h = hashit(t, remove_me->key);
+	t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
+    }
     t->size_current -= remove_me->size;
     toku_free(remove_me);
 }
@@ -282,11 +285,8 @@ static void flush_and_keep (PAIR flush_me) {
 static int maybe_flush_some (CACHETABLE t, long size __attribute__((unused))) {
     int r = 0;
 again:
-#if 0
-    if (t->n_in_table >= t->table_size) {
-#else
+//    if (t->n_in_table >= t->table_size) {
     if (size + t->size_current > t->size_limit) {
-#endif
         /* Try to remove one. */
 	PAIR remove_me;
 	for (remove_me = t->tail; remove_me; remove_me = remove_me->prev) {
@@ -328,18 +328,18 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     ct->table[h] = p;
     ct->n_in_table++;
     ct->size_current += size;
-    if (ct->n_in_table > ct->table_size)
+    if (ct->n_in_table > ct->table_size) {
         cachetable_rehash(ct, +1);
+    }
     return 0;
 }
 
 int cachetable_put_size(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
                     cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
-    int h = hashit(cachefile->cachetable, key);
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     {
 	PAIR p;
-	for (p=cachefile->cachetable->table[h]; p; p=p->hash_chain) {
+	for (p=cachefile->cachetable->table[hashit(cachefile->cachetable, key)]; p; p=p->hash_chain) {
 	    if (p->key==key && p->cachefile==cachefile) {
 		// Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
 		// In practice, the functions better be the same.
@@ -351,15 +351,17 @@ int cachetable_put_size(CACHEFILE cachefile, CACHEKEY key, void*value, long size
     }
     if (maybe_flush_some(cachefile->cachetable, size)) 
         return -2;
-    return cachetable_insert_at(cachefile, h, key, value, size, flush_callback, fetch_callback, extraargs, 1);
+    // flushing could change the result from hashit()
+    int r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1);
+    return r;
 }
 
 int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
                             cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
-    int h = hashit(t,key);
+    int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
-    for (p=t->table[h]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
             *sizep = p->size;
@@ -370,6 +372,7 @@ int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value,
 	}
     }
     if (maybe_flush_some(t, 1)) return -2;
+    // Note.  hashit(t,key) may have changed as a result of flushing.
     {
 	void *toku_value; 
         long size = 1; // compat
@@ -377,7 +380,7 @@ int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value,
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
 	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs))) 
             return r;
-	cachetable_insert_at(cachefile, h, key, toku_value, size, flush_callback, fetch_callback, extraargs, 0);
+	cachetable_insert_at(cachefile, hashit(t,key), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0);
 	*value = toku_value;
         if (sizep)
             *sizep = size;
@@ -389,9 +392,8 @@ int cachetable_get_and_pin_size (CACHEFILE cachefile, CACHEKEY key, void**value,
 
 int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value) {
     CACHETABLE t = cachefile->cachetable;
-    int h = hashit(t,key);
     PAIR p;
-    for (p=t->table[h]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
 	    p->pinned++;
@@ -406,11 +408,10 @@ int cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value
 
 int cachetable_unpin_size (CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
     CACHETABLE t = cachefile->cachetable;
-    int h = hashit(t,key);
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
-    for (p=t->table[h]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    assert(p->pinned>0);
 	    p->pinned--;
@@ -435,6 +436,51 @@ int cachetable_flush (CACHETABLE t) {
 	    flush_and_remove(t, p, 1); // Must be careful, since flush_and_remove kills the linked list.
 	}
     return 0;
+}
+
+void cachefile_verify (CACHEFILE cf) {
+    cachetable_verify(cf->cachetable);
+}
+
+void cachetable_verify (CACHETABLE t) {
+    // First clear all the verify flags by going through the hash chains
+    {
+	int i;
+	for (i=0; i<t->table_size; i++) {
+	    PAIR p;
+	    for (p=t->table[i]; p; p=p->hash_chain) {
+		p->verify_flag=0;
+	    }
+	}
+    }
+    // Now go through the LRU chain, make sure everything in the LRU chain is hashed, and set the verify flag.
+    {
+	PAIR p;
+	for (p=t->head; p; p=p->next) {
+	    assert(p->verify_flag==0);
+	    PAIR p2;
+	    for (p2=t->table[hashit(t,p->key)]; p2; p2=p2->hash_chain) {
+		if (p2==p) {
+		    /* found it */
+		    goto next;
+		}
+	    }
+	    fprintf(stderr, "Something in the LRU chain is not hashed\n");
+	    assert(0);
+	next:
+	    p->verify_flag = 1;
+	}
+    }
+    // Now make sure everything in the hash chains has the verify_flag set to 1.
+    {
+	int i;
+	for (i=0; i<t->table_size; i++) {
+	    PAIR p;
+	    for (p=t->table[i]; p; p=p->hash_chain) {
+		assert(p->verify_flag);
+	    }
+	}
+    }
 }
 
 static void assert_cachefile_is_flushed_and_removed (CACHEFILE cf) {
@@ -500,16 +546,16 @@ int cachetable_close (CACHETABLE *tp) {
 int cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     /* Removing something already present is OK. */
     CACHETABLE t = cachefile->cachetable;
-    int h = hashit(t,key);
     PAIR p;
-    for (p=t->table[h]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    flush_and_remove(t, p, write_me);
             if (4 * t->n_in_table < t->table_size)
                 cachetable_rehash(t, -1);
-            return 0;
+	    goto done;
 	}
     }
+ done:
     return 0;
 }
 
@@ -581,9 +627,8 @@ void cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_pt
 
 int cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
                          int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
-    int h = hashit(ct, key);
     PAIR p;
-    for (p = ct->table[h]; p; p = p->hash_chain) {
+    for (p = ct->table[hashit(ct, key)]; p; p = p->hash_chain) {
         if (p->key == key) {
             if (value_ptr)
                 *value_ptr = p->value;

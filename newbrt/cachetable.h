@@ -85,4 +85,7 @@ static inline int cachetable_unpin(CACHEFILE cf, CACHEKEY key, int dirty) {
     return cachetable_unpin_size(cf, key, dirty, 1);
 }
 
+void cachefile_verify (CACHEFILE cf);  // Verify the whole cachetable that the CF is in.  Slow.
+void cachetable_verify (CACHETABLE t); // Slow...
+
 #endif
