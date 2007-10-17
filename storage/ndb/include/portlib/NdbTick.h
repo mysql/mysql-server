@@ -37,9 +37,6 @@ NDB_TICKS NdbTick_CurrentMillisecond(void);
  */
 int NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros);
 
-  /*#define TIME_MEASUREMENT*/
-#ifdef TIME_MEASUREMENT
-
 struct MicroSecondTimer {
   NDB_TICKS seconds;
   NDB_TICKS micro_seconds;
@@ -54,7 +51,6 @@ struct MicroSecondTimer {
 NDB_TICKS NdbTick_getMicrosPassed(struct MicroSecondTimer start,
                             struct MicroSecondTimer stop);
 int NdbTick_getMicroTimer(struct MicroSecondTimer* time_now);
-#endif
 
 #ifdef	__cplusplus
 }

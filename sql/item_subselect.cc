@@ -149,7 +149,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (gptr)&res))
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
 
   res= engine->prepare();
@@ -206,7 +206,7 @@ err:
 
 
 bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
-                          byte *argument)
+                          uchar *argument)
 {
 
   if (walk_subquery)
@@ -449,7 +449,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       'upper' select is not really dependent => we remove this dependence
     */
     substitution->walk(&Item::remove_dependence_processor, 0,
-		       (byte *) select_lex->outer_select());
+		       (uchar *) select_lex->outer_select());
     return RES_REDUCE;
   }
   return RES_OK;
@@ -624,7 +624,7 @@ void Item_exists_subselect::print(String *str)
 }
 
 
-bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit_arg)
+bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 {
   if (unit_arg->fake_select_lex &&
       unit_arg->fake_select_lex->test_limit())
@@ -818,6 +818,11 @@ bool Item_in_subselect::val_bool()
   if (exec())
   {
     reset();
+    /* 
+      Must mark the IN predicate as NULL so as to make sure an enclosing NOT
+      predicate will return FALSE. See the comments in 
+      subselect_uniquesubquery_engine::copy_ref_key for further details.
+    */
     null_value= 1;
     return 0;
   }
@@ -980,7 +985,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	DBUG_RETURN(RES_ERROR);
       thd->lex->allow_sum_func= save_allow_sum_func; 
       /* we added aggregate function => we have to change statistic */
-      count_field_types(&join->tmp_table_param, join->all_fields, 0);
+      count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
+                        0);
 
       subs= new Item_singlerow_subselect(select_lex);
     }
@@ -1872,6 +1878,8 @@ int subselect_single_select_engine::exec()
             if (cond_guard && !*cond_guard)
             {
               /* Change the access method to full table scan */
+              tab->save_read_first_record= tab->read_first_record;
+              tab->save_read_record= tab->read_record.read_record;
               tab->read_first_record= init_read_record_seq;
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
@@ -1892,8 +1900,8 @@ int subselect_single_select_engine::exec()
       JOIN_TAB *tab= *ptab;
       tab->read_record.record= 0;
       tab->read_record.ref_length= 0;
-      tab->read_first_record= join_read_always_key_or_null;
-      tab->read_record.read_record= join_read_next_same_or_null;
+      tab->read_first_record= tab->save_read_first_record; 
+      tab->read_record.read_record= tab->save_read_record;
     }
     executed= 1;
     thd->where= save_where;
@@ -1977,10 +1985,38 @@ int subselect_uniquesubquery_engine::scan_table()
 
   DESCRIPTION
     Copy ref key and check for null parts in it.
+    Depending on the nullability and conversion problems this function
+    recognizes and processes the following states :
+      1. Partial match on top level. This means IN has a value of FALSE
+         regardless of the data in the subquery table.
+         Detected by finding a NULL in the left IN operand of a top level
+         expression.
+         We may actually skip reading the subquery, so return TRUE to skip
+         the table scan in subselect_uniquesubquery_engine::exec and make
+         the value of the IN predicate a NULL (that is equal to FALSE on
+         top level).
+      2. No exact match when IN is nested inside another predicate.
+         Detected by finding a NULL in the left IN operand when IN is not
+         a top level predicate.
+         We cannot have an exact match. But we must proceed further with a
+         table scan to find out if it's a partial match (and IN has a value
+         of NULL) or no match (and IN has a value of FALSE).
+         So we return FALSE to continue with the scan and see if there are
+         any record that would constitute a partial match (as we cannot
+         determine that from the index).
+      3. Error converting the left IN operand to the column type of the
+         right IN operand. This counts as no match (and IN has the value of
+         FALSE). We mark the subquery table cursor as having no more rows
+         (to ensure that the processing that follows will not find a match)
+         and return FALSE, so IN is not treated as returning NULL.
+
 
   RETURN
-    FALSE - ok, index lookup key without keys copied.
-    TRUE  - an error occured while copying the key
+    FALSE - The value of the IN predicate is not known. Proceed to find the
+            value of the IN predicate using the determined values of
+            null_keypart and table->status.
+    TRUE  - IN predicate has a value of NULL. Stop the processing right there
+            and return NULL to the outer predicates.
 */
 
 bool subselect_uniquesubquery_engine::copy_ref_key()
@@ -2000,13 +2036,37 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
       function.
     */
     null_keypart= (*copy)->null_key;
-    bool top_level= ((Item_in_subselect *) item)->is_top_level_item();
-    if (null_keypart && !top_level)
-      break;
-    if ((tab->ref.key_err) & 1 || (null_keypart && top_level))
+    if (null_keypart)
     {
+      bool top_level= ((Item_in_subselect *) item)->is_top_level_item();
+      if (top_level)
+      {
+        /* Partial match on top level */
+        DBUG_RETURN(1);
+      }
+      else
+      {
+        /* No exact match when IN is nested inside another predicate */
+        break;
+      }
+    }
+
+    /*
+      Check if the error is equal to STORE_KEY_FATAL. This is not expressed 
+      using the store_key::store_key_result enum because ref.key_err is a 
+      boolean and we want to detect both TRUE and STORE_KEY_FATAL from the 
+      space of the union of the values of [TRUE, FALSE] and 
+      store_key::store_key_result.  
+      TODO: fix the variable an return types.
+    */
+    if (tab->ref.key_err & 1)
+    {
+      /*
+       Error converting the left IN operand to the column type of the right
+       IN operand. 
+      */
       tab->table->status= STATUS_NOT_FOUND;
-      DBUG_RETURN(1);
+      break;
     }
   }
   DBUG_RETURN(0);
@@ -2049,20 +2109,30 @@ int subselect_uniquesubquery_engine::exec()
   int error;
   TABLE *table= tab->table;
   empty_result_set= TRUE;
+  table->status= 0;
  
   /* TODO: change to use of 'full_scan' here? */
   if (copy_ref_key())
     DBUG_RETURN(1);
+  if (table->status)
+  {
+    /* 
+      We know that there will be no rows even if we scan. 
+      Can be set in copy_ref_key.
+    */
+    ((Item_in_subselect *) item)->value= 0;
+    DBUG_RETURN(0);
+  }
 
   if (null_keypart)
     DBUG_RETURN(scan_table());
  
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 0);
-  error= table->file->index_read(table->record[0],
-                                 tab->ref.key_buff,
-                                 make_prev_keypart_map(tab->ref.key_parts),
-                                 HA_READ_KEY_EXACT);
+  error= table->file->index_read_map(table->record[0],
+                                     tab->ref.key_buff,
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
@@ -2169,10 +2239,10 @@ int subselect_indexsubquery_engine::exec()
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 1);
-  error= table->file->index_read(table->record[0],
-                                 tab->ref.key_buff,
-                                 make_prev_keypart_map(tab->ref.key_parts),
-                                 HA_READ_KEY_EXACT);
+  error= table->file->index_read_map(table->record[0],
+                                     tab->ref.key_buff,
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                     HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);

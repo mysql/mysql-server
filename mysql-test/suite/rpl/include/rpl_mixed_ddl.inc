@@ -67,7 +67,7 @@ ALTER TABLE t2 DROP COLUMN d;
 --echo
 --echo ******************** SHOW BINLOG EVENTS ********************
 --replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /Server ver: .+/Server ver: #/ /table_id: [0-9]+/table_id: #/
 show binlog events from 1;
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
@@ -83,4 +83,4 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql;
+--exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql

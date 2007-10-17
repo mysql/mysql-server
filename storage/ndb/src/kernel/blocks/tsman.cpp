@@ -1309,6 +1309,12 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
 	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
 	free.remove(file_ptr);
       }
+      else if(find_file_by_id(file_ptr, fg_ptr.p->m_meta_files, req.file_id))
+      {
+	jam();
+	Local_datafile_list meta(m_file_pool, fg_ptr.p->m_meta_files);
+	meta.remove(file_ptr);
+      }
       else
       {
 	errorCode = DropFileImplRef::NoSuchFile;

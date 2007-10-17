@@ -10,7 +10,8 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/true.require
-select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+--source include/ndb_not_readonly.inc
 enable_query_log;
 
 # Check that server2 has NDB support
@@ -21,12 +22,9 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/true.require
-select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+--source include/ndb_not_readonly.inc
 enable_query_log;
-
-# Check should be here as well...
-# # Check that second master mysqld has come out of redonly mode
-# --source include/ndb_not_readonly.inc
 
 # Set the default connection to 'server1'
 connection server1;

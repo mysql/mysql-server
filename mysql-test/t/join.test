@@ -512,10 +512,12 @@ select * from v1a join (t3 natural join t4) on a = y;
 #--------------------------------------------------------------------
 # Negative tests (tests for errors)
 #--------------------------------------------------------------------
+# works in Oracle - bug
 -- error 1052
-select * from t1 natural join (t3 cross join t4); # works in Oracle - bug
+select * from t1 natural join (t3 cross join t4);
+# works in Oracle - bug
 -- error 1052
-select * from (t3 cross join t4) natural join t1; # works in Oracle - bug
+select * from (t3 cross join t4) natural join t1;
 -- error 1052
 select * from t1 join (t2, t3) using (b);
 -- error 1052

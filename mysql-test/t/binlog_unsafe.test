@@ -1,0 +1,18 @@
+# Test to check that a warning is generated for unsafe statements
+# executed under statement mode logging.
+
+source include/have_log_bin.inc;
+
+SET BINLOG_FORMAT=STATEMENT;
+
+CREATE TABLE t1 (a CHAR(40));
+CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t3 (b INT AUTO_INCREMENT PRIMARY KEY);
+CREATE VIEW v1(a,b) AS SELECT a,b FROM t2,t3;
+
+INSERT INTO t1 SELECT UUID();
+query_vertical SHOW WARNINGS;
+
+DROP TABLE t1,t2,t3;
+
+

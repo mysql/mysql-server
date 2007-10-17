@@ -27,12 +27,16 @@ extern "C" {
  */
 #define HASH_OVERHEAD (sizeof(char*)*2)
 
-typedef byte *(*hash_get_key)(const byte *,uint*,my_bool);
+/* flags for hash_init */
+#define HASH_UNIQUE     1       /* hash_insert fails on duplicate key */
+
+typedef uchar *(*hash_get_key)(const uchar *,size_t*,my_bool);
 typedef void (*hash_free_key)(void *);
 
 typedef struct st_hash {
-  uint key_offset,key_length;		/* Length of key if const length */
-  uint records, blength;
+  size_t key_offset,key_length;		/* Length of key if const length */
+  size_t blength;
+  ulong records;
   uint flags;
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key get_key;
@@ -45,21 +49,21 @@ typedef uint HASH_SEARCH_STATE;
 
 #define hash_init(A,B,C,D,E,F,G,H) _hash_init(A,B,C,D,E,F,G, H CALLER_INFO)
 my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
-		   uint default_array_elements, uint key_offset,
-		   uint key_length, hash_get_key get_key,
+		   ulong default_array_elements, size_t key_offset,
+		   size_t key_length, hash_get_key get_key,
 		   void (*free_element)(void*), uint flags CALLER_INFO_PROTO);
 void hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
-byte *hash_element(HASH *hash,uint idx);
-gptr hash_search(const HASH *info, const byte *key, uint length);
-gptr hash_first(const HASH *info, const byte *key, uint length,
+uchar *hash_element(HASH *hash,ulong idx);
+uchar *hash_search(const HASH *info, const uchar *key, size_t length);
+uchar *hash_first(const HASH *info, const uchar *key, size_t length,
                 HASH_SEARCH_STATE *state);
-gptr hash_next(const HASH *info, const byte *key, uint length,
-               HASH_SEARCH_STATE *state);
-my_bool my_hash_insert(HASH *info,const byte *data);
-my_bool hash_delete(HASH *hash,byte *record);
-my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length);
-void hash_replace(HASH *hash, HASH_SEARCH_STATE *state, byte *new_row);
+uchar *hash_next(const HASH *info, const uchar *key, size_t length,
+                 HASH_SEARCH_STATE *state);
+my_bool my_hash_insert(HASH *info,const uchar *data);
+my_bool hash_delete(HASH *hash,uchar *record);
+my_bool hash_update(HASH *hash,uchar *record,uchar *old_key,size_t old_key_length);
+void hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
 my_bool hash_check(HASH *hash);			/* Only in debug library */
 
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))

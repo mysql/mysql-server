@@ -2,7 +2,8 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
+drop view if exists v1;
 --enable_warnings
 
 # Add a lot of keys to slow down check
@@ -36,3 +37,12 @@ Create view v1 as Select * from t1;
 Check Table v1,t2;
 drop view v1;
 drop table t1, t2;
+
+#
+# BUG#26325 - TEMPORARY TABLE "corrupt" after first read, according to CHECK
+#             TABLE
+#
+CREATE TEMPORARY TABLE t1(a INT);
+CHECK TABLE t1;
+REPAIR TABLE t1;
+DROP TABLE t1;

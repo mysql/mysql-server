@@ -153,6 +153,16 @@ drop table t1;
 set names latin1;
 
 #
+# Test the same with ascii
+#
+set names ascii;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a');
+select * from t1 where a='a';
+drop table t1;
+set names latin1;
+
+#
 # Bug#10446 Illegal mix of collations
 #
 create table t1 (a char(10) character set utf8 collate utf8_bin);

@@ -48,6 +48,8 @@
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER          64
 #define HA_OPEN_MMAP                    128     /* open memory mapped */
+/* Internal temp table, used for temporary results */
+#define HA_OPEN_INTERNAL_TABLE          256
 
 	/* The following is parameter to ha_rkey() how to use key */
 
@@ -180,7 +182,12 @@ enum ha_extra_function {
     These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
   */
   HA_EXTRA_DELETE_CANNOT_BATCH,
-  HA_EXTRA_UPDATE_CANNOT_BATCH
+  HA_EXTRA_UPDATE_CANNOT_BATCH,
+  /*
+    Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
+    executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
+  */
+  HA_EXTRA_INSERT_WITH_UPDATE
 };
 
 	/* The following is parameter to ha_panic() */
@@ -294,6 +301,7 @@ enum ha_base_keytype {
 #define HA_PACK_RECORD		2	/* Request packed record format */
 #define HA_CREATE_TMP_TABLE	4
 #define HA_CREATE_CHECKSUM	8
+#define HA_CREATE_KEEP_FILES	16      /* don't overwrite .MYD and MYI */
 #define HA_CREATE_DELAY_KEY_WRITE 64
 #define HA_CREATE_RELIES_ON_SQL_LAYER 128
 
@@ -396,7 +404,12 @@ enum ha_base_keytype {
 #define HA_ERR_AUTOINC_READ_FAILED 166   /* Failed to get next autoinc value */
 #define HA_ERR_AUTOINC_ERANGE    167     /* Failed to set row autoinc value */
 #define HA_ERR_GENERIC           168     /* Generic error */
-#define HA_ERR_LAST              168 /*Copy last error nr.*/
+#define HA_ERR_RECORD_IS_THE_SAME 169    /* row not actually updated : 
+                                            new values same as the old values */
+
+#define HA_ERR_LOGGING_IMPOSSIBLE 170 /* It is not possible to log this
+                                         statement */
+#define HA_ERR_LAST              170 /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
@@ -478,7 +491,7 @@ enum data_file_type {
 
 typedef struct st_key_range
 {
-  const byte *key;
+  const uchar *key;
   uint length;
   key_part_map keypart_map;
   enum ha_rkey_function flag;

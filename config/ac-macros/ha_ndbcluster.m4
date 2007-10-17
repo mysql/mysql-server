@@ -43,7 +43,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       if test -f "$mysql_sci_dir/lib/libsisci.a" -a \ 
               -f "$mysql_sci_dir/include/sisci_api.h"; then
         NDB_SCI_INCLUDES="-I$mysql_sci_dir/include"
-        NDB_SCI_LIBS="-L$mysql_sci_dir/lib -lsisci"
+        NDB_SCI_LIBS="$mysql_sci_dir/lib/libsisci.a"
         AC_MSG_RESULT([-- including sci transporter])
         AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
                   [Including Ndb Cluster DB sci transporter])
@@ -197,7 +197,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
-  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
   if test "$have_ndb_debug" = "default"
   then
     have_ndb_debug=$with_debug
@@ -277,6 +276,13 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_opt_subdirs="$ndb_opt_subdirs docs"
     ndb_bin_am_ldflags=""
   fi
+
+  # building dynamic breaks on AIX. (If you want to try it and get unresolved
+  # __vec__delete2 and some such, try linking against libhC.)
+  case "$host_os" in
+    aix3.* | aix4.0.* | aix4.1.*) ;;
+    *) ndb_bin_am_ldflags="-static";;
+  esac
 
   # libndbclient versioning when linked with GNU ld.
   if $LD --version 2>/dev/null|grep -q GNU; then

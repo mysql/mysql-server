@@ -15,13 +15,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+
+  @file event_data_objects.h
+*/
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6
 
-class sp_head;
-class Sql_alloc;
 
 class Event_queue_element_for_exec
 {
@@ -77,7 +81,7 @@ public:
   Event_basic();
   virtual ~Event_basic();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table) = 0;
 
 protected:
@@ -119,7 +123,7 @@ public:
   Event_queue_element();
   virtual ~Event_queue_element();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   bool
@@ -151,13 +155,16 @@ public:
 
   ulong sql_mode;
 
+  class Stored_program_creation_ctx *creation_ctx;
+  LEX_STRING body_utf8;
+
   Event_timed();
   virtual ~Event_timed();
 
   void
   init();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   int
@@ -174,9 +181,11 @@ public:
 
   ulong sql_mode;
 
+  class Stored_program_creation_ctx *creation_ctx;
+
   Event_job_data();
 
-  virtual int
+  virtual bool
   load_from_row(THD *thd, TABLE *table);
 
   bool
@@ -205,12 +214,11 @@ public:
   */
   bool do_not_create;
 
-  const char *body_begin;
+  bool body_changed;
 
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
-  LEX_STRING body;
   LEX_STRING comment;
 
   Item* item_starts;
@@ -234,9 +242,6 @@ public:
 
   bool
   check_parse_data(THD *thd);
-
-  void
-  init_body(THD *thd);
 
 private:
 
@@ -281,5 +286,8 @@ event_basic_db_equal(LEX_STRING db, Event_basic *et);
 bool
 event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
 
+/**
+  @} (End of group Event_Scheduler)
+*/
 
 #endif /* _EVENT_DATA_OBJECTS_H_ */

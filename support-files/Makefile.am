@@ -25,6 +25,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			my-innodb-heavy-4G.cnf.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
+			mysqld_multi.server.sh \
 			binary-configure.sh \
 			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
@@ -33,7 +34,10 @@ EXTRA_DIST =		mysql.spec.sh \
 
 SUBDIRS =		MacOSX RHEL4-SElinux
 
-pkgdata_DATA =		my-small.cnf \
+# Default same as 'pkgdatadir', but we can override it
+pkgsuppdir =		$(datadir)/@PACKAGE@
+
+pkgsupp_DATA =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
@@ -42,7 +46,8 @@ pkgdata_DATA =		my-small.cnf \
 			binary-configure \
 			ndb-config-2-node.ini
 
-pkgdata_SCRIPTS =	mysql.server
+pkgsupp_SCRIPTS =	mysql.server \
+			mysqld_multi.server
 
 aclocaldir =		$(datadir)/aclocal
 aclocal_DATA =		mysql.m4
@@ -59,6 +64,7 @@ CLEANFILES =		my-small.cnf \
 			mysql-@VERSION@.spec \
 			mysql-log-rotate \
 			mysql.server \
+			mysqld_multi.server \
 			binary-configure \
 			MySQL-shared-compat.spec \
 			ndb-config-2-node.ini

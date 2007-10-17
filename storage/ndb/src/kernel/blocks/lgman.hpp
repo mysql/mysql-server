@@ -175,13 +175,14 @@ public:
       ,LG_SORTING             = 0x002  // Sorting files
       ,LG_SEARCHING           = 0x004  // Searching in last file
       ,LG_EXEC_THREAD         = 0x008  // Execute thread is running
-      ,LG_READ_THREAD         = 0x010 // Read thread is running
+      ,LG_READ_THREAD         = 0x010  // Read thread is running
       ,LG_FORCE_SYNC_THREAD   = 0x020
       ,LG_SYNC_WAITERS_THREAD = 0x040
       ,LG_CUT_LOG_THREAD      = 0x080
       ,LG_WAITERS_THREAD      = 0x100
       ,LG_FLUSH_THREAD        = 0x200
       ,LG_DROPPING            = 0x400
+      ,LG_STARTING            = 0x800
     };
 
     static const Uint32 LG_THREAD_MASK = Logfile_group::LG_FORCE_SYNC_THREAD |

@@ -22,8 +22,9 @@
   Returns a pointer to the beginning of the substring, needle, or NULL if the
   substring is not found in haystack.
 */
+
 void *my_memmem(const void *haystack, size_t haystacklen,
-    const void *needle, size_t needlelen)
+                const void *needle, size_t needlelen)
 {
   const unsigned char *cursor;
   const unsigned char *last_possible_needle_location =

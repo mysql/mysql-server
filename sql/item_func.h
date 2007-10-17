@@ -184,13 +184,13 @@ public:
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
   }
-  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
-  Item *transform(Item_transformer transformer, byte *arg);
-  Item* compile(Item_analyzer analyzer, byte **arg_p,
-                Item_transformer transformer, byte *arg_t);
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  Item *transform(Item_transformer transformer, uchar *arg);
+  Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(byte *arg);
+  bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
 };
 
@@ -253,7 +253,6 @@ public:
   void fix_num_length_and_dec();
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -266,7 +265,7 @@ class Item_num_op :public Item_func_numhybrid
   void print(String *str) { print_op(str); }
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -311,7 +310,6 @@ public:
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -333,8 +331,8 @@ class Item_decimal_typecast :public Item_func
 public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
-    max_length= len + 2;
     decimals= dec;
+    max_length= my_decimal_precision_to_length(len, dec, unsigned_flag);
   }
   String *val_str(String *str);
   double val_real();
@@ -345,7 +343,6 @@ public:
   void fix_length_and_dec() {};
   const char *func_name() const { return "decimal_typecast"; }
   void print(String *);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -414,7 +411,7 @@ public:
   const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
   void print(String *str) { print_op(str); }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -442,6 +439,7 @@ public:
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -454,6 +452,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -488,7 +487,6 @@ public:
   Item_func_exp(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "exp"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -498,7 +496,6 @@ public:
   Item_func_ln(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "ln"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -509,7 +506,6 @@ public:
   Item_func_log(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "log"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -519,7 +515,6 @@ public:
   Item_func_log2(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "log2"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -529,7 +524,6 @@ public:
   Item_func_log10(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "log10"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -539,7 +533,6 @@ public:
   Item_func_sqrt(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "sqrt"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -549,7 +542,6 @@ public:
   Item_func_pow(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "pow"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -559,7 +551,6 @@ public:
   Item_func_acos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "acos"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_asin :public Item_dec_func
@@ -568,7 +559,6 @@ public:
   Item_func_asin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "asin"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_atan :public Item_dec_func
@@ -578,7 +568,6 @@ public:
   Item_func_atan(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "atan"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_cos :public Item_dec_func
@@ -587,7 +576,6 @@ public:
   Item_func_cos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "cos"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_sin :public Item_dec_func
@@ -596,7 +584,6 @@ public:
   Item_func_sin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "sin"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_tan :public Item_dec_func
@@ -605,7 +592,6 @@ public:
   Item_func_tan(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "tan"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_integer :public Item_int_func
@@ -633,6 +619,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -644,6 +631,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 /* This handles round and truncate */
@@ -684,7 +672,6 @@ public:
   Item_func_sign(Item *a) :Item_int_func(a) {}
   const char *func_name() const { return "sign"; }
   longlong val_int();
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -699,7 +686,6 @@ public:
   const char *func_name() const { return name; }
   void fix_length_and_dec()
   { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -724,7 +710,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool result_as_longlong() { return compare_as_dates; };
   uint cmp_datetimes(ulonglong *value);
 };
 
@@ -780,7 +766,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "length"; }
   void fix_length_and_dec() { max_length=10; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_bit_length :public Item_func_length
@@ -800,7 +785,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "char_length"; }
   void fix_length_and_dec() { max_length=10; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_coercibility :public Item_int_func
@@ -824,7 +808,6 @@ public:
   longlong val_int();
   void fix_length_and_dec();
   void print(String *str);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -849,7 +832,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "ascii"; }
   void fix_length_and_dec() { max_length=3; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_ord :public Item_int_func
@@ -859,7 +841,6 @@ public:
   Item_func_ord(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "ord"; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_find_in_set :public Item_int_func
@@ -873,7 +854,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
@@ -885,7 +865,6 @@ public:
   Item_func_bit(Item *a) :Item_int_func(a) {}
   void fix_length_and_dec() { unsigned_flag= 1; }
   void print(String *str) { print_op(str); }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_bit_or :public Item_func_bit
@@ -911,7 +890,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
   void fix_length_and_dec() { max_length=2; }
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_func_shift_left :public Item_func_bit
@@ -1235,6 +1213,10 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  double val_result();
+  longlong val_int_result();
+  String *str_result(String *str);
+  my_decimal *val_decimal_result(my_decimal *);
   bool update_hash(void *ptr, uint length, enum Item_result type,
   		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
@@ -1247,7 +1229,14 @@ public:
   void print(String *str);
   void print_as_stmt(String *str);
   const char *func_name() const { return "set_user_var"; }
-  int save_in_field(Field *field, bool no_conversions);
+  int save_in_field(Field *field, bool no_conversions,
+                    bool can_use_result_field);
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return save_in_field(field, no_conversions, 1);
+  }
+  void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
+  bool register_field_in_read_map(uchar *arg);
 };
 
 
@@ -1255,11 +1244,12 @@ class Item_func_get_user_var :public Item_func,
                               private Settable_routine_parameter
 {
   user_var_entry *var_entry;
+  Item_result m_cached_result_type;
 
 public:
   LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a) {}
+    Item_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   LEX_STRING get_name() { return name; }
   double val_real();
@@ -1273,13 +1263,11 @@ public:
     We must always return variables as strings to guard against selects of type
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
-  enum_field_types field_type() const  { return MYSQL_TYPE_VARCHAR; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const;
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
-
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
@@ -1352,7 +1340,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "inet_aton"; }
   void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -1465,7 +1452,7 @@ private:
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
-  char result_buf[64];
+  uchar result_buf[64];
   /*
      The result field of the concrete stored function.
   */
@@ -1485,7 +1472,7 @@ public:
   virtual ~Item_func_sp()
   {}
 
-  table_map used_tables() const { return RAND_TABLE_BIT; }
+  void update_used_tables();
 
   void cleanup();
 
@@ -1539,7 +1526,7 @@ public:
     return str;
   }
 
-  virtual bool change_context_processor(byte *cntx)
+  virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
   bool sp_check_access(THD * thd);
@@ -1559,3 +1546,18 @@ public:
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
 };
+
+
+void uuid_short_init();
+
+class Item_func_uuid_short :public Item_int_func
+{
+public:
+  Item_func_uuid_short() :Item_int_func() {}
+  const char *func_name() const { return "uuid_short"; }
+  longlong val_int();
+  void fix_length_and_dec()
+  { max_length= 21; unsigned_flag=1; }
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+};
+

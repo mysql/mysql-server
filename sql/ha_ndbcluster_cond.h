@@ -198,7 +198,7 @@ public:
         return value.item->str_value.ptr();
       break;
     case(NDB_FIELD):
-      return value.field_value->field->ptr; 
+      return (char*) value.field_value->field->ptr; 
     default:
       break;
     }
@@ -264,8 +264,20 @@ class Ndb_cond : public Sql_alloc
   ~Ndb_cond() 
   { 
     if (ndb_item) delete ndb_item; 
-    ndb_item= NULL; 
-    if (next) delete next;
+    ndb_item= NULL;
+    /*
+      First item in the linked list deletes all in a loop
+      Note - doing it recursively causes stack issues for
+      big IN clauses
+    */
+    Ndb_cond *n= next;
+    while (n)
+    {
+      Ndb_cond *tmp= n;
+      n= n->next;
+      tmp->next= NULL;
+      delete tmp;
+    }
     next= prev= NULL; 
   };
   Ndb_item *ndb_item;
@@ -458,9 +470,9 @@ public:
   int generate_scan_filter_from_cond(NdbScanFilter& filter);
   int generate_scan_filter_from_key(NdbScanOperation* op,
                                     const KEY* key_info, 
-                                    const byte *key, 
+                                    const uchar *key, 
                                     uint key_len,
-                                    byte *buf);
+                                    uchar *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
 		      TABLE *table, const NdbDictionary::Table *ndb_table);

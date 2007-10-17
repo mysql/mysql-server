@@ -321,10 +321,8 @@ prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
---error ER_UNKNOWN_STORAGE_ENGINE
-prepare stmt4 from ' show engine bdb logs ';
---error ER_UNKNOWN_STORAGE_ENGINE
-prepare stmt4 from ' show engine foo logs ';
+prepare stmt4 from ' show engine myisam logs ';
+execute stmt4;
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';
@@ -409,12 +407,16 @@ deallocate prepare stmt_do ;
 deallocate prepare stmt_set ;
 
 ## nonsense like prepare of prepare,execute or deallocate
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' prepare stmt2 from '' select 1 ''  ' ;
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' execute stmt2 ' ;
---error 1064
+--error ER_UNSUPPORTED_PS 
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
+
+## We don't support alter view as prepared statements
+--error ER_UNSUPPORTED_PS
+prepare stmt1 from 'alter view v1 as select 2';
 
 ## switch the database connection
 --error ER_UNSUPPORTED_PS
@@ -575,7 +577,7 @@ prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
 create table t5 (a int) ;
 # rename must fail, t7 does not exist
 # Clean up the filename here because embedded server reports whole path
---replace_result \\ / $MYSQLTEST_VARDIR . /master-data/ "" t7.frm t7
+--replace_result $MYSQLTEST_VARDIR . master-data/ '' t7.frm t7
 --error 1017
 execute stmt1 ;
 create table t7 (a int) ;

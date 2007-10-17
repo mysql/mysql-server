@@ -73,8 +73,8 @@ variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
 END$$
 SELECT variable_name, variable_value FROM thread_status;
 variable_name	variable_value
-SSL_ACCEPTS	0.0000000
-SSL_CALLBACK_CACHE_HITS	0.0000000
+SSL_ACCEPTS	0
+SSL_CALLBACK_CACHE_HITS	0
 DROP TABLE thread_status;
 SET GLOBAL event_scheduler=0;
 End of 5.1 tests
@@ -99,9 +99,12 @@ INSERT INTO t1 VALUES (1), (2);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -130,9 +133,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -161,9 +167,12 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 );
+SET character_set_client = @saved_cs_client;
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;

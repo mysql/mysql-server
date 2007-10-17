@@ -469,7 +469,7 @@ AC_DEFUN([MYSQL_STACK_DIRECTION],
  {
    exit (find_stack_direction() < 0);
  }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
-   ac_cv_c_stack_direction=0)])
+   ac_cv_c_stack_direction=)])
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
 ])dnl
 
@@ -479,7 +479,7 @@ AC_MSG_CHECKING(if conversion of longlong to float works)
 AC_CACHE_VAL(ac_cv_conv_longlong_to_float,
 [AC_TRY_RUN([#include <stdio.h>
 typedef long long longlong;
-main()
+int main()
 {
   longlong ll=1;
   float f;
@@ -487,8 +487,10 @@ main()
   f = (float) ll;
   fprintf(file,"%g\n",f);
   fclose(file);
-  exit (0);
-}], ac_cv_conv_longlong_to_float=`cat conftestval`, ac_cv_conv_longlong_to_float=0, ifelse([$2], , , ac_cv_conv_longlong_to_float=$2))])dnl
+  return (0);
+}], ac_cv_conv_longlong_to_float=`cat conftestval`,
+    ac_cv_conv_longlong_to_float=0,
+    ac_cv_conv_longlong_to_float="yes")])dnl  # Cross compiling, assume can convert
 if test "$ac_cv_conv_longlong_to_float" = "1" -o "$ac_cv_conv_longlong_to_float" = "yes"
 then
   ac_cv_conv_longlong_to_float=yes
@@ -636,7 +638,6 @@ AC_SUBST(CXX_VERSION)
 ])
 
 AC_DEFUN([MYSQL_PROG_AR], [
-AC_REQUIRE([MYSQL_CHECK_CXX_VERSION])
 case $CXX_VERSION in
   MIPSpro*)
     AR=$CXX
@@ -647,11 +648,8 @@ case $CXX_VERSION in
     ARFLAGS="-xar -o"
   ;;
   *)
-    if test -z "$AR"
-    then
-      AC_CHECK_PROG([AR], [ar], [ar])
-    fi
-    if test -z "$AR"
+    AC_CHECK_PROG([AR], [ar], [ar])
+    if test -z "$AR" || test "$AR" = "false"
     then
       AC_MSG_ERROR([You need ar to build the library])
     fi

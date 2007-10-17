@@ -184,7 +184,7 @@ INSERT INTO t1 VALUES(  49, 71), (NULL, 72), (NULL, 73);
 INSERT INTO t1 VALUES(NULL, 81), (NULL, 82), (NULL, 83);
 # Create a duplicate value.
 SET insert_id= 114;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES(NULL, 91);
 INSERT INTO t1 VALUES           (NULL, 92), (NULL, 93);
 # Check what we have now

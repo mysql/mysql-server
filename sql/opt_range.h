@@ -35,7 +35,7 @@ typedef struct st_key_part {
 
 class QUICK_RANGE :public Sql_alloc {
  public:
-  char *min_key,*max_key;
+  uchar *min_key,*max_key;
   uint16 min_length,max_length,flag;
   key_part_map min_keypart_map, // bitmap of used keyparts in min_key
                max_keypart_map; // bitmap of used keyparts in max_key
@@ -43,18 +43,18 @@ class QUICK_RANGE :public Sql_alloc {
   uint16 dummy;					/* Avoid warnings on 'flag' */
 #endif
   QUICK_RANGE();				/* Full range */
-  QUICK_RANGE(const char *min_key_arg, uint min_length_arg,
+  QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
               key_part_map min_keypart_map_arg,
-	      const char *max_key_arg, uint max_length_arg,
+	      const uchar *max_key_arg, uint max_length_arg,
               key_part_map max_keypart_map_arg,
 	      uint flag_arg)
-    : min_key((char*) sql_memdup(min_key_arg,min_length_arg+1)),
-      max_key((char*) sql_memdup(max_key_arg,max_length_arg+1)),
+    : min_key((uchar*) sql_memdup(min_key_arg,min_length_arg+1)),
+      max_key((uchar*) sql_memdup(max_key_arg,max_length_arg+1)),
       min_length((uint16) min_length_arg),
       max_length((uint16) max_length_arg),
+      flag((uint16) flag_arg),
       min_keypart_map(min_keypart_map_arg),
-      max_keypart_map(max_keypart_map_arg),
-      flag((uint16) flag_arg)
+      max_keypart_map(max_keypart_map_arg)
     {
 #ifdef HAVE_purify
       dummy=0;
@@ -241,12 +241,12 @@ public:
     rowid of last row retrieved by this quick select. This is used only when
     doing ROR-index_merge selects
   */
-  byte    *last_rowid;
+  uchar    *last_rowid;
 
   /*
     Table record buffer used by this quick select.
   */
-  byte    *record;
+  uchar    *record;
 #ifndef DBUG_OFF
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
@@ -296,8 +296,8 @@ protected:
   friend bool get_quick_keys(PARAM *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
-                             char *min_key, uint min_key_flag,
-                             char *max_key, uint max_key_flag);
+                             uchar *min_key, uint min_key_flag,
+                             uchar *max_key, uint max_key_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
                                               SEL_ARG *key_tree,
                                               MEM_ROOT *alloc);
@@ -327,7 +327,7 @@ public:
   int get_next();
   void range_end();
   int get_next_prefix(uint prefix_length, key_part_map keypart_map,
-                      byte *cur_prefix);
+                      uchar *cur_prefix);
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
   int init_ror_merged_scan(bool reuse_handler);
@@ -561,12 +561,12 @@ public:
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
 
   THD *thd;             /* current thread */
-  byte *cur_rowid;      /* buffer used in get_next() */
-  byte *prev_rowid;     /* rowid of last row returned by get_next() */
+  uchar *cur_rowid;      /* buffer used in get_next() */
+  uchar *prev_rowid;     /* rowid of last row returned by get_next() */
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 private:
-  static int queue_cmp(void *arg, byte *val1, byte *val2);
+  static int queue_cmp(void *arg, uchar *val1, uchar *val2);
   bool scans_inited; 
 };
 
@@ -610,19 +610,19 @@ private:
   handler *file;         /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
-  byte *record;          /* Buffer where the next record is returned. */
-  byte *tmp_record;      /* Temporary storage for next_min(), next_max(). */
-  byte *group_prefix;    /* Key prefix consisting of the GROUP fields. */
+  uchar *record;          /* Buffer where the next record is returned. */
+  uchar *tmp_record;      /* Temporary storage for next_min(), next_max(). */
+  uchar *group_prefix;    /* Key prefix consisting of the GROUP fields. */
   uint group_prefix_len; /* Length of the group prefix. */
   uint group_key_parts;  /* A number of keyparts in the group prefix */
-  byte *last_prefix;     /* Prefix of the last group for detecting EOF. */
+  uchar *last_prefix;     /* Prefix of the last group for detecting EOF. */
   bool have_min;         /* Specify whether we are computing */
   bool have_max;         /*   a MIN, a MAX, or both.         */
   bool seen_first_key;   /* Denotes whether the first key was retrieved.*/
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
-  byte *key_infix;       /* Infix of constants from equality predicates. */
+  uchar *key_infix;       /* Infix of constants from equality predicates. */
   uint key_infix_len;
   DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
@@ -652,7 +652,7 @@ public:
                              uint group_prefix_len, uint group_key_parts,
                              uint used_key_parts, KEY *index_info, uint
                              use_index, double read_cost, ha_rows records, uint
-                             key_infix_len, byte *key_infix, MEM_ROOT
+                             key_infix_len, uchar *key_infix, MEM_ROOT
                              *parent_alloc);
   ~QUICK_GROUP_MIN_MAX_SELECT();
   bool add_range(SEL_ARG *sel_range);
@@ -736,7 +736,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
-void store_key_image_to_rec(Field *field, char *ptr, uint len);
+void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 #endif
 
 #endif

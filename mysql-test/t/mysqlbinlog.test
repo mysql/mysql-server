@@ -2,8 +2,7 @@
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
 -- source include/have_binlog_format_mixed_or_statement.inc
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
+-- source include/have_log_bin.inc
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
@@ -207,6 +206,40 @@ flush logs;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000010
 
+#
+# Bug#28293 missed '#' sign in the hex dump when the dump length
+# is divisible by 16.
+#
+
+CREATE TABLE t1 (c1 CHAR(10));
+# we need this for getting fixed timestamps inside of this test
+flush logs;
+INSERT INTO t1 VALUES ('0123456789');
+flush logs;
+DROP TABLE t1;
+--exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000012 | grep 'Query' | sed 's/[0-9]\{1,\}/REMOVED/g'
+
+#
+# Bug #29928: incorrect connection_id() restoring from mysqlbinlog out
+#
+flush logs;
+create table t1(a int);
+insert into t1 values(connection_id()); 
+let $a= `select a from t1`;
+flush logs;
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000014 > $MYSQLTEST_VARDIR/tmp/bug29928.sql
+drop table t1;
+connect (con1, localhost, root, , test);                                            
+connection con1;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug29928.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug29928.sql
+let $b= `select a from t1`;
+disconnect con1;
+connection default;
+let $c= `select $a=$b`;
+--echo $c
+drop table t1;
+
 --echo End of 5.0 tests
 
 #
@@ -214,7 +247,7 @@ flush logs;
 #
 flush logs;
 --error 1
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000012 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
 
 --echo End of 5.1 tests

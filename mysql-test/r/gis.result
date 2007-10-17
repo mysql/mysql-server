@@ -9,35 +9,35 @@ CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMET
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	geometrycollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI		
+fid	int(11)	NO	PRI	NULL	
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, PointFromText('POINT(10 10)')),
@@ -394,8 +394,8 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Using join cache
-1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,overlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,disjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,intersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -430,7 +430,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	NO			
+fid	int(11)	NO		NULL	
 DROP TABLE t1;
 SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
 AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))
@@ -745,10 +745,10 @@ drop table t1;
 drop procedure if exists fn3;
 create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
 show create function fn3;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3		CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return GeomFromText("point(1 1)")
+return GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
 select astext(fn3());
 astext(fn3())
 POINT(1 1)
@@ -865,6 +865,30 @@ SELECT Overlaps(@horiz1, @point2) FROM DUAL;
 Overlaps(@horiz1, @point2)
 0
 DROP TABLE t1;
+create table t1(f1 geometry, f2 point, f3 linestring);
+select f1 from t1 union select f1 from t1;
+f1
+insert into t1 (f2,f3) values (GeomFromText('POINT(1 1)'),
+GeomFromText('LINESTRING(0 0,1 1,2 2)'));
+select AsText(f2),AsText(f3) from t1;
+AsText(f2)	AsText(f3)
+POINT(1 1)	LINESTRING(0 0,1 1,2 2)
+select AsText(a) from (select f2 as a from t1 union select f3 from t1) t;
+AsText(a)
+POINT(1 1)
+LINESTRING(0 0,1 1,2 2)
+create table t2 as select f2 as a from t1 union select f3 from t1;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+a	point	YES		NULL	
+select AsText(a) from t2;
+AsText(a)
+POINT(1 1)
+LINESTRING(0 0,1 1,2 2)
+drop table t1, t2;
+SELECT 1;
+1
+1
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;

@@ -117,6 +117,18 @@
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
 #define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
+/*
+  Engine is capable of row-format and statement-format logging,
+  respectively
+*/
+#define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
+#define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+
+/*
+  Set of all binlog flags. Currently only contain the capabilities
+  flags.
+ */
+#define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -223,6 +235,7 @@
 
 #define HA_LEX_CREATE_TMP_TABLE	1
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
+#define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_OPTION_NO_CHECKSUM	(1L << 17)
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535
@@ -265,7 +278,7 @@ enum legacy_db_type
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGES };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -308,6 +321,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
+#define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -315,13 +329,21 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
 #define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
 
-#define XIDDATASIZE 128
+#define XIDDATASIZE MYSQL_XIDDATASIZE
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+/**
+  struct xid_t is binary compatible with the XID structure as
+  in the X/Open CAE Specification, Distributed Transaction Processing:
+  The XA Specification, X/Open Company Ltd., 1991.
+  http://www.opengroup.org/bookstore/catalog/c193.htm
+
+  @see MYSQL_XID in mysql/plugin.h
+*/
 struct xid_t {
   long formatID;
   long gtrid_length;
@@ -378,9 +400,9 @@ struct xid_t {
     return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
            gtrid_length+bqual_length;
   }
-  byte *key()
+  uchar *key()
   {
-    return (byte *)&gtrid_length;
+    return (uchar *)&gtrid_length;
   }
   uint key_length()
   {
@@ -642,7 +664,7 @@ struct handlerton
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
-                           struct st_table_list *tables,
+                           TABLE_LIST *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
    /*
@@ -674,12 +696,12 @@ struct handlerton
                         struct handler_iterator *fill_this_in);
    int (*discover)(handlerton *hton, THD* thd, const char *db, 
                    const char *name,
-                   const void** frmblob, 
-                   uint* frmlen);
+                   uchar **frmblob, 
+                   size_t *frmlen);
    int (*find_files)(handlerton *hton, THD *thd,
                      const char *db,
                      const char *path,
-                     const char *wild, bool dir, List<char> *files);
+                     const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
    uint32 license; /* Flag for Engine License */
@@ -687,7 +709,7 @@ struct handlerton
 };
 
 
-/* Possible flags of a handlerton */
+/* Possible flags of a handlerton (there can be 32 of them) */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
@@ -707,6 +729,35 @@ typedef struct st_thd_trans
   bool        no_2pc;
   /* storage engines that registered themselves for this transaction */
   handlerton *ht[MAX_HA];
+  /* 
+    The purpose of this flag is to keep track of non-transactional
+    tables that were modified in scope of:
+    - transaction, when the variable is a member of
+    THD::transaction.all
+    - top-level statement or sub-statement, when the variable is a
+    member of THD::transaction.stmt
+    This member has the following life cycle:
+    * stmt.modified_non_trans_table is used to keep track of
+    modified non-transactional tables of top-level statements. At
+    the end of the previous statement and at the beginning of the session,
+    it is reset to FALSE.  If such functions
+    as mysql_insert, mysql_update, mysql_delete etc modify a
+    non-transactional table, they set this flag to TRUE.  At the
+    end of the statement, the value of stmt.modified_non_trans_table 
+    is merged with all.modified_non_trans_table and gets reset.
+    * all.modified_non_trans_table is reset at the end of transaction
+    
+    * Since we do not have a dedicated context for execution of a
+    sub-statement, to keep track of non-transactional changes in a
+    sub-statement, we re-use stmt.modified_non_trans_table. 
+    At entrance into a sub-statement, a copy of the value of
+    stmt.modified_non_trans_table (containing the changes of the
+    outer statement) is saved on stack. Then 
+    stmt.modified_non_trans_table is reset to FALSE and the
+    substatement is executed. Then the new value is merged with the
+    saved value.
+  */
+  bool modified_non_trans_table;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -738,6 +789,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
+enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
@@ -760,6 +812,8 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
+  /* 0 not used, 1 if not transactional, 2 if transactional */
+  enum ha_choice transactional;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
@@ -792,18 +846,36 @@ typedef struct st_key_create_information
 class TABLEOP_HOOKS
 {
 public:
+  TABLEOP_HOOKS() {}
+  virtual ~TABLEOP_HOOKS() {}
+
   inline void prelock(TABLE **tables, uint count)
   {
     do_prelock(tables, count);
   }
-  virtual ~TABLEOP_HOOKS() {}
-  TABLEOP_HOOKS() {}
 
+  inline int postlock(TABLE **tables, uint count)
+  {
+    return do_postlock(tables, count);
+  }
 private:
   /* Function primitive that is called prior to locking tables */
   virtual void do_prelock(TABLE **tables, uint count)
   {
     /* Default is to do nothing */
+  }
+
+  /**
+     Primitive called after tables are locked.
+
+     If an error is returned, the tables will be unlocked and error
+     handling start.
+
+     @return Error code or zero.
+   */
+  virtual int do_postlock(TABLE **tables, uint count)
+  {
+    return 0;                           /* Default is to do nothing */
   }
 };
 
@@ -835,9 +907,9 @@ typedef struct st_ha_check_opt
 
 typedef struct st_handler_buffer
 {
-  const byte *buffer;         /* Buffer one can start using */
-  const byte *buffer_end;     /* End of buffer */
-  byte *end_of_used_area;     /* End of area that was used by handler */
+  const uchar *buffer;         /* Buffer one can start using */
+  const uchar *buffer_end;     /* End of buffer */
+  uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
 typedef struct system_status_var SSV;
@@ -851,7 +923,15 @@ public:
   ulonglong max_index_file_length;
   ulonglong delete_length;		/* Free bytes */
   ulonglong auto_increment_value;
-  ha_rows records;			/* Estimated records in table */
+  /*
+    The number of records in the table. 
+      0    - means the table has exactly 0 rows
+    other  - if (table_flags() & HA_STATS_RECORDS_IS_EXACT)
+               the value is the exact number of records in the table
+             else
+               it is an estimate
+  */
+  ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
   time_t create_time;			/* When table was created */
@@ -867,7 +947,7 @@ public:
   {}
 };
 
-uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
+uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 /*
   bitmap with first N+1 bits set
   (keypart_map for a key prefix of [0..N] keyparts)
@@ -888,11 +968,16 @@ uint calculate_key_len(TABLE *, uint, const byte *, key_part_map);
 class handler :public Sql_alloc
 {
   friend class ha_partition;
+  friend int ha_delete_table(THD*,handlerton*,const char*,const char*,
+                             const char*,bool);
+
+public:
+  typedef ulonglong Table_flags;
 
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
-  ulonglong cached_table_flags;         /* Set on init() and open() */
+  Table_flags cached_table_flags;       /* Set on init() and open() */
 
   virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
@@ -905,16 +990,19 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
-  virtual ulonglong table_flags(void) const =0;
+  virtual Table_flags table_flags(void) const =0;
+
   void ha_statistic_increment(ulong SSV::*offset) const;
+  void **ha_data(THD *) const;
+  THD *ha_thd(void) const;
 
   ha_rows estimation_rows_to_insert;
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() {return 0; }
 public:
   handlerton *ht;                 /* storage engine of this handler */
-  byte *ref;				/* Pointer to current row */
-  byte *dup_ref;			/* Pointer to duplicate row */
+  uchar *ref;				/* Pointer to current row */
+  uchar *dup_ref;			/* Pointer to duplicate row */
 
   ha_statistics stats;
 
@@ -937,6 +1025,7 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
+  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
   /*
@@ -963,14 +1052,17 @@ public:
   Discrete_interval auto_inc_interval_for_cur_row;
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
-    :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
+    :table_share(share_arg), table(0),
+    estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
-    ft_handler(0), inited(NONE), implicit_emptied(0),
-    pushed_cond(NULL), next_insert_id(0), insert_id_for_cur_row(0)
+    ft_handler(0), inited(NONE),
+    locked(FALSE), implicit_emptied(0),
+    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
     {}
   virtual ~handler(void)
   {
+    DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -979,44 +1071,6 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /*
-    Check whether a handler allows to lock the table.
-
-    SYNOPSIS
-      check_if_locking_is_allowed()
-        thd     Handler of the thread, trying to lock the table
-        table   Table handler to check
-        count   Total number of tables to be locked
-        current Index of the current table in the list of the tables
-                to be locked.
-        system_count Pointer to the counter of system tables seen thus
-                     far.
-        called_by_privileged_thread TRUE if called from a logger THD
-                                    (general_log_thd or slow_log_thd)
-                                    or by a privileged thread, which
-                                    has the right to lock log tables.
-
-    DESCRIPTION
-      Check whether a handler allows to lock the table. For instance,
-      MyISAM does not allow to lock mysql.proc along with other tables.
-      This limitation stems from the fact that MyISAM does not support
-      row-level locking and we have to add this limitation to avoid
-      deadlocks.
-
-    RETURN
-      TRUE      Locking is allowed
-      FALSE     Locking is not allowed. The error was thrown.
-  */
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_privileged_thread)
-  {
-    return TRUE;
-  }
-  bool check_if_log_table_locking_is_allowed(uint sql_command,
-                                             ulong type, TABLE *table);
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -1082,10 +1136,12 @@ public:
 
   int ha_index_init(uint idx, bool sorted)
   {
+    int result;
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
-    inited=INDEX;
-    DBUG_RETURN(index_init(idx, sorted));
+    if (!(result= index_init(idx, sorted)))
+      inited=INDEX;
+    DBUG_RETURN(result);
   }
   int ha_index_end()
   {
@@ -1096,10 +1152,11 @@ public:
   }
   int ha_rnd_init(bool scan)
   {
+    int result;
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
-    inited=RND;
-    DBUG_RETURN(rnd_init(scan));
+    inited= (result= rnd_init(scan)) ? NONE: RND;
+    DBUG_RETURN(result);
   }
   int ha_rnd_end()
   {
@@ -1115,7 +1172,7 @@ public:
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
-  longlong ha_table_flags() { return cached_table_flags; }
+  Table_flags ha_table_flags() const { return cached_table_flags; }
 
   /*
     Signal that the table->read_set and table->write_set table maps changed
@@ -1136,9 +1193,9 @@ public:
     and delete_row() below.
    */
   int ha_external_lock(THD *thd, int lock_type);
-  int ha_write_row(byte * buf);
-  int ha_update_row(const byte * old_data, byte * new_data);
-  int ha_delete_row(const byte * buf);
+  int ha_write_row(uchar * buf);
+  int ha_update_row(const uchar * old_data, uchar * new_data);
+  int ha_delete_row(const uchar * buf);
 
   /*
     SYNOPSIS
@@ -1171,7 +1228,7 @@ public:
       0   Bulk delete used by handler
       1   Bulk delete not used, normal operation used
   */
-  virtual int bulk_update_row(const byte *old_data, byte *new_data,
+  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)
   {
     DBUG_ASSERT(FALSE);
@@ -1220,55 +1277,56 @@ public:
     return HA_ERR_WRONG_COMMAND;
   }
   private:
-  virtual int index_read(byte * buf, const byte * key, uint key_len,
+  virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   public:
-/**
-  @brief
-  Positions an index cursor to the index specified in the handle. Fetches the
-  row if available. If the key value is null, begin at the first key of the
-  index.
-*/
-  virtual int index_read(byte * buf, const byte * key, key_part_map keypart_map,
-                         enum ha_rkey_function find_flag)
-   {
-     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-     return  index_read(buf, key, key_len, find_flag);
-   }
-/**
-  @brief
-  Positions an index cursor to the index specified in the handle. Fetches the
-  row if available. If the key value is null, begin at the first key of the
-  index.
-*/
-  virtual int index_read_idx(byte * buf, uint index, const byte * key,
+  /**
+     @brief
+     Positions an index cursor to the index specified in the handle. Fetches the
+     row if available. If the key value is null, begin at the first key of the
+     index.
+  */
+  virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
-                             enum ha_rkey_function find_flag);
-  virtual int index_next(byte * buf)
+                             enum ha_rkey_function find_flag)
+  {
+    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    return  index_read(buf, key, key_len, find_flag);
+  }
+  /**
+     @brief
+     Positions an index cursor to the index specified in the handle. Fetches the
+     row if available. If the key value is null, begin at the first key of the
+     index.
+  */
+  virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag);
+  virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_prev(byte * buf)
+  virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_first(byte * buf)
+  virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_last(byte * buf)
+  virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   private:
-  virtual int index_read_last(byte * buf, const byte * key, uint key_len)
+  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno=HA_ERR_WRONG_COMMAND); }
   public:
-/**
-  @brief
-  The following functions works like index_read, but it find the last
-  row with the current key value or prefix.
-*/
-  virtual int index_read_last(byte * buf, const byte * key,
-                              key_part_map keypart_map)
-   {
-     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-     return  index_read_last(buf, key, key_len);
-   }
+  /**
+     @brief
+     The following functions works like index_read, but it find the last
+     row with the current key value or prefix.
+  */
+  virtual int index_read_last_map(uchar * buf, const uchar * key,
+                                  key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    return index_read_last(buf, key, key_len);
+  }
   virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                      KEY_MULTI_RANGE *ranges, uint range_count,
                                      bool sorted, HANDLER_BUFFER *buffer);
@@ -1282,21 +1340,32 @@ public:
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
-  virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_next(byte *buf)=0;
-  virtual int rnd_pos(byte * buf, byte *pos)=0;
-  virtual int read_first_row(byte *buf, uint primary_key);
+  virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
+  virtual int rnd_next(uchar *buf)=0;
+  virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+  /*
+    one has to use this method when to find
+    random position by record as the plain
+    position() call doesn't work for some
+    handlers for random position
+  */
+  virtual int rnd_pos_by_record(uchar *record)
+    {
+      position(record);
+      return rnd_pos(record, ref);
+    }
+  virtual int read_first_row(uchar *buf, uint primary_key);
   /*
     The following function is only needed for tables that may be temporary
     tables during joins
   */
-  virtual int restart_rnd_next(byte *buf, byte *pos)
+  virtual int restart_rnd_next(uchar *buf, uchar *pos)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual int rnd_same(byte *buf, uint inx)
+  virtual int rnd_same(uchar *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
-  virtual void position(const byte *record)=0;
+  virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                           uint part_id);
@@ -1552,8 +1621,8 @@ public:
                                 const char *path,
                                 ulonglong *copied,
                                 ulonglong *deleted,
-                                const void *pack_frm_data,
-                                uint pack_frm_len)
+                                const uchar *pack_frm_data,
+                                size_t pack_frm_len)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
@@ -1570,29 +1639,68 @@ public:
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    @note that one can NOT rely on table->in_use in store_lock().  It may
+    refer to a different thread if called from mysql_lock_abort_for_thread().
+  */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /* ask handler about permission to cache table when query is to be cached */
+
+
+  /**
+    @brief Register a named table with a call back function to the query cache.
+
+    @param thd The thread handle
+    @param table_key A pointer to the table name in the table cache
+    @param key_length The length of the table name
+    @param[out] engine_callback The pointer to the storage engine call back
+      function
+    @param[out] engine_data Storage engine specific data which could be
+      anything
+
+    This method offers the storage engine, the possibility to store a reference
+    to a table name which is going to be used with query cache. 
+    The method is called each time a statement is written to the cache and can
+    be used to verify if a specific statement is cachable. It also offers
+    the possibility to register a generic (but static) call back function which
+    is called each time a statement is matched against the query cache.
+
+    @note If engine_data supplied with this function is different from
+      engine_data supplied with the callback function, and the callback returns
+      FALSE, a table invalidation on the current table will occur.
+
+    @return Upon success the engine_callback will point to the storage engine
+      call back function, if any, and engine_data will point to any storage
+      engine data used in the specific implementation.
+      @retval TRUE Success
+      @retval FALSE The specified table or current statement should not be
+        cached
+  */
+
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-					     uint key_length,
-					     qc_engine_callback 
-					     *engine_callback,
-					     ulonglong *engine_data)
+                                             uint key_length,
+                                             qc_engine_callback
+                                             *engine_callback,
+                                             ulonglong *engine_data)
   {
     *engine_callback= 0;
-    return 1;
+    return TRUE;
   }
+
+
  /*
   RETURN
     true  Primary key (if there is one) is clustered key covering all fields
     false otherwise
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
- virtual int cmp_ref(const byte *ref1, const byte *ref2)
+ virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
  {
    return memcmp(ref1, ref2, ref_length);
  }
@@ -1637,18 +1745,18 @@ public:
  { return COMPATIBLE_DATA_NO; }
 
  /* These are only called from sql_select for internal temporary tables */
-  virtual int write_row(byte *buf __attribute__((unused)))
+  virtual int write_row(uchar *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int update_row(const byte *old_data __attribute__((unused)),
-                         byte *new_data __attribute__((unused)))
+  virtual int update_row(const uchar *old_data __attribute__((unused)),
+                         uchar *new_data __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int delete_row(const byte *buf __attribute__((unused)))
+  virtual int delete_row(const uchar *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
@@ -1665,6 +1773,29 @@ private:
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
   */
+
+  /**
+    Is not invoked for non-transactional temporary tables.
+
+    Tells the storage engine that we intend to read or write data
+    from the table. This call is prefixed with a call to handler::store_lock()
+    and is invoked only for those handler instances that stored the lock.
+
+    Calls to rnd_init/index_init are prefixed with this call. When table
+    IO is complete, we call external_lock(F_UNLCK).
+    A storage engine writer should expect that each call to
+    ::external_lock(F_[RD|WR]LOCK is followed by a call to
+    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+
+    The name and signature originate from the first implementation
+    in MyISAM, which would call fcntl to set/clear an advisory
+    lock on the data file in this method.
+
+    @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
+
+    @return  non-0 in case of failure, 0 in case of success.
+    When lock_type is F_UNLCK, the return value is ignored.
+  */
   virtual int external_lock(THD *thd __attribute__((unused)),
                             int lock_type __attribute__((unused)))
   {
@@ -1675,6 +1806,8 @@ private:
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
+extern const char *tx_isolation_names[];
+extern const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
@@ -1687,9 +1820,9 @@ extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
-handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
-const char *ha_get_storage_engine(enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
@@ -1741,13 +1874,13 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_discover(THD* thd, const char* dbname, const char* name,
-                const void** frmblob, uint* frmlen);
+                uchar** frmblob, size_t* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
-                  const char *wild, bool dir,List<char>* files);
+                  const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 
 /* key cache */
-int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);

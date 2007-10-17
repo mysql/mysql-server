@@ -40,6 +40,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   IO_CACHE file;
   MI_INFO *isam=0;
   uint found_merge_insert_method= 0;
+  size_t name_buff_length;
   DBUG_ENTER("myrg_open");
 
   LINT_INIT(key_parts);
@@ -48,13 +49,13 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,
                             MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		  O_RDONLY | O_SHARE,MYF(0))) < 0)
-     goto err;
-   errpos=1;
-   if (init_io_cache(&file, fd, 4*IO_SIZE, READ_CACHE, 0, 0,
+    goto err;
+  errpos=1;
+  if (init_io_cache(&file, fd, 4*IO_SIZE, READ_CACHE, 0, 0,
 		    MYF(MY_WME | MY_NABP)))
-     goto err;
-   errpos=2;
-  dir_length=dirname_part(name_buff,name);
+    goto err;
+  errpos=2;
+  dir_length=dirname_part(name_buff, name, &name_buff_length);
   while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
   {
     if ((end=buff+length)[-1] == '\n')
@@ -91,6 +92,11 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
     {
       my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+      if (handle_locking & HA_OPEN_FOR_REPAIR)
+      {
+        myrg_print_wrong_table(buff);
+        continue;
+      }
       goto err;
     }
     if (!m_info)                                /* First file */
@@ -119,6 +125,11 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     if (m_info->reclength != isam->s->base.reclength)
     {
       my_errno=HA_ERR_WRONG_MRG_TABLE_DEF;
+      if (handle_locking & HA_OPEN_FOR_REPAIR)
+      {
+        myrg_print_wrong_table(buff);
+        continue;
+      }
       goto err;
     }
     m_info->options|= isam->s->options;
@@ -132,6 +143,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
                                      m_info->tables);
   }
 
+  if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
+    goto err;
   if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;

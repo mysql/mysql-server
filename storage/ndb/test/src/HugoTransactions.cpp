@@ -14,8 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "HugoTransactions.hpp"
+#include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
-
+#include <NdbTick.h>
 
 HugoTransactions::HugoTransactions(const NdbDictionary::Table& _tab,
 				   const NdbDictionary::Index* idx):
@@ -24,6 +25,10 @@ HugoTransactions::HugoTransactions(const NdbDictionary::Table& _tab,
 
   m_defaultScanUpdateMethod = 3;
   setRetryMax();
+  m_stats_latency = 0;
+
+  m_thr_count = 0;
+  m_thr_no = -1;
 }
 
 HugoTransactions::~HugoTransactions(){
@@ -820,6 +825,16 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
+    MicroSecondTimer timer_start;
+    MicroSecondTimer timer_stop;
+    bool timer_active =
+      m_stats_latency != 0 &&
+      r >= batch &&             // first batch is "warmup"
+      r + batch != records;     // last batch is usually partial
+
+    if (timer_active)
+      NdbTick_getMicroTimer(&timer_start);
+
     if(pkReadRecord(pNdb, r, batch, lm) != NDBT_OK)
     {
       ERR(pTrans->getNdbError());
@@ -892,6 +907,12 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     }
     
     closeTransaction(pNdb);
+
+    if (timer_active) {
+      NdbTick_getMicroTimer(&timer_stop);
+      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
+      m_stats_latency->addObservation((double)ticks);
+    }
   }
   deallocRows();
   g_info << reads << " records read" << endl;
@@ -913,9 +934,17 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
   allocRows(batch);
 
   g_info << "|- Updating records (batch=" << batch << ")..." << endl;
+  int batch_no = 0;
   while (r < records){
     if(r + batch > records)
       batch = records - r;
+
+    if (m_thr_count != 0 && m_thr_no != batch_no % m_thr_count)
+    {
+      r += batch;
+      batch_no++;
+      continue;
+    }
     
     if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
@@ -962,6 +991,16 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       closeTransaction(pNdb);
       return NDBT_FAILED;
     }
+
+    MicroSecondTimer timer_start;
+    MicroSecondTimer timer_stop;
+    bool timer_active =
+      m_stats_latency != 0 &&
+      r >= batch &&             // first batch is "warmup"
+      r + batch != records;     // last batch is usually partial
+
+    if (timer_active)
+      NdbTick_getMicroTimer(&timer_start);
 
     if(pIndexScanOp)
     {
@@ -1039,8 +1078,15 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     }
     
     closeTransaction(pNdb);
-    
+
+    if (timer_active) {
+      NdbTick_getMicroTimer(&timer_stop);
+      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
+      m_stats_latency->addObservation((double)ticks);
+    }
+
     r += batch; // Read next record
+    batch_no++;
   }
   
   deallocRows();
@@ -1228,9 +1274,17 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   int                  check;
 
   g_info << "|- Deleting records..." << endl;
+  int batch_no = 0;
   while (r < records){
     if(r + batch > records)
       batch = records - r;
+
+    if (m_thr_count != 0 && m_thr_no != batch_no % m_thr_count)
+    {
+      r += batch;
+      batch_no++;
+      continue;
+    }
 
     if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
@@ -1254,6 +1308,16 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       ERR(err);
       return NDBT_FAILED;
     }
+
+    MicroSecondTimer timer_start;
+    MicroSecondTimer timer_stop;
+    bool timer_active =
+      m_stats_latency != 0 &&
+      r >= batch &&             // first batch is "warmup"
+      r + batch != records;     // last batch is usually partial
+
+    if (timer_active)
+      NdbTick_getMicroTimer(&timer_start);
 
     if(pkDeleteRecord(pNdb, r, batch) != NDBT_OK)
     {
@@ -1303,9 +1367,15 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       m_latest_gci = pTrans->getGCI();
     }
     closeTransaction(pNdb);
-    
-    r += batch; // Read next record
 
+    if (timer_active) {
+      NdbTick_getMicroTimer(&timer_stop);
+      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
+      m_stats_latency->addObservation((double)ticks);
+    }
+
+    r += batch; // Read next record
+    batch_no++;
   }
 
   g_info << "|- " << deleted << " records deleted" << endl;

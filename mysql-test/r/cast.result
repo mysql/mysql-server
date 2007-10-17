@@ -403,4 +403,15 @@ hex(cast('a' as binary(2)))
 select hex(cast('a' as char(2) binary));
 hex(cast('a' as char(2) binary))
 61
+CREATE TABLE t1 (d1 datetime);
+INSERT INTO t1(d1) VALUES ('2007-07-19 08:30:00'), (NULL),
+('2007-07-19 08:34:00'), (NULL), ('2007-07-19 08:36:00');
+SELECT cast(date(d1) as signed) FROM t1;
+cast(date(d1) as signed)
+20070719
+NULL
+20070719
+NULL
+20070719
+drop table t1;
 End of 5.0 tests

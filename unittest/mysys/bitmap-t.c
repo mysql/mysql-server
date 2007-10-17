@@ -18,12 +18,11 @@
    library.
 */
 
-#include <tap.h>
-
 #include <my_global.h>
+#include <my_sys.h>
 #include <my_bitmap.h>
-
-#include <string.h>
+#include <tap.h>
+#include <m_string.h>
 
 uint get_rand_bit(uint bitsize)
 {
@@ -379,6 +378,8 @@ int main()
   int i;
   int const min_size = 1;
   int const max_size = 1024;
+  MY_INIT("bitmap-t");
+
   plan(max_size - min_size);
   for (i= min_size; i < max_size; i++)
     ok(do_test(i) == 0, "bitmap size %d", i);

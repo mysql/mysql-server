@@ -19,12 +19,12 @@ set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;
 save_master_pos;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values(1),(2);
 drop table t1;
 save_master_pos;
 connection slave;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 
 # End of 4.1 tests
 

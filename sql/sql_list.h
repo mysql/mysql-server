@@ -1,3 +1,5 @@
+#ifndef INCLUDES_MYSQL_SQL_LIST_H
+#define INCLUDES_MYSQL_SQL_LIST_H
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -25,16 +27,16 @@ class Sql_alloc
 public:
   static void *operator new(size_t size) throw ()
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new[](size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new[](size_t size, MEM_ROOT *mem_root) throw ()
-  { return (void*) alloc_root(mem_root, (uint) size); }
+  { return alloc_root(mem_root, size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
-  { return (void*) alloc_root(mem_root, (uint) size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
@@ -63,21 +65,24 @@ public:
   pointer.
 */
 
-class list_node :public Sql_alloc
+
+/**
+  list_node - a node of a single-linked list.
+  @note We never call a destructor for instances of this class.
+*/
+
+struct list_node :public Sql_alloc
 {
-public:
   list_node *next;
   void *info;
   list_node(void *info_par,list_node *next_par)
     :next(next_par),info(info_par)
-    {}
+  {}
   list_node()					/* For end_of_list */
-    {
-      info=0;
-      next= this;
-    }
-  friend class base_list;
-  friend class base_list_iterator;
+  {
+    info= 0;
+    next= this;
+  }
 };
 
 
@@ -93,12 +98,28 @@ public:
 
   inline void empty() { elements=0; first= &end_of_list; last=&first;}
   inline base_list() { empty(); }
+  /**
+    This is a shallow copy constructor that implicitly passes the ownership
+    from the source list to the new instance. The old instance is not
+    updated, so both objects end up sharing the same nodes. If one of
+    the instances then adds or removes a node, the other becomes out of
+    sync ('last' pointer), while still operational. Some old code uses and
+    relies on this behaviour. This logic is quite tricky: please do not use
+    it in any new code.
+  */
   inline base_list(const base_list &tmp) :Sql_alloc()
   {
     elements= tmp.elements;
     first= tmp.first;
     last= elements ? tmp.last : &first;
   }
+  /**
+    Construct a deep copy of the argument in memory root mem_root.
+    The elements themselves are copied by pointer. If you also
+    need to copy elements by value, you should employ
+    list_copy_and_replace_each_value after creating a copy.
+  */
+  base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
@@ -184,6 +205,15 @@ public:
       first= list->first;
       elements+= list->elements;
     }
+  }
+  /**
+    Swap two lists.
+  */
+  inline void swap(base_list &rhs)
+  {
+    swap_variables(list_node *, first, rhs.first);
+    swap_variables(list_node **, last, rhs.last);
+    swap_variables(uint, elements, rhs.elements);
   }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
@@ -349,6 +379,8 @@ template <class T> class List :public base_list
 public:
   inline List() :base_list() {}
   inline List(const List<T> &tmp) :base_list(tmp) {}
+  inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
+    base_list(tmp, mem_root) {}
   inline bool push_back(T *a) { return base_list::push_back(a); }
   inline bool push_back(T *a, MEM_ROOT *mem_root)
   { return base_list::push_back(a, mem_root); }
@@ -424,7 +456,7 @@ struct ilink
   }
   static void operator delete(void* ptr_arg, size_t size)
   {
-     my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+     my_free((uchar*)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
 
   inline ilink()
@@ -547,3 +579,32 @@ public:
   I_List_iterator(I_List<T> &a) : base_ilist_iterator(a) {}
   inline T* operator++(int) { return (T*) base_ilist_iterator::next(); }
 };
+
+/**
+  Make a deep copy of each list element.
+
+  @note A template function and not a template method of class List
+  is employed because of explicit template instantiation:
+  in server code there are explicit instantiations of List<T> and
+  an explicit instantiation of a template requires that any method
+  of the instantiated class used in the template can be resolved.
+  Evidently not all template arguments have clone() method with
+  the right signature.
+
+  @return You must query the error state in THD for out-of-memory
+  situation after calling this function.
+*/
+
+template <typename T>
+inline
+void
+list_copy_and_replace_each_value(List<T> &list, MEM_ROOT *mem_root)
+{
+  /* Make a deep copy of each element */
+  List_iterator<T> it(list);
+  T *el;
+  while ((el= it++))
+    it.replace(el->clone(mem_root));
+}
+
+#endif // INCLUDES_MYSQL_SQL_LIST_H

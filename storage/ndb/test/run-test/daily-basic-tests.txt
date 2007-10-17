@@ -248,6 +248,10 @@ cmd: testBasic
 args: -n Bug28073
 
 max-time: 500
+cmd: testBasic
+args: -n Bug20535
+
+max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
 
@@ -481,6 +485,14 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug29167 T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -l 2 -n Bug28770 T1
+
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug27283 T1
@@ -557,11 +569,19 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug28023 T7 D2
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug29364 T1
+
 #
 # DICT TESTS
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDrop 
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug28717 T1
 
 max-time: 1500
 cmd: testDict
@@ -614,6 +634,10 @@ args: -n Bug21755 T1
 max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
+
+max-time: 500
+cmd: testDict
+args: -n Bug24631 T1
 
 #
 # TEST NDBAPI
@@ -695,6 +719,10 @@ args: -n Bug_WritePartialIgnoreError T1
 max-time: 500
 cmd: testNdbApi
 args: -n ExecuteAsynch T1
+
+max-time: 1000
+cmd: testNdbApi
+args: -n Bug28443
 
 #max-time: 500
 #cmd: testInterpreter
@@ -882,6 +910,10 @@ max-time: 120
 cmd: testMgm
 args: -n ApiSessionFailure T1
 
+max-time: 15
+cmd: testMgm
+args: -n ApiConnectTimeout T1
+
 max-time: 120
 cmd: testMgm
 args: -n ApiTimeoutBasic T1
@@ -906,3 +938,10 @@ max-time: 120
 cmd: testMgm
 args: -n ApiMgmStructEventTimeout T1
 
+max-time: 180
+cmd: testIndex
+args: -n Bug28804 T1 T3
+
+max-time: 180
+cmd: testIndex
+args: -n Bug28804_ATTRINFO T1 T3

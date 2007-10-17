@@ -519,6 +519,18 @@ lock_is_table_exclusive(
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx);	/* in: transaction */
 /*************************************************************************
+Checks if a lock request lock1 has to wait for request lock2. */
+
+ibool
+lock_has_to_wait(
+/*=============*/
+			/* out: TRUE if lock1 has to wait for lock2 to be
+			removed */
+	lock_t*	lock1,	/* in: waiting lock */
+	lock_t*	lock2);	/* in: another lock; NOTE that it is assumed that this
+			has a lock bit set on the same record as in lock1 if
+			the locks are record locks */
+/*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
 
 ibool
@@ -597,7 +609,7 @@ lock_validate(void);
 			/* out: TRUE if ok */
 /*************************************************************************
 Return approximate number or record locks (bits set in the bitmap) for
-this transaction. Since delete-marked records ma ybe removed, the
+this transaction. Since delete-marked records may be removed, the
 record count will not be precise. */
 
 ulint

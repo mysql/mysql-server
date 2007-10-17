@@ -97,7 +97,7 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx,  key_range *min_key,
 	/* Sets info->current_ptr to found record */
 	/* next_flag:  Search=0, next=1, prev =2, same =3 */
 
-byte *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
+uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
                 uint nextflag)
 {
   reg1 HASH_INFO *pos,*prev_ptr;
@@ -175,7 +175,7 @@ byte *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
   since last read !
 */
 
-byte *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
+uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
 		      HASH_INFO *pos)
 {
   DBUG_ENTER("hp_search_next");
@@ -238,7 +238,7 @@ void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 
 	/* Calc hashvalue for a key */
 
-ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
+ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 {
   /*register*/ 
   ulong nr=1, nr2=4;
@@ -304,7 +304,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
+ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
 {
   ulong nr=1, nr2=4;
   HA_KEYSEG *seg,*endseg;
@@ -377,9 +377,15 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
  * far, and works well on both numbers and strings.
  */
 
-ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
+ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 {
-  register ulong nr=0;
+  /*
+    Note, if a key consists of a combination of numeric and
+    a text columns, it most likely won't work well.
+    Making text columns work with NEW_HASH_FUNCTION
+    needs also changes in strings/ctype-xxx.c.
+  */
+  ulong nr= 1, nr2= 4;
   HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -401,14 +407,15 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos, ((uchar*)key)-pos,
+                                    &nr, &nr2);
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
       uint pack_length= 2;                      /* Key packing is constant */
       uint length= uint2korr(pos);
-      seg->charset->hash_sort(seg->charset, pos+pack_length, length, &nr,
-                              NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos+pack_length, length,
+                                    &nr, &nr2);
       key+= pack_length;
     }
     else
@@ -426,9 +433,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
+ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
 {
-  register ulong nr=0;
+  ulong nr= 1, nr2= 4;
   HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -444,14 +451,16 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
+      uint char_length= seg->length; /* TODO: fix to use my_charpos() */
+      seg->charset->coll->hash_sort(seg->charset, pos, char_length,
+                                    &nr, &nr2);
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
       uint pack_length= seg->bit_start;
       uint length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
-      seg->charset->hash_sort(seg->charset, pos+pack_length,
-                              length, &nr, NULL);
+      seg->charset->coll->hash_sort(seg->charset, pos+pack_length,
+                                    length, &nr, &nr2);
     }
     else
     {
@@ -490,7 +499,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     <> 0 	Key differes
 */
 
-int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2,
+int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
                    my_bool diff_if_only_endspace_difference)
 {
   HA_KEYSEG *seg,*endseg;
@@ -577,7 +586,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2,
 
 	/* Compare a key in a record to a whole key */
 
-int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
+int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
 {
   HA_KEYSEG *seg,*endseg;
 
@@ -661,7 +670,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 
 	/* Copy a key from a record to a keybuffer */
 
-void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
+void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
 {
   HA_KEYSEG *seg,*endseg;
 
@@ -693,10 +702,10 @@ void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
   } while(0)
 
 
-uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
-		    const byte *rec, byte *recpos)
+uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, 
+		    const uchar *rec, uchar *recpos)
 {
-  byte *start_key= key;
+  uchar *start_key= key;
   HA_KEYSEG *seg, *endseg;
 
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
@@ -710,7 +719,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;
-      byte *pos= (byte*) rec + seg->start;
+      uchar *pos= (uchar*) rec + seg->start;
       
 #ifdef HAVE_ISNAN
       if (seg->type == HA_KEYTYPE_FLOAT)
@@ -759,7 +768,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key,(byte*) pos,(size_t) char_length);
+      memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -778,7 +787,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
     memcpy(key, rec + seg->start, (size_t) char_length);
     key+= seg->length;
   }
-  memcpy(key, &recpos, sizeof(byte*));
+  memcpy(key, &recpos, sizeof(uchar*));
   return (uint) (key - start_key);
 }
 
@@ -802,7 +811,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;
-      byte *pos= (byte*) old + length;
+      uchar *pos= (uchar*) old + length;
       
       while (length--)
       {
@@ -822,7 +831,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
       set_if_smaller(length,tmp_length);	/* Safety */
       FIX_LENGTH(cs, old, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((byte*) key, old,(size_t) char_length);
+      memcpy((uchar*) key, old,(size_t) char_length);
       key+= char_length;
       continue;
     }
@@ -844,15 +853,15 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
 
 
 uint hp_rb_key_length(HP_KEYDEF *keydef, 
-		      const byte *key __attribute__((unused)))
+		      const uchar *key __attribute__((unused)))
 {
   return keydef->length;
 }
 
 
-uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key)
+uint hp_rb_null_key_length(HP_KEYDEF *keydef, const uchar *key)
 {
-  const byte *start_key= key;
+  const uchar *start_key= key;
   HA_KEYSEG *seg, *endseg;
   
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
@@ -865,9 +874,9 @@ uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key)
 }
                   
 
-uint hp_rb_var_key_length(HP_KEYDEF *keydef, const byte *key)
+uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key)
 {
-  const byte *start_key= key;
+  const uchar *start_key= key;
   HA_KEYSEG *seg, *endseg;
   
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
@@ -892,7 +901,7 @@ uint hp_rb_var_key_length(HP_KEYDEF *keydef, const byte *key)
     0 otherwise
 */
 
-my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
+my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const uchar *record)
 {
   HA_KEYSEG *seg,*endseg;
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -918,7 +927,7 @@ my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
     less than zero.
 */
 
-void heap_update_auto_increment(HP_INFO *info, const byte *record)
+void heap_update_auto_increment(HP_INFO *info, const uchar *record)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */

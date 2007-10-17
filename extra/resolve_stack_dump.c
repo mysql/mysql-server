@@ -53,10 +53,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"symbols-file", 's', "Use specified symbols file.", (gptr*) &sym_fname,
-   (gptr*) &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"symbols-file", 's', "Use specified symbols file.", (uchar**) &sym_fname,
+   (uchar**) &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"numeric-dump-file", 'n', "Read the dump from specified file.",
-   (gptr*) &dump_fname, (gptr*) &dump_fname, 0, GET_STR, REQUIRED_ARG,
+   (uchar**) &dump_fname, (uchar**) &dump_fname, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -235,7 +235,7 @@ static void init_sym_table()
     SYM_ENTRY se;
     if (init_sym_entry(&se, buf))
       continue;
-    if (insert_dynamic(&sym_table, (gptr)&se))
+    if (insert_dynamic(&sym_table, (uchar*)&se))
       die("insert_dynamic() failed - looks like we are out of memory");
   }
 
@@ -255,7 +255,7 @@ static void verify_sort()
   for (i = 0; i < sym_table.elements; i++)
   {
     SYM_ENTRY se;
-    get_dynamic(&sym_table, (gptr)&se, i);
+    get_dynamic(&sym_table, (uchar*)&se, i);
     if (se.addr < last)
       die("sym table does not appear to be sorted, did you forget \
 --numeric-sort arg to nm? trouble addr = %p, last = %p", se.addr, last);
@@ -267,16 +267,16 @@ static void verify_sort()
 static SYM_ENTRY* resolve_addr(uchar* addr, SYM_ENTRY* se)
 {
   uint i;
-  get_dynamic(&sym_table, (gptr)se, 0);
+  get_dynamic(&sym_table, (uchar*)se, 0);
   if (addr < se->addr)
     return 0;
 
   for (i = 1; i < sym_table.elements; i++)
   {
-    get_dynamic(&sym_table, (gptr)se, i);
+    get_dynamic(&sym_table, (uchar*)se, i);
     if (addr < se->addr)
     {
-      get_dynamic(&sym_table, (gptr)se, i - 1);
+      get_dynamic(&sym_table, (uchar*)se, i - 1);
       return se;
     }
   }

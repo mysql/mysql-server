@@ -1,0 +1,21 @@
+DROP TABLE IF EXISTS t1;
+create temporary table t1 (a int key) engine=ndb;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
+create temporary table t1 (a int key) engine=myisam;
+alter table t1 engine=ndb;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
+drop table t1;
+SET SESSION storage_engine=NDBCLUSTER;
+create table t1 (a int key);
+select engine from information_schema.tables where table_name = 't1';
+engine
+ndbcluster
+drop table t1;
+create temporary table t1 (a int key);
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

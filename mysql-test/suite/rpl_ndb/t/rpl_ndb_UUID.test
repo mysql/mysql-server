@@ -1,0 +1,8 @@
+########################################################
+# By JBM 2005-02-15 Wrapped to allow reuse of test code#
+########################################################
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/ndb_master-slave.inc
+let $engine_type=NDB;
+--source extra/rpl_tests/rpl_row_UUID.test

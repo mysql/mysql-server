@@ -23,7 +23,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 --enable_warnings
 eval create table t1 (id int not null, f_id int not null, f int not null,
 primary key(f_id, id)) engine = $engine_type;
@@ -59,7 +59,7 @@ set autocommit = 0;
 #
 # S-lock to records (2,2),(4,2), and (6,2) should not be released in a update
 #
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 select * from t1 where a = 2 and b = 2 for update;
 connection a;
 commit;
@@ -213,39 +213,39 @@ set autocommit = 0;
 create table t10(a int not null, b int, primary key(a)) select * from t2 for update;
 
 connection b;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection c;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection d;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection e;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection f;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection g;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection h;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection i;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection j;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection a;

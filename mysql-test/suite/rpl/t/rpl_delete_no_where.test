@@ -1,0 +1,7 @@
+###################################################
+# By JBM 2006-02-14 added to skip test when NDB   #
+##################################################
+-- source include/not_ndb_default.inc
+-- source include/master-slave.inc
+let $engine_type=myisam;
+-- source extra/rpl_tests/rpl_delete_no_where.test

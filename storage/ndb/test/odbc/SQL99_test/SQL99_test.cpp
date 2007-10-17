@@ -27,7 +27,14 @@ using namespace std; //
 #define MAXROW			64
 #define DEFROW			8
 
-#define MAXTHREADS		24
+/*
+  NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
+  #define from <sys/thread.h> on AIX (IBM compiler).  We explicitly
+  #undef it here lest someone use it by habit and get really funny
+  results.  K&R says we may #undef non-existent symbols, so let's go.
+*/
+#undef MAXTHREADS
+#define NDB_MAXTHREADS		24
 #define DEFTHREADS		2
 
 #define MAXTABLES		16
@@ -83,7 +90,7 @@ int main(int argc, char* argv[]){
     char* szTableNames = (char*)malloc(sizeof(char)*nNoOfTables*MAX_TABLE_NAME) ;
     memset(szTableNames, 0, sizeof(char)*nNoOfTables*MAX_TABLE_NAME) ;
 
-	UintPtr pThreadHandles[MAXTHREADS] = { NULL } ;
+	UintPtr pThreadHandles[NDB_MAXTHREADS] = { NULL } ;
 
     AssignTableNames(szTableNames, nNoOfTables) ;
 
@@ -313,7 +320,7 @@ void ParseArguments(int argc, const char** argv){
         if (strcmp(argv[i], "-t") == 0)
             {
             nNoOfThreads = atoi(argv[i+1]);
-            if ((nNoOfThreads < 1) || (nNoOfThreads > MAXTHREADS))
+            if ((nNoOfThreads < 1) || (nNoOfThreads > NDB_MAXTHREADS))
                 nNoOfThreads = DEFTHREADS ;
             }
         else if (strcmp(argv[i], "-c") == 0)

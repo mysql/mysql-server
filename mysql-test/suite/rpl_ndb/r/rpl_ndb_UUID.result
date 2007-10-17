@@ -1,0 +1,40 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;
+CREATE TABLE test.t1 (a INT, blob_column LONGBLOB, vchar_column VARCHAR(100), PRIMARY KEY(a)) engine=NDB;
+INSERT INTO test.t1  VALUES(1,UUID(),UUID());
+create procedure test.p1()
+begin
+INSERT INTO test.t1  VALUES(2,UUID(),UUID());
+INSERT INTO test.t1  VALUES(3,UUID(),UUID());
+end|
+CALL test.p1();
+create function test.fn1(x int)
+returns int
+begin
+insert into t1 values (4+x,UUID(),UUID());
+insert into t1 values (5+x,UUID(),UUID());
+return 0;
+end|
+select fn1(0);
+fn1(0)
+0
+create table t2 (a int) engine=NDB;
+insert into t2 values(fn1(2));
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `blob_column` longblob,
+  `vchar_column` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+DROP PROCEDURE test.p1;
+DROP FUNCTION test.fn1;
+DROP TABLE test.t1;
+DROP TABLE test.t2;

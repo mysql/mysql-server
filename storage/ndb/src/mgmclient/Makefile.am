@@ -21,7 +21,8 @@ libndbmgmclient_la_LIBADD = ../mgmapi/libmgmapi.la \
 			    ../common/logger/liblogger.la \
 			    ../common/portlib/libportlib.la \
 			    ../common/util/libgeneral.la \
-			    ../common/portlib/libportlib.la
+			    ../common/portlib/libportlib.la \
+			    ../common/debugger/libtrace.la
 
 
 ndb_mgm_SOURCES = main.cpp
@@ -35,6 +36,7 @@ INCLUDES += -I$(top_srcdir)/storage/ndb/include/mgmapi \
 LDADD_LOC = $(noinst_LTLIBRARIES) \
 	    ../common/portlib/libportlib.la \
             @readline_link@ \
+            $(top_builddir)/storage/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a \

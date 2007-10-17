@@ -1140,6 +1140,71 @@ alter table t1 modify column a decimal(19);
 select * from t1;
 drop table t1;
 
+#
+# Bug #27957 cast as decimal does not check overflow, also inconsistent with group, subselect 
+#
+
+select cast(11.1234 as DECIMAL(3,2));
+select * from (select cast(11.1234 as DECIMAL(3,2))) t;
+
+select cast(a as DECIMAL(3,2))
+ from (select 11.1233 as a
+  UNION select 11.1234
+  UNION select 12.1234
+ ) t;
+
+select cast(a as DECIMAL(3,2)), count(*)
+ from (select 11.1233 as a
+  UNION select 11.1234
+  UNION select 12.1234
+ ) t group by 1;
+
+#
+# Bug #28361 Buffer overflow in DECIMAL code on Windows 
+#
+
+create table t1 (s varchar(100));
+insert into t1 values (0.00000000010000000000000000364321973154977415791655470655996396089904010295867919921875);
+drop table t1;
+
+#
+# Bug #27984 Long Decimal Maths produces truncated results 
+#
+
+SELECT 1.000000000000 * 99.999999999998 / 100 a,1.000000000000 * (99.999999999998 / 100) b;
+
+#
+# Bug #29415: CAST AS DECIMAL(P,S) with too big precision/scale 
+#
+
+SELECT CAST(1 AS decimal(65,10));
+--error ER_TOO_BIG_PRECISION
+SELECT CAST(1 AS decimal(66,10));
+
+SELECT CAST(1 AS decimal(65,30));
+--error ER_TOO_BIG_SCALE
+SELECT CAST(1 AS decimal(65,31));
+
+CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
+INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
+--error ER_TOO_BIG_SCALE
+SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
+
+DROP TABLE t1;
+
+#
+# Bug #29417: assertion abort for a grouping query with decimal user variable
+#
+
+CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
+INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+
+SET @a= CAST(1 AS decimal);
+SELECT 1 FROM t1 GROUP BY @b := @a, @b;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #

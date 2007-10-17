@@ -171,7 +171,17 @@ row_search_check_if_query_cache_permitted(
 	trx_t*		trx,		/* in: transaction object */
 	const char*	norm_name);	/* in: concatenation of database name,
 					'/' char, table name */
+/***********************************************************************
+Read the max AUTOINC value from an index. */
 
+ulint
+row_search_max_autoinc(
+/*===================*/
+					/* out: DB_SUCCESS if all OK else
+					error code */
+	dict_index_t*	index,		/* in: index to search */
+	const char*	col_name,	/* in: autoinc column name */
+	ib_longlong*	value);		/* out: AUTOINC value read */
 
 /* A structure for caching column values for prefetched rows */
 struct sel_buf_struct{

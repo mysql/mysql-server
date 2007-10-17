@@ -41,3 +41,17 @@ SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 a
 1
 DROP TABLE t1;
+CREATE TABLE t1( a INT );
+SELECT b FROM t1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+SHOW ERRORS;
+Level	Code	Message
+Error	1054	Unknown column 'b' in 'field list'
+CREATE TABLE t2 SELECT b FROM t1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+SHOW ERRORS;
+Level	Code	Message
+Error	1054	Unknown column 'b' in 'field list'
+INSERT INTO t1 SELECT b FROM t1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+DROP TABLE t1;

@@ -2419,7 +2419,7 @@ static uint query_cache_hits(MYSQL *conn)
 */
 static void test_ps_query_cache()
 {
-  MYSQL      *org_mysql= mysql, *lmysql;
+  MYSQL      *lmysql;
   MYSQL_STMT *stmt;
   int        rc;
   MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
@@ -2471,7 +2471,7 @@ static void test_ps_query_cache()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  for (iteration= TEST_QCACHE_ON; iteration < TEST_QCACHE_ON_OFF; iteration++)
+  for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
   {
 
     switch (iteration)
@@ -2563,8 +2563,7 @@ static void test_ps_query_cache()
     check_execute(stmt, rc);
     test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
     hits2= query_cache_hits(mysql);
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON_WITH_OTHER_CONN:
     case TEST_QCACHE_ON:                 /* should have hit */
       DIE_UNLESS(hits2-hits1 == 1);
@@ -2572,6 +2571,7 @@ static void test_ps_query_cache()
     case TEST_QCACHE_OFF_ON:
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
+      break;
     }
 
     /* now modify parameter values and see qcache hits */
@@ -2582,8 +2582,7 @@ static void test_ps_query_cache()
     test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
     hits1= query_cache_hits(mysql);
 
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON:
     case TEST_QCACHE_OFF_ON:
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
@@ -2591,6 +2590,7 @@ static void test_ps_query_cache()
       break;
     case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
       DIE_UNLESS(hits1-hits2 == 1);
+      break;
     }
 
     rc= mysql_stmt_execute(stmt);
@@ -2601,8 +2601,7 @@ static void test_ps_query_cache()
 
     mysql_stmt_close(stmt);
 
-    switch(iteration)
-    {
+    switch(iteration) {
     case TEST_QCACHE_ON:                 /* should have hit */
       DIE_UNLESS(hits2-hits1 == 1);
       break;
@@ -2610,9 +2609,9 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_OFF:             /* should not have hit */
       DIE_UNLESS(hits2-hits1 == 0);
       break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
-      mysql_close(lmysql);
-      mysql= org_mysql;
+    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
+      DIE_UNLESS(hits2-hits1 == 1);
+      break;
     }
 
   } /* for(iteration=...) */
@@ -7834,7 +7833,7 @@ static void test_explain_bug()
   else
   {
     verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
-                         "", "", NAME_CHAR_LEN*MAX_KEY, 0);
+                         "", "", NAME_CHAR_LEN*MAX_KEY/ my_charset_utf8_general_ci.mbmaxlen, 0);
   }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
@@ -12294,24 +12293,24 @@ static void test_bug6081()
   int rc;
   myheader("test_bug6081");
 
-  rc= simple_command(mysql, COM_DROP_DB, current_db,
+  rc= simple_command(mysql, COM_DROP_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
   {
     myerror(NULL);                                   /* purecov: inspected */
     die(__FILE__, __LINE__, "COM_DROP_DB failed");   /* purecov: inspected */
   }
-  rc= simple_command(mysql, COM_DROP_DB, current_db,
+  rc= simple_command(mysql, COM_DROP_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
-  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+  rc= simple_command(mysql, COM_CREATE_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
   {
     myerror(NULL);                                   /* purecov: inspected */
     die(__FILE__, __LINE__, "COM_CREATE_DB failed"); /* purecov: inspected */
   }
-  rc= simple_command(mysql, COM_CREATE_DB, current_db,
+  rc= simple_command(mysql, COM_CREATE_DB, (uchar*) current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
   rc= mysql_select_db(mysql, current_db);
@@ -13538,7 +13537,8 @@ static void test_bug9478()
       /* Fill in the fethc packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
+      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
+                                               (uchar*) buff,
                                                sizeof(buff), 0,0,1,NULL) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);
@@ -13715,7 +13715,7 @@ static void test_bug11111()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= 20;
     my_bind[i].length= &len[i];
   }
@@ -14100,7 +14100,7 @@ static void test_bug11656()
   for (i=0; i < 2; i++)
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
-    my_bind[i].buffer= (gptr *)&buf[i];
+    my_bind[i].buffer= (uchar* *)&buf[i];
     my_bind[i].buffer_length= strlen(buf[i]);
   }
   mysql_stmt_bind_param(stmt, my_bind);
@@ -16074,6 +16074,384 @@ static void test_bug24179()
 
 
 /*
+  Bug#28075 "COM_DEBUG crashes mysqld"
+*/
+
+static void test_bug28075()
+{
+  int rc;
+
+  DBUG_ENTER("test_bug28075");
+  myheader("test_bug28075");
+
+  rc= mysql_dump_debug_info(mysql);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_ping(mysql);
+  DIE_UNLESS(rc == 0);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Bug#27876 (SF with cyrillic variable name fails during execution (regression))
+*/
+
+static void test_bug27876()
+{
+  int rc;
+  MYSQL_RES *result;
+
+  uchar utf8_func[] =
+  {
+    0xd1, 0x84, 0xd1, 0x83, 0xd0, 0xbd, 0xd0, 0xba,
+    0xd1, 0x86, 0xd0, 0xb8, 0xd0, 0xb9, 0xd0, 0xba,
+    0xd0, 0xb0,
+    0x00
+  };
+
+  uchar utf8_param[] =
+  {
+    0xd0, 0xbf, 0xd0, 0xb0, 0xd1, 0x80, 0xd0, 0xb0,
+    0xd0, 0xbc, 0xd0, 0xb5, 0xd1, 0x82, 0xd1, 0x8a,
+    0xd1, 0x80, 0x5f, 0xd0, 0xb2, 0xd0, 0xb5, 0xd1,
+    0x80, 0xd1, 0x81, 0xd0, 0xb8, 0xd1, 0x8f,
+    0x00
+  };
+
+  char query[500];
+
+  DBUG_ENTER("test_bug27876");
+  myheader("test_bug27876");
+
+  rc= mysql_query(mysql, "set names utf8");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "select version()");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION IF EXISTS %s", (char*) utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  sprintf(query,
+          "CREATE FUNCTION %s( %s VARCHAR(25))"
+          " RETURNS VARCHAR(25) DETERMINISTIC RETURN %s",
+          (char*) utf8_func, (char*) utf8_param, (char*) utf8_param);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  sprintf(query, "SELECT %s(VERSION())", (char*) utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  sprintf(query, "DROP FUNCTION %s", (char*) utf8_func);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
+}
+
+
+/*
+  Bug#28505: mysql_affected_rows() returns wrong value if CLIENT_FOUND_ROWS
+  flag is set.
+*/
+
+static void test_bug28505()
+{
+  my_ulonglong res;
+
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(f1 int primary key)"));
+  myquery(mysql_query(mysql, "insert into t1 values(1)"));
+  myquery(mysql_query(mysql,
+                  "insert into t1 values(1) on duplicate key update f1=1"));
+  res= mysql_affected_rows(mysql);
+  DIE_UNLESS(!res);
+  myquery(mysql_query(mysql, "drop table t1"));
+}
+
+
+/*
+  Bug#28934: server crash when receiving malformed com_execute packets
+*/
+
+static void test_bug28934()
+{
+  my_bool error= 0;
+  MYSQL_BIND bind[5];
+  MYSQL_STMT *stmt;
+  int cnt;
+
+  myquery(mysql_query(mysql, "drop table if exists t1"));
+  myquery(mysql_query(mysql, "create table t1(id int)"));
+
+  myquery(mysql_query(mysql, "insert into t1 values(1),(2),(3),(4),(5)"));
+  stmt= mysql_simple_prepare(mysql,"select * from t1 where id in(?,?,?,?,?)");
+  check_stmt(stmt);
+
+  memset (&bind, 0, sizeof (bind));
+  for (cnt= 0; cnt < 5; cnt++)
+  {
+    bind[cnt].buffer_type= MYSQL_TYPE_LONG;
+    bind[cnt].buffer= (char*)&cnt;
+    bind[cnt].buffer_length= 0;
+  }
+  myquery(mysql_stmt_bind_param(stmt, bind));
+
+  stmt->param_count=2;
+  error= mysql_stmt_execute(stmt);
+  DIE_UNLESS(error != 0);
+  myerror(NULL);
+  mysql_stmt_close(stmt);
+
+  myquery(mysql_query(mysql, "drop table t1"));
+}
+
+
+/*
+  Bug#27592 (stack overrun when storing datetime value using prepared statements)
+*/
+
+static void test_bug27592()
+{
+  const int NUM_ITERATIONS= 40;
+  int i;
+  int rc;
+  MYSQL_STMT *stmt= NULL;
+  MYSQL_BIND bind[1];
+  MYSQL_TIME time_val;
+
+  DBUG_ENTER("test_bug27592");
+  myheader("test_bug27592");
+
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "CREATE TABLE t1(c2 DATETIME)");
+
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?)");
+  DIE_UNLESS(stmt);
+
+  memset(bind, 0, sizeof(bind));
+
+  bind[0].buffer_type= MYSQL_TYPE_DATETIME;
+  bind[0].buffer= (char *) &time_val;
+  bind[0].length= NULL;
+
+  for (i= 0; i < NUM_ITERATIONS; i++)
+  {
+    time_val.year= 2007;
+    time_val.month= 6;
+    time_val.day= 7;
+    time_val.hour= 18;
+    time_val.minute= 41;
+    time_val.second= 3;
+
+    time_val.second_part=0;
+    time_val.neg=0;
+
+    rc= mysql_stmt_bind_param(stmt, bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+  }
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+static void test_bug29948()
+{
+  MYSQL *dbc=NULL;
+  MYSQL_STMT *stmt=NULL;
+  MYSQL_BIND bind;
+
+  int res=0;
+  my_bool auto_reconnect=1, error=0, is_null=0;
+  char kill_buf[20];
+  const char *query;
+  int buf;
+  unsigned long length, cursor_type;
+  
+  dbc = mysql_init(NULL);
+  DIE_UNLESS(dbc);
+
+  mysql_options(dbc, MYSQL_OPT_RECONNECT, (char*)&auto_reconnect);
+  if (!mysql_real_connect(dbc, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket,
+                          (CLIENT_FOUND_ROWS | CLIENT_MULTI_STATEMENTS |
+                           CLIENT_MULTI_RESULTS)))
+  {
+    printf("connection failed: %s (%d)", mysql_error(dbc),
+           mysql_errno(dbc));
+    exit(1);
+  }
+
+  bind.buffer_type= MYSQL_TYPE_LONG;
+  bind.buffer= (char *)&buf;
+  bind.is_null= &is_null;
+  bind.error= &error;
+  bind.length= &length;
+
+  res= mysql_query(dbc, "DROP TABLE IF EXISTS t1");
+  myquery(res);
+  res= mysql_query(dbc, "CREATE TABLE t1 (a INT)");
+  myquery(res);
+  res= mysql_query(dbc, "INSERT INTO t1 VALUES(1)");
+  myquery(res);
+
+  stmt= mysql_stmt_init(dbc);
+  check_stmt(stmt);
+
+  cursor_type= CURSOR_TYPE_READ_ONLY;
+  res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&cursor_type);
+  myquery(res);
+
+  query= "SELECT * from t1 where a=?";
+  res= mysql_stmt_prepare(stmt, query, strlen(query));
+  myquery(res);
+
+  res= mysql_stmt_bind_param(stmt, &bind);
+  myquery(res);
+
+  res= mysql_stmt_execute(stmt);
+  check_execute(stmt, res);
+
+  res= mysql_stmt_bind_result(stmt,&bind);
+  check_execute(stmt, res);
+    
+  sprintf(kill_buf, "kill %ld", dbc->thread_id);
+  mysql_query(dbc, kill_buf);
+
+  res= mysql_stmt_store_result(stmt);
+  DIE_UNLESS(res);
+
+  mysql_stmt_free_result(stmt);
+  mysql_stmt_close(stmt);
+  mysql_query(dbc, "DROP TABLE t1");
+  mysql_close(dbc);
+}
+
+
+/*
+  Bug#29687 mysql_stmt_store_result memory leak in libmysqld
+*/
+
+static void test_bug29687()
+{
+  const int NUM_ITERATIONS= 40;
+  int i;
+  int rc;
+  MYSQL_STMT *stmt= NULL;
+
+  DBUG_ENTER("test_bug29687");
+  myheader("test_bug29687");
+
+  stmt= mysql_simple_prepare(mysql, "SELECT 1 FROM dual WHERE 0=2");
+  DIE_UNLESS(stmt);
+
+  for (i= 0; i < NUM_ITERATIONS; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    mysql_stmt_store_result(stmt);
+    while (mysql_stmt_fetch(stmt)==0);
+    mysql_stmt_free_result(stmt);
+  }
+
+  mysql_stmt_close(stmt);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Bug #29692  	Single row inserts can incorrectly report a huge number of 
+  row insertions
+*/
+
+static void test_bug29692()
+{
+  MYSQL* conn;
+
+  if (!(conn= mysql_init(NULL)))
+  {
+    myerror("test_bug29692 init failed");
+    exit(1);
+  }
+
+  if (!(mysql_real_connect(conn, opt_host, opt_user,
+                           opt_password, opt_db ? opt_db:"test", opt_port,
+                           opt_unix_socket,  CLIENT_FOUND_ROWS)))
+  {
+    myerror("test_bug29692 connection failed");
+    mysql_close(mysql);
+    exit(1);
+  }
+  myquery(mysql_query(conn, "drop table if exists t1"));
+  myquery(mysql_query(conn, "create table t1(f1 int)"));
+  myquery(mysql_query(conn, "insert into t1 values(1)"));
+  DIE_UNLESS(1 == mysql_affected_rows(conn));
+  myquery(mysql_query(conn, "drop table t1"));
+  mysql_close(conn);
+}
+
+/**
+  Bug#29306 Truncated data in MS Access with decimal (3,1) columns in a VIEW
+*/
+
+static void test_bug29306()
+{
+  MYSQL_FIELD *field;
+  int rc;
+  MYSQL_RES *res;
+
+  DBUG_ENTER("test_bug29306");
+  myheader("test_bug29306");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS view17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE tab17557 (dd decimal (3,1))");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW view17557 as SELECT dd FROM tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO tab17557 VALUES (7.6)");
+  myquery(rc);
+
+  /* Checking the view */
+  res= mysql_list_fields(mysql, "view17557", NULL);
+  while ((field= mysql_fetch_field(res)))
+  {
+    if (! opt_silent)
+    {
+      printf("field name %s\n", field->name);
+      printf("field table %s\n", field->table);
+      printf("field decimals %d\n", field->decimals);
+      if (field->decimals < 1)
+        printf("Error! No decimals! \n");
+      printf("\n\n");
+    }
+    DIE_UNLESS(field->decimals == 1);
+  }
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "DROP TABLE tab17557");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW view17557");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -16082,23 +16460,23 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
-   (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", (char **) &opt_count,
-   (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
+  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
+   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", (uchar **) &opt_count,
+   (uchar **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", (uchar **) &opt_db, (uchar **) &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
-   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
+   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host", (char **) &opt_host, (char **) &opt_host,
+  {"host", 'h', "Connect to host", (uchar **) &opt_host, (uchar **) &opt_host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection", (char **) &opt_port,
-   (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection", (uchar **) &opt_port,
+   (uchar **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -16106,19 +16484,19 @@ static struct my_option client_test_long_options[] =
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"socket", 'S', "Socket file to use for connection",
-   (char **) &opt_unix_socket, (char **) &opt_unix_socket, 0, GET_STR,
+   (uchar **) &opt_unix_socket, (uchar **) &opt_unix_socket, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"testcase", 'c',
    "May disable some code when runs as mysql-test-run testcase.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user", (char **) &opt_user,
-   (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", (uchar **) &opt_user,
+   (uchar **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", (gptr*) &opt_vardir,
-   (gptr*) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", (uchar**) &opt_vardir,
+   (uchar**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
-   (char **) &opt_getopt_ll_test, (char **) &opt_getopt_ll_test, 0,
+   (uchar **) &opt_getopt_ll_test, (uchar **) &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -16357,6 +16735,15 @@ static struct my_tests_st my_tests[]= {
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
   { "test_ps_query_cache", test_ps_query_cache },
+  { "test_bug28075", test_bug28075 },
+  { "test_bug27876", test_bug27876 },
+  { "test_bug28505", test_bug28505 },
+  { "test_bug28934", test_bug28934 },
+  { "test_bug27592", test_bug27592 },
+  { "test_bug29948", test_bug29948 },
+  { "test_bug29687", test_bug29687 },
+  { "test_bug29692", test_bug29692 },
+  { "test_bug29306", test_bug29306 },
   { 0, 0 }
 };
 

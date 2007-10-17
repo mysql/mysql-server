@@ -78,7 +78,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       if (_mi_memmap_file(info))
       {
 	/* We don't nead MADV_SEQUENTIAL if small file */
-	madvise(share->file_map,share->state.state.data_file_length,
+	madvise((char*) share->file_map, share->state.state.data_file_length,
 		share->state.state.data_file_length <= RECORD_CACHE_SIZE*16 ?
 		MADV_RANDOM : MADV_SEQUENTIAL);
 	pthread_mutex_unlock(&share->intern_lock);
@@ -158,7 +158,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     }
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
-      madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+      madvise((char*) share->file_map, share->state.state.data_file_length,
+              MADV_RANDOM);
 #endif
     break;
   case HA_EXTRA_FLUSH_CACHE:
@@ -180,8 +181,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_KEYREAD:			/* Read only keys to record */
   case HA_EXTRA_REMEMBER_POS:
     info->opt_flag |= REMEMBER_OLD_POS;
-    bmove((byte*) info->lastkey+share->base.max_key_length*2,
-	  (byte*) info->lastkey,info->lastkey_length);
+    bmove((uchar*) info->lastkey+share->base.max_key_length*2,
+	  (uchar*) info->lastkey,info->lastkey_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
     info->save_lastpos= info->lastpos;
@@ -197,8 +198,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_RESTORE_POS:
     if (info->opt_flag & REMEMBER_OLD_POS)
     {
-      bmove((byte*) info->lastkey,
-	    (byte*) info->lastkey+share->base.max_key_length*2,
+      bmove((uchar*) info->lastkey,
+	    (uchar*) info->lastkey+share->base.max_key_length*2,
 	    info->save_lastkey_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;
@@ -258,7 +259,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PREPARE_FOR_DELETE:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__
+#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
     if (flush_key_blocks(share->key_cache, share->kfile,
@@ -385,7 +386,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   {
     char tmp[1];
     tmp[0]=function;
-    myisam_log_command(MI_LOG_EXTRA,info,(byte*) tmp,1,error);
+    myisam_log_command(MI_LOG_EXTRA,info,(uchar*) tmp,1,error);
   }
   DBUG_RETURN(error);
 } /* mi_extra */
@@ -435,7 +436,8 @@ int mi_reset(MI_INFO *info)
     mi_alloc_rec_buff(info, -1, &info->rec_buff);
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
-    madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+    madvise((char*) share->file_map, share->state.state.data_file_length,
+            MADV_RANDOM);
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode=0;

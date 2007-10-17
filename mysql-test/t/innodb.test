@@ -11,7 +11,6 @@
 #                                                                     #
 #######################################################################
 
--- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
 #
@@ -53,7 +52,7 @@ INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
--- error ER_DUP_ENTRY_WITH_KEY_NAME,1022
+-- error ER_DUP_ENTRY,1022
 update t1 set id=1024 where id=1009; 
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
@@ -134,13 +133,13 @@ commit;
 select n, "after commit" from t1;
 commit;
 insert into t1 values (5);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values (4);
 commit;
 select n, "after commit" from t1;
 set autocommit=1;
 insert into t1 values (6);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values (4);
 select n from t1;
 set autocommit=0;
@@ -214,7 +213,7 @@ drop table t1;
 
 CREATE TABLE t1 (id char(8) not null primary key, val int not null) engine=innodb;
 insert into t1 values ('pippo', 12);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 values ('pippo', 12); # Gives error
 delete from t1;
 delete from t1 where id = 'pippo';
@@ -342,9 +341,9 @@ CREATE TABLE t1 (
 
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 (ggid,passwd) values ('test2','this will fail');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t1 (ggid,id) values ('this will fail',1);
 
 select * from t1 where ggid='test1';
@@ -353,7 +352,7 @@ select * from t1 where id=2;
 
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 update t1 set id=100,ggid='test2' where id=1;
 select * from t1;
 select * from t1 where id=1;
@@ -524,7 +523,7 @@ drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=innodb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 select id from t1;
@@ -535,7 +534,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 begin;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
@@ -1131,10 +1130,9 @@ drop table t2;
 
 # Test error handling
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
---error 1005
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
 # bug#3749
@@ -1146,41 +1144,6 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 drop table t2, t1;
 
-
-#
-# Let us test binlog_cache_use and binlog_cache_disk_use status vars.
-# Actually this test has nothing to do with innodb per se, it just requires
-# transactional table. 
-#
-flush status;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-create table t1 (a int) engine=innodb;
-
-# Now we are going to create transaction which is long enough so its 
-# transaction binlog will be flushed to disk...
-let $1=2000;
-disable_query_log;
-begin;
-while ($1)
-{
- eval insert into t1 values( $1 );
- dec $1;
-}
-commit;
-enable_query_log;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-
-# Transaction which should not be flushed to disk and so should not
-# increase binlog_cache_disk_use.
-begin;
-delete from t1;
-commit;
-show status like "binlog_cache_use";
-show status like "binlog_cache_disk_use";
-drop table t1;
 
 #
 # Bug #6126: Duplicate columns in keys gives misleading error message
@@ -1360,9 +1323,8 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 
-# Clean up filename -- embedded server reports whole path without .frm,
-# regular server reports relative path with .frm (argh!)
---replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 create table t1 (v varchar(65530), key(v));
 drop table t1;
 create table t1 (v varchar(65536));
@@ -1408,7 +1370,7 @@ create table t1 (rowid int not null auto_increment, val int not null,primary
 key (rowid), unique(val)) engine=innodb;
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
@@ -1421,7 +1383,7 @@ create table t1 (a int not null auto_increment primary key, val int) engine=Inno
 insert into t1 (val) values (1);
 update t1 set a=2 where a=1;
 # We should get the following error because InnoDB does not update the counter
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (val) values (1);
 select * from t1;
 drop table t1;
@@ -1636,6 +1598,7 @@ disconnect b;
 
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1005
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
@@ -1647,6 +1610,7 @@ drop table t2;
 
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1005
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
@@ -1677,6 +1641,7 @@ drop table t2,t1;
 set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+# Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1025
 rename table t3 to t1;
@@ -1744,13 +1709,13 @@ create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
 
 insert into t1 values (0x41),(0x4120),(0x4100);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t2 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t3 values (0x41),(0x4120),(0x4100);
 insert into t3 values (0x41),(0x4100);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 insert into t4 values (0x41),(0x4120),(0x4100);
 insert into t4 values (0x41),(0x4100);
 select hex(s1) from t1;
@@ -2302,7 +2267,10 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
---replace_regex /'\.\/test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
@@ -2339,6 +2307,21 @@ ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1,t2;
+
+#
+# Bug #21101 (Prints wrong error message if max row size is too large)
+#
+--error 1118
+CREATE TABLE t1 (
+	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
+	c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
+	c09 CHAR(255), c10 CHAR(255), c11 CHAR(255), c12 CHAR(255),
+	c13 CHAR(255), c14 CHAR(255), c15 CHAR(255), c16 CHAR(255),
+	c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
+	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
+	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
+	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
+	) ENGINE = InnoDB;
 
 #######################################################################
 #                                                                     #

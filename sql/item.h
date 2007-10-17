@@ -19,7 +19,7 @@
 #endif
 
 class Protocol;
-struct st_table_list;
+struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
 
@@ -49,29 +49,50 @@ class DTCollation {
 public:
   CHARSET_INFO     *collation;
   enum Derivation derivation;
+  uint repertoire;
   
+  void set_repertoire_from_charset(CHARSET_INFO *cs)
+  {
+    repertoire= cs->state & MY_CS_PUREASCII ?
+                MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+  }
   DTCollation()
   {
     collation= &my_charset_bin;
     derivation= DERIVATION_NONE;
+    repertoire= MY_REPERTOIRE_UNICODE30;
   }
   DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
   }
   void set(DTCollation &dt)
   { 
     collation= dt.collation;
     derivation= dt.derivation;
+    repertoire= dt.repertoire;
   }
   void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
+  void set(CHARSET_INFO *collation_arg,
+           Derivation derivation_arg,
+           uint repertoire_arg)
+  {
+    collation= collation_arg;
+    derivation= derivation_arg;
+    repertoire= repertoire_arg;
   }
   void set(CHARSET_INFO *collation_arg)
-  { collation= collation_arg; }
+  {
+    collation= collation_arg;
+    set_repertoire_from_charset(collation_arg);
+  }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
   bool aggregate(DTCollation &dt, uint flags= 0);
@@ -426,7 +447,7 @@ public:
 };
 
 
-typedef bool (Item::*Item_processor) (byte *arg);
+typedef bool (Item::*Item_processor) (uchar *arg);
 /*
   Analyzer function
     SYNOPSIS
@@ -438,8 +459,8 @@ typedef bool (Item::*Item_processor) (byte *arg);
       FALSE  Don't do it
 
 */
-typedef bool (Item::*Item_analyzer) (byte **argp);
-typedef Item* (Item::*Item_transformer) (byte *arg);
+typedef bool (Item::*Item_analyzer) (uchar **argp);
+typedef Item* (Item::*Item_transformer) (uchar *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
 
@@ -448,9 +469,9 @@ class Item {
   void operator=(Item &);
 public:
   static void *operator new(size_t size)
-  { return (void*) sql_alloc((uint) size); }
+  { return sql_alloc(size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, (uint) size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
@@ -476,9 +497,9 @@ public:
     save_in_field
   */
   String str_value;
-  my_string name;			/* Name from select */
+  char * name;			/* Name from select */
   /* Original item name (if it was renamed)*/
-  my_string orig_name;
+  char * orig_name;
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -547,6 +568,43 @@ public:
   */
   virtual enum_monotonicity_info get_monotonicity_info() const
   { return NON_MONOTONIC; }
+
+  /*
+    Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$ const2"
+
+    SYNOPSIS
+      val_int_endpoint()
+        left_endp  FALSE  <=> The interval is "x < const" or "x <= const"
+                   TRUE   <=> The interval is "x > const" or "x >= const"
+
+        incl_endp  IN   TRUE <=> the comparison is '<' or '>'
+                        FALSE <=> the comparison is '<=' or '>='
+                   OUT  The same but for the "F(x) $CMP$ F(const)" comparison
+
+    DESCRIPTION
+      This function is defined only for unary monotonic functions. The caller
+      supplies the source half-interval
+
+         x $CMP$ const
+
+      The value of const is supplied implicitly as the value this item's
+      argument, the form of $CMP$ comparison is specified through the
+      function's arguments. The calle returns the result interval
+         
+         F(x) $CMP2$ F(const)
+      
+      passing back F(const) as the return value, and the form of $CMP2$ 
+      through the out parameter. NULL values are assumed to be comparable and
+      be less than any non-NULL values.
+
+    RETURN
+      The output range bound, which equal to the value of val_int()
+        - If the value of the function is NULL then the bound is the 
+          smallest possible value of LONGLONG_MIN 
+  */
+  virtual longlong val_int_endpoint(bool left_endp, bool *incl_endp)
+  { DBUG_ASSERT(0); return 0; }
+
 
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   /*
@@ -653,6 +711,7 @@ public:
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
+  int save_str_value_in_field(Field *field, String *result);
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
@@ -779,12 +838,12 @@ public:
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
-  virtual bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
     return (this->*processor)(arg);
   }
 
-  virtual Item* transform(Item_transformer transformer, byte *arg);
+  virtual Item* transform(Item_transformer transformer, uchar *arg);
 
   /*
     This function performs a generic "compilation" of the Item tree.
@@ -802,8 +861,8 @@ public:
     i.e. analysis is performed top-down while transformation is done
     bottom-up.      
   */
-  virtual Item* compile(Item_analyzer analyzer, byte **arg_p,
-                        Item_transformer transformer, byte *arg_t)
+  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t)
   {
     if ((this->*analyzer) (arg_p))
       return ((this->*transformer) (arg_t));
@@ -816,15 +875,15 @@ public:
      (*traverser)(this, arg);
    }
 
-  virtual bool remove_dependence_processor(byte * arg) { return 0; }
-  virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
-  virtual bool cleanup_processor(byte *arg);
-  virtual bool collect_item_field_processor(byte * arg) { return 0; }
-  virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
-  virtual bool change_context_processor(byte *context) { return 0; }
-  virtual bool reset_query_id_processor(byte *query_id_arg) { return 0; }
-  virtual bool is_expensive_processor(byte *arg) { return 0; }
-  virtual bool register_field_in_read_map(byte *arg) { return 0; }
+  virtual bool remove_dependence_processor(uchar * arg) { return 0; }
+  virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
+  virtual bool cleanup_processor(uchar *arg);
+  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
+  virtual bool change_context_processor(uchar *context) { return 0; }
+  virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
+  virtual bool is_expensive_processor(uchar *arg) { return 0; }
+  virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -843,8 +902,7 @@ public:
     german character for double s is equal to 2 s.
 
     The default is that an item is not allowed
-    in a partition function. However all mathematical functions, string
-    manipulation functions, date functions are allowed. Allowed functions
+    in a partition function. Allowed functions
     can never depend on server version, they cannot depend on anything
     related to the environment. They can also only depend on a set of
     fields in the table itself. They cannot depend on other tables and
@@ -877,17 +935,17 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool check_partition_func_processor(byte *bool_arg) { return TRUE;}
-  virtual bool subst_argument_checker(byte **arg)
+  virtual bool check_partition_func_processor(uchar *bool_arg) { return TRUE;}
+  virtual bool subst_argument_checker(uchar **arg)
   { 
     if (*arg)
       *arg= NULL; 
     return TRUE;     
   }
 
-  virtual Item *equal_fields_propagator(byte * arg) { return this; }
-  virtual bool set_no_const_sub(byte *arg) { return FALSE; }
-  virtual Item *replace_equal_field(byte * arg) { return this; }
+  virtual Item *equal_fields_propagator(uchar * arg) { return this; }
+  virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
+  virtual Item *replace_equal_field(uchar * arg) { return this; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -916,7 +974,7 @@ public:
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
-  virtual Item *update_value_transformer(byte *select_arg) { return this; }
+  virtual Item *update_value_transformer(uchar *select_arg) { return this; }
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1054,9 +1112,18 @@ public:
     SP variable in query text.
   */
   uint pos_in_query;
+  /*
+    Byte length of SP variable name in the statement (see pos_in_query).
+    The value of this field may differ from the name_length value because
+    name_length contains byte length of UTF8-encoded item name, but
+    the query string (see sp_instr_stmt::m_query) is currently stored with
+    a charset from the SET NAMES statement.
+  */
+  uint len_in_query;
 
   Item_splocal(const LEX_STRING &sp_var_name, uint sp_var_idx,
-               enum_field_types sp_var_type, uint pos_in_q= 0);
+               enum_field_types sp_var_type,
+               uint pos_in_q= 0, uint len_in_q= 0);
 
   bool is_splocal() { return 1; } /* Needed for error checking */
 
@@ -1224,7 +1291,7 @@ public:
   Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1268,9 +1335,9 @@ public:
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
   void cleanup();
-  bool remove_dependence_processor(byte * arg);
+  bool remove_dependence_processor(uchar * arg);
   void print(String *str);
-  virtual bool change_context_processor(byte *cntx)
+  virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
@@ -1371,6 +1438,7 @@ public:
   {
     return MONOTONIC_STRICT_INCREASING;
   }
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
@@ -1379,26 +1447,31 @@ public:
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
-  bool collect_item_field_processor(byte * arg);
-  bool find_item_in_field_list_processor(byte *arg);
-  bool register_field_in_read_map(byte *arg);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool collect_item_field_processor(uchar * arg);
+  bool find_item_in_field_list_processor(uchar *arg);
+  bool register_field_in_read_map(uchar *arg);
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   void cleanup();
   bool result_as_longlong()
   {
     return field->can_be_compared_as_longlong();
   }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
-  bool subst_argument_checker(byte **arg);
-  Item *equal_fields_propagator(byte *arg);
-  bool set_no_const_sub(byte *arg);
-  Item *replace_equal_field(byte *arg);
+  bool subst_argument_checker(uchar **arg);
+  Item *equal_fields_propagator(uchar *arg);
+  bool set_no_const_sub(uchar *arg);
+  Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
-  virtual Item *update_value_transformer(byte *select_arg);
+  virtual Item *update_value_transformer(uchar *select_arg);
   void print(String *str);
+  Field::geometry_type get_geometry_type()
+  {
+    DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
+    return field->get_geometry_type();
+  }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1433,7 +1506,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1446,7 +1519,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -1456,8 +1529,10 @@ class Item_param :public Item
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
-public:
+  bool strict_type;
+  enum Item_result required_result_type;
 
+public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
@@ -1585,6 +1660,11 @@ public:
     Otherwise return FALSE.
   */
   bool eq(const Item *item, bool binary_cmp) const;
+  void set_strict_type(enum Item_result result_type_arg)
+  {
+    strict_type= TRUE;
+    required_result_type= result_type_arg;
+  }
 };
 
 
@@ -1621,6 +1701,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1638,6 +1719,7 @@ public:
   void print(String *str);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1653,7 +1735,7 @@ public:
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
   Item_decimal(double val, int precision, int scale);
-  Item_decimal(const char *bin, int precision, int scale);
+  Item_decimal(const uchar *bin, int precision, int scale);
 
   enum Type type() const { return DECIMAL_ITEM; }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
@@ -1680,6 +1762,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
+  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
 };
 
 
@@ -1698,8 +1781,11 @@ public:
     max_length=length;
     fixed= 1;
   }
-  Item_float(double value_par) :presentation(0), value(value_par) { fixed= 1; }
-
+  Item_float(double value_par, uint decimal_par) :presentation(0), value(value_par)
+  {
+    decimals= (uint8) decimal_par;
+    fixed= 1;
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -1740,7 +1826,6 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1748,15 +1833,16 @@ class Item_string :public Item
 {
 public:
   Item_string(const char *str,uint length,
-  	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
       ensure that we get the right length if we do use the item
       to create a new table. In this case max_length must be the maximum
-      number of chars for a string of this type because we in create_field::
+      number of chars for a string of this type because we in Create_field::
       divide the max_length with mbmaxlen).
     */
     max_length= str_value.numchars()*cs->mbmaxlen;
@@ -1775,10 +1861,11 @@ public:
     fixed= 1;
   }
   Item_string(const char *name_par, const char *str, uint length,
-	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              uint repertoire= MY_REPERTOIRE_UNICODE30)
   {
-    collation.set(cs, dv);
-    str_value.set_or_copy_aligned(str,length,cs);
+    str_value.set_or_copy_aligned(str, length, cs);
+    collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par, 0, cs);
     decimals=NOT_FIXED_DEC;
@@ -1793,6 +1880,12 @@ public:
   {
     str_value.copy(str_arg, length_arg, collation.collation);
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
+  }
+  void set_repertoire_from_value()
+  {
+    collation.repertoire= my_string_repertoire(str_value.charset(),
+                                               str_value.ptr(),
+                                               str_value.length());
   }
   enum Type type() const { return STRING_ITEM; }
   double val_real();
@@ -1822,7 +1915,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -1837,7 +1930,7 @@ public:
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1849,7 +1942,6 @@ public:
                                   CHARSET_INFO *cs= NULL):
     Item_string(name, length, cs)
   {}
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1876,11 +1968,17 @@ public:
 };
 
 
+/**
+  Item_empty_string -- is a utility class to put an item into List<Item>
+  which is then used in protocol.send_fields() when sending SHOW output to
+  the client.
+*/
+
 class Item_empty_string :public Item_partition_func_safe_string
 {
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
-    Item_partition_func_safe_string("",0, cs ? cs : &my_charset_bin)
+    Item_partition_func_safe_string("",0, cs ? cs : &my_charset_utf8_general_ci)
     { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
@@ -1897,7 +1995,6 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1924,7 +2021,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -2019,11 +2116,7 @@ public:
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
-  Item *get_tmp_table_item(THD *thd)
-  { 
-    return (result_field ? new Item_field(result_field) :
-                          (*ref)->get_tmp_table_item(thd));
-  }
+  Item *get_tmp_table_item(THD *thd);
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -2044,7 +2137,7 @@ public:
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { return (*ref)->walk(processor, walk_subquery, arg); }
   void print(String *str);
   bool result_as_longlong()
@@ -2102,6 +2195,12 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  Item *get_tmp_table_item(THD *thd)
+  {
+    Item *item= Item_ref::get_tmp_table_item(thd);
+    item->name= name;
+    return item;
+  }
   virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
@@ -2223,7 +2322,6 @@ public:
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER
@@ -2275,7 +2373,10 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
-  int save_in_field(Field *field, bool no_conversions);
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return save_str_value_in_field(field, &str_value);
+  }
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -2332,7 +2433,7 @@ public:
 
 class Cached_item_field :public Cached_item
 {
-  char *buff;
+  uchar *buff;
   Field *field;
   uint length;
 
@@ -2340,7 +2441,7 @@ public:
   Cached_item_field(Item_field *item)
   {
     field= item->field;
-    buff= (char*) sql_calloc(length=field->pack_length());
+    buff= (uchar*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
 };
@@ -2364,13 +2465,13 @@ public:
   int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
 
-  bool walk(Item_processor processor, bool walk_subquery, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
     return arg->walk(processor, walk_subquery, args) ||
       (this->*processor)(args);
   }
 
-  Item *transform(Item_transformer transformer, byte *args);
+  Item *transform(Item_transformer transformer, uchar *args);
 };
 
 /*
@@ -2404,7 +2505,7 @@ public:
   */
   table_map used_tables() const { return RAND_TABLE_BIT; }
 
-  bool walk(Item_processor processor, bool walk_subquery, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
     return arg->walk(processor, walk_subquery, args) ||
 	    (this->*processor)(args);
@@ -2422,14 +2523,6 @@ public:
 enum trg_action_time_type
 {
   TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
-
-/*
-  Event on which trigger is invoked.
-*/
-enum trg_event_type
-{
-  TRG_EVENT_INSERT= 0 , TRG_EVENT_UPDATE= 1, TRG_EVENT_DELETE= 2, TRG_EVENT_MAX
 };
 
 class Table_triggers_list;
@@ -2692,6 +2785,7 @@ class Item_type_holder: public Item
 protected:
   TYPELIB *enum_set_typelib;
   enum_field_types fld_type;
+  Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
 
@@ -2711,6 +2805,7 @@ public:
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
+  Field::geometry_type get_geometry_type() { return geometry_type; };
 };
 
 

@@ -1,0 +1,13 @@
+###################################
+# Wrapper for rpl_row_func003.test#
+# This test was orginally designed#
+# To test InnoDB using RBR, but   #
+# It can also be used to test NDB #
+# So this wrapper is being used to#
+# reduce test case code           #
+###################################
+-- source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
+let $engine_type=NDB;
+-- source extra/rpl_tests/rpl_row_func003.test
+-- source include/master-slave-end.inc

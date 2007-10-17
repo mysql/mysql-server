@@ -90,6 +90,9 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysqld_multi
 
+# Default same as 'pkgdatadir', but we can override it
+pkgsuppdir =		$(datadir)/@PACKAGE@
+
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
 DISTCLEANFILES =        $(BUILT_SOURCES) mysqlbug
@@ -134,7 +137,10 @@ SUFFIXES = .sh
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
 	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
+	  -e 's!@''pkgsuppdir''@!$(pkgsuppdir)!g' \
 	  -e 's!@''sysconfdir''@!$(sysconfdir)!g' \
+	  -e 's!@''mandir''@!$(mandir)!g' \
+	  -e 's!@''infodir''@!$(infodir)!g' \
 	  -e 's!@''CC''@!@CC@!'\
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\

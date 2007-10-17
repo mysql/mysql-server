@@ -104,7 +104,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
   share->key_cache= key_cache;
 
   /* store the key cache in the global hash structure for future opens */
-  if (multi_key_cache_set(share->unique_file_name, share->unique_name_length,
+  if (multi_key_cache_set((uchar*) share->unique_file_name,
+                          share->unique_name_length,
 			  share->key_cache))
     error= my_errno;
   pthread_mutex_unlock(&share->intern_lock);

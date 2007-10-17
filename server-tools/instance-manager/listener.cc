@@ -56,6 +56,7 @@ static void set_no_inherit(int socket)
 #endif
 }
 
+const int Listener::LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
 
 Listener::Listener(Thread_registry *thread_registry_arg,
                    User_map *user_map_arg)

@@ -20,61 +20,57 @@
 #include <unistd.h>
 #endif
 
-	/* Read a chunk of bytes from a file  */
+/*
+  Read a chunk of bytes from a file from a given position
 
-uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
-	      myf MyFlags)
+  SYNOPSIOS
+    my_pread()
+    Filedes	File decsriptor
+    Buffer	Buffer to read data into
+    Count	Number of bytes to read
+    offset	Position to read from
+    MyFlags	Flags
+
+  NOTES
+    This differs from the normal pread() call in that we don't care
+    to set the position in the file back to the original position
+    if the system doesn't support pread().
+
+  RETURN
+    (size_t) -1   Error
+    #             Number of bytes read
+*/
+
+size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
+                myf MyFlags)
 {
-  uint readbytes;
+  size_t readbytes;
   int error= 0;
   DBUG_ENTER("my_pread");
   DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, Count, MyFlags));
-
+		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
+                   MyFlags));
   for (;;)
   {
 #ifndef __WIN__
     errno=0;					/* Linux doesn't reset this */
 #endif
 #ifndef HAVE_PREAD
-    os_off_t old_offset;
-
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
-    /*
-      As we cannot change the file pointer, we save the old position,
-      before seeking to the given offset
-    */
-
-    error= (old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
-           lseek(Filedes, offset, MY_SEEK_SET) == -1L;
-
-    if (!error)                                 /* Seek was successful */
-    {
-      if ((readbytes = (uint) read(Filedes, Buffer, Count)) == -1L)
-        my_errno= errno;
-
-      /*
-        We should seek back, even if read failed. If this fails,
-        we will return an error. If read failed as well, we will
-        save the errno from read, not from lseek().
-      */
-      if ((error= (lseek(Filedes, old_offset, MY_SEEK_SET) == -1L)) &&
-          readbytes != -1L)
-        my_errno= errno;
-    }
-
+    readbytes= (uint) -1;
+    error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
+	    (readbytes= read(Filedes, Buffer, Count)) != Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
-    if ((error= ((readbytes =
-                  (uint) pread(Filedes, Buffer, Count, offset)) != Count)))
+    if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
       my_errno= errno;
 #endif
     if (error || readbytes != Count)
     {
       DBUG_PRINT("warning",("Read only %d bytes off %u from %d, errno: %d",
-			    (int) readbytes, Count,Filedes,my_errno));
+			    (int) readbytes, (uint) Count,Filedes,my_errno));
 #ifdef THREAD
-      if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
+      if ((readbytes == 0 || readbytes == (size_t) -1) && errno == EINTR)
       {
         DBUG_PRINT("debug", ("my_pread() was interrupted and returned %d",
                              (int) readbytes));
@@ -83,14 +79,14 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 #endif
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
-	if ((int) readbytes == -1)
+	if (readbytes == (size_t) -1)
 	  my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(Filedes),my_errno);
 	else if (MyFlags & (MY_NABP | MY_FNABP))
 	  my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
 		   my_filename(Filedes),my_errno);
       }
-      if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
+      if (readbytes == (size_t) -1 || (MyFlags & (MY_FNABP | MY_NABP)))
 	DBUG_RETURN(MY_FILE_ERROR);		/* Return with error */
     }
     if (MyFlags & (MY_NABP | MY_FNABP))
@@ -100,65 +96,63 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 } /* my_pread */
 
 
-	/* Write a chunk of bytes to a file */
+/*
+  Write a chunk of bytes to a file at a given position
 
-uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
-	       myf MyFlags)
+  SYNOPSIOS
+    my_pwrite()
+    Filedes	File decsriptor
+    Buffer	Buffer to write data from
+    Count	Number of bytes to write
+    offset	Position to write to
+    MyFlags	Flags
+
+  NOTES
+    This differs from the normal pwrite() call in that we don't care
+    to set the position in the file back to the original position
+    if the system doesn't support pwrite()
+
+  RETURN
+    (size_t) -1   Error
+    #             Number of bytes read
+ */
+
+size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
+                 my_off_t offset, myf MyFlags)
 {
-  uint writenbytes,errors;
-  ulong written;
+  size_t writenbytes, written;
+  uint errors;
   DBUG_ENTER("my_pwrite");
-  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %d  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, Count, MyFlags));
-  errors=0; written=0L;
+  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
+		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
+                   MyFlags));
+  errors= 0;
+  written= 0;
 
   for (;;)
   {
 #ifndef HAVE_PREAD
-    int error= 0;
-    os_off_t old_offset;
-    writenbytes= (uint) -1;
+    int error;
+    writenbytes= (size_t) -1;
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
-
-    /*
-      As we cannot change the file pointer, we save the old position,
-      before seeking to the given offset
-    */
-    error= ((old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
-            lseek(Filedes, offset, MY_SEEK_SET) == -1L);
-
-    if (!error)                                 /* Seek was successful */
-    {
-      if ((writenbytes = (uint) write(Filedes, Buffer, Count)) == -1L)
-        my_errno= errno;
-
-      /*
-        We should seek back, even if write failed. If this fails,
-        we will return an error. If write failed as well, we will
-        save the errno from write, not from lseek().
-      */
-      if ((error= (lseek(Filedes, old_offset, MY_SEEK_SET) == -1L)) &&
-          writenbytes != -1L)
-        my_errno= errno;
-    }
+    error= (lseek(Filedes, offset, MY_SEEK_SET) != (my_off_t) -1 &&
+            (writenbytes = write(Filedes, Buffer, Count)) == Count);
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
-
-    if (!error && writenbytes == Count)
+    if (error)
       break;
 #else
-    if ((writenbytes = (uint) pwrite(Filedes, Buffer, Count,offset)) == Count)
+    if ((writenbytes= pwrite(Filedes, Buffer, Count,offset)) == Count)
       break;
-    else
-      my_errno= errno;
+    my_errno= errno;
 #endif
-    if ((int) writenbytes != -1)
+    if (writenbytes != (size_t) -1)
     {					/* Safegueard */
       written+=writenbytes;
       Buffer+=writenbytes;
       Count-=writenbytes;
       offset+=writenbytes;
     }
-    DBUG_PRINT("error",("Write only %d bytes",writenbytes));
+    DBUG_PRINT("error",("Write only %u bytes", (uint) writenbytes));
 #ifndef NO_BACKGROUND
 #ifdef THREAD
     if (my_thread_var->abort)
@@ -173,8 +167,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
       VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
       continue;
     }
-    if ((writenbytes > 0 && (uint) writenbytes != (uint) -1) ||
-        my_errno == EINTR)
+    if ((writenbytes && writenbytes != (size_t) -1) || my_errno == EINTR)
       continue;					/* Retry */
 #endif
     if (MyFlags & (MY_NABP | MY_FNABP))
@@ -189,6 +182,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
     else
       break;					/* Return bytes written */
   }
+  DBUG_EXECUTE_IF("check", my_seek(Filedes, -1, SEEK_SET, MYF(0)););
   if (MyFlags & (MY_NABP | MY_FNABP))
     DBUG_RETURN(0);			/* Want only errors */
   DBUG_RETURN(writenbytes+written); /* purecov: inspected */

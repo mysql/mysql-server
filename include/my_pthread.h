@@ -29,25 +29,6 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
-/*
-  BUG#24507: Race conditions inside current NPTL pthread_exit() implementation.
-  
-  If macro NPTL_PTHREAD_EXIT_HACK is defined then a hack described in the bug
-  report will be implemented inside my_thread_global_init() in my_thr_init.c.
-   
-  This amounts to spawning a dummy thread which does nothing but executes 
-  pthread_exit(0). 
-  
-  This bug is fixed in version 2.5 of glibc library.
-  
-  TODO: Remove this code when fixed versions of glibc6 are in common use. 
- */
-
-#if defined(TARGET_OS_LINUX) && defined(HAVE_NPTL) && \
-    defined(__GLIBC__) && ( __GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5 )
-#define NPTL_PTHREAD_EXIT_BUG	1
-#endif 
-
 #if defined(__WIN__)
 typedef CRITICAL_SECTION pthread_mutex_t;
 typedef HANDLE		 pthread_t;
@@ -179,10 +160,9 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 
-#define pthread_join(A,B) \
-  ((WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0) || !CloseHandle(A))
+#define pthread_join(A,B) (WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0)
 
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
@@ -362,14 +342,14 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_create(A,B,C,D) pthread_create((A),*(B),(C),(D))
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #endif
 
 #ifdef HAVE_DARWIN5_THREADS
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #define pthread_condattr_init(A) pthread_dummy(0)
 #define pthread_condattr_destroy(A) pthread_dummy(0)
 #undef	pthread_detach_this_thread
@@ -389,7 +369,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #ifndef pthread_sigmask
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
 #endif
-#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_kill(A,B) pthread_dummy(ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #elif !defined(__NETWARE__) /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */
@@ -539,6 +519,7 @@ typedef struct st_my_pthread_fastmutex_t
   pthread_mutex_t mutex;
   uint spins;
 } my_pthread_fastmutex_t;
+void fastmutex_global_init(void);
 
 int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp, 
                               const pthread_mutexattr_t *attr);
@@ -647,6 +628,11 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 #define MY_MUTEX_INIT_ERRCHK   NULL
 #endif
 
+#ifndef ESRCH
+/* Define it to something */
+#define ESRCH 1
+#endif
+
 typedef ulong my_thread_id;
 
 extern my_bool my_thread_global_init(void);
@@ -688,7 +674,7 @@ struct st_my_thread_var
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF
-  gptr dbug;
+  void *dbug;
   char name[THREAD_NAME_SIZE+1];
 #endif
 };
@@ -710,33 +696,68 @@ extern uint my_thread_end_wait_time;
 
 extern uint thd_lib_detected;
 
-	/* statistics_xxx functions are for not essential statistic */
+/*
+  thread_safe_xxx functions are for critical statistic or counters.
+  The implementation is guaranteed to be thread safe, on all platforms.
+  Note that the calling code should *not* assume the counter is protected
+  by the mutex given, as the implementation of these helpers may change
+  to use my_atomic operations instead.
+*/
 
+/*
+  Warning:
+  When compiling without threads, this file is not included.
+  See the *other* declarations of thread_safe_xxx in include/my_global.h
+
+  Second warning:
+  See include/config-win.h, for yet another implementation.
+*/
+#ifdef THREAD
 #ifndef thread_safe_increment
-#ifdef HAVE_ATOMIC_ADD
-#define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V)
-#define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V)
-#define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V)
-#define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V)
-#else
 #define thread_safe_increment(V,L) \
         (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
-#define thread_safe_add(V,C,L) (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
+#endif
+
+#ifndef thread_safe_add
+#define thread_safe_add(V,C,L) \
+        (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
-#endif /* HAVE_ATOMIC_ADD */
+#endif
+#endif
+
+/*
+  statistics_xxx functions are for non critical statistic,
+  maintained in global variables.
+  When compiling with SAFE_STATISTICS:
+  - race conditions can not occur.
+  - some locking occurs, which may cause performance degradation.
+
+  When compiling without SAFE_STATISTICS:
+  - race conditions can occur, making the result slightly inaccurate.
+  - the lock given is not honored.
+*/
 #ifdef SAFE_STATISTICS
-#define statistic_increment(V,L)   thread_safe_increment((V),(L))
-#define statistic_decrement(V,L)   thread_safe_decrement((V),(L))
-#define statistic_add(V,C,L)       thread_safe_add((V),(C),(L))
+#define statistic_increment(V,L) thread_safe_increment((V),(L))
+#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
+#define statistic_add(V,C,L)     thread_safe_add((V),(C),(L))
+#define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
 #else
 #define statistic_decrement(V,L) (V)--
 #define statistic_increment(V,L) (V)++
 #define statistic_add(V,C,L)     (V)+=(C)
+#define statistic_sub(V,C,L)     (V)-=(C)
 #endif /* SAFE_STATISTICS */
-#endif /* thread_safe_increment */
+
+/*
+  No locking needed, the counter is owned by the thread
+*/
+#define status_var_increment(V) (V)++
+#define status_var_decrement(V) (V)--
+#define status_var_add(V,C)     (V)+=(C)
+#define status_var_sub(V,C)     (V)-=(C)
 
 #ifdef  __cplusplus
 }

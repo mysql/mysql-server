@@ -1,0 +1,10 @@
+#################################
+# Wrapper for rpl_row_blob.test #
+# Using wrapper to share test   #
+# code between engine tests     #
+#################################
+-- source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
+let $engine_type=NDBCLUSTER;
+-- source extra/rpl_tests/rpl_row_blob.test
+

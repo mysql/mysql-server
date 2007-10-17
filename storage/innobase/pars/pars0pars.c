@@ -1640,7 +1640,8 @@ pars_create_table(
 	while (column) {
 		dtype = dfield_get_type(que_node_get_val(column));
 
-		dict_mem_table_add_col(table, column->name, dtype->mtype,
+		dict_mem_table_add_col(table, table->heap,
+				       column->name, dtype->mtype,
 				       dtype->prtype, dtype->len);
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

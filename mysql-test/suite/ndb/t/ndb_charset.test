@@ -1,0 +1,257 @@
+--source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Minimal NDB charset test.
+#
+
+# pk - binary
+
+create table t1 (
+  a char(3) character set latin1 collate latin1_bin primary key
+) engine=ndb;
+# ok
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+insert into t1 values('AAA');
+# 3
+select * from t1 order by a;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 0
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# pk - case insensitive
+
+create table t1 (
+  a char(3) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+# ok
+insert into t1 values('aAa');
+# fail
+--error ER_DUP_ENTRY
+insert into t1 values('aaa');
+--error ER_DUP_ENTRY
+insert into t1 values('AAA');
+# 1
+select * from t1 order by a;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 1
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# pk - varchar
+
+create table t1 (
+  a varchar(20) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+#
+insert into t1 values ('A'),('b '),('C  '),('d      '),('E'),('f');
+-- error ER_DUP_ENTRY
+insert into t1 values('b');
+-- error ER_DUP_ENTRY
+insert into t1 values('a         ');
+#
+select a,length(a) from t1 order by a;
+select a,length(a) from t1 order by a desc;
+select * from t1 where a = 'a';
+select * from t1 where a = 'a   ';
+select * from t1 where a = 'd';
+drop table t1;
+
+# unique hash index - binary
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_bin not null,
+  unique key(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+# 3
+select * from t1 order by p;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 0
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# unique hash index - case insensitive
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_swedish_ci not null,
+  unique key(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+# fail
+--error ER_DUP_ENTRY
+insert into t1 values(2, 'aaa');
+--error ER_DUP_ENTRY
+insert into t1 values(3, 'AAA');
+# 1
+select * from t1 order by p;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 1
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# unique hash index - varchar
+
+create table t1 (
+  p int primary key,
+  a varchar(20) character set latin1 collate latin1_swedish_ci not null,
+  unique key(a)
+) engine=ndb;
+#
+insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
+-- error ER_DUP_ENTRY
+insert into t1 values(99,'b');
+-- error ER_DUP_ENTRY
+insert into t1 values(99,'a         ');
+#
+select a,length(a) from t1 order by a;
+select a,length(a) from t1 order by a desc;
+select * from t1 where a = 'a';
+select * from t1 where a = 'a   ';
+select * from t1 where a = 'd';
+drop table t1;
+
+# ordered index - binary
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_bin not null,
+  index(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+# 6
+select * from t1 order by p;
+# plan too flaky
+#--replace_column 9 #
+#explain select * from t1 where a = 'zZz' order by p;
+# 2
+select * from t1 where a = 'aAa' order by p;
+# 2
+select * from t1 where a = 'aaa' order by p;
+# 0
+select * from t1 where a = 'AaA' order by p;
+# 2
+select * from t1 where a = 'AAA' order by p;
+drop table t1;
+
+# ordered index - case insensitive
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_swedish_ci not null,
+  index(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+# 6
+select * from t1 order by p;
+# plan too flaky
+#--replace_column 9 #
+#explain select * from t1 where a = 'zZz' order by p;
+# 6
+select * from t1 where a = 'aAa' order by p;
+# 6
+select * from t1 where a = 'aaa' order by p;
+# 6
+select * from t1 where a = 'AaA' order by p;
+# 6
+select * from t1 where a = 'AAA' order by p;
+drop table t1;
+
+# ordered index - varchar
+
+create table t1 (
+  p int primary key,
+  a varchar(20) character set latin1 collate latin1_swedish_ci not null,
+  index(a, p)
+) engine=ndb;
+#
+insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
+insert into t1 values (7,'a'),(8,'B '),(9,'c  '),(10,'D'),(11,'e'),(12,'F  ');
+select p,a,length(a) from t1 order by a, p;
+select * from t1 where a = 'a  ' order by a desc, p desc;
+select * from t1 where a >= 'D' order by a, p;
+select * from t1 where a < 'D' order by a, p;
+#
+select count(*) from t1 x, t1 y, t1 z where x.a = y.a and y.a = z.a;
+drop table t1;
+
+# minimal multi-byte test
+# removed by jonas as this requires a configure --with-extra-charsets
+#create table t1 (
+#  a char(5) character set ucs2,
+#  b varchar(7) character set utf8,
+#  primary key(a, b)
+#) engine=ndb;
+#
+#insert into t1 values
+#  ('a','A '),('B   ','b'),('c','C    '),('D','d'),('e  ','E'),('F','f  '),
+#  ('A','b '),('b   ','C'),('C','d  '),('d','E'),('E  ','f'),
+#  ('a','C '),('B   ','d'),('c','E  '),('D','f');
+#-- error ER_DUP_ENTRY
+#insert into t1 values('d','f');
+#
+#select a,b,length(a),length(b) from t1 order by a,b limit 3;
+#select a,b,length(a),length(b) from t1 order by a desc, b desc limit 3;
+#select a,b,length(a),length(b) from t1 where a='c' and b='c';
+#drop table t1;
+
+# bug#14007
+create table t1 (
+  a char(10) primary key
+) engine=ndbcluster default charset=latin1;
+
+insert into t1 values ('aaabb');
+select * from t1;
+replace into t1 set a = 'AAABB';
+select * from t1;
+replace into t1 set a = 'aAaBb';
+select * from t1;
+replace into t1 set a = 'aaabb';
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests

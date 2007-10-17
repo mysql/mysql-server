@@ -1,0 +1,47 @@
+##################################################################
+# Author: Giuseppe                                               #
+# Date: 2006-12-20                                               #
+# Purpose: To test that event effects are replicated             #
+# in both row based and statement based format                   #
+##################################################################
+
+set global event_scheduler=1;
+
+--source include/not_embedded.inc
+--source include/master-slave.inc
+
+let $engine_type= MyISAM;
+
+set binlog_format=row;
+
+# Embedded server doesn't support binlogging
+--source include/rpl_events.inc
+
+set binlog_format=statement;
+
+# Embedded server doesn't support binlogging
+--source include/rpl_events.inc
+
+#
+# Bug #28953  	Using events in a replication let the slave crash.
+#
+
+connection master;
+
+DELIMITER |;
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
+DO BEGIN
+	select * from t1;
+END;|
+DELIMITER ;|
+
+ALTER EVENT event1 RENAME TO event2;
+
+sync_slave_with_master;
+
+connection master;
+
+DROP EVENT event2;
+
+sync_slave_with_master;
+

@@ -264,7 +264,18 @@ select @@sql_mode;
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 --error 1231
-set sql_mode=2147483648; # that mode does not exist
+set sql_mode=2147483648*2; # that mode does not exist
 select @@sql_mode;
+
+#
+# Test WL921: Retain spaces when retrieving CHAR column values
+
+set sql_mode=PAD_CHAR_TO_FULL_LENGTH;
+create table t1 (a int auto_increment primary key, b char(5));
+insert into t1 (b) values('a'),('b\t'),('c ');
+select concat('x',b,'x') from t1;
+set sql_mode=0;
+select concat('x',b,'x') from t1;
+drop table t1;
 
 SET @@SQL_MODE=@OLD_SQL_MODE;

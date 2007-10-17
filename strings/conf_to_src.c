@@ -179,14 +179,16 @@ is_case_sensitive(CHARSET_INFO *cs)
          cs->sort_order['a'] < cs->sort_order['B']) ? 1 : 0;
 }
 
+
 void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
   fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);
-  fprintf(f,"  MY_CS_COMPILED%s%s%s,\n",
-          cs->state & MY_CS_BINSORT ? "|MY_CS_BINSORT" : "",
-          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "",
-          is_case_sensitive(cs)     ? "|MY_CS_CSSORT"  : "");
+  fprintf(f,"  MY_CS_COMPILED%s%s%s%s,\n",
+          cs->state & MY_CS_BINSORT         ? "|MY_CS_BINSORT"   : "",
+          cs->state & MY_CS_PRIMARY         ? "|MY_CS_PRIMARY"   : "",
+          is_case_sensitive(cs)             ? "|MY_CS_CSSORT"    : "",
+          my_charset_is_8bit_pure_ascii(cs) ? "|MY_CS_PUREASCII" : "");
   
   if (cs->name)
   {
@@ -243,6 +245,28 @@ void dispcset(FILE *f,CHARSET_INFO *cs)
 }
 
 
+static void
+fprint_copyright(FILE *file)
+{
+  fprintf(file,
+"/* Copyright (C) 2000-2007 MySQL AB\n"
+"\n"
+"   This program is free software; you can redistribute it and/or modify\n"
+"   it under the terms of the GNU General Public License as published by\n"
+"   the Free Software Foundation; version 2 of the License.\n"
+"\n"
+"   This program is distributed in the hope that it will be useful,\n"
+"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+"   GNU General Public License for more details.\n"
+"\n"
+"   You should have received a copy of the GNU General Public License\n"
+"   along with this program; if not, write to the Free Software\n"
+"   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */\n"
+"\n");
+}
+
+
 int
 main(int argc, char **argv  __attribute__((unused)))
 {
@@ -283,6 +307,7 @@ main(int argc, char **argv  __attribute__((unused)))
           "directory:\n");
   fprintf(f, "    ./conf_to_src ../sql/share/charsets/ > FILE\n");
   fprintf(f, "*/\n\n");
+  fprint_copyright(f);
   fprintf(f,"#include <my_global.h>\n");
   fprintf(f,"#include <m_ctype.h>\n\n");
   

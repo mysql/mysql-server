@@ -18,7 +18,7 @@
 #include "fulltext.h"
 #include "rt_index.h"
 
-int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
+int mi_update(register MI_INFO *info, const uchar *oldrec, uchar *newrec)
 {
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
@@ -102,7 +102,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
 	    key_changed|=HA_STATE_WRITTEN;
 	  }
 	  changed|=((ulonglong) 1 << i);
-	  if (_mi_ft_update(info,i,(char*) old_key,oldrec,newrec,pos))
+	  if (_mi_ft_update(info,i, old_key,oldrec,newrec,pos))
 	    goto err;
 	}
       }
@@ -115,7 +115,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
         info->update&= ~HA_STATE_RNEXT_SAME;
 
 	if (new_length != old_length ||
-	    memcmp((byte*) old_key,(byte*) new_key,new_length))
+	    memcmp((uchar*) old_key,(uchar*) new_key,new_length))
 	{
 	  if ((int) i == info->lastinx)
 	    key_changed|=HA_STATE_WRITTEN;	/* Mark that keyfile changed */
@@ -207,8 +207,8 @@ err:
       {
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-	  if ((flag++ && _mi_ft_del(info,i,(char*) new_key,newrec,pos)) ||
-	      _mi_ft_add(info,i,(char*) old_key,oldrec,pos))
+	  if ((flag++ && _mi_ft_del(info,i, new_key,newrec,pos)) ||
+	      _mi_ft_add(info,i, old_key,oldrec,pos))
 	    break;
 	}
 	else

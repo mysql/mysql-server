@@ -19,6 +19,7 @@
 # same name.
 
 use strict;
+use warnings;
 
 sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
@@ -26,7 +27,6 @@ sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
 sub mtr_report_test_not_skipped_though_disabled($);
 
-sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
 sub mtr_print_line ();
 sub mtr_print_thick_line ();
@@ -38,6 +38,9 @@ sub mtr_child_error (@);
 sub mtr_debug (@);
 sub mtr_verbose (@);
 
+my $tot_real_time= 0;
+
+
 
 ##############################################################################
 #
@@ -45,58 +48,10 @@ sub mtr_verbose (@);
 #
 ##############################################################################
 
-# We can't use diff -u or diff -a as these are not portable
-
-sub mtr_show_failed_diff ($) {
-  my $result_file_name=  shift;
-
-  # The reject and log files have been dumped to
-  # to filenames based on the result_file's name
-  my $tname= basename($result_file_name);
-  $tname=~ s/\..*$//;
-
-  my $reject_file=  "r/$tname.reject";
-  my $result_file=  "r/$tname.result";
-  my $log_file=     "$::opt_vardir/log/$tname.log";
-  my $eval_file=    "r/$tname.eval";
-
-  if ( $::opt_suite ne "main" )
-  {
-    $reject_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$reject_file";
-    $result_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$result_file";
-    $eval_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$eval_file";
-    $log_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$log_file";
-  }
-
-  if ( -f $eval_file )
-  {
-    $result_file=  $eval_file;
-  }
-
-  my $diffopts= $::opt_udiff ? "-u" : "-c";
-
-  if ( -f $reject_file )
-  {
-    print "Below are the diffs between actual and expected results:\n";
-    print "-------------------------------------------------------\n";
-    # FIXME check result code?!
-    mtr_run("diff",[$diffopts,$result_file,$reject_file], "", "", "", "");
-    print "-------------------------------------------------------\n";
-    print "Please follow the instructions outlined at\n";
-    print "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html\n";
-    print "to find the reason to this problem and how to report this.\n\n";
-  }
-
-  if ( -f $log_file )
-  {
-    print "Result from queries before failure can be found in $log_file\n";
-    # FIXME Maybe a tail -f -n 10 $log_file here
-  }
-}
-
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
 
+  _mtr_log("$tinfo->{name}");
   printf "%-30s ", $tinfo->{'name'};
 }
 
@@ -106,15 +61,15 @@ sub mtr_report_test_skipped ($) {
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
   if ( $tinfo->{'disable'} )
   {
-    print "[ disabled ]  $tinfo->{'comment'}\n";
+    mtr_report("[ disabled ]  $tinfo->{'comment'}");
   }
   elsif ( $tinfo->{'comment'} )
   {
-    print "[ skipped ]   $tinfo->{'comment'}\n";
+    mtr_report("[ skipped ]   $tinfo->{'comment'}");
   }
   else
   {
-    print "[ skipped ]\n";
+    mtr_report("[ skipped ]");
   }
 }
 
@@ -142,11 +97,11 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += ($timer/1000);
+    $tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
-  print "[ pass ]   $timer\n";
+  mtr_report("[ pass ]   $timer");
 }
 
 sub mtr_report_test_failed ($) {
@@ -155,27 +110,34 @@ sub mtr_report_test_failed ($) {
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   if ( defined $tinfo->{'timeout'} )
   {
-    print "[ fail ]  timeout\n";
+    mtr_report("[ fail ]  timeout");
     return;
   }
   else
   {
-    print "[ fail ]\n";
+    mtr_report("[ fail ]");
   }
 
   if ( $tinfo->{'comment'} )
   {
-    print "\nERROR: $tinfo->{'comment'}\n";
+    # The test failure has been detected by mysql-test-run.pl
+    # when starting the servers or due to other error, the reason for
+    # failing the test is saved in "comment"
+    mtr_report("\nERROR: $tinfo->{'comment'}");
   }
   elsif ( -f $::path_timefile )
   {
-    print "\nErrors are (from $::path_timefile) :\n";
+    # Test failure was detected by test tool and it's report
+    # about what failed has been saved to file. Display the report.
+    print "\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
-    print "\n(the last lines may be the most important ones)\n";
+    print "\n";
   }
   else
   {
-    print "\nUnexpected termination, probably when starting mysqld\n";
+    # Neither this script or the test tool has recorded info
+    # about why the test has failed. Should be debugged.
+    mtr_report("\nUnexpected termination, probably when starting mysqld");;
   }
 }
 
@@ -243,8 +205,10 @@ sub mtr_report_stats ($) {
 
   if ( $::opt_timer )
   {
-    print
-      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
+    use English;
+
+    mtr_report("Spent", sprintf("%.3f", $tot_real_time),"of",
+	       time - $BASETIME, "seconds executing testcases");
   }
 
   # ----------------------------------------------------------------------
@@ -265,33 +229,139 @@ sub mtr_report_stats ($) {
     else
     {
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
-			    "InnoDB: Warning", "missing DBUG_RETURN",
+      foreach my $pattern ( "^Warning:",
+			    "\\[Warning\\]",
+			    "\\[ERROR\\]",
+			    "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning",
+			    "^safe_mutex:",
+			    "missing DBUG_RETURN",
 			    "mysqld: Warning",
 			    "allocated at line",
 			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
+	  my $testname= "";
           unless ( open(ERR, $errlog) )
           {
             mtr_warning("can't read $errlog");
             next;
           }
+          my $leak_reports_expected= undef;
           while ( <ERR> )
           {
+            # There is a test case that purposely provokes a
+            # SAFEMALLOC leak report, even though there is no actual
+            # leak. We need to detect this, and ignore the warning in
+            # that case.
+            if (/Begin safemalloc memory dump:/) {
+              $leak_reports_expected= 1;
+            } elsif (/End safemalloc memory dump./) {
+              $leak_reports_expected= undef;
+            }
+
             # Skip some non fatal warnings from the log files
-            if ( /Warning:\s+Table:.* on (delete|rename)/ or
-                 /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ or
-	         /InnoDB: Warning: we did not need to do crash recovery/)
+            if (
+		/\"SELECT UNIX_TIMESTAMP\(\)\" failed on master/ or
+		/Aborted connection/ or
+		/Client requested master to start replication from impossible position/ or
+		/Could not find first log file name in binary log/ or
+		/Enabling keys got errno/ or
+		/Error reading master configuration/ or
+		/Error reading packet/ or
+		/Event Scheduler/ or
+		/Failed to open log/ or
+		/Failed to open the existing master info file/ or
+		/Forcing shutdown of [0-9]* plugins/ or
+		/Got error [0-9]* when reading table/ or
+		/Incorrect definition of table/ or
+		/Incorrect information in file/ or
+		/InnoDB: Warning: we did not need to do crash recovery/ or
+		/Invalid \(old\?\) table or database name/ or
+		/Lock wait timeout exceeded/ or
+		/Log entry on master is longer than max_allowed_packet/ or
+                /unknown option '--loose-/ or
+                /unknown variable 'loose-/ or
+		/You have forced lower_case_table_names to 0 through a command-line option/ or
+		/Setting lower_case_table_names=2/ or
+		/NDB Binlog:/ or
+		/NDB: failed to setup table/ or
+		/NDB: only row based binary logging/ or
+		/Neither --relay-log nor --relay-log-index were used/ or
+		/Query partially completed/ or
+		/Slave I.O thread aborted while waiting for relay log/ or
+		/Slave SQL thread is stopped because UNTIL condition/ or
+		/Slave SQL thread retried transaction/ or
+		/Slave \(additional info\)/ or
+		/Slave: .*Duplicate column name/ or
+		/Slave: .*master may suffer from/ or
+		/Slave: According to the master's version/ or
+		/Slave: Column [0-9]* type mismatch/ or
+		/Slave: Error .* doesn't exist/ or
+		/Slave: Error .*Deadlock found/ or
+		/Slave: Error .*Unknown table/ or
+		/Slave: Error in Write_rows event: / or
+		/Slave: Field .* of table .* has no default value/ or
+		/Slave: Query caused different errors on master and slave/ or
+		/Slave: Table .* doesn't exist/ or
+		/Slave: Table width mismatch/ or
+		/Slave: The incident LOST_EVENTS occured on the master/ or
+		/Slave: Unknown error.* 1105/ or
+		/Slave: Can't drop database.* database doesn't exist/ or
+                /Slave SQL:.*(?:Error_code: \d+|Query:.*)/ or
+		/Sort aborted/ or
+		/Time-out in NDB/ or
+		/Warning:\s+One can only use the --user.*root/ or
+		/Warning:\s+Setting lower_case_table_names=2/ or
+		/Warning:\s+Table:.* on (delete|rename)/ or
+		/You have an error in your SQL syntax/ or
+		/deprecated/ or
+		/description of time zone/ or
+		/equal MySQL server ids/ or
+		/error .*connecting to master/ or
+		/error reading log entry/ or
+		/lower_case_table_names is set/ or
+		/skip-name-resolve mode/ or
+		/slave SQL thread aborted/ or
+		/Slave: .*Duplicate entry/ or
+		# Special case for Bug #26402 in show_check.test
+		# Question marks are not valid file name parts
+		# on Windows platforms. Ignore this error message. 
+		/\QCan't find file: '.\test\????????.frm'\E/ or
+		# Special case, made as specific as possible, for:
+		# Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
+		#             server coredump
+		/\QError in Log_event::read_log_event(): 'Sanity check failed', data_len: 258, event_type: 49\E/ or
+                /Statement is not safe to log in statement format/ or
+
+                # Test case for Bug#14233 produces the following warnings:
+                /Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc/ or
+                /Stored routine 'test'.'bug14233_2': invalid value in column mysql.proc/ or
+                /Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc/ or
+
+                # BUG#29807 - innodb_mysql.test: Cannot find table test/t2
+                #             from the internal data dictionary
+                /Cannot find table test\/bug29807 from the internal data dictionary/ or
+
+                # BUG#29839 - lowercase_table3.test: Cannot find table test/T1
+                #             from the internal data dictiona
+                /Cannot find table test\/BUG29839 from the internal data dictionary/
+	       )
             {
               next;                       # Skip these lines
             }
+	    if ( /CURRENT_TEST: (.*)/ )
+	    {
+	      $testname= $1;
+	    }
             if ( /$pattern/ )
             {
+              if ($leak_reports_expected) {
+                next;
+              }
               $found_problems= 1;
-              print WARN $_;
+              print WARN basename($errlog) . ": $testname: $_";
             }
           }
         }
@@ -393,35 +463,66 @@ sub mtr_print_header () {
 
 ##############################################################################
 #
-#  Misc
+#  Log and reporting functions
 #
 ##############################################################################
 
+use IO::File;
+
+my $log_file_ref= undef;
+
+sub mtr_log_init ($) {
+  my ($filename)= @_;
+
+  mtr_error("Log is already open") if defined $log_file_ref;
+
+  $log_file_ref= IO::File->new($filename, "a") or
+    mtr_warning("Could not create logfile $filename: $!");
+}
+
+sub _mtr_log (@) {
+  print $log_file_ref join(" ", @_),"\n"
+    if defined $log_file_ref;
+}
+
 sub mtr_report (@) {
+  # Print message to screen and log
+  _mtr_log(@_);
   print join(" ", @_),"\n";
 }
 
 sub mtr_warning (@) {
+  # Print message to screen and log
+  _mtr_log("WARNING: ", @_);
   print STDERR "mysql-test-run: WARNING: ",join(" ", @_),"\n";
 }
 
 sub mtr_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR: ", @_);
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
   mtr_exit(1);
 }
 
 sub mtr_child_error (@) {
+  # Print message to screen and log
+  _mtr_log("ERROR(child): ", @_);
   print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
   exit(1);
 }
 
 sub mtr_debug (@) {
+  # Only print if --script-debug is used
   if ( $::opt_script_debug )
   {
+    _mtr_log("###: ", @_);
     print STDERR "####: ",join(" ", @_),"\n";
   }
 }
+
 sub mtr_verbose (@) {
+  # Always print to log, print to screen only when --verbose is used
+  _mtr_log("> ",@_);
   if ( $::opt_verbose )
   {
     print STDERR "> ",join(" ", @_),"\n";

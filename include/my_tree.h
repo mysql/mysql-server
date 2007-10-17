@@ -25,10 +25,10 @@ extern "C" {
 #define MAX_TREE_HEIGHT	64
 
 #define ELEMENT_KEY(tree,element)\
-(tree->offset_to_key ? (void*)((byte*) element+tree->offset_to_key) :\
+(tree->offset_to_key ? (void*)((uchar*) element+tree->offset_to_key) :\
 			*((void**) (element+1)))
 
-#define tree_set_pointer(element,ptr) *((byte **) (element+1))=((byte*) (ptr))
+#define tree_set_pointer(element,ptr) *((uchar **) (element+1))=((uchar*) (ptr))
 
 #define TREE_NO_DUPS 1
 

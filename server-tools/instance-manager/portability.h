@@ -48,10 +48,15 @@ typedef int pid_t;
 #define NEWLINE "\r\n"
 #define NEWLINE_LEN 2
 
+const char CR = '\r';
+const char LF = '\n';
+
 #else /* ! __WIN__ */
 
 #define NEWLINE "\n"
 #define NEWLINE_LEN 1
+
+const char LF = '\n';
 
 #endif /* __WIN__ */
 

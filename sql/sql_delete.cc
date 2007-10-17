@@ -90,14 +90,26 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
     handler::delete_all_rows() method.
-    We implement fast TRUNCATE for InnoDB even if triggers are present. 
-    TRUNCATE ignores triggers.
+
+    We implement fast TRUNCATE for InnoDB even if triggers are
+    present.  TRUNCATE ignores triggers.
+
+    We can use delete_all_rows() if and only if:
+    - We allow new functions (not using option --skip-new), and are
+      not in safe mode (not using option --safe-mode)
+    - There is no limit clause
+    - The condition is constant
+    - If there is a condition, then it it produces a non-zero value
+    - If the current command is DELETE FROM with no where clause
+      (i.e., not TRUNCATE) then:
+      - We should not be binlogging this statement row-based, and
+      - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       !(table->triggers && table->triggers->has_delete_triggers())) &&
-      !thd->current_stmt_binlog_row_based)
+       (!thd->current_stmt_binlog_row_based &&
+        !(table->triggers && table->triggers->has_delete_triggers()))))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -329,6 +341,9 @@ cleanup:
   delete select;
   transactional_table= table->file->has_transactions();
 
+  if (!transactional_table && deleted > 0)
+    thd->transaction.stmt.modified_non_trans_table= TRUE;
+  
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || (deleted && !transactional_table))
   {
@@ -352,9 +367,10 @@ cleanup:
 	error=1;
       }
     }
-    if (!transactional_table)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
@@ -438,7 +454,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
-  return file->cmp_ref((const byte*)a, (const byte*)b);
+  return file->cmp_ref((const uchar*)a, (const uchar*)b);
 }
 
 /*
@@ -665,20 +681,22 @@ bool multi_delete::send_data(List<Item> &values)
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       table->status|= STATUS_DELETED;
       if (!(error=table->file->ha_delete_row(table->record[0])))
       {
-	deleted++;
+        deleted++;
+        if (!table->file->has_transactions())
+          thd->transaction.stmt.modified_non_trans_table= TRUE;
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
-	  DBUG_RETURN(1);
+          DBUG_RETURN(1);
       }
       else
       {
-	table->file->print_error(error,MYF(0));
-	DBUG_RETURN(1);
+        table->file->print_error(error,MYF(0));
+        DBUG_RETURN(1);
       }
     }
     else
@@ -728,6 +746,7 @@ void multi_delete::send_error(uint errcode,const char *err)
     error= 1;
     send_eof();
   }
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
 
@@ -741,7 +760,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 
 int multi_delete::do_deletes()
 {
-  int local_error= 0, counter= 0, error;
+  int local_error= 0, counter= 0, tmp_error;
   bool will_batch;
   DBUG_ENTER("do_deletes");
   DBUG_ASSERT(do_delete);
@@ -756,6 +775,7 @@ int multi_delete::do_deletes()
   for (; table_being_deleted;
        table_being_deleted= table_being_deleted->next_local, counter++)
   { 
+    ha_rows last_deleted= deleted;
     TABLE *table = table_being_deleted->table;
     if (tempfiles[counter]->get(table))
     {
@@ -794,14 +814,16 @@ int multi_delete::do_deletes()
         break;
       }
     }
-    if (will_batch && (error= table->file->end_bulk_delete()))
+    if (will_batch && (tmp_error= table->file->end_bulk_delete()))
     {
       if (!local_error)
       {
-        local_error= error;
+        local_error= tmp_error;
         table->file->print_error(local_error,MYF(0));
       }
     }
+    if (last_deleted != deleted && !table->file->has_transactions())
+      thd->transaction.stmt.modified_non_trans_table= TRUE;
     end_read_record(&info);
     if (thd->killed && !local_error)
       local_error= 1;
@@ -840,7 +862,6 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-
   if ((local_error == 0) || (deleted && normal_tables))
   {
     if (mysql_bin_log.is_open())
@@ -855,9 +876,11 @@ bool multi_delete::send_eof()
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }
-    if (!transactional_tables)
-      thd->no_trans_update.all= TRUE;
+    if (thd->transaction.stmt.modified_non_trans_table)
+      thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  DBUG_ASSERT(!normal_tables || !deleted || thd->transaction.stmt.modified_non_trans_table);
+
   /* Commit or rollback the current SQL statement */
   if (transactional_tables)
     if (ha_autocommit_or_rollback(thd,local_error > 0))
@@ -894,16 +917,14 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   char path[FN_REFLEN];
   TABLE *table;
   bool error;
-  uint closed_log_tables= 0, lock_logger= 0;
   uint path_length;
-  uint log_type;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
-    handlerton *table_type= table->s->db_type;
+    handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
@@ -948,18 +969,6 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
-  log_type= check_if_log_table(table_list->db_length, table_list->db,
-                               table_list->table_name_length,
-                               table_list->table_name, 1);
-  /* close log tables in use */
-  if (log_type)
-  {
-    lock_logger= 1;
-    logger.lock();
-    logger.close_log_table(log_type, FALSE);
-    closed_log_tables= closed_log_tables | log_type;
-  }
-
   // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
   // crashes, replacement works.  *(path + path_length - reg_ext_length)=
   // '\0';
@@ -975,29 +984,16 @@ end:
   {
     if (!error)
     {
-      if (mysql_bin_log.is_open())
-      {
-        /*
-          TRUNCATE must always be statement-based binlogged (not row-based) so
-          we don't test current_stmt_binlog_row_based.
-        */
-        thd->clear_error();
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      /*
+        TRUNCATE must always be statement-based binlogged (not row-based) so
+        we don't test current_stmt_binlog_row_based.
+      */
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
       send_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
-
-    if (opt_slow_log && (closed_log_tables & QUERY_LOG_SLOW))
-      logger.reopen_log_table(QUERY_LOG_SLOW);
-
-    if (opt_log && (closed_log_tables & QUERY_LOG_GENERAL))
-      logger.reopen_log_table(QUERY_LOG_GENERAL);
-    if (lock_logger)
-      logger.unlock();
   }
   else if (error)
   {

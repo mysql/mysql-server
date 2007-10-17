@@ -220,28 +220,28 @@ insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where; Using join cache
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where
+1	SIMPLE	t1	ref	y	y	5	const	1	Using where
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	x	x	5	const	1	Using where; Using index
@@ -255,13 +255,13 @@ CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index; Using join cache
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index
+1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index; Using join cache
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index
+1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,

@@ -5,6 +5,7 @@
 *.bb
 *.bbg
 *.bin
+*.cdf
 *.core
 *.d
 *.da
@@ -38,7 +39,9 @@
 */.libs/*
 */.pure
 */debug/*
+*/minsizerel/*
 */release/*
+*/relwithdebinfo/*
 *~
 .*.swp
 ./CMakeCache.txt
@@ -473,6 +476,9 @@ contrib/*.vcproj
 core
 core.*
 core.2430
+cscope.in.out
+cscope.out
+cscope.po.out
 db-*.*.*
 dbug/*.ds?
 dbug/*.vcproj
@@ -489,6 +495,8 @@ dbug/main.r
 dbug/output*.r
 dbug/user.ps
 dbug/user.t
+debian/control
+debian/defs.mk
 depcomp
 emacs.h
 examples/*.ds?
@@ -580,6 +588,7 @@ heap/hp_test2
 help
 help.c
 help.h
+include/abi_check
 include/check_abi
 include/link_sources
 include/my_config.h
@@ -1017,6 +1026,7 @@ libmysqld/.deps/unireg.Po
 libmysqld/backup_dir
 libmysqld/client.c
 libmysqld/client_settings.h
+libmysqld/cmake_dummy.c
 libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/discover.cc
@@ -1071,6 +1081,7 @@ libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
 libmysqld/ha_ndbcluster.cc
 libmysqld/ha_ndbcluster_binlog.cc
+libmysqld/ha_ndbcluster_cond.cc
 libmysqld/ha_partition.cc
 libmysqld/ha_tina.cc
 libmysqld/handler.cc
@@ -1091,6 +1102,7 @@ libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
 libmysqld/key.cc
+libmysqld/lex_hash.h
 libmysqld/lib_sql.cpp
 libmysqld/libmysql.c
 libmysqld/link_sources
@@ -1099,6 +1111,8 @@ libmysqld/log.cc
 libmysqld/log_event.cc
 libmysqld/log_event_old.cc
 libmysqld/md5.c
+libmysqld/message.h
+libmysqld/message.rc
 libmysqld/mf_iocache.cc
 libmysqld/mini_client.cc
 libmysqld/my_decimal.cc
@@ -1274,7 +1288,6 @@ mysql-test/r/*.err
 mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
-mysql-test/r/*.warnings
 mysql-test/r/alter_table.err
 mysql-test/r/archive.err
 mysql-test/r/backup.log
@@ -2875,6 +2888,7 @@ support-files/mysql-3.23.29-gamma.spec
 support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
+support-files/mysqld_multi.server
 support-files/ndb-config-2-node.ini
 tags
 test/ndbapi/bank/bankCreator
@@ -2940,6 +2954,7 @@ tests/.deps/thread_test.Po
 tests/.libs -prune
 tests/.libs/lt-mysql_client_test
 tests/.libs/mysql_client_test
+tests/bug25714
 tests/client_test
 tests/connect_test
 tests/mysql_client_test

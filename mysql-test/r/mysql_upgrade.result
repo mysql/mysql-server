@@ -3,7 +3,9 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
+mysql.general_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -14,7 +16,9 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
+mysql.slow_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -29,7 +33,9 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
+mysql.general_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -40,7 +46,9 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
+mysql.slow_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -55,7 +63,9 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
+mysql.general_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -66,7 +76,9 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
+mysql.slow_log
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -78,3 +90,32 @@ DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
+set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log
+Error    : You can't use locks with log tables.
+status   : OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log
+Error    : You can't use locks with log tables.
+status   : OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+set GLOBAL sql_mode=default;

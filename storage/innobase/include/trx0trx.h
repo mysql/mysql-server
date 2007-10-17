@@ -371,6 +371,18 @@ trx_is_interrupted(
 #define trx_is_interrupted(trx) FALSE
 #endif /* !UNIV_HOTBACKUP */
 
+/***********************************************************************
+Compares the "weight" (or size) of two transactions. The weight of one
+transaction is estimated as the number of altered rows + the number of
+locked rows. Transactions that have edited non-transactional tables are
+considered heavier than ones that have not. */
+
+int
+trx_weight_cmp(
+/*===========*/
+			/* out: <0, 0 or >0; similar to strcmp(3) */
+	trx_t*	a,	/* in: the first transaction to be compared */
+	trx_t*	b);	/* in: the second transaction to be compared */
 
 /* Signal to a transaction */
 struct trx_sig_struct{
@@ -453,7 +465,8 @@ struct trx_struct{
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
 	/*------------------------------*/
-	int		active_trans;	/* 1 - if a transaction in MySQL
+	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
+	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
 	void*		mysql_thd;	/* MySQL thread handle corresponding
@@ -469,31 +482,6 @@ struct trx_struct{
 	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	const char*	mysql_master_log_file_name;
-					/* if the database server is a MySQL
-					replication slave, we have here the
-					master binlog name up to which
-					replication has processed; otherwise
-					this is a pointer to a null
-					character */
-	ib_longlong	mysql_master_log_pos;
-					/* if the database server is a MySQL
-					replication slave, this is the
-					position in the log file up to which
-					replication has processed */
-	/* A MySQL variable mysql_thd->synchronous_repl tells if we have
-	to use synchronous replication. See ha_innodb.cc. */
-	char*		repl_wait_binlog_name;/* NULL, or if synchronous MySQL
-					replication is used, the binlog name
-					up to which we must communicate the
-					binlog to the slave, before returning
-					from a commit; this is the same as
-					mysql_log_file_name, but we allocate
-					and copy the name to a separate buffer
-					here */
-	ib_longlong	repl_wait_binlog_pos;/* see above at
-					repl_wait_binlog_name */
-
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
 	ulint		mysql_process_no;/* since in Linux, 'top' reports
@@ -602,7 +590,7 @@ struct trx_struct{
 					NULL */
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
-					for a lock, this it sets this to FALSE;
+					for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
@@ -643,7 +631,12 @@ struct trx_struct{
 					cannot be any activity in the undo
 					logs! */
 	dulint		undo_no;	/* next undo log record number to
-					assign */
+					assign; since the undo log is
+					private for a transaction, this
+					is a simple ascending sequence
+					with no gaps; thus it represents
+					the number of modified/inserted
+					rows in a transaction */
 	trx_savept_t	last_sql_stat_start;
 					/* undo_no when the last sql statement
 					was started: in case of an error, trx
@@ -663,6 +656,9 @@ struct trx_struct{
 	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
+	ulint		n_autoinc_rows;	/* no. of AUTO-INC rows required for
+					an SQL statement. This is useful for
+					multi-row INSERTs */
 	/*------------------------------*/
 	char detailed_error[256];	/* detailed error message for last
 					error, or empty. */
@@ -673,19 +669,19 @@ struct trx_struct{
 					single operation of a
 					transaction, e.g., a parallel
 					query */
-/* Transaction concurrency states */
+/* Transaction concurrency states (trx->conc_state) */
 #define	TRX_NOT_STARTED		1
 #define	TRX_ACTIVE		2
 #define	TRX_COMMITTED_IN_MEMORY	3
 #define	TRX_PREPARED		4	/* Support for 2PC/XA */
 
-/* Transaction execution states when trx state is TRX_ACTIVE */
+/* Transaction execution states when trx->conc_state == TRX_ACTIVE */
 #define TRX_QUE_RUNNING		1	/* transaction is running */
 #define TRX_QUE_LOCK_WAIT	2	/* transaction is waiting for a lock */
 #define TRX_QUE_ROLLING_BACK	3	/* transaction is rolling back */
 #define TRX_QUE_COMMITTING	4	/* transaction is committing */
 
-/* Transaction isolation levels */
+/* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	1	/* dirty read: non-locking
 						SELECTs are performed so that
 						we do not look at a possible
@@ -719,6 +715,12 @@ struct trx_struct{
 #define TRX_ISO_SERIALIZABLE		4	/* all plain SELECTs are
 						converted to LOCK IN SHARE
 						MODE reads */
+
+/* Treatment of duplicate values (trx->duplicates; for example, in inserts).
+Multiple flags can be combined with bitwise OR. */
+#define TRX_DUP_IGNORE	1	/* duplicate rows are to be updated */
+#define TRX_DUP_REPLACE	2	/* duplicate rows are to be replaced */
+
 
 /* Types of a trx signal */
 #define TRX_SIG_NO_SIGNAL		100

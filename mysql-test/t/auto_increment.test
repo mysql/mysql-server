@@ -101,10 +101,10 @@ insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
 explain extended select last_insert_id();
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -122,7 +122,7 @@ insert into t1 values (NULL, 10);
 select last_insert_id();
 insert into t1 values (NULL, 15);
 select last_insert_id();
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values (NULL, 10);
 select last_insert_id();
 
@@ -277,7 +277,7 @@ create table t1 (rowid int not null auto_increment, val int not null,primary
 key (rowid), unique(val));
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
@@ -300,7 +300,7 @@ drop table t1;
 CREATE TABLE t1 (t1 INT(10) PRIMARY KEY, t2 INT(10));
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
 DROP TABLE t1;
 

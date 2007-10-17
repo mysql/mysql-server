@@ -35,26 +35,25 @@ void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 }
 
 
-gptr sql_alloc(uint Size)
+void *sql_alloc(size_t Size)
 {
   MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
-  char *ptr= (char*) alloc_root(root,Size);
-  return ptr;
+  return alloc_root(root,Size);
 }
 
 
-gptr sql_calloc(uint size)
+void *sql_calloc(size_t size)
 {
-  gptr ptr;
+  void *ptr;
   if ((ptr=sql_alloc(size)))
-    bzero((char*) ptr,size);
+    bzero(ptr,size);
   return ptr;
 }
 
 
 char *sql_strdup(const char *str)
 {
-  uint len=(uint) strlen(str)+1;
+  size_t len= strlen(str)+1;
   char *pos;
   if ((pos= (char*) sql_alloc(len)))
     memcpy(pos,str,len);
@@ -62,7 +61,7 @@ char *sql_strdup(const char *str)
 }
 
 
-char *sql_strmake(const char *str,uint len)
+char *sql_strmake(const char *str, size_t len)
 {
   char *pos;
   if ((pos= (char*) sql_alloc(len+1)))
@@ -74,10 +73,10 @@ char *sql_strmake(const char *str,uint len)
 }
 
 
-gptr sql_memdup(const void *ptr,uint len)
+void* sql_memdup(const void *ptr, size_t len)
 {
-  char *pos;
-  if ((pos= (char*) sql_alloc(len)))
+  void *pos;
+  if ((pos= sql_alloc(len)))
     memcpy(pos,ptr,len);
   return pos;
 }
@@ -87,17 +86,17 @@ void sql_element_free(void *ptr __attribute__((unused)))
 
 
 
-char *sql_strmake_with_convert(const char *str, uint32 arg_length,
+char *sql_strmake_with_convert(const char *str, size_t arg_length,
 			       CHARSET_INFO *from_cs,
-			       uint32 max_res_length,
-			       CHARSET_INFO *to_cs, uint32 *result_length)
+			       size_t max_res_length,
+			       CHARSET_INFO *to_cs, size_t *result_length)
 {
   char *pos;
-  uint32 new_length= to_cs->mbmaxlen*arg_length;
+  size_t new_length= to_cs->mbmaxlen*arg_length;
   max_res_length--;				// Reserve place for end null
 
   set_if_smaller(new_length, max_res_length);
-  if (!(pos= sql_alloc(new_length+1)))
+  if (!(pos= (char*) sql_alloc(new_length+1)))
     return pos;					// Error
 
   if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))

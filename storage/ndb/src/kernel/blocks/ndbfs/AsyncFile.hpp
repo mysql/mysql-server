@@ -224,6 +224,8 @@ private:
 #else
   int theFd;
 #endif
+
+  Uint32 m_open_flags; // OM_ flags from request to open file
   
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request>* theMemoryChannelPtr;
@@ -234,9 +236,13 @@ private:
   bool   theStartFlag;
   int theWriteBufferSize;
   char* theWriteBuffer;
+  void* theWriteBufferUnaligned;
   
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes
+
+  int check_odirect_read(Uint32 flags, int&new_flags, int mode);
+  int check_odirect_write(Uint32 flags, int&new_flags, int mode);
 public:
   SimulatedBlock& m_fs;
   Ptr<GlobalPage> m_page_ptr;

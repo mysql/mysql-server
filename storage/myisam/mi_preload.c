@@ -55,12 +55,17 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
   block_length= keyinfo[0].block_length;
 
-  /* Check whether all indexes use the same block size */
-  for (i= 1 ; i < keys ; i++)
+  if (ignore_leaves)
   {
-    if (keyinfo[i].block_length != block_length)
-      DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+    /* Check whether all indexes use the same block size */
+    for (i= 1 ; i < keys ; i++)
+    {
+      if (keyinfo[i].block_length != block_length)
+        DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+    }
   }
+  else
+    block_length= share->key_cache->key_cache_block_size;
 
   length= info->preload_buff_size/block_length * block_length;
   set_if_bigger(length, block_length);
@@ -76,7 +81,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile, (byte*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
+    if (my_pread(share->kfile, (uchar*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
       goto err;
 
     if (ignore_leaves)
@@ -88,7 +93,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
         {
           if (key_cache_insert(share->key_cache,
                                share->kfile, pos, DFLT_INIT_HITS,
-                              (byte*) buff, block_length))
+                              (uchar*) buff, block_length))
 	    goto err;
 	}
         pos+= block_length;
@@ -100,7 +105,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     {
       if (key_cache_insert(share->key_cache,
                            share->kfile, pos, DFLT_INIT_HITS,
-                           (byte*) buff, length))
+                           (uchar*) buff, length))
 	goto err;
       pos+= length;
     }

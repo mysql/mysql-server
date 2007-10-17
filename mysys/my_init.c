@@ -69,7 +69,7 @@ static ulong atoi_octal(const char *str)
 
 my_bool my_init(void)
 {
-  my_string str;
+  char * str;
   if (my_init_done)
     return 0;
   my_init_done=1;
@@ -78,6 +78,9 @@ my_bool my_init(void)
   my_umask_dir= 0700;                   /* Default umask for new directories */
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
+#endif
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+  fastmutex_global_init();              /* Must be called early */
 #endif
   netware_init();
 #ifdef THREAD
@@ -130,17 +133,18 @@ void my_end(int infoflag)
   */
   FILE *info_file= DBUG_FILE;
   my_bool print_info= (info_file != stderr);
-  /* We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
-     operational, so we cannot use DBUG_RETURN.
+  /*
+    We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+    operational, so we cannot use DBUG_RETURN.
   */
-  DBUG_PRINT("info",("Shutting down"));
+  DBUG_PRINT("info",("Shutting down: infoflag: %d  print_info: %d",
+                     infoflag, print_info));
   if (!info_file)
   {
     info_file= stderr;
     print_info= 0;
   }
 
-  DBUG_PRINT("info",("Shutting down: print_info: %d", print_info));
   if ((infoflag & MY_CHECK_ERROR) || print_info)
 
   {					/* Test if some file is left open */
@@ -185,7 +189,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
-    TERMINATE(stderr);		/* Give statistic on screen */
+    TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
 #elif defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
@@ -196,6 +200,10 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtCheckMemory();
    _CrtDumpMemoryLeaks();
 #endif
+  }
+  else if (infoflag & MY_CHECK_ERROR)
+  {
+    TERMINATE(stderr, 0);		/* Print memory leaks on screen */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
@@ -267,6 +275,34 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 }
 
 
+#ifdef __MSVC_RUNTIME_CHECKS
+#include <rtcapi.h>
+
+/* Turn off runtime checks for 'handle_rtc_failure' */
+#pragma runtime_checks("", off)
+
+/*
+  handle_rtc_failure
+  Catch the RTC error and dump it to stderr
+*/
+
+int handle_rtc_failure(int err_type, const char *file, int line,
+                       const char* module, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  fprintf(stderr, "Error:");
+  vfprintf(stderr, format, args);
+  fprintf(stderr, " At %s:%d\n", file, line);
+  va_end(args);
+  (void) fflush(stderr);
+
+  return 0; /* Error is handled */
+}
+#pragma runtime_checks("", on)
+#endif
+
+
 static void my_win_init(void)
 {
   HKEY	hSoftMysql ;
@@ -297,6 +333,14 @@ static void my_win_init(void)
   _set_invalid_parameter_handler(my_parameter_handler);
 #endif
 #endif  
+#ifdef __MSVC_RUNTIME_CHECKS
+  /*
+    Install handler to send RTC (Runtime Error Check) warnings
+    to log file
+  */
+  _RTC_SetErrorFunc(handle_rtc_failure);
+#endif
+
   _tzset();
 
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */
@@ -335,6 +379,28 @@ static void my_win_init(void)
 
   /* chiude la chiave */
   RegCloseKey(hSoftMysql) ;
+
+  /* The following is used by time functions */
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define MS 10000000
+  {
+    FILETIME ft;
+    LARGE_INTEGER li, t_cnt;
+    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency))
+      query_performance_frequency= 0;
+    else
+    {
+      GetSystemTimeAsFileTime(&ft);
+      li.LowPart=  ft.dwLowDateTime;
+      li.HighPart= ft.dwHighDateTime;
+      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+      QueryPerformanceCounter(&t_cnt);
+      query_performance_offset-= (t_cnt.QuadPart / query_performance_frequency * MS +
+                                  t_cnt.QuadPart % query_performance_frequency * MS /
+                                  query_performance_frequency);
+    }
+  }
   DBUG_VOID_RETURN ;
 }
 

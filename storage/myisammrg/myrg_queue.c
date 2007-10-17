@@ -15,7 +15,7 @@
 
 #include "myrg_def.h"
 
-static int queue_key_cmp(void *keyseg, byte *a, byte *b)
+static int queue_key_cmp(void *keyseg, uchar *a, uchar *b)
 {
   MYRG_TABLE *ma= (MYRG_TABLE *)a;
   MYRG_TABLE *mb= (MYRG_TABLE *)b;
@@ -69,7 +69,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
   return error;
 }
 
-int _myrg_mi_read_record(MI_INFO *info, byte *buf)
+int _myrg_mi_read_record(MI_INFO *info, uchar *buf)
 {
   if (!(*info->read_record)(info,info->lastpos,buf))
   {

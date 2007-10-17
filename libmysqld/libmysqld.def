@@ -1,6 +1,6 @@
 LIBRARY		LIBMYSQLD
-DESCRIPTION	'MySQL 5.0 Embedded Server Library'
-VERSION		5.0
+DESCRIPTION	'MySQL 5.1 Embedded Server Library'
+VERSION		5.1
 EXPORTS
 	_dig_vec_upper
 	_dig_vec_lower
@@ -30,8 +30,8 @@ EXPORTS
 	my_print_variables
 	my_realloc
 	my_strdup
-	my_thread_end
-	my_thread_init
+	mysql_thread_end
+	mysql_thread_init
 	myodbc_remove_escape
 	mysql_affected_rows
 	mysql_autocommit
@@ -41,11 +41,14 @@ EXPORTS
 	mysql_commit
 	mysql_data_seek
 	mysql_debug
+	mysql_disable_rpl_parse
 	mysql_dump_debug_info
+	mysql_enable_rpl_parse
 	mysql_eof
 	mysql_errno
 	mysql_error
 	mysql_escape_string
+	mysql_hex_string
 	mysql_fetch_field
 	mysql_fetch_field_direct
 	mysql_fetch_fields
@@ -55,15 +58,18 @@ EXPORTS
 	mysql_field_seek
 	mysql_field_tell
 	mysql_free_result
+	mysql_get_character_set_info
 	mysql_get_client_info
 	mysql_get_host_info
 	mysql_get_proto_info
 	mysql_get_server_info
+	mysql_get_client_version
 	mysql_get_ssl_cipher
 	mysql_info
 	mysql_init
 	mysql_insert_id
 	mysql_kill
+	mysql_set_server_option
 	mysql_list_dbs
 	mysql_list_fields
 	mysql_list_processes
@@ -84,6 +90,8 @@ EXPORTS
 	mysql_rollback
 	mysql_row_seek
 	mysql_row_tell
+	mysql_rpl_parse_enabled
+	mysql_rpl_probe
 	mysql_select_db
 	mysql_send_query
 	mysql_shutdown
@@ -109,6 +117,7 @@ EXPORTS
 	get_tty_password
 	sql_protocol_typelib
 	mysql_get_server_version
+	mysql_set_character_set
 	mysql_sqlstate
 	charsets_dir
 	disabled_my_option
@@ -133,6 +142,8 @@ EXPORTS
 	my_read
 	llstr
 	mysql_get_parameters
+	mysql_thread_init
+	mysql_thread_end
 	mysql_stmt_bind_param
 	mysql_stmt_bind_result
 	mysql_stmt_execute
@@ -164,4 +175,3 @@ EXPORTS
 	my_charset_bin
 	my_charset_same
 	modify_defaults_file
-        mysql_set_server_option

@@ -1,5 +1,10 @@
 use test;
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop function if exists f2;
 create table t1 (
 id   char(16) not null default '',
 data int not null
@@ -787,11 +792,11 @@ sql security definer
 comment 'Characteristics procedure test'
   insert into t1 values ("chistics", 1)|
 show create procedure chistics|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 chistics		CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)
+insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
 call chistics()|
 select * from t1|
 id	data
@@ -799,12 +804,12 @@ chistics	1
 delete from t1|
 alter procedure chistics sql security invoker|
 show create procedure chistics|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 chistics		CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)
+insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure chistics|
 drop function if exists chistics|
 create function chistics() returns int
@@ -814,12 +819,12 @@ sql security invoker
 comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 chistics		CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-return 42
+return 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 select chistics()|
 chistics()
 42
@@ -827,13 +832,13 @@ alter function chistics
 no sql
 comment 'Characteristics function test'|
 show create function chistics|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 chistics		CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
-return 42
+return 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop function chistics|
 insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
 set @@sql_mode = 'ANSI'|
@@ -1223,12 +1228,12 @@ n	f
 20	2432902008176640000
 drop table t3|
 show function status like '%f%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure ifac|
 drop function fac|
 show function status like '%f%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 drop table if exists t3|
 create table t3 (
 i int unsigned not null primary key,
@@ -1290,7 +1295,7 @@ end;
 end while;
 end|
 show create procedure opp|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 opp		CREATE DEFINER=`root`@`localhost` PROCEDURE `opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
@@ -1316,11 +1321,11 @@ set s = s+1;
 end;
 end if;
 end loop;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 show procedure status like '%p%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 call ip(200)|
 select * from t3 where i=45 or i=100 or i=199|
 i	p
@@ -1331,7 +1336,7 @@ drop table t3|
 drop procedure opp|
 drop procedure ip|
 show procedure status like '%p%'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 drop table if exists t3|
 create table t3 ( f bigint unsigned not null )|
 drop procedure if exists fib|
@@ -1383,19 +1388,19 @@ create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)|
 show procedure status like 'bar'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111	latin1	latin1_swedish_ci	latin1_swedish_ci
 alter procedure bar comment "2222222222" sql security definer|
 alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar		CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x char(16), y int)
     COMMENT '3333333333'
-insert into test.t1 values (x, y)
+insert into test.t1 values (x, y)	latin1	latin1_swedish_ci	latin1_swedish_ci
 show procedure status like 'bar'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure bar|
 drop procedure if exists p1|
 create procedure p1 ()
@@ -1497,10 +1502,10 @@ insert into t3 (a) values (1)|
 create procedure h_ee()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (bad)' as 'h_ee';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_ee';
 insert into t3 values (1);
 end;
@@ -1508,7 +1513,7 @@ end|
 create procedure h_es()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (good)' as 'h_es';
 begin
 -- integrity constraint violation
@@ -1545,7 +1550,7 @@ end|
 create procedure h_ex()
 deterministic
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Outer (good)' as 'h_ex';
 begin
 declare continue handler for sqlexception
@@ -1560,7 +1565,7 @@ begin
 declare continue handler for sqlstate '23000' 
 select 'Outer (bad)' as 'h_se';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_se';
 insert into t3 values (1);
 end;
@@ -1700,7 +1705,7 @@ begin
 declare continue handler for sqlexception
 select 'Outer (bad)' as 'h_xe';
 begin
-declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+declare continue handler for 1062 -- ER_DUP_ENTRY
 select 'Inner (good)' as 'h_xe';
 insert into t3 values (1);
 end;
@@ -1960,24 +1965,24 @@ show create function bug2267_4;
 end|
 create function bug2267_4() returns int return 100|
 call bug2267_1()|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug2267_2()|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment
-test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug2267_3()|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
 show procedure status;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug2267_4()|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
-return 100
+return 100	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
@@ -2308,22 +2313,22 @@ create function bug2564_4(x int, y int) returns int
 return x || y$
 set @@sql_mode = ''|
 show create procedure bug2564_1|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2564_1`()
     COMMENT 'Joe''s procedure'
-insert into `t1` values ("foo", 1)
+insert into `t1` values ("foo", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create procedure bug2564_2|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
-insert into "t1" values ('foo', 1)
+insert into "t1" values ('foo', 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function bug2564_3|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
-return x || y
+return x || y	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function bug2564_4|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
-return x || y
+return x || y	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure bug2564_1|
 drop procedure bug2564_2|
 drop function bug2564_3|
@@ -2464,7 +2469,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -2518,7 +2523,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO			
+data	int(11)	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -3999,11 +4004,11 @@ main_loop: begin
 return 42;
 end */;;
 show create function bug14723;;
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
 main_loop: begin
 return 42;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 select bug14723();;
 bug14723()
 42
@@ -4012,11 +4017,11 @@ main_loop: begin
 select 42;
 end */;;
 show create procedure bug14723;;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug14723		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug14723`()
 main_loop: begin
 select 42;
-end
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug14723();;
 42
 42
@@ -4404,8 +4409,10 @@ call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 Table	Op	Msg_type	Msg_text
+test.t1	backup	Warning	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 test.t1	backup	status	OK
 Table	Op	Msg_type	Msg_text
+test.t1	restore	Warning	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 test.t1	restore	status	OK
 drop procedure bug13012|
 create view v1 as select * from t1|
@@ -4420,61 +4427,58 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
 test.t3	repair	status	OK
-test.v1	repair	error	'test.v1' is not BASE TABLE
+test.v1	repair	Error	'test.v1' is not BASE TABLE
+test.v1	repair	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
 test.t3	optimize	status	OK
-test.v1	optimize	error	'test.v1' is not BASE TABLE
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
-test.v1	analyze	error	'test.v1' is not BASE TABLE
-Warnings:
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
-Error	1347	'test.v1' is not BASE TABLE
+test.v1	analyze	Error	'test.v1' is not BASE TABLE
+test.v1	analyze	error	Corrupt
 drop procedure bug13012|
 drop view v1|
 select * from t1 order by data|
@@ -4705,10 +4709,10 @@ insert into t3 values (1)|
 create procedure bug15011()
 deterministic
 begin
-declare continue handler for 1582
+declare continue handler for 1062
 select 'Outer' as 'Handler';
 begin
-declare continue handler for 1582
+declare continue handler for 1062
 select 'Inner' as 'Handler';
 insert into t3 values (1);
 end;
@@ -4910,7 +4914,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` int(11) DEFAULT NULL
+  `j` bigint(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j
@@ -5072,21 +5076,21 @@ RETURN ""|
 CREATE FUNCTION mysqltest2.bug16211_f4() RETURNS CHAR(10) CHARSET koi8r
 RETURN ""|
 SHOW CREATE FUNCTION bug16211_f1|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
@@ -5122,21 +5126,21 @@ koi8r
 ALTER DATABASE mysqltest1 CHARACTER SET cp1251|
 ALTER DATABASE mysqltest2 CHARACTER SET cp1251|
 SHOW CREATE FUNCTION bug16211_f1|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
-Function	sql_mode	Create Function
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
-RETURN ""
+RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
@@ -5381,9 +5385,9 @@ ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghi
 drop procedure if exists bug21416|
 create procedure bug21416() show create procedure bug21416|
 call bug21416()|
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
-show create procedure bug21416
+show create procedure bug21416	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure bug21416|
 DROP PROCEDURE IF EXISTS bug21414|
 CREATE PROCEDURE bug21414() SELECT 1|
@@ -5396,7 +5400,7 @@ DROP PROCEDURE bug21414|
 set names utf8|
 drop database if exists това_е_дълго_име_за_база_данни_нали|
 create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','')|
+INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','', 'utf8', 'utf8_general_ci', 'utf8_general_ci', 'n/a')|
 call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
 ERROR HY000: Failed to load routine това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 drop database това_е_дълго_име_за_база_данни_нали|
@@ -5617,6 +5621,23 @@ Called B
 Called B
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
+drop table if exists t3|
+drop procedure if exists proc_bug19733|
+create table t3 (s1 int)|
+create procedure proc_bug19733()
+begin
+declare v int default 0;
+while v < 100 do
+create index i on t3 (s1);
+drop index i on t3;
+set v = v + 1;
+end while;
+end|
+call proc_bug19733()|
+call proc_bug19733()|
+call proc_bug19733()|
+drop procedure proc_bug19733|
+drop table t3|
 DROP PROCEDURE IF EXISTS p1|
 DROP VIEW IF EXISTS v1, v2|
 DROP TABLE IF EXISTS t3, t4|
@@ -5649,7 +5670,7 @@ drop function if exists pi;
 create function pi() returns varchar(50)
 return "pie, my favorite desert.";
 Warnings:
-Note	1581	This function 'pi' has the same name as a native function
+Note	1584	This function 'pi' has the same name as a native function
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
@@ -5698,15 +5719,15 @@ use test;
 create function `database`() returns varchar(50)
 return "Stored function database";
 Warnings:
-Note	1581	This function 'database' has the same name as a native function
+Note	1584	This function 'database' has the same name as a native function
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 Warnings:
-Note	1581	This function 'current_user' has the same name as a native function
+Note	1584	This function 'current_user' has the same name as a native function
 create function md5(x varchar(50)) returns varchar(50)
 return "Stored function md5";
 Warnings:
-Note	1581	This function 'md5' has the same name as a native function
+Note	1584	This function 'md5' has the same name as a native function
 SET SQL_MODE='IGNORE_SPACE';
 select database(), database ();
 database()	database ()
@@ -6110,6 +6131,8 @@ select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
 lower bounds signed bigint
 0
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
 upper bounds signed bigint
 9223372036854775807
@@ -6122,9 +6145,13 @@ upper bounds unsigned bigint
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
 upper bounds unsigned bigint + 1
 18446744073709551615
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 lower bounds unsigned bigint - 1
 0
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
 create table examplebug20777 as select 
 0 as 'i',
 bug20777(9223372036854775806) as '2**63-2',
@@ -6136,7 +6163,12 @@ bug20777(18446744073709551615) as '2**64-1',
 bug20777(18446744073709551616) as '2**64',
 bug20777(0) as '0',
 bug20777(-1) as '-1';
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+Warning	1264	Out of range value for column 'f1' at row 1
 insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+Warnings:
+Warning	1264	Out of range value for column '-1' at row 1
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
@@ -6210,12 +6242,19 @@ Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
+drop procedure if exists proc_21513|
+create procedure proc_21513()`my_label`:BEGIN END|
+show create procedure proc_21513|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_21513		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_21513`()
+`my_label`:BEGIN END	utf8	utf8_general_ci	latin1_swedish_ci
+drop procedure proc_21513|
 End of 5.0 tests.
 drop table t1,t2;
 CREATE TABLE t1 (a int auto_increment primary key) engine=MyISAM;
 CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
 set @a=0;
-CREATE function bug27354() RETURNS int deterministic
+CREATE function bug27354() RETURNS int not deterministic
 begin
 insert into t1 values (null);
 set @a=@a+1;
@@ -6237,3 +6276,348 @@ count(*)
 3
 drop table t1,t2;
 drop function   bug27354;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`	utf8	utf8_general_ci
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+SET @p1_p2_cnt= 2;
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+PREPARE s1 FROM 'SELECT c1 FROM v1';
+EXECUTE s1;
+c1
+EXECUTE s1;
+c1
+CREATE PROCEDURE p1(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+WHILE loops > 0 DO
+SELECT c1 FROM v1;
+CALL p1(@p1_p2_cnt);
+SET loops = loops - 1;
+END WHILE;
+END|
+CREATE FUNCTION f1(loops INT UNSIGNED)
+RETURNS INT
+BEGIN
+DECLARE tmp INT;
+WHILE loops > 0 DO
+SELECT c1 INTO tmp FROM v1;
+SET loops = loops - 1;
+END WHILE;
+RETURN loops;
+END|
+CALL p1(2);
+c1
+c1
+CALL p2(2);
+c1
+c1
+c1
+c1
+c1
+c1
+SELECT f1(2);
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+PREPARE s1 FROM 'SELECT f1(2)';
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+EXECUTE s1;
+f1(2)
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+Warning	1329	No data - zero rows fetched, selected, or processed
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
+drop database if exists mysqltest_db1;
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+Level	Code	Message
+drop database mysqltest_db1;
+drop database if exists mysqltest_db1;
+drop table if exists test.t1;
+create database mysqltest_db1;
+use mysqltest_db1;
+drop database mysqltest_db1;
+create table test.t1 (id int);
+insert into test.t1 (id) values (1);
+create procedure test.sp_bug29050() begin select * from t1; end//
+show warnings;
+Level	Code	Message
+call test.sp_bug29050();
+id
+1
+show warnings;
+Level	Code	Message
+use test;
+drop procedure sp_bug29050;
+drop table t1;
+SET NAMES latin1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE ��� INT;
+SELECT ���;
+END|
+CALL p1();
+���
+NULL
+SET NAMES default;
+DROP PROCEDURE p1;
+drop procedure if exists proc_25411_a;
+drop procedure if exists proc_25411_b;
+drop procedure if exists proc_25411_c;
+create procedure proc_25411_a()
+begin
+/* real comment */
+select 1;
+/*! select 2; */
+select 3;
+/*!00000 select 4; */
+/*!99999 select 5; */
+end
+$$
+create procedure proc_25411_b(
+/* real comment */
+/*! p1 int, */
+/*!00000 p2 int */
+/*!99999 ,p3 int */
+)
+begin
+select p1, p2;
+end
+$$
+create procedure proc_25411_c()
+begin
+select 1/*!,2*//*!00000,3*//*!99999,4*/;
+select 1/*! ,2*//*!00000 ,3*//*!99999 ,4*/;
+select 1/*!,2 *//*!00000,3 *//*!99999,4 */;
+select 1/*! ,2 *//*!00000 ,3 *//*!99999 ,4 */;
+select 1 /*!,2*/ /*!00000,3*/ /*!99999,4*/ ;
+end
+$$
+show create procedure proc_25411_a;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_25411_a		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_a`()
+begin
+/* real comment */
+select 1;
+ select 2; 
+select 3;
+ select 4; 
+
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+call proc_25411_a();
+1
+1
+2
+2
+3
+3
+4
+4
+show create procedure proc_25411_b;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_25411_b		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_b`(
+/* real comment */
+ p1 int, 
+ p2 int 
+
+)
+begin
+select p1, p2;
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+select name, param_list, body from mysql.proc where name like "%25411%";
+name	param_list	body
+proc_25411_a		begin
+/* real comment */
+select 1;
+ select 2; 
+select 3;
+ select 4; 
+
+end
+proc_25411_b	
+/* real comment */
+ p1 int, 
+ p2 int 
+
+	begin
+select p1, p2;
+end
+proc_25411_c		begin
+select 1,2,3;
+select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
+select 1 ,2 ,3  ;
+end
+call proc_25411_b(10, 20);
+p1	p2
+10	20
+show create procedure proc_25411_c;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_25411_c		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_c`()
+begin
+select 1,2,3;
+select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
+select 1 ,2 ,3  ;
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+call proc_25411_c();
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+1	2	3
+drop procedure proc_25411_a;
+drop procedure proc_25411_b;
+drop procedure proc_25411_c;
+drop procedure if exists proc_26302;
+create procedure proc_26302()
+select 1 /* testing */;
+show create procedure proc_26302;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+proc_26302		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_26302`()
+select 1 /* testing */	latin1	latin1_swedish_ci	latin1_swedish_ci
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+where ROUTINE_NAME = "proc_26302";
+ROUTINE_NAME	ROUTINE_DEFINITION
+proc_26302	select 1 /* testing */
+drop procedure proc_26302;
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 2;
+CREATE FUNCTION f2(I INT) RETURNS INT DETERMINISTIC RETURN 3;
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE c1=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE c1=f1();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+EXPLAIN SELECT * FROM v1 WHERE c1=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+EXPLAIN SELECT * FROM v1 WHERE c1=f1();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+DROP VIEW v1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+create function f1()
+returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+declare x int(11);
+set x=-1;
+return x;
+end|
+create view v1 as select 1 as one, f1() as days;
+show create view test.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+column_name
+one
+days
+drop view v1;
+drop function f1;
+
+# Bug#13675.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TABLE IF EXISTS t1;
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p1('text');
+Warnings:
+Warning	1264	Out of range value for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2(10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+CALL p2('text');
+Warnings:
+Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` bigint(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+End of 5.0 tests

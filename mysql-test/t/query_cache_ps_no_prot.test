@@ -1,0 +1,26 @@
+#################### t/query_cache_ps_no_prot.test #####################
+#
+# Test grants with query cache to be run when mysqltest was started
+# without any "--<whatever>-protocol".
+#
+# Last update:
+# 2007-05-03 ML - Move t/query_cache_sql_prepare.test to
+#                 include/query_cache_sql_prepare.inc
+#               - Create this test as non "--<whatever>-protocol" variant.
+#
+
+# We cannot run on embedded server because we use multiple sessions.
+--source include/not_embedded.inc
+
+--source include/have_query_cache.inc
+
+# The file with expected results fits only to a run without
+# ps-protocol/sp-protocol/cursor-protocol/view-protocol.
+if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
+            + $VIEW_PROTOCOL > 0`)
+{
+   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
+}
+
+# The main testing script
+--source include/query_cache_sql_prepare.inc

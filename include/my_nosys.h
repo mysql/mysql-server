@@ -35,8 +35,9 @@ extern "C" {
 #undef my_seek
 #define my_read(a,b,c,d) my_quick_read(a,b,c,d)
 #define my_write(a,b,c,d) my_quick_write(a,b,c)
-extern uint my_quick_read(File Filedes,byte *Buffer,uint Count,myf myFlags);
-extern uint my_quick_write(File Filedes,const byte *Buffer,uint Count);
+extern size_t my_quick_read(File Filedes,uchar *Buffer,size_t Count,
+                            myf myFlags);
+extern size_t my_quick_write(File Filedes,const uchar *Buffer,size_t Count);
 
 #if !defined(SAFEMALLOC) && defined(USE_HALLOC)
 #define my_malloc(a,b) halloc(a,1)

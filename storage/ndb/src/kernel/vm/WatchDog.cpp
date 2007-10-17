@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
+#include <sys/times.h>
 
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
@@ -23,6 +24,8 @@
 #include <NdbSleep.h>
 #include <ErrorHandlingMacros.hpp>
 #include <EventLogger.hpp>
+
+#include <NdbTick.h>
 
 extern EventLogger g_eventLogger;
 
@@ -71,66 +74,115 @@ WatchDog::doStop(){
   }
 }
 
+const char *get_action(Uint32 IPValue)
+{
+  const char *action;
+  switch (IPValue) {
+  case 1:
+    action = "Job Handling";
+    break;
+  case 2:
+    action = "Scanning Timers";
+    break;
+  case 3:
+    action = "External I/O";
+    break;
+  case 4:
+    action = "Print Job Buffers at crash";
+    break;
+  case 5:
+    action = "Checking connections";
+    break;
+  case 6:
+    action = "Performing Send";
+    break;
+  case 7:
+    action = "Polling for Receive";
+    break;
+  case 8:
+    action = "Performing Receive";
+    break;
+  case 9:
+    action = "Allocating memory";
+    break;
+  default:
+    action = "Unknown place";
+    break;
+  }//switch
+  return action;
+}
+
 void 
-WatchDog::run(){
-  unsigned int anIPValue;
-  unsigned int alerts = 0;
+WatchDog::run()
+{
+  unsigned int anIPValue, sleep_time;
   unsigned int oldIPValue = 0;
-  
+  unsigned int theIntervalCheck = theInterval;
+  struct MicroSecondTimer start_time, last_time, now;
+  NdbTick_getMicroTimer(&start_time);
+  last_time = start_time;
+
   // WatchDog for the single threaded NDB
-  while(!theStop){
-    Uint32 tmp  = theInterval / 500;
-    tmp= (tmp ? tmp : 1);
-    
-    while(!theStop && tmp > 0){
-      NdbSleep_MilliSleep(500);
-      tmp--;
-    }
-    
+  while (!theStop)
+  {
+    sleep_time= 100;
+
+    NdbSleep_MilliSleep(sleep_time);
     if(theStop)
       break;
 
+    NdbTick_getMicroTimer(&now);
+    if (NdbTick_getMicrosPassed(last_time, now)/1000 > sleep_time*2)
+    {
+      struct tms my_tms;
+      times(&my_tms);
+      g_eventLogger.info("Watchdog: User time: %llu  System time: %llu",
+                         (Uint64)my_tms.tms_utime,
+                         (Uint64)my_tms.tms_stime);
+      g_eventLogger.warning("Watchdog: Warning overslept %u ms, expected %u ms.",
+                            NdbTick_getMicrosPassed(last_time, now)/1000,
+                            sleep_time);
+    }
+    last_time = now;
+
     // Verify that the IP thread is not stuck in a loop
     anIPValue = *theIPValue;
-    if(anIPValue != 0) {
+    if (anIPValue != 0)
+    {
       oldIPValue = anIPValue;
       globalData.incrementWatchDogCounter(0);
-      alerts = 0;
-    } else {
-      const char *last_stuck_action;
-      alerts++;
-      switch (oldIPValue) {
-      case 1:
-        last_stuck_action = "Job Handling";
-        break;
-      case 2:
-        last_stuck_action = "Scanning Timers";
-        break;
-      case 3:
-        last_stuck_action = "External I/O";
-        break;
-      case 4:
-        last_stuck_action = "Print Job Buffers at crash";
-        break;
-      case 5:
-        last_stuck_action = "Checking connections";
-        break;
-      case 6:
-        last_stuck_action = "Performing Send";
-        break;
-      case 7:
-        last_stuck_action = "Polling for Receive";
-        break;
-      case 8:
-        last_stuck_action = "Performing Receive";
-        break;
-      default:
-        last_stuck_action = "Unknown place";
-        break;
-      }//switch
-      g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
-      if(alerts == 3){
-	shutdownSystem(last_stuck_action);
+      NdbTick_getMicroTimer(&start_time);
+      theIntervalCheck = theInterval;
+    }
+    else
+    {
+      int warn = 1;
+      Uint32 elapsed = NdbTick_getMicrosPassed(start_time, now)/1000;
+      /*
+        oldIPValue == 9 indicates malloc going on, this can take some time
+        so only warn if we pass the watchdog interval
+      */
+      if (oldIPValue == 9)
+        if (elapsed < theIntervalCheck)
+          warn = 0;
+        else
+          theIntervalCheck += theInterval;
+
+      if (warn)
+      {
+        const char *last_stuck_action = get_action(oldIPValue);
+        g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
+        {
+          struct tms my_tms;
+          times(&my_tms);
+          g_eventLogger.info("Watchdog: User time: %llu  System time: %llu",
+                             (Uint64)my_tms.tms_utime,
+                             (Uint64)my_tms.tms_stime);
+        }
+        if (elapsed > 3 * theInterval)
+        {
+          shutdownSystem(last_stuck_action);
+        }
       }
     }
   }

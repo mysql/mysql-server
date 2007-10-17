@@ -52,6 +52,24 @@ extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
                             MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict);
+static void split_file_name(const char *file_name,
+			    LEX_STRING *db, LEX_STRING *name);
+
+
+extern "C" void myrg_print_wrong_table(const char *table_name)
+{
+  LEX_STRING db, name;
+  char buf[FN_REFLEN];
+  split_file_name(table_name, &db, &name);
+  memcpy(buf, db.str, db.length);
+  buf[db.length]= '.';
+  memcpy(buf + db.length + 1, name.str, name.length);
+  buf[db.length + name.length + 1]= 0;
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_ADMIN_WRONG_MRG_TABLE, ER(ER_ADMIN_WRONG_MRG_TABLE),
+                      buf);
+}
+
 
 const char **ha_myisammrg::bas_ext() const
 {
@@ -102,6 +120,8 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   {
     DBUG_PRINT("error",("reclength: %lu  mean_rec_length: %lu",
 			table->s->reclength, stats.mean_rec_length));
+    if (test_if_locked & HA_OPEN_FOR_REPAIR)
+      myrg_print_wrong_table(file->open_tables->table->filename);
     error= HA_ERR_WRONG_MRG_TABLE_DEF;
     goto err;
   }
@@ -120,12 +140,19 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
                          u_table->table->s->base.keys,
                          u_table->table->s->base.fields, false))
     {
-      my_free((gptr) recinfo, MYF(0));
       error= HA_ERR_WRONG_MRG_TABLE_DEF;
-      goto err;
+      if (test_if_locked & HA_OPEN_FOR_REPAIR)
+        myrg_print_wrong_table(u_table->table->filename);
+      else
+      {
+        my_free((uchar*) recinfo, MYF(0));
+        goto err;
+      }
     }
   }
-  my_free((gptr) recinfo, MYF(0));
+  my_free((uchar*) recinfo, MYF(0));
+  if (error == HA_ERR_WRONG_MRG_TABLE_DEF)
+    goto err;
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->s->crashed)
@@ -146,9 +173,9 @@ int ha_myisammrg::close(void)
   return myrg_close(file);
 }
 
-int ha_myisammrg::write_row(byte * buf)
+int ha_myisammrg::write_row(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_write_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
 
   if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
     return (HA_ERR_TABLE_READONLY);
@@ -164,95 +191,87 @@ int ha_myisammrg::write_row(byte * buf)
   return myrg_write(file,buf);
 }
 
-int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
+int ha_myisammrg::update_row(const uchar * old_data, uchar * new_data)
 {
-  statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   return myrg_update(file,old_data,new_data);
 }
 
-int ha_myisammrg::delete_row(const byte * buf)
+int ha_myisammrg::delete_row(const uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
   return myrg_delete(file,buf);
 }
 
-int ha_myisammrg::index_read(byte * buf, const byte * key,
-                             key_part_map keypart_map,
-                             enum ha_rkey_function find_flag)
+int ha_myisammrg::index_read_map(uchar * buf, const uchar * key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=myrg_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
-				 key_part_map keypart_map,
-                                 enum ha_rkey_function find_flag)
+int ha_myisammrg::index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                                     key_part_map keypart_map,
+                                     enum ha_rkey_function find_flag)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=myrg_rkey(file,buf,index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_read_last(byte * buf, const byte * key,
-                                  key_part_map keypart_map)
+int ha_myisammrg::index_read_last_map(uchar *buf, const uchar *key,
+                                      key_part_map keypart_map)
 {
-  statistic_increment(table->in_use->status_var.ha_read_key_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_key_count);
   int error=myrg_rkey(file,buf,active_index, key, keypart_map,
 		      HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_next(byte * buf)
+int ha_myisammrg::index_next(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=myrg_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_prev(byte * buf)
+int ha_myisammrg::index_prev(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_prev_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=myrg_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_first(byte * buf)
+int ha_myisammrg::index_first(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_first_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_first_count);
   int error=myrg_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_last(byte * buf)
+int ha_myisammrg::index_last(uchar * buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_last_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_last_count);
   int error=myrg_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-int ha_myisammrg::index_next_same(byte * buf,
-                                  const byte *key __attribute__((unused)),
+int ha_myisammrg::index_next_same(uchar * buf,
+                                  const uchar *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
-  statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=myrg_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -265,26 +284,24 @@ int ha_myisammrg::rnd_init(bool scan)
 }
 
 
-int ha_myisammrg::rnd_next(byte *buf)
+int ha_myisammrg::rnd_next(uchar *buf)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=myrg_rrnd(file, buf, HA_OFFSET_ERROR);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
 
-int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
+int ha_myisammrg::rnd_pos(uchar * buf, uchar *pos)
 {
-  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error=myrg_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
-void ha_myisammrg::position(const byte *record)
+void ha_myisammrg::position(const uchar *record)
 {
   ulonglong row_position= myrg_position(file);
   my_store_ptr(ref, ref_length, (my_off_t) row_position);
@@ -474,8 +491,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	goto err;
 
       create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = (byte*) ptr;
-      create_info->merge_list.next= (byte**) &ptr->next_local;
+      (*create_info->merge_list.next) = (uchar*) ptr;
+      create_info->merge_list.next= (uchar**) &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
@@ -603,6 +620,13 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_NO;
 }
 
+
+int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return HA_ADMIN_OK;
+}
+
+
 extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {
@@ -615,7 +639,6 @@ static int myisammrg_init(void *p)
 
   myisammrg_hton= (handlerton *)p;
 
-  myisammrg_hton->state= SHOW_OPTION_YES;
   myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
   myisammrg_hton->create= myisammrg_create_handler;
   myisammrg_hton->panic= myisammrg_panic;

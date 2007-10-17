@@ -21,3 +21,6 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 1000
 SendBufferMemory = 2M
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 64M
+

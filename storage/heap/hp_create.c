@@ -19,33 +19,37 @@ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
 static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 		       ulong max_records);
 
+/* Create a heap table */
+
 int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 		uint reclength, ulong max_records, ulong min_records,
-		HP_CREATE_INFO *create_info)
+		HP_CREATE_INFO *create_info, HP_SHARE **res)
 {
   uint i, j, key_segs, max_length, length;
-  HP_SHARE *share;
+  HP_SHARE *share= 0;
   HA_KEYSEG *keyseg;
-  
   DBUG_ENTER("heap_create");
-  pthread_mutex_lock(&THR_LOCK_heap);
 
-  if ((share= hp_find_named_heap(name)) && share->open_count == 0)
+  if (!create_info->internal_table)
   {
-    hp_free(share);
-    share= NULL;
-  }
-  
+    pthread_mutex_lock(&THR_LOCK_heap);
+    if ((share= hp_find_named_heap(name)) && share->open_count == 0)
+    {
+      hp_free(share);
+      share= 0;
+    }
+  }  
+
   if (!share)
   {
     HP_KEYDEF *keyinfo;
     DBUG_PRINT("info",("Initializing new table"));
     
     /*
-      We have to store sometimes byte* del_link in records,
-      so the record length should be at least sizeof(byte*)
+      We have to store sometimes uchar* del_link in records,
+      so the record length should be at least sizeof(uchar*)
     */
-    set_if_bigger(reclength, sizeof (byte*));
+    set_if_bigger(reclength, sizeof (uchar*));
     
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
@@ -112,7 +116,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       }
       keyinfo->length= length;
       length+= keyinfo->rb_tree.size_of_element + 
-	       ((keyinfo->algorithm == HA_KEY_ALG_BTREE) ? sizeof(byte*) : 0);
+	       ((keyinfo->algorithm == HA_KEY_ALG_BTREE) ? sizeof(uchar*) : 0);
       if (length > max_length)
 	max_length= length;
       key_segs+= keyinfo->keysegs;
@@ -131,10 +135,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 				       keys*sizeof(HP_KEYDEF)+
 				       key_segs*sizeof(HA_KEYSEG),
 				       MYF(MY_ZEROFILL))))
-    {
-      pthread_mutex_unlock(&THR_LOCK_heap);
-      DBUG_RETURN(1);
-    }
+      goto err;
     share->keydef= (HP_KEYDEF*) (share + 1);
     share->key_stat_version= 1;
     keyseg= (HA_KEYSEG*) (share->keydef + keys);
@@ -152,12 +153,12 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       {
 	/* additional HA_KEYTYPE_END keyseg */
 	keyseg->type=     HA_KEYTYPE_END;
-	keyseg->length=   sizeof(byte*);
+	keyseg->length=   sizeof(uchar*);
 	keyseg->flag=     0;
 	keyseg->null_bit= 0;
 	keyseg++;
 
-	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*),
+	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar*),
 		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
@@ -188,20 +189,33 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {
-      my_free((gptr) share,MYF(0));
-      pthread_mutex_unlock(&THR_LOCK_heap);
-      DBUG_RETURN(1);
+      my_free((uchar*) share,MYF(0));
+      goto err;
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
 #endif
-    share->open_list.data= (void*) share;
-    heap_share_list= list_add(heap_share_list,&share->open_list);
+    if (!create_info->internal_table)
+    {
+      share->open_list.data= (void*) share;
+      heap_share_list= list_add(heap_share_list,&share->open_list);
+    }
+    else
+      share->delete_on_close= 1;
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  if (!create_info->internal_table)
+    pthread_mutex_unlock(&THR_LOCK_heap);
+
+  *res= share;
   DBUG_RETURN(0);
+
+err:
+  if (!create_info->internal_table)
+    pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_RETURN(1);
 } /* heap_create */
+
 
 static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 {
@@ -218,7 +232,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
   max_records= max(min_records,max_records);
   if (!max_records)
     max_records= 1000;			/* As good as quess as anything */
-  recbuffer= (uint) (reclength + sizeof(byte**) - 1) & ~(sizeof(byte**) - 1);
+  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
   records_in_block= max_records / 10;
   if (records_in_block < 10 && max_records)
     records_in_block= 10;
@@ -279,13 +293,14 @@ void heap_drop_table(HP_INFO *info)
 
 void hp_free(HP_SHARE *share)
 {
-  heap_share_list= list_delete(heap_share_list, &share->open_list);
+  if (share->open_list.data)                    /* If not internal table */
+    heap_share_list= list_delete(heap_share_list, &share->open_list);
   hp_clear(share);			/* Remove blocks from memory */
 #ifdef THREAD
   thr_lock_delete(&share->lock);
   VOID(pthread_mutex_destroy(&share->intern_lock));
 #endif
-  my_free((gptr) share->name, MYF(0));
-  my_free((gptr) share, MYF(0));
+  my_free((uchar*) share->name, MYF(0));
+  my_free((uchar*) share, MYF(0));
   return;
 }

@@ -301,9 +301,6 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         field_length= 6;                        /* 6 digits */
       }
       continue;
-
-      /* No part seconds */
-      date[++i]= 0;
     }
     while (str != end &&
            (my_ispunct(&my_charset_latin1,*str) ||
@@ -569,12 +566,12 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
     /* Fix the date to assume that seconds was given */
     if (!found_hours && !found_days)
     {
-      bmove_upp((char*) (date+4), (char*) (date+state),
+      bmove_upp((uchar*) (date+4), (uchar*) (date+state),
                 sizeof(long)*(state-1));
-      bzero((char*) date, sizeof(long)*(4-state));
+      bzero((uchar*) date, sizeof(long)*(4-state));
     }
     else
-      bzero((char*) (date+state), sizeof(long)*(4-state));
+      bzero((uchar*) (date+state), sizeof(long)*(4-state));
   }
 
 fractional:
@@ -1147,7 +1144,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
  ok:
   part1=(long) (nr/LL(1000000));
   part2=(long) (nr - (longlong) part1*LL(1000000));
-  time_res->neg=   0;
+  bzero((char*) time_res, sizeof(*time_res));
   time_res->year=  (int) (part1/10000L);  part1%=10000L;
   time_res->month= (int) part1 / 100;
   time_res->day=   (int) part1 % 100;

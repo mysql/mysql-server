@@ -317,6 +317,7 @@ Dbtup::restart_setup_page(Disk_alloc_info& alloc, PagePtr pagePtr)
     unsigned uncommitted, committed;
     uncommitted = committed = ~(unsigned)0;
     (void) tsman.get_page_free_bits(&page, &uncommitted, &committed);
+    jamEntry();
     
     idx = alloc.calc_page_free_bits(real_free);
     ddassert(idx == committed);
@@ -427,12 +428,12 @@ Dbtup::disk_page_prealloc(Signal* signal,
     c_extent_pool.getPtr(ext);
     if ((pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits)) >= 0) 
     {
-      jam();
+      jamEntry();
       found= true;
     }
     else
     {
-      jam();
+      jamEntry();
       /**
        * The current extent is not in a free list
        *   and since it couldn't accomadate the request
@@ -489,7 +490,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       
       if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
       {
-	jam();
+	jamEntry();
 #if NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
 				sizeof(Disk_undo::AllocExtent)>>2);
@@ -541,6 +542,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     alloc.m_curr_extent_info_ptr_i= ext.i;
     ext.p->m_free_matrix_pos= RNIL;
     pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
+    jamEntry();
     ddassert(pageBits >= 0);
   }
   
@@ -600,6 +602,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   }
   
   int res= m_pgman.get_page(signal, preq, flags);
+  jamEntry();
   switch(res)
   {
   case 0:
@@ -896,6 +899,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   
   // Make sure no one will allocate it...
   tsman.unmap_page(&key, MAX_FREE_LIST - 1);
+  jamEntry();
 }
 
 void
@@ -947,6 +951,7 @@ Dbtup::disk_page_unmap_callback(Uint32 page_id, Uint32 dirty_count)
 			    fragPtr.p->m_tablespace_id);
     
     tsman.unmap_page(&key, idx);
+    jamEntry();
     pagePtr.p->list_index = idx | 0x8000;
   }
     
@@ -995,6 +1000,7 @@ Dbtup::disk_page_alloc(Signal* signal,
 			    fragPtrP->m_tablespace_id);
     
     tsman.update_page_free_bits(key, new_bits, lsn);
+    jamEntry();
   }
 }
 
@@ -1047,6 +1053,7 @@ Dbtup::disk_page_free(Signal *signal,
 			    fragPtrP->m_tablespace_id);
     
     tsman.update_page_free_bits(key, new_bits, lsn);
+    jamEntry();
   }
 
   Uint32 ext = pagePtr.p->m_extent_info_ptr;
@@ -1100,6 +1107,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   memcpy(&req.m_page, key, sizeof(Local_key));
 
   int res= m_pgman.get_page(signal, req, flags);
+  jamEntry();
   switch(res)
   {
   case 0:
@@ -1228,6 +1236,7 @@ Dbtup::disk_page_alloc_extent_log_buffer_callback(Signal* signal,
   Uint64 lsn= lgman.add_entry(c, 1);
   
   tsman.update_lsn(&key, lsn);
+  jamEntry();
 }
 #endif
 
@@ -1246,6 +1255,7 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
   
   Uint64 lsn= lgman.add_entry(c, 1);
   m_pgman.update_lsn(* key, lsn);
+  jamEntry();
 
   return lsn;
 }
@@ -1275,6 +1285,7 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
     
   Uint64 lsn= lgman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
+  jamEntry();
 
   return lsn;
 }
@@ -1304,6 +1315,7 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   
   Uint64 lsn= lgman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
+  jamEntry();
 
   return lsn;
 }
@@ -1398,6 +1410,7 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
   
   int flags = 0;
   int res= m_pgman.get_page(signal, preq, flags);
+  jamEntry();
   switch(res)
   {
   case 0:
@@ -1541,6 +1554,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     lsn = undo->m_lsn - 1; // make sure undo isn't run again...
     
     m_pgman.update_lsn(undo->m_key, lsn);
+    jamEntry();
   }
   else if (DBG_UNDO)
   {
@@ -1633,6 +1647,7 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
 			  fragPtrP->m_tablespace_id);
   
   tsman.restart_undo_page_free_bits(&undo->m_key, new_bits, undo->m_lsn, lsn);
+  jamEntry();
 }
 
 int

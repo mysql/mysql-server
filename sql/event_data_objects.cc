@@ -20,8 +20,132 @@
 #include "event_db_repository.h"
 #include "sp_head.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
+
+/*************************************************************************/
+
+/**
+  Event_creation_ctx -- creation context of events.
+*/
+
+class Event_creation_ctx :public Stored_program_creation_ctx,
+                          public Sql_alloc
+{
+public:
+  static bool load_from_db(THD *thd,
+                           MEM_ROOT *event_mem_root,
+                           const char *db_name,
+                           const char *event_name,
+                           TABLE *event_tbl,
+                           Stored_program_creation_ctx **ctx);
+
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
+  {
+    return new (mem_root)
+               Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
+  }
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  {
+    /*
+      We can avoid usual backup/restore employed in stored programs since we
+      know that this is a top level statement and the worker thread is
+      allocated exclusively to execute this event.
+    */
+
+    return NULL;
+  }
+
+private:
+  Event_creation_ctx(CHARSET_INFO *client_cs,
+                     CHARSET_INFO *connection_cl,
+                     CHARSET_INFO *db_cl)
+    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
+  { }
+};
+
+/**************************************************************************
+  Event_creation_ctx implementation.
+**************************************************************************/
+
+bool
+Event_creation_ctx::load_from_db(THD *thd,
+                                 MEM_ROOT *event_mem_root,
+                                 const char *db_name,
+                                 const char *event_name,
+                                 TABLE *event_tbl,
+                                 Stored_program_creation_ctx **ctx)
+{
+  /* Load character set/collation attributes. */
+
+  CHARSET_INFO *client_cs;
+  CHARSET_INFO *connection_cl;
+  CHARSET_INFO *db_cl;
+
+  bool invalid_creation_ctx= FALSE;
+
+  if (load_charset(event_mem_root,
+                   event_tbl->field[ET_FIELD_CHARACTER_SET_CLIENT],
+                   thd->variables.character_set_client,
+                   &client_cs))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.character_set_client.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(event_mem_root,
+                     event_tbl->field[ET_FIELD_COLLATION_CONNECTION],
+                     thd->variables.collation_connection,
+                     &connection_cl))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.collation_connection.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  if (load_collation(event_mem_root,
+                     event_tbl->field[ET_FIELD_DB_COLLATION],
+                     NULL,
+                     &db_cl))
+  {
+    sql_print_warning("Event '%s'.'%s': invalid value "
+                      "in column mysql.event.db_collation.",
+                      (const char *) db_name,
+                      (const char *) event_name);
+
+    invalid_creation_ctx= TRUE;
+  }
+
+  /*
+    If we failed to resolve the database collation, load the default one
+    from the disk.
+  */
+
+  if (!db_cl)
+    db_cl= get_default_db_collation(thd, db_name);
+
+  /* Create the context. */
+
+  *ctx= new Event_creation_ctx(client_cs, connection_cl, db_cl);
+
+  return invalid_creation_ctx;
+}
+
+/*************************************************************************/
 
 /*
   Initiliazes dbname and name of an Event_queue_element_for_exec
@@ -42,7 +166,7 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
     return TRUE;
   if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
   {
-    my_free((gptr) dbname.str, MYF(0));
+    my_free((uchar*) dbname.str, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -58,8 +182,8 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec()
 {
-  my_free((gptr) dbname.str, MYF(0));
-  my_free((gptr) name.str, MYF(0));
+  my_free((uchar*) dbname.str, MYF(0));
+  my_free((uchar*) name.str, MYF(0));
 }
 
 
@@ -94,17 +218,18 @@ Event_parse_data::Event_parse_data()
   :on_completion(Event_basic::ON_COMPLETION_DROP),
   status(Event_basic::ENABLED),
   do_not_create(FALSE),
-   item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-   starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
-   item_expression(NULL), expression(0)
+  body_changed(FALSE),
+  item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
+  starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
+  item_expression(NULL), expression(0)
 {
   DBUG_ENTER("Event_parse_data::Event_parse_data");
 
   /* Actually in the parser STARTS is always set */
   starts= ends= execute_at= 0;
 
-  body.str= comment.str= NULL;
-  body.length= comment.length= 0;
+  comment.str= NULL;
+  comment.length= 0;
 
   DBUG_VOID_RETURN;
 }
@@ -132,82 +257,6 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 
   if (spn->m_qname.length == 0)
     spn->init_qname(thd);
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Set body of the event - what should be executed.
-
-  SYNOPSIS
-    Event_parse_data::init_body()
-      thd   THD
-
-  NOTE
-    The body is extracted by copying all data between the
-    start of the body set by another method and the current pointer in Lex.
-
-    Some questionable removal of characters is done in here, and that part
-    should be refactored when the parser is smarter.
-*/
-
-void
-Event_parse_data::init_body(THD *thd)
-{
-  DBUG_ENTER("Event_parse_data::init_body");
-  DBUG_PRINT("info", ("body: '%s'  body_begin: 0x%lx end: 0x%lx", body_begin,
-                      (long) body_begin, (long) thd->lex->ptr));
-
-  body.length= thd->lex->ptr - body_begin;
-  const char *body_end= body_begin + body.length - 1;
-
-  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
-  while (body_begin < body_end)
-  {
-
-    if ((*body_end == '\0') ||
-        (my_isspace(thd->variables.character_set_client, *body_end)))
-    { /* consume NULs and meaningless whitespace */
-      --body.length;
-      --body_end;
-      continue;
-    }
-
-    /*
-       consume closing comments
-
-       This is arguably wrong, but it's the best we have until the parser is
-       changed to be smarter.   FIXME PARSER
-
-       See also the sp_head code, where something like this is done also.
-
-       One idea is to keep in the lexer structure the count of the number of
-       open-comments we've entered, and scan left-to-right looking for a
-       closing comment IFF the count is greater than zero.
-
-       Another idea is to remove the closing comment-characters wholly in the
-       parser, since that's where it "removes" the opening characters.
-    */
-    if ((*(body_end - 1) == '*') && (*body_end == '/'))
-    {
-      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'",
-          body_begin));
-      body.length-= 2;
-      body_end-= 2;
-      continue;
-    }
-
-    break;  /* none were found, so we have excised all we can. */
-  }
-
-  /* the first is always whitespace which I cannot skip in the parser */
-  while (my_isspace(thd->variables.character_set_client, *body_begin))
-  {
-    ++body_begin;
-    --body.length;
-  }
-  body.str= thd->strmake(body_begin, body.length);
 
   DBUG_VOID_RETURN;
 }
@@ -409,7 +458,8 @@ Event_parse_data::init_interval(THD *thd)
   default:
     ;/* these are the microsec stuff */
   }
-  if (interval_tmp.neg || expression > EVEX_MAX_INTERVAL_VALUE)
+  if (interval_tmp.neg || expression == 0 ||
+      expression > EVEX_MAX_INTERVAL_VALUE)
   {
     my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
     DBUG_RETURN(EVEX_BAD_PARAMS);
@@ -615,7 +665,7 @@ Event_parse_data::init_definer(THD *thd)
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));
   definer.length= definer_user_len + definer_host_len + 1;
-  definer.str= thd->alloc(definer.length + 1);
+  definer.str= (char*) thd->alloc(definer.length + 1);
 
   DBUG_PRINT("info",("copy the user"));
   memcpy(definer.str, definer_user, definer_user_len);
@@ -833,36 +883,33 @@ Event_timed::init()
 }
 
 
-/*
-  Loads an event's body from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
 
-  SYNOPSIS
-    Event_job_data::load_from_row(THD *thd, TABLE *table)
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_job_data::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
   uint len;
+  LEX_STRING tz_name;
+
   DBUG_ENTER("Event_job_data::load_from_row");
 
   if (!table)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (table->s->fields < ET_FIELD_COUNT)
-    goto error;
+    DBUG_RETURN(TRUE);
 
-  LEX_STRING tz_name;
   if (load_string_fields(table->field,
                          ET_FIELD_DB, &dbname,
                          ET_FIELD_NAME, &name,
@@ -870,10 +917,13 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
                          ET_FIELD_DEFINER, &definer,
                          ET_FIELD_TIME_ZONE, &tz_name,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_time_zone(thd, tz_name))
-    goto error;
+    DBUG_RETURN(TRUE);
+
+  Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str, table,
+                                   &creation_ctx);
 
   ptr= strchr(definer.str, '@');
 
@@ -890,29 +940,23 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
 
   sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Loads an event from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
 
-  SYNOPSIS
-    Event_queue_element::load_from_row(THD *thd, TABLE *table)
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_queue_element::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
@@ -922,10 +966,10 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   DBUG_ENTER("Event_queue_element::load_from_row");
 
   if (!table)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (table->s->fields < ET_FIELD_COUNT)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_string_fields(table->field,
                          ET_FIELD_DB, &dbname,
@@ -933,23 +977,24 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
                          ET_FIELD_DEFINER, &definer,
                          ET_FIELD_TIME_ZONE, &tz_name,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_time_zone(thd, tz_name))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   starts_null= table->field[ET_FIELD_STARTS]->is_null();
+  my_bool not_used= FALSE;
   if (!starts_null)
   {
     table->field[ET_FIELD_STARTS]->get_date(&time, TIME_NO_ZERO_DATE);
-    starts= sec_since_epoch_TIME(&time);
+    starts= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
   }
 
   ends_null= table->field[ET_FIELD_ENDS]->is_null();
   if (!ends_null)
   {
     table->field[ET_FIELD_ENDS]->get_date(&time, TIME_NO_ZERO_DATE);
-    ends= sec_since_epoch_TIME(&time);
+    ends= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
   }
 
   if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
@@ -966,8 +1011,8 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   {
     if (table->field[ET_FIELD_EXECUTE_AT]->get_date(&time,
                                                     TIME_NO_ZERO_DATE))
-      goto error;
-    execute_at= sec_since_epoch_TIME(&time);
+      DBUG_RETURN(TRUE);
+    execute_at= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
   }
 
   /*
@@ -985,13 +1030,13 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
 
     table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_str(&str);
     if (!(tmp.length= str.length()))
-      goto error;
+      DBUG_RETURN(TRUE);
 
     tmp.str= str.c_ptr_safe();
 
     i= find_string_in_array(interval_type_to_name, &tmp, system_charset_info);
     if (i < 0)
-      goto error;
+      DBUG_RETURN(TRUE);
     interval= (interval_type) i;
   }
 
@@ -999,12 +1044,12 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
   {
     table->field[ET_FIELD_LAST_EXECUTED]->get_date(&time,
                                                    TIME_NO_ZERO_DATE);
-    last_executed= sec_since_epoch_TIME(&time);
+    last_executed= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
   }
   last_executed_changed= FALSE;
 
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_STATUS])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", name.str, ptr));
 
@@ -1023,40 +1068,34 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     break;
   }
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_ORIGINATOR])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
   originator = table->field[ET_FIELD_ORIGINATOR]->val_int(); 
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(&mem_root,
                       table->field[ET_FIELD_ON_COMPLETION])) == NullS)
-    goto error;
+    DBUG_RETURN(TRUE);
 
   on_completion= (ptr[0]=='D'? Event_queue_element::ON_COMPLETION_DROP:
                                Event_queue_element::ON_COMPLETION_PRESERVE);
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Loads an event from a row from mysql.event
+/**
+  Load an event's body from a row from mysql.event.
 
-  SYNOPSIS
-    Event_timed::load_from_row(THD *thd, TABLE *table)
+  @details This method is silent on errors and should behave like that.
+  Callers should handle throwing of error messages. The reason is that the
+  class should not know about how to deal with communication.
 
-  RETURN VALUE
-    0                      OK
-    EVEX_GET_FIELD_FAILED  Error
-
-  NOTES
-    This method is silent on errors and should behave like that. Callers
-    should handle throwing of error messages. The reason is that the class
-    should not know about how to deal with communication.
+  @return Operation status
+    @retval FALSE OK
+    @retval TRUE  Error
 */
 
-int
+bool
 Event_timed::load_from_row(THD *thd, TABLE *table)
 {
   char *ptr;
@@ -1065,13 +1104,24 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   DBUG_ENTER("Event_timed::load_from_row");
 
   if (Event_queue_element::load_from_row(thd, table))
-    goto error;
+    DBUG_RETURN(TRUE);
 
   if (load_string_fields(table->field,
                          ET_FIELD_BODY, &body,
+                         ET_FIELD_BODY_UTF8, &body_utf8,
                          ET_FIELD_COUNT))
-    goto error;
+    DBUG_RETURN(TRUE);
 
+  if (Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str,
+                                       table, &creation_ctx))
+  {
+    push_warning_printf(thd,
+                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_EVENT_INVALID_CREATION_CTX,
+                        ER(ER_EVENT_INVALID_CREATION_CTX),
+                        (const char *) dbname.str,
+                        (const char *) name.str);
+  }
 
   ptr= strchr(definer.str, '@');
 
@@ -1097,9 +1147,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
 
   sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
-  DBUG_RETURN(0);
-error:
-  DBUG_RETURN(EVEX_GET_FIELD_FAILED);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1601,7 +1649,7 @@ err:
 void
 Event_queue_element::mark_last_executed(THD *thd)
 {
-  thd->end_time();
+  thd->set_current_time();
 
   last_executed= (my_time_t) thd->query_start();
   last_executed_changed= TRUE;
@@ -1631,7 +1679,7 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   DBUG_ENTER("Event_queue_element::update_timing_fields");
 
-  DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
+  DBUG_PRINT("enter", ("name: %*s", (int) name.length, name.str));
 
   /* No need to update if nothing has changed */
   if (!(status_changed || last_executed_changed))
@@ -1691,7 +1739,8 @@ Event_timed::get_create_event(THD *thd, String *buf)
   expr_buf.length(0);
 
   DBUG_ENTER("get_create_event");
-  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]", body.length, body.str));
+  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]",
+                         (int) body.length, body.str));
 
   if (expression && Events::reconstruct_interval_expression(&expr_buf, interval,
                                                             expression))
@@ -1834,7 +1883,6 @@ Event_job_data::execute(THD *thd, bool drop)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context event_sctx, *save_sctx= NULL;
 #endif
-  CHARSET_INFO *charset_connection;
   List<Item> empty_item_list;
   bool ret= TRUE;
 
@@ -1869,7 +1917,7 @@ Event_job_data::execute(THD *thd, bool drop)
                     "[%s].[%s.%s] execution failed, "
                     "failed to authenticate the user.",
                     definer.str, dbname.str, name.str);
-    goto end;
+    goto end_no_lex_start;
   }
 #endif
 
@@ -1886,11 +1934,11 @@ Event_job_data::execute(THD *thd, bool drop)
                     "[%s].[%s.%s] execution failed, "
                     "user no longer has EVENT privilege.",
                     definer.str, dbname.str, name.str);
-    goto end;
+    goto end_no_lex_start;
   }
 
   if (construct_sp_sql(thd, &sp_sql))
-    goto end;
+    goto end_no_lex_start;
 
   /*
     Set up global thread attributes to reflect the properties of
@@ -1899,28 +1947,30 @@ Event_job_data::execute(THD *thd, bool drop)
     this is a top level statement and the worker thread is
     allocated exclusively to execute this event.
   */
-  charset_connection= get_charset_by_csname("utf8",
-                                            MY_CS_PRIMARY, MYF(MY_WME));
-  thd->variables.character_set_client= charset_connection;
-  thd->variables.character_set_results= charset_connection;
-  thd->variables.collation_connection= charset_connection;
-  thd->update_charset();
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.time_zone= time_zone;
 
+  /*
+    Peculiar initialization order is a crutch to avoid races in SHOW
+    PROCESSLIST which reads thd->{query/query_length} without a mutex.
+  */
+  thd->query_length= 0;
   thd->query= sp_sql.c_ptr_safe();
   thd->query_length= sp_sql.length();
 
-  lex_start(thd, thd->query, thd->query_length);
-
-  if (MYSQLparse(thd) || thd->is_fatal_error)
   {
-    sql_print_error("Event Scheduler: "
-                    "%serror during compilation of %s.%s",
-                    thd->is_fatal_error ? "fatal " : "",
-                    (const char *) dbname.str, (const char *) name.str);
-    goto end;
+    Lex_input_stream lip(thd, thd->query, thd->query_length);
+    lex_start(thd);
+
+    if (parse_sql(thd, &lip, creation_ctx))
+    {
+      sql_print_error("Event Scheduler: "
+                      "%serror during compilation of %s.%s",
+                      thd->is_fatal_error ? "fatal " : "",
+                      (const char *) dbname.str, (const char *) name.str);
+      goto end;
+    }
   }
 
   {
@@ -1933,6 +1983,7 @@ Event_job_data::execute(THD *thd, bool drop)
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
 
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);
+    sphead->set_creation_ctx(creation_ctx);
     sphead->optimize();
 
     ret= sphead->execute_procedure(thd, &empty_item_list);
@@ -1943,6 +1994,13 @@ Event_job_data::execute(THD *thd, bool drop)
   }
 
 end:
+  if (thd->lex->sphead)                        /* NULL only if a parse error */
+  {
+    delete thd->lex->sphead;
+    thd->lex->sphead= NULL;
+  }
+
+end_no_lex_start:
   if (drop && !thd->is_fatal_error)
   {
     /*
@@ -1959,16 +2017,16 @@ end:
       ret= 1;
     else
     {
+      /*
+        Peculiar initialization order is a crutch to avoid races in SHOW
+        PROCESSLIST which reads thd->{query/query_length} without a mutex.
+      */
+      thd->query_length= 0;
       thd->query= sp_sql.c_ptr_safe();
       thd->query_length= sp_sql.length();
       if (Events::drop_event(thd, dbname, name, FALSE))
         ret= 1;
     }
-  }
-  if (thd->lex->sphead)                        /* NULL only if a parse error */
-  {
-    delete thd->lex->sphead;
-    thd->lex->sphead= NULL;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_sctx)
@@ -1978,6 +2036,9 @@ end:
   thd->lex->unit.cleanup();
   thd->end_statement();
   thd->cleanup_after_query();
+  /* Avoid races with SHOW PROCESSLIST */
+  thd->query_length= 0;
+  thd->query= NULL;
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 
@@ -2025,3 +2086,7 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
   return !sortcmp_lex_string(name, b->name, system_charset_info) &&
          !sortcmp_lex_string(db, b->dbname, system_charset_info);
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

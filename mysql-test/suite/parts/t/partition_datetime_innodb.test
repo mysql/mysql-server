@@ -36,6 +36,7 @@ let $debug= 0;
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
+--source include/have_innodb.inc
 
 ##### max rows to be inserted
 let $maxrows=1024;

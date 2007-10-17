@@ -35,7 +35,7 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			CMakeLists.txt
 
 bin_PROGRAMS =		mysql_client_test
-noinst_PROGRAMS =	insert_test select_test thread_test
+noinst_PROGRAMS =	insert_test select_test thread_test bug25714
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			$(openssl_includes)
@@ -51,6 +51,9 @@ insert_test_SOURCES=       insert_test.c
 select_test_SOURCES=       select_test.c
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+
+bug25714_SOURCES=          bug25714.c
+bug25714_DEPENDENCIES=     $(LIBRARIES) $(pkglib_LTLIBRARIES)
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK

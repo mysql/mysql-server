@@ -1550,3 +1550,12 @@ insert into t1 values (1);
 repair table t1 use_frm;
 select * from t1;
 drop table t1;
+
+#
+# BUG#29207 - archive table reported as corrupt by check table
+#
+create table t1(a longblob) engine=archive;
+insert into t1 set a='';
+insert into t1 set a='a';
+check table t1 extended;
+drop table t1;

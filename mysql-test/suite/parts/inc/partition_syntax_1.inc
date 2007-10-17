@@ -28,15 +28,15 @@ eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 # Expected error codes are
 # 0
-# 1064 ERROR 42000: You have an error in your SQL syntax
-#                   Reason: assign -1 partitions
-# 1486 ERROR HY000: Too many partitions (including subpartitions) were defined
-# 1491 ERROR HY000: Number of partitions = 0 is not an allowed value
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1487,1492)`;
+# 1064 ER_PARSE_ERROR
+#      Reason: assign -1 partitions
+# 1496 ER_TOO_MANY_PARTITIONS_ERROR
+# 1501 ER_NO_PARTS_ERROR
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1487,1492
+   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;
@@ -66,15 +66,15 @@ eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 # Expected error codes are
 # 0
-# 1064 ERROR 42000: You have an error in your SQL syntax
-#                   Reason: assign -1 subpartitions
-# 1487 ERROR HY000: Too many partitions (including subpartitions) were defined
-# 1492 ERROR HY000: Number of partitions = 0 is not an allowed value
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1487,1492)`;
+# 1064 ER_PARSE_ERROR
+#      Reason: assign -1 partitions
+# 1496 ER_TOO_MANY_PARTITIONS_ERROR
+# 1501 ER_NO_PARTS_ERROR
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1064,1496,1501)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1064,1487,1492
+   --echo #      Expected/handled SQL codes are 0,1064,1496,1501
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;

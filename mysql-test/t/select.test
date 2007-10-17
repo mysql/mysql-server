@@ -3359,4 +3359,128 @@ EXPLAIN SELECT COUNT(*) FROM t1 f1 INNER JOIN t1 f2
     WHERE 1 AND f1.b NOT IN (100,2232,3343,51111);
 DROP TABLE t1;    
 
+#
+# Bug #27352: Incorrect result of nested selects instead of error reporting
+#
+
+CREATE TABLE t1 (c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
+
+let $n= 31;
+let $q= COUNT(c2);
+while ($n)
+{
+  let $q= (SELECT $q);
+  dec $n;
+}
+--disable_warnings
+eval EXPLAIN SELECT c1 FROM t1 WHERE $q > 0;
+--enable_warnings
+
+let $n= 64;
+let $q= COUNT(c2);
+while ($n)
+{
+  let $q= (SELECT $q);
+  dec $n;
+}
+--error ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
+eval EXPLAIN SELECT c1 FROM t1 WHERE $q > 0;
+
+DROP TABLE t1;
+
+#
+# Bug #30396: crash for a join with equalities and sargable predicates
+#             in disjunctive parts of the WHERE condition 
+#
+
+CREATE TABLE t1 (
+  c1 int(11) NOT NULL AUTO_INCREMENT,
+  c2 varchar(1000) DEFAULT NULL,
+  c3 bigint(20) DEFAULT NULL,
+  c4 bigint(20) DEFAULT NULL,
+  PRIMARY KEY (c1)
+);
+
+EXPLAIN EXTENDED 
+SELECT  join_2.c1  
+FROM 
+	t1 AS join_0, 
+	t1 AS join_1, 
+	t1 AS join_2, 
+	t1 AS join_3, 
+	t1 AS join_4, 
+	t1 AS join_5, 
+	t1 AS join_6, 
+	t1 AS join_7
+WHERE 
+	join_0.c1=join_1.c1  AND 
+	join_1.c1=join_2.c1  AND 
+	join_2.c1=join_3.c1  AND 
+	join_3.c1=join_4.c1  AND 
+	join_4.c1=join_5.c1  AND 
+	join_5.c1=join_6.c1  AND 
+	join_6.c1=join_7.c1 
+         OR 
+	join_0.c2 < '?'  AND 
+	join_1.c2 < '?'  AND
+	join_2.c2 > '?'  AND
+	join_2.c2 < '!'  AND
+	join_3.c2 > '?'  AND 
+	join_4.c2 = '?'  AND 
+	join_5.c2 <> '?' AND
+	join_6.c2 <> '?' AND 
+	join_7.c2 >= '?' AND
+        join_0.c1=join_1.c1  AND 
+	join_1.c1=join_2.c1  AND 
+        join_2.c1=join_3.c1  AND
+	join_3.c1=join_4.c1  AND 
+	join_4.c1=join_5.c1  AND 
+	join_5.c1=join_6.c1  AND 
+	join_6.c1=join_7.c1
+GROUP BY 
+	join_3.c1,
+	join_2.c1,
+	join_7.c1,
+	join_1.c1,
+	join_0.c1;
+	
+SHOW WARNINGS;
+
+DROP TABLE t1;
+
+#
+# Bug #27695: Misleading warning when declaring all space column names and
+#             truncation of one-space column names to zero length names.
+#
+
+--disable_ps_protocol
+
+SELECT 1 AS ` `;
+SELECT 1 AS `  `;
+SELECT 1 AS ` x`;
+
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+SELECT `` FROM v1;
+
+CREATE VIEW v2 AS SELECT 1 AS `  `;
+SELECT `` FROM v2;
+
+CREATE VIEW v3 AS SELECT 1 AS ` x`;
+SELECT `x` FROM v3;
+
+DROP VIEW v1, v2, v3;
+
+--enable_ps_protocol
+
 --echo End of 5.0 tests
+
+#
+# Bug #30639: limit offset,rowcount wraps when rowcount >= 2^32 in windows
+#
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+DROP TABLE t1;

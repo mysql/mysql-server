@@ -57,27 +57,27 @@ typedef struct xml_stack_st
   const char *cur;
   const char *end;
   void *user_data;
-  int  (*enter)(struct xml_stack_st *st,const char *val, uint len);
-  int  (*value)(struct xml_stack_st *st,const char *val, uint len);
-  int  (*leave_xml)(struct xml_stack_st *st,const char *val, uint len);
+  int  (*enter)(struct xml_stack_st *st,const char *val, size_t len);
+  int  (*value)(struct xml_stack_st *st,const char *val, size_t len);
+  int  (*leave_xml)(struct xml_stack_st *st,const char *val, size_t len);
 } MY_XML_PARSER;
 
 void my_xml_parser_create(MY_XML_PARSER *st);
 void my_xml_parser_free(MY_XML_PARSER *st);
-int  my_xml_parse(MY_XML_PARSER *st,const char *str, uint len);
+int  my_xml_parse(MY_XML_PARSER *st,const char *str, size_t len);
 
 void my_xml_set_value_handler(MY_XML_PARSER *st, int (*)(MY_XML_PARSER *,
 							 const char *,
-							 uint len));
+							 size_t len));
 void my_xml_set_enter_handler(MY_XML_PARSER *st, int (*)(MY_XML_PARSER *,
 							 const char *,
-							 uint len));
+							 size_t len));
 void my_xml_set_leave_handler(MY_XML_PARSER *st, int (*)(MY_XML_PARSER *,
 							 const char *,
-							 uint len));
+							 size_t len));
 void my_xml_set_user_data(MY_XML_PARSER *st, void *);
 
-uint my_xml_error_pos(MY_XML_PARSER *st);
+size_t my_xml_error_pos(MY_XML_PARSER *st);
 uint my_xml_error_lineno(MY_XML_PARSER *st);
 
 const char *my_xml_error_string(MY_XML_PARSER *st);

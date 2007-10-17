@@ -86,7 +86,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
 {
   const char *s, *end, *start, *n_end, *true_end;
   char *dummy;
-  unsigned char c;
+  uchar c;
   unsigned long i, j, k;
   ulonglong li;
   int negative;

@@ -557,6 +557,9 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       case BackupFormat::GCP_ENTRY:
 	parse_gcp_entry(signal, file_ptr, data, len);
 	break;
+      case BackupFormat::EMPTY_ENTRY:
+        // skip
+        break;
       case 0x4e444242: // 'NDBB'
 	if (check_file_version(signal, ntohl(* (data+2))) == 0)
 	{
@@ -1268,7 +1271,7 @@ Restore::check_file_version(Signal* signal, Uint32 file_version)
   {
     char buf[255];
     char verbuf[255];
-    getVersionString(file_version, 0, verbuf, sizeof(verbuf));
+    ndbGetVersionString(file_version, 0, verbuf, sizeof(verbuf));
     BaseString::snprintf(buf, sizeof(buf),
 			 "Unsupported version of LCP files found on disk, "
 			 " found: %s", verbuf);

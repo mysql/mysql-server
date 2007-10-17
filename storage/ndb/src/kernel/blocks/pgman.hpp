@@ -325,8 +325,9 @@ private:
       ,SL_CALLBACK_IO = 4
       ,SL_BUSY = 5
       ,SL_LOCKED = 6
-      ,SL_OTHER = 7
-      ,SUBLIST_COUNT = 8
+      ,SL_IDLE = 7
+      ,SL_OTHER = 8
+      ,SUBLIST_COUNT = 9
     };
 
     Uint16 m_file_no;       // disk page address set at seize
@@ -401,6 +402,7 @@ private:
   struct Param {
     Param();
     Uint32 m_max_pages;         // max number of cache pages
+    Uint32 m_lirs_stack_mult;   // in m_max_pages (around 3-10)
     Uint32 m_max_hot_pages;     // max hot cache pages (up to 99%)
     Uint32 m_max_loop_count;    // limit purely local loops
     Uint32 m_max_io_waits;

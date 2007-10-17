@@ -90,7 +90,7 @@ INSERT INTO result VALUES (@cur_val_sql_mode, 'value not restored');
 END if;
 END//
 SHOW CREATE PROCEDURE sp1;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp1	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
 BEGIN
 declare a tinyint;
@@ -104,7 +104,7 @@ INSERT INTO result VALUES (@cur_val_sql_mode, 'value restored');
 ELSE
 INSERT INTO result VALUES (@cur_val_sql_mode, 'value not restored');
 END if;
-END
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode='';
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
@@ -143,12 +143,12 @@ SET @@sql_mode='MAXDB';
 SHOW VARIABLES LIKE 'sql_mode';
 END//
 SHOW CREATE PROCEDURE sp2;
-Procedure	sql_mode	Create Procedure
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp2`()
 BEGIN
 SET @@sql_mode='MAXDB';
 SHOW VARIABLES LIKE 'sql_mode';
-END
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
 ... show value prior calling procedure
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value

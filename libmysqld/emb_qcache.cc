@@ -47,9 +47,9 @@ void Querycache_stream::store_short(ushort s)
     cur_data+= 2;
     return;
   }
-  *cur_data= ((byte *)(&s))[0];
+  *cur_data= ((uchar *)(&s))[0];
   use_next_block(TRUE);
-  *(cur_data++)= ((byte *)(&s))[1];
+  *(cur_data++)= ((uchar *)(&s))[1];
 }
 
 void Querycache_stream::store_int(uint i)
@@ -100,7 +100,7 @@ void Querycache_stream::store_ll(ulonglong ll)
   }
   memcpy(cur_data, &ll, rest_len);
   use_next_block(TRUE);
-  memcpy(cur_data, ((byte*)&ll)+rest_len, 8-rest_len);
+  memcpy(cur_data, ((uchar*)&ll)+rest_len, 8-rest_len);
   cur_data+= 8-rest_len;
 }
 
@@ -165,9 +165,9 @@ ushort Querycache_stream::load_short()
     cur_data+= 2;
     return result;
   }
-  ((byte*)&result)[0]= *cur_data;
+  ((uchar*)&result)[0]= *cur_data;
   use_next_block(FALSE);
-  ((byte*)&result)[1]= *(cur_data++);
+  ((uchar*)&result)[1]= *(cur_data++);
   return result;
 }
 
@@ -216,7 +216,7 @@ ulonglong Querycache_stream::load_ll()
   }
   memcpy(&result, cur_data, rest_len);
   use_next_block(FALSE);
-  memcpy(((byte*)&result)+rest_len, cur_data, 8-rest_len);
+  memcpy(((uchar*)&result)+rest_len, cur_data, 8-rest_len);
   cur_data+= 8-rest_len;
   return result;
 }
@@ -245,7 +245,7 @@ char *Querycache_stream::load_str(MEM_ROOT *alloc, uint *str_len)
 {
   char *result;
   *str_len= load_int();
-  if (!(result= alloc_root(alloc, *str_len + 1)))
+  if (!(result= (char*) alloc_root(alloc, *str_len + 1)))
     return 0;
   load_str_only(result, *str_len);
   return result;
@@ -259,7 +259,7 @@ int Querycache_stream::load_safe_str(MEM_ROOT *alloc, char **str, uint *str_len)
     return 0;
   }
   (*str_len)--;
-  if (!(*str= alloc_root(alloc, *str_len + 1)))
+  if (!(*str= (char*) alloc_root(alloc, *str_len + 1)))
     return 1;
   load_str_only(*str, *str_len);
   return 0;

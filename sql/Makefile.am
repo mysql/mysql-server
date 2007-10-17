@@ -27,18 +27,23 @@ SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
+
+noinst_LTLIBRARIES=	libndb.la \
+			udf_example.la
+
 SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
 			$(top_builddir)/strings/libmystrings.a
-mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS)
-LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@
-mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
+mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
+LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
+mysqld_LDADD =		libndb.la \
+			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
-                        $(yassl_libs) $(openssl_libs)
+			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
 
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
@@ -53,6 +58,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
+			rpl_reporting.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
@@ -94,19 +100,19 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			log_event_old.cc rpl_record_old.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
-                        ha_ndbcluster.cc ha_ndbcluster_cond.cc \
-		        ha_ndbcluster_binlog.cc ha_partition.cc \
+		        ha_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
 			rpl_utility.cc rpl_injector.cc rpl_rli.cc rpl_mi.cc \
+			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
-			client.c sql_client.cc mini_client_errors.c pack.c\
+			sql_client.cc \
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
-			tztime.cc my_time.c my_user.c my_decimal.cc\
+			tztime.cc my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_scheduler.cc event_data_objects.cc \
@@ -114,6 +120,13 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc
+
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+
+libndb_la_CPPFLAGS=	@ndbcluster_includes@
+libndb_la_SOURCES=	ha_ndbcluster.cc \
+			ha_ndbcluster_binlog.cc \
+			ha_ndbcluster_cond.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
@@ -138,6 +151,7 @@ DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
+# These are listed in 'nodist_mysqld_SOURCES'
 link_sources:
 	rm -f mini_client_errors.c
 	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c mini_client_errors.c
@@ -158,22 +172,7 @@ lex_hash.h:	gen_lex_hash.cc lex.h
 		./gen_lex_hash$(EXEEXT) > $@-t
 		$(MV) $@-t $@
 
-# the following four should eventually be moved out of this directory
-ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc ha_ndbcluster_cond.h
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-ha_ndbcluster_binlog.o:ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-#Until we can get rid of dependencies on ha_ndbcluster.h
-handler.o:	handler.cc ha_ndbcluster.h
-		$(CXXCOMPILE) @ndbcluster_includes@ $(CXXFLAGS) -c $<
-
 # For testing of udf_example.so
-noinst_LTLIBRARIES= udf_example.la
 udf_example_la_SOURCES= udf_example.c
 udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
 

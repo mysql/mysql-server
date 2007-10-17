@@ -1298,6 +1298,103 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
   return res;
 }
 
+int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
+{
+  int result= NDBT_OK;
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+                                                    ctx->getTab()->getName());
+
+  HugoOperations ops(*ctx->getTab(), idx);
+
+  g_err << "Using INDEX: " << pkIdxName << endl;
+
+  NdbRestarter restarter;
+
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  const int batchsize = ctx->getProperty("BatchSize", 1);
+
+  for(int bs=1; bs < loops; bs++)
+  {
+    int c= 0;
+    while (c++ < loops)
+    {
+      g_err << "BS " << bs << " LOOP #" << c << endl;
+
+      g_err << "inserting error on op#" << c << endl;
+
+      CHECK(ops.startTransaction(pNdb) == 0);
+      for(int i=1;i<=c;i++)
+      {
+        if(i==c)
+        {
+          if(restarter.insertErrorInAllNodes(inject_err)!=0)
+          {
+            g_err << "**** FAILED to insert error" << endl;
+            result= NDBT_FAILED;
+            break;
+          }
+        }
+        CHECK(ops.indexReadRecords(pNdb, pkIdxName, i,false,1) == 0);
+        if(i%bs==0 || i==c)
+        {
+          if(i<c)
+          {
+            if(ops.execute_NoCommit(pNdb, AO_IgnoreError)!=NDBT_OK)
+            {
+              g_err << "**** executeNoCommit should have succeeded" << endl;
+              result= NDBT_FAILED;
+            }
+          }
+          else
+          {
+            if(ops.execute_NoCommit(pNdb, AO_IgnoreError)!=289)
+            {
+              g_err << "**** executeNoCommit should have failed with 289"
+                    << endl;
+              result= NDBT_FAILED;
+            }
+            g_err << "NdbError.code= " <<
+              ops.getTransaction()->getNdbError().code << endl;
+            break;
+          }
+        }
+      }
+
+      CHECK(ops.closeTransaction(pNdb) == 0);
+
+      if(restarter.insertErrorInAllNodes(0) != 0)
+      {
+        g_err << "**** Failed to error insert(0)" << endl;
+        return NDBT_FAILED;
+      }
+
+      CHECK(ops.startTransaction(pNdb) == 0);
+      if (ops.indexReadRecords(pNdb, pkIdxName,0,0,rows) != 0){
+        g_err << "**** Index read failed" << endl;
+        return NDBT_FAILED;
+      }
+      CHECK(ops.closeTransaction(pNdb) == 0);
+    }
+  }
+
+  return result;
+}
+
+int
+runBug28804(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return tcSaveINDX_test(ctx, step, 8052);
+}
+
+int
+runBug28804_ATTRINFO(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return tcSaveINDX_test(ctx, step, 8051);
+}
+
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
 	 "Test that we can create all various indexes on each table\n"
@@ -1628,6 +1725,27 @@ TESTCASE("Bug25059",
   INITIALIZER(runLoadTable);
   STEP(runBug25059);
   FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("Bug28804",
+	 "Test behaviour on out of TransactionBufferMemory for index lookup"){
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(runClearTable);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug28804);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug28804_ATTRINFO",
+	 "Test behaviour on out of TransactionBufferMemory for index lookup"
+         " in saveINDXATTRINFO"){
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(runClearTable);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug28804_ATTRINFO);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testIndex);
 
