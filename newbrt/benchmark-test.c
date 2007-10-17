@@ -18,11 +18,14 @@ enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATI
 
 enum { NODE_SIZE = 1<<20 };
 
+int nodesize = NODE_SIZE;
+int keysize = sizeof (long long);
+int valsize = sizeof (long long);
+
 CACHETABLE ct;
 BRT t;
 
-void setup (int nodesize) {
-    printf("nodesize=%d\n", nodesize);
+void setup (void) {
     int r;
     unlink(fname);
     r = brt_create_cachetable(&ct, 0); assert(r==0);
@@ -41,11 +44,13 @@ void long_long_to_array (unsigned char *a, unsigned long long l) {
 }
 
 void insert (long long v) {
-    unsigned char kc[8], vc[8];
+    unsigned char kc[keysize], vc[valsize];
     DBT  kt, vt;
+    memset(kc, 0, sizeof kc);
     long_long_to_array(kc, v);
+    memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    brt_insert(t, fill_dbt(&kt, kc, 8), fill_dbt(&vt, vc, 8), 0, 0);
+    brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0, 0);
 }
 
 void serial_insert_from (long long from) {
@@ -89,13 +94,10 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 }
 
 void usage() {
-    printf("benchmark-test [--nodesize NODESIZE] [TOTALITEMS]\n");
+    printf("benchmark-test [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [TOTALITEMS]\n");
 }
 
 int main (int argc, char *argv[]) {
-    /* set defaults */
-    int nodesize = NODE_SIZE;
-
     /* parse parameters */
     int i;
     for (i=1; i<argc; i++) {
@@ -106,6 +108,22 @@ int main (int argc, char *argv[]) {
             if (i+1 < argc) {
                 i++;
                 nodesize = atoi(argv[i]);
+            }
+            continue;
+        }
+
+        if (strcmp(arg, "--keysize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                keysize = atoi(argv[i]);
+            }
+            continue;
+        }
+
+        if (strcmp(arg, "--valsize") == 0) {
+            if (i+1 < argc) {
+                i++;
+                valsize = atoi(argv[i]);
             }
             continue;
         }
@@ -127,8 +145,11 @@ int main (int argc, char *argv[]) {
 	total_n_items = 1LL<<22; // 1LL<<16
     }
 
+    printf("nodesize=%d\n", nodesize);
+    printf("keysize=%d\n", keysize);
+    printf("valsize=%d\n", valsize);
     printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
-    setup(nodesize);
+    setup();
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
