@@ -4003,6 +4003,7 @@ no_gap_lock:
 			mutex_enter(&kernel_mutex);
 			if (trx->was_chosen_as_deadlock_victim) {
 				mutex_exit(&kernel_mutex);
+				err = DB_DEADLOCK;
 
 				goto lock_wait_or_error;
 			}
