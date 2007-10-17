@@ -1201,5 +1201,11 @@ DROP VIEW v1;
 #
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME ='information_schema';
+                                                                                                 
+#
+# Bug#31381 Error in retrieving Data from INFORMATION_SCHEMA
+#
+SELECT TABLE_COLLATION FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 
 --echo End of 5.1 tests.
