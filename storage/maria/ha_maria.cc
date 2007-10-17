@@ -95,7 +95,8 @@ static MYSQL_SYSVAR_ULONG(checkpoint_frequency, maria_checkpoint_frequency,
        PLUGIN_VAR_RQCMDARG,
        "Frequency of automatic checkpoints, in seconds;"
        " 0 means 'no checkpoints'.",
-       NULL, update_checkpoint_frequency, 30, 0, UINT_MAX, 1);
+                          /* disabled for now */
+       NULL, update_checkpoint_frequency, 0, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
@@ -2541,6 +2542,7 @@ static struct st_mysql_sys_var* system_variables[]= {
    checkpoint frequency. So when the user wants to modify it, we stop and
    restart the thread.
 */
+
 static void update_checkpoint_frequency(MYSQL_THD thd,
                                         struct st_mysql_sys_var *var,
                                         void *var_ptr, void *save)

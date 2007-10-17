@@ -28,7 +28,7 @@
 #include "trnman.h"
 #include <m_ctype.h>
 #include <my_bit.h>
-
+#include "ma_checkpoint.h"
 
 #define STANDARD_LENGTH 37
 #define MARIA_KEYS 6
@@ -51,7 +51,7 @@ static	int verbose=0,testflag=0,
             opt_quick_mode=0, transactional= 0, skip_update= 0,
             die_in_middle_of_transaction= 0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1;
-static int create_flag= 0, srand_arg= 0;
+static int create_flag= 0, srand_arg= 0, checkpoint= 0;
 static ulong pagecache_size=IO_SIZE*16;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
 		    0, 0, maria_log_pagecache,
 		    TRANSLOG_DEFAULT_FLAGS) ||
-      (transactional && trnman_init(0)))
+      (transactional && (trnman_init(0) || ma_checkpoint_init(FALSE))))
   {
     fprintf(stderr, "Error in initialization");
     exit(1);
@@ -240,6 +240,8 @@ int main(int argc, char *argv[])
   maria_begin(file);
   if (testflag == 1)
     goto end;
+  if (checkpoint == 1 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
   if (!silent)
     printf("- Writing key:s\n");
   if (locking)
@@ -302,6 +304,8 @@ int main(int argc, char *argv[])
   }
   if (testflag == 2)
     goto end;
+  if (checkpoint == 2 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (write_cacheing)
   {
@@ -353,6 +357,8 @@ int main(int argc, char *argv[])
   }
   if (testflag == 3)
     goto end;
+  if (checkpoint == 3 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (!silent)
     printf("- Update\n");
@@ -414,6 +420,8 @@ int main(int argc, char *argv[])
   }
   if (testflag == 4)
     goto end;
+  if (checkpoint == 4 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   for (i=999, dupp_keys=j=0 ; i>0 ; i--)
   {
@@ -824,6 +832,8 @@ int main(int argc, char *argv[])
 
   if (testflag == 5)
     goto end;
+  if (checkpoint == 5 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (!silent)
     printf("- Removing keys\n");
@@ -1056,6 +1066,9 @@ static void get_options(int argc, char **argv)
     case 'f':
       if ((first_key=atoi(++pos)) < 0 || first_key >= MARIA_KEYS)
 	first_key=0;
+      break;
+    case 'H':
+      checkpoint= atoi(++pos);
       break;
     case 'k':
       if ((keys=(uint) atoi(++pos)) < 1 ||
