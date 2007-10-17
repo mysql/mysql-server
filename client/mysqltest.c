@@ -3063,6 +3063,12 @@ void do_change_user(struct st_command *command)
                      sizeof(change_user_args)/sizeof(struct command_arg),
                      ',');
 
+  if (cur_con->stmt)
+  {
+    mysql_stmt_close(cur_con->stmt);
+    cur_con->stmt= NULL;
+  }
+
   if (!ds_user.length)
     dynstr_set(&ds_user, mysql->user);
 
