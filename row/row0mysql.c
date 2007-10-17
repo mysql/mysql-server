@@ -3959,8 +3959,10 @@ row_scan_and_check_index(
 	ulint		i;
 	ulint		cnt;
 	mem_heap_t*	heap		= NULL;
+	mem_heap_t*	tmp_heap;
+	ulint		n_ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
+	ulint*		offsets;
 	rec_offs_init(offsets_);
 
 	*n_rows = 0;
@@ -4007,12 +4009,13 @@ func_exit:
 
 	rec = buf + mach_read_from_4(buf);
 
+	offsets = rec_get_offsets(rec, index, offsets_,
+				  ULINT_UNDEFINED, &heap);
+
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 		matched_bytes = 0;
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
 		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
 						&matched_fields,
 						&matched_bytes);
@@ -4056,10 +4059,24 @@ not_ok:
 		}
 	}
 
-	mem_heap_empty(heap);
-	offsets = offsets_;
+	/* Empty the heap on each round.  But preserve offsets[]
+	for the row_rec_to_index_entry() call, by copying them
+	into a separate memory heap when needed. */
+	if (offsets != offsets_) {
+		ulint	size = rec_offs_get_n_alloc(offsets) * sizeof *offsets;
 
-	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+		tmp_heap = mem_heap_create(size);
+		offsets = mem_heap_dup(tmp_heap, offsets, size);
+	}
+
+	mem_heap_empty(heap);
+
+	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
+					    index, offsets, &n_ext, heap);
+
+	if (offsets != offsets_) {
+		mem_heap_free(tmp_heap);
+	}
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 

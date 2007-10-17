@@ -485,13 +485,13 @@ sel_pop_prefetched_row(
 
 			ut_ad(!column->prefetch_buf);
 			ut_ad(que_node_get_val_buf_size(column) == 0);
-#ifdef UNIV_DEBUG
-			dfield_set_data(val, NULL, 0);
-#endif
+			ut_d(dfield_set_null(val));
+
 			goto next_col;
 		}
 
 		ut_ad(column->prefetch_buf);
+		ut_ad(!dfield_is_ext(val));
 
 		sel_buf = column->prefetch_buf + plan->first_prefetched;
 

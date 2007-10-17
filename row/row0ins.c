@@ -2243,6 +2243,10 @@ row_ins_index_entry_set_vals(
 		}
 
 		dfield_set_data(field, row_field->data, len);
+		if (dfield_is_ext(row_field)) {
+			ut_ad(dict_index_is_clust(index));
+			dfield_set_ext(field);
+		}
 	}
 }
 

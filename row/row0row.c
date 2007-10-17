@@ -220,11 +220,11 @@ row_build(
 			= dict_index_get_nth_field(index, i);
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
+		dfield_t*		dfield
+			= dtuple_get_nth_field(row, dict_col_get_no(col));
 
 		if (ind_field->prefix_len == 0) {
 
-			dfield_t*	dfield = dtuple_get_nth_field(
-				row, dict_col_get_no(col));
 			const byte*	field = rec_get_nth_field(
 				rec, offsets, i, &len);
 
@@ -233,6 +233,7 @@ row_build(
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ext_cols[j++] = dict_col_get_no(col);
+			dfield_set_ext(dfield);
 		}
 	}
 
@@ -260,17 +261,16 @@ Converts an index record to a typed data tuple. */
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
-				/* out: index entry built; does not
-				set info_bits, and the data fields in
-				the entry will point directly to rec */
-	const rec_t*	rec,	/* in: record in the index */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint*		n_ext,	/* out: number of externally stored columns;
-				if this is passed as NULL, such columns are
-				not flagged nor counted */
-	mem_heap_t*	heap)	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out: index entry built; does not
+					set info_bits, and the data fields in
+					the entry will point directly to rec */
+	const rec_t*		rec,	/* in: record in the index */
+	const dict_index_t*	index,	/* in: index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	ulint*			n_ext,	/* out: number of externally
+					stored columns */
+	mem_heap_t*		heap)	/* in: memory heap from which
+					the memory needed is allocated */
 {
 	dtuple_t*	entry;
 	dfield_t*	dfield;
@@ -280,6 +280,9 @@ row_rec_to_index_entry_low(
 	ulint		rec_len;
 
 	ut_ad(rec && heap && index);
+	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(n_ext);
+	*n_ext = 0;
 
 	rec_len = rec_offs_n_fields(offsets);
 
@@ -298,7 +301,7 @@ row_rec_to_index_entry_low(
 
 		dfield_set_data(dfield, field, len);
 
-		if (n_ext && rec_offs_nth_extern(offsets, i)) {
+		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 			(*n_ext)++;
 		}
@@ -316,34 +319,35 @@ stored (often big) fields are NOT copied to heap. */
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-				/* out, own: index entry built; see the
-				NOTE below! */
-	ulint		type,	/* in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
-				the former copies also the data fields to
-				heap as the latter only places pointers to
-				data fields on the index page */
-	dict_index_t*	index,	/* in: index */
-	const rec_t*	rec,	/* in: record in the index;
-				NOTE: in the case ROW_COPY_POINTERS
-				the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the dtuple is used! */
-	mem_heap_t*	heap)	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out, own: index entry
+					built; see the NOTE below! */
+	ulint			type,	/* in: ROW_COPY_DATA, or
+					ROW_COPY_POINTERS: the former
+					copies also the data fields to
+					heap as the latter only places
+					pointers to data fields on the
+					index page */
+	const rec_t*		rec,	/* in: record in the index;
+					NOTE: in the case
+					ROW_COPY_POINTERS the data
+					fields in the row will point
+					directly into this record,
+					therefore, the buffer page of
+					this record must be at least
+					s-latched and the latch held
+					as long as the dtuple is used! */
+	const dict_index_t*	index,	/* in: index */
+	ulint*			offsets,/* in/out: rec_get_offsets(rec) */
+	ulint*			n_ext,	/* out: number of externally
+					stored columns */
+	mem_heap_t*		heap)	/* in: memory heap from which
+					the memory needed is allocated */
 {
 	dtuple_t*	entry;
 	byte*		buf;
-	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	ut_ad(rec && heap && index);
-
-	offsets = rec_get_offsets(rec, index, offsets,
-				  ULINT_UNDEFINED, &tmp_heap);
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -353,14 +357,10 @@ row_rec_to_index_entry(
 		rec_offs_make_valid(rec, index, offsets);
 	}
 
-	entry = row_rec_to_index_entry_low(rec, index, offsets, NULL, heap);
+	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
-
-	if (UNIV_LIKELY_NULL(tmp_heap)) {
-		mem_heap_free(tmp_heap);
-	}
 
 	return(entry);
 }
@@ -378,7 +378,7 @@ row_build_row_ref(
 				the former copies also the data fields to
 				heap, whereas the latter only places pointers
 				to data fields on the index page */
-	dict_index_t*	index,	/* in: index */
+	dict_index_t*	index,	/* in: secondary index */
 	const rec_t*	rec,	/* in: record in the index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point
@@ -406,9 +406,12 @@ row_build_row_ref(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && rec && heap);
+	ut_ad(!dict_index_is_clust(index));
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);
+	/* Secondary indexes must not contain externally stored columns. */
+	ut_ad(!rec_offs_any_extern(offsets));
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -537,6 +540,8 @@ notfound:
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
+	/* Secondary indexes must not contain externally stored columns. */
+	ut_ad(!rec_offs_any_extern(offsets));
 	ref_len = dict_index_get_n_unique(clust_index);
 
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
@@ -628,6 +633,7 @@ row_build_row_ref_from_row(
 		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
 
 		dfield_copy(dfield, dfield2);
+		ut_ad(!dfield_is_ext(dfield));
 
 		if (field->prefix_len > 0 && !dfield_is_null(dfield)) {
 
