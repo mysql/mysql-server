@@ -7986,4 +7986,74 @@ DROP VIEW v2;
 
 ###########################################################################
 
+#
+# Bug#24923: Functions with ENUM issues.
+#
+
+###########################################################################
+
+--echo #
+--echo # - Bug#24923: prepare.
+--echo #
+
+--echo
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--echo
+
+--echo #
+--echo # - Bug#24923: create required objects.
+--echo #
+
+--echo
+
+delimiter |;
+
+CREATE FUNCTION f1(p INT)
+  RETURNS ENUM ('Very_long_enum_element_identifier',
+                'Another_very_long_enum_element_identifier')
+  BEGIN
+    CASE p
+    WHEN 1 THEN
+      RETURN 'Very_long_enum_element_identifier';
+    ELSE
+      RETURN 'Another_very_long_enum_element_identifier';
+    END CASE;
+  END|
+
+delimiter ;|
+
+--echo
+
+--echo #
+--echo # - Bug#24923: check.
+--echo #
+
+--echo
+
+SELECT f1(1);
+
+--echo
+
+SELECT f1(2);
+
+--echo
+
+SHOW CREATE FUNCTION f1;
+
+--echo #
+--echo # - Bug#24923: cleanup.
+--echo #
+
+--echo
+
+DROP FUNCTION f1;
+
+--echo
+
+###########################################################################
+
 --echo End of 5.1 tests

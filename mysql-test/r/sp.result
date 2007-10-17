@@ -6860,4 +6860,55 @@ DROP FUNCTION f2;
 DROP VIEW v1;
 DROP VIEW v2;
 
+#
+# - Bug#24923: prepare.
+#
+
+DROP FUNCTION IF EXISTS f1;
+
+#
+# - Bug#24923: create required objects.
+#
+
+CREATE FUNCTION f1(p INT)
+RETURNS ENUM ('Very_long_enum_element_identifier',
+'Another_very_long_enum_element_identifier')
+BEGIN
+CASE p
+WHEN 1 THEN
+RETURN 'Very_long_enum_element_identifier';
+ELSE
+RETURN 'Another_very_long_enum_element_identifier';
+END CASE;
+END|
+
+#
+# - Bug#24923: check.
+#
+
+SELECT f1(1);
+f1(1)
+Very_long_enum_element_identifier
+
+SELECT f1(2);
+f1(2)
+Another_very_long_enum_element_identifier
+
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(p INT) RETURNS enum('Very_long_enum_element_identifier','Another_very_long_enum_element_identifier') CHARSET latin1
+BEGIN
+CASE p
+WHEN 1 THEN
+RETURN 'Very_long_enum_element_identifier';
+ELSE
+RETURN 'Another_very_long_enum_element_identifier';
+END CASE;
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+#
+# - Bug#24923: cleanup.
+#
+
+DROP FUNCTION f1;
+
 End of 5.1 tests
