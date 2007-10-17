@@ -1699,8 +1699,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
               display_record_position(log_desc2, &rec2, 0);
               if (apply == MARIA_LOG_CHECK)
               {
+                translog_size_t read_len;
                 enlarge_buffer(&rec2);
-                translog_size_t read_len=
+                read_len=
                   translog_read_record(rec2.lsn, 0, rec2.record_length,
                                        log_record_buffer.str, NULL);
                 if (read_len != rec2.record_length)
