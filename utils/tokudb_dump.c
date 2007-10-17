@@ -46,7 +46,9 @@ int main(int argc, char *argv[]) {
    /* Set up the globals. */
    memset(&g, 0, sizeof(g));
    g.leadingspace   = true;
-   g.dbtype         = DB_UNKNOWN;
+   //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
+   //g.dbtype         = DB_UNKNOWN;
+   g.dbtype         = DB_BTREE;
    g.progname       = argv[0];
    g.header         = true;
    g.footer         = true;
@@ -80,14 +82,16 @@ int main(int argc, char *argv[]) {
             break;
          }
          case ('R'): {
-            g.recover_flags |= DB_SALVAGE | DB_AGGRESSIVE;
+            //TODO: Uncomment when DB_SALVAGE,DB_AGGRESSIVE are implemented.
+            /*g.recover_flags |= DB_SALVAGE | DB_AGGRESSIVE;*/
 
             //TODO: Implement aggressive recovery (requires db->verify())
             ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('r'): {
-            g.recover_flags |= DB_SALVAGE;
+            //TODO: Uncomment when DB_SALVAGE,DB_AGGRESSIVE are implemented.
+            /*g.recover_flags |= DB_SALVAGE;*/
 
             //TODO: Implement recovery (requires db->verify())
             ERRORX("-%c option not supported.\n", ch);
@@ -133,7 +137,9 @@ int main(int argc, char *argv[]) {
    }
    argc -= optind;
    argv += optind;
-   
+
+   //TODO: Uncomment when DB_SALVAGE,DB_AGGRESSIVE,DB_PRINTABLE,db->verify are implemented.
+   /*
    if (g.plaintext) g.recover_flags |= DB_PRINTABLE;
 
    if (g.subdatabase != NULL && IS_SET_ALL(g.recover_flags, DB_SALVAGE)) {
@@ -145,6 +151,7 @@ int main(int argc, char *argv[]) {
       goto error;
       
    }
+   */
 
    if (argc != 1) {
       g.exitcode = usage();
@@ -286,7 +293,8 @@ int dump_header()
    assert(g.header);
    printf("VERSION=3\n");
    printf("format=%s\n", g.plaintext ? "print" : "bytevalue");
-   assert(g.dbtype == DB_BTREE || (g.dbtype == DB_UNKNOWN && g.opened_dbtype == DB_BTREE));
+   //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
+   /*assert(g.dbtype == DB_BTREE || (g.dbtype == DB_UNKNOWN && g.opened_dbtype == DB_BTREE));*/
    printf("type=btree\n");
    //TODO: Get page size from db.  Currently tokudb does not support db->get_pagesize.
    printf("db_pagesize=4096\n");
@@ -295,6 +303,8 @@ int dump_header()
       outputplaintextstring(g.subdatabase);
       printf("\n");      
    }
+   //TODO: Uncomment when db->get_flags is implemented
+   /*
    if ((retval = db->get_flags(db, &flags)) != 0) {
       ERROR(retval, "DB->get_flags");
       goto error;
@@ -302,7 +312,7 @@ int dump_header()
    DUMP_IGNORED_FLAG(DB_CHKSUM,    "chksum=1");
    DUMP_FLAG(        DB_DUP,       "duplicates=1");
    DUMP_IGNORED_FLAG(DB_DUPSORT,   "dupsort=1");
-   DUMP_IGNORED_FLAG(DB_RECNUM,    "recnum=1");
+   DUMP_IGNORED_FLAG(DB_RECNUM,    "recnum=1");*/
    printf("HEADER=END\n");
    
    if (ferror(stdout)) goto error;
@@ -336,6 +346,8 @@ int open_database()
       ERROR(retval, "DB->open: %s", g.database);
       goto error;
    }
+   //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
+   /*
    retval = db->get_type(db, &g.opened_dbtype);
    if (retval != 0) {
       ERROR(retval, "DB->get_type");
@@ -348,7 +360,7 @@ int open_database()
    if (g.dbtype != DB_UNKNOWN && g.opened_dbtype != g.dbtype) {
       ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, g.opened_dbtype);
       goto error;
-   }
+   }*/
    return EXIT_SUCCESS;
 error:
    fprintf(stderr, "Quitting out due to errors.\n");

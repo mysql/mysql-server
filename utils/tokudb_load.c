@@ -59,7 +59,8 @@ int main(int argc, char *argv[]) {
    memset(&g, 0, sizeof(g));
    g.leadingspace   = true;
    g.overwritekeys  = true;
-   g.dbtype         = DB_UNKNOWN;
+   //TODO: g.dbtype         = DB_UNKNOWN; when defined.
+   g.dbtype         = DB_BTREE;
    g.progname       = argv[0];
    g.header         = true;
    
@@ -591,20 +592,24 @@ int open_database()
 
    //Try to see if it exists first.
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
-   if (retval != 0) {
+   if (retval == ENOENT) {
       //Does not exist and we did not specify a type.
+      //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
+      /*
       if (g.dbtype == DB_UNKNOWN) {
          ERRORX("no database type specified");
          goto error;
-      }
+      }*/
       SET_BITS(open_flags, DB_CREATE);
       //Try creating it.
       retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
-      if (retval != 0) {
-         ERROR(retval, "DB->open: %s", g.database);
-         goto error;
-      }
    }
+   if (retval != 0) {
+      ERROR(retval, "DB->open: %s", g.database);
+      goto error;
+   }
+   //TODO: Uncomment when DB_UNKNOWN + db->get_type are implemented.
+   /*
    if ((retval = db->get_type(db, &opened_type)) != 0) {
       ERROR(retval, "DB->get_type");
       goto error;
@@ -616,7 +621,7 @@ int open_database()
    if (g.dbtype != DB_UNKNOWN && opened_type != g.dbtype) {
       ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, opened_type);
       goto error;
-   }
+   }*/
    return EXIT_SUCCESS;
 error:
    fprintf(stderr, "Quitting out due to errors.\n");
