@@ -759,7 +759,9 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
 {
-  const char* errmsg= 0;
+  char error_buf[512];
+  String err_msg(error_buf, sizeof(error_buf), &my_charset_bin);
+  err_msg.length(0);
   DBUG_ENTER("get_master_version_and_clock");
 
   /*
@@ -770,7 +772,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   mi->rli.relay_log.description_event_for_queue= 0;
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
-    errmsg = "Master reported unrecognized MySQL version";
+    err_msg.append("Master reported unrecognized MySQL version");
   else
   {
     /*
@@ -781,7 +783,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
     case '0':
     case '1':
     case '2':
-      errmsg = "Master reported unrecognized MySQL version";
+      err_msg.append("Master reported unrecognized MySQL version");
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
@@ -813,9 +815,9 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
      events sent by the master, and there will be error messages.
   */
 
-  if (errmsg)
+  if (err_msg.length() != 0)
   {
-    sql_print_error(errmsg);
+    sql_print_error(err_msg.ptr());
     DBUG_RETURN(1);
   }
 
@@ -871,10 +873,10 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
     if ((master_row= mysql_fetch_row(master_res)) &&
         (::server_id == (master_server_id= strtoul(master_row[1], 0, 10))) &&
         !mi->rli.replicate_same_server_id)
-      errmsg= "The slave I/O thread stops because master and slave have equal \
-MySQL server ids; these ids must be different for replication to work (or \
-the --replicate-same-server-id option must be used on slave but this does \
-not always make sense; please check the manual before using it).";
+      err_msg.append("The slave I/O thread stops because master and slave have equal"
+                     " MySQL server ids; these ids must be different for replication to work (or"
+                     " the --replicate-same-server-id option must be used on slave but this does"
+                     " not always make sense; please check the manual before using it).");
     mysql_free_result(master_res);
     mi->master_server_id= (uint32)master_server_id;
   }
@@ -907,9 +909,9 @@ not always make sense; please check the manual before using it).";
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0], global_system_variables.collation_server->name))
-      errmsg= "The slave I/O thread stops because master and slave have \
-different values for the COLLATION_SERVER global variable. The values must \
-be equal for replication to work";
+      err_msg.append("The slave I/O thread stops because master and slave have"
+                     " different values for the COLLATION_SERVER global variable."
+                     " The values must be equal for replication to work");
     mysql_free_result(master_res);
   }
 
@@ -935,11 +937,10 @@ be equal for replication to work";
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0],
                global_system_variables.time_zone->get_name()->ptr()))
-      errmsg= "The slave I/O thread stops because master and slave have \
-different values for the TIME_ZONE global variable. The values must \
-be equal for replication to work";
+      err_msg.append("The slave I/O thread stops because master and slave have"
+                     " different values for the TIME_ZONE global variable."
+                     " The values must be equal for replication to work");
     mysql_free_result(master_res);
-    goto err;
   }
 
   if (mi->heartbeat_period != 0.0)
@@ -955,15 +956,24 @@ be equal for replication to work";
 
     if (mysql_real_query(mysql, query, strlen(query)))
     {
-      errmsg= "The slave I/O thread stops because querying the master failed";
+      err_msg.append("The slave I/O thread stops because querying master with '");
+      err_msg.append(query);
+      err_msg.append("' failed;");
+      err_msg.append(" error: ");
+      err_msg.qs_append(mysql_errno(mysql));
+      err_msg.append("  '");
+      err_msg.append(mysql_error(mysql));
+      err_msg.append("'");
+      mysql_free_result(mysql_store_result(mysql));
       goto err;
     }
+    mysql_free_result(mysql_store_result(mysql));
   }
   
 err:
-  if (errmsg)
+  if (err_msg.length() != 0)
   {
-    sql_print_error(errmsg);
+    sql_print_error(err_msg.ptr());
     DBUG_RETURN(1);
   }
 
