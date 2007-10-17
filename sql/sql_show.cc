@@ -3487,6 +3487,10 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
 
+    tmp_buff= (share->table_charset ?
+               share->table_charset->name : "default");
+    table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
+
     if (share->comment.str)
       table->field[20]->store(share->comment.str, share->comment.length, cs);
 
@@ -3564,9 +3568,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
         table->field[16]->set_notnull();
       }
-      tmp_buff= (share->table_charset ?
-                 share->table_charset->name : "default");
-      table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
       if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
       {
         table->field[18]->store((longlong) file->checksum(), TRUE);
