@@ -678,9 +678,9 @@ fi
 # Add query profiler
 AC_MSG_CHECKING(if SHOW PROFILE should be enabled.)
 AC_ARG_ENABLE(profiling,
-    AS_HELP_STRING([--disable-profiling], [Build a version without query profiling code]),
+    AS_HELP_STRING([--enable-profiling], [Build a version with query profiling code (req. community-features)]),
     [ ENABLED_PROFILING=$enableval ],
-    [ ENABLED_PROFILING=$is_this_community_tree ])
+    [ ENABLED_PROFILING=$ENABLE_COMMUNITY_FEATURES ])
 
 if test "$ENABLED_PROFILING" = "yes"
 then
