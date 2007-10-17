@@ -682,6 +682,10 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
   CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
+  enum_check_fields saved_count_cuted_fields;
+
+  bool store_failed= FALSE;
+
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
@@ -695,6 +699,9 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     statement.
   */
   thd->clear_current_stmt_binlog_row_based();
+
+  saved_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
 
   if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
@@ -725,43 +732,77 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_BODY_TOO_LONG;
       goto done;
     }
-    table->field[MYSQL_PROC_FIELD_DB]->
-      store(sp->m_db.str, sp->m_db.length, system_charset_info);
-    table->field[MYSQL_PROC_FIELD_NAME]->
-      store(sp->m_name.str, sp->m_name.length, system_charset_info);
-    table->field[MYSQL_PROC_MYSQL_TYPE]->
-      store((longlong)type, TRUE);
-    table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
-      store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    store_failed=
+      table->field[MYSQL_PROC_FIELD_DB]->
+        store(sp->m_db.str, sp->m_db.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_MYSQL_TYPE]->
+        store((longlong)type, TRUE);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
     if (sp->m_chistics->daccess != SP_DEFAULT_ACCESS)
-      table->field[MYSQL_PROC_FIELD_ACCESS]->
-	store((longlong)sp->m_chistics->daccess, TRUE);
-    table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
-      store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_ACCESS]->
+          store((longlong)sp->m_chistics->daccess, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
+        store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
+
     if (sp->m_chistics->suid != SP_IS_DEFAULT_SUID)
-      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
-	store((longlong)sp->m_chistics->suid, TRUE);
-    table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
-      store(sp->m_params.str, sp->m_params.length, system_charset_info);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
+          store((longlong)sp->m_chistics->suid, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
+        store(sp->m_params.str, sp->m_params.length, system_charset_info);
+
     if (sp->m_type == TYPE_ENUM_FUNCTION)
     {
       String retstr(64);
       sp_returns_type(thd, retstr, sp);
-      table->field[MYSQL_PROC_FIELD_RETURNS]->
-	store(retstr.ptr(), retstr.length(), system_charset_info);
+
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_RETURNS]->
+          store(retstr.ptr(), retstr.length(), system_charset_info);
     }
-    table->field[MYSQL_PROC_FIELD_BODY]->
-      store(sp->m_body.str, sp->m_body.length, system_charset_info);
-    table->field[MYSQL_PROC_FIELD_DEFINER]->
-      store(definer, (uint)strlen(definer), system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY]->
+        store(sp->m_body.str, sp->m_body.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DEFINER]->
+        store(definer, (uint)strlen(definer), system_charset_info);
+
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
-    table->field[MYSQL_PROC_FIELD_SQL_MODE]->
-      store((longlong)thd->variables.sql_mode, TRUE);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SQL_MODE]->
+        store((longlong)thd->variables.sql_mode, TRUE);
+
     if (sp->m_chistics->comment.str)
-      table->field[MYSQL_PROC_FIELD_COMMENT]->
-	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
-	      system_charset_info);
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_COMMENT]->
+          store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
+                system_charset_info);
+    }
 
     if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
         !trust_function_creators && mysql_bin_log.is_open())
@@ -794,24 +835,34 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     }
 
     table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
-      thd->charset()->csname,
-      strlen(thd->charset()->csname),
-      system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
+        thd->charset()->csname,
+        strlen(thd->charset()->csname),
+        system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
-      thd->variables.collation_connection->name,
-      strlen(thd->variables.collation_connection->name),
-      system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
+        thd->variables.collation_connection->name,
+        strlen(thd->variables.collation_connection->name),
+        system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_DB_COLLATION]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
-      db_cs->name, strlen(db_cs->name), system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
+        db_cs->name, strlen(db_cs->name), system_charset_info);
 
     table->field[MYSQL_PROC_FIELD_BODY_UTF8]->set_notnull();
-    table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
-      sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
+        sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+
+    if (store_failed)
+    {
+      ret= SP_FLD_STORE_FAILED;
+      goto done;
+    }
 
     ret= SP_OK;
     if (table->file->ha_write_row(table->record[0]))
@@ -842,6 +893,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   }
 
 done:
+  thd->count_cuted_fields= saved_count_cuted_fields;
+
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
