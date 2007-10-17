@@ -206,10 +206,11 @@ DROP FUNCTION IF EXISTS metaphon;
 CREATE FUNCTION metaphon(a int) RETURNS int
 return 0;
 
+# this currently passes, and eclipse the stored function
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
---error ER_UDF_EXISTS
 eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
 
+DROP FUNCTION metaphon;
 DROP FUNCTION metaphon;
 
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
