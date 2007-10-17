@@ -3959,7 +3959,6 @@ row_scan_and_check_index(
 	ulint		i;
 	ulint		cnt;
 	mem_heap_t*	heap		= NULL;
-	mem_heap_t*	tmp_heap;
 	ulint		n_ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets;
@@ -4059,23 +4058,29 @@ not_ok:
 		}
 	}
 
-	/* Empty the heap on each round.  But preserve offsets[]
-	for the row_rec_to_index_entry() call, by copying them
-	into a separate memory heap when needed. */
-	if (offsets != offsets_) {
-		ulint	size = rec_offs_get_n_alloc(offsets) * sizeof *offsets;
+	{
+		mem_heap_t*	tmp_heap = NULL;
 
-		tmp_heap = mem_heap_create(size);
-		offsets = mem_heap_dup(tmp_heap, offsets, size);
-	}
+		/* Empty the heap on each round.  But preserve offsets[]
+		for the row_rec_to_index_entry() call, by copying them
+		into a separate memory heap when needed. */
+		if (UNIV_UNLIKELY(offsets != offsets_)) {
+			ulint	size = rec_offs_get_n_alloc(offsets)
+				* sizeof *offsets;
 
-	mem_heap_empty(heap);
+			tmp_heap = mem_heap_create(size);
+			offsets = mem_heap_dup(tmp_heap, offsets, size);
+		}
 
-	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
-					    index, offsets, &n_ext, heap);
+		mem_heap_empty(heap);
 
-	if (offsets != offsets_) {
-		mem_heap_free(tmp_heap);
+		prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
+						    index, offsets,
+						    &n_ext, heap);
+
+		if (UNIV_LIKELY_NULL(tmp_heap)) {
+			mem_heap_free(tmp_heap);
+		}
 	}
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
