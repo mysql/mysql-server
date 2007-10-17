@@ -388,7 +388,13 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
 	    /* If the database exists at the file level, and we specified no db_name, then complain here. */
 	    if (dbname==0 && (flags&DB_CREATE)) return EEXIST;
 	} else {
-	    if (!(flags&DB_CREATE)) return ENOENT;
+	    if (!(flags&DB_CREATE)) {
+          toku_free(db->i->database_name);
+          toku_free(db->i->full_fname);
+          db->i->database_name = NULL;
+          db->i->full_fname = NULL;
+	      return ENOENT;
+	   }
 	}
     }
 

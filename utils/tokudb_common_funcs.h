@@ -9,6 +9,7 @@ if (0) g.dbenv->err(g.dbenv, retval, __VA_ARGS__);                \
 else {                                                            \
    fprintf(stderr, "%s: %s:", g.progname, db_strerror(retval));   \
    fprintf(stderr, __VA_ARGS__);                                  \
+   fprintf(stderr, "\n");                                         \
 }
 
 //DB_ENV->err disabled since it does not use db_strerror, errx does not exist.
@@ -17,6 +18,7 @@ if (0) g.dbenv->err(g.dbenv, 0, __VA_ARGS__);                     \
 else {                                                            \
    fprintf(stderr, "%s: ", g.progname);                           \
    fprintf(stderr, __VA_ARGS__);                                  \
+   fprintf(stderr, "\n");                                         \
 }
 
 int   strtoint32  (char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
