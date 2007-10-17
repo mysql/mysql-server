@@ -2924,7 +2924,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->ptr();
+          f_args.args[i]= (char*) res->c_ptr();
+          f_args.lengths[i]= res->length();
           break;
         }
         case INT_RESULT:
