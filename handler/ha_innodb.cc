@@ -7147,8 +7147,8 @@ the value of the auto-inc counter. */
 int
 ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
-						/* out: 0 or error code:
-						deadlock or lock wait timeout */
+						/* out: 0 or generic MySQL
+						error code */
         longlong*	value)			/* out: the autoinc value */
 {
 	longlong	auto_inc;
@@ -7205,9 +7205,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			++auto_inc;
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
-			fprintf(stderr, "  InnoDB error: Couldn't read the "
-				"max AUTOINC value from index (%s).\n",
-				index->name);
+			fprintf(stderr, " InnoDB error (%lu): Couldn't read "
+				"the max AUTOINC value from the index (%s).\n",
+				error, index->name);
 
 			mysql_error = 1;
 		}
@@ -7291,7 +7291,16 @@ ha_innobase::innobase_get_auto_increment(
 			} else {
 				*value = (ulonglong) autoinc;
 			}
+		/* A deadlock error during normal processing is OK
+		and can be ignored. */
+		} else if (error != DB_DEADLOCK) {
+
+			ut_print_timestamp(stderr);
+			sql_print_error(" InnoDB Error %lu in "
+					"::innobase_get_auto_increment()",
+					error);
 		}
+
 	} while (*value == 0 && error == DB_SUCCESS);
 
 	return(error);
@@ -7324,13 +7333,6 @@ ha_innobase::get_auto_increment(
 	error = innobase_get_auto_increment(&autoinc);
 
 	if (error != DB_SUCCESS) {
-		/* This should never happen in the code > ver 5.0.6,
-		since we call this function only after the counter
-		has been initialized. */
-
-		ut_print_timestamp(stderr);
-		sql_print_error("Error %lu in ::get_auto_increment()", error);
-
 		*first_value = (~(ulonglong) 0);
 		return;
 	}
