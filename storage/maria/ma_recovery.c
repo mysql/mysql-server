@@ -2256,6 +2256,13 @@ static int close_all_tables(void)
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
     pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
+    /*
+      Tables which we see here are exactly those which were open at time of
+      crash. They might have open_count>0 as Checkpoint maybe flushed their
+      state while they were used. As Recovery corrected them, don't alarm the
+      user, don't ask for a table check:
+    */
+    info->s->state.open_count= 0;
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);

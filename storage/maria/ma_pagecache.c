@@ -841,7 +841,7 @@ static int flush_all_key_blocks(PAGECACHE *pagecache)
         KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
         if (flush_pagecache_blocks_int(pagecache, &block->hash_link->file,
-                                       FLUSH_RELEASE))
+                                       FLUSH_RELEASE, NULL, NULL))
           return 1;
         break;
       }
@@ -3489,7 +3489,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   /*
      As all blocks referred in 'cache' are marked by PCBLOCK_IN_FLUSH
-     we are guarantied no thread will change them
+     we are guaranteed that no thread will change them
   */
   qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
 
@@ -3506,6 +3506,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       DBUG_PRINT("info", ("block: %u (0x%lx)  pinned",
                           PCBLOCK_NUMBER(pagecache, block), (ulong)block));
       PCBLOCK_INFO(block);
+      /* undo the mark put by flush_pagecache_blocks_int(): */
+      block->status&= ~PCBLOCK_IN_FLUSH;
       last_errno= -1;
       unreg_request(pagecache, block, 1);
       continue;
@@ -3573,11 +3575,15 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 
 
 /**
-   @brief flush all key blocks for a file to disk but don't do any mutex locks
+   @brief flush all blocks for a file to disk but don't do any mutex locks
 
    @param  pagecache       pointer to a pagecache data structure
    @param  file            handler for the file to flush to
    @param  flush_type      type of the flush
+   @param  filter          optional function which tells what blocks to flush;
+                           can be non-NULL only if FLUSH_KEEP or FLUSH_FORCE_WRITE.
+   @param  filter_arg      an argument to pass to 'filter'. Information about
+                           the block will be passed too.
 
    @note
      This function doesn't do any mutex locks because it needs to be called
@@ -3591,7 +3597,9 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 
 static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
                                       PAGECACHE_FILE *file,
-                                      enum flush_type type)
+                                      enum flush_type type,
+                                      PAGECACHE_FLUSH_FILTER filter,
+                                      void *filter_arg)
 {
   PAGECACHE_BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
@@ -3622,9 +3630,29 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 
     if (type != FLUSH_IGNORE_CHANGED)
     {
-      /*
+      /**
          Count how many key blocks we have to cache to be able
-         to flush all dirty pages with minimum seek moves
+         to flush all dirty pages with minimum seek moves.
+
+         @todo RECOVERY BUG
+         We will soon here put code to wait if another thread is flushing the
+         same file, to avoid concurrency bugs. Examples of concurrency bugs
+         which happened without serialization:
+         - assume maria_chk_size() (via CHECK TABLE) happens
+         concurrently with Checkpoint: Checkpoint may be flushing a page, and
+         maria_chk_size() wants to flush this page too so gets an error
+         because Checkpoint pinned this page. Such error leads to marking the
+         table corrupted.
+         - assume maria_close() happens concurrently with Checkpoint:
+         Checkpoint may be flushing a page, and maria_close() flushes this
+         page too with FLUSH_RELEASE: the FLUSH_RELEASE will cause a
+         free_block() which assumes the page is in the LRU, but it is not (as
+         Checkpoint is flushing it). Crash.
+         - assume two flushes of the same file happen concurrently (like
+         above), and a third thread is pushing a page of this file out of the
+         LRU and runs first. Then one flusher will remove the page from
+         changed_blocks[] and put it in its first_in_switch, so the other
+         flusher will not see the page at all and return too early.
       */
       for (block= pagecache->changed_blocks[FILE_HASH(*file)] ;
            block;
@@ -3659,7 +3687,19 @@ restart:
       KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
       next= block->next_changed;
-      if (block->hash_link->file.file == file->file)
+      if (block->hash_link->file.file != file->file)
+        continue;
+      if (filter != NULL)
+      {
+        int filter_res= (*filter)(block->type, block->hash_link->pageno,
+                                  block->rec_lsn, filter_arg);
+        DBUG_PRINT("info",("filter returned %d", filter_res));
+        if (filter_res == FLUSH_FILTER_SKIP_TRY_NEXT)
+          continue;
+        if (filter_res == FLUSH_FILTER_SKIP_ALL)
+          break;
+        DBUG_ASSERT(filter_res == FLUSH_FILTER_OK);
+      }
       {
         /*
            Mark the block with BLOCK_IN_FLUSH in order not to let
@@ -3775,6 +3815,11 @@ restart:
     /* The following happens very seldom */
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
     {
+      /*
+        this code would free all blocks while filter maybe handled only a
+        few, that is not possible.
+      */
+      DBUG_ASSERT(filter == NULL);
 #if defined(PAGECACHE_DEBUG)
       cnt=0;
 #endif
@@ -3810,23 +3855,27 @@ restart:
 }
 
 
-/*
-  Flush all blocks for a file to disk
+/**
+   @brief flush all blocks for a file to disk
 
-  SYNOPSIS
+   @param  pagecache       pointer to a pagecache data structure
+   @param  file            handler for the file to flush to
+   @param  flush_type      type of the flush
+   @param  filter          optional function which tells what blocks to flush;
+                           can be non-NULL only if FLUSH_KEEP or FLUSH_FORCE_WRITE.
+   @param  filter_arg      an argument to pass to 'filter'. Information about
+                           the block will be passed too.
 
-    flush_pagecache_blocks()
-      pagecache            pointer to a page cache data structure
-      file                handler for the file to flush to
-      flush_type          type of the flush
-
-  RETURN
-    0  OK
-    1  error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
-int flush_pagecache_blocks(PAGECACHE *pagecache,
-                           PAGECACHE_FILE *file, enum flush_type type)
+int flush_pagecache_blocks_with_filter(PAGECACHE *pagecache,
+                                       PAGECACHE_FILE *file,
+                                       enum flush_type type,
+                                       PAGECACHE_FLUSH_FILTER filter,
+                                       void *filter_arg)
 {
   int res;
   DBUG_ENTER("flush_pagecache_blocks");
@@ -3836,7 +3885,7 @@ int flush_pagecache_blocks(PAGECACHE *pagecache,
     DBUG_RETURN(0);
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   inc_counter_for_resize_op(pagecache);
-  res= flush_pagecache_blocks_int(pagecache, file, type);
+  res= flush_pagecache_blocks_int(pagecache, file, type, filter, filter_arg);
   dec_counter_for_resize_op(pagecache);
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(res);

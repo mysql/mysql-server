@@ -126,16 +126,22 @@ echo "Testing the REDO AND UNDO PHASE"
 # Then we run it again and let it exit at T2. Then we compare
 # and expect identity.
 
+for take_checkpoint in "no" "yes"
+do
 for blobs in "" "-b" # we test table without blobs and then table with blobs
 do
   for test_undo in 1 2 3
   do
   # first iteration tests rollback of insert, second tests rollback of delete
-  set -- "ma_test1 $silent -M -T -c -N $blobs" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs" "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs" "-t1" "-t2 -u"
+  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -u"
   # -N (create NULL fields) is needed because --test-undo adds it anyway
   while [ $# != 0 ]
     do
     prog=$1
+    if [ "$take_checkpoint" == "no" ]
+        then
+        prog=`echo $prog | sed 's/ -H[0-9]//'`
+        fi
     commit_run_args=$2
     abort_run_args=$3;
     rm -f maria_log.* maria_log_control
@@ -190,6 +196,7 @@ do
     shift 3
   done
   rm -f $table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt
+done
 done
 done
 
