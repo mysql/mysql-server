@@ -7871,6 +7871,37 @@ DROP FUNCTION f1;
 
 ###########################################################################
 
+#
+# Bug#28318 (CREATE FUNCTION (UDF) requires a schema)
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS db28318_a.t1;
+DROP PROCEDURE IF EXISTS db28318_b.t2;
+DROP DATABASE IF EXISTS db28318_a;
+DROP DATABASE IF EXISTS db28318_b;
+--enable_warnings
+
+CREATE DATABASE db28318_a;
+CREATE DATABASE db28318_b;
+
+CREATE PROCEDURE db28318_a.t1() SELECT "db28318_a.t1";
+CREATE PROCEDURE db28318_b.t2() CALL t1();
+
+use db28318_a;
+
+# In db28318_b.t2, t1 refers to db28318_b.t1
+--error ER_SP_DOES_NOT_EXIST
+CALL db28318_b.t2();
+
+DROP PROCEDURE db28318_a.t1;
+DROP PROCEDURE db28318_b.t2;
+DROP DATABASE db28318_a;
+DROP DATABASE db28318_b;
+use test;
+
+###########################################################################
+
 --echo End of 5.0 tests
 
 ###########################################################################
