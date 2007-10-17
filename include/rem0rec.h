@@ -522,6 +522,15 @@ rec_get_data_size_old(
 				/* out: size */
 	const rec_t*	rec);	/* in: physical record */
 /**************************************************************
+The following function returns the number of allocated elements
+for an array of offsets. */
+UNIV_INLINE
+ulint
+rec_offs_get_n_alloc(
+/*=================*/
+				/* out: number of elements */
+	const ulint*	offsets);/* in: array for rec_get_offsets() */
+/**************************************************************
 The following function sets the number of allocated elements
 for an array of offsets. */
 UNIV_INLINE

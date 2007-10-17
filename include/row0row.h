@@ -101,17 +101,16 @@ Converts an index record to a typed data tuple. */
 dtuple_t*
 row_rec_to_index_entry_low(
 /*=======================*/
-				/* out: index entry built; does not
-				set info_bits, and the data fields in
-				the entry will point directly to rec */
-	const rec_t*	rec,	/* in: record in the index */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint*		n_ext,	/* out: number of externally stored columns;
-				if this is passed as NULL, such columns are
-				not flagged nor counted */
-	mem_heap_t*	heap);	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out: index entry built; does not
+					set info_bits, and the data fields in
+					the entry will point directly to rec */
+	const rec_t*		rec,	/* in: record in the index */
+	const dict_index_t*	index,	/* in: index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	ulint*			n_ext,	/* out: number of externally
+					stored columns */
+	mem_heap_t*		heap);	/* in: memory heap from which
+					the memory needed is allocated */
 /***********************************************************************
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap. */
@@ -119,22 +118,29 @@ stored (often big) fields are NOT copied to heap. */
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-				/* out, own: index entry built; see the
-				NOTE below! */
-	ulint		type,	/* in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
-				the former copies also the data fields to
-				heap as the latter only places pointers to
-				data fields on the index page */
-	dict_index_t*	index,	/* in: index */
-	const rec_t*	rec,	/* in: record in the index;
-				NOTE: in the case ROW_COPY_POINTERS
-				the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the dtuple is used! */
-	mem_heap_t*	heap);	/* in: memory heap from which the memory
-				needed is allocated */
+					/* out, own: index entry
+					built; see the NOTE below! */
+	ulint			type,	/* in: ROW_COPY_DATA, or
+					ROW_COPY_POINTERS: the former
+					copies also the data fields to
+					heap as the latter only places
+					pointers to data fields on the
+					index page */
+	const rec_t*		rec,	/* in: record in the index;
+					NOTE: in the case
+					ROW_COPY_POINTERS the data
+					fields in the row will point
+					directly into this record,
+					therefore, the buffer page of
+					this record must be at least
+					s-latched and the latch held
+					as long as the dtuple is used! */
+	const dict_index_t*	index,	/* in: index */
+	ulint*			offsets,/* in/out: rec_get_offsets(rec) */
+	ulint*			n_ext,	/* out: number of externally
+					stored columns */
+	mem_heap_t*		heap);	/* in: memory heap from which
+					the memory needed is allocated */
 /***********************************************************************
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -148,7 +154,7 @@ row_build_row_ref(
 				the former copies also the data fields to
 				heap, whereas the latter only places pointers
 				to data fields on the index page */
-	dict_index_t*	index,	/* in: index */
+	dict_index_t*	index,	/* in: secondary index */
 	const rec_t*	rec,	/* in: record in the index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point

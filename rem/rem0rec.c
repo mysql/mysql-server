@@ -1234,6 +1234,7 @@ rec_copy_prefix_to_dtuple(
 		if (len != UNIV_SQL_NULL) {
 			dfield_set_data(field,
 					mem_heap_dup(heap, data, len), len);
+			ut_ad(!rec_offs_nth_extern(offsets, i));
 		} else {
 			dfield_set_null(field);
 		}

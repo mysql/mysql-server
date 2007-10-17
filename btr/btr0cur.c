@@ -1802,6 +1802,7 @@ btr_cur_optimistic_update(
 	trx_t*		trx;
 	mem_heap_t*	heap;
 	ulint		i;
+	ulint		n_ext;
 	ulint*		offsets;
 
 	block = btr_cur_get_block(cursor);
@@ -1851,7 +1852,10 @@ any_extern:
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
+					   &n_ext, heap);
+	/* We checked above that there are no externally stored fields. */
+	ut_a(!n_ext);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, NULL);
@@ -1920,6 +1924,12 @@ err_exit:
 
 	btr_search_update_hash_on_delete(cursor);
 
+	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
+	invokes rec_offs_make_valid() to point to the copied record that
+	the fields of new_entry point to.  We have to undo it here. */
+	ut_ad(rec_offs_validate(NULL, index, offsets));
+	rec_offs_make_valid(page_cur_get_rec(page_cursor), index, offsets);
+
 	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
@@ -1934,23 +1944,13 @@ err_exit:
 	}
 
 	/* There are no externally stored columns in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, new_entry, 0, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (page_zip && !dict_index_is_clust(index)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
-	}
-
-	if (!rec_get_deleted_flag(rec, page_is_comp(page))) {
-		/* The new inserted record owns its possible externally
-		stored fields */
-
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		btr_cur_unmark_extern_fields(page_zip,
-					     rec, index, offsets, mtr);
 	}
 
 	/* Restore the old explicit lock state on the record */
@@ -2120,7 +2120,13 @@ btr_cur_pessimistic_update(
 
 	trx = thr_get_trx(thr);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, *heap);
+	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
+					   &n_ext, *heap);
+	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
+	invokes rec_offs_make_valid() to point to the copied record that
+	the fields of new_entry point to.  We have to undo it here. */
+	ut_ad(rec_offs_validate(NULL, index, offsets));
+	rec_offs_make_valid(rec, index, offsets);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
@@ -2150,8 +2156,7 @@ btr_cur_pessimistic_update(
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
-	n_ext = btr_push_update_extern_fields(new_entry, index, offsets,
-					      update);
+	n_ext += btr_push_update_extern_fields(new_entry, update);
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
 							  n_ext),
@@ -3517,70 +3522,34 @@ btr_cur_unmark_dtuple_extern_fields(
 }
 
 /***********************************************************************
-Stores the positions of the fields marked as extern storage in the update
-vector, and also those fields who are marked as extern storage in rec
-and not mentioned in updated fields. We use this function to remember
-which fields we must mark as extern storage in a record inserted for an
-update. */
+Flags the data tuple fields that are marked as extern storage in the
+update vector.  We use this function to remember which fields we must
+mark as extern storage in a record inserted for an update. */
 
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-					/* out: number of externally
-					stored columns */
-	dtuple_t*		tuple,	/* in/out: data tuple */
-	const dict_index_t*	index,	/* in: clustered index */
-	const ulint*		offsets,/* in: array returned by
-					rec_get_offsets() */
-	const upd_t*		update)	/* in: update vector or NULL */
+				/* out: number of flagged external columns */
+	dtuple_t*	tuple,	/* in/out: data tuple */
+	const upd_t*	update)	/* in: update vector */
 {
-	ulint	n_pushed	= 0;
-	ulint	n;
-	ulint	i;
+	ulint			n_pushed	= 0;
+	ulint			n;
+	const upd_field_t*	uf;
 
 	ut_ad(tuple);
-	ut_ad(offsets);
-	ut_ad(dict_index_is_clust(index));
-#ifdef UNIV_DEBUG
-	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
-		ut_ad(!dfield_is_ext(dtuple_get_nth_field(tuple, i)));
-	}
-#endif /* UNIV_DEBUG */
+	ut_ad(update);
 
-	if (update) {
-		const upd_field_t* ufield;
+	uf = update->fields;
+	n = upd_get_n_fields(update);
 
-		ufield = update->fields;
-		n = upd_get_n_fields(update);
+	for (; n--; uf++) {
+		if (dfield_is_ext(&uf->new_val)) {
+			dfield_t*	field
+				= dtuple_get_nth_field(tuple, uf->field_no);
 
-		for (; n--; ufield++) {
-			if (dfield_is_ext(&ufield->new_val)) {
-				dfield_set_ext(dtuple_get_nth_field(
-						       tuple,
-						       ufield->field_no));
-				n_pushed++;
-			}
-		}
-	}
-
-	if (!rec_offs_any_extern(offsets)) {
-		return(n_pushed);
-	}
-
-	n = rec_offs_n_fields(offsets);
-
-	for (i = 0; i < n; i++) {
-		if (rec_offs_nth_extern(offsets, i)) {
-			const dict_field_t*	ifield
-				= dict_index_get_nth_field(index, i);
-			ulint			col_no
-				= dict_col_get_no(dict_field_get_col(ifield));
-			dfield_t*		dfield
-				= dtuple_get_nth_field(tuple, col_no);
-
-			/* Check it is not flagged already */
-			if (!dfield_is_ext(dfield)) {
-				dfield_set_ext(dfield);
+			if (!dfield_is_ext(field)) {
+				dfield_set_ext(field);
 				n_pushed++;
 			}
 		}

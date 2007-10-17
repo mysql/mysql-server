@@ -153,6 +153,7 @@ row_upd_check_references_constraints(
 				cursor position is lost in this function! */
 	dict_table_t*	table,	/* in: table in question */
 	dict_index_t*	index,	/* in: index of the cursor */
+	ulint*		offsets,/* in/out: rec_get_offsets(pcur.rec, index) */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -160,7 +161,8 @@ row_upd_check_references_constraints(
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	trx_t*		trx;
-	rec_t*		rec;
+	const rec_t*	rec;
+	ulint		n_ext;
 	ulint		err;
 	ibool		got_s_lock	= FALSE;
 
@@ -172,10 +174,12 @@ row_upd_check_references_constraints(
 	trx = thr_get_trx(thr);
 
 	rec = btr_pcur_get_rec(pcur);
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	heap = mem_heap_create(500);
 
-	entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+	entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
+				       &n_ext, heap);
 
 	mtr_commit(mtr);
 
@@ -1229,11 +1233,14 @@ row_upd_store_row(
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
 			      &node->ext, node->heap);
 	if (UNIV_LIKELY_NULL(node->ext)) {
-		node->n_ext = btr_push_update_extern_fields(
-			node->row, clust_index, offsets,
-			node->is_delete ? NULL : node->update);
+		node->n_ext = node->ext->n_ext;
 	} else {
 		node->n_ext = 0;
+	}
+
+	if (!node->is_delete) {
+		node->n_ext += btr_push_update_extern_fields(node->row,
+							     node->update);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -1310,11 +1317,14 @@ row_upd_sec_index_entry(
 							   thr, &mtr);
 			if (err == DB_SUCCESS && check_ref) {
 
+				ulint*	offsets = rec_get_offsets(
+					rec, index, NULL,
+					ULINT_UNDEFINED, &heap);
 				/* NOTE that the following call loses
 				the position of pcur ! */
 				err = row_upd_check_references_constraints(
 					node, &pcur, index->table,
-					index, thr, &mtr);
+					index, offsets, thr, &mtr);
 			}
 		}
 	}
@@ -1402,6 +1412,7 @@ row_upd_clust_rec_by_insert(
 		rec_t*		rec;
 		dict_index_t*	index;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		offsets;
 		rec_offs_init(offsets_);
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
@@ -1418,18 +1429,16 @@ row_upd_clust_rec_by_insert(
 
 		rec = btr_cur_get_rec(btr_cur);
 		index = dict_table_get_first_index(table);
-
+		offsets = rec_get_offsets(rec, index, offsets_,
+					  ULINT_UNDEFINED, &heap);
 		btr_cur_mark_extern_inherited_fields(
 			btr_cur_get_page_zip(btr_cur),
-			rec, index,
-			rec_get_offsets(rec, index, offsets_,
-					ULINT_UNDEFINED, &heap),
-			node->update, mtr);
+			rec, index, offsets, node->update, mtr);
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
 			err = row_upd_check_references_constraints(
-				node, pcur, table, index, thr, mtr);
+				node, pcur, table, index, offsets, thr, mtr);
 			if (err != DB_SUCCESS) {
 				mtr_commit(mtr);
 				if (UNIV_LIKELY_NULL(heap)) {
@@ -1438,7 +1447,6 @@ row_upd_clust_rec_by_insert(
 				return(err);
 			}
 		}
-
 	}
 
 	mtr_commit(mtr);
@@ -1586,6 +1594,8 @@ row_upd_del_mark_clust_rec(
 				completed, else error code */
 	upd_node_t*	node,	/* in: row update node */
 	dict_index_t*	index,	/* in: clustered index */
+	ulint*		offsets,/* in/out: rec_get_offsets() for the
+				record under the cursor */
 	que_thr_t*	thr,	/* in: query thread */
 	ibool		check_ref,/* in: TRUE if index may be referenced in
 				a foreign key constraint */
@@ -1617,12 +1627,8 @@ row_upd_del_mark_clust_rec(
 
 		err = row_upd_check_references_constraints(node,
 							   pcur, index->table,
-							   index, thr, mtr);
-		if (err != DB_SUCCESS) {
-			mtr_commit(mtr);
-
-			return(err);
-		}
+							   index, offsets,
+							   thr, mtr);
 	}
 
 	mtr_commit(mtr);
@@ -1652,7 +1658,7 @@ row_upd_clust_step(
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	const ulint*	offsets;
+	ulint*		offsets;
 	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
@@ -1727,8 +1733,8 @@ row_upd_clust_step(
 	/* NOTE: the following function calls will also commit mtr */
 
 	if (node->is_delete) {
-		err = row_upd_del_mark_clust_rec(node, index, thr, check_ref,
-						 mtr);
+		err = row_upd_del_mark_clust_rec(node, index, offsets,
+						 thr, check_ref, mtr);
 		if (err == DB_SUCCESS) {
 			node->state = UPD_NODE_UPDATE_ALL_SEC;
 			node->index = dict_table_get_next_index(index);

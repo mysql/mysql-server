@@ -910,13 +910,14 @@ trx_undo_rec_get_partial_row(
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
-		if (len >= UNIV_EXTERN_STORAGE_FIELD) {
-			ext_cols[n_ext_cols++] = col_no;
-		}
-
 		dfield = dtuple_get_nth_field(*row, col_no);
 
 		dfield_set_data(dfield, field, len);
+
+		if (len >= UNIV_EXTERN_STORAGE_FIELD) {
+			dfield_set_ext(dfield);
+			ext_cols[n_ext_cols++] = col_no;
+		}
 	}
 
 	if (n_ext_cols) {
@@ -1396,10 +1397,9 @@ trx_undo_prev_version_build(
 		those fields that update updates to become externally stored
 		fields. Store the info: */
 
-		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
-					       heap);
-		n_ext = btr_push_update_extern_fields(entry, index, offsets,
-						      update);
+		entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index,
+					       offsets, &n_ext, heap);
+		n_ext += btr_push_update_extern_fields(entry, update);
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap, rec_get_converted_size(index, entry,
