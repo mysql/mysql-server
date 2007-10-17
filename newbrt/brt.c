@@ -1180,6 +1180,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died1; }
 	    printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
 	    t->h->roots[t->h->n_named_roots-1] = malloc_diskblock_header_is_in_memory(t, t->h->nodesize);
+	    t->h->dirty = 1;
 	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1]))!=0) goto died1;
 	}
     } else {
@@ -1188,6 +1189,7 @@ int open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt,
 	    if (t->h->n_named_roots!=-1) { r = -2; /* invalid args??? */; goto died1; }
 	} else {
 	    int i;
+	    printf("%s:%d n_roots=%d\n", __FILE__, __LINE__, t->h->n_named_roots);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
 		    goto found_it;
