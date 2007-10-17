@@ -1,4 +1,4 @@
-CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -I /usr/local/Berkeleydb.4.1/include/ -ldb
+CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g -fPIC -ldb
 LFLAGS = -l CPPFLAGS = 
 
 BDB_DUMP=/usr/local/Berkeleydb.4.1/bin/db_dump
@@ -10,18 +10,17 @@ UTILS=            \
    tokudb_dump    \
 #End
 
-.PHONY: all clean test test_gen test_gen_hex test_load
+.PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
 all: $(UTILS)
 
-test: test_gen test_load
+test: test_gen test_load test_dump
 
 test_gen: test_gen_hex
 
-# SHELL=/bin/bash
-
-BDB_LOAD=/usr/local/Berkeleydb.4.1/bin/db_load
-BDB_DUMP=/usr/local/Berkeleydb.4.1/bin/db_dump
+BDB=/usr/local/BerkeleyDB.4.6
+BDB_DUMP=$(BDB)/bin/db_dump
+BDB_LOAD=$(BDB)/bin/db_load
 
 TEST_GEN_HEX_NUMKEYS=10000
 TEST_GEN_HEX_LENGTHMIN=0
@@ -41,7 +40,7 @@ test_gen_hex:
 	if ! diff -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
 	rm $@.*.temp
 
-test_load: test_gen
+test_load:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
 	echo "Generating text input > db > text"
 	rm -f $@.*.temp
@@ -50,6 +49,16 @@ test_load: test_gen
 	./tokudb_load $@.tokudb.temp < $@.gen.temp
 	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
 	$(BDB_DUMP) $@.tokudb.temp > $@.dump.tokudb.temp
+	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	
+test_dump:
+	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
+	echo "Generating text input > db > text"
+	rm -f $@.*.temp
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
+	$(BDB_LOAD) $@.bdb.temp < $@.gen.temp
+	$(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
+	./tokudb_dump $@.bdb.temp > $@.dump.tokudb.temp
 	if ! diff -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 	
 #if diff -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
