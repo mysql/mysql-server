@@ -5,17 +5,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
+#include <db.h>
 
 #include "tokudb_common.h"
 
-extern char* optarg;
-extern int optind;
-extern int optopt;
-extern int opterr;
-extern int optreset;
-
 typedef struct {
+   DB_ENV*       dbenv;
    bool        plaintext;
+   char*       progname;
 } gen_globals;
 
 gen_globals g;
@@ -29,8 +27,6 @@ int   get_delimiter(char* str);
 
 char           dbt_delimiter  = '\n';
 char           sort_delimiter[2];
-char*          progname;
-
 uint32_t       lengthmin      = 0;
 bool           set_lengthmin  = false;
 uint32_t       lengthlimit    = 0;
@@ -54,10 +50,13 @@ int main (int argc, char *argv[]) {
    /* Set up the globals. */
    memset(&g, 0, sizeof(g));
 
-   progname = argv[0];
+   g.progname = argv[0];
+
+   if (verify_library_version() != 0) goto error;
+   
    strcpy(sort_delimiter, "");
 
-   while ((ch = getopt(argc, argv, "PfFhHTpr:s:d:p:m:M:n:o:")) != EOF) {
+   while ((ch = getopt(argc, argv, "PfFhHTpVr:s:d:m:M:n:o:")) != EOF) {
       switch (ch) {
          case ('P'): {
             printableonly = true;
@@ -80,22 +79,20 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('T'): {
-            g.plaintext      = true;
+            g.plaintext    = true;
             leadingspace   = false;
             header         = false;
             footer         = false;
             break;
          }
          case ('p'): {
-            g.plaintext      = true;
+            g.plaintext    = true;
             leadingspace   = true;
             break;
          }
          case ('o'): {
             if (freopen(optarg, "w", stdout) == NULL) {
-               fprintf(stderr,
-                       "%s: %s: reopen: %s\n",
-                       progname, optarg, strerror(errno));
+               ERROR(errno, "%s: reopen\n", optarg);
                goto error;
             }
             break;
@@ -103,15 +100,13 @@ int main (int argc, char *argv[]) {
          case ('d'): {
             int temp = get_delimiter(optarg);
             if (temp == EOF) {
-               fprintf(stderr,
-                       "%s: %s: (-d) Key (or value) delimiter must be one character.",
-                       progname, optarg);
+               ERRORX("%s: (-d) Key (or value) delimiter must be one character.",
+                      optarg);
                goto error;
             }
             if (isxdigit(temp)) {
-               fprintf(stderr,
-                       "%s: %c: (-d) Key (or value) delimiter cannot be a hex digit.",
-                       progname, temp);
+               ERRORX("%c: (-d) Key (or value) delimiter cannot be a hex digit.",
+                      temp);
                goto error;
             }
             dbt_delimiter = (char)temp;
@@ -120,15 +115,13 @@ int main (int argc, char *argv[]) {
          case ('s'): {
             int temp = get_delimiter(optarg);
             if (temp == EOF) {
-               fprintf(stderr,
-                       "%s: %s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
-                       progname, optarg);
+               ERRORX("%s: (-s) Sorting (Between key/value pairs) delimiter must be one character.",
+                      optarg);
                goto error;
             }
             if (isxdigit(temp)) {
-               fprintf(stderr,
-                       "%s: %c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
-                       progname, temp);
+               ERRORX("%c: (-s) Sorting (Between key/value pairs) delimiter cannot be a hex digit.",
+                      temp);
                goto error;
             }
             sort_delimiter[0] = (char)temp;
@@ -136,44 +129,40 @@ int main (int argc, char *argv[]) {
             break;
          }
          case ('r'): {
-            if (strtouint32(NULL, progname, optarg, &seed, 0, UINT32_MAX, 10)) {
-               fprintf(stderr,
-                       "%s: %s: (-r) Random seed invalid.",
-                       progname, optarg);
+            if (strtouint32(optarg, &seed, 0, UINT32_MAX, 10)) {
+               ERRORX("%s: (-r) Random seed invalid.", optarg);
                 goto error;
             }
             set_seed = true;
             break;
          }
          case ('m'): {
-            if (strtouint32(NULL, progname, optarg, &lengthmin, 0, UINT32_MAX, 10)) {
-               fprintf(stderr,
-                       "%s: %s: (-m) Min length of keys/values invalid.",
-                       progname, optarg);
+            if (strtouint32(optarg, &lengthmin, 0, UINT32_MAX, 10)) {
+               ERRORX("%s: (-m) Min length of keys/values invalid.", optarg);
                 goto error;
             }
             set_lengthmin = true;
             break;
          }
          case ('M'): {
-            if (strtouint32(NULL, progname, optarg, &lengthlimit, 1, UINT32_MAX, 10)) {
-               fprintf(stderr,
-                       "%s: %s: (-M) Limit of key/value length invalid.",
-                       progname, optarg);
+            if (strtouint32(optarg, &lengthlimit, 1, UINT32_MAX, 10)) {
+               ERRORX("%s: (-M) Limit of key/value length invalid.", optarg);
                 goto error;
             }
             set_lengthlimit = true;
             break;
          }
          case ('n'): {
-            if (strtouint64(NULL, progname, optarg, &numkeys, 0, UINT64_MAX, 10)) {
-               fprintf(stderr,
-                       "%s: %s: (-n) Number of keys to generate invalid.",
-                       progname, optarg);
+            if (strtouint64(optarg, &numkeys, 0, UINT64_MAX, 10)) {
+               ERRORX("%s: (-n) Number of keys to generate invalid.", optarg);
                 goto error;
             }
             set_numkeys = true;
             break;
+         }
+         case ('V'): {
+            printf("%s\n", db_version(NULL, NULL, NULL));
+            return EXIT_SUCCESS;
          }
          case ('?'):
          default: {
@@ -185,61 +174,55 @@ int main (int argc, char *argv[]) {
    argv += optind;
 
    if (justheader && !header) {
-      fprintf(stderr,
-              "%s: The -h and -H options may not both be specified.\n",
-              progname);
+      ERRORX("The -h and -H options may not both be specified.\n");
       goto error;
    }
    if (justfooter && !footer) {
-      fprintf(stderr,
-              "%s: The -f and -F options may not both be specified.\n",
-              progname);
+      ERRORX("The -f and -F options may not both be specified.\n");
       goto error;
    }
    if (justfooter && justheader) {
-      fprintf(stderr,
-              "%s: The -H and -F options may not both be specified.\n",
-              progname);
+      ERRORX("The -H and -F options may not both be specified.\n");
       goto error;
    }
    if (justfooter && header) {
-      fprintf(stderr, "%s: -F implies -h\n", progname);
+      ERRORX("-F implies -h\n");
       header = false;
    }
    if (justheader && footer) {
-      fprintf(stderr, "%s: -H implies -f\n", progname);
+      ERRORX("-H implies -f\n");
       footer = false;
    }
    if (!leadingspace) {
       if (footer) {
-         fprintf(stderr, "%s: -p implies -f\n", progname);
+         ERRORX("-p implies -f\n");
          footer = false;
       }
       if (header) {
-         fprintf(stderr, "%s: -p implies -h\n", progname);
+         ERRORX("-p implies -h\n");
          header = false;
       }
    }
    if (justfooter || justheader) outputkeys = false;
    else if (!set_numkeys)
    {
-      fprintf(stderr, "%s: The -n option is required.\n", progname);
+      ERRORX("The -n option is required.\n");
       goto error;
    }
    if (outputkeys && !set_seed) {
-      fprintf(stderr, "%s: Using default seed.  (-r 1).\n", progname);
+      ERRORX("Using default seed.  (-r 1).\n");
       seed = 1;
    }
    if (outputkeys && !set_lengthmin) {
-      fprintf(stderr, "%s: Using default lengthmin.  (-m 0).\n", progname);
+      ERRORX("Using default lengthmin.  (-m 0).\n");
       lengthmin = 0;
    }
    if (outputkeys && !set_lengthlimit) {
-      fprintf(stderr, "%s: Using default lengthlimit.  (-M 1024).\n", progname);
+      ERRORX("Using default lengthlimit.  (-M 1024).\n");
       lengthlimit = 1024;
    }
    if (outputkeys && lengthmin >= lengthlimit) {
-      fprintf(stderr, "%s: Max key size must be greater than min key size.\n", progname);
+      ERRORX("Max key size must be greater than min key size.\n");
       goto error;
    }
 
@@ -256,7 +239,7 @@ int main (int argc, char *argv[]) {
    }
    if (outputkeys) generate_keys();
    if (footer)     printf("DATA=END\n");
-   return 0;
+   return EXIT_SUCCESS;
 
 error:
    fprintf(stderr, "Quitting out due to errors.\n");
@@ -266,10 +249,10 @@ error:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-ThHfF] [-d delimiter] [-s delimiter]\n"
-           "       [-m lengthmin] [-M lengthlimit] [-r random seed]\n"
-           "       [-o filename] -n numkeys\n",
-           progname);
+           "usage: %s [-PfFhHTpV] [-r random seed] [-s delimiter]  \n"
+           "          [-d delimiter]  [-m lengthmin] [-M lengthlimit] \n"
+           "          -n numkeys [-o output_file] \n",
+           g.progname);
    return EXIT_FAILURE;
 }
 
@@ -294,15 +277,6 @@ int32_t random_below(int32_t limit)
 {
    assert(limit > 0);
    return random() % limit;
-}
-
-void outputstring(char* str)
-{
-   char* p;
-
-   for (p = str; *p != '\0'; p++) {
-      outputbyte((uint8_t)*p);
-   }
 }
 
 void generate_keys()

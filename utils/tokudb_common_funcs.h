@@ -2,10 +2,27 @@
 
 #define TOKUDB_COMMON_FUNCS_H
 #include "tokudb_common.h"
-int   strtoint32  (DB_ENV* dbenv, char* progname, char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
-int   strtouint32 (DB_ENV* dbenv, char* progname, char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
-int   strtoint64  (DB_ENV* dbenv, char* progname, char* str,  int64_t* num,  int64_t min,  int64_t max, int base);
-int   strtouint64 (DB_ENV* dbenv, char* progname, char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
+
+//DB_ENV->err disabled since it does not use db_strerror
+#define ERROR(retval, ...)                                        \
+if (0) g.dbenv->err(g.dbenv, retval, __VA_ARGS__);                \
+else {                                                            \
+   fprintf(stderr, "%s: %s:", g.progname, db_strerror(retval));   \
+   fprintf(stderr, __VA_ARGS__);                                  \
+}
+
+//DB_ENV->err disabled since it does not use db_strerror, errx does not exist.
+#define ERRORX(...)                                               \
+if (0) g.dbenv->err(g.dbenv, 0, __VA_ARGS__);                     \
+else {                                                            \
+   fprintf(stderr, "%s: ", g.progname);                           \
+   fprintf(stderr, __VA_ARGS__);                                  \
+}
+
+int   strtoint32  (char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
+int   strtouint32 (char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
+int   strtoint64  (char* str,  int64_t* num,  int64_t min,  int64_t max, int base);
+int   strtouint64 (char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
 
 /*
  * Convert a string to an integer of type "type".
@@ -20,7 +37,7 @@ int   strtouint64 (DB_ENV* dbenv, char* progname, char* str, uint64_t* num, uint
  *
  */
 #define DEF_STR_TO(name, type, bigtype, strtofunc, frmt)       \
-int name(DB_ENV* dbenv, char* progname, char* str, type* num, type min, type max, int base)   \
+int name(char* str, type* num, type min, type max, int base)   \
 {                                                              \
    char* test;                                                 \
    bigtype value;                                              \
@@ -28,31 +45,26 @@ int name(DB_ENV* dbenv, char* progname, char* str, type* num, type min, type max
    assert(str);                                                \
    assert(num);                                                \
    assert(min <= max);                                         \
-   assert(dbenv || progname);                                  \
+   assert(g.dbenv || g.progname);                              \
    assert(base == 0 || (base >= 2 && base <= 36));             \
                                                                \
    errno = 0;                                                  \
    while (isspace(*str)) str++;                                \
    value = strtofunc(str, &test, base);                        \
    if ((*test != '\0' && *test != '\n') || test == str) {      \
-      if (dbenv == NULL) fprintf(stderr, "%s: %s: Invalid numeric argument\n", progname, str);  \
-      else dbenv->err(dbenv, 0, "%s: Invalid numeric argument", str);  \
+      ERRORX("%s: Invalid numeric argument\n", str);           \
       errno = EINVAL;                                          \
       goto error;                                              \
    }                                                           \
    if (errno != 0) {                                           \
-      if (dbenv == NULL) fprintf(stderr, "%s: %s: %s\n", progname, str, strerror(errno)); \
-      else dbenv->err(dbenv, errno, "%s", str);                \
-      goto error;                                              \
+      ERROR(errno, "%s\n", str);                               \
    }                                                           \
    if (value < min) {                                          \
-      if (dbenv == NULL) fprintf(stderr, "%s: %s: Less than minimum value (%" frmt ")\n", progname, str, min); \
-      else dbenv->err(dbenv, 0, "%s: Less than minimum value (%" frmt ")", str, min); \
+      ERRORX("%s: Less than minimum value (%" frmt ")\n", str, min); \
       goto error;                                              \
    }                                                           \
    if (value > max) {                                          \
-      if (dbenv == NULL) fprintf(stderr, "%s: %s: Greater than maximum value (%" frmt ")\n", progname, str, max); \
-      else dbenv->err(dbenv, 0, "%s: Greater than maximum value (%" frmt ")", str, max); \
+      ERRORX("%s: Greater than maximum value (%" frmt ")\n", str, max); \
       goto error;                                              \
    }                                                           \
    *num = value;                                               \
@@ -74,6 +86,105 @@ void outputbyte(uint8_t ch)
       else                    printf("\\%02x", ch);
    }
    else printf("%02x", ch);
+}
+
+void outputstring(char* str)
+{
+   char* p;
+
+   for (p = str; *p != '\0'; p++) {
+      outputbyte((uint8_t)*p);
+   }
+}
+
+void outputplaintextstring(char* str)
+{
+   bool old_plaintext = g.plaintext;
+   g.plaintext = true;
+   outputstring(str);
+   g.plaintext = old_plaintext;
+}
+
+int hextoint(int ch)
+{
+   if (ch >= '0' && ch <= '9') {
+      return ch - '0';
+   }
+   if (ch >= 'a' && ch <= 'z') {
+      return ch - 'a' + 10;
+   }
+   if (ch >= 'A' && ch <= 'Z') {
+      return ch - 'A' + 10;
+   }
+   return EOF;
+}
+
+int printabletocstring(char* inputstr, char** poutputstr)
+{
+   char highch;
+   char lowch;
+   char nextch;
+   char* cstring;
+
+   assert(inputstr);
+   assert(poutputstr);
+   assert(*poutputstr == NULL);
+
+   cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
+   if (cstring == NULL) {
+      ERROR(errno, "printabletocstring");
+      goto error;
+   }
+
+   for (*poutputstr = cstring; *inputstr != '\0'; inputstr++) {
+      if (*inputstr == '\\') {
+         if ((highch = *++inputstr) == '\\') {
+            *cstring++ = '\\';
+            continue;
+         }
+         if (highch == '\0' || (lowch = *++inputstr) == '\0') {
+            ERROR(0, "unexpected end of input data or key/data pair");
+            goto error;
+         }
+         if (!isxdigit(highch)) {
+            ERROR(0, "Unexpected '%c' (non-hex) input.\n", highch);
+            goto error;
+         }
+         if (!isxdigit(lowch)) {
+            ERROR(0, "Unexpected '%c' (non-hex) input.\n", lowch);
+            goto error;
+         }
+         nextch = (hextoint(highch) << 4) | hextoint(lowch);
+         if (nextch == '\0') {
+            /* Database names are c strings, and cannot have extra NULL terminators. */
+            ERROR(0, "Unexpected '\\00' in input.\n");
+            goto error;
+         }
+         *cstring++ = nextch;
+      }
+      else *cstring++ = *inputstr;
+   }
+   /* Terminate the string. */
+   *cstring = '\0';
+   return EXIT_SUCCESS;
+
+error:
+   ERROR(0, "Quitting out due to errors.\n");
+   return EXIT_FAILURE;
+}
+
+int verify_library_version()
+{
+   int major;
+   int minor;
+   
+   db_version(&major, &minor, NULL);
+   if (major != DB_VERSION_MAJOR || minor != DB_VERSION_MINOR) {
+      ERRORX("version %d.%d doesn't match library version %d.%d\n",
+             DB_VERSION_MAJOR, DB_VERSION_MINOR, major, minor);
+      return EXIT_FAILURE;
+   }
+   return EXIT_SUCCESS;
 }
 
 #endif /* #if !defined(TOKUDB_COMMON_H) */

@@ -10,14 +10,6 @@
 #include "tokudb_common.h"
 
 typedef struct {
-   char*    data[2];
-} gdbt;
-
-typedef struct {
-   char*    data;
-} rhdr;
-
-typedef struct {
    bool     leadingspace;
    bool     plaintext;
    bool     overwritekeys;
@@ -56,24 +48,11 @@ int   open_database  ();
 int   read_keys      ();
 int   apply_commandline_options();
 int   close_database ();
-int   hextoint       (int ch);
 int   doublechararray(char** pmem, uint64_t* size);
 
 int main(int argc, char *argv[]) {
    int ch;
    int retval;
-   struct option options[] = {
-      { "no_overwrite", no_argument,         NULL, 'n' },
-      { "help",         no_argument,         NULL, 'H' },
-      { "plain_text",   no_argument,         NULL, 'T' },
-      { "Version",      no_argument,         NULL, 'V' },
-      { "config",       required_argument,   NULL, 'c' },
-      { "input_file",   required_argument,   NULL, 'f' },
-      { "home",         required_argument,   NULL, 'h' },
-      { "password",     required_argument,   NULL, 'p' },
-      { "type",         required_argument,   NULL, 't' },
-      { NULL,           0,                   NULL, 0   }
-   };
    char** next_config_option;
 
    /* Set up the globals. */
@@ -83,23 +62,20 @@ int main(int argc, char *argv[]) {
    g.dbtype         = DB_UNKNOWN;
    g.progname       = argv[0];
    g.header         = true;
+   
+   if (verify_library_version() != 0) goto error;
 
    next_config_option = g.config_options = (char**) calloc(argc, sizeof(char*));
    if (next_config_option == NULL) {
-      fprintf(stderr, "%s: %s\n", g.progname, strerror(errno));
+      ERROR(errno, "main: calloc\n");
       goto error;
    }
-
-   while ((ch = getopt_long_only(argc, argv, "nHTVc:f:h:p:t:", options, NULL)) != EOF) {
+   while ((ch = getopt(argc, argv, "nTVc:f:h:p:t:r:")) != EOF) {
       switch (ch) {
          case ('n'): {
             /* g.overwritekeys = false; */
-            fprintf(stderr, "%s: -%c option not supported.\n", g.progname, ch);
+            ERRORX("-%c option not supported.\n", ch);
             goto error;
-         }
-         case ('H'): {
-            g.exitcode = longusage();
-            goto cleanup;
          }
          case ('T'): {
             g.plaintext    = true;
@@ -108,8 +84,8 @@ int main(int argc, char *argv[]) {
             break;
          }
          case ('V'): {
-            fprintf(stderr, "%s: -%c option not supported.\n", g.progname, ch);
-            goto error;
+            printf("%s\n", db_version(NULL, NULL, NULL));
+            goto cleanup;
          }
          case ('c'): {
             *next_config_option++ = optarg;
@@ -131,7 +107,7 @@ int main(int argc, char *argv[]) {
          case ('p'): {
             /* Clear password. */
             memset(optarg, 0, strlen(optarg));
-            fprintf(stderr, "%s: -%c option not supported.\n", g.progname, ch);
+            ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('t'): {
@@ -144,6 +120,10 @@ int main(int argc, char *argv[]) {
                goto error;
             }
             fprintf(stderr, "%s: Unrecognized db type %s.\n", g.progname, optarg);
+            goto error;
+         }
+         case ('r'): {
+            ERRORX("-%c option not supported.\n", ch);
             goto error;
          }
          case ('?'):
@@ -195,7 +175,7 @@ int load_database()
    /* Create a database handle. */
    retval = db_create(&g.db, g.dbenv, 0);
    if (retval != 0) {
-      dbenv->err(dbenv, retval, "db_create");
+      ERROR(retval, "db_create");
       return EXIT_FAILURE;
    }
 
@@ -204,15 +184,10 @@ int load_database()
    if (apply_commandline_options() != 0) goto error;
    if (g.eof) goto cleanup;
 
-   //TODO: Only quit out if DB does NOT EXIST.
-   if (g.dbtype == DB_UNKNOWN) {
-      dbenv->err(dbenv, 0, "no database type specified");
-      goto error;
-   }
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = db->set_flags(db, DB_ENCRYPT))) {
-      dbenv->err(dbenv, ret, "DB->set_flags: DB_ENCRYPT");
+      ERROR(ret, "DB->set_flags: DB_ENCRYPT");
       goto error;
    }
    */
@@ -234,20 +209,10 @@ cleanup:
 
 int usage()
 {
-   printf("TODO: Implement %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
-   printf
-   (
-      "usage: %s [-ThHfF] [-d delimiter] [-s delimiter]\n"
-      "       -m minsize -M maxsize [-r random seed]\n"
-      "       (-n maxnumkeys | -N maxkibibytes) [-o filename]\n",
-      g.progname
-   );
-   return EXIT_FAILURE;
-}
-
-int longusage()
-{
-   printf("TODO: Implement %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
+   fprintf(stderr,
+           "usage: %s [-nTV] [-c name=value] [-f input_file]\n"
+           "          [-h home] [-t btree] db_file\n",
+           g.progname);
    return EXIT_FAILURE;
 }
 
@@ -269,14 +234,13 @@ int create_init_env()
    /*
    TODO: If/when supporting encryption
    if (g.password && (retval = dbenv->set_encrypt(dbenv, g.password, DB_ENCRYPT_AES))) {
-      dbenv->err(dbenv, retval, "set_passwd");
+      ERROR(retval, "set_passwd");
       goto error;
    }
    */
 
    /* Open the dbenvironment. */
    g.is_private = false;
-//   flags = DB_JOINENV | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
    flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
    //TODO: Transactions.. SET_BITS(flags, DB_INIT_TXN);
    
@@ -289,7 +253,7 @@ int create_init_env()
    ///TODO: UNCOMMENT/IMPLEMENT 
    retval = dbenv->set_cachesize(dbenv, 0, cache, 1);
    if (retval) {
-      dbenv->err(dbenv, retval, "DB_ENV->set_cachesize");
+      ERROR(retval, "DB_ENV->set_cachesize");
       goto error;
    }
    */
@@ -302,7 +266,7 @@ int create_init_env()
 
    retval = dbenv->open(dbenv, g.homedir ? g.homedir : ".", flags, 0);
    if (retval) {
-      dbenv->err(dbenv, retval, "DB_ENV->open");
+      ERROR(retval, "DB_ENV->open");
       goto error;
    }
 success:
@@ -313,90 +277,34 @@ error:
    return EXIT_FAILURE;
 }
 
-int printabletocstring(char* inputstr, char** poutputstr)
-{
-   char highch;
-   char lowch;
-   char nextch;
-   char* cstring;
-   DB_ENV* dbenv = g.dbenv;
-
-
-   assert(inputstr);
-   assert(poutputstr);
-   assert(*poutputstr == NULL);
-
-   cstring = (char*)malloc((strlen(inputstr) + 1) * sizeof(char));
-   if (cstring == NULL) {
-      dbenv->err(dbenv, ENOMEM, "");
-      goto error;
-   }
-
-   for (*poutputstr = cstring; *inputstr != '\0'; inputstr++) {
-      if (*inputstr == '\\') {
-         if ((highch = *++inputstr) == '\\') {
-            *cstring++ = '\\';
-            continue;
-         }
-         if (highch == '\0' || (lowch = *++inputstr) == '\0') {
-            dbenv->err(dbenv, 0, "unexpected end of input data or key/data pair");
-            goto error;
-         }
-         if (!isxdigit(highch)) {
-            dbenv->err(dbenv, 0, "Unexpected '%c' (non-hex) input.\n", highch);
-            goto error;
-         }
-         if (!isxdigit(lowch)) {
-            dbenv->err(dbenv, 0, "Unexpected '%c' (non-hex) input.\n", lowch);
-            goto error;
-         }
-         nextch = (hextoint(highch) << 4) | hextoint(lowch);
-         if (nextch == '\0') {
-            /* Database names are c strings, and cannot have extra NULL terminators. */
-            dbenv->err(dbenv, 0, "Unexpected '\\00' in input.\n");
-            goto error;
-         }
-         *cstring++ = nextch;
-      }
-      else *cstring++ = *inputstr;
-   }
-   /* Terminate the string. */
-   *cstring = '\0';
-   return EXIT_SUCCESS;
-
-error:
-   dbenv->err(dbenv, 0, "Quitting out due to errors.\n");
-   return EXIT_FAILURE;
-}
-
-///TODO: IMPLEMENT/Replace original line.
 #define PARSE_NUMBER(match, dbfunction)                                    \
 if (!strcmp(field, match)) {                                               \
-   if (strtoint32(dbenv, NULL, value, &num, 1, INT32_MAX, 10)) goto error; \
-   /*if ((retval = dbfunction(db, num)) != 0) goto printerror;*/           \
+   if (strtoint32(value, &num, 1, INT32_MAX, 10)) goto error;              \
+   if ((retval = dbfunction(db, num)) != 0) goto printerror;               \
    continue;                                                               \
 }
-
-///TODO: IMPLEMENT/Replace original line.
 #define PARSE_UNSUPPORTEDNUMBER(match, dbfunction)                         \
 if (!strcmp(field, match)) {                                               \
-   if (strtoint32(dbenv, NULL, value, &num, 1, INT32_MAX, 10)) goto error; \
-   dbenv->err(dbenv, 0, "%s option not supported.\n", field);              \
+   if (strtoint32(value, &num, 1, INT32_MAX, 10)) goto error;              \
+   ERRORX("%s option not supported.\n", field);                            \
    goto error;                                                             \
+}
+#define PARSE_IGNOREDNUMBER(match, dbfunction)                             \
+if (!strcmp(field, match)) {                                               \
+   if (strtoint32(value, &num, 1, INT32_MAX, 10)) goto error;              \
+   ERRORX("%s option not supported yet (ignored).\n", field);              \
+   continue;                                                               \
 }
 
 #define PARSE_FLAG(match, flag)                          \
 if (!strcmp(field, match)) {                             \
-   if (strtoint32(dbenv, NULL, value, &num, 0, 1, 10)) { \
-      dbenv->err(dbenv, 0,                               \
-               "%s: boolean name=value pairs require a value of 0 or 1",  \
-               field);                                   \
+   if (strtoint32(value, &num, 0, 1, 10)) {              \
+      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+             field);                                     \
       goto error;                                        \
    }                                                     \
    if ((retval = db->set_flags(db, flag)) != 0) {        \
-      dbenv->err(dbenv, retval,                          \
-              "set_flags: %s",                           \
-              field);                                    \
+      ERROR(retval, "set_flags: %s", field);             \
       goto error;                                        \
    }                                                     \
    continue;                                             \
@@ -404,22 +312,31 @@ if (!strcmp(field, match)) {                             \
 
 #define PARSE_UNSUPPORTEDFLAG(match, flag)               \
 if (!strcmp(field, match)) {                             \
-   if (strtoint32(dbenv, NULL, value, &num, 0, 1, 10)) { \
-      dbenv->err(dbenv, 0,                               \
-               "%s: boolean name=value pairs require a value of 0 or 1",  \
-               field);                                   \
+   if (strtoint32(value, &num, 0, 1, 10)) {              \
+      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+             field);                                     \
       goto error;                                        \
    }                                                     \
-   dbenv->err(dbenv, 0, "%s option not supported.\n", field);    \
+   ERRORX("%s option not supported.\n", field);          \
    goto error;                                           \
+}
+
+#define PARSE_IGNOREDFLAG(match, flag)                   \
+if (!strcmp(field, match)) {                             \
+   if (strtoint32(value, &num, 0, 1, 10)) {              \
+      ERRORX("%s: boolean name=value pairs require a value of 0 or 1",  \
+             field);                                     \
+      goto error;                                        \
+   }                                                     \
+   ERRORX("%s option not supported yet (ignored).\n", field);  \
+   continue;                                             \
 }
 
 #define PARSE_CHAR(match, dbfunction)                    \
 if (!strcmp(field, match)) {                             \
    if (strlen(value) != 1) {                             \
-      dbenv->err(dbenv, 0,                               \
-               "%s=%s: Expected 1-byte value",           \
-               field, value);                            \
+      ERRORX("%s=%s: Expected 1-byte value",             \
+             field, value);                              \
       goto error;                                        \
    }                                                     \
    if ((retval = dbfunction(db, value[0])) != 0) {       \
@@ -427,6 +344,34 @@ if (!strcmp(field, match)) {                             \
    }                                                     \
    continue;                                             \
 }
+
+#define PARSE_UNSUPPORTEDCHAR(match, dbfunction)         \
+if (!strcmp(field, match)) {                             \
+   if (strlen(value) != 1) {                             \
+      ERRORX("%s=%s: Expected 1-byte value",             \
+             field, value);                              \
+      goto error;                                        \
+   }                                                     \
+   ERRORX("%s option not supported.\n", field);          \
+   goto error;                                           \
+}
+
+#define PARSE_COMMON_CONFIGURATIONS()  \
+      PARSE_IGNOREDNUMBER(    "bt_minkey",   db->set_bt_minkey);     \
+      PARSE_IGNOREDFLAG(      "chksum",      DB_CHKSUM);             \
+      PARSE_IGNOREDNUMBER(    "db_lorder",   db->set_lorder);        \
+      PARSE_IGNOREDNUMBER(    "db_pagesize", db->set_pagesize);      \
+      PARSE_FLAG(             "duplicates",  DB_DUP);                \
+      PARSE_IGNOREDFLAG(      "dupsort",     DB_DUPSORT);            \
+      PARSE_UNSUPPORTEDNUMBER("extentsize",  db->set_q_extentsize);  \
+      PARSE_UNSUPPORTEDNUMBER("h_ffactor",   db->set_h_ffactor);     \
+      PARSE_UNSUPPORTEDNUMBER("h_nelem",     db->set_h_nelem);       \
+      PARSE_UNSUPPORTEDNUMBER("re_len",      db->set_re_len);        \
+      PARSE_UNSUPPORTEDCHAR(  "re_pad",      db->set_re_pad);        \
+      PARSE_IGNOREDFLAG(      "recnum",      DB_RECNUM);             \
+      PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
+
+
 
 int read_header()
 {
@@ -443,7 +388,7 @@ int read_header()
    assert(g.header);
 
    if (g.read_header.data == NULL && (g.read_header.data = (char*)malloc(datasize * sizeof(char))) == NULL) {
-      dbenv->err(dbenv, errno, "");
+      ERROR(errno, "read_header: malloc");
       goto error;
    }
    while (!g.eof) {
@@ -453,7 +398,6 @@ int read_header()
       while (true) {
          if ((ch = getchar()) == EOF) {
             g.eof = true;
-//TODO: Check ferror for every EOF test.
             if (ferror(stdin)) goto formaterror;
             break;
          }
@@ -477,9 +421,9 @@ int read_header()
 
       if (!strcmp(field, "HEADER")) break;
       if (!strcmp(field, "VERSION")) {
-         if (strtoint32(dbenv, NULL, value, &g.version, 1, INT32_MAX, 10)) goto error;
+         if (strtoint32(value, &g.version, 1, INT32_MAX, 10)) goto error;
          if (g.version != 3) {
-            dbenv->err(dbenv, 0, "line %lu: VERSION %d is unsupported", g.linenumber, g.version);
+            ERRORX("line %llu: VERSION %d is unsupported", g.linenumber, g.version);
             goto error;
          }
          continue;
@@ -501,54 +445,41 @@ int read_header()
             continue;
          }
          if (!strcmp(value, "hash") || strcmp(value, "recno") || strcmp(value, "queue")) {
-            dbenv->err(dbenv, 0, "db type %s not supported.\n", value);
+            ERRORX("db type %s not supported.\n", value);
             goto error;
          }
-         dbenv->err(dbenv, 0, "line %lu: unknown type %s", g.linenumber, value);
+         ERRORX("line %llu: unknown type %s", g.linenumber, value);
          goto error;
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
          if (g.subdatabase != NULL) {
-            //TODO: Free before quitting main., clear at start too.. could be a new db without a name?
             free(g.subdatabase);
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            dbenv->err(dbenv, retval, "error reading db name");
+            ERROR(retval, "error reading db name");
             goto error;
          }
          continue;
       }
       if (!strcmp(field, "keys")) {
          int32_t temp;
-         if (strtoint32(dbenv, NULL, value, &temp, 0, 1, 10)) {
-            dbenv->err(dbenv, 0,
+         if (strtoint32(value, &temp, 0, 1, 10)) {
+            ERROR(0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            dbenv->err(dbenv, 0, "keys=0 not supported", field);
+            ERRORX("keys=0 not supported");
             goto error;
          }
          continue;
       }
-      PARSE_NUMBER(           "bt_minkey",   db->set_bt_minkey);
-      PARSE_NUMBER(           "db_lorder",   db->set_lorder);
-      PARSE_NUMBER(           "db_pagesize", db->set_pagesize);
-      PARSE_NUMBER(           "re_len",      db->set_re_len);
-      PARSE_UNSUPPORTEDNUMBER("extentsize",  db->set_q_extentsize);
-      PARSE_UNSUPPORTEDNUMBER("h_ffactor",   db->set_h_ffactor);
-      PARSE_UNSUPPORTEDNUMBER("h_nelem",     db->set_h_nelem);
-      PARSE_CHAR(             "re_pad",      db->set_re_pad);
-      PARSE_FLAG(             "chksum",      DB_CHKSUM_SHA1);
-      PARSE_FLAG(             "duplicates",  DB_DUP);
-      PARSE_FLAG(             "dupsort",     DB_DUPSORT);
-      PARSE_FLAG(             "recnum",      DB_RECNUM);
-      PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
+      PARSE_COMMON_CONFIGURATIONS();
 
-      dbenv->err(dbenv, 0, "unknown input-file header configuration keyword \"%s\"", field);
+      ERRORX("unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
 success:
@@ -556,11 +487,11 @@ success:
 
    if (false) {
 printerror:
-      dbenv->err(dbenv, retval, "%s=%s", field, value);
+      ERROR(retval, "%s=%s", field, value);
    }
    if (false) {
 formaterror:
-      dbenv->err(dbenv, 0, "line %lu: unexpected format", g.linenumber);
+      ERRORX("line %llu: unexpected format", g.linenumber);
    }
 error:
    return EXIT_FAILURE;
@@ -590,14 +521,14 @@ int apply_commandline_options()
       field = g.config_options[index];
 
       if ((value = strchr(field, '=')) == NULL) {
-         dbenv->err(dbenv, 0, "command-line configuration uses name=value format");
+         ERRORX("command-line configuration uses name=value format");
          goto error;
       }
       value[0] = '\0';
       value++;
 
       if (field[0] == '\0' || value[0] == '\0') {
-         dbenv->err(dbenv, 0, "command-line configuration uses name=value format");
+         ERRORX("command-line configuration uses name=value format");
          goto error;
       }
 
@@ -607,44 +538,29 @@ int apply_commandline_options()
             g.subdatabase = NULL;
          }
          if ((retval = printabletocstring(value, &g.subdatabase))) {
-            dbenv->err(dbenv, retval, "error reading db name");
+            ERROR(retval, "error reading db name");
             goto error;
          }
          continue;
       }
       if (!strcmp(field, "keys")) {
          int32_t temp;
-         if (strtoint32(dbenv, NULL, value, &temp, 0, 1, 10)) {
-            dbenv->err(dbenv, 0,
+         if (strtoint32(value, &temp, 0, 1, 10)) {
+            ERROR(0,
                      "%s: boolean name=value pairs require a value of 0 or 1",
                      field);
             goto error;
          }
          g.keys = temp;
          if (!g.keys) {
-            dbenv->err(dbenv, 0, "keys=0 not supported", field);
+            ERRORX("keys=0 not supported");
             goto error;
          }
          continue;
       }
-      /*
-      ///TODO: UNCOMMENT/IMPLEMENT
-      PARSE_NUMBER(           "bt_minkey",   db->set_bt_minkey);
-      PARSE_NUMBER(           "db_lorder",   db->set_lorder);
-      PARSE_NUMBER(           "db_pagesize", db->set_pagesize);
-      PARSE_NUMBER(           "re_len",      db->set_re_len);
-      PARSE_UNSUPPORTEDNUMBER("extentsize",  db->set_q_extentsize);
-      PARSE_UNSUPPORTEDNUMBER("h_ffactor",   db->set_h_ffactor);
-      PARSE_UNSUPPORTEDNUMBER("h_nelem",     db->set_h_nelem);
-      PARSE_CHAR(             "re_pad",      db->set_re_pad);
-      PARSE_FLAG(             "chksum",      DB_CHKSUM_SHA1);
-      PARSE_FLAG(             "duplicates",  DB_DUP);
-      PARSE_FLAG(             "dupsort",     DB_DUPSORT);
-      PARSE_FLAG(             "recnum",      DB_RECNUM);
-      PARSE_UNSUPPORTEDFLAG(  "renumber",    DB_RENUMBER);
-      */
+      PARSE_COMMON_CONFIGURATIONS();
 
-      dbenv->err(dbenv, 0, "unknown input-file header configuration keyword \"%s\"", field);
+      ERRORX("unknown input-file header configuration keyword \"%s\"", field);
       goto error;
    }
    if (value) {
@@ -656,7 +572,7 @@ int apply_commandline_options()
 
    if (false) {
 printerror:
-      dbenv->err(dbenv, retval, "%s=%s", field, value);
+      ERROR(retval, "%s=%s", field, value);
    }
 error:
    return EXIT_FAILURE;
@@ -667,52 +583,44 @@ int open_database()
    DB* db = g.db;
    DB_ENV* dbenv = g.dbenv;
    int retval;
+   DBTYPE opened_type;
 
-   int open_flags = DB_CREATE;
+   int open_flags = 0;
    //TODO: Transaction auto commit stuff
    //if (TXN_ON(dbenv)) SET_BITS(open_flags, DB_AUTO_COMMIT);
-//TODO: First see if it exists.. THEN create it?
+
+   //Try to see if it exists first.
    retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
    if (retval != 0) {
-      dbenv->err(dbenv, retval, "DB->open: %s", g.database);
+      //Does not exist and we did not specify a type.
+      if (g.dbtype == DB_UNKNOWN) {
+         ERRORX("no database type specified");
+         goto error;
+      }
+      SET_BITS(open_flags, DB_CREATE);
+      //Try creating it.
+      retval = db->open(db, NULL, g.database, g.subdatabase, g.dbtype, open_flags, 0666);
+      if (retval != 0) {
+         ERROR(retval, "DB->open: %s", g.database);
+         goto error;
+      }
+   }
+   if ((retval = db->get_type(db, &opened_type)) != 0) {
+      ERROR(retval, "DB->get_type");
       goto error;
    }
-   //TODO: Ensure we have enough cache to store some min number of btree pages.
-   //NOTE: This may require closing db, environment, and creating new ones.
-
-
-/*
-///TODO: UNCOMMENT/IMPLEMENT
-   DBTYPE existingtype;
-   retval = db->get_type(db, &existingtype);
-   if (retval != 0) {
-      dbenv->err(dbenv, retval, "DB->get_type: %s", g.database);
+   if (opened_type != DB_BTREE) {
+      ERRORX("Unsupported db type %d\n", opened_type);
       goto error;
    }
-   assert(g.dbtype == DB_BTREE);
-   if (existingtype != g.dbtype) {
-      fprintf(stderr, "Existing database is not a dictionary (DB_BTREE).\n");
+   if (g.dbtype != DB_UNKNOWN && opened_type != g.dbtype) {
+      ERRORX("DBTYPE %d does not match opened DBTYPE %d.\n", g.dbtype, opened_type);
       goto error;
    }
-   */
    return EXIT_SUCCESS;
 error:
    fprintf(stderr, "Quitting out due to errors.\n");
    return EXIT_FAILURE;
-}
-
-int hextoint(int ch)
-{
-   if (ch >= '0' && ch <= '9') {
-      return ch - '0';
-   }
-   if (ch >= 'a' && ch <= 'z') {
-      return ch - 'a' + 10;
-   }
-   if (ch >= 'A' && ch <= 'Z') {
-      return ch - 'A' + 10;
-   }
-   return EOF;
 }
 
 int doublechararray(char** pmem, uint64_t* size)
@@ -726,11 +634,11 @@ int doublechararray(char** pmem, uint64_t* size)
    *size <<= 1;
    if (*size == 0) {
       /* Overflowed uint64_t. */
-      dbenv->err(dbenv, 0, "Line %llu: Line too long.\n", g.linenumber);
+      ERRORX("Line %llu: Line too long.\n", g.linenumber);
       goto error;
    }
    if ((*pmem = (char*)realloc(*pmem, *size)) == NULL) {
-      dbenv->err(dbenv, errno, "");
+      ERROR(errno, "doublechararray: realloc");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -755,7 +663,7 @@ int get_dbt(DBT* pdbt)
    which = 1 - which;
    if (g.get_dbt.data[which] == NULL &&
       (g.get_dbt.data[which] = (char*)malloc(datasize[which] * sizeof(char))) == NULL) {
-      dbenv->err(dbenv, errno, "");
+      ERROR(errno, "get_dbt: malloc");
       goto error;
    }
    
@@ -781,22 +689,22 @@ int get_dbt(DBT* pdbt)
                }
                else if (highch == EOF) {
                   g.eof = true;
-                  dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  ERRORX("Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(highch)) {
-                  dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+                  ERRORX("Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
                   goto error;
                }
 
                lowch = getchar();
                if (lowch == EOF) {
                   g.eof = true;
-                  dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  ERRORX("Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(lowch)) {
-                  dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+                  ERRORX("Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
                   goto error;
                }
 
@@ -808,7 +716,7 @@ int get_dbt(DBT* pdbt)
                   nextch = firstch;
                   break;
                }
-               dbenv->err(dbenv, 0, "Line %llu: Nonprintable character found.", g.linenumber);
+               ERRORX("Line %llu: Nonprintable character found.", g.linenumber);
                goto error;
             }
          }
@@ -835,15 +743,15 @@ int get_dbt(DBT* pdbt)
          lowch = getchar();
          if (lowch == EOF) {
             g.eof = true;
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+            ERRORX("Line %llu: Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
             goto error;
          }
          if (!isxdigit(highch)) {
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+            ERRORX("Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+            ERRORX("Line %llu: Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
             goto error;
          }
          if (index == datasize[which]) {
@@ -873,7 +781,7 @@ int insert_pair(DBT* key, DBT* data)
    int retval = db->put(db, NULL, key, data, g.overwritekeys ? 0 : DB_NOOVERWRITE);
    if (retval != 0) {
       //TODO: Check for transaction failures/etc.. retry if necessary.
-      dbenv->err(dbenv, retval, "DB->put");
+      ERROR(retval, "DB->put");
       goto error;
    }
    return EXIT_SUCCESS;
@@ -905,7 +813,7 @@ int read_keys()
          g.linenumber++;
          if (get_dbt(&key) != 0) goto error;
          if (g.eof) {
-            dbenv->err(dbenv, 0, "Line %llu: Key exists but value missing.", g.linenumber);
+            ERRORX("Line %llu: Key exists but value missing.", g.linenumber);
             goto error;
          }
          g.linenumber++;
@@ -937,13 +845,13 @@ int read_keys()
          }
          default: {
 unexpectedinput:
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected input while reading key.\n", g.linenumber);
+            ERRORX("Line %llu: Unexpected input while reading key.\n", g.linenumber);
             goto error;
          }
       }
 
       if (g.eof) {
-         dbenv->err(dbenv, 0, "Line %llu: Key exists but value missing.", g.linenumber);
+         ERRORX("Line %llu: Key exists but value missing.", g.linenumber);
          goto error;
       }
       g.linenumber++;
@@ -951,7 +859,7 @@ unexpectedinput:
       switch (spacech) {
          case (EOF): {
             g.eof = true;
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected end of file while reading value.\n", g.linenumber);
+            ERRORX("Line %llu: Unexpected end of file while reading value.\n", g.linenumber);
             goto error;
          }
          case (' '): {
@@ -960,7 +868,7 @@ unexpectedinput:
             break;
          }
          default: {
-            dbenv->err(dbenv, 0, "Line %llu: Unexpected input while reading value.\n", g.linenumber);
+            ERRORX("Line %llu: Unexpected input while reading value.\n", g.linenumber);
             goto error;
          }
       }
@@ -980,7 +888,7 @@ int close_database()
 
    assert(db);
    if ((retval = db->close(db, 0)) != 0) {
-      dbenv->err(dbenv, retval, "DB->close");
+      ERROR(retval, "DB->close");
       goto error;
    }
    return EXIT_SUCCESS;
