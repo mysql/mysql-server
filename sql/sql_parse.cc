@@ -3812,6 +3812,9 @@ end_with_restore_list:
     case SP_BODY_TOO_LONG:
       my_error(ER_TOO_LONG_BODY, MYF(0), name);
     break;
+    case SP_FLD_STORE_FAILED:
+      my_error(ER_CANT_CREATE_SROUTINE, MYF(0), name);
+      break;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
     break;
