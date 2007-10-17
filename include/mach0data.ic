@@ -391,7 +391,7 @@ dulint
 mach_read_from_6(
 /*=============*/
 				/* out: dulint integer */
-	const byte*	b)	/* in: pointer to 7 bytes */
+	const byte*	b)	/* in: pointer to 6 bytes */
 {
 	ulint	high;
 	ulint	low;
