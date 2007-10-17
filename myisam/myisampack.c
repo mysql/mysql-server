@@ -3148,7 +3148,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     cur_sort_p= sort_counts;
     while (cur_count_p < end_count_p)
       *(cur_sort_p++)= cur_count_p++;
-    (void) qsort(sort_counts, 256, sizeof(my_off_t*), (qsort_cmp) fakecmp);
+    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), (qsort_cmp) fakecmp);
 
     /*
       Assign faked counts.
