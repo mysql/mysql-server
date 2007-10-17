@@ -351,13 +351,13 @@ int serialize_brt_header_to (int fd, struct brt_header *h) {
 }
 
 int deserialize_brtheader_from (int fd, diskoff off, struct brt_header **brth) {
-    printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
+    //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     struct brt_header *MALLOC(h);
     struct rbuf rc;
     int size;
     int sizeagain;
     assert(off==0);
-    printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
+    //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
     {
 	uint32_t size_n;
 	ssize_t r = pread(fd, &size_n, sizeof(size_n), off);

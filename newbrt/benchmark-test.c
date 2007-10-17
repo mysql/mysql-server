@@ -21,6 +21,8 @@ enum { NODE_SIZE = 1<<20 };
 int nodesize = NODE_SIZE;
 int keysize = sizeof (long long);
 int valsize = sizeof (long long);
+int do_verify =0; /* Do a slow verify after every insert. */
+
 
 CACHETABLE ct;
 BRT t;
@@ -51,6 +53,7 @@ void insert (long long v) {
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
     brt_insert(t, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), 0, 0);
+    if (do_verify) cachetable_verify(ct);
 }
 
 void serial_insert_from (long long from) {
@@ -94,7 +97,7 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 }
 
 void usage() {
-    printf("benchmark-test [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [TOTALITEMS]\n");
+    printf("benchmark-test [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [TOTALITEMS]\n");
 }
 
 int main (int argc, char *argv[]) {
@@ -127,6 +130,11 @@ int main (int argc, char *argv[]) {
             }
             continue;
         }
+
+	if (strcmp(arg, "--verify")==0) {
+	    do_verify = 1;
+	    continue;
+	}
 
         usage();
         return 1;

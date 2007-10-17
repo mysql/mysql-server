@@ -155,6 +155,7 @@ int tokulogger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, diskoff disk
 }
 
 int tokulogger_fsync (TOKULOGGER logger) {
+    //return 0;/// NO TXN
     if (logger->n_in_buf>0) {
 	int r = write(logger->fd, logger->buf, logger->n_in_buf);
 	if (r==-1) return errno;

@@ -30,10 +30,10 @@ static void test0 (void) {
     unlink(fname);
     r = open_brt(fname, 0, 1, &t, 1024, ct, default_compare_fun);
     assert(r==0);
-    printf("%s:%d test0\n", __FILE__, __LINE__);
-    printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
+    //printf("%s:%d test0\n", __FILE__, __LINE__);
+    //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
     r = close_brt(t);     assert(r==0);
-    printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);    assert(r==0);
+    //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
     r = cachetable_close(&ct);
     assert(r==0);
     memory_check_all_free();
@@ -767,47 +767,49 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     r = close_brt(brt);
     }
 
-    if (1) {
-    r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+    {
+	cachetable_verify(ct);
+	r = open_brt(n, 0, 1, &brt, 1<<20, ct, wrong_p ? wrong_compare_fun : default_compare_fun);  assert(r==0);
+	cachetable_verify(ct);
     
-    for (i=0; i<N; i++) {
-	unsigned char a[4],b[4];
-	b[3] = a[0] = i&255;
-	b[2] = a[1] = (i>>8)&255;
-	b[1] = a[2] = (i>>16)&255;
-	b[0] = a[3] = (i>>24)&255;
-	fill_b(&kbt, a, sizeof(a));
-	fill_dbt(&vbt, b, sizeof(b));
-	if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
-	       ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
-	       ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
-	r = brt_insert(brt, &kbt, &vbt, &nonce_db, null_txn);
-	assert(r==0);
-    }
-    r = brt_cursor(brt, &cursor);            assert(r==0);
+	for (i=0; i<N; i++) {
+	    unsigned char a[4],b[4];
+	    b[3] = a[0] = i&255;
+	    b[2] = a[1] = (i>>8)&255;
+	    b[1] = a[2] = (i>>16)&255;
+	    b[0] = a[3] = (i>>24)&255;
+	    fill_b(&kbt, a, sizeof(a));
+	    fill_dbt(&vbt, b, sizeof(b));
+	    if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+			  ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
+			  ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
+	    r = brt_insert(brt, &kbt, &vbt, &nonce_db, null_txn);
+	    assert(r==0);
+	    cachetable_verify(ct);
+	}
+	r = brt_cursor(brt, &cursor);            assert(r==0);
+	
+	int prev=-1;
+	for (i=0; i<N; i++) {
+	    int this;
+	    init_dbt(&kbt); init_dbt(&vbt);
+	    r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
+	    assert(r==0);
+	    assert(kbt.size==4 && vbt.size==4);
+	    if (0) printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
+			  ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
+			  ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
+	    this= ( (((unsigned char*)kbt.data)[3] << 24) +
+		    (((unsigned char*)kbt.data)[2] << 16) +
+		    (((unsigned char*)kbt.data)[1] <<  8) +
+		    (((unsigned char*)kbt.data)[0] <<  0));
+	    assert(prev<this);
+	    prev=this;
+	    assert(this==(int)i);
+	    cachetable_verify(ct);
+	}
 
-    int prev=-1;
-    for (i=0; i<N; i++) {
-	int this;
-	init_dbt(&kbt); init_dbt(&vbt);
-	r = brt_cursor_get(cursor, &kbt, &vbt, DB_NEXT, null_db, null_txn);
-	assert(r==0);
-	assert(kbt.size==4 && vbt.size==4);
-	if (0) printf("%s:%d %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
-		      ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
-		      ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
-	this= ( (((unsigned char*)kbt.data)[3] << 24) +
-		(((unsigned char*)kbt.data)[2] << 16) +
-		(((unsigned char*)kbt.data)[1] <<  8) +
-		(((unsigned char*)kbt.data)[0] <<  0));
-	assert(prev<this);
-	prev=this;
-	assert(this==(int)i);
-	    
-    }
-
-  
-    r = close_brt(brt);
+	r = close_brt(brt);
     }
     r = cachetable_close(&ct); assert(r==0);
     memory_check_all_free();

@@ -45,6 +45,7 @@ BINS =  $(REGRESSION_TESTS) \
 libs: log.o
 bins: $(BINS)
 check: bins
+	./benchmark-test --valsize 256 --verify 1
 	$(DTOOL) ./ybt-test
 	$(DTOOL) ./pma-test
 	$(DTOOL) ./cachetable-test
