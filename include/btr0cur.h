@@ -551,22 +551,17 @@ btr_rec_copy_externally_stored_field(
 	ulint*		len,	/* out: length of the field */
 	mem_heap_t*	heap);	/* in: mem heap */
 /***********************************************************************
-Stores the positions of the fields marked as extern storage in the update
-vector, and also those fields who are marked as extern storage in rec
-and not mentioned in updated fields. We use this function to remember
-which fields we must mark as extern storage in a record inserted for an
-update. */
+Flags the data tuple fields that are marked as extern storage in the
+update vector.  We use this function to remember which fields we must
+mark as extern storage in a record inserted for an update. */
 
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
-					/* out: number of externally
-					stored columns */
-	dtuple_t*		tuple,	/* in/out: data tuple */
-	const dict_index_t*	index,	/* in: clustered index */
-	const ulint*		offsets,/* in: array returned by
-					rec_get_offsets() */
-	const upd_t*		update);/* in: update vector or NULL */
+				/* out: number of flagged external columns */
+	dtuple_t*	tuple,	/* in/out: data tuple */
+	const upd_t*	update)	/* in: update vector */
+	__attribute__((nonnull));
 
 /*######################################################################*/
 
