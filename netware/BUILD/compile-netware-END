@@ -29,8 +29,15 @@ fi
 # configure
 ./configure $base_configs $extra_configs
 
-# make
-make clean bin-dist
+# Ensure a clean tree
+make clean
+
+# Link NetWare specific .def files into their proper locations
+# in the source tree
+( cd netware && make link_sources )
+
+# Now, do the real build
+make bin-dist
 
 # mark the build
 for file in *.tar.gz *.zip

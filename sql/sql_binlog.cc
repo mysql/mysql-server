@@ -33,8 +33,8 @@ void mysql_client_binlog_statement(THD* thd)
 {
   DBUG_ENTER("mysql_client_binlog_statement");
   DBUG_PRINT("info",("binlog base64: '%*s'",
-                     (thd->lex->comment.length < 2048 ?
-                      thd->lex->comment.length : 2048),
+                     (int) (thd->lex->comment.length < 2048 ?
+                            thd->lex->comment.length : 2048),
                      thd->lex->comment.str));
 
   /*
@@ -44,15 +44,15 @@ void mysql_client_binlog_statement(THD* thd)
   my_bool nsok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 
-  my_size_t coded_len= thd->lex->comment.length + 1;
-  my_size_t decoded_len= base64_needed_decoded_length(coded_len);
+  size_t coded_len= thd->lex->comment.length + 1;
+  size_t decoded_len= base64_needed_decoded_length(coded_len);
   DBUG_ASSERT(coded_len > 0);
 
   /*
     Allocation
   */
   if (!thd->rli_fake)
-    thd->rli_fake= new RELAY_LOG_INFO;
+    thd->rli_fake= new Relay_log_info;
 
   const Format_description_log_event *desc=
     new Format_description_log_event(4);
@@ -172,6 +172,7 @@ void mysql_client_binlog_statement(THD* thd)
         not used at all: the rli_fake instance is used only for error
         reporting.
        */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       if (IF_DBUG(int err= ) ev->apply_event(thd->rli_fake))
       {
         DBUG_PRINT("info", ("apply_event() returned: %d", err));
@@ -182,6 +183,7 @@ void mysql_client_binlog_statement(THD* thd)
         my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
         goto end;
       }
+#endif
 
       delete ev;
       ev= 0;

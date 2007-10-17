@@ -43,10 +43,7 @@ set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 --echo #
 --echo # Test 2
@@ -55,13 +52,10 @@ show slave status;
 stop slave;
 reset slave;
 set global max_relay_log_size=(5*4096);
-select @@global.max_relay_log_size;
+query_vertical select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 --echo #
 --echo # Test 3: max_relay_log_size = 0
@@ -70,13 +64,10 @@ show slave status;
 stop slave;
 reset slave;
 set global max_relay_log_size=0;
-select @@global.max_relay_log_size;
+query_vertical select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 --echo #
 --echo # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
@@ -87,10 +78,7 @@ reset slave;
 # test of relay log rotation when the slave is stopped
 # (to make sure it does not crash).
 flush logs;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 --echo #
 --echo # Test 5
@@ -108,10 +96,7 @@ create table t1 (a int);
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 --echo #
 --echo # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
@@ -123,16 +108,13 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
---vertical_results
-show slave status;
+source include/show_slave_status.inc;
 
 connection master;
 # test that the absence of relay logs does not make a master crash
 flush logs;
 -- replace_column 3 <Binlog_Ignore_DB>
-show master status;
+query_vertical show master status;
 
 # Restore max_binlog_size
 connection slave;

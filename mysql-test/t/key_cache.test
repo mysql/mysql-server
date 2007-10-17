@@ -219,4 +219,31 @@ set global key_cache_block_size= @my_key_cache_block_size;
 set @@global.key_buffer_size=0;
 select @@global.key_buffer_size;
 
+#
+# Bug#28478 - Improper key_cache_block_size corrupts MyISAM tables
+#
+SET @bug28478_key_cache_block_size= @@global.key_cache_block_size;
+SET GLOBAL key_cache_block_size= 1536;
+CREATE TABLE t1 (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c1 CHAR(150),
+  c2 CHAR(150),
+  c3 CHAR(150),
+  KEY(c1, c2, c3)
+  ) ENGINE= MyISAM;
+INSERT INTO t1 (c1, c2, c3) VALUES
+  ('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'),
+  ('e', 'f', 'g'), ('f', 'g', 'h'), ('g', 'h', 'i'), ('h', 'i', 'j'),
+  ('i', 'j', 'k'), ('j', 'k', 'l'), ('k', 'l', 'm'), ('l', 'm', 'n'),
+  ('m', 'n', 'o'), ('n', 'o', 'p'), ('o', 'p', 'q'), ('p', 'q', 'r'),
+  ('q', 'r', 's'), ('r', 's', 't'), ('s', 't', 'u'), ('t', 'u', 'v'),
+  ('u', 'v', 'w'), ('v', 'w', 'x'), ('w', 'x', 'y'), ('x', 'y', 'z');
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+INSERT INTO t1 (c1, c2, c3) SELECT c1, c2, c3 from t1;
+CHECK TABLE t1;
+SHOW VARIABLES LIKE 'key_cache_block_size';
+SET GLOBAL key_cache_block_size= @bug28478_key_cache_block_size;
+DROP TABLE t1;
+
 # End of 4.1 tests

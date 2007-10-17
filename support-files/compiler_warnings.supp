@@ -51,6 +51,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .* : conversion from '.*size_t' to 'uint32'.*
 .* : conversion from '.*size_t' to 'off_t'.*
 .* : conversion from '.*size_t' to 'size_s'.*
+.* : conversion from '.*size_t' to 'DWORD'.*
+.* : conversion from '.*size_t' to 'uLongf'.*
+.* : conversion from '.*size_t' to 'UINT'.*
+.* : conversion from '.*size_t' to 'uInt'.*
+.* : conversion from '.*size_t' to 'uint16'.*
 
 #
 # The following should be fixed by the ndb team
@@ -64,7 +69,9 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
-mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 567
+
+# allow a little moving space for the warning below
+mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
 
 #
 # Wrong compiler warnings

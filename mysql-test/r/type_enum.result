@@ -1675,7 +1675,7 @@ t1	CREATE TABLE `t1` (
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
-b	enum('value','öäü_value','ÊÃÕ')	NO			
+b	enum('value','öäü_value','ÊÃÕ')	NO		NULL	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
 INSERT INTO t1 VALUES ('a'),('A');
@@ -1754,7 +1754,6 @@ t1	CREATE TABLE `t1` (
   `f2` enum('ÿÿ') DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-End of 4.1 tests
 create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
@@ -1779,4 +1778,79 @@ drop table t1;
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
 ERROR 42000: Field separator argument is not what is expected; check the manual
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 ENUM('a', '', 'b')
+);
+INSERT INTO t1 (c1) VALUES (0), ('a'), (''), ('b');
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+SELECT id, c1 + 0, c1 FROM t1;
+id	c1 + 0	c1
+1	0	
+2	1	a
+3	2	
+4	3	b
+ALTER TABLE t1 CHANGE c1 c1 ENUM('a', '') NOT NULL;
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 4
+SELECT id, c1 + 0, c1 FROM t1;
+id	c1 + 0	c1
+1	0	
+2	1	a
+3	2	
+4	0	
+DROP TABLE t1;
+End of 4.1 tests
+create table t1(f1 set('a','b'), index(f1));
+insert into t1 values(''),(''),('a'),('b');
+select * from t1 where f1='';
+f1
+
+
+drop table t1;
+CREATE TABLE t1 (c1 ENUM('a', '', 'b'));
+INSERT INTO t1 (c1) VALUES ('b');
+INSERT INTO t1 (c1) VALUES ('');
+INSERT INTO t1 (c1) VALUES (0);
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+INSERT INTO t1 (c1) VALUES ('');
+SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
+c1 + 0	COUNT(c1)
+0	1
+2	2
+3	1
+CREATE TABLE t2 SELECT * FROM t1;
+SELECT c1 + 0 FROM t2;
+c1 + 0
+3
+2
+0
+2
+DROP TABLE t1,t2;
+CREATE TABLE t1(a enum('a','b','c','d'));
+INSERT INTO t1 VALUES (4),(1),(0),(3);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 3
+SELECT a FROM t1;
+a
+d
+a
+
+c
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT a FROM t1 WHERE a=0;
+a
+
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	1	const	1	Using index
+SELECT a FROM t1 WHERE a=0;
+a
+
+DROP TABLE t1;
 End of 5.1 tests

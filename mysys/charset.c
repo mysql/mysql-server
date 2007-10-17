@@ -202,6 +202,19 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 }
 
 
+static void
+copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
+{
+  to->cset= from->cset;
+  to->coll= from->coll;
+  to->strxfrm_multiply= from->strxfrm_multiply;
+  to->min_sort_char= from->min_sort_char;
+  to->max_sort_char= from->max_sort_char;
+  to->mbminlen= from->mbminlen;
+  to->mbmaxlen= from->mbmaxlen;
+}
+
+
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
@@ -225,29 +238,30 @@ static int add_collation(CHARSET_INFO *cs)
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
-      CHARSET_INFO *new= all_charsets[cs->number];
+      CHARSET_INFO *newcs= all_charsets[cs->number];
       if (cs_copy_data(all_charsets[cs->number],cs))
         return MY_XML_ERROR;
 
       if (!strcmp(cs->csname,"ucs2") )
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
-        new->cset= my_charset_ucs2_general_uca.cset;
-        new->coll= my_charset_ucs2_general_uca.coll;
-        new->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
-        new->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
-        new->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
-        new->mbminlen= 2;
-        new->mbmaxlen= 2;
-        new->state |= MY_CS_AVAILABLE | MY_CS_LOADED;
+        copy_uca_collation(newcs, &my_charset_ucs2_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
 #endif        
+      }
+      else if (!strcmp(cs->csname, "utf8"))
+      {
+#if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
+        copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
+#endif
       }
       else
       {
         uchar *sort_order= all_charsets[cs->number]->sort_order;
         simple_cs_init_functions(all_charsets[cs->number]);
-        new->mbminlen= 1;
-        new->mbmaxlen= 1;
+        newcs->mbminlen= 1;
+        newcs->mbmaxlen= 1;
         if (simple_cs_is_full(all_charsets[cs->number]))
         {
           all_charsets[cs->number]->state |= MY_CS_LOADED;
@@ -263,6 +277,9 @@ static int add_collation(CHARSET_INFO *cs)
         if (sort_order && sort_order['A'] < sort_order['a'] &&
                           sort_order['a'] < sort_order['B'])
           all_charsets[cs->number]->state|= MY_CS_CSSORT; 
+
+        if (my_charset_is_8bit_pure_ascii(all_charsets[cs->number]))
+          all_charsets[cs->number]->state|= MY_CS_PUREASCII;
       }
     }
     else
@@ -309,14 +326,14 @@ static int charset_initialized=0;
 
 static my_bool my_read_charset_file(const char *filename, myf myflags)
 {
-  char *buf;
+  uchar *buf;
   int  fd;
   uint len, tmp_len;
   MY_STAT stat_info;
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-       !(buf= (char *)my_malloc(len,myflags)))
+       !(buf= (uchar*) my_malloc(len,myflags)))
     return TRUE;
   
   if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
@@ -326,7 +343,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   if (tmp_len != len)
     goto error;
   
-  if (my_parse_charset_xml(buf,len,add_collation))
+  if (my_parse_charset_xml((char*) buf,len,add_collation))
   {
 #ifdef NOT_YET
     printf("ERROR at line %d pos %d '%s'\n",
@@ -336,7 +353,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 #endif
   }
   
-  my_free(buf, myflags);  
+  my_free(buf, myflags);
   return FALSE;
 
 error:
@@ -376,7 +393,7 @@ void add_compiled_collation(CHARSET_INFO *cs)
   cs->state|= MY_CS_AVAILABLE;
 }
 
-static void *cs_alloc(uint size)
+static void *cs_alloc(size_t size)
 {
   return my_once_alloc(size, MYF(MY_WME));
 }
@@ -573,6 +590,70 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 }
 
 
+/**
+  Resolve character set by the character set name (utf8, latin1, ...).
+
+  The function tries to resolve character set by the specified name. If
+  there is character set with the given name, it is assigned to the "cs"
+  parameter and FALSE is returned. If there is no such character set,
+  "default_cs" is assigned to the "cs" and TRUE is returned.
+
+  @param[in] cs_name    Character set name.
+  @param[in] default_cs Default character set.
+  @param[out] cs        Variable to store character set.
+
+  @return FALSE if character set was resolved successfully; TRUE if there
+  is no character set with given name.
+*/
+
+bool resolve_charset(const char *cs_name,
+                     CHARSET_INFO *default_cs,
+                     CHARSET_INFO **cs)
+{
+  *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
+
+  if (*cs == NULL)
+  {
+    *cs= default_cs;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Resolve collation by the collation name (utf8_general_ci, ...).
+
+  The function tries to resolve collation by the specified name. If there
+  is collation with the given name, it is assigned to the "cl" parameter
+  and FALSE is returned. If there is no such collation, "default_cl" is
+  assigned to the "cl" and TRUE is returned.
+
+  @param[out] cl        Variable to store collation.
+  @param[in] cl_name    Collation name.
+  @param[in] default_cl Default collation.
+
+  @return FALSE if collation was resolved successfully; TRUE if there is no
+  collation with given name.
+*/
+
+bool resolve_collation(const char *cl_name,
+                       CHARSET_INFO *default_cl,
+                       CHARSET_INFO **cl)
+{
+  *cl= get_charset_by_name(cl_name, MYF(0));
+
+  if (*cl == NULL)
+  {
+    *cl= default_cl;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 /*
   Escape string with backslashes (\)
 
@@ -594,13 +675,13 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     "big enough"
 
   RETURN VALUES
-    ~0          The escaped string did not fit in the to buffer
-    >=0         The length of the escaped string
+    (size_t) -1 The escaped string did not fit in the to buffer
+    #           The length of the escaped string
 */
 
-ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
-                              char *to, ulong to_length,
-                              const char *from, ulong length)
+size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+                               char *to, size_t to_length,
+                               const char *from, size_t length)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
@@ -684,7 +765,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     }
   }
   *to= 0;
-  return overflow ? (ulong)~0 : (ulong) (to - to_start);
+  return overflow ? (size_t) -1 : (size_t) (to - to_start);
 }
 
 
@@ -738,9 +819,9 @@ CHARSET_INFO *fs_character_set()
     >=0         The length of the escaped string
 */
 
-ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
-                              char *to, ulong to_length,
-                              const char *from, ulong length)
+size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
+                               char *to, size_t to_length,
+                               const char *from, size_t length)
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);

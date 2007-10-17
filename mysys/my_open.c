@@ -56,20 +56,20 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   }
 #ifndef __WIN__
   if (Flags & O_SHARE)
-    fd = sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
+    fd = sopen((char *) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
 	       MY_S_IREAD | MY_S_IWRITE);
   else
-    fd = open((my_string) FileName, Flags | O_BINARY,
+    fd = open((char *) FileName, Flags | O_BINARY,
 	      MY_S_IREAD | MY_S_IWRITE);
 #else
-  fd= my_sopen((my_string) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
+  fd= my_sopen((char *) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
 	       MY_S_IREAD | MY_S_IWRITE);
 #endif
 
 #elif !defined(NO_OPEN_3)
   fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #else
-  fd = open((my_string) FileName, Flags);
+  fd = open((char *) FileName, Flags);
 #endif
   DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_OPEN,
 				   EE_FILENOTFOUND, MyFlags));
@@ -151,6 +151,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
     {
       my_file_opened++;
+      my_file_total_opened++;
       my_file_info[fd].type = type_of_file;
 #if defined(THREAD) && !defined(HAVE_PREAD)
       pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);

@@ -747,6 +747,14 @@ done:
   }
   ndbrequire(ok);
   
+  CRASH_INSERTION(7183);
+  
+  if (ERROR_INSERTED(7185) && reason==CopyGCIReq::GLOBAL_CHECKPOINT)
+  {
+    jam();
+    return;
+  }
+
   /* ----------------------------------------------------------------------- */
   /*     WE START BY TRYING TO OPEN THE FIRST RESTORABLE GCI FILE.           */
   /* ----------------------------------------------------------------------- */
@@ -1230,6 +1238,17 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
 	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
 	ndbrequire(ng < MAX_NDB_NODES);
 	Uint32 gci = node_gcis[i];
+        if (gci < SYSFILE->lastCompletedGCI[i])
+        {
+          jam();
+          /**
+           * Handle case, where *I* know that node complete GCI
+           *   but node does not...bug#29167
+           *   i.e node died before it wrote own sysfile
+           */
+          gci = SYSFILE->lastCompletedGCI[i];
+        }
+
 	if (gci > node_group_gcis[ng])
 	{
 	  jam();
@@ -4139,6 +4158,11 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
   }
 
+  if (ERROR_INSERTED(7184))
+  {
+    SET_ERROR_INSERT_VALUE(7000);
+  }
+
   /*-------------------------------------------------------------------------*/
   // The first step is to convert from a bit mask to an array of failed nodes.
   /*-------------------------------------------------------------------------*/
@@ -4741,12 +4765,18 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
   jam();
   const Uint32 nodeId = failedNodePtr.i;
 
-  if (c_lcpState.m_participatingLQH.get(failedNodePtr.i)){
+  if (isMaster() && c_lcpState.m_participatingLQH.get(failedNodePtr.i))
+  {
     /*----------------------------------------------------*/
     /*  THE NODE WAS INVOLVED IN A LOCAL CHECKPOINT. WE   */
     /* MUST UPDATE THE ACTIVE STATUS TO INDICATE THAT     */
     /* THE NODE HAVE MISSED A LOCAL CHECKPOINT.           */
     /*----------------------------------------------------*/
+
+    /**
+     * Bug#28717, Only master should do this, as this status is copied
+     *   to other nodes
+     */
     switch (failedNodePtr.p->activeStatus) {
     case Sysfile::NS_Active:
       jam();
@@ -7807,7 +7837,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
           g_eventLogger.error("System crash due to GCP Stop in state = %u",
                               (Uint32) cgcpStatus);
 #endif
-          crashSystemAtGcpStop(signal);
+          crashSystemAtGcpStop(signal, false);
           return;
         }//if
       } else {
@@ -7821,7 +7851,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
             g_eventLogger.error("System crash due to GCP Stop in state = %u",
                                 (Uint32) cgcpStatus);
 #endif
-	    crashSystemAtGcpStop(signal);
+	    crashSystemAtGcpStop(signal, false);
             return;
           }//if
         } else {
@@ -11177,41 +11207,132 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
  * GCP stop detected, 
  * send SYSTEM_ERROR to all other alive nodes
  */
-void Dbdih::crashSystemAtGcpStop(Signal* signal)
+void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
+  if (local)
+    goto dolocal;
+
   switch(cgcpStatus){
+  case GCP_PREPARE_SENT:
+  {
+    jam();
+    /**
+     * We're waiting for a GCP PREPARE CONF
+     */
+    infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+              cgcpStatus, c_GCP_PREPARE_Counter.getText());
+    ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
+             cgcpStatus, c_GCP_PREPARE_Counter.getText());
+    
+    {
+      NodeReceiverGroup rg(DBDIH, c_GCP_PREPARE_Counter);
+      signal->theData[0] = 7022;
+      sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+    }
+    
+    {
+      NodeReceiverGroup rg(NDBCNTR, c_GCP_PREPARE_Counter);
+      SystemError * const sysErr = (SystemError*)&signal->theData[0];
+      sysErr->errorCode = SystemError::GCPStopDetected;
+      sysErr->errorRef = reference();
+      sysErr->data1 = cgcpStatus;
+      sysErr->data2 = cgcpOrderBlocked;
+      sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
+                 SystemError::SignalLength, JBA);
+    }
+    ndbrequire(!c_GCP_PREPARE_Counter.done());
+    return;
+  }
+  case GCP_COMMIT_SENT:
+  {
+    jam();
+    /**
+     * We're waiting for a GCP_NODEFINISH
+     */
+    infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+	      cgcpStatus, c_GCP_COMMIT_Counter.getText());
+    ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
+	     cgcpStatus, c_GCP_COMMIT_Counter.getText());
+    
+    {
+      NodeReceiverGroup rg(DBDIH, c_GCP_COMMIT_Counter);
+      signal->theData[0] = 7022;
+      sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+    }
+
+    {
+      NodeReceiverGroup rg(NDBCNTR, c_GCP_COMMIT_Counter);
+      SystemError * const sysErr = (SystemError*)&signal->theData[0];
+      sysErr->errorCode = SystemError::GCPStopDetected;
+      sysErr->errorRef = reference();
+      sysErr->data1 = cgcpStatus;
+      sysErr->data2 = cgcpOrderBlocked;
+      sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
+                 SystemError::SignalLength, JBA);
+    }
+    ndbrequire(!c_GCP_COMMIT_Counter.done());
+    return;
+  }
   case GCP_NODE_FINISHED:
   {
+    jam();
     /**
      * We're waiting for a GCP save conf
      */
-    ndbrequire(!c_GCP_SAVEREQ_Counter.done());
     NodeReceiverGroup rg(DBLQH, c_GCP_SAVEREQ_Counter);
     signal->theData[0] = 2305;
     sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
     
-    infoEvent("Detected GCP stop...sending kill to %s", 
-	      c_GCP_SAVEREQ_Counter.getText());
-    g_eventLogger.error("Detected GCP stop...sending kill to %s", 
-                        c_GCP_SAVEREQ_Counter.getText());
+    infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+              cgcpStatus, c_GCP_SAVEREQ_Counter.getText());
+    ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
+	     cgcpStatus, c_GCP_SAVEREQ_Counter.getText());
+    ndbrequire(!c_GCP_SAVEREQ_Counter.done());
     return;
   }
   case GCP_SAVE_LQH_FINISHED:
-    g_eventLogger.error("m_copyReason: %d m_waiting: %d",
-                        c_copyGCIMaster.m_copyReason,
-                        c_copyGCIMaster.m_waiting);
-    break;
-  case GCP_READY: // shut up lint
-  case GCP_PREPARE_SENT:
-  case GCP_COMMIT_SENT:
-    break;
+  {
+    jam();
+    /**
+     * We're waiting for a COPY_GCICONF
+     */
+    infoEvent("Detected GCP stop(%d)...sending kill to %s", 
+	      cgcpStatus, c_COPY_GCIREQ_Counter.getText());
+    ndbout_c("Detected GCP stop(%d)...sending kill to %s", 
+	     cgcpStatus, c_COPY_GCIREQ_Counter.getText());
+
+    {
+      NodeReceiverGroup rg(DBDIH, c_COPY_GCIREQ_Counter);
+      signal->theData[0] = 7022;
+      sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+    }
+    
+    {
+      NodeReceiverGroup rg(NDBCNTR, c_COPY_GCIREQ_Counter);
+      SystemError * const sysErr = (SystemError*)&signal->theData[0];
+      sysErr->errorCode = SystemError::GCPStopDetected;
+      sysErr->errorRef = reference();
+      sysErr->data1 = cgcpStatus;
+      sysErr->data2 = cgcpOrderBlocked;
+      sendSignal(rg, GSN_SYSTEM_ERROR, signal, 
+                 SystemError::SignalLength, JBA);
+    }
+    ndbrequire(!c_COPY_GCIREQ_Counter.done());
+    return;
   }
+  case GCP_READY: (void)1;
+  }
+
+dolocal:  
+  ndbout_c("m_copyReason: %d m_waiting: %d",
+           c_copyGCIMaster.m_copyReason,
+           c_copyGCIMaster.m_waiting);
   
-  g_eventLogger.error("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
-                      c_copyGCISlave.m_senderData,
-                      c_copyGCISlave.m_senderRef,
-                      c_copyGCISlave.m_copyReason,
-                      c_copyGCISlave.m_expectedNextWord);
+  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+	   c_copyGCISlave.m_senderData,
+	   c_copyGCISlave.m_senderRef,
+	   c_copyGCISlave.m_copyReason,
+	   c_copyGCISlave.m_expectedNextWord);
 
   FileRecordPtr file0Ptr;
   file0Ptr.i = crestartInfoFile[0];
@@ -11262,23 +11383,39 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
 	   c_TCGETOPSIZEREQ_Counter.getText());
   ndbout_c("c_UPDATE_TOREQ_Counter = %s", c_UPDATE_TOREQ_Counter.getText());
 
-  NodeRecordPtr nodePtr;
-  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+  if (local == false)
+  {
     jam();
-    ptrAss(nodePtr, nodeRecord);
-    if (nodePtr.p->nodeStatus == NodeRecord::ALIVE) {
+    NodeRecordPtr nodePtr;
+    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
       jam();
-      const BlockReference ref = 
-	numberToRef(refToBlock(cntrlblockref), nodePtr.i);
-      SystemError * const sysErr = (SystemError*)&signal->theData[0];
-      sysErr->errorCode = SystemError::GCPStopDetected;
-      sysErr->errorRef = reference();
-      sysErr->data1 = cgcpStatus;
-      sysErr->data2 = cgcpOrderBlocked;
-      sendSignal(ref, GSN_SYSTEM_ERROR, signal, 
-		 SystemError::SignalLength, JBA);
-    }//if
-  }//for
+      ptrAss(nodePtr, nodeRecord);
+      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE) {
+        jam();
+        const BlockReference ref = 
+          numberToRef(refToBlock(cntrlblockref), nodePtr.i);
+        SystemError * const sysErr = (SystemError*)&signal->theData[0];
+        sysErr->errorCode = SystemError::GCPStopDetected;
+        sysErr->errorRef = reference();
+        sysErr->data1 = cgcpStatus;
+        sysErr->data2 = cgcpOrderBlocked;
+        sendSignal(ref, GSN_SYSTEM_ERROR, signal, 
+                   SystemError::SignalLength, JBA);
+      }//if
+    }//for
+  }
+  else
+  {
+    jam();
+    SystemError * const sysErr = (SystemError*)&signal->theData[0];
+    sysErr->errorCode = SystemError::GCPStopDetected;
+    sysErr->errorRef = reference();
+    sysErr->data1 = cgcpStatus;
+    sysErr->data2 = cgcpOrderBlocked;
+    EXECUTE_DIRECT(NDBCNTR, GSN_SYSTEM_ERROR, 
+                   signal, SystemError::SignalLength);
+    ndbrequire(false);
+  }
   return;
 }//Dbdih::crashSystemAtGcpStop()
 
@@ -14372,6 +14509,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       } while (replicaPtr.i != RNIL);
       infoEvent(buf);
     }
+  }
+
+  if (arg == 7022)
+  {
+    jam();
+    crashSystemAtGcpStop(signal, true);
   }
 }//Dbdih::execDUMP_STATE_ORD()
 

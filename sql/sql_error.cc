@@ -126,7 +126,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     sp_rcontext *spcont= thd->spcont;
 
     thd->no_warnings_for_error= 1;
-    thd->spcont= 0;
+    thd->spcont= NULL;
 
     thd->killed= THD::KILL_BAD_DATA;
     my_message(code, msg, MYF(0));
@@ -136,6 +136,9 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     /* Store error in error list (as my_message() didn't do it) */
     level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
+
+  if (thd->handle_error(code, level))
+    DBUG_RETURN(NULL);
 
   if (thd->spcont &&
       thd->spcont->handle_error(code, level, thd))

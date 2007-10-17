@@ -36,8 +36,9 @@
 eval $insert_first_half;
 # Possible/Expected return codes for ALTER TABLE ...
 # 0
-# 1491: A PRIMARY KEY need to include all fields in the partition function
-#       A UNIQUE INDEX need to include all fields in the partition function
+# 1030: ER_GET_ERRNO
+# 1500: ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
+# 1504: ER_DROP_PARTITION_NON_EXISTENT
 --disable_abort_on_error
 eval $alter;
 --enable_abort_on_error
@@ -47,11 +48,11 @@ if ($no_debug)
 }
 eval SET @my_errno = $mysql_errno;
 let $run_test= `SELECT @my_errno = 0`;
-let $unexpected_error= `SELECT @my_errno NOT IN (0,1030,1491,1495)`;
+let $unexpected_error= `SELECT @my_errno NOT IN (0,1030,1500,1504)`;
 if ($unexpected_error)
 {
    --echo #      The last command got an unexepected error response.
-   --echo #      Expected/handled SQL codes are 0,1030,1491,1495
+   --echo #      Expected/handled SQL codes are 0,1030,1500,1504
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
    exit;

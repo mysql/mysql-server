@@ -2,8 +2,6 @@
 # some replicate-* rules exist.
 # (BUG#7011)
 
-source include/master-slave.inc;
-
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings

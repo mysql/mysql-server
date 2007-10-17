@@ -37,6 +37,7 @@ sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
    m_var_items(0),
    m_return_value_fld(return_value_fld),
    m_return_value_set(FALSE),
+   in_sub_stmt(FALSE),
    m_hcount(0),
    m_hsp(0),
    m_ihsp(0),
@@ -67,6 +68,8 @@ sp_rcontext::~sp_rcontext()
 
 bool sp_rcontext::init(THD *thd)
 {
+  in_sub_stmt= thd->in_sub_stmt;
+
   if (init_var_table(thd) || init_var_items())
     return TRUE;
 
@@ -102,7 +105,7 @@ bool sp_rcontext::init(THD *thd)
 bool
 sp_rcontext::init_var_table(THD *thd)
 {
-  List<create_field> field_def_lst;
+  List<Create_field> field_def_lst;
 
   if (!m_root_parsing_ctx->max_var_index())
     return FALSE;
@@ -191,7 +194,7 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 */
 
 bool
-sp_rcontext::find_handler(uint sql_errno,
+sp_rcontext::find_handler(THD *thd, uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
 {
   if (m_hfound >= 0)
@@ -199,6 +202,15 @@ sp_rcontext::find_handler(uint sql_errno,
 
   const char *sqlstate= mysql_errno_to_sqlstate(sql_errno);
   int i= m_hcount, found= -1;
+
+  /*
+    If this is a fatal sub-statement error, and this runtime
+    context corresponds to a sub-statement, no CONTINUE/EXIT
+    handlers from this context are applicable: try to locate one
+    in the outer scope.
+  */
+  if (thd->is_fatal_sub_stmt_error && in_sub_stmt)
+    i= 0;
 
   /* Search handlers from the latest (innermost) to the oldest (outermost) */
   while (i--)
@@ -252,7 +264,7 @@ sp_rcontext::find_handler(uint sql_errno,
     */
     if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
         level == MYSQL_ERROR::WARN_LEVEL_ERROR)
-      return m_prev_runtime_ctx->find_handler(sql_errno, level);
+      return m_prev_runtime_ctx->find_handler(thd, sql_errno, level);
     return FALSE;
   }
   m_hfound= found;
@@ -298,7 +310,7 @@ sp_rcontext::handle_error(uint sql_errno,
     elevated_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
   }
 
-  if (find_handler(sql_errno, elevated_level))
+  if (find_handler(thd, sql_errno, elevated_level))
   {
     if (elevated_level == MYSQL_ERROR::WARN_LEVEL_ERROR)
     {

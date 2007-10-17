@@ -21,7 +21,7 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
+int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
             key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
   uchar *key_buff;
@@ -45,6 +45,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
     info->once_flags&= ~USE_PACKED_KEYS;	/* Reset flag */
     /*
       key is already packed!;  This happens when we are using a MERGE TABLE
+      In this key 'key_part_map' is the length of the key !
     */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length= keypart_map;
@@ -94,42 +95,63 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key,
                     myisam_read_vec[search_flag], info->s->state.key_root[inx]))
     {
       /*
-        If we searching for a partial key (or using >, >=, < or <=) and
-        the data is outside of the data file, we need to continue searching
-        for the first key inside the data file
+        Found a key, but it might not be usable. We cannot use rows that
+        are inserted by other threads after we got our table lock
+        ("concurrent inserts"). The record may not even be present yet.
+        Keys are inserted into the index(es) before the record is
+        inserted into the data file. When we got our table lock, we
+        saved the current data_file_length. Concurrent inserts always go
+        to the end of the file. So we can test if the found key
+        references a new record.
       */
-      if (info->lastpos >= info->state->data_file_length &&
-          (search_flag != HA_READ_KEY_EXACT ||
-           last_used_keyseg != keyinfo->seg + keyinfo->keysegs))
+      if (info->lastpos >= info->state->data_file_length)
       {
-        do
+        /* The key references a concurrently inserted record. */
+        if (search_flag == HA_READ_KEY_EXACT &&
+            last_used_keyseg == keyinfo->seg + keyinfo->keysegs)
         {
-          uint not_used[2];
+          /* Simply ignore the key if it matches exactly. (Bug #29838) */
+          my_errno= HA_ERR_KEY_NOT_FOUND;
+          info->lastpos= HA_OFFSET_ERROR;
+        }
+        else
+        {
           /*
-            Skip rows that are inserted by other threads since we got a lock
-            Note that this can only happen if we are not searching after an
-            full length exact key, because the keys are sorted
-            according to position
+            If searching for a partial key (or using >, >=, < or <=) and
+            the data is outside of the data file, we need to continue
+            searching for the first key inside the data file.
           */
-          if  (_mi_search_next(info, keyinfo, info->lastkey,
-                               info->lastkey_length,
-                               myisam_readnext_vec[search_flag],
-                               info->s->state.key_root[inx]))
-            break;
-          /*
-            Check that the found key does still match the search.
-            _mi_search_next() delivers the next key regardless of its
-            value.
-          */
-          if (search_flag == HA_READ_KEY_EXACT &&
-              ha_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
-                         SEARCH_FIND, not_used))
+          do
           {
-            my_errno= HA_ERR_KEY_NOT_FOUND;
-            info->lastpos= HA_OFFSET_ERROR;
-            break;
-          }
-        } while (info->lastpos >= info->state->data_file_length);
+            uint not_used[2];
+            /*
+              Skip rows that are inserted by other threads since we got
+              a lock. Note that this can only happen if we are not
+              searching after a full length exact key, because the keys
+              are sorted according to position.
+            */
+            if  (_mi_search_next(info, keyinfo, info->lastkey,
+                                 info->lastkey_length,
+                                 myisam_readnext_vec[search_flag],
+                                 info->s->state.key_root[inx]))
+              break; /* purecov: inspected */
+            /*
+              Check that the found key does still match the search.
+              _mi_search_next() delivers the next key regardless of its
+              value.
+            */
+            if (search_flag == HA_READ_KEY_EXACT &&
+                ha_key_cmp(keyinfo->seg, key_buff, info->lastkey,
+                           use_key_length, SEARCH_FIND, not_used))
+            {
+              /* purecov: begin inspected */
+              my_errno= HA_ERR_KEY_NOT_FOUND;
+              info->lastpos= HA_OFFSET_ERROR;
+              break;
+              /* purecov: end */
+            }
+          } while (info->lastpos >= info->state->data_file_length);
+        }
       }
     }
   }

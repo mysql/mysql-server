@@ -629,6 +629,11 @@ else
   TEST_MODE=`echo $TEST_MODE | sed 's/^ *//'`
 fi
 
+#
+# Skip tests that doesn't work with shell version
+#
+SKIP_TEST="$SKIP_TEST bootstrap"
+
 #++
 # mysqld Environment Parameters
 #--
@@ -900,8 +905,8 @@ MYSQL_DUMP="$MYSQL_DUMP --no-defaults --debug-info -uroot --socket=$MASTER_MYSOC
 MYSQL_SLAP="$MYSQL_SLAP -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSLAP_OPT"
 MYSQL_DUMP_SLAVE="$MYSQL_DUMP_DIR --no-defaults -uroot --socket=$SLAVE_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
-MYSQL_BINLOG="$MYSQL_BINLOG --debug-info --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
-MYSQL_IMPORT="$MYSQL_IMPORT --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --debug-info --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
+MYSQL_IMPORT="$MYSQL_IMPORT --no-defaults --debug-info -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --debug-info --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_DUMP_SLAVE MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT

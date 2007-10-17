@@ -88,13 +88,16 @@ class ha_federated: public handler
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
   char remote_error_buf[FEDERATED_QUERY_BUFFER_SIZE];
+  bool ignore_duplicates, replace_duplicates;
+  bool insert_dup_update;
+  DYNAMIC_STRING bulk_insert;
 
 private:
   /*
       return 0 on success
       return errorcode otherwise
   */
-  uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row,
+  uint convert_row_to_internal_format(uchar *buf, MYSQL_ROW row,
                                       MYSQL_RES *result);
   bool create_where_from_key(String *to, KEY *key_info, 
                              const key_range *start_key,
@@ -102,6 +105,16 @@ private:
                              bool records_in_range, bool eq_range);
   int stash_remote_error();
 
+  bool append_stmt_insert(String *query);
+
+  int read_next(uchar *buf, MYSQL_RES *result);
+  int index_read_idx_with_result_set(uchar *buf, uint index,
+                                     const uchar *key,
+                                     uint key_len,
+                                     ha_rkey_function find_flag,
+                                     MYSQL_RES **result);
+  int real_query(const char *query, uint length);
+  int real_connect();
 public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_federated() {}
@@ -128,7 +141,9 @@ public:
     /* fix server to be able to get remote server table flags */
     return (HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED
             | HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_CAN_INDEX_BLOBS |
+            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_NO_PREFIX_CHAR_KEYS | HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
+            HA_NO_TRANSACTIONS /* until fixed by WL#2952 */ |
             HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY);
   }
   /*
@@ -150,6 +165,7 @@ public:
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_parts()     const { return MAX_REF_PARTS; }
   uint max_supported_key_length()    const { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return FEDERATED_MAX_KEY_LENGTH; }
   /*
     Called in test_quick_select to determine if indexes should be used.
     Normally, we need to know number of blocks . For federated we need to
@@ -188,15 +204,17 @@ public:
   int open(const char *name, int mode, uint test_if_locked);    // required
   int close(void);                                              // required
 
-  int write_row(byte *buf);
-  int update_row(const byte *old_data, byte *new_data);
-  int delete_row(const byte *buf);
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
+  int write_row(uchar *buf);
+  int update_row(const uchar *old_data, uchar *new_data);
+  int delete_row(const uchar *buf);
   int index_init(uint keynr, bool sorted);
-  int index_read(byte *buf, const byte *key,
+  int index_read(uchar *buf, const uchar *key,
                  uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint idx, const byte *key,
+  int index_read_idx(uchar *buf, uint idx, const uchar *key,
                      uint key_len, enum ha_rkey_function find_flag);
-  int index_next(byte *buf);
+  int index_next(uchar *buf);
   int index_end();
   int read_range_first(const key_range *start_key,
                                const key_range *end_key,
@@ -212,10 +230,11 @@ public:
   */
   int rnd_init(bool scan);                                      //required
   int rnd_end();
-  int rnd_next(byte *buf);                                      //required
-  int rnd_pos(byte *buf, byte *pos);                            //required
-  void position(const byte *record);                            //required
+  int rnd_next(uchar *buf);                                      //required
+  int rnd_pos(uchar *buf, uchar *pos);                            //required
+  void position(const uchar *record);                            //required
   int info(uint);                                              //required
+  int extra(ha_extra_function operation);
 
   void update_auto_increment(void);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
@@ -230,18 +249,12 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
-  virtual bool get_error_message(int error, String *buf);
+  bool get_error_message(int error, String *buf);
   int external_lock(THD *thd, int lock_type);
   int connection_commit();
   int connection_rollback();
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
-
-  int read_next(byte *buf, MYSQL_RES *result);
-  int index_read_idx_with_result_set(byte *buf, uint index,
-                                     const byte *key,
-                                     uint key_len,
-                                     ha_rkey_function find_flag,
-                                     MYSQL_RES **result);
+  int reset(void);
 };
 

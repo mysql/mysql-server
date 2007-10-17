@@ -1,0 +1,8 @@
+-- source include/have_innodb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+let $type= 'INNODB' ;
+let $extra_index= ;
+-- source extra/rpl_tests/rpl_row_basic.test
+

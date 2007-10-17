@@ -1023,7 +1023,7 @@ NdbOperation::branch_col(Uint32 type,
   DBUG_PRINT("enter", ("type: %u  col:%u  val: 0x%lx  len: %u  label: %u",
                        type, ColId, (long) val, len, Label));
   if (val != NULL)
-    DBUG_DUMP("value", (char*)val, len);
+    DBUG_DUMP("value", (uchar*)val, len);
 
   if (initial_interpreterCheck() == -1)
     DBUG_RETURN(-1);

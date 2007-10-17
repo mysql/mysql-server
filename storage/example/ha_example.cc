@@ -79,6 +79,10 @@
   ha_example::open() would also have been necessary. Calls to
   ha_example::extra() are hints as to what will be occuring to the request.
 
+  A Longer Example can be found called the "Skeleton Engine" which can be 
+  found on TangentOrg. It has both an engine and a full build environment
+  for building a pluggable storage engine.
+
   Happy coding!<br>
     -Brian
 */
@@ -114,11 +118,11 @@ pthread_mutex_t example_mutex;
   Function we use in the creation of our hash to get key.
 */
 
-static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
+static uchar* example_get_key(EXAMPLE_SHARE *share, size_t *length,
                              my_bool not_used __attribute__((unused)))
 {
   *length=share->table_name_length;
-  return (byte*) share->table_name;
+  return (uchar*) share->table_name;
 }
 
 
@@ -132,7 +136,6 @@ static int example_init_func(void *p)
                    (hash_get_key) example_get_key,0,0);
 
   example_hton->state=   SHOW_OPTION_YES;
-  example_hton->db_type= DB_TYPE_EXAMPLE_DB;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
 
@@ -172,7 +175,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
   length=(uint) strlen(table_name);
 
   if (!(share=(EXAMPLE_SHARE*) hash_search(&example_open_tables,
-                                           (byte*) table_name,
+                                           (uchar*) table_name,
                                            length)))
   {
     if (!(share=(EXAMPLE_SHARE *)
@@ -189,7 +192,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
     share->table_name_length=length;
     share->table_name=tmp_name;
     strmov(share->table_name,table_name);
-    if (my_hash_insert(&example_open_tables, (byte*) share))
+    if (my_hash_insert(&example_open_tables, (uchar*) share))
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
@@ -201,7 +204,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   pthread_mutex_destroy(&share->mutex);
-  my_free((gptr) share, MYF(0));
+  my_free(share, MYF(0));
 
   return NULL;
 }
@@ -218,10 +221,10 @@ static int free_share(EXAMPLE_SHARE *share)
   pthread_mutex_lock(&example_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&example_open_tables, (byte*) share);
+    hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
-    my_free((gptr) share, MYF(0));
+    my_free(share, MYF(0));
   }
   pthread_mutex_unlock(&example_mutex);
 
@@ -349,7 +352,7 @@ int ha_example::close(void)
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc and sql_update.cc
 */
 
-int ha_example::write_row(byte * buf)
+int ha_example::write_row(uchar *buf)
 {
   DBUG_ENTER("ha_example::write_row");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -378,7 +381,7 @@ int ha_example::write_row(byte * buf)
     @see
   sql_select.cc, sql_acl.cc, sql_update.cc and sql_insert.cc
 */
-int ha_example::update_row(const byte * old_data, byte * new_data)
+int ha_example::update_row(const uchar *old_data, uchar *new_data)
 {
 
   DBUG_ENTER("ha_example::update_row");
@@ -406,7 +409,7 @@ int ha_example::update_row(const byte * old_data, byte * new_data)
   sql_acl.cc, sql_udf.cc, sql_delete.cc, sql_insert.cc and sql_select.cc
 */
 
-int ha_example::delete_row(const byte * buf)
+int ha_example::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_example::delete_row");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -420,10 +423,10 @@ int ha_example::delete_row(const byte * buf)
   index.
 */
 
-int ha_example::index_read(byte * buf, const byte * key,
-                           key_part_map keypart_map __attribute__((unused)),
-                           enum ha_rkey_function find_flag
-                           __attribute__((unused)))
+int ha_example::index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map __attribute__((unused)),
+                               enum ha_rkey_function find_flag
+                               __attribute__((unused)))
 {
   DBUG_ENTER("ha_example::index_read");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -435,7 +438,7 @@ int ha_example::index_read(byte * buf, const byte * key,
   Used to read forward through the index.
 */
 
-int ha_example::index_next(byte * buf)
+int ha_example::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_example::index_next");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -447,7 +450,7 @@ int ha_example::index_next(byte * buf)
   Used to read backwards through the index.
 */
 
-int ha_example::index_prev(byte * buf)
+int ha_example::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_example::index_prev");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -464,7 +467,7 @@ int ha_example::index_prev(byte * buf)
     @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
-int ha_example::index_first(byte * buf)
+int ha_example::index_first(uchar *buf)
 {
   DBUG_ENTER("ha_example::index_first");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -481,7 +484,7 @@ int ha_example::index_first(byte * buf)
     @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
-int ha_example::index_last(byte * buf)
+int ha_example::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_example::index_last");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -528,7 +531,7 @@ int ha_example::rnd_end()
     @see
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
-int ha_example::rnd_next(byte *buf)
+int ha_example::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_example::rnd_next");
   DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -556,7 +559,7 @@ int ha_example::rnd_next(byte *buf)
     @see
   filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc
 */
-void ha_example::position(const byte *record)
+void ha_example::position(const uchar *record)
 {
   DBUG_ENTER("ha_example::position");
   DBUG_VOID_RETURN;
@@ -576,7 +579,7 @@ void ha_example::position(const byte *record)
     @see
   filesort.cc, records.cc, sql_insert.cc, sql_select.cc and sql_update.cc
 */
-int ha_example::rnd_pos(byte * buf, byte *pos)
+int ha_example::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("ha_example::rnd_pos");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -722,6 +725,11 @@ int ha_example::external_lock(THD *thd, int lock_type)
   time). In the future we will probably try to remove this.
 
   Called from lock.cc by get_lock_data().
+
+    @note
+  In this method one should NEVER rely on table->in_use, it may, in fact,
+  refer to a different thread! (this happens if get_lock_data() is called
+  from mysql_lock_abort_for_thread() function)
 
     @see
   get_lock_data() in lock.cc

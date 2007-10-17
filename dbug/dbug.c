@@ -264,7 +264,7 @@ static BOOLEAN DoTrace(CODE_STATE *cs);
 
         /* Test to see if file is writable */
 #if !(!defined(HAVE_ACCESS) || defined(MSDOS))
-static BOOLEAN Writable(char *pathname);
+static BOOLEAN Writable(const char *pathname);
         /* Change file owner and group */
 static void ChangeOwner(CODE_STATE *cs, char *pathname);
         /* Allocate memory for runtime support */
@@ -343,12 +343,12 @@ static CODE_STATE *code_state(void)
     if (!(cs=(CODE_STATE *) tmp->dbug))
     {
       cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
-      bzero((char*) cs,sizeof(*cs));
+      bzero((uchar*) cs,sizeof(*cs));
       cs->process= db_process ? db_process : "dbug";
       cs->func="?func";
       cs->file="?file";
       cs->stack=&init_settings;
-      tmp->dbug=(gptr) cs;
+      tmp->dbug= (void*) cs;
     }
   }
   return cs;
@@ -715,7 +715,7 @@ void _db_push_(const char *control)
 void _db_set_init_(const char *control)
 {
   CODE_STATE tmp_cs;
-  bzero((char*) &tmp_cs, sizeof(tmp_cs));
+  bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
   _db_set_(&tmp_cs, control);
 }
@@ -830,7 +830,7 @@ void _db_pop_()
         }                                       \
       } while (0)
 
-int _db_explain_ (CODE_STATE *cs, char *buf, int len)
+int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
 {
   char *start=buf, *end=buf+len-4;
 
@@ -887,10 +887,10 @@ overflow:
  *      see _db_explain_
  */
 
-int _db_explain_init_(char *buf, int len)
+int _db_explain_init_(char *buf, size_t len)
 {
   CODE_STATE cs;
-  bzero((char*) &cs,sizeof(cs));
+  bzero((uchar*) &cs,sizeof(cs));
   cs.stack=&init_settings;
   return _db_explain_(&cs, buf, len);
 }
@@ -1083,7 +1083,7 @@ void _db_pargs_(uint _line_, const char *keyword)
   CODE_STATE *cs=0;
   get_code_state_or_return;
   cs->u_line= _line_;
-  cs->u_keyword= (char*) keyword;
+  cs->u_keyword= keyword;
 }
 
 
@@ -1160,7 +1160,8 @@ void _db_doprnt_(const char *format,...)
  *  Is used to examine corrputed memory or arrays.
  */
 
-void _db_dump_(uint _line_, const char *keyword, const char *memory, uint length)
+void _db_dump_(uint _line_, const char *keyword,
+               const unsigned char *memory, size_t length)
 {
   int pos;
   char dbuff[90];
@@ -1168,7 +1169,7 @@ void _db_dump_(uint _line_, const char *keyword, const char *memory, uint length
   CODE_STATE *cs=0;
   get_code_state_or_return;
 
-  if (_db_keyword_(cs, (char*) keyword))
+  if (_db_keyword_(cs, keyword))
   {
     if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
@@ -1182,8 +1183,8 @@ void _db_dump_(uint _line_, const char *keyword, const char *memory, uint length
     {
       fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
-    sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%d)\n",
-            keyword,(ulong) memory, length);
+    sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%ld)\n",
+            keyword, (ulong) memory, (long) length);
     (void) fputs(dbuff,cs->stack->out_file);
 
     pos=0;
@@ -1292,7 +1293,7 @@ static struct link *ListDel(struct link *head,
       {
         struct link *delme=*cur;
         *cur=(*cur)->next_link;
-        free((char*)delme);
+        free((void*) delme);
       }
     } while (*cur && *(cur=&((*cur)->next_link)));
   }
@@ -1448,10 +1449,11 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
     FreeList(state->p_functions);
   if (!is_shared(state, out_file))
     DBUGCloseFile(cs, state->out_file);
+  (void) fflush(cs->stack->out_file);
   if (state->prof_file)
     DBUGCloseFile(cs, state->prof_file);
   if (free_state)
-    free((char *) state);
+    free((void*) state);
 }
 
 
@@ -1696,7 +1698,7 @@ static void FreeList(struct link *linkp)
   {
     old= linkp;
     linkp= linkp->next_link;
-    free((char *) old);
+    free((void*) old);
   }
 }
 
@@ -1815,7 +1817,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
     }
     else
     {
-      if (!Writable((char*)name))
+      if (!Writable(name))
       {
         (void) fprintf(stderr, ERR_OPEN, cs->process, name);
         perror("");
@@ -1881,7 +1883,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
   {
     (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
     perror("");
-    dbug_flush(0);
     (void) Delay(cs->stack->delay);
   }
   else
@@ -1891,7 +1892,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
     {
       (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
       perror("");
-      dbug_flush(0);
     }
     else
     {
@@ -1930,7 +1930,7 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
-    dbug_flush(0);
+    dbug_flush(cs);
   }
 }
 
@@ -1988,7 +1988,7 @@ static char *DbugMalloc(size_t size)
 {
   register char *new_malloc;
 
-  if (!(new_malloc= (char*) malloc((size_t) size)))
+  if (!(new_malloc= (char*) malloc(size)))
     DbugExit("out of memory");
   return new_malloc;
 }
@@ -2062,7 +2062,7 @@ static const char *BaseName(const char *pathname)
 
 #ifndef Writable
 
-static BOOLEAN Writable(char *pathname)
+static BOOLEAN Writable(const char *pathname)
 {
   REGISTER BOOLEAN granted;
   REGISTER char *lastslash;

@@ -80,7 +80,7 @@ SET TIMESTAMP=1000000000;
 CREATE TABLE t1 ( a INT UNIQUE );
 SET FOREIGN_KEY_CHECKS=0;
 # Duplicate Key Errors codes
---error 1022, ER_DUP_ENTRY_WITH_KEY_NAME
+--error 1022, ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1),(1);
 sync_slave_with_master;
 connection master;

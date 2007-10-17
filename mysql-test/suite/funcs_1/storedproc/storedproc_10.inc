@@ -21,7 +21,6 @@ let $message= Section 3.1.10 - CALL checks:;
 --source include/show_msg80.inc
 
 
-USE db_storedproc;
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 3.1.10.2 + 3.1.10.5:;
@@ -80,6 +79,7 @@ SELECT fn31105( 9 );
 
 # now 'add' EXECUTE to INVOKER
 connection default;
+USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
 # root can execute ...
 CALL sp31102();
@@ -98,6 +98,7 @@ disconnect user2_3;
 
 # now 'remove' SELECT from INVOKER
 connection default;
+USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
 REVOKE EXECUTE ON db_storedproc.* FROM 'user_2'@'localhost';
 FLUSH PRIVILEGES;
@@ -115,6 +116,7 @@ disconnect user2_4;
 
 # cleanup
 connection default;
+USE db_storedproc;
 
 --source suite/funcs_1/include/show_connection.inc
 DROP PROCEDURE sp31102;

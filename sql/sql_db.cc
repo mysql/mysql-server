@@ -39,6 +39,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
          
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
+static void mysql_change_db_impl(THD *thd,
+                                 LEX_STRING *new_db_name,
+                                 ulong new_db_access,
+                                 CHARSET_INFO *new_db_charset);
 
 
 /* Database lock hash */
@@ -59,11 +63,13 @@ typedef struct my_dblock_st
   lock_db key.
 */
 
-static byte* lock_db_get_key(my_dblock_t *ptr, uint *length,
-                             my_bool not_used __attribute__((unused)))
+extern "C" uchar* lock_db_get_key(my_dblock_t *, size_t *, my_bool not_used);
+
+uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
+                       my_bool not_used __attribute__((unused)))
 {
   *length= ptr->name_length;
-  return (byte*) ptr->name;
+  return (uchar*) ptr->name;
 }
 
 
@@ -71,9 +77,11 @@ static byte* lock_db_get_key(my_dblock_t *ptr, uint *length,
   Free lock_db hash element.
 */
 
-static void lock_db_free_element(void *ptr)
+extern "C" void lock_db_free_element(void *ptr);
+
+void lock_db_free_element(void *ptr)
 {
-  my_free((gptr) ptr, MYF(0));
+  my_free(ptr, MYF(0));
 }
 
 
@@ -98,12 +106,12 @@ static my_bool lock_db_insert(const char *dbname, uint length)
   safe_mutex_assert_owner(&LOCK_lock_db);
 
   if (!(opt= (my_dblock_t*) hash_search(&lock_db_cache,
-                                        (byte*) dbname, length)))
+                                        (uchar*) dbname, length)))
   { 
     /* Db is not in the hash, insert it */
     char *tmp_name;
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
                          NullS))
     {
       error= 1;
@@ -114,11 +122,8 @@ static my_bool lock_db_insert(const char *dbname, uint length)
     strmov(opt->name, dbname);
     opt->name_length= length;
     
-    if ((error= my_hash_insert(&lock_db_cache, (byte*) opt)))
-    {
-      my_free((gptr) opt, MYF(0));
-      goto end;
-    }
+    if ((error= my_hash_insert(&lock_db_cache, (uchar*) opt)))
+      my_free(opt, MYF(0));
   }
 
 end:
@@ -135,8 +140,8 @@ void lock_db_delete(const char *name, uint length)
   my_dblock_t *opt;
   safe_mutex_assert_owner(&LOCK_lock_db);
   if ((opt= (my_dblock_t *)hash_search(&lock_db_cache,
-                                       (const byte*) name, length)))
-    hash_delete(&lock_db_cache, (byte*) opt);
+                                       (const uchar*) name, length)))
+    hash_delete(&lock_db_cache, (uchar*) opt);
 }
 
 
@@ -158,11 +163,14 @@ typedef struct my_dbopt_st
   Function we use in the creation of our hash to get key.
 */
 
-static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
-                               my_bool not_used __attribute__((unused)))
+extern "C" uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
+                                    my_bool not_used);
+
+uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
+                         my_bool not_used __attribute__((unused)))
 {
   *length= opt->name_length;
-  return (byte*) opt->name;
+  return (uchar*) opt->name;
 }
 
 
@@ -185,9 +193,11 @@ static inline void write_to_binlog(THD *thd, char *query, uint q_len,
   Function to free dboptions hash element
 */
 
-static void free_dbopt(void *dbopt)
+extern "C" void free_dbopt(void *dbopt);
+
+void free_dbopt(void *dbopt)
 {
-  my_free((gptr) dbopt, MYF(0));
+  my_free((uchar*) dbopt, MYF(0));
 }
 
 
@@ -280,7 +290,7 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_rdlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  if ((opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   {
     create->default_table_charset= opt->charset;
     error= 0;
@@ -312,12 +322,12 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
   length= (uint) strlen(dbname);
   
   rw_wrlock(&LOCK_dboptions);
-  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (byte*) dbname, length)))
+  if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   { 
     /* Options are not in the hash, insert them */
     char *tmp_name;
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
                          NullS))
     {
       error= 1;
@@ -328,9 +338,9 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
     strmov(opt->name, dbname);
     opt->name_length= length;
     
-    if ((error= my_hash_insert(&dboptions, (byte*) opt)))
+    if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
     {
-      my_free((gptr) opt, MYF(0));
+      my_free(opt, MYF(0));
       goto end;
     }
   }
@@ -352,9 +362,9 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const byte*) path,
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const uchar*) path,
                                       strlen(path))))
-    hash_delete(&dboptions, (byte*) opt);
+    hash_delete(&dboptions, (uchar*) opt);
   rw_unlock(&LOCK_dboptions);
 }
 
@@ -392,7 +402,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
                               "\n", NullS) - buf);
 
     /* Error is written by my_write */
-    if (!my_write(file,(byte*) buf, length, MYF(MY_NABP+MY_WME)))
+    if (!my_write(file,(uchar*) buf, length, MYF(MY_NABP+MY_WME)))
       error=0;
     my_close(file,MYF(0));
   }
@@ -538,6 +548,37 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
                               db_name, "", MY_DB_OPT_FILE, 0);
 
   return load_db_opt(thd, db_opt_path, db_create_info);
+}
+
+
+/**
+  Return default database collation.
+
+  @param thd     Thread context.
+  @param db_name Database name.
+
+  @return CHARSET_INFO object. The operation always return valid character
+    set, even if the database does not exist.
+*/
+
+CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
+{
+  HA_CREATE_INFO db_info;
+
+  if (thd->db != NULL && strcmp(db_name, thd->db) == 0)
+    return thd->db_charset;
+
+  load_db_opt_by_name(thd, db_name, &db_info);
+
+  /*
+    NOTE: even if load_db_opt_by_name() fails,
+    db_info.default_table_charset contains valid character set
+    (collation_server). We should not fail if load_db_opt_by_name() fails,
+    because it is valid case. If a database has been created just by
+    "mkdir", it does not contain db.opt file, but it is valid database.
+  */
+
+  return db_info.default_table_charset;
 }
 
 
@@ -754,10 +795,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
-  /*
-     Change options if current database is being altered
-     TODO: Delete this code
-  */
+  /* Change options if current database is being altered. */
+
   if (thd->db && !strcmp(thd->db,db))
   {
     thd->db_charset= create_info->default_table_charset ?
@@ -920,7 +959,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     TABLE_LIST *tbl;
     uint db_len;
 
-    if (!(query= thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+    if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
     query_pos= query_data_start= strmov(query,"drop table ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
@@ -962,7 +1001,7 @@ exit:
     it to 0.
   */
   if (thd->db && !strcmp(thd->db, db))
-    thd->set_db(NULL, 0);
+    mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
@@ -1021,7 +1060,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
 	  goto err;
-	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
+	if (!(copy_of_path= (char*) thd->memdup(newpath, length+1)) ||
 	    !(dir= new (thd->mem_root) String(copy_of_path, length,
 					       &my_charset_bin)) ||
 	    raid_dirs.push_back(dir))
@@ -1087,7 +1126,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
     goto err;
 
   /* Remove RAID directories */
@@ -1320,22 +1359,108 @@ static void mysql_change_db_impl(THD *thd,
 }
 
 
+
 /**
-  @brief Change the current database.
+  Backup the current database name before switch.
+
+  @param[in]      thd             thread handle
+  @param[in, out] saved_db_name   IN: "str" points to a buffer where to store
+                                  the old database name, "length" contains the
+                                  buffer size
+                                  OUT: if the current (default) database is
+                                  not NULL, its name is copied to the
+                                  buffer pointed at by "str"
+                                  and "length" is updated accordingly.
+                                  Otherwise "str" is set to NULL and
+                                  "length" is set to 0.
+*/
+
+static void backup_current_db_name(THD *thd,
+                                   LEX_STRING *saved_db_name)
+{
+  if (!thd->db)
+  {
+    /* No current (default) database selected. */
+
+    saved_db_name->str= NULL;
+    saved_db_name->length= 0;
+  }
+  else
+  {
+    strmake(saved_db_name->str, thd->db, saved_db_name->length);
+    saved_db_name->length= thd->db_length;
+  }
+}
+
+
+/**
+  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+
+  The function allows to compare database names according to the MySQL
+  rules. The database names db1 and db2 are equal if:
+     - db1 is NULL and db2 is NULL;
+     or
+     - db1 is not-NULL, db2 is not-NULL, db1 is equal (ignoring case) to
+       db2 in system character set (UTF8).
+*/
+
+static inline bool
+cmp_db_names(const char *db1_name,
+             const char *db2_name)
+{
+  return
+         /* db1 is NULL and db2 is NULL */
+         !db1_name && !db2_name ||
+
+         /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
+         db1_name && db2_name &&
+         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0;
+}
+
+
+/**
+  @brief Change the current database and its attributes unconditionally.
 
   @param thd          thread handle
-  @param name         database name
-  @param force_switch if this flag is set (TRUE), mysql_change_db() will
-                      switch to NULL db if the specified database is not
-                      available anymore. Corresponding warning will be
-                      thrown in this case. This flag is used to change
-                      database in stored-routine-execution code.
+  @param new_db_name  database name
+  @param force_switch if force_switch is FALSE, then the operation will fail if
 
-  @details Check that the database name corresponds to a valid and existent
-  database, check access rights (unless called with no_access_check), and
-  set the current database. This function is called to change the current
-  database upon user request (COM_CHANGE_DB command) or temporarily, to
-  execute a stored routine.
+                        - new_db_name is NULL or empty;
+
+                        - OR new database name is invalid
+                          (check_db_name() failed);
+
+                        - OR user has no privilege on the new database;
+
+                        - OR new database does not exist;
+
+                      if force_switch is TRUE, then
+
+                        - if new_db_name is NULL or empty, the current
+                          database will be NULL, @@collation_database will
+                          be set to @@collation_server, the operation will
+                          succeed.
+
+                        - if new database name is invalid
+                          (check_db_name() failed), the current database
+                          will be NULL, @@collation_database will be set to
+                          @@collation_server, but the operation will fail;
+
+                        - user privileges will not be checked
+                          (THD::db_access however is updated);
+
+                          TODO: is this really the intention?
+                                (see sp-security.test).
+
+                        - if new database does not exist,the current database
+                          will be NULL, @@collation_database will be set to
+                          @@collation_server, a warning will be thrown, the
+                          operation will succeed.
+
+  @details The function checks that the database name corresponds to a
+  valid and existent database, checks access rights and changes the current
+  database with database attributes (@@collation_database session variable,
+  THD::db_access).
 
   This function is not the only way to switch the database that is
   currently employed. When the replication slave thread switches the
@@ -1361,6 +1486,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   Security_context *sctx= thd->security_ctx;
   ulong db_access= sctx->db_access;
+  CHARSET_INFO *db_default_cl;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
@@ -1370,10 +1496,15 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   {
     if (force_switch)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR));
+      /*
+        This can happen only if we're switching the current database back
+        after loading stored program. The thing is that loading of stored
+        program can happen when there is no current database.
 
-      /* Change db to NULL. */
+        TODO: actually, new_db_name and new_db_name->str seem to be always
+        non-NULL. In case of stored program, new_db_name->str == "" and
+        new_db_name->length == 0.
+      */
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
@@ -1390,7 +1521,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   if (my_strcasecmp(system_charset_info, new_db_name->str,
                     INFORMATION_SCHEMA_NAME.str) == 0)
   {
-    /* Switch database to INFORMATION_SCHEMA. */
+    /* Switch the current database to INFORMATION_SCHEMA. */
 
     mysql_change_db_impl(thd, &INFORMATION_SCHEMA_NAME, SELECT_ACL,
                          system_charset_info);
@@ -1417,8 +1548,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     even if we are called from sp_head::execute().
 
     It's next to impossible however to get this error when we are called
-    from sp_head::execute(). But let's switch database to NULL in this case
-    to be sure.
+    from sp_head::execute(). But let's switch the current database to NULL
+    in this case to be sure.
   */
 
   if (check_db_name(&new_db_file_name))
@@ -1427,10 +1558,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     my_free(new_db_file_name.str, MYF(0));
 
     if (force_switch)
-    {
-      /* Change db to NULL. */
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
-    }
+
     DBUG_RETURN(TRUE);
   }
 
@@ -1448,7 +1577,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   if (!force_switch &&
       !(db_access & DB_ACLS) &&
-      (!grant_option || check_grant_db(thd, new_db_file_name.str)))
+      check_grant_db(thd, new_db_file_name.str))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user,
@@ -1465,6 +1594,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   {
     if (force_switch)
     {
+      /* Throw a warning and free new_db_file_name. */
+
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
                           new_db_file_name.str);
@@ -1475,12 +1606,19 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
+      /* The operation succeed. */
+
       DBUG_RETURN(FALSE);
     }
     else
     {
+      /* Report an error and free new_db_file_name. */
+
       my_error(ER_BAD_DB_ERROR, MYF(0), new_db_file_name.str);
       my_free(new_db_file_name.str, MYF(0));
+
+      /* The operation failed. */
+
       DBUG_RETURN(TRUE);
     }
   }
@@ -1490,18 +1628,48 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     attributes and will be freed in THD::~THD().
   */
 
-  {
-    HA_CREATE_INFO db_options;
+  db_default_cl= get_default_db_collation(thd, new_db_file_name.str);
 
-    load_db_opt_by_name(thd, new_db_name->str, &db_options);
-
-    mysql_change_db_impl(thd, &new_db_file_name, db_access,
-                         db_options.default_table_charset ?
-                         db_options.default_table_charset :
-                         thd->variables.collation_server);
-  }
+  mysql_change_db_impl(thd, &new_db_file_name, db_access, db_default_cl);
 
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Change the current database and its attributes if needed.
+
+  @param          thd             thread handle
+  @param          new_db_name     database name
+  @param[in, out] saved_db_name   IN: "str" points to a buffer where to store
+                                  the old database name, "length" contains the
+                                  buffer size
+                                  OUT: if the current (default) database is
+                                  not NULL, its name is copied to the
+                                  buffer pointed at by "str"
+                                  and "length" is updated accordingly.
+                                  Otherwise "str" is set to NULL and
+                                  "length" is set to 0.
+  @param          force_switch    @see mysql_change_db()
+  @param[out]     cur_db_changed  out-flag to indicate whether the current
+                                  database has been changed (valid only if
+                                  the function suceeded)
+*/
+
+bool mysql_opt_change_db(THD *thd,
+                         const LEX_STRING *new_db_name,
+                         LEX_STRING *saved_db_name,
+                         bool force_switch,
+                         bool *cur_db_changed)
+{
+  *cur_db_changed= !cmp_db_names(thd->db, new_db_name->str);
+
+  if (!*cur_db_changed)
+    return FALSE;
+
+  backup_current_db_name(thd, saved_db_name);
+
+  return mysql_change_db(thd, new_db_name, force_switch);
 }
 
 
@@ -1511,8 +1679,8 @@ lock_databases(THD *thd, const char *db1, uint length1,
 {
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         (hash_search(&lock_db_cache,(byte*) db1, length1) ||
-          hash_search(&lock_db_cache,(byte*) db2, length2)))
+         (hash_search(&lock_db_cache,(uchar*) db1, length1) ||
+          hash_search(&lock_db_cache,(uchar*) db2, length2)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);
@@ -1654,7 +1822,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       
       table_str.length= filename_to_tablename(file->name,
                                               tname, sizeof(tname)-1);
-      table_str.str= sql_memdup(tname, table_str.length + 1);
+      table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
       Table_ident *old_ident= new Table_ident(thd, *old_db, table_str, 0);
       Table_ident *new_ident= new Table_ident(thd, *new_db, table_str, 0);
       if (!old_ident || !new_ident ||
@@ -1800,7 +1968,7 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
   /* Step9: Let's do "use newdb" if we renamed the current database */
   if (change_to_newdb)
-    error|= mysql_change_db(thd, new_db, 0);
+    error|= mysql_change_db(thd, new_db, FALSE);
 
 exit:
   pthread_mutex_lock(&LOCK_lock_db);

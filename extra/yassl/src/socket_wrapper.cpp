@@ -114,8 +114,6 @@ uint Socket::send(const byte* buf, unsigned int sz, int flags) const
     const byte* pos = buf;
     const byte* end = pos + sz;
 
-    assert(socket_ != INVALID_SOCKET);
-
     while (pos != end) {
         int sent = ::send(socket_, reinterpret_cast<const char *>(pos),
                           static_cast<int>(end - pos), flags);
@@ -132,7 +130,6 @@ uint Socket::send(const byte* buf, unsigned int sz, int flags) const
 
 uint Socket::receive(byte* buf, unsigned int sz, int flags)
 {
-    assert(socket_ != INVALID_SOCKET);
     wouldBlock_ = false;
 
     int recvd = ::recv(socket_, reinterpret_cast<char *>(buf), sz, flags);
@@ -163,7 +160,6 @@ bool Socket::wait()
 
 void Socket::shutDown(int how)
 {
-    assert(socket_ != INVALID_SOCKET);
     shutdown(socket_, how);
 }
 

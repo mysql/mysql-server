@@ -1,0 +1,72 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+alter logfile group lg1
+add undofile 'undofile02.dat'
+initial_size 4M engine=ndb;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 4M engine=ndb;
+CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+tablespace ts1 storage disk
+engine ndb;
+insert into t1 values (1,2,3);
+select * from t1 order by pk1;
+pk1	b	c
+1	2	3
+select * from t1 order by pk1;
+pk1	b	c
+1	2	3
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t1
+master-bin.000001	#	Query	1	#	use `test`; CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB
+master-bin.000001	#	Query	1	#	use `test`; alter logfile group lg1
+add undofile 'undofile02.dat'
+initial_size 4M engine=ndb
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB
+master-bin.000001	#	Query	1	#	use `test`; alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 4M engine=ndb
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+tablespace ts1 storage disk
+engine ndb
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	1	#	table_id: #
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	COMMIT
+drop table t1;
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine=ndb;
+alter tablespace ts1
+drop datafile 'datafile02.dat'
+engine=ndb;
+DROP TABLESPACE ts1 ENGINE=NDB;
+DROP LOGFILE GROUP lg1 ENGINE=NDB;

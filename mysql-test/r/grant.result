@@ -907,11 +907,11 @@ ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for tabl
 SHOW CREATE TABLE mysqltest2.v_yn;
 ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v_yn'
 SHOW CREATE TABLE mysqltest2.v_ny;
-View	Create View
-v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`
+View	Create View	character_set_client	collation_connection
+v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`	latin1	latin1_swedish_ci
 SHOW CREATE VIEW  mysqltest2.v_ny;
-View	Create View
-v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`
+View	Create View	character_set_client	collation_connection
+v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`	latin1	latin1_swedish_ci
 SHOW CREATE TABLE mysqltest3.t_nn;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
 SHOW CREATE VIEW  mysqltest3.t_nn;
@@ -928,17 +928,17 @@ t_nn	CREATE TABLE `t_nn` (
 SHOW CREATE VIEW  mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
 SHOW CREATE VIEW mysqltest2.v_yy;
-View	Create View
-v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)
+View	Create View	character_set_client	collation_connection
+v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)	latin1	latin1_swedish_ci
 SHOW CREATE TABLE mysqltest2.v_yy;
-View	Create View
-v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)
+View	Create View	character_set_client	collation_connection
+v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)	latin1	latin1_swedish_ci
 SHOW CREATE TABLE mysqltest2.v_nn;
-View	Create View
-v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`
+View	Create View	character_set_client	collation_connection
+v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`	latin1	latin1_swedish_ci
 SHOW CREATE VIEW  mysqltest2.v_nn;
-View	Create View
-v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`
+View	Create View	character_set_client	collation_connection
+v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`	latin1	latin1_swedish_ci
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
@@ -1194,6 +1194,25 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+use test;
+CREATE TABLE t1 (f1 int, f2 int);
+INSERT INTO t1 VALUES(1,1), (2,2);
+CREATE DATABASE db27878;
+GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
+GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
+GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
+use db27878;
+CREATE SQL SECURITY INVOKER VIEW db27878.v1 AS SELECT * FROM test.t1;
+use db27878;
+UPDATE v1 SET f2 = 4;
+ERROR HY000: View 'db27878.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM test.t1;
+f1	f2
+1	1
+2	2
+DROP DATABASE db27878;
+use test;
+DROP TABLE t1;
 End of 5.0 tests
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;

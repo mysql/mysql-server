@@ -23,7 +23,7 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
-          conf-dl145a.cnf test-tests.txt
+          conf-dl145a.cnf test-tests.txt conf-test.cnf
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh autotest-run.sh
@@ -48,7 +48,7 @@ atrt_LDFLAGS = -static @ndb_bin_am_ldflags@
 wrappersdir=$(prefix)/bin
 wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
 
-EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT
+EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.hpp
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

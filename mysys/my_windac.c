@@ -194,8 +194,8 @@ error:
     FreeSid(everyone_sid);
   if (htoken)
     CloseHandle(htoken);
-  my_free((gptr) sa, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((gptr) dacl, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*) sa, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*) dacl, MYF(MY_ALLOW_ZERO_PTR));
   *psa= 0;
   return 1;
 }
@@ -215,8 +215,8 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa)
     My_security_attr *attr= (My_security_attr*)
                             (((char*)sa) + ALIGN_SIZE(sizeof(*sa)));
     FreeSid(attr->everyone_sid);
-    my_free((gptr) attr->dacl, MYF(0));
-    my_free((gptr) sa, MYF(0));
+    my_free((uchar*) attr->dacl, MYF(0));
+    my_free((uchar*) sa, MYF(0));
   }
 }
 

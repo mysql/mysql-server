@@ -128,9 +128,12 @@ drop table t1;
 # Bug #23093: Implicit conversion of 9912101 to date does not match
 # cast(9912101 as date)
 #
-select @d:=1111, year(@d), month(@d), day(@d), cast(@d as date);
-select @d:=011111, year(@d), month(@d), day(@d), cast(@d as date);
-select @d:=1311, year(@d), month(@d), day(@d), cast(@d as date);
+select @d:=1111;
+select year(@d), month(@d), day(@d), cast(@d as date);
+select @d:=011111;
+select year(@d), month(@d), day(@d), cast(@d as date);
+select @d:=1311;
+select year(@d), month(@d), day(@d), cast(@d as date);
 create table t1 (d  date , dt datetime , ts timestamp);
 insert into t1 values (9912101,9912101,9912101);
 insert into t1 values (11111,11111,11111);

@@ -40,11 +40,12 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, info_flag= 0, opt_nobeep;
-static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations,
-            opt_count_iterations= 0;
+               tty_password= 0, opt_nobeep;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
+static uint opt_count_iterations= 0, my_end_arg;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
-static my_string unix_port=0;
+static char * unix_port=0;
 #ifdef LATER_HAVE_NDBCLUSTER_DB
 static my_bool opt_ndbcluster=0;
 static char *opt_ndb_connectstring=0;
@@ -70,10 +71,12 @@ static uint ex_var_count, max_var_length, max_val_length;
 
 static void print_version(void);
 static void usage(void);
+extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
+                                  char *argument);
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
-static sig_handler endprog(int signal_number);
+extern "C" sig_handler endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
 static void print_header(MYSQL_RES *result);
 static void print_top(MYSQL_RES *result);
@@ -132,31 +135,37 @@ static struct my_option my_long_options[] =
 #endif
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only.",
-   (gptr*) &nr_iterations, (gptr*) &nr_iterations, 0, GET_UINT,
+   (uchar**) &nr_iterations, (uchar**) &nr_iterations, 0, GET_UINT,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Don't ask for confirmation on drop database; with multiple commands, continue even if an error occurs.",
-   (gptr*) &option_force, (gptr*) &option_force, 0, GET_BOOL, NO_ARG, 0, 0,
+   (uchar**) &option_force, (uchar**) &option_force, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (gptr*) &charsets_dir,
-   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", (uchar**) &charsets_dir,
+   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &default_charset,
-   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", (uchar**) &default_charset,
+   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+  {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-beep", 'b', "Turn off beep on error.", (gptr*) &opt_nobeep,
-   (gptr*) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
+  {"no-beep", 'b', "Turn off beep on error.", (uchar**) &opt_nobeep,
+   (uchar**) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -164,58 +173,58 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
-   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (uchar**) &tcp_port,
+   (uchar**) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
    "Show difference between current and previous values when used with -i. Currently works only with extended-status.",
-   (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_relative, (uchar**) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Silently exit if one can't connect to server.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &unix_port, (gptr*) &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &unix_port, (uchar**) &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"sleep", 'i', "Execute commands again and again with a sleep between.",
-   (gptr*) &interval, (gptr*) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
+   (uchar**) &interval, (uchar**) &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (gptr*) &user,
-   (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &user,
+   (uchar**) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose", 'v', "Write more information.", (gptr*) &opt_verbose,
-   (gptr*) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write more information.", (uchar**) &opt_verbose,
+   (uchar**) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E',
    "Print output vertically. Is similar to --relative, but prints output vertically.",
-   (gptr*) &opt_vertical, (gptr*) &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_vertical, (uchar**) &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_UINT,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
-   (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
+  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (uchar**) &opt_connect_timeout,
+   (uchar**) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
    3600*12, 0, 1, 0},
-  {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (gptr*) &opt_shutdown_timeout,
-   (gptr*) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
+  {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", (uchar**) &opt_shutdown_timeout,
+   (uchar**) &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
    SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
 #ifdef LATER_HAVE_NDBCLUSTER_DB
   {"ndbcluster", OPT_NDBCLUSTER, ""
-   "", (gptr*) &opt_ndbcluster,
-   (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "", (uchar**) &opt_ndbcluster,
+   (uchar**) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING, ""
-   "", (gptr*) &opt_ndb_connectstring,
-   (gptr*) &opt_ndb_connectstring, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "", (uchar**) &opt_ndb_connectstring,
+   (uchar**) &opt_ndb_connectstring, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -223,7 +232,7 @@ static struct my_option my_long_options[] =
 
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
 
-static my_bool
+my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -315,6 +324,10 @@ int main(int argc,char *argv[])
     free_defaults(save_argv);
     exit(ho_error);
   }
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (argc == 0)
   {
@@ -413,13 +426,13 @@ int main(int argc,char *argv[])
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(save_argv);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
   exit(error ? 1 : 0);
   return 0;
 }
 
 
-static sig_handler endprog(int signal_number __attribute__((unused)))
+sig_handler endprog(int signal_number __attribute__((unused)))
 {
   interrupted=1;
 }

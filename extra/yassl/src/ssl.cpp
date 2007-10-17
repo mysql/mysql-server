@@ -239,6 +239,12 @@ int SSL_set_fd(SSL* ssl, YASSL_SOCKET_T fd)
 }
 
 
+YASSL_SOCKET_T SSL_get_fd(const SSL* ssl)
+{
+    return ssl->getSocket().get_fd();
+}
+
+
 int SSL_connect(SSL* ssl)
 {
     if (ssl->GetError() == YasslError(SSL_ERROR_WANT_READ))
@@ -411,13 +417,27 @@ int SSL_clear(SSL* ssl)
 
 int SSL_shutdown(SSL* ssl)
 {
-    Alert alert(warning, close_notify);
-    sendAlert(*ssl, alert);
+    if (!ssl->GetQuietShutdown()) {
+      Alert alert(warning, close_notify);
+      sendAlert(*ssl, alert);
+    }
     ssl->useLog().ShowTCP(ssl->getSocket().get_fd(), true);
 
     GetErrors().Remove();
 
     return SSL_SUCCESS;
+}
+
+
+void SSL_set_quiet_shutdown(SSL *ssl,int mode)
+{
+    ssl->SetQuietShutdown(mode != 0);
+}
+
+
+int SSL_get_quiet_shutdown(SSL *ssl)
+{
+    return ssl->GetQuietShutdown();
 }
 
 

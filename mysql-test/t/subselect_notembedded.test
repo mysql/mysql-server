@@ -1,8 +1,9 @@
 -- source include/not_embedded.inc
 
 #
-# BUG #10308: purge log with subselect
+# BUG#10308: purge log with subselect
+# Bug#28553: mysqld crash in "purge master log before(select time from information_schema)"
 #
-
+--error 1064
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
-
+purge master logs before adddate(current_timestamp(), interval -4 day);

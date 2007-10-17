@@ -1430,8 +1430,8 @@ companynr	companynr
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary; Using join cache
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008
@@ -2362,16 +2362,16 @@ insert into t1 values (1,2), (2,2), (3,2), (4,2);
 insert into t2 values (1,3), (2,3), (3,4), (4,4);
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where; Using join cache
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
 select * from t1 left join t2 on a=c where d in (4);
 a	b	c	d
 3	2	3	4
 4	2	4	4
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where; Using join cache
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
 select * from t1 left join t2 on a=c where d = 4;
 a	b	c	d
 3	2	3	4
@@ -2716,8 +2716,8 @@ explain select straight_join DISTINCT t2.a,t2.b, t1.c from t1, t3, t2
 where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and 
 t2.b like '%%' order by t2.b limit 0,1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	b,c	b	5	const	1	Using where; Using temporary; Using filesort; Using join cache
-1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index
+1	SIMPLE	t1	ref	b,c	b	5	const	1	Using where; Using temporary; Using filesort
+1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index; Using join buffer
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	2	Range checked for each record (index map: 0x1)
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
@@ -2737,8 +2737,8 @@ INSERT INTO t2 VALUES (1,NULL), (2,10);
 ALTER TABLE t1 ENABLE KEYS;
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	b	b	5	NULL	2	Using index; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2747,8 +2747,8 @@ a	b	a	b
 2	10	4	10
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	b	b	5	NULL	2	Using index; Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2901,12 +2901,12 @@ a
 4
 EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using join cache
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join cache
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer
 DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
@@ -3492,7 +3492,7 @@ SELECT 0.9888889889 * 1.011111411911;
 0.9998769417899202067879
 prepare stmt from 'select 1 as " a "';
 Warnings:
-Warning	1548	Leading spaces are removed from name ' a '
+Warning	1466	Leading spaces are removed from name ' a '
 execute stmt;
 a 
 1
@@ -3980,4 +3980,122 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	f1	index	inx	inx	10	NULL	7	Using where; Using index
 1	SIMPLE	f2	ref	inx	inx	5	test.f1.b	1	Using where; Using index
 DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT);
+INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
+EXPLAIN SELECT c1 FROM t1 WHERE (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT COUNT(c2)))))))))))))))))))))))))))))))) > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+31	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+32	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+EXPLAIN SELECT c1 FROM t1 WHERE (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT (SELECT COUNT(c2))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) > 0;
+ERROR HY000: Too high level of nesting for select
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 int(11) NOT NULL AUTO_INCREMENT,
+c2 varchar(1000) DEFAULT NULL,
+c3 bigint(20) DEFAULT NULL,
+c4 bigint(20) DEFAULT NULL,
+PRIMARY KEY (c1)
+);
+EXPLAIN EXTENDED 
+SELECT  join_2.c1  
+FROM 
+t1 AS join_0, 
+t1 AS join_1, 
+t1 AS join_2, 
+t1 AS join_3, 
+t1 AS join_4, 
+t1 AS join_5, 
+t1 AS join_6, 
+t1 AS join_7
+WHERE 
+join_0.c1=join_1.c1  AND 
+join_1.c1=join_2.c1  AND 
+join_2.c1=join_3.c1  AND 
+join_3.c1=join_4.c1  AND 
+join_4.c1=join_5.c1  AND 
+join_5.c1=join_6.c1  AND 
+join_6.c1=join_7.c1 
+OR 
+join_0.c2 < '?'  AND 
+join_1.c2 < '?'  AND
+join_2.c2 > '?'  AND
+join_2.c2 < '!'  AND
+join_3.c2 > '?'  AND 
+join_4.c2 = '?'  AND 
+join_5.c2 <> '?' AND
+join_6.c2 <> '?' AND 
+join_7.c2 >= '?' AND
+join_0.c1=join_1.c1  AND 
+join_1.c1=join_2.c1  AND 
+join_2.c1=join_3.c1  AND
+join_3.c1=join_4.c1  AND 
+join_4.c1=join_5.c1  AND 
+join_5.c1=join_6.c1  AND 
+join_6.c1=join_7.c1
+GROUP BY 
+join_3.c1,
+join_2.c1,
+join_7.c1,
+join_1.c1,
+join_0.c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+DROP TABLE t1;
+SELECT 1 AS ` `;
+
+1
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT 1 AS `  `;
+
+1
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT 1 AS ` x`;
+x
+1
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+CREATE VIEW v1 AS SELECT 1 AS ` `;
+Warnings:
+Warning	1474	Name ' ' has become ''
+SELECT `` FROM v1;
+
+1
+CREATE VIEW v2 AS SELECT 1 AS `  `;
+Warnings:
+Warning	1474	Name '  ' has become ''
+SELECT `` FROM v2;
+
+1
+CREATE VIEW v3 AS SELECT 1 AS ` x`;
+Warnings:
+Warning	1466	Leading spaces are removed from name ' x'
+SELECT `x` FROM v3;
+x
+1
+DROP VIEW v1, v2, v3;
 End of 5.0 tests
+create table t1(a INT, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT a FROM t1 ORDER BY a LIMIT 2;
+a
+1
+2
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967296;
+a
+3
+4
+5
+SELECT a FROM t1 ORDER BY a LIMIT 2,4294967297;
+a
+3
+4
+5
+DROP TABLE t1;

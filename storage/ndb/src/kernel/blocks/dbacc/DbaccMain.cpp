@@ -2137,6 +2137,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr)
   if (same && (lastbits & Operationrec::OP_ACC_LOCK_MODE))
   {
     jam();
+    opbits |= Operationrec::OP_LOCK_MODE; // Upgrade to X-lock
     goto checkop;
   }
   
@@ -5200,9 +5201,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
 {
   jamEntry();
 
-  if(refToBlock(signal->getSendersBlockRef()) == DBLQH){
+  if(refToBlock(signal->getSendersBlockRef()) == DBLQH)
+  {
     jam();
-    reenable_expand_after_redo_log_exection_complete(signal);
     return;
   }
 

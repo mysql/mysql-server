@@ -20,6 +20,8 @@
 #include <m_string.h>
 
 #ifndef MAIN
+
+#if defined(__FreeBSD__) || defined(__linux__)
 static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
 {
   uint i, res=1;
@@ -29,6 +31,7 @@ static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
       res=0;
   return res;
 }
+#endif   /* FreeBSD || linux */
 
 #ifdef __FreeBSD__
 
@@ -98,7 +101,7 @@ err:
   return res;
 }
 
-#else
+#else   /* FreeBSD elif linux */
 /* just fail */
 my_bool my_gethwaddr(uchar *to __attribute__((unused)))
 {

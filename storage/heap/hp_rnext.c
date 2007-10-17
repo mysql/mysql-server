@@ -17,9 +17,9 @@
 
 /* Read next record with the same key */
 
-int heap_rnext(HP_INFO *info, byte *record)
+int heap_rnext(HP_INFO *info, uchar *record)
 {
-  byte *pos;
+  uchar *pos;
   HP_SHARE *share=info->s;
   HP_KEYDEF *keyinfo;
   DBUG_ENTER("heap_rnext");
@@ -47,7 +47,7 @@ int heap_rnext(HP_INFO *info, byte *record)
     if (pos)
     {
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
-	     sizeof(byte*));
+	     sizeof(uchar*));
       info->current_ptr = pos;
     }
     else

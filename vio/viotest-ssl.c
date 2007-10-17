@@ -106,8 +106,8 @@ int main(int argc, char **argv)
   child_pid = fork();
   if (child_pid==-1)
   {
-    my_free((gptr)ssl_acceptor,MYF(0));
-    my_free((gptr)ssl_connector,MYF(0));
+    my_free((uchar*)ssl_acceptor,MYF(0));
+    my_free((uchar*)ssl_connector,MYF(0));
     fatal_error("fork");
   }
   if (child_pid==0)
@@ -116,29 +116,29 @@ int main(int argc, char **argv)
     char	xbuf[100];
     int	r = vio_ssl_read(client_vio,xbuf, sizeof(xbuf));
     if (r<=0) {
-      my_free((gptr)ssl_acceptor,MYF(0));
-      my_free((gptr)ssl_connector,MYF(0));
+      my_free((uchar*)ssl_acceptor,MYF(0));
+      my_free((uchar*)ssl_connector,MYF(0));
       fatal_error("client:SSL_read");
     }
     xbuf[r] = 0;
     printf("client:got %s\n", xbuf);
-    my_free((gptr)client_vio,MYF(0));
-    my_free((gptr)ssl_acceptor,MYF(0));
-    my_free((gptr)ssl_connector,MYF(0));
+    my_free((uchar*)client_vio,MYF(0));
+    my_free((uchar*)ssl_acceptor,MYF(0));
+    my_free((uchar*)ssl_connector,MYF(0));
     sleep(1);
   }
   else
   {
     const char*	s = "Huhuhuh";
-    int		r = vio_ssl_write(server_vio,(gptr)s, strlen(s));
+    int		r = vio_ssl_write(server_vio,(uchar*)s, strlen(s));
     if (r<=0) {
-      my_free((gptr)ssl_acceptor,MYF(0));
-      my_free((gptr)ssl_connector,MYF(0));
+      my_free((uchar*)ssl_acceptor,MYF(0));
+      my_free((uchar*)ssl_connector,MYF(0));
       fatal_error("server:SSL_write");
     }
-    my_free((gptr)server_vio,MYF(0));
-    my_free((gptr)ssl_acceptor,MYF(0));
-    my_free((gptr)ssl_connector,MYF(0));
+    my_free((uchar*)server_vio,MYF(0));
+    my_free((uchar*)ssl_acceptor,MYF(0));
+    my_free((uchar*)ssl_connector,MYF(0));
     sleep(1);
   }
   return 0;

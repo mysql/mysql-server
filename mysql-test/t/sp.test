@@ -24,6 +24,11 @@ use test;
 #
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+drop view if exists v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop function if exists f2;
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
@@ -706,9 +711,9 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-# Remove spout file if it exists
---error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/spout
+# Check that file does not exists
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/spout
 call into_outfile("ofile", 1)|
 --remove_file $MYSQLTEST_VARDIR/tmp/spout
 delete from t1|
@@ -725,9 +730,9 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-# Remove spdump file if it exists
---error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/spdump
+# Check that file does not exists
+--error 1
+--file_exists $MYSQLTEST_VARDIR/tmp/spdump
 call into_dumpfile("dfile", 1)|
 --remove_file $MYSQLTEST_VARDIR/tmp/spdump
 delete from t1|
@@ -1767,11 +1772,11 @@ insert into t3 (a) values (1)|
 create procedure h_ee()
     deterministic
 begin
-  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+  declare continue handler for 1062 -- ER_DUP_ENTRY
     select 'Outer (bad)' as 'h_ee';
 
   begin
-    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+    declare continue handler for 1062 -- ER_DUP_ENTRY
         select 'Inner (good)' as 'h_ee';
 
     insert into t3 values (1);
@@ -1781,7 +1786,7 @@ end|
 create procedure h_es()
     deterministic
 begin
-  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+  declare continue handler for 1062 -- ER_DUP_ENTRY
     select 'Outer (good)' as 'h_es';
 
   begin
@@ -1827,7 +1832,7 @@ end|
 create procedure h_ex()
     deterministic
 begin
-  declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+  declare continue handler for 1062 -- ER_DUP_ENTRY
     select 'Outer (good)' as 'h_ex';
 
   begin
@@ -1846,7 +1851,7 @@ begin
     select 'Outer (bad)' as 'h_se';
 
   begin
-    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+    declare continue handler for 1062 -- ER_DUP_ENTRY
       select 'Inner (good)' as 'h_se';
 
     insert into t3 values (1);
@@ -2019,7 +2024,7 @@ begin
     select 'Outer (bad)' as 'h_xe';
 
   begin
-    declare continue handler for 1582 -- ER_DUP_ENTRY_WITH_KEY_NAME
+    declare continue handler for 1062 -- ER_DUP_ENTRY
       select 'Inner (good)' as 'h_xe';
 
     insert into t3 values (1);
@@ -4511,7 +4516,7 @@ begin
    select bug12379();
 end|
 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 select bug12379()|
 select 1|
 # statement-based binlogging will show warning which row-based won't;
@@ -4522,7 +4527,7 @@ select 2|
 call bug12379_2()|
 --enable_warnings
 select 3|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 call bug12379_3()|
 select 4|
 
@@ -4604,7 +4609,7 @@ end|
 
 call bug6127()|
 select * from t3|
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 call bug6127()|
 select * from t3|
 set sql_mode=@sm|
@@ -5532,11 +5537,11 @@ insert into t3 values (1)|
 create procedure bug15011()
   deterministic
 begin
-  declare continue handler for 1582
+  declare continue handler for 1062
     select 'Outer' as 'Handler';
 
   begin
-    declare continue handler for 1582
+    declare continue handler for 1062
       select 'Inner' as 'Handler';
 
     insert into t3 values (1);
@@ -6331,7 +6336,7 @@ set names utf8|
 drop database if exists това_е_дълго_име_за_база_данни_нали|
 --enable_warnings
 create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','')|
+INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','', 'utf8', 'utf8_general_ci', 'utf8_general_ci', 'n/a')|
 --error ER_SP_PROC_TABLE_CORRUPT
 call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
 drop database това_е_дълго_име_за_база_данни_нали|
@@ -6567,6 +6572,34 @@ call proc_21462_b(1)|
 
 drop procedure proc_21462_a|
 drop procedure proc_21462_b|
+
+
+#
+# Bug#19733 "Repeated alter, or repeated create/drop, fails"
+# Check that CREATE/DROP INDEX is re-execution friendly.
+# 
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists proc_bug19733|
+--enable_warnings
+create table t3 (s1 int)|
+
+create procedure proc_bug19733()
+begin
+  declare v int default 0;
+  while v < 100 do
+    create index i on t3 (s1);
+    drop index i on t3;
+    set v = v + 1;
+  end while;
+end|
+
+call proc_bug19733()|
+call proc_bug19733()|
+call proc_bug19733()|
+
+drop procedure proc_bug19733|
+drop table t3|
 
 
 #
@@ -7067,7 +7100,7 @@ use test|
 --disable_warnings
 drop function if exists bug20777|
 drop table if exists examplebug20777|
---enabled_warnings
+--enable_warnings
 create function bug20777(f1 bigint unsigned) returns bigint unsigned
 begin
   set f1 = (f1 - 10); set f1 = (f1 + 10);
@@ -7146,6 +7179,17 @@ SELECT bug5274_f2()|
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 
+#
+# Bug#21513 (SP having body starting with quoted label rendered unusable)
+#
+--disable_warnings
+drop procedure if exists proc_21513|
+--enable_warnings
+
+create procedure proc_21513()`my_label`:BEGIN END|
+show create procedure proc_21513|
+
+drop procedure proc_21513|
 
 ###
 --echo End of 5.0 tests.
@@ -7175,7 +7219,7 @@ CREATE TABLE t2 (a int auto_increment primary key, b int) engine=innodb;
 set @a=0;
 
 delimiter |;
-CREATE function bug27354() RETURNS int deterministic
+CREATE function bug27354() RETURNS int not deterministic
 begin
 insert into t1 values (null);
 set @a=@a+1;
@@ -7193,3 +7237,348 @@ select count(*) from t1 /* must be 3 */;
 
 drop table t1,t2;
 drop function   bug27354;
+
+#
+# Bug #28605: SHOW CREATE VIEW with views using stored_procedures no longer
+# showing SP names.
+#
+CREATE TABLE t1 (a INT); 
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
+
+CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP FUNCTION metered;
+DROP TABLE t1;
+
+#
+# Bug#29834: Accessing a view column by name in SP/PS causes a memory leak.
+#
+# This is leak test. Run with large number assigned to $execute_cnt,
+# $p1_cnt, $p2_cnt, @p1_p2_cnt, $f1_normal_cnt or $f1_prep_cnt variables.
+#
+
+let $execute_cnt= 2;
+let $p1_cnt= 2;
+let $p2_cnt= 2;
+SET @p1_p2_cnt= 2;
+let $f1_normal_cnt= 2;
+let $f1_prep_cnt= 2;
+
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+PREPARE s1 FROM 'SELECT c1 FROM v1';
+while ($execute_cnt)
+{
+  EXECUTE s1;
+  dec $execute_cnt;
+}
+
+DELIMITER |;
+
+CREATE PROCEDURE p1(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+  WHILE loops > 0 DO
+    SELECT c1 FROM v1;
+    SET loops = loops - 1;
+  END WHILE;
+END|
+
+CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
+BEGIN
+  WHILE loops > 0 DO
+    SELECT c1 FROM v1;
+    CALL p1(@p1_p2_cnt);
+    SET loops = loops - 1;
+  END WHILE;
+END|
+
+CREATE FUNCTION f1(loops INT UNSIGNED)
+  RETURNS INT
+BEGIN
+  DECLARE tmp INT;
+  WHILE loops > 0 DO
+    SELECT c1 INTO tmp FROM v1;
+    SET loops = loops - 1;
+  END WHILE;
+  RETURN loops;
+END|
+
+DELIMITER ;|
+
+eval CALL p1($p1_cnt);
+eval CALL p2($p2_cnt);
+
+eval SELECT f1($f1_normal_cnt);
+
+eval PREPARE s1 FROM 'SELECT f1($f1_prep_cnt)';
+EXECUTE s1;
+EXECUTE s1;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug#28551 "The warning 'No database selected' is reported when calling
+# stored procedures"
+#
+--disable_warnings
+drop database if exists mysqltest_db1;
+--enable_warnings
+create database mysqltest_db1;
+create procedure mysqltest_db1.sp_bug28551() begin end;
+call mysqltest_db1.sp_bug28551();
+show warnings;
+drop database mysqltest_db1;
+#
+# Bug#29050 Creation of a legal stored procedure fails if a database is not
+# selected prior
+#
+--disable_warnings
+drop database if exists mysqltest_db1;
+drop table if exists test.t1;
+--enable_warnings
+create database mysqltest_db1;
+use mysqltest_db1;
+# For the sake of its side effect
+drop database mysqltest_db1; 
+# Now we have no current database selected.
+create table test.t1 (id int);
+insert into test.t1 (id) values (1);
+delimiter //;
+create procedure test.sp_bug29050() begin select * from t1; end//
+delimiter ;//
+show warnings;
+call test.sp_bug29050();
+show warnings;
+# Restore the old current database
+use test;
+drop procedure sp_bug29050;
+drop table t1;
+
+#
+# Bug #30120 SP with local variables with non-ASCII names crashes server.
+#
+
+SET NAMES latin1;
+
+DELIMITER |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE ��� INT;
+  SELECT ���;
+END|
+
+DELIMITER ;|
+
+CALL p1();
+
+SET NAMES default;
+DROP PROCEDURE p1;
+
+#
+# Bug#25411 (trigger code truncated)
+#
+
+--disable_warnings
+drop procedure if exists proc_25411_a;
+drop procedure if exists proc_25411_b;
+drop procedure if exists proc_25411_c;
+--enable_warnings
+
+delimiter $$;
+
+create procedure proc_25411_a()
+begin
+  /* real comment */
+  select 1;
+  /*! select 2; */
+  select 3;
+  /*!00000 select 4; */
+  /*!99999 select 5; */
+end
+$$
+
+create procedure proc_25411_b(
+/* real comment */
+/*! p1 int, */
+/*!00000 p2 int */
+/*!99999 ,p3 int */
+)
+begin
+  select p1, p2;
+end
+$$
+
+create procedure proc_25411_c()
+begin
+  select 1/*!,2*//*!00000,3*//*!99999,4*/;
+  select 1/*! ,2*//*!00000 ,3*//*!99999 ,4*/;
+  select 1/*!,2 *//*!00000,3 *//*!99999,4 */;
+  select 1/*! ,2 *//*!00000 ,3 *//*!99999 ,4 */;
+  select 1 /*!,2*/ /*!00000,3*/ /*!99999,4*/ ;
+end
+$$
+
+delimiter ;$$
+
+show create procedure proc_25411_a;
+call proc_25411_a();
+
+show create procedure proc_25411_b;
+select name, param_list, body from mysql.proc where name like "%25411%";
+call proc_25411_b(10, 20);
+
+show create procedure proc_25411_c;
+call proc_25411_c();
+
+drop procedure proc_25411_a;
+drop procedure proc_25411_b;
+drop procedure proc_25411_c;
+
+
+#
+# Bug#26302 (MySQL server cuts off trailing "*/" from comments in SP/func)
+#
+
+--disable_warnings
+drop procedure if exists proc_26302;
+--enable_warnings
+
+create procedure proc_26302()
+select 1 /* testing */;
+
+show create procedure proc_26302;
+
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+where ROUTINE_NAME = "proc_26302";
+
+drop procedure proc_26302;
+
+
+# Bug #29338: no optimization for stored functions with a trivial body
+# always returning constant.
+#
+
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 2;
+CREATE FUNCTION f2(I INT) RETURNS INT DETERMINISTIC RETURN 3;
+
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+
+CREATE VIEW v1 AS SELECT c1 FROM t1;
+
+EXPLAIN SELECT * FROM t1 WHERE c1=1;
+EXPLAIN SELECT * FROM t1 WHERE c1=f1();
+
+EXPLAIN SELECT * FROM v1 WHERE c1=1;
+EXPLAIN SELECT * FROM v1 WHERE c1=f1();
+
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
+EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
+
+
+DROP VIEW v1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+#
+# Bug#29408 Cannot find view in columns table if the selection contains a function
+#
+delimiter |;
+
+create function f1()
+    returns int(11)
+not deterministic
+contains sql
+sql security definer
+comment ''
+begin
+  declare x int(11);
+  set x=-1;
+   return x;
+end|
+                          
+delimiter ;|
+                  
+create view v1 as select 1 as one, f1() as days;
+                          
+connect (bug29408, localhost, root,,*NO-ONE*);                     
+connection bug29408;
+
+show create view test.v1;      
+select column_name from information_schema.columns
+where table_name='v1' and table_schema='test';
+
+connection default;
+disconnect bug29408;
+drop view v1;
+drop function f1;
+
+#
+# Bug#13675: DATETIME/DATE type in store proc param seems to be converted as
+# varbinary
+#
+
+--echo
+--echo # Bug#13675.
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE PROCEDURE p1(v DATETIME) CREATE TABLE t1 SELECT v;
+
+CREATE PROCEDURE p2(v INT) CREATE TABLE t1 SELECT v;
+
+--echo
+CALL p1(NOW());
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p1('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2(10);
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+CALL p2('text');
+SHOW CREATE TABLE t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--echo End of 5.0 tests

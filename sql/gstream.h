@@ -35,7 +35,7 @@ public:
   {}
   ~Gis_read_stream()
   {
-    my_free(m_err_msg, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((uchar*) m_err_msg, MYF(MY_ALLOW_ZERO_PTR));
   }
 
   enum enum_tok_types get_next_toc_type();

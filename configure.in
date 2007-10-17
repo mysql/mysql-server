@@ -10,14 +10,14 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.18-beta)
-AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(mysql, 5.1.23-beta)
+AM_CONFIG_HEADER([include/config.h:config.h.in])
 is_this_community_tree=no
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_MAJOR_VERSION=15
+SHARED_LIB_MAJOR_VERSION=16
 SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 NDB_SHARED_LIB_MAJOR_VERSION=3
 NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
@@ -72,14 +72,22 @@ AC_SUBST(AVAILABLE_LANGUAGES)
 
 
 # Canonicalize the configuration name.
-SYSTEM_TYPE="$host_vendor-$host_os"
-MACHINE_TYPE="$host_cpu"
+
+# Check whether --with-system-type or --without-system-type was given.
+AC_ARG_WITH(system-type,
+    [  --with-system-type      Set the system type, like "sun-solaris10"],
+    [SYSTEM_TYPE="$withval"],
+    [SYSTEM_TYPE="$host_vendor-$host_os"])
+AC_ARG_WITH(machine-type,
+    [  --with-machine-type     Set the machine type, like "powerpc"],
+    [MACHINE_TYPE="$withval"],
+    [MACHINE_TYPE="$host_cpu"])
 AC_SUBST(SYSTEM_TYPE)
 AC_DEFINE_UNQUOTED([SYSTEM_TYPE], ["$SYSTEM_TYPE"],
-                   [Name of system, eg solaris])
+                   [Name of system, eg sun-solaris])
 AC_SUBST(MACHINE_TYPE)
 AC_DEFINE_UNQUOTED([MACHINE_TYPE], ["$MACHINE_TYPE"],
-                   [Machine type name, eg sun10])
+                   [Machine type name, eg sparc])
 
 # Detect intel x86 like processor
 BASE_MACHINE_TYPE=$MACHINE_TYPE
@@ -231,14 +239,8 @@ AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 
-AC_MSG_CHECKING("return type of sprintf")
-
 #check the return type of sprintf
-case $SYSTEM_TYPE in
-  *netware*)
-    AC_DEFINE(SPRINTF_RETURNS_INT, [1]) AC_MSG_RESULT("int")
-    ;;
-  *)
+AC_MSG_CHECKING("return type of sprintf")
 AC_TRY_RUN([
   int main()
     {
@@ -264,10 +266,12 @@ AC_TRY_RUN([
                [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
                 AC_MSG_RESULT("ptr")],
                [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
-                AC_MSG_RESULT("garbage")])
-   ])
-    ;;
-esac
+                AC_MSG_RESULT("garbage")]
+   )],
+   # Cross compile, assume POSIX
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+    AC_MSG_RESULT("int (we assume)")]
+)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -777,7 +781,8 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/resource.h sys/param.h port.h)
+ sys/prctl.h \
+ sys/resource.h sys/param.h port.h ieeefp.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -791,6 +796,7 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
+AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
@@ -872,7 +878,7 @@ if test "$TARGET_LINUX" = "true"; then
     [ USE_PSTACK=$withval ],
     [ USE_PSTACK=no ])
   pstack_libs=
-  pstack_dirs=
+  pstack_dir=
   if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
   then
     have_libiberty= have_libbfd=
@@ -885,11 +891,11 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
 
     if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
     then
-      pstack_dirs='$(top_srcdir)'/pstack
+      pstack_dir="pstack"
       pstack_libs="../pstack/libpstack.a -lbfd -liberty"
       # We must link staticly when using pstack
       with_mysqld_ldflags="-all-static"
-      AC_SUBST([pstack_dirs])
+      AC_SUBST([pstack_dir])
       AC_SUBST([pstack_libs])
       AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
 dnl This check isn't needed, but might be nice to give some feedback....
@@ -903,7 +909,6 @@ dnl      have_libiberty_h=no)
     USE_PSTACK="no"
   fi
 fi
-AM_CONDITIONAL(COMPILE_PSTACK, test "$USE_PSTACK" = "yes")
 AC_MSG_CHECKING([if we should use pstack])
 AC_MSG_RESULT([$USE_PSTACK])
 
@@ -1703,6 +1708,12 @@ AC_ARG_WITH(client-ldflags,
     [CLIENT_EXTRA_LDFLAGS=])
 AC_SUBST(CLIENT_EXTRA_LDFLAGS)
 
+AC_ARG_WITH(mysqld-libs,
+    [  --with-mysqld-libs   Extra libraries to link with for mysqld],
+    [MYSQLD_EXTRA_LIBS=$withval],
+    [MYSQLD_EXTRA_LIBS=])
+AC_SUBST(MYSQLD_EXTRA_LIBS)
+
 AC_ARG_WITH(lib-ccflags,
     [  --with-lib-ccflags      Extra CC options for libraries],
     [LIB_EXTRA_CCFLAGS=$withval],
@@ -1903,6 +1914,19 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# Check if the termcap function 'tgoto' is already declared in
+# system header files or if it need to be declared locally
+AC_CHECK_DECLS(tgoto,,,[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
+#endif
+#ifdef HAVE_TERM_H
+# include <term.h>
+#endif
+])
+
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
@@ -1937,8 +1961,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
-  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
-  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  getpwuid getrlimit getrusage getwd index initgroups isnan \
+  localtime_r gethrtime gmtime_r \
+  locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
@@ -1965,12 +1990,20 @@ case "$target" in
     ;;
 esac
 
-# isinf() could be a function or a macro (HPUX)
-AC_MSG_CHECKING(for isinf with <math.h>)
+# Check that isinf() is available in math.h and can be used in both C and C++ 
+# code
+AC_MSG_CHECKING(for isinf in <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
- AC_MSG_RESULT(yes)
- AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
- AC_MSG_RESULT(no))
+  AC_MSG_RESULT(yes)
+  AC_MSG_CHECKING(whether isinf() can be used in C++ code)
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
+    AC_MSG_RESULT(no))
+  AC_LANG_RESTORE,
+  AC_MSG_RESULT(no))
  
 CFLAGS="$ORG_CFLAGS"
 
@@ -2311,8 +2344,7 @@ AC_ARG_WITH([mysqlmanager],
 if test "$with_mysqlmanager" = "yes" -o \
         '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
             -d "$srcdir/server-tools" ')' ; then
-  tools_dirs="$tools_dirs server-tools"
-  AC_CONFIG_FILES(server-tools/Makefile server-tools/instance-manager/Makefile)
+  tools_dirs="server-tools"
 fi
 
 AC_SUBST(tools_dirs)
@@ -2324,7 +2356,6 @@ if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
 
-  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2409,70 +2440,58 @@ then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-
-if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="libedit"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
-    compile_libedit=yes
-    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
-    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
-elif test "$with_readline" = "yes"
-then
-    readline_topdir="cmd-line-utils"
-    readline_basedir="readline"
-    readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
-    compile_readline=yes
-    want_to_use_readline="yes"
-    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
-else
-    # Use system readline library
-    AC_LANG_SAVE
-    AC_LANG_CPLUSPLUS
-    MYSQL_CHECK_LIBEDIT_INTERFACE
-    MYSQL_CHECK_NEW_RL_INTERFACE
-    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
-    AC_LANG_RESTORE
-    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "./cmd-line-utils/readline"]
+    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
     then
-        # Use the new readline interface, but only if the package includes a bundled libreadline
-        # this way we avoid linking commercial source with GPL readline
-        readline_link="-lreadline"
-        want_to_use_readline="yes"
-    elif [test "$mysql_cv_libedit_interface" = "yes"]
+	readline_topdir="cmd-line-utils"
+	readline_basedir="libedit"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
+	compile_libedit=yes
+	AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+	AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
+    elif test "$with_readline" = "yes"
     then
-        # Use libedit
-        readline_link="-ledit"
+	readline_topdir="cmd-line-utils"
+	readline_basedir="readline"
+	readline_dir="$readline_topdir/$readline_basedir"
+	readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
+	compile_readline=yes
+	want_to_use_readline="yes"
+	AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
     else
-       AC_MSG_ERROR([Could not find system readline or libedit libraries
-          Use --with-readline or --with-libedit to use the bundled
-          versions of libedit or readline])
+	# Use system readline library
+	AC_LANG_SAVE
+	AC_LANG_CPLUSPLUS
+	MYSQL_CHECK_LIBEDIT_INTERFACE
+	MYSQL_CHECK_NEW_RL_INTERFACE
+	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+	AC_LANG_RESTORE
+	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
+	then
+	    # Use the new readline interface, but only if the package includes a bundled libreadline
+	    # this way we avoid linking commercial source with GPL readline
+	    readline_link="-lreadline"
+	    want_to_use_readline="yes"
+	elif [test "$mysql_cv_libedit_interface" = "yes"]
+	then
+	    # Use libedit
+	    readline_link="-ledit"
+	else
+	   AC_MSG_ERROR([Could not find system readline or libedit libraries
+	      Use --with-readline or --with-libedit to use the bundled
+	      versions of libedit or readline])
+	fi
     fi
-fi
 
-# if there is no readline, but we want to build with readline, we fail
-if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
-then
-    AC_MSG_ERROR([This commercially licensed MySQL source package can't
-          be built with libreadline. Please use --with-libedit to use
-          the bundled version of libedit instead.])
-fi
-
-#
-# if either readline or libedit is enabled - generate Makefile's for both
-# (to make sure both are included in 'make dist')
-#
-if test -n "$readline_basedir"
-then
-  AC_CONFIG_FILES(cmd-line-utils/Makefile dnl
-                  cmd-line-utils/libedit/Makefile dnl
-                  cmd-line-utils/readline/Makefile)
-fi
+    # if there is no readline, but we want to build with readline, we fail
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    then
+	AC_MSG_ERROR([This commercially licensed MySQL source package can't
+	      be built with libreadline. Please use --with-libedit to use
+	      the bundled version of libedit instead.])
+    fi
 fi
 
 AC_SUBST(readline_dir)
@@ -2541,7 +2560,6 @@ AC_SUBST(man8_files)
 sql_server_dirs=
 sql_server=
 server_scripts=
-thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
@@ -2552,7 +2570,6 @@ AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="$sql_client_dirs libmysql_r"
-  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should the client be thread safe])
 fi
 sql_client_dirs="$sql_client_dirs client"
@@ -2584,7 +2601,7 @@ then
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
-  sql_server="$sql_server vio sql"
+  sql_server="vio sql"
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2596,7 +2613,6 @@ LIBS="$LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(sql_server_dirs)
 AC_SUBST(sql_server)
-AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
@@ -2623,20 +2639,38 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
+case $SYSTEM_TYPE in
+  *netware*)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --no-strip"
+    ;;
+  *)
+    : # no change for other platforms yet
+    ;;
+esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
+if test -d "$srcdir/pstack" ; then
+  AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
+fi
+if test -d "$srcdir/cmd-line-utils/readline" ; then
+  AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
+fi
+
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql/Makefile client/Makefile dnl
- pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ libmysql/Makefile libmysql_r/Makefile client/Makefile dnl
+ sql/Makefile sql/share/Makefile dnl
  sql/sql_builtin.cc sql-common/Makefile dnl
  dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile support-files/RHEL4-SElinux/Makefile dnl
+ server-tools/Makefile server-tools/instance-manager/Makefile dnl
+ cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
+ libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile dnl
  debian/Makefile debian/defs.mk debian/control dnl
  mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl

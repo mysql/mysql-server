@@ -43,16 +43,16 @@ SELECT IF(9999 - 1000 + 1 > @max_row, @max_row , 9999 - 1000 + 1)
 ALTER TABLE t1 ADD PARTITION (PARTITION part2);
 #
 --echo #  1.1.2 Assign HASH partitioning
-ALTER TABLE t1 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+ALTER TABLE t1 PARTITION BY HASH(YEAR(f_date));
 --source include/partition_layout.inc
 --source suite/parts/inc/partition_check_read1.inc
 #
 --echo #  1.1.3 Assign other HASH partitioning to already partitioned table
 --echo #        + test and switch back + test
-ALTER TABLE t1 PARTITION BY HASH(CAST(f_varchar AS SIGNED INTEGER));
+ALTER TABLE t1 PARTITION BY HASH(DAYOFYEAR(f_date));
 --source include/partition_layout.inc
 --source suite/parts/inc/partition_check_read1.inc
-ALTER TABLE t1 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+ALTER TABLE t1 PARTITION BY HASH(YEAR(f_date));
 --source include/partition_layout.inc
 --source suite/parts/inc/partition_check_read1.inc
 #

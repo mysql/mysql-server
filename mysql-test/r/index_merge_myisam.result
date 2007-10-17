@@ -270,8 +270,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ref	i1	i1	4	const	1	Using join cache
-1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where
+1	SIMPLE	t0	ref	i1	i1	4	const	1	
+1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -347,8 +347,8 @@ from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
 and   (B.key1 < 500000 or B.key2 < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join cache
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
@@ -361,8 +361,8 @@ from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 = 1 or A.key2 = 1)
 and   (B.key1 = 1 or B.key2 = 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join cache
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 = 1 or A.key2 = 1)
@@ -376,8 +376,8 @@ from t0 as A, t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join cache
-1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A, t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
@@ -457,6 +457,67 @@ a
 1
 UNLOCK TABLES;
 DROP TABLE t1, t2;
+CREATE TABLE `t1` (
+`a` int(11) DEFAULT NULL,
+`filler` char(200) DEFAULT NULL,
+`b` int(11) DEFAULT NULL,
+KEY `a` (`a`),
+KEY `b` (`b`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+insert into t1 values
+(0, 'filler', 0), (1, 'filler', 1), (2, 'filler', 2), (3, 'filler', 3), 
+(4, 'filler', 4), (5, 'filler', 5), (6, 'filler', 6), (7, 'filler', 7), 
+(8, 'filler', 8), (9, 'filler', 9), (0, 'filler', 0), (1, 'filler', 1), 
+(2, 'filler', 2), (3, 'filler', 3), (4, 'filler', 4), (5, 'filler', 5), 
+(6, 'filler', 6), (7, 'filler', 7), (8, 'filler', 8), (9, 'filler', 9), 
+(10, 'filler', 10), (11, 'filler', 11), (12, 'filler', 12), (13, 'filler', 13),
+(14, 'filler', 14), (15, 'filler', 15), (16, 'filler', 16), (17, 'filler', 17), 
+(18, 'filler', 18), (19, 'filler', 19), (4, '5      ', 0), (5, '4      ', 0), 
+(4, '4      ', 0), (4, 'qq     ', 5), (5, 'qq     ', 4), (4, 'zz     ', 4);
+create table t2(
+`a` int(11) DEFAULT NULL,
+`filler` char(200) DEFAULT NULL,
+`b` int(11) DEFAULT NULL,
+KEY USING BTREE (`a`),
+KEY USING BTREE (`b`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+insert into t2 select * from t1;
+must use sort-union rather than union:
+explain select * from t1 where a=4 or b=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	#	Using sort_union(a,b); Using where
+select * from t1 where a=4 or b=4;
+a	filler	b
+4	4	0
+4	5	0
+4	filler	4
+4	filler	4
+4	qq	5
+4	zz	4
+5	qq	4
+select * from t1 ignore index(a,b) where a=4 or b=4;
+a	filler	b
+4	4	0
+4	5	0
+4	filler	4
+4	filler	4
+4	qq	5
+4	zz	4
+5	qq	4
+must use union, not sort-union:
+explain select * from t2 where a=4 or b=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index_merge	a,b	a,b	5,5	NULL	#	Using union(a,b); Using where
+select * from t2 where a=4 or b=4;
+a	filler	b
+4	4	0
+4	5	0
+4	filler	4
+4	filler	4
+4	qq	5
+4	zz	4
+5	qq	4
+drop table t1, t2;
 #---------------- ROR-index_merge tests -----------------------
 SET SESSION STORAGE_ENGINE = MyISAM;
 drop table if exists  t0,t1,t2;

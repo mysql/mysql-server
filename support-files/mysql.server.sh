@@ -385,7 +385,7 @@ case "$mode" in
       fi
     else
       # Try to find appropriate mysqld process
-      mysqld_pid=`pidof $sbindir/mysqld`
+      mysqld_pid=`pidof $libexecdir/mysqld`
       if test -z $mysqld_pid ; then 
         if test "$use_mysqld_safe" = "0" ; then 
           lockfile=/var/lock/subsys/mysqlmanager

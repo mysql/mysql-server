@@ -21,7 +21,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
-ADD_LIBRARY(myisam ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
+
+SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
                                 ha_myisam.cc
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
 				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
@@ -33,21 +34,27 @@ ADD_LIBRARY(myisam ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c f
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
 				rt_split.c sort.c sp_key.c ft_eval.h myisamdef.h rt_index.h mi_rkey.c)
 
-ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys dbug strings zlib wsock32)
+IF(NOT SOURCE_SUBLIBS)
 
-ADD_EXECUTABLE(myisamchk myisamchk.c)
-TARGET_LINK_LIBRARIES(myisamchk myisam mysys dbug strings zlib wsock32)
+  ADD_LIBRARY(myisam ${MYISAM_SOURCES})
 
-ADD_EXECUTABLE(myisamlog myisamlog.c)
-TARGET_LINK_LIBRARIES(myisamlog myisam mysys dbug strings zlib wsock32)
+  ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+  TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(myisampack myisampack.c)
-TARGET_LINK_LIBRARIES(myisampack myisam mysys dbug strings zlib wsock32)
+  ADD_EXECUTABLE(myisamchk myisamchk.c)
+  TARGET_LINK_LIBRARIES(myisamchk myisam mysys debug dbug strings zlib wsock32)
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
-  MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")
-  MYSQL_EMBED_MANIFEST("myisamlog" "asInvoker")
-  MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
+  ADD_EXECUTABLE(myisamlog myisamlog.c)
+  TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
+
+  ADD_EXECUTABLE(myisampack myisampack.c)
+  TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
+
+  IF(EMBED_MANIFESTS)
+    MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
+    MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")
+    MYSQL_EMBED_MANIFEST("myisamlog" "asInvoker")
+    MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
+  ENDIF(EMBED_MANIFESTS)
+
+ENDIF(NOT SOURCE_SUBLIBS)

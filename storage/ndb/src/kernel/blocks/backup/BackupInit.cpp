@@ -148,10 +148,13 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_disk_write_speed = 10 * (1024 * 1024);
   c_defaults.m_disk_write_speed_sr = 100 * (1024 * 1024);
   c_defaults.m_disk_synch_size = 4 * (1024 * 1024);
-  
+  c_defaults.m_o_direct = true;
+
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
 					&c_defaults.m_diskless));
+  ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
+                            &c_defaults.m_o_direct);
   ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED_SR,
 			    &c_defaults.m_disk_write_speed_sr);
   ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED,
@@ -204,7 +207,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     / sizeof(Page32);
   // We need to allocate an additional of 2 pages. 1 page because of a bug in
   // ArrayPool and another one for DICTTAINFO.
-  c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2); 
+  c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2, true); 
   
   { // Init all tables
     SLList<Table> tables(c_tablePool);

@@ -291,7 +291,7 @@ const ClientKeyFactory& sslFactory::getClientKey() const
 SSL::SSL(SSL_CTX* ctx) 
     : secure_(ctx->getMethod()->getVersion(), crypto_.use_random(),
               ctx->getMethod()->getSide(), ctx->GetCiphers(), ctx,
-              ctx->GetDH_Parms().set_), has_data_(false)
+              ctx->GetDH_Parms().set_), quietShutdown_(false), has_data_(false)
 {
     if (int err = crypto_.get_random().GetError()) {
         SetError(YasslError(err));
@@ -771,6 +771,13 @@ void SSL::SetError(YasslError ye)
     states_.SetError(ye);
     //strncpy(states_.useString(), e.what(), mySTL::named_exception::NAME_SIZE);
     // TODO: add string here
+}
+
+
+// set the quiet shutdown mode (close_nofiy not sent or received on shutdown)
+void SSL::SetQuietShutdown(bool mode)
+{
+  quietShutdown_ = mode;
 }
 
 
@@ -1327,6 +1334,12 @@ const Socket& SSL::getSocket() const
 YasslError SSL::GetError() const
 {
     return states_.What();
+}
+
+
+bool SSL::GetQuietShutdown() const
+{
+    return quietShutdown_;
 }
 
 

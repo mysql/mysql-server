@@ -148,5 +148,70 @@ LOCK TABLES mysql.time_zone READ, mysql.proc WRITE;
 
 DROP TABLE t1;
 
+--echo
+--echo Bug#5719 impossible to lock VIEW
+--echo 
+--echo Just covering existing behaviour with tests. 
+--echo Consistency has not been found here.
+--echo
+--disable_warnings
+drop view if exists v_bug5719;
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (a int);
+create temporary table t2 (a int);
+create table t3 (a int);
+create view v_bug5719 as select 1;
+lock table v_bug5719 write;
+--error ER_TABLE_NOT_LOCKED
+select * from t1;
+--echo
+--echo Allowed to select from a temporary talbe under LOCK TABLES
+--echo 
+select * from t2;
+--error ER_TABLE_NOT_LOCKED
+select * from t3;
+select * from v_bug5719;
+drop view v_bug5719;
+--echo
+--echo sic: did not left LOCK TABLES mode automatically
+--echo
+--error ER_TABLE_NOT_LOCKED
+select * from t1;
+unlock tables;
+create view v_bug5719 as select * from t1;
+lock tables v_bug5719 write;
+select * from v_bug5719;
+--echo
+--echo Allowed to use an underlying table under LOCK TABLES <view>
+--echo
+select * from t1;
+--echo
+--echo Allowed to select from a temporary table under LOCK TABLES
+--echo
+select * from t2;
+--error ER_TABLE_NOT_LOCKED
+select * from t3;
+drop table t1;
+--echo
+--echo sic: left LOCK TABLES mode
+--echo
+select * from t3;
+--error ER_VIEW_INVALID
+select * from v_bug5719;
+unlock tables;
+drop view v_bug5719;
+--echo
+--echo When limitation to use temporary tables in views is removed, please
+--echo add a test that shows what happens under LOCK TABLES when a view
+--echo references a temporary table, is locked, and the underlying table
+--echo is dropped.
+--echo
+--error ER_VIEW_SELECT_TMPTABLE
+create view v_bug5719 as select * from t2;
+--echo
+--echo Cleanup.
+--echo
+drop table t2, t3;
 
 --echo End of 5.1 tests.

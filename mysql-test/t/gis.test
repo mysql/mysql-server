@@ -558,6 +558,39 @@ SELECT Overlaps(@horiz1, @point2) FROM DUAL;
 
 DROP TABLE t1;
 
+#
+# Bug#28763: Selecting geometry fields in UNION caused server crash.
+#
+create table t1(f1 geometry, f2 point, f3 linestring);
+select f1 from t1 union select f1 from t1;
+insert into t1 (f2,f3) values (GeomFromText('POINT(1 1)'),
+  GeomFromText('LINESTRING(0 0,1 1,2 2)'));
+select AsText(f2),AsText(f3) from t1;
+select AsText(a) from (select f2 as a from t1 union select f3 from t1) t;
+create table t2 as select f2 as a from t1 union select f3 from t1;
+desc t2;
+select AsText(a) from t2; 
+drop table t1, t2;
+
+#
+# Bug #29166: MYsql crash when query is run
+#
+
+# The test query itself is not logged : too large output.
+# The real test is the second query : see if the first hasn't crashed the
+# server
+--disable_query_log
+--disable_result_log
+SELECT AsText(GeometryFromText(CONCAT(
+  'MULTIPOLYGON(((',
+  REPEAT ('-0.00000000001234567890123456789012 -0.123456789012345678,', 1000),
+  '-0.00000000001234567890123456789012 -0.123456789012345678',
+  ')))'
+))) AS a;
+--enable_result_log
+--enable_query_log
+SELECT 1;
+
 --echo End of 5.0 tests
 
 

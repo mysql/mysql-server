@@ -1,0 +1,113 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t11;
+drop table if exists t11;
+create table t2 (n int);
+insert into t2 values(4);
+create table t2 (s char(20));
+load data infile '../std_data_ln/words.dat' into table t2;
+insert into t2 values('five');
+create table t1 (m int);
+insert into t1 values(15),(16),(17);
+update t1 set m=20 where m=16;
+delete from t1 where m=17;
+create table t11 select * from t1;
+select * from t1 ORDER BY m;
+m
+15
+20
+select * from t2;
+n
+4
+select * from t11;
+ERROR 42S02: Table 'test.t11' doesn't exist
+drop table if exists t1,t2,t11;
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	test.t1
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+create table t1 (ts timestamp);
+set one_shot time_zone='met';
+insert into t1 values('2005-08-12 00:00:00');
+set one_shot time_zone='met';
+select * from t1;
+ts
+2005-08-12 00:00:00
+set one_shot time_zone='met';
+select * from t1;
+ts
+2005-08-12 00:00:00
+drop table t1;
+*** master ***
+create table t1 (a int, b int);
+create trigger trg1 before insert on t1 for each row set new.b=2;
+create table t2 (a int, b int);
+create trigger trg2 before insert on t2 for each row set new.b=2;
+show tables;
+Tables_in_test
+t1
+t2
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	set new.b=2	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg2	INSERT	t2	set new.b=2	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+*** slave ***
+show tables;
+Tables_in_test
+t1
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	set new.b=2	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+*** master ***
+drop trigger trg1;
+drop trigger trg2;
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+*** slave ***
+show tables;
+Tables_in_test
+t1
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+*** master ***
+drop table t1;
+drop table t2;

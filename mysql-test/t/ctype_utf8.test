@@ -230,9 +230,9 @@ drop table t2;
 create table t1 (c varchar(30) character set utf8, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaaa');
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
@@ -254,9 +254,9 @@ create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
 --enable_warnings
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaaa');
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
@@ -276,23 +276,23 @@ create table t1 (c char(3) character set utf8, unique (c(2)));
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('b');
 insert into t1 values ('bb');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('bbb');
 insert into t1 values ('а');
 insert into t1 values ('аа');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ааа');
 insert into t1 values ('б');
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
 #
@@ -305,23 +305,23 @@ create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('b');
 insert into t1 values ('bb');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('bbb');
 insert into t1 values ('а');
 insert into t1 values ('аа');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ааа');
 insert into t1 values ('б');
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
 #
@@ -334,14 +334,14 @@ unique key a using hash (c(1))
 ) engine=heap;
 show create table t1;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -358,14 +358,14 @@ unique key a using btree (c(1))
 ) engine=heap;
 show create table t1;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -383,14 +383,14 @@ unique key a (c(1))
 ) engine=innodb;
 --enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -404,9 +404,9 @@ drop table t1;
 create table t1 (c varchar(30) character set utf8 collate utf8_bin, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaaaaaaaaaaa');
 insert into t1 values (repeat('b',20));
 select c c1 from t1 where c='1';
@@ -427,23 +427,23 @@ create table t1 (c char(3) character set utf8 collate utf8_bin, unique (c(2)));
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('b');
 insert into t1 values ('bb');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('bbb');
 insert into t1 values ('а');
 insert into t1 values ('аа');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ааа');
 insert into t1 values ('б');
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 insert into t1 values ('ꪪ');
 insert into t1 values ('ꪪꪪ');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
 
@@ -457,14 +457,14 @@ unique key a using hash (c(1))
 ) engine=heap;
 show create table t1;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -481,14 +481,14 @@ unique key a using btree (c(1))
 ) engine=heap;
 show create table t1;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -506,14 +506,14 @@ unique key a (c(1))
 ) engine=innodb;
 --enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aa');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('aaa');
 insert into t1 values ('б');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('бб');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert into t1 values ('ббб');
 select c as c_all from t1 order by c;
 select c as c_a from t1 where c='a';
@@ -1315,6 +1315,46 @@ select coercibility(col1), collation(col1) from v2;
 drop view v1, v2;
 drop table t1;
 
+#
+# Check conversion of NCHAR strings to subset (e.g. latin1).
+# Conversion is possible if string repertoire is ASCII.
+# Conversion is not possible if the string have extended characters
+#
+set names utf8;
+create table t1 (a varchar(10) character set latin1, b int);
+insert into t1 values ('a',1);
+select concat(a, if(b>10, N'x', N'y')) from t1;
+--error 1267
+select concat(a, if(b>10, N'æ', N'ß')) from t1;
+drop table t1;
+
+# Conversion tests for character set introducers
+set names utf8;
+create table t1 (a varchar(10) character set latin1, b int);
+insert into t1 values ('a',1);
+select concat(a, if(b>10, _utf8'x', _utf8'y')) from t1;
+--error 1267
+select concat(a, if(b>10, _utf8'æ', _utf8'ß')) from t1;
+drop table t1;
+
+# Conversion tests for introducer + HEX string
+set names utf8;
+create table t1 (a varchar(10) character set latin1, b int);
+insert into t1 values ('a',1);
+select concat(a, if(b>10, _utf8 0x78, _utf8 0x79)) from t1;
+--error 1267
+select concat(a, if(b>10, _utf8 0xC3A6, _utf8 0xC3AF)) from t1;
+drop table t1;
+
+# Conversion tests for "text_literal TEXT_STRING_literal" syntax structure
+set names utf8;
+create table t1 (a varchar(10) character set latin1, b int);
+insert into t1 values ('a',1);
+select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
+--error 1267
+select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
+drop table t1;
+
 
 #
 # Bug#19960: Inconsistent results when joining
@@ -1338,4 +1378,29 @@ CREATE TABLE t2 (
 INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
 SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
 WHERE t1.colA < 3;
+DROP TABLE t1, t2;
+
+#
+# Bug#29205: truncation of UTF8 values when the UNION statement
+# forces collation to the binary charset
+#
+
+SELECT 'н1234567890' UNION SELECT _binary '1';
+SELECT 'н1234567890' UNION SELECT 1;
+
+SELECT '1' UNION SELECT 'н1234567890';
+SELECT 1 UNION SELECT 'н1234567890';
+
+CREATE TABLE t1 (c VARCHAR(11)) CHARACTER SET utf8;
+CREATE TABLE t2 (b CHAR(1) CHARACTER SET binary, i INT);
+
+INSERT INTO t1 (c) VALUES ('н1234567890');
+INSERT INTO t2 (b, i) VALUES ('1', 1);
+
+SELECT c FROM t1 UNION SELECT b FROM t2;
+SELECT c FROM t1 UNION SELECT i FROM t2;
+
+SELECT b FROM t2 UNION SELECT c FROM t1;
+SELECT i FROM t2 UNION SELECT c FROM t1;
+
 DROP TABLE t1, t2;

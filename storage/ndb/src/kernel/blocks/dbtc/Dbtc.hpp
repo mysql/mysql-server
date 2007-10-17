@@ -1499,12 +1499,12 @@ private:
   void clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
 			    TcConnectRecord * const regTcPtr);
   // Trigger and index handling
-  bool saveINDXKEYINFO(Signal* signal,
-                       TcIndexOperation* indexOp,
-                       const Uint32 *src, 
-                       Uint32 len);
+  int saveINDXKEYINFO(Signal* signal,
+                      TcIndexOperation* indexOp,
+                      const Uint32 *src, 
+                      Uint32 len);
   bool receivedAllINDXKEYINFO(TcIndexOperation* indexOp);
-  bool saveINDXATTRINFO(Signal* signal,
+  int saveINDXATTRINFO(Signal* signal,
                         TcIndexOperation* indexOp,
                         const Uint32 *src, 
                         Uint32 len);

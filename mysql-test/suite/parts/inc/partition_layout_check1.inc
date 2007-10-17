@@ -56,6 +56,7 @@ eval INSERT INTO t0_definition SET state = 'old',
      file_list      = $file_list;
 
 # Print the create table statement into the protocol
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT create_command FROM t0_definition WHERE state = 'old';
 if ($do_file_tests)
 {

@@ -536,7 +536,7 @@ int
 NdbBlob::setTableKeyValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::setTableKeyValue");
-  DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
+  DBUG_DUMP("info", (uchar*) theKeyBuf.data, 4 * theTable->m_keyLenInWords);
   const Uint32* data = (const Uint32*)theKeyBuf.data;
   const unsigned columns = theTable->m_columns.size();
   unsigned pos = 0;
@@ -562,7 +562,8 @@ int
 NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::setAccessKeyValue");
-  DBUG_DUMP("info", theAccessKeyBuf.data, 4 * theAccessTable->m_keyLenInWords);
+  DBUG_DUMP("info", (uchar*) theAccessKeyBuf.data,
+            4 * theAccessTable->m_keyLenInWords);
   const Uint32* data = (const Uint32*)theAccessKeyBuf.data;
   const unsigned columns = theAccessTable->m_columns.size();
   unsigned pos = 0;
@@ -587,7 +588,7 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   DBUG_ENTER("NdbBlob::setPartKeyValue");
   DBUG_PRINT("info", ("dist=%u part=%u packkey=", getDistKey(part), part));
-  DBUG_DUMP("info", thePackKeyBuf.data, 4 * thePackKeyBuf.size);
+  DBUG_DUMP("info", (uchar*) thePackKeyBuf.data, 4 * thePackKeyBuf.size);
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (anOp->equal("PK", thePackKeyBuf.data) == -1 ||
       anOp->equal("DIST", getDistKey(part)) == -1 ||
@@ -1135,7 +1136,12 @@ NdbBlob::readTableParts(char* buf, Uint32 part, Uint32 count)
   while (n < count) {
     NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
-        tOp->committedRead() == -1 ||
+        /*
+         * This was committedRead() before.  However lock on main
+         * table tuple does not fully protect blob parts since DBTUP
+         * commits each tuple separately.
+         */
+        tOp->readTuple() == -1 ||
         setPartKeyValue(tOp, part + n) == -1 ||
         tOp->getValue((Uint32)3, buf) == NULL) {
       setErrorCode(tOp);
@@ -1261,6 +1267,7 @@ NdbBlob::deletePartsUnknown(Uint32 part)
         DBUG_RETURN(-1);
       }
       tOp->m_abortOption= NdbOperation::AO_IgnoreError;
+      tOp->m_noErrorPropagation = true;
       n++;
     }
     DBUG_PRINT("info", ("bat=%u", bat));
@@ -1597,6 +1604,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       }
       if (isWriteOp()) {
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
+        tOp->m_noErrorPropagation = true;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately
@@ -1643,6 +1651,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       }
       if (isWriteOp()) {
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
+        tOp->m_noErrorPropagation = true;
       }
       theHeadInlineReadOp = tOp;
       // execute immediately

@@ -331,13 +331,13 @@ $column_list
 PARTITION BY RANGE(f_int1)
 ( PARTITION part1 VALUES LESS THAN (NULL),
   PARTITION part2 VALUES LESS THAN (1000));
---echo #  3.5.1.2 VALUE LESS THAN (CAST(NULL AS SIGNED INTEGER)) is not allowed
+--echo #  3.5.1.2 VALUE LESS THAN (NULL) is not allowed
 --error 1064
 eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY RANGE(f_int1)
-( PARTITION part1 VALUES LESS THAN (CAST(NULL AS SIGNED INTEGER)),
+( PARTITION part1 VALUES LESS THAN (NULL),
   PARTITION part2 VALUES LESS THAN (1000));
 --echo #  3.5.2 NULL in LIST partitioning clause
 --echo #  3.5.2.1 VALUE IN (NULL)
@@ -349,14 +349,14 @@ PARTITION BY LIST(MOD(f_int1,2))
   PARTITION part2 VALUES IN (0),
   PARTITION part3 VALUES IN (1));
 DROP TABLE t1;
---echo #  3.5.2.2 VALUE IN (CAST(NULL AS SIGNED INTEGER))
+--echo #  3.5.2.2 VALUE IN (NULL)
 # Attention: It is intended that there is no partition with
 #            VALUES IN (0), because there was a time where NULL was treated as zero
 eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY LIST(MOD(f_int1,2))
-( PARTITION part1 VALUES IN (CAST(NULL AS SIGNED INTEGER)),
+( PARTITION part1 VALUES IN (NULL),
   PARTITION part3 VALUES IN (1));
 --source suite/parts/inc/partition_layout_check1.inc
 # --source include/partition_layout_check1.inc
@@ -368,7 +368,7 @@ eval CREATE TABLE t1 (
 $column_list
 )
 PARTITION BY LIST(MOD(f_int1,2))
-( PARTITION part1 VALUES IN (CAST(NULL AS SIGNED INTEGER)),
+( PARTITION part1 VALUES IN (NULL),
   PARTITION part2 VALUES IN (0),
   PARTITION part3 VALUES IN (1));
 --source suite/parts/inc/partition_layout_check1.inc

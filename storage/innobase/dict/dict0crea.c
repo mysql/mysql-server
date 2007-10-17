@@ -960,7 +960,7 @@ dict_create_table_step(
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
 
-		dict_table_add_to_cache(node->table);
+		dict_table_add_to_cache(node->table, node->heap);
 
 		err = DB_SUCCESS;
 	}
@@ -1195,7 +1195,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
 			(ulong) error);
 
-		ut_a(error == DB_OUT_OF_FILE_SPACE);
+		ut_a(error == DB_OUT_OF_FILE_SPACE
+		     || error == DB_TOO_MANY_CONCURRENT_TRXS);
 
 		fprintf(stderr,
 			"InnoDB: creation failed\n"

@@ -1,10 +1,6 @@
 # Replication of character sets.
 # This test will fail if the server/client does not support enough charsets.
 
-# Requires statement logging
--- source include/have_binlog_format_row.inc
-
--- source include/master-slave.inc
 --disable_warnings
 set timestamp=1000000000;
 drop database if exists mysqltest2;

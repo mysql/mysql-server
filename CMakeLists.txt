@@ -24,44 +24,53 @@ SET(WITH_CSV_STORAGE_ENGINE TRUE)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_SOURCE_DIR}/include/mysql_version.h @ONLY)
 
+# Set standard options
+ADD_DEFINITIONS(-DHAVE_YASSL)
+
+# Set debug options
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
+
+# Note that some engines are always compiled in, MyISAM, MyISAMMRG and HEAP,
+# these three plugin defintions are dummys for symmetry
+
 SET(WITH_HEAP_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-D WITH_HEAP_STORAGE_ENGINE)
+ADD_DEFINITIONS(-DWITH_HEAP_STORAGE_ENGINE)
 SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_heap_plugin")
 
 SET(WITH_MYISAM_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-D WITH_MYISAM_STORAGE_ENGINE)
+ADD_DEFINITIONS(-DWITH_MYISAM_STORAGE_ENGINE)
 SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_myisam_plugin")
 
 SET(WITH_MYISAMMRG_STORAGE_ENGINE TRUE)
-ADD_DEFINITIONS(-D WITH_MYISAMMRG_STORAGE_ENGINE)
+ADD_DEFINITIONS(-DWITH_MYISAMMRG_STORAGE_ENGINE)
 SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_myisammrg_plugin")
 
 IF(WITH_ARCHIVE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_ARCHIVE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_ARCHIVE_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_archive_plugin")
 ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
 IF(WITH_BLACKHOLE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_BLACKHOLE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_BLACKHOLE_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_blackhole_plugin")
 ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
 IF(WITH_CSV_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_CSV_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_CSV_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_csv_plugin")
 ENDIF(WITH_CSV_STORAGE_ENGINE)
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_EXAMPLE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_EXAMPLE_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_example_plugin")
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_INNOBASE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_innobase_plugin")
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
 IF(WITH_PARTITION_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_PARTITION_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_PARTITION_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_partition_plugin")
 ENDIF(WITH_PARTITION_STORAGE_ENGINE)
 IF(WITH_FEDERATED_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_FEDERATED_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-DWITH_FEDERATED_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_federated_plugin")
 ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
 
@@ -81,86 +90,118 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-small.cnf.sh
                ${CMAKE_SOURCE_DIR}/support-files/my-small.ini @ONLY)
 
 IF(__NT__)
-  ADD_DEFINITIONS(-D __NT__)
+  ADD_DEFINITIONS(-D__NT__)
 ENDIF(__NT__)
 IF(CYBOZU)
-  ADD_DEFINITIONS(-D CYBOZU)
+  ADD_DEFINITIONS(-DCYBOZU)
 ENDIF(CYBOZU)
 
 # in some places we use DBUG_OFF
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D DBUG_OFF")
-SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D DBUG_OFF")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
+SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio 8")
     SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4996")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4996")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /wd4996")
     SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /wd4996")
     SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4996")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /wd4996")
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8")
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR 
    CMAKE_GENERATOR MATCHES "Visual Studio 8")
-	# replace /MDd with /MTd
-	STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG_INIT 
-	       ${CMAKE_CXX_FLAGS_DEBUG_INIT})
-	STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG_INIT 
-	       ${CMAKE_C_FLAGS_DEBUG_INIT})
-	STRING(REPLACE "/MD" "/MT" CMAKE_C_FLAGS_RELEASE 
-	       ${CMAKE_C_FLAGS_RELEASE})
-	STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG 
-	       ${CMAKE_C_FLAGS_DEBUG})
-	STRING(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE 
-	       ${CMAKE_CXX_FLAGS_RELEASE})
-	STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG 
-	       ${CMAKE_CXX_FLAGS_DEBUG})
 
-	STRING(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELWITHDEBINFO 
-	       ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-	STRING(REPLACE "/MD" "/MT" CMAKE_C_FLAGS_RELWITHDEBINFO 
-	       ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+    # replace /MDd with /MTd
+    STRING(REPLACE "/MD"  "/MT"  CMAKE_C_FLAGS_RELEASE          ${CMAKE_C_FLAGS_RELEASE})
+    STRING(REPLACE "/MD"  "/MT"  CMAKE_C_FLAGS_RELWITHDEBINFO   ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+    STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG            ${CMAKE_C_FLAGS_DEBUG})
+    STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG_INIT       ${CMAKE_C_FLAGS_DEBUG_INIT})
 
-	# generate .map files  
-	SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
+    STRING(REPLACE "/MD"  "/MT"  CMAKE_CXX_FLAGS_RELEASE        ${CMAKE_CXX_FLAGS_RELEASE})
+    STRING(REPLACE "/MD"  "/MT"  CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+    STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG          ${CMAKE_CXX_FLAGS_DEBUG})
+    STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG_INIT     ${CMAKE_CXX_FLAGS_DEBUG_INIT})
 
-	# remove support for Exception handling
-	STRING(REPLACE "/GX" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-	STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-	STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_INIT 
-	       ${CMAKE_CXX_FLAGS_INIT})
-	STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_DEBUG_INIT 
-	       ${CMAKE_CXX_FLAGS_DEBUG_INIT})
+    # generate map files, set stack size (see bug#20815)
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1048576")
+
+    # remove support for Exception handling
+    STRING(REPLACE "/GX"   "" CMAKE_CXX_FLAGS            ${CMAKE_CXX_FLAGS})
+    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS            ${CMAKE_CXX_FLAGS})
+    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_INIT       ${CMAKE_CXX_FLAGS_INIT})
+    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_DEBUG_INIT ${CMAKE_CXX_FLAGS_DEBUG_INIT})
+
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR 
       CMAKE_GENERATOR MATCHES "Visual Studio 8")
 
-ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D _CRT_SECURE_NO_DEPRECATE")
+IF(WIN32)
+  ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
+ENDIF(WIN32)
 
 IF(EMBED_MANIFESTS)
-    # Search for the Manifest tool.  CMake will first search it's defaults
-    # (CMAKE_FRAMEWORK_PATH, CMAKE_APPBUNDLE_PATH, CMAKE_PROGRAM_PATH and
-    # the system PATH) followed by the listed paths which are the current
-    # possible defaults and should be updated when necessary.  The custom
-    # manifests are designed to be compatible with all mt versions.
+    # Search for the tools (mt, makecat, signtool) necessary for embedding
+    # manifests and signing executables with the MySQL AB authenticode cert.
+    #
+    # CMake will first search it's defaults (CMAKE_FRAMEWORK_PATH, 
+    # CMAKE_APPBUNDLE_PATH, CMAKE_PROGRAM_PATH and the system PATH) followed 
+    # by the listed paths which are the current possible defaults and should be
+    # updated when necessary.  
+    # 
+    # The custom manifests are designed to be compatible with all mt versions.
+    # The MySQL AB Authenticode certificate is available only internally.  
+    # Others should store a single signing certificate in a local cryptographic
+    # service provider and alter the signtool command as necessary.
     FIND_PROGRAM(HAVE_MANIFEST_TOOL NAMES mt
                  PATHS
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/VC/bin"
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin"
                  "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/SDK/v2.0/Bin")
+    FIND_PROGRAM(HAVE_CATALOG_TOOL NAMES makecat
+                 PATHS
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin")
+    FIND_PROGRAM(HAVE_SIGN_TOOL NAMES signtool
+                 PATHS
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/Common7/Tools/Bin"
+                 "$ENV{PROGRAMFILES}/Microsoft Visual Studio 8/SDK/v2.0/Bin")
+
     IF(HAVE_MANIFEST_TOOL)
-        MESSAGE(STATUS "Found Mainfest Tool. Embedding custom manifests.")
+        MESSAGE(STATUS "Found Mainfest Tool.")
     ELSE(HAVE_MANIFEST_TOOL)
         MESSAGE(FATAL_ERROR "Manifest tool, mt.exe, can't be found.")
     ENDIF(HAVE_MANIFEST_TOOL)
+    IF(HAVE_CATALOG_TOOL)
+        MESSAGE(STATUS "Found Catalog Tool.")
+    ELSE(HAVE_CATALOG_TOOL)
+        MESSAGE(FATAL_ERROR "Catalog tool, makecat.exe, can't be found.")
+    ENDIF(HAVE_CATALOG_TOOL)
+    IF(HAVE_SIGN_TOOL)
+        MESSAGE(STATUS "Found Sign Tool. Embedding custom manifests and signing executables.")
+    ELSE(HAVE_SIGN_TOOL)
+        MESSAGE(FATAL_ERROR "Sign tool, signtool.exe, can't be found.")
+    ENDIF(HAVE_SIGN_TOOL)
+
     # Disable automatic manifest generation.
     STRING(REPLACE "/MANIFEST" "/MANIFEST:NO" CMAKE_EXE_LINKER_FLAGS 
     	   ${CMAKE_EXE_LINKER_FLAGS})
+    # Explicitly disable it since it is the default for newer versions of VS
+    STRING(REGEX MATCH "MANIFEST:NO" tmp_manifest ${CMAKE_EXE_LINKER_FLAGS})
+    IF(NOT tmp_manifest)
+        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
+    ENDIF(NOT tmp_manifest)
     # Set the processor architecture.
     IF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
-    	SET(PROCESSOR_ARCH "X64") 
+    	SET(PROCESSOR_ARCH "amd64") 
     ELSE(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
     	SET(PROCESSOR_ARCH "X86")
     ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8 2005 Win64")
 ENDIF(EMBED_MANIFESTS)
 
+# FIXME "debug" only needed if build type is "Debug", but
+# CMAKE_BUILD_TYPE is not set during configure time.
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
@@ -197,7 +238,7 @@ ADD_SUBDIRECTORY(sql)
 ADD_SUBDIRECTORY(server-tools/instance-manager)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(tests)
-
-# disable libmysqld until it's fixed, so we can use Cmake 2.2 and 2.4
-#ADD_SUBDIRECTORY(libmysqld)
-#ADD_SUBDIRECTORY(libmysqld/examples)
+IF(WITH_EMBEDDED_SERVER) 
+  ADD_SUBDIRECTORY(libmysqld)
+  ADD_SUBDIRECTORY(libmysqld/examples)
+ENDIF(WITH_EMBEDDED_SERVER)

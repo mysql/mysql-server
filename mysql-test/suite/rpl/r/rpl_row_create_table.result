@@ -1,0 +1,411 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
+CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
+CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
+SHOW BINLOG EVENTS FROM 216;
+Log_name	#
+Pos	216
+Event_type	Query
+Server_id	#
+End_log_pos	309
+Info	use `test`; CREATE TABLE t1 (a INT, b INT)
+Log_name	#
+Pos	309
+Event_type	Query
+Server_id	#
+End_log_pos	415
+Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
+Log_name	#
+Pos	415
+Event_type	Query
+Server_id	#
+End_log_pos	521
+Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
+Log_name	#
+Pos	521
+Event_type	Query
+Server_id	#
+End_log_pos	640
+Info	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
+**** On Master ****
+SHOW CREATE TABLE t1;
+Table	t1
+Create Table	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	t2
+Create Table	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+SHOW CREATE TABLE t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+**** On Slave ****
+SHOW CREATE TABLE t1;
+Table	t1
+Create Table	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	t2
+Create Table	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+SHOW CREATE TABLE t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+CREATE TABLE t5 (b INT, c INT) SELECT * FROM t3;
+CREATE TEMPORARY TABLE tt3 (a INT, b INT);
+INSERT INTO tt3 VALUES (1,2), (2,4), (3,6), (4,2), (5,10), (6,12);
+CREATE TABLE t6 (b INT, c INT) SELECT * FROM tt3;
+**** On Master ****
+SHOW CREATE TABLE t5;
+Table	t5
+Create Table	CREATE TABLE `t5` (
+  `c` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t5 ORDER BY a,b,c;
+c	a	b
+SHOW CREATE TABLE t6;
+Table	t6
+Create Table	CREATE TABLE `t6` (
+  `c` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t6 ORDER BY a,b,c;
+c	a	b
+NULL	1	2
+NULL	2	4
+NULL	3	6
+NULL	4	2
+NULL	5	10
+NULL	6	12
+**** On Slave ****
+SHOW CREATE TABLE t5;
+Table	t5
+Create Table	CREATE TABLE `t5` (
+  `c` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SELECT * FROM t5 ORDER BY a,b,c;
+c	a	b
+SHOW CREATE TABLE t6;
+Table	t6
+Create Table	CREATE TABLE `t6` (
+  `c` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SELECT * FROM t6 ORDER BY a,b,c;
+c	a	b
+NULL	1	2
+NULL	2	4
+NULL	3	6
+NULL	4	2
+NULL	5	10
+NULL	6	12
+CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
+ERROR 23000: Duplicate entry '2' for key 'b'
+SHOW BINLOG EVENTS FROM 1100;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+CREATE TABLE t7 (a INT, b INT UNIQUE);
+INSERT INTO t7 SELECT a,b FROM tt3;
+ERROR 23000: Duplicate entry '2' for key 'b'
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+SHOW BINLOG EVENTS FROM 1100;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	1100	Query	#	1200	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+#	1200	Table_map	#	1242	table_id: # (test.t7)
+#	1242	Write_rows	#	1298	table_id: # flags: STMT_END_F
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+CREATE TEMPORARY TABLE tt4 (a INT, b INT);
+INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
+BEGIN;
+INSERT INTO t7 SELECT a,b FROM tt4;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SHOW BINLOG EVENTS FROM 1298;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	1298	Table_map	#	1340	table_id: # (test.t7)
+#	1340	Write_rows	#	1396	table_id: # flags: STMT_END_F
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+4	8
+5	10
+6	12
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+4	8
+5	10
+6	12
+CREATE TABLE t8 LIKE t4;
+CREATE TABLE t9 LIKE tt4;
+CREATE TEMPORARY TABLE tt5 LIKE t4;
+CREATE TEMPORARY TABLE tt6 LIKE tt4;
+CREATE TEMPORARY TABLE tt7 SELECT 1;
+**** On Master ****
+SHOW CREATE TABLE t8;
+Table	t8
+Create Table	CREATE TABLE `t8` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8 UNION=()
+SHOW CREATE TABLE t9;
+Table	t9
+Create Table	CREATE TABLE `t9` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW BINLOG EVENTS FROM 1396;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	1396	Query	#	1482	use `test`; CREATE TABLE t8 LIKE t4
+#	1482	Query	#	1621	use `test`; CREATE TABLE `t9` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+)
+**** On Slave ****
+SHOW CREATE TABLE t8;
+Table	t8
+Create Table	CREATE TABLE `t8` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8 UNION=()
+SHOW CREATE TABLE t9;
+Table	t9
+Create Table	CREATE TABLE `t9` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+STOP SLAVE;
+SET GLOBAL storage_engine=@storage_engine;
+START SLAVE;
+================ BUG#22864 ================
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+SET AUTOCOMMIT=0;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 ENGINE=INNODB SELECT * FROM t1;
+ROLLBACK;
+CREATE TABLE t3 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t3 VALUES (4),(5),(6);
+ROLLBACK;
+CREATE TABLE t4 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t1 VALUES (4),(5),(6);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+t4
+SELECT   TABLE_NAME,ENGINE
+FROM   INFORMATION_SCHEMA.TABLES
+WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+TABLE_NAME	ENGINE
+t1	MyISAM
+t2	InnoDB
+t3	InnoDB
+t4	InnoDB
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+SELECT * FROM t2 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t3 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t4 ORDER BY a;
+a
+1
+2
+3
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	4	Format_desc	#	106	Server ver: #, Binlog ver: #
+#	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
+#	192	Table_map	#	233	table_id: # (test.t1)
+#	233	Write_rows	#	277	table_id: # flags: STMT_END_F
+#	277	Query	#	345	use `test`; BEGIN
+#	345	Query	#	470	use `test`; CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+#	470	Table_map	#	511	table_id: # (test.t2)
+#	511	Write_rows	#	555	table_id: # flags: STMT_END_F
+#	555	Xid	#	582	COMMIT /* XID */
+#	582	Query	#	650	use `test`; BEGIN
+#	650	Query	#	775	use `test`; CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+#	775	Table_map	#	816	table_id: # (test.t3)
+#	816	Write_rows	#	860	table_id: # flags: STMT_END_F
+#	860	Xid	#	887	COMMIT /* XID */
+#	887	Query	#	955	use `test`; BEGIN
+#	955	Query	#	1080	use `test`; CREATE TABLE `t4` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB
+#	1080	Table_map	#	1121	table_id: # (test.t4)
+#	1121	Write_rows	#	1165	table_id: # flags: STMT_END_F
+#	1165	Xid	#	1192	COMMIT /* XID */
+#	1192	Table_map	#	1233	table_id: # (test.t1)
+#	1233	Write_rows	#	1277	table_id: # flags: STMT_END_F
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+t4
+SELECT   TABLE_NAME,ENGINE
+FROM   INFORMATION_SCHEMA.TABLES
+WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+TABLE_NAME	ENGINE
+t1	MyISAM
+t2	InnoDB
+t3	InnoDB
+t4	InnoDB
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+SELECT * FROM t2 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t3 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t4 ORDER BY a;
+a
+1
+2
+3
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+SET AUTOCOMMIT=1;
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt1
+SELECT a+1 AS a
+FROM t1
+WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt1;
+COMMIT;
+SELECT * FROM t2 ORDER BY a;
+a
+1
+4
+4
+6
+9
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	4	Format_desc	#	106	Server ver: #, Binlog ver: #
+#	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
+#	192	Table_map	#	233	table_id: # (test.t1)
+#	233	Write_rows	#	277	table_id: # flags: STMT_END_F
+#	277	Query	#	377	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
+#	377	Query	#	445	use `test`; BEGIN
+#	445	Table_map	#	486	table_id: # (test.t2)
+#	486	Write_rows	#	530	table_id: # flags: STMT_END_F
+#	530	Table_map	#	571	table_id: # (test.t2)
+#	571	Write_rows	#	610	table_id: # flags: STMT_END_F
+#	610	Xid	#	637	COMMIT /* XID */
+SELECT * FROM t2 ORDER BY a;
+a
+1
+4
+4
+6
+9
+TRUNCATE TABLE t2;
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt2
+SELECT a+1 AS a
+FROM t1
+WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt2;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * FROM t2 ORDER BY a;
+a
+SHOW BINLOG EVENTS FROM 637;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	637	Query	#	717	use `test`; TRUNCATE TABLE t2
+#	717	Xid	#	744	COMMIT /* XID */
+#	744	Query	#	812	use `test`; BEGIN
+#	812	Table_map	#	853	table_id: # (test.t2)
+#	853	Write_rows	#	897	table_id: # flags: STMT_END_F
+#	897	Table_map	#	938	table_id: # (test.t2)
+#	938	Write_rows	#	977	table_id: # flags: STMT_END_F
+#	977	Query	#	1048	use `test`; ROLLBACK
+SELECT * FROM t2 ORDER BY a;
+a
+DROP TABLE t1,t2;

@@ -25,13 +25,16 @@
 class ha_heap: public handler
 {
   HP_INFO *file;
+  HP_SHARE *internal_share;
   key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;
+  my_bool internal_table;
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
+  handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const
   {
     return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
@@ -48,14 +51,15 @@ public:
   ulonglong table_flags() const
   {
     return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
+            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED | HA_NO_TRANSACTIONS |
             HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
-	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
-	    HA_ONLY_WHOLE_INDEX);
+            HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
+            HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
@@ -68,26 +72,27 @@ public:
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void set_keys_for_scanning(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int index_read(byte * buf, const byte * key, key_part_map keypart_map,
-                 enum ha_rkey_function find_flag);
-  int index_read_last(byte *buf, const byte *key, key_part_map keypart_map);
-  int index_read_idx(byte * buf, uint index, const byte * key,
-                     key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
+  int index_read_map(uchar * buf, const uchar * key, key_part_map keypart_map,
+                     enum ha_rkey_function find_flag);
+  int index_read_last_map(uchar *buf, const uchar *key, key_part_map keypart_map);
+  int index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
   int reset();
@@ -105,11 +110,9 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-  int cmp_ref(const byte *ref1, const byte *ref2)
+  int cmp_ref(const uchar *ref1, const uchar *ref2)
   {
-    HEAP_PTR ptr1=*(HEAP_PTR*)ref1;
-    HEAP_PTR ptr2=*(HEAP_PTR*)ref2;
-    return ptr1 < ptr2? -1 : (ptr1 > ptr2? 1 : 0);
+    return memcmp(ref1, ref2, sizeof(HEAP_PTR));
   }
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 private:

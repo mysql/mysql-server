@@ -92,6 +92,17 @@ dict_col_copy_type_noninline(
 /*=========================*/
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type);	/* out: data type */
+#ifdef UNIV_DEBUG
+/*************************************************************************
+Assert that a column and a data type match. */
+UNIV_INLINE
+ibool
+dict_col_type_assert_equal(
+/*=======================*/
+					/* out: TRUE */
+	const dict_col_t*	col,	/* in: column */
+	const dtype_t*		type);	/* in: data type */
+#endif /* UNIV_DEBUG */
 /***************************************************************************
 Returns the minimum size of the column. */
 UNIV_INLINE
@@ -160,6 +171,13 @@ dict_col_name_is_reserved(
 				/* out: TRUE if name is reserved */
 	const char*	name);	/* in: column name */
 /************************************************************************
+Acquire the autoinc lock.*/
+
+void
+dict_table_autoinc_lock(
+/*====================*/
+	dict_table_t*	table);	/* in: table */
+/************************************************************************
 Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */
 
@@ -169,22 +187,6 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value);	/* in: next value to assign to a row */
 /************************************************************************
-Gets the next autoinc value (== autoinc counter value), 0 if not yet
-initialized. If initialized, increments the counter by 1. */
-
-ib_longlong
-dict_table_autoinc_get(
-/*===================*/
-				/* out: value for a new row, or 0 */
-	dict_table_t*	table);	/* in: table */
-/************************************************************************
-Decrements the autoinc counter value by 1. */
-
-void
-dict_table_autoinc_decrement(
-/*=========================*/
-	dict_table_t*	table);	/* in: table */
-/************************************************************************
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized. */
 
@@ -192,15 +194,6 @@ ib_longlong
 dict_table_autoinc_read(
 /*====================*/
 				/* out: value for a new row, or 0 */
-	dict_table_t*	table);	/* in: table */
-/************************************************************************
-Peeks the autoinc counter value, 0 if not yet initialized. Does not
-increment the counter. The read not protected by any mutex! */
-
-ib_longlong
-dict_table_autoinc_peek(
-/*====================*/
-				/* out: value of the counter */
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
 Updates the autoinc counter if the value supplied is equal or bigger than the
@@ -212,13 +205,29 @@ dict_table_autoinc_update(
 
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value);	/* in: value which was assigned to a row */
+/************************************************************************
+Release the autoinc lock.*/
+
+void
+dict_table_autoinc_unlock(
+/*======================*/
+	dict_table_t*	table);	/* in: table */
+/**************************************************************************
+Adds system columns to a table object. */
+
+void
+dict_table_add_system_columns(
+/*==========================*/
+	dict_table_t*	table,	/* in/out: table */
+	mem_heap_t*	heap);	/* in: temporary heap */
 /**************************************************************************
 Adds a table object to the dictionary cache. */
 
 void
 dict_table_add_to_cache(
 /*====================*/
-	dict_table_t*	table);	/* in: table */
+	dict_table_t*	table,	/* in: table */
+	mem_heap_t*	heap);	/* in: temporary heap */
 /**************************************************************************
 Removes a table object from the dictionary cache. */
 

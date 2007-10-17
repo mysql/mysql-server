@@ -35,7 +35,8 @@
   Supply your own create and query SQL statements, with 50 clients 
   querying (200 selects for each):
 
-    mysqlslap --create="CREATE TABLE A (a int);INSERT INTO A (23)" \
+    mysqlslap --delimiter=";" \
+              --create="CREATE TABLE A (a int);INSERT INTO A VALUES (23)" \
               --query="SELECT * FROM A" --concurrency=50 --iterations=200
 
   Let the program build the query SQL statement with a table of two int
@@ -68,7 +69,7 @@ TODO:
 
 */
 
-#define SHOW_VERSION "0.9"
+#define SLAP_VERSION "1.0"
 
 #define HUGE_STRING_LENGTH 8196
 #define RAND_STRING_SIZE 126
@@ -80,6 +81,7 @@ TODO:
 #define UPDATE_TYPE_REQUIRES_PREFIX 3
 #define CREATE_TABLE_TYPE 4
 #define SELECT_TYPE_REQUIRES_PREFIX 5
+#define DELETE_TYPE_REQUIRES_PREFIX 6
 
 #include "client_priv.h"
 #include <mysqld_error.h>
@@ -121,16 +123,16 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_pre_statements= NULL,
             *user_supplied_post_statements= NULL,
             *default_engine= NULL,
+            *pre_system= NULL,
+            *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 
 const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve;
-
+static my_bool opt_preserve= 0, debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
-
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql_autoincrement= FALSE,
@@ -141,15 +143,18 @@ const char *auto_generate_sql_type= "mixed";
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
 
 static int verbose, delimiter_length;
+static uint commit_rate;
+static uint detach_rate;
 const char *num_int_cols_opt;
 const char *num_char_cols_opt;
+
 /* Yes, we do set defaults here */
 static unsigned int num_int_cols= 1;
 static unsigned int num_char_cols= 1;
 static unsigned int num_int_cols_index= 0; 
 static unsigned int num_char_cols_index= 0;
-
 static unsigned int iterations;
+static uint my_end_arg= 0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static ulonglong actual_queries= 0;
 static ulonglong auto_actual_queries;
@@ -253,6 +258,8 @@ void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
+int slap_connect(MYSQL *mysql);
+static int run_query(MYSQL *mysql, const char *query, int len);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -387,9 +394,9 @@ int main(int argc, char **argv)
 
   /* now free all the strings we created */
   if (opt_password)
-    my_free((gptr)opt_password, MYF(0));
+    my_free(opt_password, MYF(0));
 
-  my_free((gptr)concurrency, MYF(0));
+  my_free(concurrency, MYF(0));
 
   statement_cleanup(create_statements);
   statement_cleanup(query_statements);
@@ -399,10 +406,10 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
-    my_free((gptr)shared_memory_base_name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(shared_memory_base_name, MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(defaults_argv);
-  my_end(0);
+  my_end(my_end_arg);
 
   return 0;
 }
@@ -450,6 +457,16 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       generate_primary_key_list(mysql, eptr);
 
+    if (commit_rate)
+      run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
+
+    if (pre_system)
+      system(pre_system);
+
+    /* 
+      Pre statements are always run after all other logic so they can 
+      correct/adjust any item that they want. 
+    */
     if (pre_statements)
       run_statements(mysql, pre_statements);
 
@@ -457,6 +474,9 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     
     if (post_statements)
       run_statements(mysql, post_statements);
+
+    if (post_system)
+      system(post_system);
 
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
@@ -473,7 +493,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   if (opt_csv_str)
     print_conclusions_csv(&conclusion);
 
-  my_free((gptr)head_sptr, MYF(0));
+  my_free(head_sptr, MYF(0));
 
 }
 
@@ -484,94 +504,105 @@ static struct my_option my_long_options[] =
     0, 0, 0, 0, 0, 0},
   {"auto-generate-sql", 'a',
     "Generate SQL where not supplied by file or command line.",
-    (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
+    (uchar**) &auto_generate_sql, (uchar**) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-add-autoincrement", OPT_SLAP_AUTO_GENERATE_ADD_AUTO,
     "Add autoincrement to auto-generated tables.",
-    (gptr*) &auto_generate_sql_autoincrement, 
-    (gptr*) &auto_generate_sql_autoincrement,
+    (uchar**) &auto_generate_sql_autoincrement, 
+    (uchar**) &auto_generate_sql_autoincrement,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-execute-number", OPT_SLAP_AUTO_GENERATE_EXECUTE_QUERIES,
     "Set this number to generate a set number of queries to run.\n",
-    (gptr*) &auto_actual_queries, (gptr*) &auto_actual_queries,
+    (uchar**) &auto_actual_queries, (uchar**) &auto_actual_queries,
     0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-guid-primary", OPT_SLAP_AUTO_GENERATE_GUID_PRIMARY,
     "Add GUID based primary keys to auto-generated tables.",
-    (gptr*) &auto_generate_sql_guid_primary, 
-    (gptr*) &auto_generate_sql_guid_primary,
+    (uchar**) &auto_generate_sql_guid_primary, 
+    (uchar**) &auto_generate_sql_guid_primary,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
     "Load types are mixed, update, write, key, or read. Default is mixed\n",
-    (gptr*) &auto_generate_sql_type, (gptr*) &auto_generate_sql_type,
+    (uchar**) &auto_generate_sql_type, (uchar**) &auto_generate_sql_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-secondary-indexes", 
     OPT_SLAP_AUTO_GENERATE_SECONDARY_INDEXES, 
     "Number of secondary indexes to add auto-generated tables.",
-    (gptr*) &auto_generate_sql_secondary_indexes, 
-    (gptr*) &auto_generate_sql_secondary_indexes, 0,
+    (uchar**) &auto_generate_sql_secondary_indexes, 
+    (uchar**) &auto_generate_sql_secondary_indexes, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-unique-query-number", 
     OPT_SLAP_AUTO_GENERATE_UNIQUE_QUERY_NUM,
     "Number of unique queries auto tests",
-    (gptr*) &auto_generate_sql_unique_query_number, 
-    (gptr*) &auto_generate_sql_unique_query_number,
+    (uchar**) &auto_generate_sql_unique_query_number, 
+    (uchar**) &auto_generate_sql_unique_query_number,
     0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
   {"auto-generate-sql-unique-write-number", 
     OPT_SLAP_AUTO_GENERATE_UNIQUE_WRITE_NUM,
     "Number of unique queries for auto-generate-sql-write-number",
-    (gptr*) &auto_generate_sql_unique_write_number, 
-    (gptr*) &auto_generate_sql_unique_write_number,
+    (uchar**) &auto_generate_sql_unique_write_number, 
+    (uchar**) &auto_generate_sql_unique_write_number,
     0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
   {"auto-generate-sql-write-number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
     "Number of rows to insert to used in read and write loads (default is 100).\n",
-    (gptr*) &auto_generate_sql_number, (gptr*) &auto_generate_sql_number,
+    (uchar**) &auto_generate_sql_number, (uchar**) &auto_generate_sql_number,
     0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
+  {"commit", OPT_SLAP_COMMIT, "Commit records after X number of statements.",
+    (uchar**) &commit_rate, (uchar**) &commit_rate, 0, GET_UINT, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
-    (gptr*) &concurrency_str, (gptr*) &concurrency_str, 0, GET_STR,
+    (uchar**) &concurrency_str, (uchar**) &concurrency_str, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"create", OPT_SLAP_CREATE_STRING, "File or string to use create tables.",
-    (gptr*) &create_string, (gptr*) &create_string, 0, GET_STR, REQUIRED_ARG,
+    (uchar**) &create_string, (uchar**) &create_string, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
-    (gptr*) &create_schema_string, (gptr*) &create_schema_string, 0, GET_STR, 
+    (uchar**) &create_schema_string, (uchar**) &create_schema_string, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
-    (gptr*) &opt_csv_str, (gptr*) &opt_csv_str, 0, GET_STR, 
+    (uchar**) &opt_csv_str, (uchar**) &opt_csv_str, 0, GET_STR, 
     OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    (gptr*) &default_dbug_option, (gptr*) &default_dbug_option, 0, GET_STR,
+    (uchar**) &default_dbug_option, (uchar**) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
+   (uchar**) &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
-    (gptr*) &delimiter, (gptr*) &delimiter, 0, GET_STR, REQUIRED_ARG,
+    (uchar**) &delimiter, (uchar**) &delimiter, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"detach", OPT_SLAP_DETACH, "Detach connections after X number of requests.",
+    (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
-    (gptr*) &default_engine, (gptr*) &default_engine, 0,
+    (uchar**) &default_engine, (uchar**) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+  {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
-    (gptr*) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"iterations", 'i', "Number of times to run the tests.", (uchar**) &iterations,
+    (uchar**) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create table with if specifying --auto-generate-sql ",
-    (gptr*) &num_char_cols_opt, (gptr*) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
+    (uchar**) &num_char_cols_opt, (uchar**) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
     "Number of INT columns to create table with if specifying --auto-generate-sql.",
-    (gptr*) &num_int_cols_opt, (gptr*) &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
+    (uchar**) &num_int_cols_opt, (uchar**) &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
-    (gptr*) &num_of_query, (gptr*) &num_of_query, 0,
+    (uchar**) &num_of_query, (uchar**) &num_of_query, 0,
     GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"only-print", OPT_MYSQL_ONLY_PRINT,
     "This causes mysqlslap to not connect to the databases, but instead print "
       "out what it would have done instead.",
-    (gptr*) &opt_only_print, (gptr*) &opt_only_print, 0, GET_BOOL,  NO_ARG,
+    (uchar**) &opt_only_print, (uchar**) &opt_only_print, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"password", 'p',
     "Password to use when connecting to server. If password is not given it's "
@@ -580,50 +611,60 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
+    (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
   {"post-query", OPT_SLAP_POST_QUERY,
     "Query to run or file containing query to run after executing.",
-    (gptr*) &user_supplied_post_statements, 
-    (gptr*) &user_supplied_post_statements,
+    (uchar**) &user_supplied_post_statements, 
+    (uchar**) &user_supplied_post_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"post-system", OPT_SLAP_POST_SYSTEM,
+    "System() string to run after the load has completed.",
+    (uchar**) &post_system, 
+    (uchar**) &post_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"pre-query", OPT_SLAP_PRE_QUERY, 
     "Query to run or file containing query to run before executing.",
-    (gptr*) &user_supplied_pre_statements, 
-    (gptr*) &user_supplied_pre_statements,
+    (uchar**) &user_supplied_pre_statements, 
+    (uchar**) &user_supplied_pre_statements,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"pre-system", OPT_SLAP_PRE_SYSTEM, 
+    "System() string to before load has completed.",
+    (uchar**) &pre_system, 
+    (uchar**) &pre_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run, this happens unless "
       "--auto-generate-sql or --create are used.",
-    (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
+    (uchar**) &opt_preserve, (uchar**) &opt_preserve, 0, GET_BOOL,
     NO_ARG, TRUE, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"query", 'q', "Query to run or file containing query to run.",
-    (gptr*) &user_supplied_query, (gptr*) &user_supplied_query,
+    (uchar**) &user_supplied_query, (uchar**) &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-    "Base name of shared memory.", (gptr*) &shared_memory_base_name,
-    (gptr*) &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
+    "Base name of shared memory.", (uchar**) &shared_memory_base_name,
+    (uchar**) &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Run program in silent mode - no output.",
-    (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
+    (uchar**) &opt_silent, (uchar**) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+    (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (gptr*) &user,
-    (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &user,
+    (uchar**) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
     "More verbose output; You can use this multiple times to get even more "
-      "verbose output.", (gptr*) &verbose, (gptr*) &verbose, 0, 
+      "verbose output.", (uchar**) &verbose, (uchar**) &verbose, 0, 
       GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -635,7 +676,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
          MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
@@ -673,7 +714,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start= argument;
-      my_free((gptr)opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
       opt_password= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -694,6 +735,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V':
@@ -1089,6 +1131,10 @@ get_options(int *argc,char ***argv)
   DBUG_ENTER("get_options");
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (!user)
     user= (char *)"root";
@@ -1308,11 +1354,11 @@ get_options(int *argc,char ***argv)
       }
       tmp_string= (char *)my_malloc(sbuf.st_size + 1,
                               MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-      my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+      my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       parse_delimiter(tmp_string, &create_statements, delimiter[0]);
-      my_free((gptr)tmp_string, MYF(0));
+      my_free(tmp_string, MYF(0));
     }
     else if (create_string)
     {
@@ -1335,13 +1381,13 @@ get_options(int *argc,char ***argv)
       }
       tmp_string= (char *)my_malloc(sbuf.st_size + 1,
                                     MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-      my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+      my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       if (user_supplied_query)
         actual_queries= parse_delimiter(tmp_string, &query_statements,
                                         delimiter[0]);
-      my_free((gptr)tmp_string, MYF(0));
+      my_free(tmp_string, MYF(0));
     } 
     else if (user_supplied_query)
     {
@@ -1366,18 +1412,19 @@ get_options(int *argc,char ***argv)
     }
     tmp_string= (char *)my_malloc(sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-    my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+    my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_pre_statements)
-      actual_queries= parse_delimiter(tmp_string, &pre_statements,
-                                      delimiter[0]);
-    my_free((gptr)tmp_string, MYF(0));
+      (void)parse_delimiter(tmp_string, &pre_statements,
+                            delimiter[0]);
+    my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_pre_statements)
   {
-    actual_queries= parse_delimiter(user_supplied_pre_statements, &pre_statements,
-                                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_pre_statements,
+                          &pre_statements,
+                          delimiter[0]);
   }
 
   if (user_supplied_post_statements && my_stat(user_supplied_post_statements, &sbuf, MYF(0)))
@@ -1396,18 +1443,18 @@ get_options(int *argc,char ***argv)
     }
     tmp_string= (char *)my_malloc(sbuf.st_size + 1,
                                   MYF(MY_ZEROFILL|MY_FAE|MY_WME));
-    my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+    my_read(data_file, (uchar*) tmp_string, sbuf.st_size, MYF(0));
     tmp_string[sbuf.st_size]= '\0';
     my_close(data_file,MYF(0));
     if (user_supplied_post_statements)
-      parse_delimiter(tmp_string, &post_statements,
-                      delimiter[0]);
-    my_free((gptr)tmp_string, MYF(0));
+      (void)parse_delimiter(tmp_string, &post_statements,
+                            delimiter[0]);
+    my_free(tmp_string, MYF(0));
   } 
   else if (user_supplied_post_statements)
   {
-    parse_delimiter(user_supplied_post_statements, &post_statements,
-                    delimiter[0]);
+    (void)parse_delimiter(user_supplied_post_statements, &post_statements,
+                          delimiter[0]);
   }
 
   if (verbose >= 2)
@@ -1499,9 +1546,9 @@ drop_primary_key_list(void)
   if (primary_keys_number_of)
   {
     for (counter= 0; counter < primary_keys_number_of; counter++)
-      my_free((gptr)primary_keys[counter], MYF(0));
+      my_free(primary_keys[counter], MYF(0));
 
-    my_free((gptr)primary_keys, MYF(0));
+    my_free(primary_keys, MYF(0));
   }
 
   return 0;
@@ -1626,6 +1673,7 @@ static int
 run_statements(MYSQL *mysql, statement *stmt) 
 {
   statement *ptr;
+  MYSQL_RES *result;
   DBUG_ENTER("run_statements");
 
   for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
@@ -1635,6 +1683,11 @@ run_statements(MYSQL *mysql, statement *stmt)
       fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
               my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
       exit(1);
+    }
+    if (mysql_field_count(mysql))
+    {
+      result= mysql_store_result(mysql);
+      mysql_free_result(result);
     }
   }
 
@@ -1713,6 +1766,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
+  ulonglong trans_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1747,38 +1801,35 @@ pthread_handler_t run_task(void *p)
 
   if (!opt_only_print)
   {
-    /* Connect to server */
-    static ulong connection_retry_sleep= 100000; /* Microseconds */
-    int i, connect_error= 1;
-    for (i= 0; i < 10; i++)
-    {
-      if (mysql_real_connect(mysql, host, user, opt_password,
-                             create_schema_string,
-                             opt_mysql_port,
-                             opt_mysql_unix_port,
-                             connect_flags))
-      {
-        /* Connect suceeded */
-        connect_error= 0;
-        break;
-      }
-      my_sleep(connection_retry_sleep);
-    }
-    if (connect_error)
-    {
-      fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
-              my_progname, mysql_errno(mysql), mysql_error(mysql));
+    if (slap_connect(mysql))
       goto end;
-    }
   }
+
   DBUG_PRINT("info", ("connected."));
   if (verbose >= 3)
     printf("connected!\n");
   queries= 0;
 
 limit_not_met:
-    for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
+    for (ptr= con->stmt, trans_counter= 0; 
+         ptr && ptr->length; 
+         ptr= ptr->next, trans_counter++)
     {
+      if (!opt_only_print && detach_rate && !(trans_counter % detach_rate))
+      {
+        mysql_close(mysql);
+
+        if (!(mysql= mysql_init(NULL)))
+        {
+          fprintf(stderr,"%s: mysql_init() failed ERROR : %s\n",
+                  my_progname, mysql_error(mysql));
+          exit(0);
+        }
+
+        if (slap_connect(mysql))
+          goto end;
+      }
+
       /* 
         We have to execute differently based on query type. This should become a function.
       */
@@ -1835,6 +1886,9 @@ limit_not_met:
       }
       queries++;
 
+      if (commit_rate && commit_rate <= trans_counter)
+        run_query(mysql, "COMMIT", strlen("COMMIT"));
+
       if (con->limit && queries == con->limit)
         goto end;
     }
@@ -1843,6 +1897,8 @@ limit_not_met:
       goto limit_not_met;
 
 end:
+  if (commit_rate)
+    run_query(mysql, "COMMIT", strlen("COMMIT"));
 
   if (!opt_only_print) 
     mysql_close(mysql);
@@ -1959,7 +2015,6 @@ parse_delimiter(const char *script, statement **stmt, char delm)
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
-    count++;
   }
 
   if (ptr != script+length)
@@ -2033,7 +2088,7 @@ print_conclusions_csv(conclusions *con)
            con->users, /* Children used */
            con->avg_rows  /* Queries run */
           );
-  my_write(csv_file, buffer, (uint)strlen(buffer), MYF(0));
+  my_write(csv_file, (uchar*) buffer, (uint)strlen(buffer), MYF(0));
 }
 
 void
@@ -2080,10 +2135,10 @@ option_cleanup(option_string *stmt)
   {
     nptr= ptr->next;
     if (ptr->string)
-      my_free((gptr)ptr->string, MYF(0)); 
+      my_free(ptr->string, MYF(0)); 
     if (ptr->option)
-      my_free((gptr)ptr->option, MYF(0)); 
-    my_free((gptr)(byte *)ptr, MYF(0));
+      my_free(ptr->option, MYF(0)); 
+    my_free(ptr, MYF(0));
   }
 }
 
@@ -2098,7 +2153,38 @@ statement_cleanup(statement *stmt)
   {
     nptr= ptr->next;
     if (ptr->string)
-      my_free((gptr)ptr->string, MYF(0)); 
-    my_free((gptr)(byte *)ptr, MYF(0));
+      my_free(ptr->string, MYF(0)); 
+    my_free(ptr, MYF(0));
   }
+}
+
+
+int 
+slap_connect(MYSQL *mysql)
+{
+  /* Connect to server */
+  static ulong connection_retry_sleep= 100000; /* Microseconds */
+  int x, connect_error= 1;
+  for (x= 0; x < 10; x++)
+  {
+    if (mysql_real_connect(mysql, host, user, opt_password,
+                           create_schema_string,
+                           opt_mysql_port,
+                           opt_mysql_unix_port,
+                           connect_flags))
+    {
+      /* Connect suceeded */
+      connect_error= 0;
+      break;
+    }
+    my_sleep(connection_retry_sleep);
+  }
+  if (connect_error)
+  {
+    fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
+            my_progname, mysql_errno(mysql), mysql_error(mysql));
+    return 1;
+  }
+
+  return 0;
 }

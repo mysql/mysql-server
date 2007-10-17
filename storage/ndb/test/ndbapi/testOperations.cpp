@@ -99,11 +99,6 @@ OperationTestCase matrix[] = {
   break; }
 
 #define C3(b)  if (!(b)) { \
-  g_err  << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  abort(); return NDBT_FAILED; }
-
-#define C3(b)  if (!(b)) { \
   g_err  << "ERR: failed on line " << __LINE__ << endl; \
   return NDBT_FAILED; }
 

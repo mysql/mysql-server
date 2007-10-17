@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA */
 
 #include <my_global.h>
+#include <my_sys.h>
 #include <base64.h>
 #include <tap.h>
 #include <string.h>
@@ -26,6 +27,7 @@ main(void)
 {
   int i, cmp;
   size_t j, k, l, dst_len, needed_length;
+  MY_INIT("base64-t");
 
   plan(BASE64_LOOP_COUNT * BASE64_ROWS);
 

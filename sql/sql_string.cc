@@ -32,7 +32,7 @@
   required by the string function
 */
 
-extern gptr sql_alloc(unsigned size);
+extern uchar* sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
 
 #include "sql_string.h"
@@ -496,7 +496,7 @@ bool String::append(FILE* file, uint32 arg_length, myf my_flags)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
-  if (my_fread(file, (byte*) Ptr + str_length, arg_length, my_flags))
+  if (my_fread(file, (uchar*) Ptr + str_length, arg_length, my_flags))
   {
     shrink(str_length);
     return TRUE;
@@ -510,7 +510,7 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
-  if (my_b_read(file, (byte*) Ptr + str_length, arg_length))
+  if (my_b_read(file, (uchar*) Ptr + str_length, arg_length))
   {
     shrink(str_length);
     return TRUE;
@@ -635,7 +635,7 @@ bool String::replace(uint32 offset,uint32 arg_length,
       {
 	if (realloc(str_length+(uint32) diff))
 	  return TRUE;
-	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
+	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
 		  str_length-offset-arg_length);
       }
       if (to_length)
@@ -795,10 +795,8 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
   const uchar *from_end= (const uchar*) from+from_length;
   char *to_start= to;
   uchar *to_end= (uchar*) to+to_length;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
-	       const uchar *) = from_cs->cset->mb_wc;
-  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
-    to_cs->cset->wc_mb;
+  my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
+  my_charset_conv_wc_mb wc_mb= to_cs->cset->wc_mb;
   uint error_count= 0;
 
   while (1)
@@ -940,10 +938,8 @@ well_formed_copy_nchars(CHARSET_INFO *to_cs,
   {
     int cnvres;
     my_wc_t wc;
-    int (*mb_wc)(struct charset_info_st *, my_wc_t *,
-                 const uchar *, const uchar *)= from_cs->cset->mb_wc;
-    int (*wc_mb)(struct charset_info_st *, my_wc_t,
-                 uchar *s, uchar *e)= to_cs->cset->wc_mb;
+    my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
+    my_charset_conv_wc_mb wc_mb= to_cs->cset->wc_mb;
     const uchar *from_end= (const uchar*) from + from_length;
     uchar *to_end= (uchar*) to + to_length;
     char *to_start= to;

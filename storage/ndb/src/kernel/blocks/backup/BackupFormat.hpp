@@ -32,7 +32,8 @@ struct BackupFormat {
     TABLE_LIST        = 4,
     TABLE_DESCRIPTION = 5,
     GCP_ENTRY         = 6,
-    FRAGMENT_INFO     = 7
+    FRAGMENT_INFO     = 7,
+    EMPTY_ENTRY       = 8
   };
 
   struct FileHeader {
@@ -92,6 +93,13 @@ struct BackupFormat {
       Uint32 FragmentNo;
       Uint32 NoOfRecords;
       Uint32 Checksum;
+    };
+
+    /* optional padding for O_DIRECT */
+    struct EmptyEntry {
+      Uint32 SectionType;
+      Uint32 SectionLength;
+      /* not used data */
     };
   };
 

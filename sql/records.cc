@@ -432,7 +432,7 @@ static int rr_unpack_from_tempfile(READ_RECORD *info)
 static int rr_from_pointers(READ_RECORD *info)
 {
   int tmp;
-  byte *cache_pos;
+  uchar *cache_pos;
 
   for (;;)
   {
@@ -502,7 +502,7 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 
   // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
-      !(info->cache=(byte*) my_malloc_lock(rec_cache_size+info->cache_records*
+      !(info->cache=(uchar*) my_malloc_lock(rec_cache_size+info->cache_records*
 					   info->struct_length+1,
 					   MYF(0))))
     DBUG_RETURN(1);
@@ -523,7 +523,7 @@ static int rr_from_cache(READ_RECORD *info)
   ulong length;
   my_off_t rest_of_file;
   int16 error;
-  byte *position,*ref_position,*record_pos;
+  uchar *position,*ref_position,*record_pos;
   ulong record;
 
   for (;;)
@@ -560,7 +560,7 @@ static int rr_from_cache(READ_RECORD *info)
     ref_position=info->read_positions;
     for (i=0 ; i < length ; i++,position+=info->ref_length)
     {
-      memcpy(ref_position,position,(size_s) info->ref_length);
+      memcpy(ref_position,position,(size_t) info->ref_length);
       ref_position+=MAX_REFLENGTH;
       int3store(ref_position,(long) i);
       ref_position+=3;
@@ -570,7 +570,7 @@ static int rr_from_cache(READ_RECORD *info)
     position=info->read_positions;
     for (i=0 ; i < length ; i++)
     {
-      memcpy(info->ref_pos,position,(size_s) info->ref_length);
+      memcpy(info->ref_pos,position,(size_t) info->ref_length);
       position+=MAX_REFLENGTH;
       record=uint3korr(position);
       position+=3;

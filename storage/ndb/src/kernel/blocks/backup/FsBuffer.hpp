@@ -270,8 +270,8 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
     
     * ptr = &Tp[Tr];
 
-    DEBUG(ndbout_c("getReadPtr() Tr: %d Tw: %d Ts: %d Tm: %d sz1: %d -> %d",
-		   Tr, Tw, Ts, Tm, sz1, * sz));
+    DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d",
+		   Tr, Tmw, Ts, Tm, sz1, * sz));
 
     return true;
   }
@@ -279,8 +279,8 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
   if(!m_eof){
     * _eof = false;
     
-    DEBUG(ndbout_c("getReadPtr() Tr: %d Tw: %d Ts: %d Tm: %d sz1: %d -> false",
-		   Tr, Tw, Ts, Tm, sz1));
+    DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> false",
+		   Tr, Tmw, Ts, Tm, sz1));
     
     return false;
   }
@@ -289,8 +289,8 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
   * _eof = true;
   * ptr = &Tp[Tr];
 
-  DEBUG(ndbout_c("getReadPtr() Tr: %d Tw: %d Ts: %d Tm: %d sz1: %d -> %d eof",
-		 Tr, Tw, Ts, Tm, sz1, * sz));
+  DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d eof",
+		 Tr, Tmw, Ts, Tm, sz1, * sz));
   
   return false;
 }
@@ -316,13 +316,13 @@ FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz){
   if(sz1 > sz){ // Note at least 1 word of slack
     * ptr = &Tp[Tw];
 
-    DEBUG(ndbout_c("getWritePtr(%d) Tr: %d Tw: %d Ts: %d sz1: %d -> true",
-		   sz, Tr, Tw, Ts, sz1));
+    DEBUG(ndbout_c("getWritePtr(%d) Tw: %d sz1: %d -> true",
+		   sz, Tw, sz1));
     return true;
   }
 
-  DEBUG(ndbout_c("getWritePtr(%d) Tr: %d Tw: %d Ts: %d sz1: %d -> false",
-		 sz, Tr, Tw, Ts, sz1));
+  DEBUG(ndbout_c("getWritePtr(%d) Tw: %d sz1: %d -> false",
+		 sz, Tw, sz1));
 
   return false;
 }
@@ -339,11 +339,15 @@ FsBuffer::updateWritePtr(Uint32 sz){
   m_free -= sz;
   if(Tnew < Ts){
     m_writeIndex = Tnew;
+    DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",
+                   sz, m_writeIndex));
     return;
   }
 
   memcpy(Tp, &Tp[Ts], (Tnew - Ts) << 2);
   m_writeIndex = Tnew - Ts;
+  DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",
+                 sz, m_writeIndex));
 }
 
 inline

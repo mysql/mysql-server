@@ -1219,6 +1219,81 @@ runBug24664(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int 
+runBug29167(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+
+  if (nodeCount < 2)
+    return NDBT_OK;
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+  int master = restarter.getMasterNodeId();
+  do {
+    int node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
+    int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+    restarter.dumpStateAllNodes(val2, 2);
+    int dump[] = { DumpStateOrd::DihSetTimeBetweenGcp, 30000 };
+    restarter.dumpStateAllNodes(dump, 2);
+    
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    
+    CHECK(restarter.insertErrorInAllNodes(932) == 0);
+    
+    CHECK(restarter.insertErrorInNode(node1, 7183) == 0);
+    CHECK(restarter.insertErrorInNode(node2, 7183) == 0);
+
+    CHECK(restarter.waitClusterNoStart() == 0);
+    restarter.startAll();
+    CHECK(restarter.waitClusterStarted() == 0);  
+  } while(false);
+  
+  return result;
+}
+
+int
+runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  int count = 0;
+  Uint32 i = 0;
+  Uint32 loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  g_info << "Loading records..." << endl;  hugoTrans.loadTable(pNdb, 
+ records);
+
+
+  while(i<=loops && result != NDBT_FAILED){
+    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    NdbSleep_SecSleep(3);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    restarter.insertErrorInAllNodes(6007);
+    CHECK(restarter.startAll()== 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    i++;
+  }
+  ndbout << " runBug28770 finished" << endl;
+  return result;
+}
+
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -1399,6 +1474,26 @@ TESTCASE("Bug24664",
   STEP(runBug24664);
   FINALIZER(runClearTable);
 }
+TESTCASE("Bug29167", "")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runBug29167);
+}
+TESTCASE("Bug28770",
+         "Check readTableFile1 fails, readTableFile2 succeeds\n"
+         "1. Restart all node -nostart\n"
+         "2. Insert error 6100 into all nodes\n"
+         "3. Start all nodes\n"
+         "4. Ensure cluster start\n"
+         "5. Read and verify reocrds\n"
+         "6. Repeat until looping is completed\n"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runBug28770);
+  FINALIZER(runClearTable);
+}
+
+
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){

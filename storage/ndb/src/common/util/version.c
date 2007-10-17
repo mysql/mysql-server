@@ -20,26 +20,33 @@
 #include <NdbEnv.h>
 #include <NdbOut.hpp>
 
-Uint32 getMajor(Uint32 version) {
+Uint32 ndbGetMajor(Uint32 version) {
   return (version >> 16) & 0xFF;
 }
 
-Uint32 getMinor(Uint32 version) {
+Uint32 ndbGetMinor(Uint32 version) {
   return (version >> 8) & 0xFF;
 }
 
-Uint32 getBuild(Uint32 version) {
+Uint32 ndbGetBuild(Uint32 version) {
   return (version >> 0) & 0xFF;
 }
 
-Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
-  return MAKE_VERSION(major, minor, build);
+Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
+  return NDB_MAKE_VERSION(major, minor, build);
   
 }
 
-char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-const char * getVersionString(Uint32 version, const char * status,
-			      char *buf, unsigned sz)
+const char * ndbGetOwnVersionString()
+{
+  static char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
+  return ndbGetVersionString(NDB_VERSION, NDB_VERSION_STATUS,
+                             ndb_version_string_buf,
+                             sizeof(ndb_version_string_buf));
+}
+
+const char * ndbGetVersionString(Uint32 version, const char * status,
+                                 char *buf, unsigned sz)
 {
   if (status && status[0] != 0)
 	  basestring_snprintf(buf, sz,

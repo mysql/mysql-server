@@ -1,7 +1,12 @@
-# In order to be more or less robust test for bug#25044 has to take
-# significant time (e.g. about 9 seconds on my (Dmitri's) computer)
-# so we probably want execute it only in --big-test mode.
+#
+# Tests for various concurrency-related aspects of ALTER TABLE implemetation
+#
+# This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+# We are using some debug-only features in this test
+--source include/have_debug.inc
+# Also we are using SBR to check that statements are executed
+# in proper order.
 --source include/have_binlog_format_mixed_or_statement.inc
 
 
@@ -22,27 +27,20 @@ create table t1 (n1 int, n2 int, n3 int,
                 key (n3, n1, n2));
 create table t2 (i int);
 
-# Populating 't1' table with keys disabled, so ALTER TABLE .. ENABLE KEYS
-# will run for some time
+# Starting from 5.1 we have runtime settable @@debug variable,
+# which can be used for introducing delays at certain points of
+# statement execution, so we don't need many rows in 't1' to make
+# this test repeatable.
 alter table t1 disable keys;
---disable_query_log
-insert into t1 values (RAND()*1000,RAND()*1000,RAND()*1000);
-let $1=19;
-while ($1)
-{
- eval insert into t1 select RAND()*1000,RAND()*1000,RAND()*1000 from t1;
- dec $1;
-}
---enable_query_log
+insert into t1 values (RAND()*1000, RAND()*1000, RAND()*1000);
 
 # Later we use binlog to check the order in which statements are
 # executed so let us reset it first.
 reset master;
+set session debug="+d,sleep_alter_enable_indexes";
 --send alter table t1 enable keys;
 connection addconroot;
-let $show_type= PROCESSLIST;
-let $show_pattern= '%Repair by sorting%alter table t1 enable keys%';
---source include/wait_show_pattern.inc
+--sleep 2
 # This statement should not be blocked by in-flight ALTER and therefore
 # should be executed and written to binlog before ALTER TABLE ... ENABLE KEYS
 # finishes.
@@ -51,12 +49,68 @@ insert into t2 values (1);
 insert into t1 values (1, 1, 1);
 connection default;
 --reap
+set session debug="-d,sleep_alter_enable_indexes";
 # Check that statements were executed/binlogged in correct order.
 --replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 102;
+show binlog events in 'master-bin.000001' from 106;
 
 # Clean up
 drop tables t1, t2;
 
 
 --echo End of 5.0 tests
+
+#
+# Additional coverage for the main ALTER TABLE case
+#
+# We should be sure that table being altered is properly
+# locked during statement execution and in particular that
+# no DDL or DML statement can sneak in and get access to
+# the table when real operation has already taken place
+# but this fact has not been noted in binary log yet.
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (i int);
+# We are going to check that statements are logged in correct order
+reset master;
+set session debug="+d,sleep_alter_before_main_binlog";
+--send alter table t1 change i c char(10) default 'Test1';
+connection addconroot;
+--sleep 2
+insert into t1 values ();
+select * from t1;
+connection default;
+--reap
+--send alter table t1 change c vc varchar(100) default 'Test2';
+connection addconroot;
+--sleep 2
+rename table t1 to t2;
+connection default;
+--reap
+drop table t2;
+# And now tests for ALTER TABLE with RENAME clause. In this
+# case target table name should be properly locked as well.
+create table t1 (i int);
+--send alter table t1 change i c char(10) default 'Test3', rename to t2;
+connection addconroot;
+--sleep 2
+insert into t2 values ();
+select * from t2;
+connection default;
+--reap
+--send alter table t2 change c vc varchar(100) default 'Test2', rename to t1;
+connection addconroot;
+--sleep 2
+rename table t1 to t3;
+connection default;
+--reap
+drop table t3;
+set session debug="-d,sleep_alter_before_main_binlog";
+
+# Check that all statements were logged in correct order
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 106;
+
+
+--echo End of 5.1 tests

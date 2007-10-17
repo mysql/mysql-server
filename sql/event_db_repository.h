@@ -15,8 +15,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  @file
+/**
+  @addtogroup Event_Scheduler
+  @{
+
+  @file event_db_repository.h
+
+  Data Dictionary related operations of Event Scheduler.
+
   This is a private header file of Events module. Please do not include it
   directly. All public declarations of Events module should be stored in
   events.h and event_data_objects.h.
@@ -42,6 +48,10 @@ enum enum_events_table_field
   ET_FIELD_COMMENT,
   ET_FIELD_ORIGINATOR,
   ET_FIELD_TIME_ZONE,
+  ET_FIELD_CHARACTER_SET_CLIENT,
+  ET_FIELD_COLLATION_CONNECTION,
+  ET_FIELD_DB_COLLATION,
+  ET_FIELD_BODY_UTF8,
   ET_FIELD_COUNT /* a cool trick to count the number of fields :) */
 };
 
@@ -52,6 +62,7 @@ events_table_index_read_for_db(THD *thd, TABLE *schema_table,
 
 int
 events_table_scan_all(THD *thd, TABLE *schema_table, TABLE *event_table);
+
 
 class Event_basic;
 class Event_parse_data;
@@ -114,4 +125,7 @@ private:
   void operator=(Event_db_repository &);
 };
 
+/**
+  @} (End of group Event_Scheduler)
+*/
 #endif /* _EVENT_DB_REPOSITORY_H_ */

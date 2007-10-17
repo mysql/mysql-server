@@ -15,7 +15,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.6"
+#define SHOW_VERSION "9.10"
 
 #include "client_priv.h"
 #include <my_sys.h>
@@ -26,9 +26,11 @@
 #include <stdarg.h>
 #include <sslopt-vars.h>
 
-static my_string host=0,opt_password=0,user=0;
+static char * host=0, *opt_password=0, *user=0;
 static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
-static my_bool tty_password= 0, opt_table_type= 0, info_flag= 0;
+static my_bool tty_password= 0, opt_table_type= 0;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static uint my_end_arg= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 
@@ -52,7 +54,7 @@ static void print_res_top(MYSQL_RES *result);
 static void print_res_row(MYSQL_RES *result,MYSQL_ROW cur);
 
 static const char *load_default_groups[]= { "mysqlshow","client",0 };
-static my_string opt_mysql_unix_port=0;
+static char * opt_mysql_unix_port=0;
 
 int main(int argc, char **argv)
 {
@@ -120,7 +122,8 @@ int main(int argc, char **argv)
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
 
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
-			   (first_argument_uses_wildcards) ? "" : argv[0],opt_mysql_port,opt_mysql_unix_port,
+			   (first_argument_uses_wildcards) ? "" :
+                           argv[0],opt_mysql_port,opt_mysql_unix_port,
 			   0)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
@@ -149,7 +152,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
   exit(error ? 1 : 0);
   return 0;				/* No compiler warnings */
 }
@@ -161,36 +164,40 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", 'c', "Directory where character sets are.",
-   (gptr*) &charsets_dir, (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
+   (uchar**) &charsets_dir, (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &default_charset,
-   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", (uchar**) &default_charset,
+   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", OPT_COUNT,
    "Show number of rows per table (may be slow for not MyISAM tables)",
-   (gptr*) &opt_count, (gptr*) &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_count, (uchar**) &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+  {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"status", 'i', "Shows a lot of extra information about each table.",
-   (gptr*) &opt_status, (gptr*) &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   (uchar**) &opt_status, (uchar**) &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"keys", 'k', "Show keys for table.", (gptr*) &opt_show_keys,
-   (gptr*) &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"keys", 'k', "Show keys for table.", (uchar**) &opt_show_keys,
+   (uchar**) &opt_show_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
+   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
@@ -200,19 +207,19 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-table-type", 't', "Show table type column.",
-   (gptr*) &opt_table_type, (gptr*) &opt_table_type, 0, GET_BOOL,
+   (uchar**) &opt_table_type, (uchar**) &opt_table_type, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (gptr*) &user,
-   (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &user,
+   (uchar**) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
    "More verbose output; You can use this multiple times to get even more verbose output.",
@@ -292,6 +299,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V':
@@ -325,6 +333,10 @@ get_options(int *argc,char ***argv)
     */
     opt_verbose= 2;
   }
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
   return;
 }
 
@@ -733,7 +745,7 @@ print_header(const char *header,uint head_length,...)
     for (i=0 ; i < length+2 ; i++)
       putchar('-');
     putchar('+');
-    if (!(field=va_arg(args,my_string)))
+    if (!(field=va_arg(args,char *)))
       break;
     length=va_arg(args,uint);
   }
@@ -757,7 +769,7 @@ print_header(const char *header,uint head_length,...)
     for (i=0 ; i < length ; i++)
       putchar(' ');
     putchar('|');
-    if (!(field=va_arg(args,my_string)))
+    if (!(field=va_arg(args,char *)))
       break;
     length=va_arg(args,uint);
   }
@@ -772,7 +784,7 @@ print_header(const char *header,uint head_length,...)
     for (i=0 ; i < length+2 ; i++)
       putchar('-');
     putchar('+');
-    if (!(field=va_arg(args,my_string)))
+    if (!(field=va_arg(args,char *)))
       break;
     length=va_arg(args,uint);
   }
@@ -798,7 +810,7 @@ print_row(const char *header,uint head_length,...)
     field_length=(uint) strlen(field);
     for (i=field_length ; i <= length ; i++)
       putchar(' ');
-    if (!(field=va_arg(args,my_string)))
+    if (!(field=va_arg(args,char *)))
       break;
     length=va_arg(args,uint);
   }

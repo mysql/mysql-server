@@ -235,7 +235,7 @@ net_buffer_length	1024
 net_read_timeout	300
 net_retry_count	10
 net_write_timeout	200
-select * from information_schema.global_variables where variable_name like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 NET_BUFFER_LENGTH	1024
 NET_READ_TIMEOUT	300
@@ -247,7 +247,7 @@ net_buffer_length	2048
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
-select * from information_schema.session_variables where variable_name like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 NET_BUFFER_LENGTH	2048
 NET_READ_TIMEOUT	600
@@ -260,7 +260,7 @@ net_buffer_length	1024
 net_read_timeout	900
 net_retry_count	10
 net_write_timeout	1000
-select * from information_schema.global_variables where variable_name like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 NET_BUFFER_LENGTH	1024
 NET_READ_TIMEOUT	900
@@ -272,7 +272,7 @@ net_buffer_length	7168
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
-select * from information_schema.session_variables where variable_name like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 NET_BUFFER_LENGTH	7168
 NET_READ_TIMEOUT	600
@@ -313,7 +313,7 @@ query_prealloc_size	8192
 range_alloc_block_size	2048
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
@@ -335,7 +335,7 @@ query_prealloc_size	18432
 range_alloc_block_size	16384
 transaction_alloc_block_size	19456
 transaction_prealloc_size	20480
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	17408
 QUERY_PREALLOC_SIZE	18432
@@ -352,7 +352,7 @@ query_prealloc_size	8192
 range_alloc_block_size	2048
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
-select * from information_schema.session_variables where variable_name like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 QUERY_ALLOC_BLOCK_SIZE	8192
 QUERY_PREALLOC_SIZE	8192
@@ -444,7 +444,14 @@ set interactive_timeout=100;
 set join_buffer_size=100;
 set last_insert_id=1;
 set global local_infile=1;
-set long_query_time=100;
+set long_query_time=0.000001;
+select @@long_query_time;
+@@long_query_time
+0.000001
+set long_query_time=100.000001;
+select @@long_query_time;
+@@long_query_time
+100.000001
 set low_priority_updates=1;
 set max_allowed_packet=100;
 set global max_binlog_cache_size=100;
@@ -516,6 +523,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
+set global log_warnings=1;
 select @@session.insert_id;
 @@session.insert_id
 1
@@ -911,7 +919,7 @@ ssl_capath	#
 ssl_cert	#
 ssl_cipher	#
 ssl_key	#
-select * from information_schema.session_variables where variable_name like 'ssl%';
+select * from information_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
 SSL_CA	#
 SSL_CAPATH	#
@@ -970,3 +978,8 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
+show global variables where Variable_name='table_definition_cache' or
+Variable_name='table_lock_wait_timeout';
+Variable_name	Value
+table_definition_cache	#
+table_lock_wait_timeout	#

@@ -1,0 +1,11 @@
+#######################################################
+# Wrapper for rpl_relayrotate.test to allow multi     #
+# Engines to reuse test code. By JBM 2006-02-15       #
+# Added comments section and to skip when ndb is      #
+# Default engine.                                     #
+#######################################################
+-- source include/not_ndb_default.inc
+-- source include/have_innodb.inc
+-- source include/master-slave.inc
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_relayrotate.test

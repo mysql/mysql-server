@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/**
+  @defgroup Semantic_Analysis Semantic Analysis
+*/
 
 /* YACC and LEX Definitions */
 
@@ -112,7 +115,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_CONTRIBUTORS,
   SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS, 
+  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
+  SQLCOM_SHOW_CREATE_TRIGGER,
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
 
   /*
@@ -225,7 +229,7 @@ enum tablespace_op_type
   Keep in sync with index_hint_type.
 */
 extern const char * index_hint_type_name[];
-typedef byte index_clause_map;
+typedef uchar index_clause_map;
 
 /*
   Bits in index_clause_map : one for each possible FOR clause in
@@ -239,7 +243,7 @@ typedef byte index_clause_map;
                              INDEX_HINT_MASK_ORDER)
 
 /* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
-class index_hint : public Sql_alloc
+class Index_hint : public Sql_alloc
 {
 public:
   /* The type of the hint : USE/FORCE/IGNORE */
@@ -252,7 +256,7 @@ public:
   */ 
   LEX_STRING key_name;
 
-  index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
+  Index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
               char *str, uint length) :
     type(type_arg), clause(clause_arg)
   {
@@ -413,7 +417,7 @@ public:
 
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
@@ -444,7 +448,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
-					List<index_hint> *hints= 0,
+					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -547,7 +551,7 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
@@ -596,7 +600,6 @@ public:
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
-  List<List_item>     expr_list;
   SQL_LIST *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
@@ -609,7 +612,8 @@ public:
   */
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
-  uint between_count; /* number of between predicates in where/having/on      */   
+  uint between_count; /* number of between predicates in where/having/on      */
+  uint max_equal_elems; /* maximal number of elements in multiple equalities  */   
   /*
     Number of fields used in select list or where clause of current select
     and all inner subselects.
@@ -722,7 +726,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
-				List<index_hint> *hints= 0,
+				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -737,7 +741,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (byte**) &order_list.first;
+    order_list.next= (uchar**) &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -748,7 +752,7 @@ public:
   void cut_subtree() { slave= 0; }
   bool test_limit();
 
-  friend void lex_start(THD *thd, const char *buf, uint length);
+  friend void lex_start(THD *thd);
   st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
   void make_empty_select()
   {
@@ -782,9 +786,9 @@ public:
   /* make a list to hold index hints */
   void alloc_index_hints (THD *thd);
   /* read and clear the index hints */
-  List<index_hint>* pop_index_hints(void) 
+  List<Index_hint>* pop_index_hints(void) 
   {
-    List<index_hint> *hints= index_hints;
+    List<Index_hint> *hints= index_hints;
     index_hints= NULL;
     return hints;
   }
@@ -796,7 +800,7 @@ private:
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
-  List<index_hint> *index_hints;
+  List<Index_hint> *index_hints;
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -834,26 +838,67 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 25)
 #define ALTER_FOREIGN_KEY         (1L << 26)
 
-typedef struct st_alter_info
+enum enum_alter_table_change_level
 {
-  List<Alter_drop>            drop_list;
-  List<Alter_column>          alter_list;
-  uint                        flags;
-  enum enum_enable_or_disable keys_onoff;
-  enum tablespace_op_type     tablespace_op;
-  List<char>                  partition_names;
-  uint                        no_parts;
+  ALTER_TABLE_METADATA_ONLY= 0,
+  ALTER_TABLE_DATA_CHANGED= 1,
+  ALTER_TABLE_INDEX_CHANGED= 2
+};
 
-  st_alter_info(){clear();}
-  void clear()
+/**
+  @brief Parsing data for CREATE or ALTER TABLE.
+
+  This structure contains a list of columns or indexes to be created,
+  altered or dropped.
+*/
+
+class Alter_info
+{
+public:
+  List<Alter_drop>              drop_list;
+  List<Alter_column>            alter_list;
+  List<Key>                     key_list;
+  List<Create_field>            create_list;
+  uint                          flags;
+  enum enum_enable_or_disable   keys_onoff;
+  enum tablespace_op_type       tablespace_op;
+  List<char>                    partition_names;
+  uint                          no_parts;
+  enum_alter_table_change_level change_level;
+  Create_field                 *datetime_field;
+  bool                          error_if_not_empty;
+
+
+  Alter_info() :
+    flags(0),
+    keys_onoff(LEAVE_AS_IS),
+    tablespace_op(NO_TABLESPACE_OP),
+    no_parts(0),
+    change_level(ALTER_TABLE_METADATA_ONLY),
+    datetime_field(NULL),
+    error_if_not_empty(FALSE)
+  {}
+
+  void reset()
   {
+    drop_list.empty();
+    alter_list.empty();
+    key_list.empty();
+    create_list.empty();
+    flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;
     no_parts= 0;
     partition_names.empty();
+    change_level= ALTER_TABLE_METADATA_ONLY;
+    datetime_field= 0;
+    error_if_not_empty= FALSE;
   }
-  void reset(){drop_list.empty();alter_list.empty();clear();}
-} ALTER_INFO;
+  Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
+private:
+  Alter_info &operator=(const Alter_info &rhs); // not implemented
+  Alter_info(const Alter_info &rhs);            // not implemented
+};
 
 struct st_sp_chistics
 {
@@ -917,16 +962,8 @@ public:
     in which it was right after query parsing.
   */
   SQL_LIST sroutines_list;
-  byte     **sroutines_list_own_last;
+  uchar    **sroutines_list_own_last;
   uint     sroutines_list_own_elements;
-
-  /*
-    Tells if the parsing stage detected that some items require row-based
-    binlogging to give a reliable binlog/replication, or if we will use
-    stored functions or triggers which themselves need require row-based
-    binlogging.
-  */
-  bool binlog_row_based_if_mixed;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -975,6 +1012,48 @@ public:
       query_tables_own_last= 0;
     }
   }
+
+  /**
+     Has the parser/scanner detected that this statement is unsafe?
+   */
+  inline bool is_stmt_unsafe() const {
+    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
+  /**
+     Flag the current (top-level) statement as unsafe.
+
+     The flag will be reset after the statement has finished.
+
+   */
+  inline void set_stmt_unsafe() {
+    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
+  inline void clear_stmt_unsafe() {
+    binlog_stmt_flags&= ~(1U << BINLOG_STMT_FLAG_UNSAFE);
+  }
+
+  /**
+    true if the parsed tree contains references to stored procedures
+    or functions, false otherwise
+  */
+  bool uses_stored_routines() const
+  { return sroutines_list.elements != 0; }
+
+private:
+  enum enum_binlog_stmt_flag {
+    BINLOG_STMT_FLAG_UNSAFE,
+    BINLOG_STMT_FLAG_COUNT
+  };
+
+  /*
+    Tells if the parsing stage detected properties of the statement,
+    for example: that some items require row-based binlogging to give
+    a reliable binlog/replication, or if we will use stored functions
+    or triggers which themselves need require row-based binlogging.
+  */
+  uint32 binlog_stmt_flags;
 };
 
 
@@ -995,32 +1074,424 @@ struct st_parsing_options
 };
 
 
+/**
+  The state of the lexical parser, when parsing comments.
+*/
+enum enum_comment_state
+{
+  /**
+    Not parsing comments.
+  */
+  NO_COMMENT,
+  /**
+    Parsing comments that need to be preserved.
+    Typically, these are user comments '/' '*' ... '*' '/'.
+  */
+  PRESERVE_COMMENT,
+  /**
+    Parsing comments that need to be discarded.
+    Typically, these are special comments '/' '*' '!' ... '*' '/',
+    or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
+    markers should not be expanded.
+  */
+  DISCARD_COMMENT
+};
+
+
+/**
+  @brief This class represents the character input stream consumed during
+  lexical analysis.
+
+  In addition to consuming the input stream, this class performs some
+  comment pre processing, by filtering out out of bound special text
+  from the query input stream.
+  Two buffers, with pointers inside each buffers, are maintained in
+  parallel. The 'raw' buffer is the original query text, which may
+  contain out-of-bound comments. The 'cpp' (for comments pre processor)
+  is the pre-processed buffer that contains only the query text that
+  should be seen once out-of-bound data is removed.
+*/
+
+class Lex_input_stream
+{
+public:
+  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
+  ~Lex_input_stream();
+
+  /**
+    Set the echo mode.
+
+    When echo is true, characters parsed from the raw input stream are
+    preserved. When false, characters parsed are silently ignored.
+    @param echo the echo mode.
+  */
+  void set_echo(bool echo)
+  {
+    m_echo= echo;
+  }
+
+  /**
+    Skip binary from the input stream.
+    @param n number of bytes to accept.
+  */
+  void skip_binary(int n)
+  {
+    if (m_echo)
+    {
+      memcpy(m_cpp_ptr, m_ptr, n);
+      m_cpp_ptr += n;
+    }
+    m_ptr += n;
+  }
+
+  /**
+    Get a character, and advance in the stream.
+    @return the next character to parse.
+  */
+  char yyGet()
+  {
+    char c= *m_ptr++;
+    if (m_echo)
+      *m_cpp_ptr++ = c;
+    return c;
+  }
+
+  /**
+    Get the last character accepted.
+    @return the last character accepted.
+  */
+  char yyGetLast()
+  {
+    return m_ptr[-1];
+  }
+
+  /**
+    Look at the next character to parse, but do not accept it.
+  */
+  char yyPeek()
+  {
+    return m_ptr[0];
+  }
+
+  /**
+    Look ahead at some character to parse.
+    @param n offset of the character to look up
+  */
+  char yyPeekn(int n)
+  {
+    return m_ptr[n];
+  }
+
+  /**
+    Cancel the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls to yyGet / yySkip
+    and yyUnget. The caller is responsible for ensuring that.
+  */
+  void yyUnget()
+  {
+    m_ptr--;
+    if (m_echo)
+      m_cpp_ptr--;
+  }
+
+  /**
+    Accept a character, by advancing the input stream.
+  */
+  void yySkip()
+  {
+    if (m_echo)
+      *m_cpp_ptr++ = *m_ptr++;
+    else
+      m_ptr++;
+  }
+
+  /**
+    Accept multiple characters at once.
+    @param n the number of characters to accept.
+  */
+  void yySkipn(int n)
+  {
+    if (m_echo)
+    {
+      memcpy(m_cpp_ptr, m_ptr, n);
+      m_cpp_ptr += n;
+    }
+    m_ptr += n;
+  }
+
+  /**
+    End of file indicator for the query text to parse.
+    @return true if there are no more characters to parse
+  */
+  bool eof()
+  {
+    return (m_ptr >= m_end_of_query);
+  }
+
+  /**
+    End of file indicator for the query text to parse.
+    @param n number of characters expected
+    @return true if there are less than n characters to parse
+  */
+  bool eof(int n)
+  {
+    return ((m_ptr + n) >= m_end_of_query);
+  }
+
+  /** Get the raw query buffer. */
+  const char *get_buf()
+  {
+    return m_buf;
+  }
+
+  /** Get the pre-processed query buffer. */
+  const char *get_cpp_buf()
+  {
+    return m_cpp_buf;
+  }
+
+  /** Get the end of the raw query buffer. */
+  const char *get_end_of_query()
+  {
+    return m_end_of_query;
+  }
+
+  /** Mark the stream position as the start of a new token. */
+  void start_token()
+  {
+    m_tok_start_prev= m_tok_start;
+    m_tok_start= m_ptr;
+    m_tok_end= m_ptr;
+
+    m_cpp_tok_start_prev= m_cpp_tok_start;
+    m_cpp_tok_start= m_cpp_ptr;
+    m_cpp_tok_end= m_cpp_ptr;
+  }
+
+  /**
+    Adjust the starting position of the current token.
+    This is used to compensate for starting whitespace.
+  */
+  void restart_token()
+  {
+    m_tok_start= m_ptr;
+    m_cpp_tok_start= m_cpp_ptr;
+  }
+
+  /** Get the token start position, in the raw buffer. */
+  const char *get_tok_start()
+  {
+    return m_tok_start;
+  }
+
+  /** Get the token start position, in the pre-processed buffer. */
+  const char *get_cpp_tok_start()
+  {
+    return m_cpp_tok_start;
+  }
+
+  /** Get the token end position, in the raw buffer. */
+  const char *get_tok_end()
+  {
+    return m_tok_end;
+  }
+
+  /** Get the token end position, in the pre-processed buffer. */
+  const char *get_cpp_tok_end()
+  {
+    return m_cpp_tok_end;
+  }
+
+  /** Get the previous token start position, in the raw buffer. */
+  const char *get_tok_start_prev()
+  {
+    return m_tok_start_prev;
+  }
+
+  /** Get the current stream pointer, in the raw buffer. */
+  const char *get_ptr()
+  {
+    return m_ptr;
+  }
+
+  /** Get the current stream pointer, in the pre-processed buffer. */
+  const char *get_cpp_ptr()
+  {
+    return m_cpp_ptr;
+  }
+
+  /** Get the length of the current token, in the raw buffer. */
+  uint yyLength()
+  {
+    /*
+      The assumption is that the lexical analyser is always 1 character ahead,
+      which the -1 account for.
+    */
+    DBUG_ASSERT(m_ptr > m_tok_start);
+    return (uint) ((m_ptr - m_tok_start) - 1);
+  }
+
+  /** Get the utf8-body string. */
+  const char *get_body_utf8_str()
+  {
+    return m_body_utf8;
+  }
+
+  /** Get the utf8-body length. */
+  uint get_body_utf8_length()
+  {
+    return m_body_utf8_ptr - m_body_utf8;
+  }
+
+  void body_utf8_start(THD *thd, const char *begin_ptr);
+  void body_utf8_append(const char *ptr);
+  void body_utf8_append(const char *ptr, const char *end_ptr);
+  void body_utf8_append_literal(THD *thd,
+                                const LEX_STRING *txt,
+                                CHARSET_INFO *txt_cs,
+                                const char *end_ptr);
+
+  /** Current thread. */
+  THD *m_thd;
+
+  /** Current line number. */
+  uint yylineno;
+
+  /** Length of the last token parsed. */
+  uint yytoklen;
+
+  /** Interface with bison, value of the last token parsed. */
+  LEX_YYSTYPE yylval;
+
+private:
+  /** Pointer to the current position in the raw input stream. */
+  const char *m_ptr;
+
+  /** Starting position of the last token parsed, in the raw buffer. */
+  const char *m_tok_start;
+
+  /** Ending position of the previous token parsed, in the raw buffer. */
+  const char *m_tok_end;
+
+  /** End of the query text in the input stream, in the raw buffer. */
+  const char *m_end_of_query;
+
+  /** Starting position of the previous token parsed, in the raw buffer. */
+  const char *m_tok_start_prev;
+
+  /** Begining of the query text in the input stream, in the raw buffer. */
+  const char *m_buf;
+
+  /** Length of the raw buffer. */
+  uint m_buf_length;
+
+  /** Echo the parsed stream to the pre-processed buffer. */
+  bool m_echo;
+
+  /** Pre-processed buffer. */
+  char *m_cpp_buf;
+
+  /** Pointer to the current position in the pre-processed input stream. */
+  char *m_cpp_ptr;
+
+  /**
+    Starting position of the last token parsed,
+    in the pre-processed buffer.
+  */
+  const char *m_cpp_tok_start;
+
+  /**
+    Starting position of the previous token parsed,
+    in the pre-procedded buffer.
+  */
+  const char *m_cpp_tok_start_prev;
+
+  /**
+    Ending position of the previous token parsed,
+    in the pre-processed buffer.
+  */
+  const char *m_cpp_tok_end;
+
+  /** UTF8-body buffer created during parsing. */
+  char *m_body_utf8;
+
+  /** Pointer to the current position in the UTF8-body buffer. */
+  char *m_body_utf8_ptr;
+
+  /**
+    Position in the pre-processed buffer. The query from m_cpp_buf to
+    m_cpp_utf_processed_ptr is converted to UTF8-body.
+  */
+  const char *m_cpp_utf8_processed_ptr;
+
+public:
+
+  /** Current state of the lexical analyser. */
+  enum my_lex_states next_state;
+
+  /**
+    Position of ';' in the stream, to delimit multiple queries.
+    This delimiter is in the raw buffer.
+  */
+  const char *found_semicolon;
+
+  /** Token character bitmaps, to detect 7bit strings. */
+  uchar tok_bitmap;
+
+  /** SQL_MODE = IGNORE_SPACE. */
+  bool ignore_space;
+
+  /**
+    TRUE if we're parsing a prepared statement: in this mode
+    we should allow placeholders and disallow multi-statements.
+  */
+  bool stmt_prepare_mode;
+
+  /** State of the lexical analyser for comments. */
+  enum_comment_state in_comment;
+
+  /**
+    Starting position of the TEXT_STRING or IDENT in the pre-processed
+    buffer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+  */
+  const char *m_cpp_text_start;
+
+  /**
+    Ending position of the TEXT_STRING or IDENT in the pre-processed
+    buffer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+    */
+  const char *m_cpp_text_end;
+
+  /**
+    Character set specified by the character-set-introducer.
+
+    NOTE: this member must be used within MYSQLlex() function only.
+  */
+  CHARSET_INFO *m_underscore_cs;
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex : public Query_tables_list
 {
-  uint	 yylineno,yytoklen;			/* Simulate lex */
-  LEX_YYSTYPE yylval;
   SELECT_LEX_UNIT unit;                         /* most upper unit */
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
-  const char *buf;		/* The beginning of string, used by SPs */
-  const char *ptr,*tok_start,*tok_end,*end_of_query;
-  
-  /* The value of tok_start as they were one call of MYSQLlex before */
-  const char *tok_start_prev;
 
   char *length,*dec,*change;
   LEX_STRING name;
-  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  char* found_semicolon;                        /* For multi queries - next query */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
@@ -1028,13 +1499,28 @@ typedef struct st_lex : public Query_tables_list
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   XID *xid;
-  gptr yacc_yyss,yacc_yyvs;
+  uchar* yacc_yyss, *yacc_yyvs;
   THD *thd;
-  CHARSET_INFO *charset, *underscore_charset;
+
+  /* maintain a list of used plugins for this LEX */
+  DYNAMIC_ARRAY plugins;
+  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+
+  CHARSET_INFO *charset;
+  bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
-  /* Position (first character index) of SELECT of CREATE VIEW statement */
-  uint create_view_select_start;
+
+  /** Start of SELECT of CREATE VIEW statement */
+  const char* create_view_select_start;
+  /** End of SELECT of CREATE VIEW statement */
+  const char* create_view_select_end;
+
+  /** Start of 'ON table', in trigger statements.  */
+  const char* raw_trg_on_table_name_begin;
+  /** End of 'ON table', in trigger statements. */
+  const char* raw_trg_on_table_name_end;
+
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
 
@@ -1044,13 +1530,11 @@ typedef struct st_lex : public Query_tables_list
   */
   LEX_USER *definer;
 
-  List<key_part_spec> col_list;
-  List<key_part_spec> ref_list;
+  List<Key_part_spec> col_list;
+  List<Key_part_spec> ref_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
-  List<Key>	      key_list;
-  List<create_field>  create_list;
   List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
@@ -1073,7 +1557,7 @@ typedef struct st_lex : public Query_tables_list
   List<LEX_STRING>     db_list;
 
   SQL_LIST	      proc_list, auxiliary_table_list, save_list;
-  create_field	      *last_field;
+  Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
@@ -1104,7 +1588,6 @@ typedef struct st_lex : public Query_tables_list
 
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
-  enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
@@ -1139,7 +1622,9 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
-  bool in_comment, ignore_space, verbose, no_write_to_binlog;
+
+  bool verbose, no_write_to_binlog;
+
   bool tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
@@ -1149,15 +1634,10 @@ typedef struct st_lex : public Query_tables_list
     to an .frm file. We need this definition to stay untouched.
   */
   bool view_prepare_mode;
-  /*
-    TRUE if we're parsing a prepared statement: in this mode
-    we should allow placeholders and disallow multistatements.
-  */
-  bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
-  ALTER_INFO alter_info;
+  Alter_info alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
@@ -1208,15 +1688,20 @@ typedef struct st_lex : public Query_tables_list
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
 
     This pointer is required to add possibly omitted DEFINER-clause to the
-    DDL-statement before dumping it to the binlog. 
+    DDL-statement before dumping it to the binlog.
   */
   const char *stmt_definition_begin;
+
+  const char *stmt_definition_end;
 
   /*
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
-  const char *fname_start, *fname_end;
+  const char *fname_start;
+  const char *fname_end;
+
+  LEX_STRING view_body_utf8;
 
   /*
     Reference to a struct that contains information in various commands
@@ -1231,6 +1716,8 @@ typedef struct st_lex : public Query_tables_list
   virtual ~st_lex()
   {
     destroy_query_tables_list();
+    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
+    delete_dynamic(&plugins);
   }
 
   inline void uncacheable(uint8 cause)
@@ -1252,6 +1739,8 @@ typedef struct st_lex : public Query_tables_list
       un->uncacheable|= cause;
     }
   }
+  void set_trg_event_type_for_tables();
+
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
@@ -1261,7 +1750,7 @@ typedef struct st_lex : public Query_tables_list
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
-  uint8 get_effective_with_check(st_table_list *view);
+  uint8 get_effective_with_check(TABLE_LIST *view);
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
@@ -1300,6 +1789,8 @@ typedef struct st_lex : public Query_tables_list
     context_stack.pop();
   }
 
+  bool copy_db_to(char **p_db, size_t *p_db_length) const;
+
   Name_resolution_context *current_context()
   {
     return context_stack.head();
@@ -1313,13 +1804,36 @@ typedef struct st_lex : public Query_tables_list
   void restore_backup_query_tables_list(Query_tables_list *backup);
 
   bool table_or_sp_used();
+  bool is_partition_management() const;
+
+  /**
+    @brief check if the statement is a single-level join
+    @return result of the check
+      @retval TRUE  The statement doesn't contain subqueries, unions and 
+                    stored procedure calls.
+      @retval FALSE There are subqueries, UNIONs or stored procedure calls.
+  */
+  bool is_single_level_stmt() 
+  { 
+    /* 
+      This check exploits the fact that the last added to all_select_list is
+      on its top. So select_lex (as the first added) will be at the tail 
+      of the list.
+    */ 
+    if (&select_lex == all_selects_list && !sroutines.records)
+    {
+      DBUG_ASSERT(!all_selects_list->next_select_in_list());
+      return TRUE;
+    }
+    return FALSE;
+  }
 } LEX;
 
 struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   {
@@ -1333,11 +1847,16 @@ struct st_lex_local: public st_lex
 
 extern void lex_init(void);
 extern void lex_free(void);
-extern void lex_start(THD *thd, const char *buf, uint length);
+extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern const char *skip_rear_comments(const char *ubegin, const char *uend);
+
+extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
+
+/**
+  @} (End of group Semantic_Analysis)
+*/
 
 #endif /* MYSQL_SERVER */

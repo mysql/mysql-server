@@ -130,7 +130,8 @@ typedef long long longlong;
 #include <m_string.h>		/* To get strmov() */
 #else
 /* when compiled as standalone */
-#define strmov(a,b) strcpy(a,b)
+#include <string.h>
+#define strmov(a,b) stpcpy(a,b)
 #define bzero(a,b) memset(a,0,b)
 #define memcpy_fixed(a,b,c) memcpy(a,b,c)
 #endif
@@ -1103,6 +1104,41 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
   *length= strlen(result);
   return result;
 }
+
+
+my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+{
+  if (args->arg_count != 1)
+  {
+    strmov(message, "IS_CONST accepts only one argument");
+    return 1;
+  }
+  if (args->args[0] == 0)
+  {
+    initid->ptr= (char*)"Not constant";
+  }
+  else if(strlen(args->args[0]) == args->lengths[0])
+  {
+    initid->ptr= (char*)"Correct length";
+  }
+  else
+  {
+    initid->ptr= (char*)"Wrong length";
+  }
+  initid->max_length = 100;
+  return 0;
+}
+
+char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
+                char *result, unsigned long *length,
+                char *is_null, char *error __attribute__((unused)))
+{
+  strmov(result, initid->ptr);
+  *length= strlen(result);
+  *is_null= 0;
+  return result;
+}
+
 
 
 #endif /* HAVE_DLOPEN */

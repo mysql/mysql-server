@@ -61,8 +61,8 @@ void list_free(LIST *root, uint free_data)
   {
     next=root->next;
     if (free_data)
-      my_free((gptr) root->data,MYF(0));
-    my_free((gptr) root,MYF(0));
+      my_free((uchar*) root->data,MYF(0));
+    my_free((uchar*) root,MYF(0));
     root=next;
   }
 }
@@ -101,7 +101,7 @@ uint list_length(LIST *list)
 }
 
 
-int list_walk(LIST *list, list_walk_action action, gptr argument)
+int list_walk(LIST *list, list_walk_action action, uchar* argument)
 {
   int error=0;
   while (list)

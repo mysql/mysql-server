@@ -1,0 +1,47 @@
+# The test for bug#27029 requires about 8 hours and 20 minutes on my
+# fastest machine.  This test requires at least 60 GB of disk space.
+--source include/big_test.inc
+
+#
+# Bug#27029 alter table ... enable keys crashes mysqld on large table
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table `t1` (`c1` tinyint unsigned not null, key `c1` (`c1`)) 
+engine=myisam default charset=utf8;
+alter table `t1` disable keys;
+insert into t1 values (1),(2),(3),(4);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1 limit 2147483647; #Insert 4294967295 rows.
+alter table t1 enable keys;
+drop table t1;

@@ -17,7 +17,7 @@
 
 	/* Read last row with the same key as the previous read. */
 
-int mi_rlast(MI_INFO *info, byte *buf, int inx)
+int mi_rlast(MI_INFO *info, uchar *buf, int inx)
 {
   DBUG_ENTER("mi_rlast");
   info->lastpos= HA_OFFSET_ERROR;

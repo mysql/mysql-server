@@ -40,8 +40,8 @@ extern "C" {
 	** Returns 0 if record read
 	*/
 
-int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
-		   uint Count __attribute__((unused)))
+int _my_b_net_read(register IO_CACHE *info, uchar *Buffer,
+		   size_t Count __attribute__((unused)))
 {
   ulong read_length;
   NET *net= &(current_thd)->net;
@@ -61,7 +61,7 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
     DBUG_RETURN(1);
   }
   /* to set up stuff for my_b_get (no _) */
-  info->read_end = (info->read_pos = (byte*) net->read_pos) + read_length;
+  info->read_end = (info->read_pos = (uchar*) net->read_pos) + read_length;
   Buffer[0] = info->read_pos[0];		/* length is always 1 */
 
   /*

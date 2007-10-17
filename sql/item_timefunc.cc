@@ -51,7 +51,7 @@ static bool make_datetime(date_time_format_types format, MYSQL_TIME *ltime,
 {
   char *buff;
   CHARSET_INFO *cs= &my_charset_bin;
-  uint length= 30;
+  uint length= MAX_DATE_STRING_REP_LENGTH;
 
   if (str->alloc(length))
     return 1;
@@ -597,7 +597,7 @@ err:
     strmake(buff, val_begin, min(length, sizeof(buff)-1));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
-                        date_time_type, buff, "str_to_time");
+                        date_time_type, buff, "str_to_date");
   }
   DBUG_RETURN(1);
 }
@@ -886,9 +886,9 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
     {
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
-      bmove_upp((char*) (values+count), (char*) (values+i),
+      bmove_upp((uchar*) (values+count), (uchar*) (values+i),
 		sizeof(*values)*i);
-      bzero((char*) values, sizeof(*values)*(count-i));
+      bzero((uchar*) values, sizeof(*values)*(count-i));
       break;
     }
   }
@@ -959,6 +959,44 @@ enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
       return MONOTONIC_INCREASING;
   }
   return NON_MONOTONIC;
+}
+
+
+longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong res;
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+  res=(longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
+  
+  if (args[0]->field_type() == MYSQL_TYPE_DATE)
+  {
+    // TO_DAYS() is strictly monotonic for dates, leave incl_endp intact
+    return res;
+  }
+ 
+  /*
+    Handle the special but practically useful case of datetime values that
+    point to day bound ("strictly less" comparison stays intact):
+
+      col < '2007-09-15 00:00:00'  -> TO_DAYS(col) <  TO_DAYS('2007-09-15')
+
+    which is different from the general case ("strictly less" changes to
+    "less or equal"):
+
+      col < '2007-09-15 12:34:56'  -> TO_DAYS(col) <= TO_DAYS('2007-09-15')
+  */
+  if (!left_endp && !(ltime.hour || ltime.minute || ltime.second ||
+                      ltime.second_part))
+    ; /* do nothing */
+  else
+    *incl_endp= TRUE;
+  return res;
 }
 
 
@@ -1152,7 +1190,7 @@ longlong Item_func_year::val_int()
   Get information about this Item tree monotonicity
 
   SYNOPSIS
-    Item_func_to_days::get_monotonicity_info()
+    Item_func_year::get_monotonicity_info()
 
   DESCRIPTION
   Get information about monotonicity of the function represented by this item
@@ -1170,6 +1208,37 @@ enum_monotonicity_info Item_func_year::get_monotonicity_info() const
     return MONOTONIC_INCREASING;
   return NON_MONOTONIC;
 }
+
+
+longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+
+  /*
+    Handle the special but practically useful case of datetime values that
+    point to year bound ("strictly less" comparison stays intact) :
+
+      col < '2007-01-01 00:00:00'  -> YEAR(col) <  2007
+
+    which is different from the general case ("strictly less" changes to
+    "less or equal"):
+
+      col < '2007-09-15 23:00:00'  -> YEAR(col) <= 2007
+  */
+  if (!left_endp && ltime.day == 1 && ltime.month == 1 && 
+      !(ltime.hour || ltime.minute || ltime.second || ltime.second_part))
+    ; /* do nothing */
+  else
+    *incl_endp= TRUE;
+  return ltime.year;
+}
+
 
 longlong Item_func_unix_timestamp::val_int()
 {
@@ -1223,7 +1292,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   ulonglong array[5];
   longlong value;
   const char *str;
-  uint32 length;
+  size_t length;
   CHARSET_INFO *cs=str_value->charset();
 
   LINT_INIT(value);
@@ -1258,7 +1327,7 @@ bool get_interval_value(Item *args,interval_type int_type,
       interval->neg=1;
       str++;
     }
-    length=(uint32) (end-str);		// Set up pointers to new str
+    length= (size_t) (end-str);		// Set up pointers to new str
   }
 
   switch (int_type) {
@@ -1379,7 +1448,7 @@ String *Item_date::val_str(String *str)
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return (String *) 0;
-  if (str->alloc(11))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String *) 0;
@@ -1428,7 +1497,7 @@ void Item_func_curdate::fix_length_and_dec()
 String *Item_func_curdate::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (str->alloc(11))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String *) 0;
@@ -1594,7 +1663,7 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
 void Item_func_sysdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
 {
   THD *thd= current_thd;
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) time(NULL));
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) my_time(0));
   thd->time_zone_used= 1;
 }
 
@@ -1657,7 +1726,8 @@ String *Item_func_sec_to_time::val_str(String *str)
   MYSQL_TIME ltime;
   longlong arg_val= args[0]->val_int(); 
 
-  if ((null_value=args[0]->null_value) || str->alloc(19))
+  if ((null_value=args[0]->null_value) ||
+      str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return (String*) 0;
@@ -1696,7 +1766,11 @@ void Item_func_date_format::fix_length_and_dec()
   Item *arg1= args[1]->this_item();
 
   decimals=0;
-  collation.set(thd->variables.collation_connection);
+  CHARSET_INFO *cs= thd->variables.collation_connection;
+  uint32 repertoire= arg1->collation.repertoire;
+  if (!thd->variables.lc_time_names->is_ascii)
+    repertoire|= MY_REPERTOIRE_EXTENDED;
+  collation.set(cs, arg1->collation.derivation, repertoire);
   if (arg1->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
@@ -1842,6 +1916,10 @@ String *Item_func_date_format::val_str(String *str)
     size=max_length;
   else
     size=format_length(format);
+
+  if (size < MAX_DATE_STRING_REP_LENGTH)
+    size= MAX_DATE_STRING_REP_LENGTH;
+
   if (format == str)
     str= &value;				// Save result here
   if (str->alloc(size))
@@ -1885,13 +1963,14 @@ String *Item_func_from_unixtime::val_str(String *str)
   if (get_date(&time_tmp, 0))
     return 0;
 
-  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return 0;
   }
 
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+
   return str;
 }
 
@@ -1940,14 +2019,15 @@ String *Item_func_convert_tz::val_str(String *str)
 
   if (get_date(&time_tmp, 0))
     return 0;
-  
-  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+
+  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     null_value= 1;
     return 0;
   }
-  
+
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+
   return str;
 }
 
@@ -2058,27 +2138,6 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
   if ((null_value= date_add_interval(ltime, int_type, interval)))
     return 1;
-
-  /* Adjust cached_field_type according to the detected type. */
-  if (cached_field_type == MYSQL_TYPE_STRING)
-  {
-    switch (ltime->time_type)
-    {
-    case MYSQL_TIMESTAMP_DATE:
-      cached_field_type= MYSQL_TYPE_DATE;
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      cached_field_type= MYSQL_TYPE_DATETIME;
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      cached_field_type= MYSQL_TYPE_TIME;
-      break;
-    default:
-      /* Shouldn't get here. */
-      DBUG_ASSERT(0);
-      break;
-    }
-  }
   return 0;
 }
 
@@ -2454,6 +2513,7 @@ String *Item_datetime_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
+
   if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
 		     &ltime, str))
@@ -2532,7 +2592,8 @@ String *Item_date_typecast::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
 
-  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) && !str->alloc(11))
+  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) &&
+      !str->alloc(MAX_DATE_STRING_REP_LENGTH))
   {
     make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
     return str;
@@ -2546,11 +2607,8 @@ longlong Item_date_typecast::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (args[0]->get_date(&ltime, TIME_FUZZY_DATE))
-  {
-    null_value= 1;
+  if ((null_value= args[0]->get_date(&ltime, TIME_FUZZY_DATE)))
     return 0;
-  }
   return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
 }
 
@@ -2585,7 +2643,7 @@ String *Item_func_makedate::val_str(String *str)
   {
     null_value=0;
     get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);
-    if (str->alloc(11))
+    if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
       goto err;
     make_date((DATE_TIME_FORMAT *) 0, &l_time, str);
     return str;
@@ -2721,6 +2779,7 @@ String *Item_func_add_time::val_str(String *str)
   days= (long)(seconds/86400L);
 
   calc_time_from_sec(&l_time3, (long)(seconds%86400L), microseconds);
+
   if (!is_time)
   {
     get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
@@ -2836,7 +2895,7 @@ String *Item_func_maketime::val_str(String *str)
                    args[2]->null_value ||
                    minute < 0 || minute > 59 ||
                    second < 0 || second > 59 ||
-                   str->alloc(19))))
+                   str->alloc(MAX_DATE_STRING_REP_LENGTH))))
     return 0;
 
   bzero((char *)&ltime, sizeof(ltime));

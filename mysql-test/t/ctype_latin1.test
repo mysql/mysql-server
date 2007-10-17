@@ -121,3 +121,9 @@ INSERT INTO abcÿdef VALUES (2);
 SELECT * FROM `abcÿdef`;
 SELECT * FROM abcÿdef;
 DROP TABLE `abcÿdef`;
+#
+# Bug#29499 Converting 'del' from ascii to Unicode results in 'question mark'
+#
+select hex(cast(_ascii 0x7f as char(1) character set latin1));
+
+--echo End of 5.0 tests

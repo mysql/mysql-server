@@ -179,4 +179,8 @@ insert into t1 values (null);
 select * from t1;
 drop table t1;
 
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a char(1))
+partition by list (ascii(ucase(a)))
+(partition p1 values in (2));
 

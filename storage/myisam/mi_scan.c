@@ -36,7 +36,7 @@ int mi_scan_init(register MI_INFO *info)
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int mi_scan(MI_INFO *info, byte *buf)
+int mi_scan(MI_INFO *info, uchar *buf)
 {
   DBUG_ENTER("mi_scan");
   /* Init all but update-flag */

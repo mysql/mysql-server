@@ -111,7 +111,7 @@ static struct my_cs_file_section_st sec[] =
   {0,	NULL}
 };
 
-static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
+static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 {
   struct my_cs_file_section_st *s;
   for (s=sec; s->str; s++)
@@ -123,7 +123,7 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
-#define MY_CS_TAILORING_SIZE	128
+#define MY_CS_TAILORING_SIZE	1024
 
 typedef struct my_cs_file_info
 {
@@ -160,7 +160,7 @@ static int fill_uchar(uchar *a,uint size,const char *str, uint len)
   return 0;
 }
 
-static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
+static int fill_uint16(uint16 *a,uint size,const char *str, size_t len)
 {
   uint i= 0;
   
@@ -178,7 +178,7 @@ static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
 }
 
 
-static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
@@ -193,7 +193,7 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
@@ -211,11 +211,12 @@ static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
+static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s;
-  int    state= (int)((s=cs_file_sec(st->attr, (int) strlen(st->attr))) ? s->state : 0);
+  int    state= (int)((s=cs_file_sec(st->attr, strlen(st->attr))) ? s->state :
+                      0);
   
   switch (state) {
   case _CS_ID:
@@ -289,8 +290,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
 }
 
 
-my_bool my_parse_charset_xml(const char *buf, uint len, 
-				    int (*add_collation)(CHARSET_INFO *cs))
+my_bool my_parse_charset_xml(const char *buf, size_t len,
+                             int (*add_collation)(CHARSET_INFO *cs))
 {
   MY_XML_PARSER p;
   struct my_cs_file_info i;
@@ -305,4 +306,90 @@ my_bool my_parse_charset_xml(const char *buf, uint len,
   rc= (my_xml_parse(&p,buf,len) == MY_XML_OK) ? FALSE : TRUE;
   my_xml_parser_free(&p);
   return rc;
+}
+
+
+/*
+  Check repertoire: detect pure ascii strings
+*/
+uint
+my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
+{
+  const char *strend= str + length;
+  if (cs->mbminlen == 1)
+  {
+    for ( ; str < strend; str++)
+    {
+      if (((uchar) *str) > 0x7F)
+        return MY_REPERTOIRE_UNICODE30;
+    }
+  }
+  else
+  {
+    my_wc_t wc;
+    int chlen;
+    for (; (chlen= cs->cset->mb_wc(cs, &wc, str, strend)) > 0; str+= chlen)
+    {
+      if (wc > 0x7F)
+        return MY_REPERTOIRE_UNICODE30;
+    }
+  }
+  return MY_REPERTOIRE_ASCII;
+}
+
+
+/*
+  Detect whether a character set is ASCII compatible.
+
+  Returns TRUE for:
+  
+  - all 8bit character sets whose Unicode mapping of 0x7B is '{'
+    (ignores swe7 which maps 0x7B to "LATIN LETTER A WITH DIAERESIS")
+  
+  - all multi-byte character sets having mbminlen == 1
+    (ignores ucs2 whose mbminlen is 2)
+  
+  TODO:
+  
+  When merging to 5.2, this function should be changed
+  to check a new flag MY_CS_NONASCII, 
+  
+     return (cs->flag & MY_CS_NONASCII) ? 0 : 1;
+  
+  This flag was previously added into 5.2 under terms
+  of WL#3759 "Optimize identifier conversion in client-server protocol"
+  especially to mark character sets not compatible with ASCII.
+  
+  We won't backport this flag to 5.0 or 5.1.
+  This function is Ok for 5.0 and 5.1, because we're not going
+  to introduce new tricky character sets between 5.0 and 5.2.
+*/
+my_bool
+my_charset_is_ascii_based(CHARSET_INFO *cs)
+{
+  return 
+    (cs->mbmaxlen == 1 && cs->tab_to_uni && cs->tab_to_uni['{'] == '{') ||
+    (cs->mbminlen == 1 && cs->mbmaxlen > 1);
+}
+
+
+/*
+  Detect if a character set is 8bit,
+  and it is pure ascii, i.e. doesn't have
+  characters outside U+0000..U+007F
+  This functions is shared between "conf_to_src"
+  and dynamic charsets loader in "mysqld".
+*/
+my_bool
+my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
+{
+  size_t code;
+  if (!cs->tab_to_uni)
+    return 0;
+  for (code= 0; code < 256; code++)
+  {
+    if (cs->tab_to_uni[code] > 0x7F)
+      return 0;
+  }
+  return 1;
 }

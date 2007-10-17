@@ -136,8 +136,6 @@ alter table t1 add f2 enum(0xFFFF);
 show create table t1;
 drop table t1;
 
---echo End of 4.1 tests
-
 #
 # Bug#24660 "enum" field type definition problem
 #
@@ -157,5 +155,69 @@ drop table t1;
 --error 1083
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
+
+#
+# Bug #29251: MySQL coerces special 0 enum values to normal '' value
+# when ALTERing the column
+#
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 ENUM('a', '', 'b')
+);
+INSERT INTO t1 (c1) VALUES (0), ('a'), (''), ('b');
+SELECT id, c1 + 0, c1 FROM t1;
+
+ALTER TABLE t1 CHANGE c1 c1 ENUM('a', '') NOT NULL;
+SELECT id, c1 + 0, c1 FROM t1;
+
+DROP TABLE t1;
+
+--echo End of 4.1 tests
+
+#
+# Bug#28729: Field_enum wrongly reported an error while storing an empty string.
+#
+create table t1(f1 set('a','b'), index(f1));
+insert into t1 values(''),(''),('a'),('b');
+select * from t1 where f1='';
+drop table t1;
+
+#
+# Bug#29360: Confluence of the special 0 enum value with the normal empty string
+# value during field to field copy.
+#
+
+CREATE TABLE t1 (c1 ENUM('a', '', 'b'));
+INSERT INTO t1 (c1) VALUES ('b');
+INSERT INTO t1 (c1) VALUES ('');
+INSERT INTO t1 (c1) VALUES (0);
+INSERT INTO t1 (c1) VALUES ('');
+
+SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
+
+CREATE TABLE t2 SELECT * FROM t1;
+SELECT c1 + 0 FROM t2;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#29661: Lookup by 0 for a primary index over a enum type  
+#
+
+CREATE TABLE t1(a enum('a','b','c','d'));
+INSERT INTO t1 VALUES (4),(1),(0),(3);
+
+SELECT a FROM t1;
+
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+SELECT a FROM t1 WHERE a=0;
+
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+
+EXPLAIN SELECT a FROM t1 WHERE a=0;
+SELECT a FROM t1 WHERE a=0;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests

@@ -27,21 +27,22 @@ struct utimbuf {
 };
 #endif
 
-	/* Append a file to another */
+/*
+  Append a file to another
+
+  NOTES
+    Don't set MY_FNABP or MY_NABP bits on when calling this function
+*/
 
 int my_append(const char *from, const char *to, myf MyFlags)
-
-
-				/* Dont set MY_FNABP or MY_NABP bits on
-					   when calling this funktion */
 {
   uint Count;
   File from_file,to_file;
-  char buff[IO_SIZE];
+  uchar buff[IO_SIZE];
   DBUG_ENTER("my_append");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
-  from_file=to_file= -1;
+  from_file= to_file= -1;
 
   if ((from_file=my_open(from,O_RDONLY,MyFlags)) >= 0)
   {

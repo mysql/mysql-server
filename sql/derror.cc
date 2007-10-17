@@ -31,6 +31,9 @@ static void init_myfunc_errs(void);
 
   DESCRIPTION
     This function can be called multiple times to reload the messages.
+	If it fails to load the messages, it will fail softly by initializing
+	the errmesg pointer to an array of empty strings or by keeping the
+	old array if it exists.
 
   RETURN
     FALSE       OK
@@ -39,7 +42,7 @@ static void init_myfunc_errs(void);
 
 bool init_errmessage(void)
 {
-  const char **errmsgs;
+  const char **errmsgs, **ptr;
   DBUG_ENTER("init_errmessage");
 
   /*
@@ -49,13 +52,20 @@ bool init_errmessage(void)
   errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
-  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1))
-    DBUG_RETURN(TRUE);
+  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
+      !errmsgs)
+  {
+    if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+                                            sizeof(char*), MYF(0))))
+      DBUG_RETURN(TRUE);
+    for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
+	  *ptr= "";
+  }
 
   /* Register messages for use with my_error(). */
   if (my_error_register(errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
   {
-    x_free((gptr) errmsgs);
+    x_free((uchar*) errmsgs);
     DBUG_RETURN(TRUE);
   }
 
@@ -66,20 +76,20 @@ bool init_errmessage(void)
 
 
 	/* Read text from packed textfile in language-directory */
-	/* If we can't read messagefile then it's panic- we can't continue */
 
 static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages)
 {
   register uint i;
-  uint count,funktpos,length,textcount;
+  uint count,funktpos,textcount;
+  size_t length;
   File file;
   char name[FN_REFLEN];
-  const char *buff;
+  uchar *buff;
   uchar head[32],*pos;
+  const char *errmsg;
   DBUG_ENTER("read_texts");
 
-  *point=0;					// If something goes wrong
   LINT_INIT(buff);
   funktpos=0;
   if ((file=my_open(fn_format(name,file_name,language,"",4),
@@ -88,7 +98,7 @@ static bool read_texts(const char *file_name,const char ***point,
     goto err; /* purecov: inspected */
 
   funktpos=1;
-  if (my_read(file,(byte*) head,32,MYF(MY_NABP))) goto err;
+  if (my_read(file,(uchar*) head,32,MYF(MY_NABP))) goto err;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
@@ -119,25 +129,27 @@ but it should contain at least %d error messages.\n\
 Check that the above file is the right version for this program!",
 		    name,count,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
-    unireg_abort(1);
+    DBUG_RETURN(1);
   }
 
-  x_free((gptr) *point);		/* Free old language */
+  x_free((uchar*) *point);		/* Free old language */
   if (!(*point= (const char**)
-	my_malloc((uint) (length+count*sizeof(char*)),MYF(0))))
+	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
   {
     funktpos=2;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
-  buff= (char*) (*point + count);
+  buff= (uchar*) (*point + count);
 
-  if (my_read(file,(byte*) buff,(uint) count*2,MYF(MY_NABP))) goto err;
-  for (i=0, pos= (uchar*) buff ; i< count ; i++)
+  if (my_read(file, buff, (size_t) count*2,MYF(MY_NABP)))
+    goto err;
+  for (i=0, pos= buff ; i< count ; i++)
   {
-    (*point)[i]=buff+uint2korr(pos);
+    (*point)[i]= (char*) buff+uint2korr(pos);
     pos+=2;
   }
-  if (my_read(file,(byte*) buff,(uint) length,MYF(MY_NABP))) goto err;
+  if (my_read(file, buff, length, MYF(MY_NABP)))
+    goto err;
 
   for (i=1 ; i < textcount ; i++)
   {
@@ -149,21 +161,20 @@ Check that the above file is the right version for this program!",
 err:
   switch (funktpos) {
   case 2:
-    buff="Not enough memory for messagefile '%s'";
+    errmsg= "Not enough memory for messagefile '%s'";
     break;
   case 1:
-    buff="Can't read from messagefile '%s'";
+    errmsg= "Can't read from messagefile '%s'";
     break;
   default:
-    buff="Can't find messagefile '%s'";
+    errmsg= "Can't find messagefile '%s'";
     break;
   }
-  sql_print_error(buff,name);
+  sql_print_error(errmsg, name);
 err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
-  unireg_abort(1);
-  DBUG_RETURN(1);					// keep compiler happy
+  DBUG_RETURN(1);
 } /* read_texts */
 
 

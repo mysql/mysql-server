@@ -903,8 +903,7 @@ buf_block_make_young(
 	/* Note that we read freed_page_clock's without holding any mutex:
 	this is allowed since the result is used only in heuristics */
 
-	if (buf_pool->freed_page_clock >= block->freed_page_clock
-				+ 1 + (buf_pool->curr_size / 4)) {
+	if (buf_block_peek_if_too_old(block)) {
 
 		mutex_enter(&buf_pool->mutex);
 		/* There has been freeing activity in the LRU list:
@@ -1647,6 +1646,15 @@ buf_page_init(
 	block->index		= NULL;
 
 	block->lock_hash_val	= lock_rec_hash(space, offset);
+
+#ifdef UNIV_DEBUG_VALGRIND
+	if (!space) {
+		/* Silence valid Valgrind warnings about uninitialized
+		data being written to data files.  There are some unused
+		bytes on some pages that InnoDB does not initialize. */
+		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	/* Insert into the hash table of file pages */
 

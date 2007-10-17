@@ -1,11 +1,10 @@
 /* 
   manifest.js - Writes a custom XML manifest for each executable/library
-  6 command line options must be supplied: 
+  5 command line options must be supplied: 
   name      - Name of the executable/library into which the mainfest will be 
               embedded.
   version   - Version of the executable 
   arch      - Architecture intended.
-  type      - Application type.
   exe_level - Application execution level. 
               [asInvoker|highestAvailable|requireAdministrator]
   outfile   - Final destination where mainfest will be written.
@@ -27,13 +26,15 @@ try
            var app_name= parts[1];
            break;
       case "version":
-           var app_version= parts[1];
+           var supp_version= parts[1];
+           // Clean up the supplied version string.
+           var end= supp_version.indexOf("-");
+           if (end == -1) end= supp_version.length;
+           var app_version= supp_version.substring(0, end);
+           app_version+= ".0";
            break;
       case "arch":
            var app_arch= parts[1];
-           break;
-      case "type":
-           var app_type= parts[1];
            break;
       case "exe_level":
 		   var app_exe_level= parts[1];
@@ -45,7 +46,7 @@ try
 	       WScript.echo("Invalid argument supplied.");
     }
   }
-  if (i != 6)
+  if (i != 5)
     throw new Error(1, "Incorrect number of arguments.");
 
   var manifest_xml= "<?xml version=\'1.0\' encoding=\'UTF-8\' standalone=\'yes\'?>\r\n";
@@ -55,8 +56,8 @@ try
   manifest_xml+= "\t<assemblyIdentity name=\'" + app_name + "\'";
   manifest_xml+= " version=\'" + app_version + "\'"; 
   manifest_xml+= " processorArchitecture=\'" + app_arch + "\'";
-  // TOADD - Add publicKeyToken attribute once we have Authenticode key.
-  manifest_xml+= " type=\'" + app_type + "\' />\r\n";
+  manifest_xml+= " publicKeyToken=\'02ad33b422233ae3\'";
+  manifest_xml+= " type=\'win32\' />\r\n";
   // Identify the application security requirements.
   manifest_xml+= "\t<trustInfo xmlns=\'urn:schemas-microsoft-com:asm.v2\'>\r\n"; 
   manifest_xml+= "\t\t<security>\r\n\t\t\t<requestedPrivileges>\r\n\t\t\t\t";

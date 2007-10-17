@@ -105,7 +105,7 @@ Named_value_arr::~Named_value_arr()
   TOK_NOT_FOUND
 */
 
-inline Token find_token(const char *word, uint word_len)
+inline Token find_token(const char *word, size_t word_len)
 {
   int i= 0;
   do
@@ -119,7 +119,7 @@ inline Token find_token(const char *word, uint word_len)
 }
 
 
-Token get_token(const char **text, uint *word_len)
+Token get_token(const char **text, size_t *word_len)
 {
   get_word(text, word_len);
   if (*word_len)
@@ -128,7 +128,7 @@ Token get_token(const char **text, uint *word_len)
 }
 
 
-Token shift_token(const char **text, uint *word_len)
+Token shift_token(const char **text, size_t *word_len)
 {
   Token save= get_token(text, word_len);
   (*text)+= *word_len;
@@ -157,7 +157,7 @@ static bool parse_long(const LEX_STRING *token, long *value)
 }
 
 
-bool parse_option_value(const char *text, uint *text_len, char **value)
+bool parse_option_value(const char *text, size_t *text_len, char **value)
 {
   char beginning_quote;
   const char *text_start_ptr;
@@ -270,7 +270,7 @@ void skip_spaces(const char **text)
 
 Command *parse_command(const char *text)
 {
-  uint word_len;
+  size_t word_len;
   LEX_STRING instance_name;
   Command *command= 0;
 
