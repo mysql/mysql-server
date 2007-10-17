@@ -709,8 +709,10 @@ extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(void *base,uint items,size_s size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_s size_of_element,uchar *buffer[]);
-extern qsort_t qsort2(void *base_ptr, size_t total_elems, size_t size,
-		      qsort2_cmp cmp, void *cmp_argument);
+extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
+                        qsort_cmp cmp);
+extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
+                         qsort2_cmp cmp, void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(uint);
 void my_store_ptr(byte *buff, uint pack_length, my_off_t pos);
 my_off_t my_get_ptr(byte *ptr, uint pack_length);

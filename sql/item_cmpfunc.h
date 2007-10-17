@@ -781,7 +781,7 @@ public:
   virtual byte *get_value(Item *item)=0;
   void sort()
   {
-    qsort2(base,used_count,size,compare,collation);
+    my_qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
   
