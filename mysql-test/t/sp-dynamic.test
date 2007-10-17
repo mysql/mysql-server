@@ -85,7 +85,7 @@ call p1()|
 call p1()|
 drop procedure p1|
 #
-# D. Create/Drop a table (a DDL that issues a commit) in Dynamic SQL.
+# D. Create/Drop/Alter a table (a DDL that issues a commit) in Dynamic SQL.
 # (should work ok).
 #
 create procedure p1()
@@ -96,6 +96,10 @@ begin
   execute stmt;
   insert into t1 (a) values (1);
   select * from t1;
+  prepare stmt_alter from "alter table t1 add (b int)";
+  execute stmt_alter;
+  insert into t1 (a,b) values (2,1);
+  deallocate prepare stmt_alter;
   deallocate prepare stmt;
   deallocate prepare stmt_drop;
 end|
@@ -239,6 +243,7 @@ drop procedure p1|
 # K. Use of continue handlers with Dynamic SQL.
 #
 drop table if exists t1|
+drop table if exists t2|
 create table t1 (id integer primary key auto_increment,
                  stmt_text char(35), status varchar(20))|
 insert into t1 (stmt_text) values
@@ -249,7 +254,10 @@ insert into t1 (stmt_text) values
   ("help help"), ("show databases"), ("show tables"),
   ("show table status"), ("show open tables"), ("show storage engines"),
   ("insert into t1 (id) values (1)"), ("update t1 set status=''"),
-  ("delete from t1"), ("truncate t1"), ("call p1()"), ("foo bar")|
+  ("delete from t1"), ("truncate t1"), ("call p1()"), ("foo bar"),
+  ("create view v1 as select 1"), ("alter view v1 as select 2"),
+  ("drop view v1"),("create table t2 (a int)"),("alter table t2 add (b int)"),
+  ("drop table t2")|
 create procedure p1()
 begin
   declare v_stmt_text varchar(255);

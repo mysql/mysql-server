@@ -228,8 +228,8 @@ void vio_delete(Vio* vio)
 
   if (vio->type != VIO_CLOSED)
     vio->vioclose(vio);
-  my_free((gptr) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((gptr) vio,MYF(0));
+  my_free((uchar*) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*) vio,MYF(0));
 }
 
 

@@ -24,7 +24,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.6"
+#define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -49,15 +49,15 @@ static char *add_load_option(char *ptr,const char *object,
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,
                 opt_low_priority= 0, tty_password= 0;
-static my_bool info_flag= 0;
-static uint opt_use_threads=0, opt_local_file=0;
+static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static uint opt_use_threads=0, opt_local_file=0, my_end_arg= 0;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
-static my_string opt_mysql_unix_port=0;
+static char * opt_mysql_unix_port=0;
 static longlong opt_ignore_lines= -1;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
 #include <sslopt-vars.h>
@@ -73,59 +73,63 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (gptr*) &charsets_dir,
-   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", (uchar**) &charsets_dir,
+   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (gptr*) &default_charset,
-   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", (uchar**) &default_charset,
+   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"columns", 'c',
    "Use only these columns to import the data to. Give the column names in a comma separated list. This is same as giving columns to LOAD DATA INFILE.",
-   (gptr*) &opt_columns, (gptr*) &opt_columns, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   (uchar**) &opt_columns, (uchar**) &opt_columns, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
-   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.", (gptr*) &info_flag,
-   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"delete", 'd', "First delete all rows from table.", (gptr*) &opt_delete,
-   (gptr*) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
+   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"delete", 'd', "First delete all rows from table.", (uchar**) &opt_delete,
+   (uchar**) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
-   "Fields in the textfile are terminated by ...", (gptr*) &fields_terminated,
-   (gptr*) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the textfile are terminated by ...", (uchar**) &fields_terminated,
+   (uchar**) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-enclosed-by", OPT_ENC,
-   "Fields in the importfile are enclosed by ...", (gptr*) &enclosed,
-   (gptr*) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the importfile are enclosed by ...", (uchar**) &enclosed,
+   (uchar**) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
-   (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the i.file are opt. enclosed by ...", (uchar**) &opt_enclosed,
+   (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
-   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
-   (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
+   (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (uchar**) &current_host,
+   (uchar**) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore", 'i', "If duplicate unique key was found, keep old row.",
-   (gptr*) &ignore, (gptr*) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &ignore, (uchar**) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
-   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_LL,
+   (uchar**) &opt_ignore_lines, (uchar**) &opt_ignore_lines, 0, GET_LL,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
-   (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
+   (uchar**) &lines_terminated, (uchar**) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"local", 'L', "Read all files through the client.", (gptr*) &opt_local_file,
-   (gptr*) &opt_local_file, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"local", 'L', "Read all files through the client.", (uchar**) &opt_local_file,
+   (uchar**) &opt_local_file, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"lock-tables", 'l', "Lock all tables for write (this disables threads).",
-    (gptr*) &lock_tables, (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 
+    (uchar**) &lock_tables, (uchar**) &lock_tables, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
   {"low-priority", OPT_LOW_PRIORITY,
-   "Use LOW_PRIORITY when updating the table.", (gptr*) &opt_low_priority,
-   (gptr*) &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Use LOW_PRIORITY when updating the table.", (uchar**) &opt_low_priority,
+   (uchar**) &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -133,35 +137,35 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
+   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
-   (gptr*) &replace, (gptr*) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &replace, (uchar**) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent, 0,
+  {"silent", 's', "Be more silent.", (uchar**) &silent, (uchar**) &silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"use-threads", OPT_USE_THREADS,
    "Load files in parallel. The argument is the number "
    "of threads to use for loading data.",
-   (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
+   (uchar**) &opt_use_threads, (uchar**) &opt_use_threads, 0, 
    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
-   (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &current_user,
+   (uchar**) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose", 'v', "Print info about the various stages.", (gptr*) &verbose,
-   (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print info about the various stages.", (uchar**) &verbose,
+   (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -236,6 +240,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
+    debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
@@ -254,6 +259,10 @@ static int get_options(int *argc, char ***argv)
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (enclosed && opt_enclosed)
   {
@@ -659,6 +668,6 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
   free_defaults(argv_to_free);
-  my_end(info_flag ? MY_CHECK_ERROR : 0);
+  my_end(my_end_arg);
   return(exitcode);
 }

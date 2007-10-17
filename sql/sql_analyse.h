@@ -143,7 +143,7 @@ public:
 };
 
 
-int collect_decimal(char *element, element_count count,
+int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info);
 
 class field_decimal :public field_info
@@ -165,7 +165,7 @@ public:
   String *get_min_arg(String *);
   String *get_max_arg(String *);
   String *avg(String *s, ha_rows rows);
-  friend int collect_decimal(char *element, element_count count,
+  friend int collect_decimal(uchar *element, element_count count,
                              TREE_INFO *info);
   tree_walk_action collect_enum()
   { return (tree_walk_action) collect_decimal; }
@@ -348,7 +348,7 @@ public:
   }
   virtual void add() {}
   virtual bool change_columns(List<Item> &fields);
-  virtual int  send_row(List<Item> &fields);
+  virtual int  send_row(List<Item> &field_list);
   virtual void end_group(void) {}
   virtual bool end_of_records(void);
   friend Procedure *proc_analyse_init(THD *thd, ORDER *param,

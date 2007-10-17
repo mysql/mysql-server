@@ -81,18 +81,25 @@ public:
   */
   Field **full_part_field_array;
   Field **full_part_charset_field_array;
+  /*
+    Set of all fields used in partition and subpartition expression.
+    Required for testing of partition fields in write_set when
+    updating. We need to set all bits in read_set because the row may
+    need to be inserted in a different [sub]partition.
+  */
+  MY_BITMAP full_part_field_set;
 
   /*
     When we have a field that requires transformation before calling the
     partition functions we must allocate field buffers for the field of
     the fields in the partition function.
   */
-  char **part_field_buffers;
-  char **subpart_field_buffers;
-  char **full_part_field_buffers;
-  char **restore_part_field_ptrs;
-  char **restore_subpart_field_ptrs;
-  char **restore_full_part_field_ptrs;
+  uchar **part_field_buffers;
+  uchar **subpart_field_buffers;
+  uchar **full_part_field_buffers;
+  uchar **restore_part_field_ptrs;
+  uchar **restore_subpart_field_ptrs;
+  uchar **restore_full_part_field_ptrs;
 
   Item *part_expr;
   Item *subpart_expr;
@@ -132,20 +139,6 @@ public:
   */
   get_partitions_in_range_iter get_subpart_iter_for_interval;
   
-  /*
-    Valid iff
-    get_part_iter_for_interval=get_part_iter_for_interval_via_walking:
-      controls how we'll process "field < C" and "field > C" intervals.
-      If the partitioning function F is strictly increasing, then for any x, y
-      "x < y" => "F(x) < F(y)" (*), i.e. when we get interval "field < C" 
-      we can perform partition pruning on the equivalent "F(field) < F(C)".
-
-      If the partitioning function not strictly increasing (it is simply
-      increasing), then instead of (*) we get "x < y" => "F(x) <= F(y)"
-      i.e. for interval "field < C" we can perform partition pruning for
-      "F(field) <= F(C)".
-  */
-  bool range_analysis_include_bounds;
   /********************************************
    * INTERVAL ANALYSIS ENDS 
    ********************************************/

@@ -1,0 +1,45 @@
+###########################################################
+# Author: Jeb
+# Date: 14-12-2006
+# Purpose: To test --replicate-do-table=db_name.tbl_name
+#          using cluster. Only t1 should replicate.
+##########################################################
+
+--source include/have_ndb.inc
+--source include/ndb_master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+CREATE TABLE t2 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+
+INSERT INTO t1 VALUES(1, repeat('abc',10));
+INSERT INTO t1 VALUES(2, repeat('def',200));
+INSERT INTO t1 VALUES(3, repeat('ghi',3000));
+INSERT INTO t2 VALUES(1, repeat('abc',10));
+INSERT INTO t2 VALUES(2, repeat('def',200));
+INSERT INTO t2 VALUES(3, repeat('ghi',3000));
+
+--sync_slave_with_master
+SHOW TABLES;
+SELECT COUNT(*) FROM t1;
+
+#
+# Bug #27044 replicated with unique field ndb table allows dup key inserts
+#
+connection master;
+
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (3, repeat('bad',1));
+
+connection slave;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (3, repeat('bad too',1));
+
+# cleanup
+
+connection master;
+DROP TABLE IF EXISTS t1, t2;
+--sync_slave_with_master

@@ -18,7 +18,6 @@
 ## Process this file with automake to create Makefile.in
 
 SUBDIRS = ndb
-DIST_SUBDIRS=ndb
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
@@ -26,11 +25,8 @@ EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
 GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
-PRESCRIPTS =		mysql-test-run.pl
+PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
-test_DATA =		std_data/client-key.pem std_data/client-cert.pem \
-			std_data/cacert.pem std_data/server-cert.pem \
-			std_data/server-key.pem
 CLEANFILES = 		$(GENSCRIPTS)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
@@ -46,14 +42,16 @@ dist-hook:
 		$(distdir)/std_data \
 		$(distdir)/std_data/ndb_backup50 \
 		$(distdir)/std_data/ndb_backup51 \
+		$(distdir)/std_data/ndb_backup51_data_be \
+		$(distdir)/std_data/ndb_backup51_data_le \
 		$(distdir)/lib
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
-	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
+	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(distdir)/extra/binlog_tests
 	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(distdir)/extra/rpl_tests
 	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(distdir)/extra/binlog_tests
@@ -62,6 +60,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/include/*.test $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/Index.xml $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
@@ -70,8 +69,10 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(distdir)/std_data/ndb_backup51_data_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(distdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
-	-rm -rf `find $(distdir)/suite -type d -name SCCS`
+	-rm -rf `find $(distdir)/suite -type d -name SCCS` $(distdir)/suite/row_lock
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -83,6 +84,8 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50 \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51 \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le \
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
@@ -90,9 +93,9 @@ install-data-local:
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
-	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
+	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(DESTDIR)$(testdir)/extra/binlog_tests
@@ -106,14 +109,17 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/Index.xml $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
-	for f in `(cd $(srcdir); find suite -type f | grep -v SCCS)`; \
+	for f in `(cd $(srcdir); find suite -type f | egrep -v 'SCCS|row_lock')`; \
 	do \
 	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
 	  mkdir -p $$d ; \

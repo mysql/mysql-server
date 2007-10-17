@@ -153,7 +153,7 @@ drop table if exists t1,t2;
 
 CREATE TABLE t1 (a int not null);
 INSERT INTO t1 values (1),(2),(1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
 --error 1146
 SELECT * from t2;
@@ -232,7 +232,7 @@ insert into t1 values (1,1);
 create table if not exists t1 select 2;
 select * from t1;
 create table if not exists t1 select 3 as 'a',4 as 'b';
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 create table if not exists t1 select 3 as 'a',3 as 'b';
 show warnings;
 show status like "Opened_tables";
@@ -306,7 +306,7 @@ create table t3 like t1;
 create table t3 like mysqltest.t3;
 --error 1049
 create table non_existing_database.t1 like t1;
---error 1051
+--error ER_NO_SUCH_TABLE
 create table t3 like non_existing_table;
 --error 1050
 create temporary table t3 like t1;
@@ -673,11 +673,484 @@ alter table t1 max_rows=100000000000;
 show create table t1;
 drop table t1;
 
+
+#
+# Tests for errors happening at various stages of CREATE TABLES ... SELECT
+#
+# (Also checks that it behaves atomically in the sense that in case
+#  of error it is automatically dropped if it has not existed before.)
+#
+# Error during open_and_lock_tables() of tables
+--error ER_NO_SUCH_TABLE
+create table t1 select * from t2;
+# Rather special error which also caught during open tables pahse
+--error ER_UPDATE_TABLE_USED
+create table t1 select * from t1;
+# Error which happens before select_create::prepare()
+--error ER_CANT_AGGREGATE_2COLLATIONS
+create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+# Error during table creation
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+create table t1 (primary key(a)) select "b" as b;
+# Error in select_create::prepare() which is not related to table creation
+create table t1 (a int);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+create table if not exists t1 select 1 as a, 2 as b;
+drop table t1;
+# Finally error which happens during insert
+--error ER_DUP_ENTRY
+create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
+# What happens if table already exists ?
+create table t1 (i int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 select 1 as i;
+create table if not exists t1 select 1 as i;
+select * from t1;
+# Error before select_create::prepare()
+--error ER_CANT_AGGREGATE_2COLLATIONS
+create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+select * from t1;
+# Error which happens during insertion of rows
+alter table t1 add primary key (i);
+--error ER_DUP_ENTRY
+create table if not exists t1 (select 2 as i) union all (select 2 as i);
+select * from t1;
+drop table t1;
+
+
+# Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
+# results of CREATE TABLE ... SELECT when temporary table exists").
+# In this situation we either have to create non-temporary table and
+# insert data in it or insert data in temporary table without creation
+# of permanent table. Since currently temporary tables always shadow
+# permanent tables we adopt second approach.
+create temporary table t1 (j int);
+create table if not exists t1 select 1;
+select * from t1;
+drop temporary table t1;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+
+#
+# CREATE TABLE ... SELECT and LOCK TABLES
+#
+# There is little sense in using CREATE TABLE ... SELECT under
+# LOCK TABLES as it mostly does not work. At least we check that
+# the server doesn't crash, hang and produces sensible errors.
+# Includes test for bug #20662 "Infinite loop in CREATE TABLE
+# IF NOT EXISTS ... SELECT with locked tables".
+create table t1 (i int);
+insert into t1 values (1), (2);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t2 select * from t1;
+--error ER_TABLE_NOT_LOCKED
+create table if not exists t2 select * from t1;
+unlock tables;
+create table t2 (j int);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t2 select * from t1;
+# This should not be ever allowed as it will undermine
+# lock-all-at-once approach
+--error ER_TABLE_NOT_LOCKED
+create table if not exists t2 select * from t1;
+unlock tables;
+lock table t1 read, t2 read;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create table t2 select * from t1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+create table if not exists t2 select * from t1;
+unlock tables;
+lock table t1 read, t2 write;
+--error ER_TABLE_EXISTS_ERROR
+create table t2 select * from t1;
+# This is the only case which really works.
+create table if not exists t2 select * from t1;
+select * from t1;
+unlock tables;
+drop table t2;
+
+# OTOH CREATE TEMPORARY TABLE ... SELECT should work
+# well under LOCK TABLES.
+lock tables t1 read;
+create temporary table t2 select * from t1;
+create temporary table if not exists t2 select * from t1;
+select * from t2;
+unlock tables;
+drop table t1, t2;
+
+
 #
 # Bug#21772: can not name a column 'upgrade' when create a table
 #
 create table t1 (upgrade int);
 drop table t1;
+
+
+#
+# Bug #26642: create index corrupts table definition in .frm
+#
+# Problem with creating keys with maximum key-parts and maximum name length
+# This test is made for a mysql server supporting names up to 64 bytes
+# and a maximum of 16 key segements per Key
+#
+
+create table t1 (
+  c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, c8 int,
+  c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, c16 int,
+
+ key a001_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a002_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a003_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a004_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a005_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a006_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a007_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a008_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a009_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a010_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a011_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a012_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a013_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a014_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a015_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a016_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a017_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a018_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a019_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a020_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a021_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a022_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a023_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a024_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a025_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a026_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a027_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a028_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a029_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a030_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a031_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a032_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a033_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a034_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a035_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a036_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a037_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a038_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a039_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a040_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a041_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a042_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a043_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a044_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a045_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a046_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a047_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a048_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a049_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a050_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a051_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a052_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a053_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a054_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a055_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a056_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a057_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a058_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a059_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ key a060_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a061_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a062_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a063_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ key a064_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16)
+);
+
+# Check that the table is not corrupted
+show create table t1;
+flush tables;
+show create table t1;
+
+# Repeat test using ALTER to add indexes
+
+drop table t1;
+create table t1 (c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, 
+c8 int, c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, c16 int);
+
+alter table t1
+
+ add key a001_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a002_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a003_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a004_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a005_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a006_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a007_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a008_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a009_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a010_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a011_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a012_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a013_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a014_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a015_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a016_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a017_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a018_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a019_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a020_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a021_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a022_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a023_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a024_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a025_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a026_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a027_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a028_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a029_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a030_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a031_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a032_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a033_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a034_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a035_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a036_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a037_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a038_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a039_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a040_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a041_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a042_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a043_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a044_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a045_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a046_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a047_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a048_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a049_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a050_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a051_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a052_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a053_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a054_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a055_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a056_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a057_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a058_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a059_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+
+ add key a060_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a061_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a062_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a063_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
+ add key a064_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16);
+
+show create table t1;
+flush tables;
+show create table t1;
+
+# Test the server limits; if any of these pass, all above tests need
+# to be rewritten to hit the limit
+#
+# Ensure limit is really 64 keys
+--error 1069
+alter table t1 add key 
+ a065_long_123456789_123456789_123456789_123456789_123456789_1234 (
+  c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16);
+
+drop table t1;
+
+# Ensure limit is really 16 key parts per key
+
+create table t1 (c1 int, c2 int, c3 int, c4 int, c5 int, c6 int, c7 int, 
+c8 int, c9 int, c10 int, c11 int, c12 int, c13 int, c14 int, c15 int, 
+c16 int, c17 int);
+
+# Get error for max key parts
+--error 1070
+alter table t1 add key i1 (
+ c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16, c17);
+
+# Get error for max key-name length
+--error 1059
+alter table t1 add key 
+ a001_long_123456789_123456789_123456789_123456789_123456789_12345 (c1);
+
+show create table t1;
+
+drop table t1;
+
+--echo
+--echo Bug #26104 Bug on foreign key class constructor
+--echo
+--echo Check that ref_columns is initalized correctly in the constructor
+--echo and semantic checks in mysql_prepare_table work.
+--echo
+--echo We do not need a storage engine that supports foreign keys
+--echo for this test, as the checks are purely syntax-based, and the
+--echo syntax is supported for all engines.
+--echo
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1(a int not null, b int not null, primary key (a, b));
+--error ER_WRONG_FK_DEF
+create table t2(a int not null, b int not null, c int not null, primary key (a),
+foreign key fk_bug26104 (b,c) references t1(a));
+drop table t1;
+
+#
+# Bug#15130:CREATE .. SELECT was denied to use advantages of the SQL_BIG_RESULT.
+#
+create table t1(f1 int,f2 int);
+insert into t1 value(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
+flush status;
+create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
+show status like 'handler_read%';
+drop table t1,t2;
 
 --echo End of 5.0 tests
 
@@ -687,33 +1160,34 @@ drop table t1;
 
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 # This should give warning
 drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t2;
 
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;
+
 
 #
 # Test incorrect database names

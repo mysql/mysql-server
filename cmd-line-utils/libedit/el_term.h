@@ -90,6 +90,16 @@ extern char* tgoto(const char*, int, int);
 extern char* tgetstr(char*, char**);
 #endif
 
+
+#if !HAVE_DECL_TGOTO
+/*
+  'tgoto' is not declared in the system header files, this causes
+  problems on 64-bit systems. The function returns a 64 bit pointer
+  but caller see it as "int" and it's thus truncated to 32-bit
+*/
+extern char* tgoto(const char*, int, int);
+#endif
+
 protected void	term_move_to_line(EditLine *, int);
 protected void	term_move_to_char(EditLine *, int);
 protected void	term_clear_EOL(EditLine *, int);

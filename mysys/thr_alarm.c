@@ -38,7 +38,7 @@ uint thr_client_alarm;
 static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited= 0;
 volatile my_bool alarm_thread_running= 0;
-
+time_t next_alarm_expire_time= ~ (time_t) 0;
 static sig_handler process_alarm_part2(int sig);
 
 #if !defined(__WIN__)
@@ -60,7 +60,7 @@ static void *alarm_handler(void *arg);
 static sig_handler thread_alarm(int sig __attribute__((unused)));
 
 static int compare_ulong(void *not_used __attribute__((unused)),
-			 byte *a_ptr,byte* b_ptr)
+			 uchar *a_ptr,uchar* b_ptr)
 {
   ulong a=*((ulong*) a_ptr),b= *((ulong*) b_ptr);
   return (a < b) ? -1  : (a == b) ? 0 : 1;
@@ -71,6 +71,7 @@ void init_thr_alarm(uint max_alarms)
   sigset_t s;
   DBUG_ENTER("init_thr_alarm");
   alarm_aborted=0;
+  next_alarm_expire_time= ~ (time_t) 0;
   init_queue(&alarm_queue,max_alarms+1,offsetof(ALARM,expire_time),0,
 	     compare_ulong,NullS);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
@@ -150,22 +151,28 @@ void resize_thr_alarm(uint max_alarms)
 
 my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 {
-  ulong now;
+  time_t now;
+#ifndef USE_ONE_SIGNAL_HAND
   sigset_t old_mask;
+#endif
   my_bool reschedule;
   struct st_my_thread_var *current_my_thread_var= my_thread_var;
   DBUG_ENTER("thr_alarm");
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
-  now=(ulong) time((time_t*) 0);
+  now= my_time(0);
+#ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
+#endif
   pthread_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
   if (alarm_aborted > 0)
   {					/* No signal thread */
     DBUG_PRINT("info", ("alarm aborted"));
     *alrm= 0;					/* No alarm */
     pthread_mutex_unlock(&LOCK_alarm);
+#ifndef USE_ONE_SIGNAL_HAND
     pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
     DBUG_RETURN(1);
   }
   if (alarm_aborted < 0)
@@ -179,14 +186,14 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
       fprintf(stderr,"Warning: thr_alarm queue is full\n");
       *alrm= 0;					/* No alarm */
       pthread_mutex_unlock(&LOCK_alarm);
+#ifndef USE_ONE_SIGNAL_HAND
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
       DBUG_RETURN(1);
     }
     max_used_alarms=alarm_queue.elements+1;
   }
-  reschedule= (!alarm_queue.elements ||
-	      (int) (((ALARM*) queue_top(&alarm_queue))->expire_time - now) >
-	      (int) sec);
+  reschedule= (ulong) next_alarm_expire_time > (ulong) now + sec;
   if (!alarm_data)
   {
     if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
@@ -194,7 +201,9 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
       DBUG_PRINT("info", ("failed my_malloc()"));
       *alrm= 0;					/* No alarm */
       pthread_mutex_unlock(&LOCK_alarm);
+#ifndef USE_ONE_SIGNAL_HAND
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
       DBUG_RETURN(1);
     }
     alarm_data->malloced=1;
@@ -205,19 +214,24 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   alarm_data->alarmed=0;
   alarm_data->thread=    current_my_thread_var->pthread_self;
   alarm_data->thread_id= current_my_thread_var->id;
-  queue_insert(&alarm_queue,(byte*) alarm_data);
+  queue_insert(&alarm_queue,(uchar*) alarm_data);
 
   /* Reschedule alarm if the current one has more than sec left */
   if (reschedule)
   {
     DBUG_PRINT("info", ("reschedule"));
     if (pthread_equal(pthread_self(),alarm_thread))
+    {
       alarm(sec);				/* purecov: inspected */
+      next_alarm_expire_time= now + sec;
+    }
     else
       reschedule_alarms();			/* Reschedule alarms */
   }
   pthread_mutex_unlock(&LOCK_alarm);
+#ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
   (*alrm)= &alarm_data->alarmed;
   DBUG_RETURN(0);
 }
@@ -230,21 +244,25 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 void thr_end_alarm(thr_alarm_t *alarmed)
 {
   ALARM *alarm_data;
+#ifndef USE_ONE_SIGNAL_HAND
   sigset_t old_mask;
+#endif
   uint i, found=0;
   DBUG_ENTER("thr_end_alarm");
 
+#ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
+#endif
   pthread_mutex_lock(&LOCK_alarm);
 
-  alarm_data= (ALARM*) ((byte*) *alarmed - offsetof(ALARM,alarmed));
+  alarm_data= (ALARM*) ((uchar*) *alarmed - offsetof(ALARM,alarmed));
   for (i=0 ; i < alarm_queue.elements ; i++)
   {
     if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
     {
       queue_remove(&alarm_queue,i),MYF(0);
       if (alarm_data->malloced)
-	my_free((gptr) alarm_data,MYF(0));
+	my_free((uchar*) alarm_data,MYF(0));
       found++;
 #ifdef DBUG_OFF
       break;
@@ -261,7 +279,9 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 			  (long) *alarmed));
   }
   pthread_mutex_unlock(&LOCK_alarm);
+#ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -351,7 +371,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
     }
     else
     {
-      ulong now=(ulong) time((time_t*) 0);
+      ulong now=(ulong) my_time(0);
       ulong next=now+10-(now%10);
       while ((alarm_data=(ALARM*) queue_top(&alarm_queue))->expire_time <= now)
       {
@@ -380,9 +400,17 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	alarm(0);				/* Remove old alarm */
 #endif
 	alarm((uint) (alarm_data->expire_time-now));
+        next_alarm_expire_time= alarm_data->expire_time;
       }
 #endif
     }
+  }
+  else
+  {
+    /*
+      Ensure that next time we call thr_alarm(), we will schedule a new alarm
+    */
+    next_alarm_expire_time= ~(time_t) 0;
   }
   DBUG_VOID_RETURN;
 }
@@ -464,7 +492,7 @@ void thr_alarm_kill(my_thread_id thread_id)
     {
       ALARM *tmp=(ALARM*) queue_remove(&alarm_queue,i);
       tmp->expire_time=0;
-      queue_insert(&alarm_queue,(byte*) tmp);
+      queue_insert(&alarm_queue,(uchar*) tmp);
       reschedule_alarms();
       break;
     }
@@ -480,7 +508,7 @@ void thr_alarm_info(ALARM_INFO *info)
   info->max_used_alarms= max_used_alarms;
   if ((info->active_alarms=  alarm_queue.elements))
   {
-    ulong now=(ulong) time((time_t*) 0);
+    ulong now=(ulong) my_time(0);
     long time_diff;
     ALARM *alarm_data= (ALARM*) queue_top(&alarm_queue);
     time_diff= (long) (alarm_data->expire_time - now);
@@ -528,7 +556,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   {
     if (alarm_queue.elements)
     {
-      ulong sleep_time,now=time((time_t*) 0);
+      ulong sleep_time,now= my_time(0);
       if (alarm_aborted)
 	sleep_time=now+1;
       else
@@ -537,6 +565,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
       {
 	abstime.tv_sec=sleep_time;
 	abstime.tv_nsec=0;
+        next_alarm_expire_time= sleep_time;
 	if ((error=pthread_cond_timedwait(&COND_alarm,&LOCK_alarm,&abstime)) &&
 	    error != ETIME && error != ETIMEDOUT)
 	{
@@ -549,12 +578,16 @@ static void *alarm_handler(void *arg __attribute__((unused)))
     }
     else if (alarm_aborted == -1)
       break;
-    else if ((error=pthread_cond_wait(&COND_alarm,&LOCK_alarm)))
+    else
     {
+      next_alarm_expire_time= ~ (time_t) 0;
+      if ((error=pthread_cond_wait(&COND_alarm,&LOCK_alarm)))
+      {
 #ifdef MAIN
-      printf("Got error: %d from ptread_cond_wait (errno: %d)\n",
-	     error,errno);
+        printf("Got error: %d from ptread_cond_wait (errno: %d)\n",
+               error,errno);
 #endif
+      }
     }
     process_alarm(0);
   }
@@ -685,7 +718,7 @@ static void *test_thread(void *arg)
   for (i=1 ; i <= 10 ; i++)
   {
     wait_time=param ? 11-i : i;
-    start_time=time((time_t*) 0);
+    start_time= my_time(0);
     if (thr_alarm(&got_alarm,wait_time,0))
     {
       printf("Thread: %s  Alarms aborted\n",my_thread_name());
@@ -747,7 +780,7 @@ static void *test_thread(void *arg)
       }
     }
     printf("Thread: %s  Slept for %d (%d) sec\n",my_thread_name(),
-	   (int) (time((time_t*) 0)-start_time), wait_time); fflush(stdout);
+	   (int) (my_time(0)-start_time), wait_time); fflush(stdout);
     thr_end_alarm(&got_alarm);
     fflush(stdout);
   }
@@ -755,7 +788,7 @@ static void *test_thread(void *arg)
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
-  free((gptr) arg);
+  free((uchar*) arg);
   return 0;
 }
 

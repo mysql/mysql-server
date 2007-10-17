@@ -83,7 +83,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   word->weight=LWS_FOR_QUERY;
 
-  keylen=_ft_make_key(info,aio->keynr,(char*) keybuff,word,0);
+  keylen=_ft_make_key(info,aio->keynr,keybuff,word,0);
   keylen-=HA_FT_WLEN;
   doc_cnt=0;
 
@@ -189,7 +189,7 @@ static int walk_and_push(FT_SUPERDOC *from,
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit-1);
-  queue_insert(best, (byte *)& from->doc);
+  queue_insert(best, (uchar *)& from->doc);
   DBUG_RETURN(0);
 }
 
@@ -201,8 +201,8 @@ static int FT_DOC_cmp(void *unused __attribute__((unused)),
 }
 
 
-FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
-			    uint query_len, uint flags, byte *record)
+FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
+			    uint query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;
@@ -257,8 +257,12 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
       {
         info->update|= HA_STATE_AKTIV;
         ftparser_param->flags= MYSQL_FTFLAGS_NEED_COPY;
-        _mi_ft_parse(&wtree, info, keynr, record, ftparser_param,
-                     &wtree.mem_root);
+        if (unlikely(_mi_ft_parse(&wtree, info, keynr, record, ftparser_param,
+                                  &wtree.mem_root)))
+        {
+          delete_queue(&best);
+          goto err;
+        }
       }
     }
     delete_queue(&best);
@@ -313,7 +317,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   info->lastpos=handler->doc[handler->curdoc].dpos;
-  if (!(*info->read_record)(info,info->lastpos,record))
+  if (!(*info->read_record)(info,info->lastpos,(uchar*) record))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
@@ -323,7 +327,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
 
 
 float ft_nlq_find_relevance(FT_INFO *handler,
-			    byte *record __attribute__((unused)),
+			    uchar *record __attribute__((unused)),
 			    uint length __attribute__((unused)))
 {
   int a,b,c;
@@ -352,7 +356,7 @@ float ft_nlq_find_relevance(FT_INFO *handler,
 
 void ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((gptr)handler,MYF(0));
+  my_free((uchar*)handler,MYF(0));
 }
 
 

@@ -31,16 +31,6 @@
 
 sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
-/* Macros to look like lex */
-
-#define yyGet()         ((uchar) *(lex->ptr++))
-#define yyGetLast()     ((uchar) lex->ptr[-1])
-#define yyPeek()        ((uchar) lex->ptr[0])
-#define yyPeek2()       ((uchar) lex->ptr[1])
-#define yyUnget()	lex->ptr--
-#define yySkip()	lex->ptr++
-#define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
-
 /* Longest standard keyword name */
 #define TOCK_NAME_LENGTH 24
 
@@ -120,6 +110,167 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
+Lex_input_stream::Lex_input_stream(THD *thd,
+                                   const char* buffer,
+                                   unsigned int length)
+: m_thd(thd),
+  yylineno(1),
+  yytoklen(0),
+  yylval(NULL),
+  m_ptr(buffer),
+  m_tok_start(NULL),
+  m_tok_end(NULL),
+  m_end_of_query(buffer + length),
+  m_tok_start_prev(NULL),
+  m_buf(buffer),
+  m_buf_length(length),
+  m_echo(TRUE),
+  m_cpp_tok_start(NULL),
+  m_cpp_tok_start_prev(NULL),
+  m_cpp_tok_end(NULL),
+  m_body_utf8(NULL),
+  m_cpp_utf8_processed_ptr(NULL),
+  next_state(MY_LEX_START),
+  found_semicolon(NULL),
+  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
+  stmt_prepare_mode(FALSE),
+  in_comment(NO_COMMENT),
+  m_underscore_cs(NULL)
+{
+  m_cpp_buf= (char*) thd->alloc(length + 1);
+  m_cpp_ptr= m_cpp_buf;
+}
+
+Lex_input_stream::~Lex_input_stream()
+{}
+
+/**
+  The operation is called from the parser in order to
+  1) designate the intention to have utf8 body;
+  1) Indicate to the lexer that we will need a utf8 representation of this
+     statement;
+  2) Determine the beginning of the body.
+
+  @param thd        Thread context.
+  @param begin_ptr  Pointer to the start of the body in the pre-processed
+                    buffer.
+*/
+
+void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
+{
+  DBUG_ASSERT(begin_ptr);
+  DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+
+  uint body_utf8_length=
+    (m_buf_length / thd->variables.character_set_client->mbminlen) *
+    my_charset_utf8_bin.mbmaxlen;
+
+  m_body_utf8= (char *) thd->alloc(body_utf8_length + 1);
+  m_body_utf8_ptr= m_body_utf8;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= begin_ptr;
+}
+
+/**
+  @brief The operation appends unprocessed part of pre-processed buffer till
+  the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to end_ptr.
+
+  The idea is that some tokens in the pre-processed buffer (like character
+  set introducers) should be skipped.
+
+  Example:
+    CPP buffer: SELECT 'str1', _latin1 'str2';
+    m_cpp_utf8_processed_ptr -- points at the "SELECT ...";
+    In order to skip "_latin1", the following call should be made:
+      body_utf8_append(<pointer to "_latin1 ...">, <pointer to " 'str2'...">)
+
+  @param ptr      Pointer in the pre-processed buffer, which specifies the
+                  end of the chunk, which should be appended to the utf8
+                  body.
+  @param end_ptr  Pointer in the pre-processed buffer, to which
+                  m_cpp_utf8_processed_ptr will be set in the end of the
+                  operation.
+*/
+
+void Lex_input_stream::body_utf8_append(const char *ptr,
+                                        const char *end_ptr)
+{
+  DBUG_ASSERT(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  DBUG_ASSERT(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+
+  if (!m_body_utf8)
+    return;
+
+  if (m_cpp_utf8_processed_ptr >= ptr)
+    return;
+
+  int bytes_to_copy= ptr - m_cpp_utf8_processed_ptr;
+
+  memcpy(m_body_utf8_ptr, m_cpp_utf8_processed_ptr, bytes_to_copy);
+  m_body_utf8_ptr += bytes_to_copy;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= end_ptr;
+}
+
+/**
+  The operation appends unprocessed part of the pre-processed buffer till
+  the given pointer (ptr) and sets m_cpp_utf8_processed_ptr to ptr.
+
+  @param ptr  Pointer in the pre-processed buffer, which specifies the end
+              of the chunk, which should be appended to the utf8 body.
+*/
+
+void Lex_input_stream::body_utf8_append(const char *ptr)
+{
+  body_utf8_append(ptr, ptr);
+}
+
+/**
+  The operation converts the specified text literal to the utf8 and appends
+  the result to the utf8-body.
+
+  @param thd      Thread context.
+  @param txt      Text literal.
+  @param txt_cs   Character set of the text literal.
+  @param end_ptr  Pointer in the pre-processed buffer, to which
+                  m_cpp_utf8_processed_ptr will be set in the end of the
+                  operation.
+*/
+
+void Lex_input_stream::body_utf8_append_literal(THD *thd,
+                                                const LEX_STRING *txt,
+                                                CHARSET_INFO *txt_cs,
+                                                const char *end_ptr)
+{
+  if (!m_cpp_utf8_processed_ptr)
+    return;
+
+  LEX_STRING utf_txt;
+
+  if (!my_charset_same(txt_cs, &my_charset_utf8_general_ci))
+  {
+    thd->convert_string(&utf_txt,
+                        &my_charset_utf8_general_ci,
+                        txt->str, txt->length,
+                        txt_cs);
+  }
+  else
+  {
+    utf_txt.str= txt->str;
+    utf_txt.length= txt->length;
+  }
+
+  /* NOTE: utf_txt.length is in bytes, not in symbols. */
+
+  memcpy(m_body_utf8_ptr, utf_txt.str, utf_txt.length);
+  m_body_utf8_ptr += utf_txt.length;
+  *m_body_utf8_ptr= 0;
+
+  m_cpp_utf8_processed_ptr= end_ptr;
+}
+
 
 /*
   This is called before every query that is to be parsed.
@@ -127,14 +278,12 @@ st_parsing_options::reset()
   (We already do too much here)
 */
 
-void lex_start(THD *thd, const char *buf, uint length)
+void lex_start(THD *thd)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("lex_start");
 
   lex->thd= lex->unit.thd= thd;
-  lex->buf= lex->ptr= buf;
-  lex->end_of_query= buf+length;
 
   lex->context_stack.empty();
   lex->unit.init_query();
@@ -164,27 +313,20 @@ void lex_start(THD *thd, const char *buf, uint length)
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
-  lex->stmt_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
-  lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
-  lex->next_state=MY_LEX_START;
-  lex->yylineno = 1;
-  lex->in_comment=0;
   lex->length=0;
   lex->part_info= 0;
   lex->select_lex.in_sum_expr=0;
-  lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
-  lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
@@ -193,6 +335,7 @@ void lex_start(THD *thd, const char *buf, uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
+  lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
 
@@ -218,6 +361,7 @@ void lex_start(THD *thd, const char *buf, uint length)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
+
   DBUG_VOID_RETURN;
 }
 
@@ -232,28 +376,34 @@ void lex_end(LEX *lex)
     lex->yacc_yyss= 0;
     lex->yacc_yyvs= 0;
   }
+
+  /* release used plugins */
+  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                     lex->plugins.elements);
+  reset_dynamic(&lex->plugins);
+
   DBUG_VOID_RETURN;
 }
 
 
-static int find_keyword(LEX *lex, uint len, bool function)
+static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 {
-  const char *tok= lex->tok_start;
+  const char *tok= lip->get_tok_start();
 
   SYMBOL *symbol= get_hash_symbol(tok, len, function);
   if (symbol)
   {
-    lex->yylval->symbol.symbol=symbol;
-    lex->yylval->symbol.str= (char*) tok;
-    lex->yylval->symbol.length=len;
-    
+    lip->yylval->symbol.symbol=symbol;
+    lip->yylval->symbol.str= (char*) tok;
+    lip->yylval->symbol.length=len;
+
     if ((symbol->tok == NOT_SYM) &&
-        (lex->thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))
+        (lip->m_thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))
       return NOT2_SYM;
     if ((symbol->tok == OR_OR_SYM) &&
-	!(lex->thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))
+	!(lip->m_thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))
       return OR2_SYM;
-    
+
     return symbol->tok;
   }
   return 0;
@@ -286,12 +436,16 @@ bool is_lex_native_function(const LEX_STRING *name)
 
 /* make a copy of token before ptr and set yytoklen */
 
-static LEX_STRING get_token(LEX *lex,uint length)
+static LEX_STRING get_token(Lex_input_stream *lip, uint skip, uint length)
 {
   LEX_STRING tmp;
-  yyUnget();			// ptr points now after last token char
-  tmp.length=lex->yytoklen=length;
-  tmp.str=(char*) lex->thd->strmake((char*) lex->tok_start,tmp.length);
+  lip->yyUnget();                       // ptr points now after last token char
+  tmp.length=lip->yytoklen=length;
+  tmp.str= lip->m_thd->strmake(lip->get_tok_start() + skip, tmp.length);
+
+  lip->m_cpp_text_start= lip->get_cpp_tok_start() + skip;
+  lip->m_cpp_text_end= lip->m_cpp_text_start + tmp.length;
+
   return tmp;
 }
 
@@ -302,20 +456,30 @@ static LEX_STRING get_token(LEX *lex,uint length)
    future to operate multichar strings (like ucs2)
 */
 
-static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
+static LEX_STRING get_quoted_token(Lex_input_stream *lip,
+                                   uint skip,
+                                   uint length, char quote)
 {
   LEX_STRING tmp;
   const char *from, *end;
   char *to;
-  yyUnget();			// ptr points now after last token char
-  tmp.length=lex->yytoklen=length;
-  tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= lex->tok_start, to= tmp.str, end= to+length ;
-       to != end ;
-       )
+  lip->yyUnget();                       // ptr points now after last token char
+  tmp.length= lip->yytoklen=length;
+  tmp.str=(char*) lip->m_thd->alloc(tmp.length+1);
+  from= lip->get_tok_start() + skip;
+  to= tmp.str;
+  end= to+length;
+
+  lip->m_cpp_text_start= lip->get_cpp_tok_start() + skip;
+  lip->m_cpp_text_end= lip->m_cpp_text_start + length;
+
+  for ( ; to != end; )
   {
     if ((*to++= *from++) == quote)
+    {
       from++;					// Skip double quotes
+      lip->m_cpp_text_start++;
+    }
   }
   *to= 0;					// End null for safety
   return tmp;
@@ -327,57 +491,70 @@ static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
   Fix sometimes to do only one scan of the string
 */
 
-static char *get_text(LEX *lex)
+static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
-  CHARSET_INFO *cs= lex->thd->charset();
+  CHARSET_INFO *cs= lip->m_thd->charset();
 
-  sep= yyGetLast();			// String should end with this
-  while (lex->ptr != lex->end_of_query)
+  lip->tok_bitmap= 0;
+  sep= lip->yyGetLast();                        // String should end with this
+  while (! lip->eof())
   {
-    c = yyGet();
+    c= lip->yyGet();
+    lip->tok_bitmap|= c;
 #ifdef USE_MB
     {
       int l;
       if (use_mb(cs) &&
-          (l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query))) {
-	lex->ptr += l-1;
-	continue;
+          (l = my_ismbchar(cs,
+                           lip->get_ptr() -1,
+                           lip->get_end_of_query()))) {
+        lip->skip_binary(l-1);
+        continue;
       }
     }
 #endif
     if (c == '\\' &&
-	!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
+        !(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
     {					// Escaped character
       found_escape=1;
-      if (lex->ptr == lex->end_of_query)
+      if (lip->eof())
 	return 0;
-      yySkip();
+      lip->yySkip();
     }
     else if (c == sep)
     {
-      if (c == yyGet())			// Check if two separators in a row
+      if (c == lip->yyGet())            // Check if two separators in a row
       {
-	found_escape=1;			// dupplicate. Remember for delete
+        found_escape=1;                 // duplicate. Remember for delete
 	continue;
       }
       else
-	yyUnget();
+        lip->yyUnget();
 
       /* Found end. Unescape and return string */
       const char *str, *end;
       char *start;
 
-      str=lex->tok_start+1;
-      end=lex->ptr-1;
-      if (!(start= (char*) lex->thd->alloc((uint) (end-str)+1)))
+      str= lip->get_tok_start();
+      end= lip->get_ptr();
+      /* Extract the text from the token */
+      str += pre_skip;
+      end -= post_skip;
+      DBUG_ASSERT(end >= str);
+
+      if (!(start= (char*) lip->m_thd->alloc((uint) (end-str)+1)))
 	return (char*) "";		// Sql_alloc has set error flag
+
+      lip->m_cpp_text_start= lip->get_cpp_tok_start() + pre_skip;
+      lip->m_cpp_text_end= lip->get_cpp_ptr() - post_skip;
+
       if (!found_escape)
       {
-	lex->yytoklen=(uint) (end-str);
-	memcpy(start,str,lex->yytoklen);
-	start[lex->yytoklen]=0;
+	lip->yytoklen=(uint) (end-str);
+	memcpy(start,str,lip->yytoklen);
+	start[lip->yytoklen]=0;
       }
       else
       {
@@ -395,7 +572,7 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+	  if (!(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
               *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
@@ -432,7 +609,7 @@ static char *get_text(LEX *lex)
 	    *to++ = *str;
 	}
 	*to=0;
-	lex->yytoklen=(uint) (to-start);
+	lip->yytoklen=(uint) (to-start);
       }
       return start;
     }
@@ -542,39 +719,45 @@ static inline uint int_token(const char *str,uint length)
 int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
+  bool comment_closed;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
-  LEX	*lex= ((THD *)yythd)->lex;
+  THD *thd= (THD *)yythd;
+  Lex_input_stream *lip= thd->m_lip;
+  LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= ((THD *) yythd)->charset();
+  CHARSET_INFO *cs= thd->charset();
   uchar *state_map= cs->state_map;
   uchar *ident_map= cs->ident_map;
 
-  lex->yylval=yylval;			// The global state
+  lip->yylval=yylval;			// The global state
 
-  lex->tok_start_prev= lex->tok_start;
-
-  lex->tok_start=lex->tok_end=lex->ptr;
-  state=lex->next_state;
-  lex->next_state=MY_LEX_OPERATOR_OR_IDENT;
+  lip->start_token();
+  state=lip->next_state;
+  lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
   LINT_INIT(c);
   for (;;)
   {
     switch (state) {
     case MY_LEX_OPERATOR_OR_IDENT:	// Next is operator or keyword
     case MY_LEX_START:			// Start of token
-      // Skip startspace
-      for (c=yyGet() ; (state_map[c] == MY_LEX_SKIP) ; c= yyGet())
+      // Skip starting whitespace
+      while(state_map[c= lip->yyPeek()] == MY_LEX_SKIP)
       {
 	if (c == '\n')
-	  lex->yylineno++;
+	  lip->yylineno++;
+
+        lip->yySkip();
       }
-      lex->tok_start=lex->ptr-1;	// Start of real token
+
+      /* Start of real token */
+      lip->restart_token();
+      c= lip->yyGet();
       state= (enum my_lex_states) state_map[c];
       break;
     case MY_LEX_ESCAPE:
-      if (yyGet() == 'N')
+      if (lip->yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
@@ -582,55 +765,69 @@ int MYSQLlex(void *arg, void *yythd)
       }
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
-      if (c == '-' && yyPeek() == '-' &&
-          (my_isspace(cs,yyPeek2()) || 
-           my_iscntrl(cs,yyPeek2())))
+      if (c == '-' && lip->yyPeek() == '-' &&
+          (my_isspace(cs,lip->yyPeekn(1)) ||
+           my_iscntrl(cs,lip->yyPeekn(1))))
       {
         state=MY_LEX_COMMENT;
         break;
       }
-      yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
-      yylval->lex_str.length=1;
-      c=yyGet();
+
       if (c != ')')
-	lex->next_state= MY_LEX_START;	// Allow signed numbers
+	lip->next_state= MY_LEX_START;	// Allow signed numbers
+
       if (c == ',')
-	lex->tok_start=lex->ptr;	// Let tok_start point at next item
-      /*
-        Check for a placeholder: it should not precede a possible identifier
-        because of binlogging: when a placeholder is replaced with
-        its value in a query for the binlog, the query must stay
-        grammatically correct.
-      */
-      else if (c == '?' && lex->stmt_prepare_mode && !ident_map[yyPeek()])
+      {
+        /*
+          Warning:
+          This is a work around, to make the "remember_name" rule in
+          sql/sql_yacc.yy work properly.
+          The problem is that, when parsing "select expr1, expr2",
+          the code generated by bison executes the *pre* action
+          remember_name (see select_item) *before* actually parsing the
+          first token of expr2.
+        */
+        lip->restart_token();
+      }
+      else
+      {
+        /*
+          Check for a placeholder: it should not precede a possible identifier
+          because of binlogging: when a placeholder is replaced with
+          its value in a query for the binlog, the query must stay
+          grammatically correct.
+        */
+        if (c == '?' && lip->stmt_prepare_mode && !ident_map[lip->yyPeek()])
         return(PARAM_MARKER);
+      }
+
       return((int) c);
 
     case MY_LEX_IDENT_OR_NCHAR:
-      if (yyPeek() != '\'')
-      {					
+      if (lip->yyPeek() != '\'')
+      {
 	state= MY_LEX_IDENT;
 	break;
       }
       /* Found N'string' */
-      lex->tok_start++;                 // Skip N
-      yySkip();                         // Skip '
-      if (!(yylval->lex_str.str = get_text(lex)))
+      lip->yySkip();                         // Skip '
+      if (!(yylval->lex_str.str = get_text(lip, 2, 1)))
       {
 	state= MY_LEX_CHAR;             // Read char by char
 	break;
       }
-      yylval->lex_str.length= lex->yytoklen;
+      yylval->lex_str.length= lip->yytoklen;
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(NCHAR_STRING);
 
     case MY_LEX_IDENT_OR_HEX:
-      if (yyPeek() == '\'')
+      if (lip->yyPeek() == '\'')
       {					// Found x'hex-number'
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
     case MY_LEX_IDENT_OR_BIN:
-      if (yyPeek() == '\'')
+      if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
@@ -641,82 +838,133 @@ int MYSQLlex(void *arg, void *yythd)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
-        if (my_mbcharlen(cs, yyGetLast()) > 1)
+        if (my_mbcharlen(cs, lip->yyGetLast()) > 1)
         {
-          int l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query);
+          int l = my_ismbchar(cs,
+                              lip->get_ptr() -1,
+                              lip->get_end_of_query());
           if (l == 0) {
             state = MY_LEX_CHAR;
             continue;
           }
-          lex->ptr += l - 1;
+          lip->skip_binary(l - 1);
         }
-        while (ident_map[c=yyGet()])
+        while (ident_map[c=lip->yyGet()])
         {
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs,
+                                 lip->get_ptr() -1,
+                                 lip->get_end_of_query())) == 0)
               break;
-            lex->ptr += l-1;
+            lip->skip_binary(l-1);
           }
         }
       }
       else
 #endif
       {
-        for (result_state= c; ident_map[c= yyGet()]; result_state|= c);
+        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c);
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
-      length= (uint) (lex->ptr - lex->tok_start)-1;
-      start= lex->ptr;
-      if (lex->ignore_space)
+      length= lip->yyLength();
+      start= lip->get_ptr();
+      if (lip->ignore_space)
       {
         /*
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
+        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet());
       }
-      if (start == lex->ptr && c == '.' && ident_map[yyPeek()])
-	lex->next_state=MY_LEX_IDENT_SEP;
+      if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
+	lip->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
-	yyUnget();
-	if ((tokval = find_keyword(lex,length,c == '(')))
+        lip->yyUnget();
+	if ((tokval = find_keyword(lip, length, c == '(')))
 	{
-	  lex->next_state= MY_LEX_START;	// Allow signed numbers
+	  lip->next_state= MY_LEX_START;	// Allow signed numbers
 	  return(tokval);		// Was keyword
 	}
-	yySkip();			// next state does a unget
+        lip->yySkip();                  // next state does a unget
       }
-      yylval->lex_str=get_token(lex,length);
+      yylval->lex_str=get_token(lip, 0, length);
 
-      /* 
+      /*
          Note: "SELECT _bla AS 'alias'"
          _bla should be considered as a IDENT if charset haven't been found.
-         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid 
+         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid
          producing an error.
       */
 
-      if ((yylval->lex_str.str[0]=='_') && 
-          (lex->underscore_charset=
-             get_charset_by_csname(yylval->lex_str.str + 1,
-                                   MY_CS_PRIMARY,MYF(0))))
-        return(UNDERSCORE_CHARSET);
+      if (yylval->lex_str.str[0] == '_')
+      {
+        CHARSET_INFO *cs= get_charset_by_csname(yylval->lex_str.str + 1,
+                                                MY_CS_PRIMARY, MYF(0));
+        if (cs)
+        {
+          yylval->charset= cs;
+          lip->m_underscore_cs= cs;
+
+          lip->body_utf8_append(lip->m_cpp_text_start,
+                                lip->get_cpp_tok_start() + length);
+          return(UNDERSCORE_CHARSET);
+        }
+      }
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);			// IDENT or IDENT_QUOTED
 
     case MY_LEX_IDENT_SEP:		// Found ident and now '.'
-      yylval->lex_str.str=(char*) lex->ptr;
-      yylval->lex_str.length=1;
-      c=yyGet();			// should be '.'
-      lex->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
-      if (!ident_map[yyPeek()])		// Probably ` or "
-	lex->next_state= MY_LEX_START;
+      yylval->lex_str.str= (char*) lip->get_ptr();
+      yylval->lex_str.length= 1;
+      c= lip->yyGet();                  // should be '.'
+      lip->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
+      if (!ident_map[lip->yyPeek()])            // Probably ` or "
+	lip->next_state= MY_LEX_START;
       return((int) c);
 
     case MY_LEX_NUMBER_IDENT:		// number or ident which num-start
-      while (my_isdigit(cs,(c = yyGet()))) ;
+      if (lip->yyGetLast() == '0')
+      {
+        c= lip->yyGet();
+        if (c == 'x')
+        {
+          while (my_isxdigit(cs,(c = lip->yyGet()))) ;
+          if ((lip->yyLength() >= 3) && !ident_map[c])
+          {
+            /* skip '0x' */
+            yylval->lex_str=get_token(lip, 2, lip->yyLength()-2);
+            return (HEX_NUM);
+          }
+          lip->yyUnget();
+          state= MY_LEX_IDENT_START;
+          break;
+        }
+        else if (c == 'b')
+        {
+          while ((c= lip->yyGet()) == '0' || c == '1');
+          if ((lip->yyLength() >= 3) && !ident_map[c])
+          {
+            /* Skip '0b' */
+            yylval->lex_str= get_token(lip, 2, lip->yyLength()-2);
+            return (BIN_NUM);
+          }
+          lip->yyUnget();
+          state= MY_LEX_IDENT_START;
+          break;
+        }
+        lip->yyUnget();
+      }
+
+      while (my_isdigit(cs, (c = lip->yyGet()))) ;
       if (!ident_map[c])
       {					// Can't be identifier
 	state=MY_LEX_INT_OR_REAL;
@@ -725,46 +973,18 @@ int MYSQLlex(void *arg, void *yythd)
       if (c == 'e' || c == 'E')
       {
 	// The following test is written this way to allow numbers of type 1e1
-	if (my_isdigit(cs,yyPeek()) || 
-            (c=(yyGet())) == '+' || c == '-')
+        if (my_isdigit(cs,lip->yyPeek()) ||
+            (c=(lip->yyGet())) == '+' || c == '-')
 	{				// Allow 1E+10
-	  if (my_isdigit(cs,yyPeek()))	// Number must have digit after sign
+          if (my_isdigit(cs,lip->yyPeek()))     // Number must have digit after sign
 	  {
-	    yySkip();
-	    while (my_isdigit(cs,yyGet())) ;
-	    yylval->lex_str=get_token(lex,yyLength());
+            lip->yySkip();
+            while (my_isdigit(cs,lip->yyGet())) ;
+            yylval->lex_str=get_token(lip, 0, lip->yyLength());
 	    return(FLOAT_NUM);
 	  }
 	}
-	yyUnget(); /* purecov: inspected */
-      }
-      else if (c == 'x' && (lex->ptr - lex->tok_start) == 2 &&
-	  lex->tok_start[0] == '0' )
-      {						// Varbinary
-	while (my_isxdigit(cs,(c = yyGet()))) ;
-	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
-	{
-	  yylval->lex_str=get_token(lex,yyLength());
-	  yylval->lex_str.str+=2;		// Skip 0x
-	  yylval->lex_str.length-=2;
-	  lex->yytoklen-=2;
-	  return (HEX_NUM);
-	}
-	yyUnget();
-      }
-      else if (c == 'b' && (lex->ptr - lex->tok_start) == 2 &&
-               lex->tok_start[0] == '0' )
-      {						// b'bin-number'
-	while (my_isxdigit(cs,(c = yyGet()))) ;
-	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
-	{
-	  yylval->lex_str= get_token(lex, yyLength());
-	  yylval->lex_str.str+= 2;		// Skip 0x
-	  yylval->lex_str.length-= 2;
-	  lex->yytoklen-= 2;
-	  return (BIN_NUM);
-	}
-	yyUnget();
+        lip->yyUnget();
       }
       // fall through
     case MY_LEX_IDENT_START:			// We come here after '.'
@@ -773,45 +993,52 @@ int MYSQLlex(void *arg, void *yythd)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
-        while (ident_map[c=yyGet()])
+        while (ident_map[c=lip->yyGet()])
         {
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
-            if ((l = my_ismbchar(cs, lex->ptr-1, lex->end_of_query)) == 0)
+            if ((l = my_ismbchar(cs,
+                                 lip->get_ptr() -1,
+                                 lip->get_end_of_query())) == 0)
               break;
-            lex->ptr += l-1;
+            lip->skip_binary(l-1);
           }
         }
       }
       else
 #endif
       {
-        for (result_state=0; ident_map[c= yyGet()]; result_state|= c);
+        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c);
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
-      if (c == '.' && ident_map[yyPeek()])
-	lex->next_state=MY_LEX_IDENT_SEP;// Next is '.'
+      if (c == '.' && ident_map[lip->yyPeek()])
+	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
-      yylval->lex_str= get_token(lex,yyLength());
+      yylval->lex_str= get_token(lip, 0, lip->yyLength());
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);
 
     case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
-      lex->tok_start=lex->ptr;			// Skip first `
-      while ((c=yyGet()))
+      while ((c=lip->yyGet()))
       {
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == quote_char)
 	  {
-	    if (yyPeek() != quote_char)
+            if (lip->yyPeek() != quote_char)
 	      break;
-	    c=yyGet();
+            c=lip->yyGet();
 	    double_quotes++;
 	    continue;
 	  }
@@ -819,252 +1046,348 @@ int MYSQLlex(void *arg, void *yythd)
 #ifdef USE_MB
 	else if (var_length < 1)
 	  break;				// Error
-	lex->ptr+= var_length-1;
+        lip->skip_binary(var_length-1);
 #endif
       }
       if (double_quotes)
-	yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
+	yylval->lex_str=get_quoted_token(lip, 1,
+                                         lip->yyLength() - double_quotes -1,
 					 quote_char);
       else
-	yylval->lex_str=get_token(lex,yyLength());
+        yylval->lex_str=get_token(lip, 1, lip->yyLength() -1);
       if (c == quote_char)
-	yySkip();			// Skip end `
-      lex->next_state= MY_LEX_START;
+        lip->yySkip();                  // Skip end `
+      lip->next_state= MY_LEX_START;
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(IDENT_QUOTED);
     }
-    case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
+    case MY_LEX_INT_OR_REAL:		// Complete int or incomplete real
       if (c != '.')
       {					// Found complete integer number.
-	yylval->lex_str=get_token(lex,yyLength());
+        yylval->lex_str=get_token(lip, 0, lip->yyLength());
 	return int_token(yylval->lex_str.str,yylval->lex_str.length);
       }
       // fall through
     case MY_LEX_REAL:			// Incomplete real number
-      while (my_isdigit(cs,c = yyGet())) ;
+      while (my_isdigit(cs,c = lip->yyGet())) ;
 
       if (c == 'e' || c == 'E')
       {
-	c = yyGet();
+        c = lip->yyGet();
 	if (c == '-' || c == '+')
-	  c = yyGet();			// Skip sign
+          c = lip->yyGet();                     // Skip sign
 	if (!my_isdigit(cs,c))
 	{				// No digit after sign
 	  state= MY_LEX_CHAR;
 	  break;
 	}
-	while (my_isdigit(cs,yyGet())) ;
-	yylval->lex_str=get_token(lex,yyLength());
+        while (my_isdigit(cs,lip->yyGet())) ;
+        yylval->lex_str=get_token(lip, 0, lip->yyLength());
 	return(FLOAT_NUM);
       }
-      yylval->lex_str=get_token(lex,yyLength());
+      yylval->lex_str=get_token(lip, 0, lip->yyLength());
       return(DECIMAL_NUM);
 
     case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
-      yyGet();				// Skip '
-      while (my_isxdigit(cs,(c = yyGet()))) ;
-      length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
-      if (!(length & 1) || c != '\'')
-      {
-	return(ABORT_SYM);		// Illegal hex constant
-      }
-      yyGet();				// get_token makes an unget
-      yylval->lex_str=get_token(lex,length);
-      yylval->lex_str.str+=2;		// Skip x'
-      yylval->lex_str.length-=3;	// Don't count x' and last '
-      lex->yytoklen-=3;
+      lip->yySkip();                    // Accept opening '
+      while (my_isxdigit(cs, (c= lip->yyGet()))) ;
+      if (c != '\'')
+        return(ABORT_SYM);              // Illegal hex constant
+      lip->yySkip();                    // Accept closing '
+      length= lip->yyLength();          // Length of hexnum+3
+      if ((length % 2) == 0)
+        return(ABORT_SYM);              // odd number of hex digits
+      yylval->lex_str=get_token(lip,
+                                2,          // skip x'
+                                length-3);  // don't count x' and last '
       return (HEX_NUM);
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
-      yyGet();                                // Skip '
-      while ((c= yyGet()) == '0' || c == '1');
-      length= (lex->ptr - lex->tok_start);    // Length of bin-num + 3
+      lip->yySkip();                  // Accept opening '
+      while ((c= lip->yyGet()) == '0' || c == '1');
       if (c != '\'')
-      return(ABORT_SYM);              // Illegal hex constant
-      yyGet();                        // get_token makes an unget
-      yylval->lex_str= get_token(lex, length);
-      yylval->lex_str.str+= 2;        // Skip b'
-      yylval->lex_str.length-= 3;     // Don't count b' and last '
-      lex->yytoklen-= 3;
-      return (BIN_NUM); 
+        return(ABORT_SYM);            // Illegal hex constant
+      lip->yySkip();                  // Accept closing '
+      length= lip->yyLength();        // Length of bin-num + 3
+      yylval->lex_str= get_token(lip,
+                                 2,         // skip b'
+                                 length-3); // don't count b' and last '
+      return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
-      if (state_map[yyPeek()] == MY_LEX_CMP_OP ||
-	  state_map[yyPeek()] == MY_LEX_LONG_CMP_OP)
-	yySkip();
-      if ((tokval = find_keyword(lex,(uint) (lex->ptr - lex->tok_start),0)))
+      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+        lip->yySkip();
+      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
       {
-	lex->next_state= MY_LEX_START;	// Allow signed numbers
+	lip->next_state= MY_LEX_START;	// Allow signed numbers
 	return(tokval);
       }
       state = MY_LEX_CHAR;		// Something fishy found
       break;
 
     case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
-      if (state_map[yyPeek()] == MY_LEX_CMP_OP ||
-	  state_map[yyPeek()] == MY_LEX_LONG_CMP_OP)
+      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
-	yySkip();
-	if (state_map[yyPeek()] == MY_LEX_CMP_OP)
-	  yySkip();
+        lip->yySkip();
+        if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP)
+          lip->yySkip();
       }
-      if ((tokval = find_keyword(lex,(uint) (lex->ptr - lex->tok_start),0)))
+      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
       {
-	lex->next_state= MY_LEX_START;	// Found long op
+	lip->next_state= MY_LEX_START;	// Found long op
 	return(tokval);
       }
       state = MY_LEX_CHAR;		// Something fishy found
       break;
 
     case MY_LEX_BOOL:
-      if (c != yyPeek())
+      if (c != lip->yyPeek())
       {
 	state=MY_LEX_CHAR;
 	break;
       }
-      yySkip();
-      tokval = find_keyword(lex,2,0);	// Is a bool operator
-      lex->next_state= MY_LEX_START;	// Allow signed numbers
+      lip->yySkip();
+      tokval = find_keyword(lip,2,0);	// Is a bool operator
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
       return(tokval);
 
     case MY_LEX_STRING_OR_DELIMITER:
-      if (((THD *) yythd)->variables.sql_mode & MODE_ANSI_QUOTES)
+      if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
       {
 	state= MY_LEX_USER_VARIABLE_DELIMITER;
 	break;
       }
       /* " used for strings */
     case MY_LEX_STRING:			// Incomplete text string
-      if (!(yylval->lex_str.str = get_text(lex)))
+      if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
       {
 	state= MY_LEX_CHAR;		// Read char by char
 	break;
       }
-      yylval->lex_str.length=lex->yytoklen;
+      yylval->lex_str.length=lip->yytoklen;
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str,
+        lip->m_underscore_cs ? lip->m_underscore_cs : cs,
+        lip->m_cpp_text_end);
+
+      lip->m_underscore_cs= NULL;
+
+      lex->text_string_is_7bit= (lip->tok_bitmap & 0x80) ? 0 : 1;
       return(TEXT_STRING);
 
     case MY_LEX_COMMENT:			//  Comment
       lex->select_lex.options|= OPTION_FOUND_COMMENT;
-      while ((c = yyGet()) != '\n' && c) ;
-      yyUnget();			// Safety against eof
+      while ((c = lip->yyGet()) != '\n' && c) ;
+      lip->yyUnget();                   // Safety against eof
       state = MY_LEX_START;		// Try again
       break;
     case MY_LEX_LONG_COMMENT:		/* Long C comment? */
-      if (yyPeek() != '*')
+      if (lip->yyPeek() != '*')
       {
 	state=MY_LEX_CHAR;		// Probable division
 	break;
       }
-      yySkip();				// Skip '*'
       lex->select_lex.options|= OPTION_FOUND_COMMENT;
-      if (yyPeek() == '!')		// MySQL command in comment
+      /* Reject '/' '*', since we might need to turn off the echo */
+      lip->yyUnget();
+
+      if (lip->yyPeekn(2) == '!')
       {
-	ulong version=MYSQL_VERSION_ID;
-	yySkip();
-	state=MY_LEX_START;
-	if (my_isdigit(cs,yyPeek()))
-	{				// Version number
-	  version=strtol((char*) lex->ptr,(char**) &lex->ptr,10);
-	}
-	if (version <= MYSQL_VERSION_ID)
-	{
-	  lex->in_comment=1;
-	  break;
-	}
+        lip->in_comment= DISCARD_COMMENT;
+        /* Accept '/' '*' '!', but do not keep this marker. */
+        lip->set_echo(FALSE);
+        lip->yySkip();
+        lip->yySkip();
+        lip->yySkip();
+
+        /*
+          The special comment format is very strict:
+          '/' '*' '!', followed by exactly
+          1 digit (major), 2 digits (minor), then 2 digits (dot).
+          32302 -> 3.23.02
+          50032 -> 5.0.32
+          50114 -> 5.1.14
+        */
+        char version_str[6];
+        version_str[0]= lip->yyPeekn(0);
+        version_str[1]= lip->yyPeekn(1);
+        version_str[2]= lip->yyPeekn(2);
+        version_str[3]= lip->yyPeekn(3);
+        version_str[4]= lip->yyPeekn(4);
+        version_str[5]= 0;
+        if (  my_isdigit(cs, version_str[0])
+           && my_isdigit(cs, version_str[1])
+           && my_isdigit(cs, version_str[2])
+           && my_isdigit(cs, version_str[3])
+           && my_isdigit(cs, version_str[4])
+           )
+        {
+          ulong version;
+          version=strtol(version_str, NULL, 10);
+
+          /* Accept 'M' 'm' 'm' 'd' 'd' */
+          lip->yySkipn(5);
+
+          if (version <= MYSQL_VERSION_ID)
+          {
+            /* Expand the content of the special comment as real code */
+            lip->set_echo(TRUE);
+            state=MY_LEX_START;
+            break;
+          }
+        }
+        else
+        {
+          state=MY_LEX_START;
+          lip->set_echo(TRUE);
+          break;
+        }
       }
-      while (lex->ptr != lex->end_of_query &&
-	     ((c=yyGet()) != '*' || yyPeek() != '/'))
+      else
       {
-	if (c == '\n')
-	  lex->yylineno++;
+        lip->in_comment= PRESERVE_COMMENT;
+        lip->yySkip();                  // Accept /
+        lip->yySkip();                  // Accept *
       }
-      if (lex->ptr != lex->end_of_query)
-	yySkip();			// remove last '/'
-      state = MY_LEX_START;		// Try again
+      /*
+        Discard:
+        - regular '/' '*' comments,
+        - special comments '/' '*' '!' for a future version,
+        by scanning until we find a closing '*' '/' marker.
+        Note: There is no such thing as nesting comments,
+        the first '*' '/' sequence seen will mark the end.
+      */
+      comment_closed= FALSE;
+      while (! lip->eof())
+      {
+        c= lip->yyGet();
+        if (c == '*')
+        {
+          if (lip->yyPeek() == '/')
+          {
+            lip->yySkip();
+            comment_closed= TRUE;
+            state = MY_LEX_START;
+            break;
+          }
+        }
+        else if (c == '\n')
+          lip->yylineno++;
+      }
+      /* Unbalanced comments with a missing '*' '/' are a syntax error */
+      if (! comment_closed)
+        return (ABORT_SYM);
+      state = MY_LEX_START;             // Try again
+      lip->in_comment= NO_COMMENT;
+      lip->set_echo(TRUE);
       break;
     case MY_LEX_END_LONG_COMMENT:
-      if (lex->in_comment && yyPeek() == '/')
+      if ((lip->in_comment != NO_COMMENT) && lip->yyPeek() == '/')
       {
-	yySkip();
-	lex->in_comment=0;
-	state=MY_LEX_START;
+        /* Reject '*' '/' */
+        lip->yyUnget();
+        /* Accept '*' '/', with the proper echo */
+        lip->set_echo(lip->in_comment == PRESERVE_COMMENT);
+        lip->yySkipn(2);
+        /* And start recording the tokens again */
+        lip->set_echo(TRUE);
+        lip->in_comment=NO_COMMENT;
+        state=MY_LEX_START;
       }
       else
 	state=MY_LEX_CHAR;		// Return '*'
       break;
     case MY_LEX_SET_VAR:		// Check if ':='
-      if (yyPeek() != '=')
+      if (lip->yyPeek() != '=')
       {
 	state=MY_LEX_CHAR;		// Return ':'
 	break;
       }
-      yySkip();
+      lip->yySkip();
       return (SET_VAR);
     case MY_LEX_SEMICOLON:			// optional line terminator
-      if (yyPeek())
+      if (lip->yyPeek())
       {
-        THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            !lex->stmt_prepare_mode)
+            !lip->stmt_prepare_mode)
         {
 	  lex->safe_to_cache_query= 0;
-          lex->found_semicolon=(char*) lex->ptr;
+          lip->found_semicolon= lip->get_ptr();
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-          lex->next_state=     MY_LEX_END;
+          lip->next_state= MY_LEX_END;
+          lip->set_echo(TRUE);
           return (END_OF_INPUT);
         }
         state= MY_LEX_CHAR;		// Return ';'
 	break;
       }
-      /* fall true */
+      lip->next_state=MY_LEX_END;       // Mark for next loop
+      return(END_OF_INPUT);
     case MY_LEX_EOL:
-      if (lex->ptr >= lex->end_of_query)
+      if (lip->eof())
       {
-	lex->next_state=MY_LEX_END;	// Mark for next loop
-	return(END_OF_INPUT);
+        lip->yyUnget();                 // Reject the last '\0'
+        lip->set_echo(FALSE);
+        lip->yySkip();
+        lip->set_echo(TRUE);
+        /* Unbalanced comments with a missing '*' '/' are a syntax error */
+        if (lip->in_comment != NO_COMMENT)
+          return (ABORT_SYM);
+        lip->next_state=MY_LEX_END;     // Mark for next loop
+        return(END_OF_INPUT);
       }
       state=MY_LEX_CHAR;
       break;
     case MY_LEX_END:
-      lex->next_state=MY_LEX_END;
+      lip->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
       
       /* Actually real shouldn't start with . but allow them anyhow */
     case MY_LEX_REAL_OR_POINT:
-      if (my_isdigit(cs,yyPeek()))
+      if (my_isdigit(cs,lip->yyPeek()))
 	state = MY_LEX_REAL;		// Real
       else
       {
 	state= MY_LEX_IDENT_SEP;	// return '.'
-	yyUnget();			// Put back '.'
+        lip->yyUnget();                 // Put back '.'
       }
       break;
     case MY_LEX_USER_END:		// end '@' of user@hostname
-      switch (state_map[yyPeek()]) {
+      switch (state_map[lip->yyPeek()]) {
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
 	break;
       case MY_LEX_USER_END:
-	lex->next_state=MY_LEX_SYSTEM_VAR;
+	lip->next_state=MY_LEX_SYSTEM_VAR;
 	break;
       default:
-	lex->next_state=MY_LEX_HOSTNAME;
+	lip->next_state=MY_LEX_HOSTNAME;
 	break;
       }
-      yylval->lex_str.str=(char*) lex->ptr;
+      yylval->lex_str.str=(char*) lip->get_ptr();
       yylval->lex_str.length=1;
       return((int) '@');
     case MY_LEX_HOSTNAME:		// end '@' of user@hostname
-      for (c=yyGet() ; 
+      for (c=lip->yyGet() ;
 	   my_isalnum(cs,c) || c == '.' || c == '_' ||  c == '$';
-	   c= yyGet()) ;
-      yylval->lex_str=get_token(lex,yyLength());
+           c= lip->yyGet()) ;
+      yylval->lex_str=get_token(lip, 0, lip->yyLength());
       return(LEX_HOSTNAME);
     case MY_LEX_SYSTEM_VAR:
-      yylval->lex_str.str=(char*) lex->ptr;
+      yylval->lex_str.str=(char*) lip->get_ptr();
       yylval->lex_str.length=1;
-      yySkip();					// Skip '@'
-      lex->next_state= (state_map[yyPeek()] ==
+      lip->yySkip();                                    // Skip '@'
+      lip->next_state= (state_map[lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
 			MY_LEX_OPERATOR_OR_IDENT :
 			MY_LEX_IDENT_OR_KEYWORD);
@@ -1075,50 +1398,102 @@ int MYSQLlex(void *arg, void *yythd)
 	We should now be able to handle:
 	[(global | local | session) .]variable_name
       */
-      
-      for (result_state= 0; ident_map[c= yyGet()]; result_state|= c);
+
+      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c);
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
-      
+
       if (c == '.')
-	lex->next_state=MY_LEX_IDENT_SEP;
-      length= (uint) (lex->ptr - lex->tok_start)-1;
-      if (length == 0) 
+	lip->next_state=MY_LEX_IDENT_SEP;
+      length= lip->yyLength();
+      if (length == 0)
         return(ABORT_SYM);              // Names must be nonempty.
-      if ((tokval= find_keyword(lex,length,0)))
+      if ((tokval= find_keyword(lip, length,0)))
       {
-	yyUnget();				// Put back 'c'
+        lip->yyUnget();                         // Put back 'c'
 	return(tokval);				// Was keyword
       }
-      yylval->lex_str=get_token(lex,length);
+      yylval->lex_str=get_token(lip, 0, length);
+
+      lip->body_utf8_append(lip->m_cpp_text_start);
+
+      lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                    lip->m_cpp_text_end);
+
       return(result_state);
     }
   }
 }
 
 
-/*
-  Skip comment in the end of statement.
+/**
+  Construct a copy of this object to be used for mysql_alter_table
+  and mysql_create_table.
 
-  SYNOPSIS
-    skip_rear_comments()
-      begin   pointer to the beginning of statement
-      end     pointer to the end of statement
+  Historically, these two functions modify their Alter_info
+  arguments. This behaviour breaks re-execution of prepared
+  statements and stored procedures and is compensated by always
+  supplying a copy of Alter_info to these functions.
 
-  DESCRIPTION
-    The function is intended to trim comments at the end of the statement.
-
-  RETURN
-    Pointer to the last non-comment symbol of the statement.
+  @return You need to use check the error in THD for out
+  of memory condition after calling this function.
 */
 
-const char *skip_rear_comments(const char *begin, const char *end)
+Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
+  :drop_list(rhs.drop_list, mem_root),
+  alter_list(rhs.alter_list, mem_root),
+  key_list(rhs.key_list, mem_root),
+  create_list(rhs.create_list, mem_root),
+  flags(rhs.flags),
+  keys_onoff(rhs.keys_onoff),
+  tablespace_op(rhs.tablespace_op),
+  partition_names(rhs.partition_names, mem_root),
+  no_parts(rhs.no_parts),
+  change_level(rhs.change_level),
+  datetime_field(rhs.datetime_field),
+  error_if_not_empty(rhs.error_if_not_empty)
 {
-  while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
-                         end[-1] == '/' || end[-1] == ';'))
-    end-= 1;
-  return end;
+  /*
+    Make deep copies of used objects.
+    This is not a fully deep copy - clone() implementations
+    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
+    do not copy string constants. At the same length the only
+    reason we make a copy currently is that ALTER/CREATE TABLE
+    code changes input Alter_info definitions, but string
+    constants never change.
+  */
+  list_copy_and_replace_each_value(drop_list, mem_root);
+  list_copy_and_replace_each_value(alter_list, mem_root);
+  list_copy_and_replace_each_value(key_list, mem_root);
+  list_copy_and_replace_each_value(create_list, mem_root);
+  /* partition_names are not deeply copied currently */
 }
+
+
+void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str)
+{
+  /*
+    TODO:
+    This code assumes that there are no multi-bytes characters
+    that can be considered white-space.
+  */
+
+  while ((str->length > 0) && (my_isspace(cs, str->str[0])))
+  {
+    str->length --;
+    str->str ++;
+  }
+
+  /*
+    FIXME:
+    Also, parsing backward is not safe with multi bytes characters
+  */
+  while ((str->length > 0) && (my_isspace(cs, str->str[str->length-1])))
+  {
+    str->length --;
+  }
+}
+
 
 /*
   st_select_lex structures initialisations
@@ -1181,6 +1556,7 @@ void st_select_lex::init_query()
   */
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
+  max_equal_elems= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_where_fields= 0;
@@ -1206,7 +1582,6 @@ void st_select_lex::init_select()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
-  expr_list.empty();
   interval_list.empty();
   ftfunc_list_alloc.empty();
   inner_sum_func_list= 0;
@@ -1214,7 +1589,7 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (byte**) &order_list.first;
+  order_list.next= (uchar**) &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -1401,7 +1776,7 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(SELECT_LEX *last)
+void st_select_lex::mark_as_dependent(st_select_lex *last)
 {
   /*
     Mark all selects from resolved to 1 before select where was
@@ -1438,7 +1813,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
-						  List<index_hint> *hints,
+						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -1700,6 +2075,17 @@ void st_lex::cleanup_lex_after_parse_error(THD *thd)
 
 void Query_tables_list::reset_query_tables_list(bool init)
 {
+  if (!init && query_tables)
+  {
+    TABLE_LIST *table= query_tables;
+    for (;;)
+    {
+      delete table->view;
+      if (query_tables_last == &table->next_global ||
+          !(table= table->next_global))
+        break;
+    }
+  }
   query_tables= 0;
   query_tables_last= &query_tables;
   query_tables_own_last= 0;
@@ -1719,7 +2105,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
-  binlog_row_based_if_mixed= FALSE;
+  binlog_stmt_flags= 0;
 }
 
 
@@ -1752,8 +2138,13 @@ void Query_tables_list::destroy_query_tables_list()
 
 st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
-   sql_command(SQLCOM_END)
+   sql_command(SQLCOM_END), option_type(OPT_DEFAULT)
 {
+
+  my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
+                         plugins_static_buffer,
+                         INITIAL_LEX_PLUGIN_LIST_SIZE, 
+                         INITIAL_LEX_PLUGIN_LIST_SIZE);
   reset_query_tables_list(TRUE);
 }
 
@@ -1949,7 +2340,7 @@ bool st_lex::need_correct_ident()
     VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
 */
 
-uint8 st_lex::get_effective_with_check(st_table_list *view)
+uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 {
   if (view->select_lex->master_unit() == &unit &&
       which_check_option_applicable())
@@ -1957,6 +2348,43 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
   return VIEW_CHECK_NONE;
 }
 
+
+/**
+  This method should be called only during parsing.
+  It is aware of compound statements (stored routine bodies)
+  and will initialize the destination with the default
+  database of the stored routine, rather than the default
+  database of the connection it is parsed in.
+  E.g. if one has no current database selected, or current database 
+  set to 'bar' and then issues:
+
+  CREATE PROCEDURE foo.p1() BEGIN SELECT * FROM t1 END//
+
+  t1 is meant to refer to foo.t1, not to bar.t1.
+
+  This method is needed to support this rule.
+
+  @return TRUE in case of error (parsing should be aborted, FALSE in
+  case of success
+*/
+
+bool
+st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
+{
+  if (sphead)
+  {
+    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    /*
+      It is safe to assign the string by-pointer, both sphead and
+      its statements reside in the same memory root.
+    */
+    *p_db= sphead->m_db.str;
+    if (p_db_length)
+      *p_db_length= sphead->m_db.length;
+    return FALSE;
+  }
+  return thd->copy_db_to(p_db, p_db_length);
+}
 
 /*
   initialize limit counters
@@ -1966,18 +2394,175 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
     values	- SELECT_LEX with initial values for counters
 */
 
-void st_select_lex_unit::set_limit(SELECT_LEX *sl)
+void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
   ha_rows select_limit_val;
+  ulonglong val;
 
   DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
-  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
-                                                 HA_POS_ERROR);
+  val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
+  select_limit_val= (ha_rows)val;
+#ifndef BIG_TABLES
+  /* 
+    Check for overflow : ha_rows can be smaller then ulonglong if
+    BIG_TABLES is off.
+    */
+  if (val != (ulonglong)select_limit_val)
+    select_limit_val= HA_POS_ERROR;
+#endif
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
                                                  ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
+}
+
+
+/**
+  @brief Set the initial purpose of this TABLE_LIST object in the list of used
+    tables.
+
+  We need to track this information on table-by-table basis, since when this
+  table becomes an element of the pre-locked list, it's impossible to identify
+  which SQL sub-statement it has been originally used in.
+
+  E.g.:
+
+  User request:                 SELECT * FROM t1 WHERE f1();
+  FUNCTION f1():                DELETE FROM t2; RETURN 1;
+  BEFORE DELETE trigger on t2:  INSERT INTO t3 VALUES (old.a);
+
+  For this user request, the pre-locked list will contain t1, t2, t3
+  table elements, each needed for different DML.
+
+  The trigger event map is updated to reflect INSERT, UPDATE, DELETE,
+  REPLACE, LOAD DATA, CREATE TABLE .. SELECT, CREATE TABLE ..
+  REPLACE SELECT statements, and additionally ON DUPLICATE KEY UPDATE
+  clause.
+*/
+
+void st_lex::set_trg_event_type_for_tables()
+{
+  uint8 new_trg_event_map= 0;
+
+  /*
+    Some auxiliary operations
+    (e.g. GRANT processing) create TABLE_LIST instances outside
+    the parser. Additionally, some commands (e.g. OPTIMIZE) change
+    the lock type for a table only after parsing is done. Luckily,
+    these do not fire triggers and do not need to pre-load them.
+    For these TABLE_LISTs set_trg_event_type is never called, and
+    trg_event_map is always empty. That means that the pre-locking
+    algorithm will ignore triggers defined on these tables, if
+    any, and the execution will either fail with an assert in
+    sql_trigger.cc or with an error that a used table was not
+    pre-locked, in case of a production build.
+
+    TODO: this usage pattern creates unnecessary module dependencies
+    and should be rewritten to go through the parser.
+    Table list instances created outside the parser in most cases
+    refer to mysql.* system tables. It is not allowed to have
+    a trigger on a system table, but keeping track of
+    initialization provides extra safety in case this limitation
+    is circumvented.
+  */
+
+  switch (sql_command) {
+  case SQLCOM_LOCK_TABLES:
+  /*
+    On a LOCK TABLE, all triggers must be pre-loaded for this TABLE_LIST
+    when opening an associated TABLE.
+  */
+    new_trg_event_map= static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_INSERT)) |
+                      static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_UPDATE)) |
+                      static_cast<uint8>
+                        (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  /*
+    Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
+    clause, it will be handled later in this method.
+  */
+  case SQLCOM_INSERT:                           /* fall through */
+  case SQLCOM_INSERT_SELECT:
+  /*
+    LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
+    triggers.
+    If the statement also has REPLACE clause, it will be
+    handled later in this method.
+  */
+  case SQLCOM_LOAD:                             /* fall through */
+  /*
+    REPLACE is semantically equivalent to INSERT. In case
+    of a primary or unique key conflict, it deletes the old
+    record and inserts a new one. So we also may need to
+    fire ON DELETE triggers. This functionality is handled
+    later in this method.
+  */
+  case SQLCOM_REPLACE:                          /* fall through */
+  case SQLCOM_REPLACE_SELECT:
+  /*
+    CREATE TABLE ... SELECT defaults to INSERT if the table or
+    view already exists. REPLACE option of CREATE TABLE ...
+    REPLACE SELECT is handled later in this method.
+  */
+  case SQLCOM_CREATE_TABLE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_INSERT));
+    break;
+  /* Basic update and multi-update */
+  case SQLCOM_UPDATE:                           /* fall through */
+  case SQLCOM_UPDATE_MULTI:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_UPDATE));
+    break;
+  /* Basic delete and multi-delete */
+  case SQLCOM_DELETE:                           /* fall through */
+  case SQLCOM_DELETE_MULTI:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  default:
+    break;
+  }
+
+  switch (duplicates) {
+  case DUP_UPDATE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_UPDATE));
+    break;
+  case DUP_REPLACE:
+    new_trg_event_map|= static_cast<uint8>
+                          (1 << static_cast<int>(TRG_EVENT_DELETE));
+    break;
+  case DUP_ERROR:
+  default:
+    break;
+  }
+
+
+  /*
+    Do not iterate over sub-selects, only the tables in the outermost
+    SELECT_LEX can be modified, if any.
+  */
+  TABLE_LIST *tables= select_lex.get_table_list();
+
+  while (tables)
+  {
+    /*
+      This is a fast check to filter out statements that do
+      not change data, or tables  on the right side, in case of
+      INSERT .. SELECT, CREATE TABLE .. SELECT and so on.
+      Here we also filter out OPTIMIZE statement and non-updateable
+      views, for which lock_type is TL_UNLOCK or TL_READ after
+      parsing.
+    */
+    if (static_cast<int>(tables->lock_type) >=
+        static_cast<int>(TL_WRITE_ALLOW_WRITE))
+      tables->trg_event_map= new_trg_event_map;
+    tables= tables->next_local;
+  }
 }
 
 
@@ -2020,7 +2605,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (byte*) (first->next_local);
+      select_lex.table_list.first= (uchar*) (first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2101,7 +2686,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.first= (uchar*) first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -2289,8 +2874,8 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
 
   SYNOPSIS
     set_index_hint_type()
-      type         the kind of hints to be added from now on.
-      clause       the clause to use for hints to be added from now on.
+      type_arg     The kind of hints to be added from now on.
+      clause       The clause to use for hints to be added from now on.
 
   DESCRIPTION
     Used in filling up the tagged hints list.
@@ -2299,10 +2884,10 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     Then the context variable index_hint_type can be reset to the
     next hint type.
 */
-void st_select_lex::set_index_hint_type(enum index_hint_type type, 
+void st_select_lex::set_index_hint_type(enum index_hint_type type_arg,
                                         index_clause_map clause)
 { 
-  current_index_hint_type= type;
+  current_index_hint_type= type_arg;
   current_index_hint_clause= clause;
 }
 
@@ -2317,7 +2902,7 @@ void st_select_lex::set_index_hint_type(enum index_hint_type type,
 
 void st_select_lex::alloc_index_hints (THD *thd)
 { 
-  index_hints= new (thd->mem_root) List<index_hint>(); 
+  index_hints= new (thd->mem_root) List<Index_hint>(); 
 }
 
 
@@ -2338,7 +2923,26 @@ void st_select_lex::alloc_index_hints (THD *thd)
 bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 {
   return index_hints->push_front (new (thd->mem_root) 
-                                 index_hint(current_index_hint_type,
+                                 Index_hint(current_index_hint_type,
                                             current_index_hint_clause,
                                             str, length));
 }
+
+/**
+  A routine used by the parser to decide whether we are specifying a full
+  partitioning or if only partitions to add or to split.
+
+  @note  This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it
+  is used from the sql parser that doesn't have any ifdef's
+
+  @retval  TRUE    Yes, it is part of a management partition command
+  @retval  FALSE          No, not a management partition command
+*/
+
+bool st_lex::is_partition_management() const
+{
+  return (sql_command == SQLCOM_ALTER_TABLE &&
+          (alter_info.flags == ALTER_ADD_PARTITION ||
+           alter_info.flags == ALTER_REORGANIZE_PARTITION));
+}
+

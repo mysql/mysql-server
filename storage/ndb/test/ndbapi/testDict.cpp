@@ -2204,6 +2204,159 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+create_tablespace(NdbDictionary::Dictionary* pDict, 
+                  const char * lgname, 
+                  const char * tsname, 
+                  const char * dfname)
+{
+  NdbDictionary::Tablespace ts;
+  ts.setName(tsname);
+  ts.setExtentSize(1024*1024);
+  ts.setDefaultLogfileGroup(lgname);
+  
+  if(pDict->createTablespace(ts) != 0)
+  {
+    g_err << "Failed to create tablespace:"
+          << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  NdbDictionary::Datafile df;
+  df.setPath(dfname);
+  df.setSize(1*1024*1024);
+  df.setTablespace(tsname);
+  
+  if(pDict->createDatafile(df) != 0)
+  {
+    g_err << "Failed to create datafile:"
+          << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return 0;
+}
+
+int
+runBug24631(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char tsname[256];
+  char dfname[256];
+  char lgname[256];
+  char ufname[256];
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  
+  NdbDictionary::Dictionary::List list;
+  if (pDict->listObjects(list) == -1)
+    return NDBT_FAILED;
+  
+  const char * lgfound = 0;
+  
+  for (Uint32 i = 0; i<list.count; i++)
+  {
+    switch(list.elements[i].type){
+    case NdbDictionary::Object::LogfileGroup:
+      lgfound = list.elements[i].name;
+      break;
+    default:
+      break;
+    }
+    if (lgfound)
+      break;
+  }
+
+  if (lgfound == 0)
+  {
+    BaseString::snprintf(lgname, sizeof(lgname), "LG-%u", rand());
+    NdbDictionary::LogfileGroup lg;
+    
+    lg.setName(lgname);
+    lg.setUndoBufferSize(8*1024*1024);
+    if(pDict->createLogfileGroup(lg) != 0)
+    {
+      g_err << "Failed to create logfilegroup:"
+	    << endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    NdbDictionary::Undofile uf;
+    BaseString::snprintf(ufname, sizeof(ufname), "%s-%u", lgname, rand());
+    uf.setPath(ufname);
+    uf.setSize(2*1024*1024);
+    uf.setLogfileGroup(lgname);
+    
+    if(pDict->createUndofile(uf) != 0)
+    {
+      g_err << "Failed to create undofile:"
+            << endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    BaseString::snprintf(lgname, sizeof(lgname), "%s", lgfound);
+  }
+
+  BaseString::snprintf(tsname, sizeof(tsname), "TS-%u", rand());
+  BaseString::snprintf(dfname, sizeof(dfname), "%s-%u.dat", tsname, rand());
+
+  if (create_tablespace(pDict, lgname, tsname, dfname))
+    return NDBT_FAILED;
+
+  
+  int node = res.getRandomNotMasterNodeId(rand());
+  res.restartOneDbNode(node, false, true, true);
+  NdbSleep_SecSleep(3);
+
+  if (pDict->dropDatafile(pDict->getDatafile(0, dfname)) != 0)
+  {
+    g_err << "Failed to drop datafile: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDict->dropTablespace(pDict->getTablespace(tsname)) != 0)
+  {
+    g_err << "Failed to drop tablespace: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+  
+  res.startNodes(&node, 1);
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  if (create_tablespace(pDict, lgname, tsname, dfname))
+    return NDBT_FAILED;
+
+  if (pDict->dropDatafile(pDict->getDatafile(0, dfname)) != 0)
+  {
+    g_err << "Failed to drop datafile: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDict->dropTablespace(pDict->getTablespace(tsname)) != 0)
+  {
+    g_err << "Failed to drop tablespace: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  if (lgfound == 0)
+  {
+    if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lgname)) != 0)
+      return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
 struct RandSchemaOp
 {
   struct Obj 
@@ -2706,6 +2859,10 @@ TESTCASE("Bug21755",
 TESTCASE("DictRestart",
          ""){
   INITIALIZER(runDictRestart);
+}
+TESTCASE("Bug24631",
+         ""){
+  INITIALIZER(runBug24631);
 }
 NDBT_TESTSUITE_END(testDict);
 

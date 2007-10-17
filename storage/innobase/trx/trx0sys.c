@@ -646,6 +646,7 @@ trx_sys_update_mysql_binlog_offset(
 			 MLOG_4BYTES, mtr);
 }
 
+#ifdef UNIV_HOTBACKUP
 /*********************************************************************
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
@@ -677,6 +678,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /*********************************************************************
 Stores the MySQL binlog offset info in the trx system header if
@@ -868,7 +870,16 @@ trx_sysf_create(
 		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
 	}
 
-	/* The remaining area (up to the page trailer) is uninitialized. */
+	/* The remaining area (up to the page trailer) is uninitialized.
+	Silence Valgrind warnings about it. */
+	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
+				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+				     + TRX_SYS_RSEG_SPACE),
+		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			- (TRX_SYS_RSEGS
+			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
+			   + TRX_SYS_RSEG_SPACE))
+		       + page - sys_header);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no,

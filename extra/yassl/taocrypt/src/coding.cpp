@@ -107,10 +107,11 @@ void HexDecoder::Decode()
         // sanity checks
         assert( b  < sizeof(hexDecode)/sizeof(hexDecode[0]) );
         assert( b2 < sizeof(hexDecode)/sizeof(hexDecode[0]) );
-        assert( b != bad && b2 != bad );
 
         b  = hexDecode[b];
         b2 = hexDecode[b2];
+        
+        assert( b != bad && b2 != bad );
         
         decoded_[i++] = (b << 4) | b2;
         bytes -= 2;

@@ -20,7 +20,7 @@ subpartition sp01, subpartition sp02));
 drop table t1;
  
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
-PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2;
+PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 
 --replace_result $MYSQLTEST_VARDIR "hello"

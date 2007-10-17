@@ -20,16 +20,25 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@thread_dirs@ pstack \
+			@pstack_dir@ \
 			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
 
-DIST_SUBDIRS =		$(SUBDIRS) BUILD debian
+DIST_SUBDIRS =		. include Docs zlib \
+			cmd-line-utils sql-common scripts \
+			pstack \
+			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
+			vio sql man tests \
+			netware libmysqld \
+			mysql-test support-files sql-bench server-tools \
+			win \
+			BUILD debian
 
 DISTCLEANFILES = ac_available_languages_fragment
 
@@ -44,7 +53,6 @@ bin-dist:		all
 # Create initial database files for Windows installations.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
-	rm -f  `find $(distdir) -type l -print`
 	mkdir -p $(distdir)/win
 	scripts/mysql_install_db --no-defaults --windows \
 		--basedir=$(top_builddir) \
@@ -58,7 +66,8 @@ tags:
   test    test-force    test-full    test-force-full    test-force-mem \
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
-  test-ext-funcs test-ext-rpl test-ext-partitions test-ext \
+  test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
+  test-ext-stress test-ext \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -123,10 +132,33 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
 	--with-ndbcluster-only
+	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+	    --embedded-server --skip-rpl --skip-ndbcluster ; \
+	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=rpl --suite=rpl
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	-if [ -d mysql-test/suite/nist ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=NIST+normal --force --suite=nist ; \
+	fi
+	-if [ -d mysql-test/suite/nist ] ; then \
+	  cd mysql-test ; MTR_BUILD_THREAD=auto \
+	  @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
+	fi
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	@PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+
+# Re-enable the "jp" suite when bug#28563 is fixed
+#	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+#	@PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -151,18 +183,23 @@ test-ext-rpl:
 
 test-ext-partitions:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=partitions
+	@PERL@ ./mysql-test-run.pl --force --suite=parts
 
 test-ext-jp:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl --force --suite=jp
 
-test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp
+test-ext-stress:
+	cd mysql-test ; \
+	@PERL@ ./mysql-test-run.pl --force --big-test --suite=stress
+
+test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp test-ext-stress
 
 test-fast:
 	cd mysql-test ; \
 	@PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
-	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam ; \
+	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=stress --do-test=ddl_myisam 
 
 test-fast-view:
 	$(MAKE) subset=--view-protocol test-fast

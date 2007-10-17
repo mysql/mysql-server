@@ -124,7 +124,7 @@ void ndbcluster_binlog_init_handlerton();
 /*
   Initialize the binlog part of the NDB_SHARE
 */
-void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
+int ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
 
 bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
@@ -184,7 +184,7 @@ int ndbcluster_find_all_files(THD *thd);
 #endif /* HAVE_NDB_BINLOG */
 
 void ndb_unpack_record(TABLE *table, NdbValue *value,
-                       MY_BITMAP *defined, byte *buf);
+                       MY_BITMAP *defined, uchar *buf);
 char *ndb_pack_varchar(const NDBCOL *col, char *buf,
                        const char *str, int sz);
 
@@ -216,10 +216,12 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 
 inline
 Thd_ndb *
-get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton->slot]; }
+get_thd_ndb(THD *thd)
+{ return (Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton); }
 
 inline
 void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton->slot]= thd_ndb; }
+set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
+{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 Ndb* check_ndb_in_thd(THD* thd);

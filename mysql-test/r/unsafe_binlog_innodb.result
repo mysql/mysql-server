@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 create table t1 (id int not null, f_id int not null, f int not null,
 primary key(f_id, id)) engine = InnoDB;
 create table t2 (id int not null,s_id int not null,s varchar(200),

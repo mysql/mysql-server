@@ -35,10 +35,10 @@
                                                                    SerG
 */
 
-int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
+int myrg_rkey(MYRG_INFO *info,uchar *buf,int inx, const uchar *key,
             key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
-  byte *key_buff;
+  uchar *key_buff;
   uint pack_key_length;
   uint16 last_used_keyseg;
   MYRG_TABLE *table;
@@ -60,7 +60,7 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
     {
       err=mi_rkey(mi, 0, inx, key, keypart_map, search_flag);
       /* Get the saved packed key and packed key length. */
-      key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
+      key_buff=(uchar*) mi->lastkey+mi->s->base.max_key_length;
       pack_key_length=mi->pack_key_length;
       last_used_keyseg= mi->last_used_keyseg;
     }
@@ -80,7 +80,7 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
       DBUG_RETURN(err);
     }
     /* adding to queue */
-    queue_insert(&(info->by_key),(byte *)table);
+    queue_insert(&(info->by_key),(uchar *)table);
 
   }
 
@@ -92,6 +92,6 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
   mi->once_flags|= RRND_PRESERVE_LASTINX;
   DBUG_PRINT("info", ("using table no: %d",
                       (int) (info->current_table - info->open_tables + 1)));
-  DBUG_DUMP("result key", (byte*) mi->lastkey, mi->lastkey_length);
+  DBUG_DUMP("result key", (uchar*) mi->lastkey, mi->lastkey_length);
   DBUG_RETURN(_myrg_mi_read_record(mi,buf));
 }

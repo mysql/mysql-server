@@ -307,6 +307,15 @@ static void do_field_string(Copy_field *copy)
 }
 
 
+static void do_field_enum(Copy_field *copy)
+{
+  if (copy->from_field->val_int() == 0)
+    ((Field_enum *) copy->to_field)->store_type((ulonglong) 0);
+  else
+    do_field_string(copy);
+}
+
+
 static void do_field_varbinary_pre50(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
@@ -355,8 +364,8 @@ static void do_cut_string(Copy_field *copy)
 
   /* Check if we loosed any important characters */
   if (cs->cset->scan(cs,
-                     copy->from_ptr + copy->to_length,
-                     copy->from_ptr + copy->from_length,
+                     (char*) copy->from_ptr + copy->to_length,
+                     (char*) copy->from_ptr + copy->from_length,
                      MY_SEQ_SPACES) < copy->from_length - copy->to_length)
   {
     copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -374,8 +383,10 @@ static void do_cut_string_complex(Copy_field *copy)
 {						// Shorter string field
   int well_formed_error;
   CHARSET_INFO *cs= copy->from_field->charset();
-  const char *from_end= copy->from_ptr + copy->from_length;
-  uint copy_length= cs->cset->well_formed_len(cs, copy->from_ptr, from_end, 
+  const uchar *from_end= copy->from_ptr + copy->from_length;
+  uint copy_length= cs->cset->well_formed_len(cs,
+                                              (char*) copy->from_ptr,
+                                              (char*) from_end, 
                                               copy->to_length / cs->mbmaxlen,
                                               &well_formed_error);
   if (copy->to_length < copy_length)
@@ -384,7 +395,8 @@ static void do_cut_string_complex(Copy_field *copy)
 
   /* Check if we lost any important characters */
   if (well_formed_error ||
-      cs->cset->scan(cs, copy->from_ptr + copy_length, from_end,
+      cs->cset->scan(cs, (char*) copy->from_ptr + copy_length,
+                     (char*) from_end,
                      MY_SEQ_SPACES) < (copy->from_length - copy_length))
   {
     copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -392,7 +404,7 @@ static void do_cut_string_complex(Copy_field *copy)
   }
 
   if (copy_length < copy->to_length)
-    cs->cset->fill(cs, copy->to_ptr + copy_length,
+    cs->cset->fill(cs, (char*) copy->to_ptr + copy_length,
                    copy->to_length - copy_length, ' ');
 }
 
@@ -403,7 +415,7 @@ static void do_expand_binary(Copy_field *copy)
 {
   CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
-  cs->cset->fill(cs, copy->to_ptr+copy->from_length,
+  cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, '\0');
 }
 
@@ -413,7 +425,7 @@ static void do_expand_string(Copy_field *copy)
 {
   CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
-  cs->cset->fill(cs, copy->to_ptr+copy->from_length,
+  cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, ' ');
 }
 
@@ -438,9 +450,10 @@ static void do_varstring1_mb(Copy_field *copy)
   int well_formed_error;
   CHARSET_INFO *cs= copy->from_field->charset();
   uint from_length= (uint) *(uchar*) copy->from_ptr;
-  const char *from_ptr= copy->from_ptr + 1;
+  const uchar *from_ptr= copy->from_ptr + 1;
   uint to_char_length= (copy->to_length - 1) / cs->mbmaxlen;
-  uint length= cs->cset->well_formed_len(cs, from_ptr, from_ptr + from_length,
+  uint length= cs->cset->well_formed_len(cs, (char*) from_ptr,
+                                         (char*) from_ptr + from_length,
                                          to_char_length, &well_formed_error);
   if (length < from_length)
   {
@@ -448,7 +461,7 @@ static void do_varstring1_mb(Copy_field *copy)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
-  *(uchar*) copy->to_ptr= (uchar) length;
+  *copy->to_ptr= (uchar) length;
   memcpy(copy->to_ptr + 1, from_ptr, length);
 }
 
@@ -475,8 +488,9 @@ static void do_varstring2_mb(Copy_field *copy)
   CHARSET_INFO *cs= copy->from_field->charset();
   uint char_length= (copy->to_length - HA_KEY_BLOB_LENGTH) / cs->mbmaxlen;
   uint from_length= uint2korr(copy->from_ptr);
-  const char *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;
-  uint length= cs->cset->well_formed_len(cs, from_beg, from_beg + from_length,
+  const uchar *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;
+  uint length= cs->cset->well_formed_len(cs, (char*) from_beg,
+                                         (char*) from_beg + from_length,
                                          char_length, &well_formed_error);
   if (length < from_length)
   {
@@ -501,7 +515,7 @@ static void do_varstring2_mb(Copy_field *copy)
   The 'to' buffer should have a size of field->pack_length()+1
 */
 
-void Copy_field::set(char *to,Field *from)
+void Copy_field::set(uchar *to,Field *from)
 {
   from_ptr=from->ptr;
   to_ptr=to;
@@ -529,7 +543,21 @@ void Copy_field::set(char *to,Field *from)
 }
 
 
+/*
+  To do: 
 
+  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  do_save_blob rather than do_conv_blob.  The only differences between them
+  appears to be:
+
+  - do_save_blob allocates and uses an intermediate buffer before calling 
+    Field_blob::store. Is this in order to trigger the call to 
+    well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
+    That call will take place anyway in all known cases.
+
+  - The above causes a truncation to MAX_FIELD_WIDTH. Is this the intended 
+    effect? Truncation is handled by well_formed_copy_nchars anyway.
+ */
 void Copy_field::set(Field *to,Field *from,bool save)
 {
   if (to->type() == MYSQL_TYPE_NULL)
@@ -592,7 +620,8 @@ void Copy_field::set(Field *to,Field *from,bool save)
 }
 
 
-void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
+Copy_field::Copy_func *
+Copy_field::get_copy_func(Field *to,Field *from)
 {
   bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
                                      from->table->s->db_low_byte_first);
@@ -648,7 +677,13 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	  to->real_type() == MYSQL_TYPE_SET)
       {
 	if (!to->eq_def(from))
-	  return do_field_string;
+        {
+          if (from->real_type() == MYSQL_TYPE_ENUM &&
+              to->real_type() == MYSQL_TYPE_ENUM)
+            return do_field_enum;
+          else
+            return do_field_string;
+        }
       }
       else if (to->charset() != from->charset())
 	return do_field_string;
@@ -761,11 +796,18 @@ int field_conv(Field *to,Field *from)
       blob->value.copy();
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());
   }
-  if ((from->result_type() == STRING_RESULT &&
-       (to->result_type() == STRING_RESULT ||
-	(from->real_type() != MYSQL_TYPE_ENUM &&
-	 from->real_type() != MYSQL_TYPE_SET))) ||
-      to->type() == MYSQL_TYPE_DECIMAL)
+  if (from->real_type() == MYSQL_TYPE_ENUM &&
+      to->real_type() == MYSQL_TYPE_ENUM &&
+      from->val_int() == 0)
+  {
+    ((Field_enum *)(to))->store_type(0);
+    return 0;
+  }
+  else if ((from->result_type() == STRING_RESULT &&
+            (to->result_type() == STRING_RESULT ||
+             (from->real_type() != MYSQL_TYPE_ENUM &&
+              from->real_type() != MYSQL_TYPE_SET))) ||
+           to->type() == MYSQL_TYPE_DECIMAL)
   {
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());

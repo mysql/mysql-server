@@ -363,6 +363,28 @@ create table VAR_SAMP(a int);
 --error ER_PARSE_ERROR
 create table VAR_SAMP (a int);
 
+#
+# Bug#25930 (CREATE TABLE x SELECT ... parses columns wrong when ran with
+#            ANSI_QUOTES mode)
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS table_25930_a;
+DROP TABLE IF EXISTS table_25930_b;
+--enable_warnings
+
+SET SQL_MODE = 'ANSI_QUOTES';
+CREATE TABLE table_25930_a ( "blah" INT );
+CREATE TABLE table_25930_b SELECT "blah" - 1 FROM table_25930_a;
+
+# The lexer used to chop the first <">,
+# not marking the start of the token "blah" correctly.
+desc table_25930_b;
+
+DROP TABLE table_25930_a;
+DROP TABLE table_25930_b;
+
+
 SET @@sql_mode=@save_sql_mode;
 
 #=============================================================================

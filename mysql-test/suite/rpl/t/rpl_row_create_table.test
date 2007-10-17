@@ -1,0 +1,236 @@
+# Testing table creations for row-based replication.
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/have_innodb.inc
+connection slave;
+--source include/have_innodb.inc
+connection master;
+
+# Bug#18326: Do not lock table for writing during prepare of statement
+# The use of the ps protocol causes extra table maps in the binlog, so
+# we disable the ps-protocol for this statement.
+--disable_ps_protocol
+
+--disable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
+--enable_query_log
+
+# Set the default storage engine to different values on master and
+# slave. We need to stop the slave for the server variable to take
+# effect, since the variable is only read on start-up.
+sync_slave_with_master;
+--disable_query_log
+set @storage_engine = @@global.storage_engine;
+STOP SLAVE;
+SET GLOBAL storage_engine=memory;
+START SLAVE;
+--enable_query_log
+
+connection master;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
+CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
+CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+--query_vertical SHOW BINLOG EVENTS FROM 216
+--echo **** On Master ****
+--query_vertical SHOW CREATE TABLE t1
+--query_vertical SHOW CREATE TABLE t2
+--query_vertical SHOW CREATE TABLE t3
+sync_slave_with_master;
+--echo **** On Slave ****
+--query_vertical SHOW CREATE TABLE t1
+--query_vertical SHOW CREATE TABLE t2
+--query_vertical SHOW CREATE TABLE t3
+
+connection master;
+CREATE TABLE t5 (b INT, c INT) SELECT * FROM t3;
+
+CREATE TEMPORARY TABLE tt3 (a INT, b INT);
+INSERT INTO tt3 VALUES (1,2), (2,4), (3,6), (4,2), (5,10), (6,12);
+CREATE TABLE t6 (b INT, c INT) SELECT * FROM tt3;
+--echo **** On Master ****
+--query_vertical SHOW CREATE TABLE t5
+SELECT * FROM t5 ORDER BY a,b,c;
+--query_vertical SHOW CREATE TABLE t6
+SELECT * FROM t6 ORDER BY a,b,c;
+sync_slave_with_master;
+--echo **** On Slave ****
+--query_vertical SHOW CREATE TABLE t5
+SELECT * FROM t5 ORDER BY a,b,c;
+--query_vertical SHOW CREATE TABLE t6
+SELECT * FROM t6 ORDER BY a,b,c;
+
+connection master;
+# Test for erroneous constructions
+--error ER_DUP_ENTRY
+CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
+# Shouldn't be written to the binary log
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS FROM 1100;
+
+# Test that INSERT-SELECT works the same way as for SBR.
+CREATE TABLE t7 (a INT, b INT UNIQUE);
+--error ER_DUP_ENTRY
+INSERT INTO t7 SELECT a,b FROM tt3;
+SELECT * FROM t7 ORDER BY a,b;
+# Should be written to the binary log
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS FROM 1100;
+sync_slave_with_master;
+SELECT * FROM t7 ORDER BY a,b;
+
+connection master;
+CREATE TEMPORARY TABLE tt4 (a INT, b INT);
+INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
+BEGIN;
+INSERT INTO t7 SELECT a,b FROM tt4;
+ROLLBACK;
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS FROM 1298;
+SELECT * FROM t7 ORDER BY a,b;
+sync_slave_with_master;
+SELECT * FROM t7 ORDER BY a,b;
+
+connection master;
+CREATE TABLE t8 LIKE t4;
+CREATE TABLE t9 LIKE tt4;
+CREATE TEMPORARY TABLE tt5 LIKE t4;
+CREATE TEMPORARY TABLE tt6 LIKE tt4;
+CREATE TEMPORARY TABLE tt7 SELECT 1;
+--echo **** On Master ****
+--query_vertical SHOW CREATE TABLE t8
+--query_vertical SHOW CREATE TABLE t9
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS FROM 1396;
+sync_slave_with_master;
+--echo **** On Slave ****
+--query_vertical SHOW CREATE TABLE t8
+--query_vertical SHOW CREATE TABLE t9
+
+connection master;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
+sync_slave_with_master;
+# Here we reset the value of the default storage engine
+STOP SLAVE;
+SET GLOBAL storage_engine=@storage_engine;
+START SLAVE;
+--enable_ps_protocol
+
+# BUG#22864 (Rollback following CREATE ... SELECT discards 'CREATE
+# table' from log):
+--echo ================ BUG#22864 ================
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
+connection master;
+RESET MASTER;
+connection slave;
+START SLAVE;
+connection master;
+SET AUTOCOMMIT=0;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+
+CREATE TABLE t2 ENGINE=INNODB SELECT * FROM t1;
+ROLLBACK;
+
+CREATE TABLE t3 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t3 VALUES (4),(5),(6);
+ROLLBACK;
+
+CREATE TABLE t4 ENGINE=INNODB SELECT * FROM t1;
+INSERT INTO t1 VALUES (4),(5),(6);
+ROLLBACK;
+
+SHOW TABLES;
+SELECT   TABLE_NAME,ENGINE
+  FROM   INFORMATION_SCHEMA.TABLES
+ WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+SELECT * FROM t4 ORDER BY a;
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
+sync_slave_with_master;
+SHOW TABLES;
+SELECT   TABLE_NAME,ENGINE
+  FROM   INFORMATION_SCHEMA.TABLES
+ WHERE   TABLE_NAME LIKE 't_'
+ORDER BY TABLE_NAME;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+SELECT * FROM t4 ORDER BY a;
+
+connection master;
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+SET AUTOCOMMIT=1;
+sync_slave_with_master;
+
+# Some tests with temporary tables
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
+
+connection master;
+RESET MASTER;
+
+connection slave;
+START SLAVE;
+
+connection master;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt1
+SELECT a+1 AS a
+  FROM t1
+ WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt1;
+COMMIT;
+
+SELECT * FROM t2 ORDER BY a;
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
+sync_slave_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+connection master;
+TRUNCATE TABLE t2;
+
+BEGIN;
+INSERT INTO t2 SELECT a*a FROM t1;
+CREATE TEMPORARY TABLE tt2
+SELECT a+1 AS a
+  FROM t1
+ WHERE a MOD 2 = 1;
+INSERT INTO t2 SELECT a+2 FROM tt2;
+ROLLBACK;
+
+SELECT * FROM t2 ORDER BY a;
+--replace_column 1 # 4 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS FROM 637;
+sync_slave_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+connection master;
+DROP TABLE t1,t2;
+sync_slave_with_master;

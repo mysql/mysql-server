@@ -1,0 +1,36 @@
+#############################################
+#Authors:    TU and Jeb
+#Date:       2007/04
+#Purpose:    Generic replication to cluster
+#            and ensuring that the ndb_apply_status
+#            table is updated.
+#############################################
+# Notes:
+# include/select_ndb_apply_status.inc
+# Selects out the log name, start & end pos
+# from the ndb_apply_status table
+#
+# include/show_binlog_using_logname.inc
+# To select out 1 row from offset 1
+# from the start position in the binlog whose
+# name is = log_name
+#
+# include/tpcb.inc
+# Creates DATABASE tpcb, the tables and
+# stored procedures for loading the DB
+# and for running transactions against DB.
+##############################################
+
+
+## Includes ##
+
+--disable_query_log
+--source include/have_ndb.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_mixed.inc
+--source include/ndb_master-slave.inc
+--enable_query_log
+let $off_set = 9;
+let $rpl_format = 'MIX';
+--source extra/rpl_tests/rpl_ndb_apply_status.test
+

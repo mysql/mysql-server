@@ -20,6 +20,11 @@
 #include "event_queue.h"
 #include "event_db_repository.h"
 
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
+
 #ifdef __GNUC__
 #if __GNUC__ >= 2
 #define SCHED_FUNC __FUNCTION__
@@ -42,7 +47,6 @@ Event_db_repository *Event_worker_thread::db_repository;
 static
 const LEX_STRING scheduler_states_names[] =
 {
-  { C_STRING_WITH_LEN("UNINITIALIZED") },
   { C_STRING_WITH_LEN("INITIALIZED") },
   { C_STRING_WITH_LEN("RUNNING") },
   { C_STRING_WITH_LEN("STOPPING") }
@@ -284,8 +288,7 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("Event_worker_thread::run");
-  DBUG_PRINT("info", ("Time is %ld, THD: 0x%lx",
-                      (long) time(NULL), (long) thd));
+  DBUG_PRINT("info", ("Time is %ld, THD: 0x%lx", (long) my_time(0), (long) thd));
 
   if (res)
     goto end;
@@ -327,13 +330,21 @@ end:
 
   delete event;
   deinit_event_thread(thd);
+
+  DBUG_VOID_RETURN;
 }
 
 
 Event_scheduler::Event_scheduler(Event_queue *queue_arg)
-  :state(UNINITIALIZED),
+  :state(INITIALIZED),
   scheduler_thd(NULL),
   queue(queue_arg),
+  mutex_last_locked_at_line(0),
+  mutex_last_unlocked_at_line(0),
+  mutex_last_locked_in_func("n/a"),
+  mutex_last_unlocked_in_func("n/a"),
+  mutex_scheduler_data_locked(FALSE),
+  waiting_on_cond(FALSE),
   started_events(0)
 {
   pthread_mutex_init(&LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
@@ -784,3 +795,7 @@ Event_scheduler::dump_internal_status()
 
   DBUG_VOID_RETURN;
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

@@ -1,0 +1,533 @@
+---- establish connection con1 (root) ----
+---- switch to connection default ----
+set @initial_query_cache_size = @@global.query_cache_size;
+set @@global.query_cache_size=100000;
+flush status;
+drop table if exists t1;
+create table t1(c1 int);
+insert into t1 values(1),(10),(100);
+prepare stmt1 from "select * from t1 where c1=10";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	1
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	2
+prepare stmt2 from "select * from t1 where c1=10";
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	3
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	4
+execute stmt2;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	5
+---- switch to connection con1 ----
+prepare stmt3 from "select * from t1 where c1=10";
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	6
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	7
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+---- switch to connection default ----
+prepare stmt10 from "SELECT * FROM t1 WHERE c1 = 100";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+execute stmt10;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	8
+execute stmt10;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	9
+SELECT * FROM t1 WHERE c1 = 100;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	10
+---- switch to connection con1 ----
+SELECT * FROM t1 WHERE c1 = 100;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	11
+---- switch to connection default ----
+prepare stmt11 from "SELECT * FROM t1 WHERE c1 = 1";
+---- switch to connection con1 ----
+prepare stmt12 from "SELECT * FROM t1 WHERE c1 = 1";
+---- switch to connection default ----
+SELECT * FROM t1 WHERE c1 = 1;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	11
+SELECT * FROM t1 WHERE c1 = 1;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	12
+execute stmt11;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	13
+---- switch to connection con1 ----
+execute stmt12;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+---- switch to connection default ----
+prepare stmt1 from "select * from t1 where c1=?";
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+set @a=1;
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	14
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	15
+---- switch to connection con1 ----
+set @a=1;
+prepare stmt4 from "select * from t1 where c1=?";
+execute stmt4 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+prepare stmt4 from "select @a from t1 where c1=?";
+execute stmt4 using @a;
+@a
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt4 using @a;
+@a
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+---- switch to connection default ----
+prepare stmt1 from "select * from t1 where c1=10";
+set global query_cache_size=0;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+---- switch to connection default ----
+set global query_cache_size=100000;
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	16
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	17
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	18
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	19
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	20
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+---- switch to connection default ----
+set global query_cache_size=0;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+---- switch to connection con1 ----
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+---- switch to connection default ----
+set global query_cache_size=0;
+prepare stmt1 from "select * from t1 where c1=10";
+---- switch to connection con1 ----
+prepare stmt3 from "select * from t1 where c1=10";
+---- switch to connection default ----
+set global query_cache_size=100000;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt1;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+---- switch to connection con1 ----
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+execute stmt3;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+---- switch to connection default ----
+set global query_cache_size=0;
+prepare stmt1 from "select * from t1 where c1=?";
+set global query_cache_size=100000;
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+set @a=1;
+execute stmt1 using @a;
+c1
+1
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+set @a=100;
+execute stmt1 using @a;
+c1
+100
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+set @a=10;
+execute stmt1 using @a;
+c1
+10
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	21
+drop table t1;
+---- disconnect connection con1 ----
+########################################################################
+#
+# BUG#25843: Changing default database between PREPARE and EXECUTE of
+# statement breaks binlog.
+#
+########################################################################
+
+#
+# Check that default database and its attributes are fixed at the
+# creation time.
+#
+
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+CREATE TABLE mysqltest1.t1(msg VARCHAR(255));
+CREATE TABLE mysqltest2.t1(msg VARCHAR(255));
+
+use mysqltest1;
+PREPARE stmt_a_1 FROM 'INSERT INTO t1 VALUES(DATABASE())';
+PREPARE stmt_a_2 FROM 'INSERT INTO t1 VALUES(@@collation_database)';
+
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+use mysqltest2;
+EXECUTE stmt_a_1;
+EXECUTE stmt_a_2;
+
+SELECT * FROM mysqltest1.t1;
+msg
+mysqltest1
+utf8_unicode_ci
+mysqltest1
+utf8_unicode_ci
+
+SELECT * FROM mysqltest2.t1;
+msg
+
+DROP PREPARE stmt_a_1;
+DROP PREPARE stmt_a_2;
+
+#
+# The Query Cache test case.
+#
+
+DELETE FROM mysqltest1.t1;
+DELETE FROM mysqltest2.t1;
+
+INSERT INTO mysqltest1.t1 VALUES('mysqltest1.t1');
+INSERT INTO mysqltest2.t1 VALUES('mysqltest2.t1');
+
+use mysqltest1;
+PREPARE stmt_b_1 FROM 'SELECT * FROM t1';
+
+use mysqltest2;
+PREPARE stmt_b_2 FROM 'SELECT * FROM t1';
+
+EXECUTE stmt_b_1;
+msg
+mysqltest1.t1
+
+EXECUTE stmt_b_2;
+msg
+mysqltest2.t1
+
+use mysqltest1;
+
+EXECUTE stmt_b_1;
+msg
+mysqltest1.t1
+
+EXECUTE stmt_b_2;
+msg
+mysqltest2.t1
+
+DROP PREPARE stmt_b_1;
+DROP PREPARE stmt_b_2;
+
+use test;
+
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+
+#
+# Check that prepared statements work properly when there is no current
+# database.
+#
+
+CREATE DATABASE mysqltest1 COLLATE utf8_unicode_ci;
+CREATE DATABASE mysqltest2 COLLATE utf8_general_ci;
+
+use mysqltest1;
+
+PREPARE stmt_c_1 FROM 'SELECT DATABASE(), @@collation_database';
+
+use mysqltest2;
+
+PREPARE stmt_c_2 FROM 'SELECT DATABASE(), @@collation_database';
+
+DROP DATABASE mysqltest2;
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+EXECUTE stmt_c_1;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+EXECUTE stmt_c_2;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+PREPARE stmt_c_3 FROM 'SELECT DATABASE(), @@collation_database';
+
+EXECUTE stmt_c_3;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+use mysqltest1;
+
+EXECUTE stmt_c_2;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+Warnings:
+Note	1049	Unknown database 'mysqltest2'
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+EXECUTE stmt_c_3;
+DATABASE()	@@collation_database
+NULL	latin1_swedish_ci
+
+SELECT DATABASE(), @@collation_database;
+DATABASE()	@@collation_database
+mysqltest1	utf8_unicode_ci
+
+DROP DATABASE mysqltest1;
+
+use test;
+
+########################################################################
+set @@global.query_cache_size=@initial_query_cache_size;
+flush status;

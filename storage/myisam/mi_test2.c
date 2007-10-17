@@ -36,8 +36,8 @@
 
 static void get_options(int argc, char *argv[]);
 static uint rnd(uint max_value);
-static void fix_length(byte *record,uint length);
-static void put_blob_in_record(char *blob_pos,char **blob_buffer);
+static void fix_length(uchar *record,uint length);
+static void put_blob_in_record(uchar *blob_pos,char **blob_buffer);
 static void copy_key(struct st_myisam_info *info,uint inx,
 		     uchar *record,uchar *key);
 
@@ -53,8 +53,8 @@ static uint key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
 static uint keys=MYISAM_KEYS,recant=1000;
 static uint use_blob=0;
 static uint16 key1[1001],key3[5000];
-static char record[300],record2[300],key[100],key2[100],
-	    read_record[300],read_record2[300],read_record3[300];
+static uchar record[300],record2[300],key[100],key2[100];
+static uchar read_record[300],read_record2[300],read_record3[300];
 static HA_KEYSEG glob_keyseg[MYISAM_KEYS][MAX_PARTS];
 
 		/* Test program */
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
   for (i=0 ; i < recant ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
-    sprintf(record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
+    sprintf((char*) record,"%6d:%4d:%8d:Pos: %4d    ",n1,n2,n3,write_count);
     int4store(record+STANDARD_LENGTH-4,(long) i);
     fix_length(record,(uint) STANDARD_LENGTH+rnd(60));
     put_blob_in_record(record+blob_pos,&blob_buffer);
@@ -262,8 +262,8 @@ int main(int argc, char *argv[])
       for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
       if (!j)
 	for (j=999 ; j>0 && key1[j] == 0 ; j--) ;
-      sprintf(key,"%6d",j);
-      if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      sprintf((char*) key,"%6d",j);
+      if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("Test in loop: Can't find key: \"%s\"\n",key);
 	goto err;
@@ -290,8 +290,8 @@ int main(int argc, char *argv[])
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
     {
-      sprintf(key,"%6d",j);
-      if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      sprintf((char*) key,"%6d",j);
+      if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -304,8 +304,8 @@ int main(int argc, char *argv[])
 	goto err;
       }
       opt_delete++;
-      key1[atoi(read_record+keyinfo[0].seg[0].start)]--;
-      key3[atoi(read_record+keyinfo[2].seg[0].start)]=0;
+      key1[atoi((char*) read_record+keyinfo[0].seg[0].start)]--;
+      key3[atoi((char*) read_record+keyinfo[2].seg[0].start)]=0;
     }
     else
       puts("Warning: Skipping delete test because no dupplicate keys");
@@ -317,17 +317,17 @@ int main(int argc, char *argv[])
   for (i=0 ; i<recant/10 ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(5000);
-    sprintf(record2,"%6d:%4d:%8d:XXX: %4d     ",n1,n2,n3,update);
+    sprintf((char*) record2,"%6d:%4d:%8d:XXX: %4d     ",n1,n2,n3,update);
     int4store(record2+STANDARD_LENGTH-4,(long) i);
     fix_length(record2,(uint) STANDARD_LENGTH+rnd(60));
 
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
     {
-      sprintf(key,"%6d",j);
-      if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      sprintf((char*) key,"%6d",j);
+      if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       {
-	printf("can't find key1: \"%s\"\n",key);
+	printf("can't find key1: \"%s\"\n",(char*) key);
 	goto err;
       }
       if (use_blob)
@@ -350,8 +350,8 @@ int main(int argc, char *argv[])
       }
       else
       {
-	key1[atoi(read_record+keyinfo[0].seg[0].start)]--;
-	key3[atoi(read_record+keyinfo[2].seg[0].start)]=0;
+	key1[atoi((char*) read_record+keyinfo[0].seg[0].start)]--;
+	key3[atoi((char*) read_record+keyinfo[2].seg[0].start)]=0;
 	key1[n1]++; key3[n3]=1;
 	update++;
       }
@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
       dupp_keys=key1[i]; j=i;
     }
   }
-  sprintf(key,"%6d",j);
+  sprintf((char*) key,"%6d",j);
   start=keyinfo[0].seg[0].start;
   length=keyinfo[0].seg[0].length;
   if (dupp_keys)
@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
     DBUG_PRINT("progpos",("first - next -> last - prev -> first"));
     if (verbose) printf("	 Using key: \"%s\"  Keys: %d\n",key,dupp_keys);
 
-    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+    if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       goto err;
     if (mi_rsame(file,read_record2,-1))
       goto err;
@@ -422,7 +422,7 @@ int main(int argc, char *argv[])
     }
 
     /* Check of mi_rnext_same */
-    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+    if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
       goto err;
     ant=1;
     while (!mi_rnext_same(file,read_record3) && ant < dupp_keys+10)
@@ -455,8 +455,8 @@ int main(int argc, char *argv[])
       bcmp(read_record2,read_record3,reclength))
   {
     printf("Can't find last record\n");
-    DBUG_DUMP("record2",(byte*) read_record2,reclength);
-    DBUG_DUMP("record3",(byte*) read_record3,reclength);
+    DBUG_DUMP("record2",(uchar*) read_record2,reclength);
+    DBUG_DUMP("record3",(uchar*) read_record3,reclength);
     goto end;
   }
   ant=1;
@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
       goto err;
   if (bcmp(read_record2,read_record3,reclength))
      printf("Can't find last record\n");
-
+#ifdef NOT_ANYMORE
   if (!silent)
     puts("- Test read key-part");
   strmov(key2,key);
@@ -514,12 +514,14 @@ int main(int argc, char *argv[])
       goto end;
     }
   }
+#endif
   if (dupp_keys > 2)
   {
     if (!silent)
       printf("- Read key (first) - next - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - next - delete - next -> last"));
-    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
+    if (mi_rkey(file,read_record,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+      goto err;
     if (mi_rnext(file,read_record3,0)) goto err;
     if (mi_delete(file,read_record3)) goto err;
     opt_delete++;
@@ -555,7 +557,8 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read first - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - delete - next -> last"));
-    if (mi_rkey(file,read_record3,0,key,0,HA_READ_KEY_EXACT)) goto err;
+    if (mi_rkey(file,read_record3,0,key,HA_WHOLE_KEY,HA_READ_KEY_EXACT))
+      goto err;
     if (mi_delete(file,read_record3)) goto err;
     opt_delete++;
     ant=1;
@@ -618,10 +621,10 @@ int main(int argc, char *argv[])
     copy_key(file,(uint) i,(uchar*) read_record,(uchar*) key);
     copy_key(file,(uint) i,(uchar*) read_record2,(uchar*) key2);
     min_key.key= key;
-    min_key.length= USE_WHOLE_KEY;
+    min_key.keypart_map= HA_WHOLE_KEY;
     min_key.flag= HA_READ_KEY_EXACT;
     max_key.key= key2;
-    max_key.length= USE_WHOLE_KEY;
+    max_key.keypart_map= HA_WHOLE_KEY;
     max_key.flag= HA_READ_AFTER_KEY;
 
     range_records= mi_records_in_range(file,(int) i, &min_key, &max_key);
@@ -649,8 +652,8 @@ int main(int argc, char *argv[])
       key_range min_key, max_key;
       if (j > k)
 	swap_variables(int, j, k);
-      sprintf(key,"%6d",j);
-      sprintf(key2,"%6d",k);
+      sprintf((char*) key,"%6d",j);
+      sprintf((char*) key2,"%6d",k);
 
       min_key.key= key;
       min_key.length= USE_WHOLE_KEY;
@@ -1001,18 +1004,18 @@ static uint rnd(uint max_value)
 
 	/* Create a variable length record */
 
-static void fix_length(byte *rec, uint length)
+static void fix_length(uchar *rec, uint length)
 {
   bmove(rec+STANDARD_LENGTH,
 	"0123456789012345678901234567890123456789012345678901234567890",
 	length-STANDARD_LENGTH);
-  strfill(rec+length,STANDARD_LENGTH+60-length,' ');
+  strfill((char*) rec+length,STANDARD_LENGTH+60-length,' ');
 } /* fix_length */
 
 
 	/* Put maybe a blob in record */
 
-static void put_blob_in_record(char *blob_pos, char **blob_buffer)
+static void put_blob_in_record(uchar *blob_pos, char **blob_buffer)
 {
   ulong i,length;
   if (use_blob)

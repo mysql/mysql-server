@@ -288,7 +288,11 @@ DROP TABLE t_step;
 DROP DATABASE mysqltest_db1;
 --disable_query_log
 eval USE $old_db;
---enable_query_log
 
+--enable_query_log
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='mysqltest_db1' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc
 
 --echo End of 5.1 tests.

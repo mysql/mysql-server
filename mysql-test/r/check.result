@@ -1,4 +1,5 @@
-drop table if exists t1;
+drop table if exists t1,t2;
+drop view if exists v1;
 create table t1(n int not null, key(n), key(n), key(n), key(n));
 check table t1 extended;
 insert into t1 values (200000);
@@ -14,3 +15,11 @@ test.v1	check	status	OK
 test.t2	check	status	OK
 drop view v1;
 drop table t1, t2;
+CREATE TEMPORARY TABLE t1(a INT);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DROP TABLE t1;

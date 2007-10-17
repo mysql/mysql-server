@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "1.6.5"
+#define YASSL_VERSION "1.7.2"
 
 
 #if defined(__cplusplus)
@@ -201,6 +201,7 @@ typedef int YASSL_SOCKET_T;
 SSL_CTX* SSL_CTX_new(SSL_METHOD*);
 SSL* SSL_new(SSL_CTX*);
 int  SSL_set_fd (SSL*, YASSL_SOCKET_T);
+YASSL_SOCKET_T SSL_get_fd(const SSL*);
 int  SSL_connect(SSL*);
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);
@@ -277,6 +278,8 @@ int  SSL_session_reused(SSL*);
 int  SSL_set_rfd(SSL*, int);
 int  SSL_set_wfd(SSL*, int);
 void SSL_set_shutdown(SSL*, int);
+void SSL_set_quiet_shutdown(SSL *ssl,int mode);
+int SSL_get_quiet_shutdown(SSL *ssl);
 
 int SSL_want_read(SSL*);
 int SSL_want_write(SSL*);

@@ -25,9 +25,10 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+#include <zlib.h>
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -1048,6 +1049,23 @@ String *Item_str_conv::val_str(String *str)
 }
 
 
+void Item_func_lcase::fix_length_and_dec()
+{
+  collation.set(args[0]->collation);
+  multiply= collation.collation->casedn_multiply;
+  converter= collation.collation->cset->casedn;
+  max_length= args[0]->max_length * multiply;
+}
+
+void Item_func_ucase::fix_length_and_dec()
+{
+  collation.set(args[0]->collation);
+  multiply= collation.collation->caseup_multiply;
+  converter= collation.collation->cset->caseup;
+  max_length= args[0]->max_length * multiply;
+}
+
+
 String *Item_func_left::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -1142,8 +1160,9 @@ String *Item_func_substr::val_str(String *str)
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
 
-  /* Negative length, will return empty string. */
-  if ((arg_count == 3) && (length <= 0) && !args[2]->unsigned_flag)
+  /* Negative or zero length, will return empty string. */
+  if ((arg_count == 3) && (length <= 0) && 
+      (length == 0 || !args[2]->unsigned_flag))
     return &my_empty_string;
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
@@ -2220,7 +2239,7 @@ String *Item_func_make_set::val_str(String *str)
 }
 
 
-Item *Item_func_make_set::transform(Item_transformer transformer, byte *arg)
+Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -2701,7 +2720,8 @@ void Item_func_set_collation::fix_length_and_dec()
              colname, args[0]->collation.collation->csname);
     return;
   }
-  collation.set(set_collation, DERIVATION_EXPLICIT);
+  collation.set(set_collation, DERIVATION_EXPLICIT,
+                args[0]->collation.repertoire);
   max_length= args[0]->max_length;
 }
 
@@ -2903,7 +2923,7 @@ String *Item_load_file::val_str(String *str)
     goto err;
   if ((file = my_open(file_name->c_ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
-  if (my_read(file, (byte*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
+  if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
   {
     my_close(file, MYF(0));
     goto err;
@@ -3363,7 +3383,7 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong) server_start_time,
-	       tmp + thd->status_var.bytes_sent);
+	       tmp + (ulong) thd->status_var.bytes_sent);
     set_clock_seq_str();
   }
 

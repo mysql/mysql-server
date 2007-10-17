@@ -1,0 +1,16 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+reset master;
+
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
+
+create database mysqltest;
+use mysqltest;
+create table t1 (a int primary key, b int) engine=ndb;
+insert into t1 values (1, 1);
+-- source include/show_binlog_events2.inc
+
+drop database mysqltest;

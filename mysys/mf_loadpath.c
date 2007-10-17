@@ -23,7 +23,7 @@
 	/* if there is no path, prepend with own_path_prefix if given */
 	/* else unpack path according to current dir */
 
-my_string my_load_path(my_string to, const char *path,
+char * my_load_path(char * to, const char *path,
 		       const char *own_path_prefix)
 {
   char buff[FN_REFLEN];
@@ -36,7 +36,7 @@ my_string my_load_path(my_string to, const char *path,
       test_if_hard_path(path))
     VOID(strmov(buff,path));
   else if ((is_cur=(path[0] == FN_CURLIB && path[1] == FN_LIBCHAR)) ||
-	   (is_prefix((gptr) path,FN_PARENTDIR)) ||
+	   (is_prefix(path,FN_PARENTDIR)) ||
 	   ! own_path_prefix)
   {
     if (is_cur)

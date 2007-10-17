@@ -26,6 +26,11 @@ extern "C" {
     // locking handled internally by library
     char CRYPTO_lock() { return 0;}
     char CRYPTO_add_lock() { return 0;}
+
+
+    // for openvpn, test are the signatures they use
+    char EVP_CIPHER_CTX_init() { return 0; }
+    char CRYPTO_mem_ctrl() { return 0; }
 }  // extern "C"
 
 

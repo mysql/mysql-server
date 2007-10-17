@@ -54,7 +54,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
-поле	char(32)	NO			
+поле	char(32)	NO		NULL	
 SET CHARACTER SET cp1251;
 SHOW TABLES;
 Tables_in_test
@@ -66,7 +66,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
-ОНКЕ	char(32)	NO			
+ОНКЕ	char(32)	NO		NULL	
 SET CHARACTER SET utf8;
 SHOW TABLES;
 Tables_in_test
@@ -78,7 +78,7 @@ Table	Create Table
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
-п©п╬п╩п╣	char(32)	NO			
+п©п╬п╩п╣	char(32)	NO		NULL	
 SET CHARACTER SET koi8r;
 DROP TABLE таблица;
 SET CHARACTER SET default;
@@ -185,6 +185,14 @@ a
 вася
 select * from t1 where a=_latin1'вася';
 ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
+set names latin1;
+set names ascii;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a');
+select * from t1 where a='a';
+a
+a
 drop table t1;
 set names latin1;
 create table t1 (a char(10) character set utf8 collate utf8_bin);

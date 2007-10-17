@@ -311,4 +311,51 @@ drop function f3;
 drop function metaphon;
 drop function myfunc_double;
 drop function myfunc_int;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+create table t1 (a char);
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select metaphon('MySQL') from t1;
+metaphon('MySQL')
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+drop function metaphon;
+set GLOBAL query_cache_size=default;
+CREATE TABLE const_len_bug (
+str_const varchar(4000),
+result1 varchar(4000),
+result2 varchar(4000)
+);
+CREATE TRIGGER check_const_len_trigger BEFORE INSERT ON const_len_bug FOR EACH ROW BEGIN
+set NEW.str_const = 'bar';
+set NEW.result2 = check_const_len(NEW.str_const);
+END |
+CREATE PROCEDURE check_const_len_sp (IN str_const VARCHAR(4000))
+BEGIN
+DECLARE result VARCHAR(4000);
+SET result = check_const_len(str_const);
+insert into const_len_bug values(str_const, result, "");
+END |
+CREATE FUNCTION check_const_len RETURNS string SONAME "UDF_EXAMPLE_LIB";
+CALL check_const_len_sp("foo");
+SELECT * from const_len_bug;
+str_const	result1	result2
+bar	Correct length	Correct length
+DROP FUNCTION check_const_len;
+DROP PROCEDURE check_const_len_sp;
+DROP TRIGGER check_const_len_trigger;
+DROP TABLE const_len_bug;
 End of 5.0 tests.

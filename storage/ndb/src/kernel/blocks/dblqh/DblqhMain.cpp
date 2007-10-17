@@ -139,6 +139,10 @@ operator<<(NdbOut& out, Operation_t op)
 //#define MARKER_TRACE 1
 //#define TRACE_SCAN_TAKEOVER 1
 
+#ifndef DEBUG_REDO
+#define DEBUG_REDO 0
+#endif
+
 const Uint32 NR_ScanNo = 0;
 
 #if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
@@ -1023,6 +1027,11 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     clogPageFileSize+= (16 - mega_byte_part);
   }
 
+  /* maximum number of log file operations */
+  clfoFileSize = clogPageFileSize;
+  if (clfoFileSize < ZLFO_MIN_FILE_SIZE)
+    clfoFileSize = ZLFO_MIN_FILE_SIZE;
+
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
 					&ctcConnectrecFileSize));
@@ -1031,14 +1040,44 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
+  c_o_direct = true;
+  ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
   
   Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &tmp));
   c_fragment_pool.setSize(tmp);
 
+  if (!ndb_mgm_get_int_parameter(p, CFG_DB_REDOLOG_FILE_SIZE,
+                                 &clogFileSize))
+  {
+    // convert to mbyte
+    clogFileSize = (clogFileSize + 1024*1024 - 1) / (1024 * 1024);
+    ndbrequire(clogFileSize >= 4 && clogFileSize <= 1024);
+  }
+
+  cmaxLogFilesInPageZero = (ZPAGE_SIZE - ZPAGE_HEADER_SIZE - 128) /
+    (ZFD_MBYTE_SIZE * clogFileSize);
+
+  /**
+   * "Old" cmaxLogFilesInPageZero was 40
+   * Each FD need 3 words per mb, require that they can fit into 1 page
+   *   (atleast 1 FD)
+   * Is also checked in ConfigInfo.cpp (max FragmentLogFileSize = 1Gb)
+   *   1Gb = 1024Mb => 3(ZFD_MBYTE_SIZE) * 1024 < 8192 (ZPAGE_SIZE)
+   */
+  if (cmaxLogFilesInPageZero > 40)
+  {
+    jam();
+    cmaxLogFilesInPageZero = 40;
+  }
+  else
+  {
+    ndbrequire(cmaxLogFilesInPageZero);
+  }
+  
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
-  
+
   return;
 }//Dblqh::execSIZEALT_REP()
 
@@ -8507,9 +8546,32 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
-  AccScanReq::setNoDiskScanFlag(req->requestInfo, 
-				!tcConnectptr.p->m_disk_table);
-  AccScanReq::setLcpScanFlag(req->requestInfo, scanptr.p->lcpScan);
+
+  if (refToBlock(tcConnectptr.p->clientBlockref) == BACKUP)
+  {
+    if (scanptr.p->lcpScan)
+    {
+      AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 1);
+    }
+    else
+    {
+      /* If backup scan disktables in disk order */
+      AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                    !tcConnectptr.p->m_disk_table);
+      AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+    }
+  }
+  else
+  {
+#if BUG_27776_FIXED
+    AccScanReq::setNoDiskScanFlag(req->requestInfo,
+                                  !tcConnectptr.p->m_disk_table);
+#else
+    AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+#endif
+    AccScanReq::setLcpScanFlag(req->requestInfo, 0);
+  }
   
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
@@ -11732,6 +11794,13 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     jam();
     sendEMPTY_LCP_CONF(signal, true);
   }
+
+  if (getNodeState().getNodeRestartInProgress() && cstartRecReq != 3)
+  {
+    jam();
+    ndbrequire(cstartRecReq == 2);
+    cstartRecReq = 3;
+  }
   return;
   
 }//Dblqh::sendCOMP_LCP_ROUND()
@@ -11765,9 +11834,9 @@ void Dblqh::sendStartLcp(Signal* signal)
 Uint32 Dblqh::remainingLogSize(const LogFileRecordPtr &sltCurrLogFilePtr,
 			       const LogPartRecordPtr &sltLogPartPtr)
 {
-  Uint32 hf = sltCurrLogFilePtr.p->fileNo*ZNO_MBYTES_IN_FILE+sltCurrLogFilePtr.p->currentMbyte;
-  Uint32 tf = sltLogPartPtr.p->logTailFileNo*ZNO_MBYTES_IN_FILE+sltLogPartPtr.p->logTailMbyte;
-  Uint32 sz = sltLogPartPtr.p->noLogFiles*ZNO_MBYTES_IN_FILE;
+  Uint32 hf = sltCurrLogFilePtr.p->fileNo*clogFileSize+sltCurrLogFilePtr.p->currentMbyte;
+  Uint32 tf = sltLogPartPtr.p->logTailFileNo*clogFileSize+sltLogPartPtr.p->logTailMbyte;
+  Uint32 sz = sltLogPartPtr.p->noLogFiles*clogFileSize;
   if (tf > hf) hf += sz;
   return sz-(hf-tf);
 }
@@ -11825,7 +11894,7 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
 /* ------------------------------------------------------------------------- */
   SLT_LOOP:
     for (tsltIndex = tsltStartMbyte;
-	 tsltIndex <= ZNO_MBYTES_IN_FILE - 1; 
+	 tsltIndex <= clogFileSize - 1;
 	 tsltIndex++) {
       if (sltLogFilePtr.p->logMaxGciStarted[tsltIndex] >= keepGci) {
 /* ------------------------------------------------------------------------- */
@@ -11841,7 +11910,7 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
 /* ------------------------------------------------------------------------- */
 /*STEPPING BACK INCLUDES ALSO STEPPING BACK TO THE PREVIOUS LOG FILE.        */
 /* ------------------------------------------------------------------------- */
-          tsltMbyte = ZNO_MBYTES_IN_FILE - 1;
+          tsltMbyte = clogFileSize - 1;
           sltLogFilePtr.i = sltLogFilePtr.p->prevLogFile;
           ptrCheckGuard(sltLogFilePtr, clogFileFileSize, logFileRecord);
         }//if
@@ -11879,7 +11948,7 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
       UintR ToldTailFileNo = sltLogPartPtr.p->logTailFileNo;
       UintR ToldTailMByte = sltLogPartPtr.p->logTailMbyte;
 
-      arrGuard(tsltMbyte, 16);
+      arrGuard(tsltMbyte, clogFileSize);
       sltLogPartPtr.p->logTailFileNo = 
          sltLogFilePtr.p->logLastPrepRef[tsltMbyte] >> 16;
 /* ------------------------------------------------------------------------- */
@@ -12002,15 +12071,27 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   }//if
   
   ndbrequire(ccurrentGcprec == RNIL);
-  ccurrentGcprec = 0;
-  gcpPtr.i = ccurrentGcprec;
-  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
-  
   cnewestCompletedGci = gci;
   if (gci > cnewestGci) {
     jam();
     cnewestGci = gci;
   }//if
+
+  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 3)
+  {
+    GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
+    saveRef->dihPtr = dihPtr;
+    saveRef->nodeId = getOwnNodeId();
+    saveRef->gci    = gci;
+    saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
+    sendSignal(dihBlockRef, GSN_GCP_SAVEREF, signal, 
+	       GCPSaveRef::SignalLength, JBB);
+    return;
+  }
+
+  ccurrentGcprec = 0;
+  gcpPtr.i = ccurrentGcprec;
+  ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
   
   gcpPtr.p->gcpBlockref = dihBlockRef;
   gcpPtr.p->gcpUserptr = dihPtr;
@@ -12264,9 +12345,6 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   case LogFileRecord::CLOSE_SR_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
-    // Set the prev file to check if we shall close it.
-    logFilePtr.i = logFilePtr.p->prevLogFile;
-    ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
 
     logPartPtr.i = logFilePtr.p->logPartRec;
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -12316,7 +12394,7 @@ void Dblqh::execFSOPENCONF(Signal* signal)
   case LogFileRecord::OPEN_SR_INVALIDATE_PAGES:
     jam();
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN;
-    readFileInInvalidate(signal);
+    readFileInInvalidate(signal, false);
     return;
   case LogFileRecord::OPENING_INIT:
     jam();
@@ -12379,6 +12457,26 @@ void Dblqh::execFSOPENCONF(Signal* signal)
   }//switch
 }//Dblqh::execFSOPENCONF()
 
+void
+Dblqh::execFSOPENREF(Signal* signal)
+{
+  jamEntry();
+  FsRef* ref = (FsRef*)signal->getDataPtr();
+  Uint32 err = ref->errorCode;
+  if (err == FsRef::fsErrInvalidFileSize)
+  {
+    char buf[256];
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Invalid file size for redo logfile, "
+                         " size only changable with --initial");
+    progError(__LINE__,
+              NDBD_EXIT_INVALID_CONFIG,
+              buf);
+    return;
+  }
+
+  SimulatedBlock::execFSOPENREF(signal);
+}
 
 /* ************>> */
 /*  FSREADCONF  > */
@@ -12496,6 +12594,7 @@ void Dblqh::execFSWRITECONF(Signal* signal)
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
     jam();
     invalidateLogAfterLastGCI(signal);
+    CRASH_INSERTION(5047);
     return;
   case LogFileOperationRecord::WRITE_PAGE_ZERO:
     jam();
@@ -12532,6 +12631,14 @@ void Dblqh::execFSWRITECONF(Signal* signal)
   case LogFileOperationRecord::FIRST_PAGE_WRITE_IN_LOGFILE:
     jam();
     firstPageWriteLab(signal);
+    return;
+  case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0:
+    jam();
+    // We are done...send completed signal and exit this phase.
+    releaseLfo(signal);
+    signal->theData[0] = ZSR_FOURTH_COMP;
+    signal->theData[1] = logPartPtr.i;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
     return;
   default:
     jam();
@@ -13024,7 +13131,7 @@ void Dblqh::openFileInitLab(Signal* signal)
 {
   logFilePtr.p->logFileStatus = LogFileRecord::OPEN_INIT;
   seizeLogpage(signal);
-  writeSinglePage(signal, (ZNO_MBYTES_IN_FILE * ZPAGES_IN_MBYTE) - 1,
+  writeSinglePage(signal, (clogFileSize * ZPAGES_IN_MBYTE) - 1,
                   ZPAGE_SIZE - 1, __LINE__);
   lfoPtr.p->lfoState = LogFileOperationRecord::INIT_WRITE_AT_END;
   return;
@@ -13087,7 +13194,7 @@ void Dblqh::writeInitMbyteLab(Signal* signal)
 {
   releaseLfo(signal);
   logFilePtr.p->currentMbyte = logFilePtr.p->currentMbyte + 1;
-  if (logFilePtr.p->currentMbyte == ZNO_MBYTES_IN_FILE) {
+  if (logFilePtr.p->currentMbyte == clogFileSize) {
     jam();
     releaseLogpage(signal);
     logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_INIT;
@@ -13207,7 +13314,7 @@ void Dblqh::initLogfile(Signal* signal, Uint32 fileNo)
   logFilePtr.p->lastPageWritten = 0;
   logFilePtr.p->logPageZero = RNIL;
   logFilePtr.p->currentMbyte = 0;
-  for (tilIndex = 0; tilIndex <= 15; tilIndex++) {
+  for (tilIndex = 0; tilIndex < clogFileSize; tilIndex++) {
     logFilePtr.p->logMaxGciCompleted[tilIndex] = (UintR)-1;
     logFilePtr.p->logMaxGciStarted[tilIndex] = (UintR)-1;
     logFilePtr.p->logLastPrepRef[tilIndex] = 0;
@@ -13258,8 +13365,14 @@ void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr)
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = ZOPEN_READ_WRITE | FsOpenReq::OM_AUTOSYNC;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+  if (c_o_direct)
+    signal->theData[6] |= FsOpenReq::OM_DIRECT;
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
+  Uint64 sz = clogFileSize;
+  sz *= 1024; sz *= 1024;
+  req->file_size_hi = sz >> 32;
+  req->file_size_lo = sz & 0xFFFFFFFF;
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openFileRw()
 
@@ -13278,7 +13391,9 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[3] = logFilePtr.p->fileName[1];
   signal->theData[4] = logFilePtr.p->fileName[2];
   signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = 0x302 | FsOpenReq::OM_AUTOSYNC;
+  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC;
+  if (c_o_direct)
+    signal->theData[6] |= FsOpenReq::OM_DIRECT;
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openLogfileInit()
@@ -13314,8 +13429,14 @@ void Dblqh::openNextLogfile(Signal* signal)
     signal->theData[3] = onlLogFilePtr.p->fileName[1];
     signal->theData[4] = onlLogFilePtr.p->fileName[2];
     signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = 2 | FsOpenReq::OM_AUTOSYNC;
+    signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+    if (c_o_direct)
+      signal->theData[6] |= FsOpenReq::OM_DIRECT;
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
+    Uint64 sz = clogFileSize;
+    sz *= 1024; sz *= 1024;
+    req->file_size_hi = sz >> 32;
+    req->file_size_lo = sz & 0xFFFFFFFF;
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
   }//if
 }//Dblqh::openNextLogfile()
@@ -13446,7 +13567,7 @@ void Dblqh::writeFileDescriptor(Signal* signal)
 /* -------------------------------------------------- */
 /*       START BY WRITING TO LOG FILE RECORD          */
 /* -------------------------------------------------- */
-  arrGuard(logFilePtr.p->currentMbyte, 16);
+  arrGuard(logFilePtr.p->currentMbyte, clogFileSize);
   logFilePtr.p->logMaxGciCompleted[logFilePtr.p->currentMbyte] = 
     logPartPtr.p->logPartNewestCompletedGCI;
   logFilePtr.p->logMaxGciStarted[logFilePtr.p->currentMbyte] = cnewestGci;
@@ -13472,10 +13593,7 @@ void Dblqh::writeFileDescriptor(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType) 
 {
-  LogFileRecordPtr wmoLogFilePtr;
   UintR twmoNoLogDescriptors;
-  UintR twmoLoop;
-  UintR twmoIndex;
 
 /* -------------------------------------------------- */
 /*       WRITE HEADER INFORMATION IN THE NEW FILE.    */
@@ -13483,52 +13601,44 @@ void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType)
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_LOG_TYPE] = ZFD_TYPE;
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = 
     logFilePtr.p->fileNo;
-  if (logPartPtr.p->noLogFiles > ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+  if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     jam();
-    twmoNoLogDescriptors = ZMAX_LOG_FILES_IN_PAGE_ZERO;
+    twmoNoLogDescriptors = cmaxLogFilesInPageZero;
   } else {
     jam();
     twmoNoLogDescriptors = logPartPtr.p->noLogFiles;
   }//if
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_NO_FD] = 
     twmoNoLogDescriptors;
-  wmoLogFilePtr.i = logFilePtr.i;
-  twmoLoop = 0;
-WMO_LOOP:
-  jam();
-  if (twmoLoop < twmoNoLogDescriptors) {
-    jam();
-    ptrCheckGuard(wmoLogFilePtr, clogFileFileSize, logFileRecord);
-    for (twmoIndex = 0; twmoIndex <= ZNO_MBYTES_IN_FILE - 1; twmoIndex++) {
+
+  {
+    Uint32 pos = ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE;
+    LogFileRecordPtr filePtr = logFilePtr;
+    for (Uint32 fd = 0; fd < twmoNoLogDescriptors; fd++)
+    {
       jam();
-      arrGuard(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-                (twmoLoop * ZFD_PART_SIZE)) + twmoIndex, ZPAGE_SIZE);
-      logPagePtr.p->logPageWord[((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-                   (twmoLoop * ZFD_PART_SIZE)) + twmoIndex] = 
-            wmoLogFilePtr.p->logMaxGciCompleted[twmoIndex];
-      arrGuard((((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) +
-                 (twmoLoop * ZFD_PART_SIZE)) + ZNO_MBYTES_IN_FILE) +
-                  twmoIndex, ZPAGE_SIZE);
-      logPagePtr.p->logPageWord[(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-           (twmoLoop * ZFD_PART_SIZE)) + ZNO_MBYTES_IN_FILE) + twmoIndex] = 
-         wmoLogFilePtr.p->logMaxGciStarted[twmoIndex];
-      arrGuard((((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) +
-        (twmoLoop * ZFD_PART_SIZE)) + (2 * ZNO_MBYTES_IN_FILE)) +
-         twmoIndex, ZPAGE_SIZE);
-      logPagePtr.p->logPageWord[(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-        (twmoLoop * ZFD_PART_SIZE)) + (2 * ZNO_MBYTES_IN_FILE)) + twmoIndex] = 
-          wmoLogFilePtr.p->logLastPrepRef[twmoIndex];
-    }//for
-    wmoLogFilePtr.i = wmoLogFilePtr.p->prevLogFile;
-    twmoLoop = twmoLoop + 1;
-    goto WMO_LOOP;
-  }//if
-  logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = 
-    (ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) +
-    (ZFD_PART_SIZE * twmoNoLogDescriptors);
-  arrGuard(logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX], ZPAGE_SIZE);
-  logPagePtr.p->logPageWord[logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX]] = 
-       ZNEXT_LOG_RECORD_TYPE;
+      ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+      for (Uint32 mb = 0; mb < clogFileSize; mb ++)
+      {
+        jam();
+        Uint32 pos0 = pos + fd * (ZFD_MBYTE_SIZE * clogFileSize) + mb;
+        Uint32 pos1 = pos0 + clogFileSize;
+        Uint32 pos2 = pos1 + clogFileSize;
+        arrGuard(pos0, ZPAGE_SIZE);
+        arrGuard(pos1, ZPAGE_SIZE);
+        arrGuard(pos2, ZPAGE_SIZE);
+        logPagePtr.p->logPageWord[pos0] = filePtr.p->logMaxGciCompleted[mb];
+        logPagePtr.p->logPageWord[pos1] = filePtr.p->logMaxGciStarted[mb];
+        logPagePtr.p->logPageWord[pos2] = filePtr.p->logLastPrepRef[mb];
+      }
+      filePtr.i = filePtr.p->prevLogFile;
+    }
+    pos += (twmoNoLogDescriptors * ZFD_MBYTE_SIZE * clogFileSize);
+    arrGuard(pos, ZPAGE_SIZE);
+    logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = pos;
+    logPagePtr.p->logPageWord[pos] = ZNEXT_LOG_RECORD_TYPE;
+  }
+
 /* ------------------------------------------------------- */
 /*       THIS IS A SPECIAL WRITE OF THE FIRST PAGE IN THE  */
 /*       LOG FILE. THIS HAS SPECIAL SIGNIFANCE TO FIND     */
@@ -13608,6 +13718,12 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("writeSingle 1 page at part: %u file: %u pos: %u",
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     pageNo);
 }//Dblqh::writeSinglePage()
 
 /* ##########################################################################
@@ -13673,9 +13789,15 @@ void Dblqh::openSrLastFileLab(Signal* signal)
 void Dblqh::readSrLastFileLab(Signal* signal) 
 {
   logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
-  if (logPartPtr.p->noLogFiles > ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+  if (DEBUG_REDO)
+    ndbout_c("readSrLastFileLab part: %u logExecState: %u logPartState: %u logLap: %u",
+             logPartPtr.i,
+ 	     logPartPtr.p->logExecState,
+ 	     logPartPtr.p->logPartState,
+ 	     logPartPtr.p->logLap);
+  if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     jam();
-    initGciInLogFileRec(signal, ZMAX_LOG_FILES_IN_PAGE_ZERO);
+    initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
   } else {
     jam();
     initGciInLogFileRec(signal, logPartPtr.p->noLogFiles);
@@ -13700,7 +13822,7 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
       logPartPtr.p->lastMbyte = logFilePtr.p->currentMbyte - 1;
     }//if
   }//if
-  arrGuard(logFilePtr.p->currentMbyte, 16);
+  arrGuard(logFilePtr.p->currentMbyte, clogFileSize);
   logFilePtr.p->logMaxGciCompleted[logFilePtr.p->currentMbyte] = 
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED];
   logFilePtr.p->logMaxGciStarted[logFilePtr.p->currentMbyte] = 
@@ -13708,7 +13830,7 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
   logFilePtr.p->logLastPrepRef[logFilePtr.p->currentMbyte] = 
     logPagePtr.p->logPageWord[ZLAST_LOG_PREP_REF];
   releaseLogpage(signal);
-  if (logFilePtr.p->currentMbyte < (ZNO_MBYTES_IN_FILE - 1)) {
+  if (logFilePtr.p->currentMbyte < (clogFileSize - 1)) {
     jam();
     logFilePtr.p->currentMbyte++;
     readSinglePage(signal, ZPAGES_IN_MBYTE * logFilePtr.p->currentMbyte);
@@ -13722,21 +13844,21 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
      * ---------------------------------------------------------------------- */
     if (logPartPtr.p->lastMbyte == ZNIL) {
       jam();
-      logPartPtr.p->lastMbyte = ZNO_MBYTES_IN_FILE - 1;
+      logPartPtr.p->lastMbyte = clogFileSize - 1;
     }//if
   }//if
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
-  if (logPartPtr.p->noLogFiles > ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+  if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     Uint32 fileNo;
-    if (logFilePtr.p->fileNo >= ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+    if (logFilePtr.p->fileNo >= cmaxLogFilesInPageZero) {
       jam();
-      fileNo = logFilePtr.p->fileNo - ZMAX_LOG_FILES_IN_PAGE_ZERO;
+      fileNo = logFilePtr.p->fileNo - cmaxLogFilesInPageZero;
     } else {
       jam();
       fileNo = 
 	(logPartPtr.p->noLogFiles + logFilePtr.p->fileNo) - 
-	ZMAX_LOG_FILES_IN_PAGE_ZERO;
+	cmaxLogFilesInPageZero;
     }//if
     if (fileNo == 0) {
       jam();
@@ -13746,11 +13868,11 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
        * -------------------------------------------------------------------- */
       fileNo = 1;
       logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->noLogFiles - (ZMAX_LOG_FILES_IN_PAGE_ZERO - 1);
+	logPartPtr.p->noLogFiles - (cmaxLogFilesInPageZero - 1);
     } else {
       jam();
       logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->noLogFiles - ZMAX_LOG_FILES_IN_PAGE_ZERO;
+	logPartPtr.p->noLogFiles - cmaxLogFilesInPageZero;
     }//if
     LogFileRecordPtr locLogFilePtr;
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
@@ -13775,9 +13897,9 @@ void Dblqh::openSrNextFileLab(Signal* signal)
 
 void Dblqh::readSrNextFileLab(Signal* signal) 
 {
-  if (logPartPtr.p->srRemainingFiles > ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+  if (logPartPtr.p->srRemainingFiles > cmaxLogFilesInPageZero) {
     jam();
-    initGciInLogFileRec(signal, ZMAX_LOG_FILES_IN_PAGE_ZERO);
+    initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
   } else {
     jam();
     initGciInLogFileRec(signal, logPartPtr.p->srRemainingFiles);
@@ -13785,16 +13907,16 @@ void Dblqh::readSrNextFileLab(Signal* signal)
   releaseLogpage(signal);
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
-  if (logPartPtr.p->srRemainingFiles > ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+  if (logPartPtr.p->srRemainingFiles > cmaxLogFilesInPageZero) {
     Uint32 fileNo;
-    if (logFilePtr.p->fileNo >= ZMAX_LOG_FILES_IN_PAGE_ZERO) {
+    if (logFilePtr.p->fileNo >= cmaxLogFilesInPageZero) {
       jam();
-      fileNo = logFilePtr.p->fileNo - ZMAX_LOG_FILES_IN_PAGE_ZERO;
+      fileNo = logFilePtr.p->fileNo - cmaxLogFilesInPageZero;
     } else {
       jam();
       fileNo = 
 	(logPartPtr.p->noLogFiles + logFilePtr.p->fileNo) - 
-	ZMAX_LOG_FILES_IN_PAGE_ZERO;
+	cmaxLogFilesInPageZero;
     }//if
     if (fileNo == 0) {
       jam();
@@ -13803,11 +13925,11 @@ void Dblqh::readSrNextFileLab(Signal* signal)
        * -------------------------------------------------------------------- */
       fileNo = 1;
       logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->srRemainingFiles - (ZMAX_LOG_FILES_IN_PAGE_ZERO - 1);
+	logPartPtr.p->srRemainingFiles - (cmaxLogFilesInPageZero - 1);
     } else {
       jam();
       logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->srRemainingFiles - ZMAX_LOG_FILES_IN_PAGE_ZERO;
+	logPartPtr.p->srRemainingFiles - cmaxLogFilesInPageZero;
     }//if
     LogFileRecordPtr locLogFilePtr;
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
@@ -14093,15 +14215,6 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
    *   WE ALSO NEED TO SET CNEWEST_GCI TO ENSURE THAT LOG RECORDS ARE EXECUTED
    *   WITH A PROPER GCI.
    *------------------------------------------------------------------------ */
-  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART){
-    jam();
-    cstartRecReq = 2;
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
-    return;
-  }//if
 
   if (c_lcp_restoring_fragments.isEmpty())
   {
@@ -14154,6 +14267,19 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
+
+  if(cstartType == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    jam();
+    cstartRecReq = 2;
+
+    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+	       StartRecConf::SignalLength, JBB);
+    return;
+  }
+
   c_lcp_complete_fragments.first(fragptr);
   build_acc(signal, fragptr.i);
   return;
@@ -14678,7 +14804,7 @@ void Dblqh::srLogLimits(Signal* signal)
    *   EXECUTED.
    * ----------------------------------------------------------------------- */
   while(true) {
-    ndbrequire(tmbyte < 16);
+    ndbrequire(tmbyte < clogFileSize);
     if (logPartPtr.p->logExecState == LogPartRecord::LES_SEARCH_STOP) {
       if (logFilePtr.p->logMaxGciCompleted[tmbyte] < logPartPtr.p->logLastGci) {
         jam();
@@ -14719,7 +14845,7 @@ void Dblqh::srLogLimits(Signal* signal)
     if (logPartPtr.p->logExecState != LogPartRecord::LES_EXEC_LOG) {
       if (tmbyte == 0) {
         jam();
-        tmbyte = ZNO_MBYTES_IN_FILE - 1;
+        tmbyte = clogFileSize - 1;
         logFilePtr.i = logFilePtr.p->prevLogFile;
         ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
       } else {
@@ -14744,6 +14870,20 @@ void Dblqh::srLogLimits(Signal* signal)
       break;
     }//if
   }//while
+
+  if (DEBUG_REDO)
+  {
+    LogFileRecordPtr tmp;
+    tmp.i = logPartPtr.p->stopLogfile;
+    ptrCheckGuard(tmp, clogFileFileSize, logFileRecord);
+    ndbout_c("srLogLimits part: %u start file: %u mb: %u stop file: %u mb: %u",
+             logPartPtr.i,
+             tlastPrepRef >> 16,
+             tlastPrepRef & 65535,
+             tmp.p->fileNo,
+             logPartPtr.p->stopMbyte);           
+  }
+
   /* ------------------------------------------------------------------------
    *  WE HAVE NOW FOUND BOTH THE START AND THE STOP OF THE LOG. NOW START
    *  EXECUTING THE LOG. THE FIRST ACTION IS TO OPEN THE LOG FILE WHERE TO
@@ -15113,7 +15253,7 @@ void Dblqh::execSr(Signal* signal)
 	  logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_NO_FD];
           logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = 
 	      (ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-	      (noFdDescriptors * ZFD_PART_SIZE);
+	      (noFdDescriptors * ZFD_MBYTE_SIZE * clogFileSize);
       }
       break;
 /* ========================================================================= */
@@ -15153,11 +15293,11 @@ void Dblqh::execSr(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* START EXECUTION OF A NEW MBYTE IN THE LOG.                                */
 /*---------------------------------------------------------------------------*/
-      if (logFilePtr.p->currentMbyte < (ZNO_MBYTES_IN_FILE - 1)) {
+      if (logFilePtr.p->currentMbyte < (clogFileSize - 1)) {
         jam();
         logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_NEW_MBYTE;
       } else {
-        ndbrequire(logFilePtr.p->currentMbyte == (ZNO_MBYTES_IN_FILE - 1));
+        ndbrequire(logFilePtr.p->currentMbyte == (clogFileSize - 1));
         jam();
 /*---------------------------------------------------------------------------*/
 /* WE HAVE TO CHANGE FILE. CLOSE THIS ONE AND THEN OPEN THE NEXT.            */
@@ -15170,6 +15310,12 @@ void Dblqh::execSr(Signal* signal)
     case ZCOMPLETED_GCI_TYPE:
       jam();
       logWord = readLogword(signal);
+      if (DEBUG_REDO)
+	ndbout_c("found gci: %u part: %u file: %u page: %u",
+		 logWord,
+		 logPartPtr.i,
+		 logFilePtr.p->fileNo,
+		 logFilePtr.p->currentFilepage);
       if (logWord == logPartPtr.p->logLastGci) {
         jam();
 /*---------------------------------------------------------------------------*/
@@ -15186,6 +15332,10 @@ void Dblqh::execSr(Signal* signal)
           logPartPtr.p->headPageNo = logFilePtr.p->currentFilepage;
           logPartPtr.p->headPageIndex = 
                   logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
+	  logPartPtr.p->logLap = logPagePtr.p->logPageWord[ZPOS_LOG_LAP];
+	  if (DEBUG_REDO)
+	    ndbout_c("execSr part: %u logLap: %u",
+		     logPartPtr.i, logPartPtr.p->logLap);
         }//if
 /*---------------------------------------------------------------------------*/
 /* THERE IS NO NEED OF EXECUTING PAST THIS LINE SINCE THERE WILL ONLY BE LOG */
@@ -15348,67 +15498,140 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
   }
 
   switch (lfoPtr.p->lfoState) {
-  case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
-    jam();
-    releaseLfo(signal);
-    releaseLogpage(signal); 
-    if (logPartPtr.p->invalidatePageNo < (ZNO_MBYTES_IN_FILE * ZPAGES_IN_MBYTE - 1)) {
-      // We continue in this file.
-      logPartPtr.p->invalidatePageNo++;
-    } else {
-      // We continue in the next file.
-      logFilePtr.i = logFilePtr.p->nextLogFile;
-      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
-      // Page 0 is used for file descriptors.
-      logPartPtr.p->invalidatePageNo = 1; 
-      if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN) {
-	jam();
-	logFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_INVALIDATE_PAGES;
-	openFileRw(signal, logFilePtr);
-	return;
-	break;
-      }
-    }
-    // Read a page from the log file. 
-    readFileInInvalidate(signal);
-    return;
-    break;
-
   case LogFileOperationRecord::READ_SR_INVALIDATE_PAGES:
     jam();
-    releaseLfo(signal);
     // Check if this page must be invalidated.
     // If the log lap number on a page after the head of the tail is the same 
     // as the actual log lap number we must invalidate this page. Otherwise it
     // could be impossible to find the end of the log in a later system/node 
     // restart.
-    if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] == logPartPtr.p->logLap) {
+    if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] == logPartPtr.p->logLap) 
+    {
       // This page must be invalidated.
-      logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 0;
-      // Contact NDBFS. Real time break.
-      writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
-                      ZPAGE_SIZE - 1, __LINE__);
-      lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
-    } else {
-      // We are done with invalidating. Finish start phase 3.4. 
-      exitFromInvalidate(signal);
+      // We search for end
+      // read next
+      releaseLfo(signal);
+      releaseLogpage(signal); 
+      readFileInInvalidate(signal, true);
+      lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
+      return;
     }
-    return;
-    break;
 
+    /**
+     * We found the "last" page to invalidate...
+     *   Invalidate backwards until head...
+     */
+
+    // Fall through...
+  case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
+    jam();
+
+    releaseLfo(signal);
+    releaseLogpage(signal); 
+
+    // Step backwards...
+    logPartPtr.p->invalidatePageNo--;
+
+    if (logPartPtr.p->invalidatePageNo == 0)
+    {
+      jam();
+
+      if (logFilePtr.p->fileNo == 0)
+      {
+	/**
+	 * We're wrapping in the log...
+	 *   update logLap
+	 */
+	logPartPtr.p->logLap--;
+	ndbrequire(logPartPtr.p->logLap); // Should always be > 0
+	if (DEBUG_REDO)
+	  ndbout_c("invalidateLogAfterLastGCI part: %u wrap from file 0 -> logLap: %u",
+		   logPartPtr.i, logPartPtr.p->logLap);
+      }
+      
+      /**
+       * Move to prev file
+       */
+      logFilePtr.i = logFilePtr.p->prevLogFile;
+      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+      logPartPtr.p->invalidatePageNo = clogFileSize * ZPAGES_IN_MBYTE - 1;
+    }
+    
+    if (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo &&
+	logPartPtr.p->invalidatePageNo == logPartPtr.p->headPageNo)
+    {
+      /**
+       * Done...
+       */
+      logFilePtr.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+      
+      logFilePtr.i = logFilePtr.p->nextLogFile;
+      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+
+      // Close files if necessary. Current file and the next file should be 
+      // left open.
+      exitFromInvalidate(signal);
+      return;
+    }
+
+    seizeLogpage(signal);
+
+    /**
+     * Make page really empty
+     */
+    bzero(logPagePtr.p, sizeof(LogPageRecord));
+    writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
+		    ZPAGE_SIZE - 1, __LINE__);
+
+    lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
+    return;
   default:
     jam();
     systemError(signal, __LINE__);
     return;
     break;
   }
-
-  return;
 }//Dblqh::invalidateLogAfterLastGCI
 
-void Dblqh::readFileInInvalidate(Signal* signal) {
+void Dblqh::readFileInInvalidate(Signal* signal, bool stepNext) 
+{
   jam();
+
+  if (stepNext)
+  {
+    logPartPtr.p->invalidatePageNo++;
+    if (logPartPtr.p->invalidatePageNo == (clogFileSize * ZPAGES_IN_MBYTE)) 
+    {
+      // We continue in the next file.
+      logFilePtr.i = logFilePtr.p->nextLogFile;
+      ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+      logPartPtr.p->invalidateFileNo = logFilePtr.p->fileNo;
+      // Page 0 is used for file descriptors.
+      logPartPtr.p->invalidatePageNo = 1; 
+
+      if (logFilePtr.p->fileNo == 0)
+      {
+	/**
+	 * We're wrapping in the log...
+	 *   update logLap
+	 */
+	logPartPtr.p->logLap++;
+	if (DEBUG_REDO)
+	  ndbout_c("readFileInInvalidate part: %u wrap to file 0 -> logLap: %u",
+		   logPartPtr.i, logPartPtr.p->logLap);
+      }
+      if (logFilePtr.p->logFileStatus != LogFileRecord::OPEN) 
+      {
+	jam();
+	logFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_INVALIDATE_PAGES;
+	openFileRw(signal, logFilePtr);
+	return;
+      }
+    }
+  }
+  
   // Contact NDBFS. Real time break.
   readSinglePage(signal, logPartPtr.p->invalidatePageNo); 
   lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
@@ -15416,34 +15639,57 @@ void Dblqh::readFileInInvalidate(Signal* signal) {
 
 void Dblqh::exitFromInvalidate(Signal* signal) {
   jam();
-  // Close files if necessary. Current file and the next file should be 
-  // left open.
-  if (logFilePtr.i != logPartPtr.p->currentLogfile) {
-    LogFileRecordPtr currentLogFilePtr;
-    LogFileRecordPtr nextAfterCurrentLogFilePtr;
 
-    currentLogFilePtr.i = logPartPtr.p->currentLogfile;
-    ptrCheckGuard(currentLogFilePtr, clogFileFileSize, logFileRecord);
+loop:  
+  logFilePtr.i = logFilePtr.p->nextLogFile;
+  ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
 
-    nextAfterCurrentLogFilePtr.i = currentLogFilePtr.p->nextLogFile;
+  if (logFilePtr.i == logPartPtr.p->currentLogfile)
+  {
+    jam();
+    goto done;
+  }
+  
+  if (logFilePtr.p->fileNo == 0)
+  {
+    jam();
+    /**
+     * Logfile 0 shoult *not* be closed
+     */
+    goto loop;
+  }
+  
+  if (logFilePtr.p->logFileStatus == LogFileRecord::CLOSED)
+  {
+    jam();
+    goto done;
+  }
 
-    if (logFilePtr.i != nextAfterCurrentLogFilePtr.i) {
-      // This file should be closed.
-      logFilePtr.p->logFileStatus = LogFileRecord::CLOSE_SR_INVALIDATE_PAGES;
-      closeFile(signal, logFilePtr, __LINE__);  
-      // Return from this function and wait for close confirm. Then come back 
-      // and test the previous file for closing.
-      return;
-    }
-  }    
+  jam();
+  ndbrequire(logFilePtr.p->logFileStatus == LogFileRecord::OPEN);
+  logFilePtr.p->logFileStatus = LogFileRecord::CLOSE_SR_INVALIDATE_PAGES;
+  closeFile(signal, logFilePtr, __LINE__);
+  return;
 
-  // We are done with closing files, send completed signal and exit this phase.
-  signal->theData[0] = ZSR_FOURTH_COMP;
-  signal->theData[1] = logPartPtr.i;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+done:
+  if (DEBUG_REDO)
+    ndbout_c("exitFromInvalidate part: %u head file: %u page: %u", 
+	     logPartPtr.i,
+	     logPartPtr.p->headFileNo,
+	     logPartPtr.p->headPageNo);
+  
+  logFilePtr.i = logPartPtr.p->firstLogfile;
+  ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+  logPagePtr.i = logFilePtr.p->logPageZero;
+  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+  logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = 
+    logPartPtr.p->headFileNo;
+  writeSinglePage(signal, 0, ZPAGE_SIZE - 1, __LINE__);
+
+  lfoPtr.p->logFileRec = logFilePtr.i;
+  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0;
   return;
 }
-
 
 /*---------------------------------------------------------------------------*/
 /* THE EXECUTION OF A LOG RECORD IS COMPLETED. RELEASE PAGES IF THEY WERE    */
@@ -15835,20 +16081,10 @@ void Dblqh::readSrFourthZeroLab(Signal* signal)
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
   logPartPtr.p->invalidateFileNo = logPartPtr.p->headFileNo;
   logPartPtr.p->invalidatePageNo = logPartPtr.p->headPageNo;
-   
   logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_INVALIDATE;
-  seizeLfo(signal);
-  initLfo(signal);
-  // The state here is a little confusing, but simulates that we return
-  // to invalidateLogAfterLastGCI() from an invalidate write and are ready
-  // to read a page from file. 
-  lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
-
-  /**
-   * Make sure we dont release zero page
-   */
-  seizeLogpage(signal);
-  invalidateLogAfterLastGCI(signal);
+   
+  readFileInInvalidate(signal, true);
+  lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_INVALIDATE_PAGES;
   return;
 }//Dblqh::readSrFourthZeroLab()
 
@@ -16361,6 +16597,14 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
   signal->theData[5] = twlpNoPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 15, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("writing %d pages at part: %u file: %u pos: %u",
+	     twlpNoPages,
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     logFilePtr.p->filePosition);
+
   if (twlpType == ZNORMAL) {
     jam();
     lfoPtr.p->lfoState = LogFileOperationRecord::ACTIVE_WRITE_LOG;
@@ -16693,6 +16937,22 @@ void Dblqh::initialiseLogFile(Signal* signal)
       ptrAss(logFilePtr, logFileRecord);
       logFilePtr.p->nextLogFile = logFilePtr.i + 1;
       logFilePtr.p->logFileStatus = LogFileRecord::LFS_IDLE;
+
+      logFilePtr.p->logLastPrepRef = new Uint32[clogFileSize];
+      logFilePtr.p->logMaxGciCompleted = new Uint32[clogFileSize];
+      logFilePtr.p->logMaxGciStarted = new Uint32[clogFileSize];
+
+      if (logFilePtr.p->logLastPrepRef == 0 ||
+          logFilePtr.p->logMaxGciCompleted == 0 ||
+          logFilePtr.p->logMaxGciStarted == 0)
+      {
+        char buf[256];
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Failed to alloc mbyte(%u) arrays for logfile %u",
+                             clogFileSize, logFilePtr.i);
+        progError(__LINE__, NDBD_EXIT_MEMALLOC, buf);
+      }
+
     }//for
     logFilePtr.i = clogFileFileSize - 1;
     ptrAss(logFilePtr, logFileRecord);
@@ -17021,41 +17281,31 @@ void Dblqh::initFragrec(Signal* signal,
  * ========================================================================= */
 void Dblqh::initGciInLogFileRec(Signal* signal, Uint32 noFdDescriptors) 
 {
-  LogFileRecordPtr iglLogFilePtr;
-  UintR tiglLoop;
-  UintR tiglIndex;
-
-  tiglLoop = 0;
-  iglLogFilePtr.i = logFilePtr.i;
-  iglLogFilePtr.p = logFilePtr.p;
-IGL_LOOP:
-  for (tiglIndex = 0; tiglIndex <= ZNO_MBYTES_IN_FILE - 1; tiglIndex++) {
-    arrGuard(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-	      (tiglLoop * ZFD_PART_SIZE)) + tiglIndex, ZPAGE_SIZE);
-    iglLogFilePtr.p->logMaxGciCompleted[tiglIndex] = 
-      logPagePtr.p->logPageWord[((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-				 (tiglLoop * ZFD_PART_SIZE)) + tiglIndex];
-    arrGuard((((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + ZNO_MBYTES_IN_FILE) + 
-	      (tiglLoop * ZFD_PART_SIZE)) + tiglIndex, ZPAGE_SIZE);
-    iglLogFilePtr.p->logMaxGciStarted[tiglIndex] = 
-      logPagePtr.p->logPageWord[(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-				  ZNO_MBYTES_IN_FILE) + 
-				 (tiglLoop * ZFD_PART_SIZE)) + tiglIndex];
-    arrGuard((((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-	       (2 * ZNO_MBYTES_IN_FILE)) + (tiglLoop * ZFD_PART_SIZE)) + 
-	     tiglIndex, ZPAGE_SIZE);
-    iglLogFilePtr.p->logLastPrepRef[tiglIndex] = 
-      logPagePtr.p->logPageWord[(((ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE) + 
-				  (2 * ZNO_MBYTES_IN_FILE)) + 
-				 (tiglLoop * ZFD_PART_SIZE)) + tiglIndex];
-  }//for
-  tiglLoop = tiglLoop + 1;
-  if (tiglLoop < noFdDescriptors) {
+  LogFileRecordPtr filePtr = logFilePtr;
+  Uint32 pos = ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE;
+  for (Uint32 fd = 0; fd < noFdDescriptors; fd++)
+  {
     jam();
-    iglLogFilePtr.i = iglLogFilePtr.p->prevLogFile;
-    ptrCheckGuard(iglLogFilePtr, clogFileFileSize, logFileRecord);
-    goto IGL_LOOP;
-  }//if
+    for (Uint32 mb = 0; mb < clogFileSize; mb++)
+    {
+      jam();
+      Uint32 pos0 = pos + fd * (ZFD_MBYTE_SIZE * clogFileSize) + mb;
+      Uint32 pos1 = pos0 + clogFileSize;
+      Uint32 pos2 = pos1 + clogFileSize;
+      arrGuard(pos0, ZPAGE_SIZE);
+      arrGuard(pos1, ZPAGE_SIZE);
+      arrGuard(pos2, ZPAGE_SIZE);
+      filePtr.p->logMaxGciCompleted[mb] = logPagePtr.p->logPageWord[pos0];
+      filePtr.p->logMaxGciStarted[mb] = logPagePtr.p->logPageWord[pos1];
+      filePtr.p->logLastPrepRef[mb] = logPagePtr.p->logPageWord[pos2];
+    }
+    if (fd + 1 < noFdDescriptors)
+    {
+      jam();
+      filePtr.i = filePtr.p->prevLogFile;
+      ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+    }
+  }
 }//Dblqh::initGciInLogFileRec()
 
 /* ========================================================================== 
@@ -17514,6 +17764,14 @@ void Dblqh::readExecLog(Signal* signal)
   signal->theData[14] = lfoPtr.p->logPageArray[8];
   signal->theData[15] = lfoPtr.p->logPageArray[9];
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 16, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("readExecLog %u page at part: %u file: %u pos: %u",
+	     lfoPtr.p->noPagesRw,
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     logPartPtr.p->execSrStartPageNo);
+
 }//Dblqh::readExecLog()
 
 /* ------------------------------------------------------------------------- */
@@ -17576,6 +17834,14 @@ void Dblqh::readExecSr(Signal* signal)
   signal->theData[13] = lfoPtr.p->logPageArray[7];
   signal->theData[14] = tresPageid;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 15, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("readExecSr %u page at part: %u file: %u pos: %u",
+	     8,
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     tresPageid);
+
 }//Dblqh::readExecSr()
 
 /* ------------------------------------------------------------------------- */
@@ -17731,6 +17997,13 @@ void Dblqh::readSinglePage(Signal* signal, Uint32 pageNo)
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("readSinglePage 1 page at part: %u file: %u pos: %u",
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     pageNo);
+
 }//Dblqh::readSinglePage()
 
 /* -------------------------------------------------------------------------- 
@@ -18214,8 +18487,17 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
     jam();
     changeMbyte(signal);
   }//if
+
   logFilePtr.p->remainingWordsInMbyte = 
     logFilePtr.p->remainingWordsInMbyte - ZCOMPLETED_GCI_LOG_SIZE;
+
+  if (DEBUG_REDO)
+    ndbout_c("writeCompletedGciLog gci: %u part: %u file: %u page: %u",
+	     cnewestCompletedGci,
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     logFilePtr.p->currentFilepage);
+
   writeLogWord(signal, ZCOMPLETED_GCI_TYPE);
   writeLogWord(signal, cnewestCompletedGci);
   logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -18252,6 +18534,13 @@ void Dblqh::writeDirty(Signal* signal, Uint32 place)
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = logPartPtr.p->prevFilepage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
+
+  if (DEBUG_REDO)
+    ndbout_c("writeDirty 1 page at part: %u file: %u pos: %u",
+	     logPartPtr.i,
+	     logFilePtr.p->fileNo,
+	     logPartPtr.p->prevFilepage);
+
 }//Dblqh::writeDirty()
 
 /* --------------------------------------------------------------------------
@@ -18308,7 +18597,7 @@ void Dblqh::writeNextLog(Signal* signal)
   ndbrequire(logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] < ZPAGE_SIZE);
   logPagePtr.p->logPageWord[logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX]] = 
     ZNEXT_MBYTE_TYPE;
-  if (logFilePtr.p->currentMbyte == (ZNO_MBYTES_IN_FILE - 1)) {
+  if (logFilePtr.p->currentMbyte == (clogFileSize - 1)) {
     jam();
 /* -------------------------------------------------- */
 /*       CALCULATE THE NEW REMAINING WORDS WHEN       */
@@ -18397,7 +18686,7 @@ void Dblqh::writeNextLog(Signal* signal)
       systemError(signal, __LINE__);
     }//if
   }//if
-  if (logFilePtr.p->currentMbyte == (ZNO_MBYTES_IN_FILE - 1)) {
+  if (logFilePtr.p->currentMbyte == (clogFileSize - 1)) {
     jam();
     twnlNextMbyte = 0;
     if (logFilePtr.p->fileChangeState != LogFileRecord::NOT_ONGOING) {

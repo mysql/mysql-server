@@ -515,3 +515,23 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
+drop table if exists t1;
+create table t1 (a int) ENGINE=MEMORY;
+--> client 2
+handler t1 open;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+--> client 1
+drop table t1;
+drop table if exists t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read a next;
+ERROR 42000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias read a next;
+ERROR 42000: Key 'a' doesn't exist in table 't1_alias'
+handler t1_alias READ a next where inexistent > 0;
+ERROR 42S22: Unknown column 'inexistent' in 'field list'
+handler t1_alias close;
+drop table t1;

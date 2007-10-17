@@ -73,7 +73,7 @@ drop table t1,t2;
 #
 create temporary table t1 (a int not null);
 insert into t1 values (1),(1);
--- error ER_DUP_ENTRY_WITH_KEY_NAME
+-- error ER_DUP_ENTRY
 alter table t1 add primary key (a);
 drop table t1;
 

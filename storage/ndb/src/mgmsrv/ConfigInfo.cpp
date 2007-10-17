@@ -580,6 +580,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_WATCHDOG_INTERVAL_INITIAL,
+    "TimeBetweenWatchDogCheckInitial",
+    DB_TOKEN,
+    "Time between execution checks inside a database node in the early start phases when memory is allocated",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "6000",
+    "70",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,
@@ -878,6 +890,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "16",
     "3",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_REDOLOG_FILE_SIZE,
+    "FragmentLogFileSize",
+    DB_TOKEN,
+    "Size of each Redo log file",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "16M",
+    "4M",
+    "1G" },
 
   {
     CFG_DB_MAX_OPEN_FILES,
@@ -1298,6 +1322,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
+    CFG_DB_MAX_ALLOCATE,
+    "MaxAllocate",
+    DB_TOKEN,
+    "Maximum size of allocation to use when allocating memory for tables",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "32M",
+    "1M",
+    "1G" },
+
+  { 
     CFG_DB_MEMREPORT_FREQUENCY,
     "MemReportFrequency",
     DB_TOKEN,
@@ -1309,6 +1345,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
+  {
+    CFG_DB_O_DIRECT,
+    "ODirect",
+    DB_TOKEN,
+    "Use O_DIRECT file write/read when possible",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2897,25 +2945,50 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
   char buf[] = "NodeIdX";  buf[6] = data[sizeof("NodeI")];
   char sysbuf[] = "SystemX";  sysbuf[6] = data[sizeof("NodeI")];
   const char* nodeId;
-  require(ctx.m_currentSection->get(buf, &nodeId));
+  if(!ctx.m_currentSection->get(buf, &nodeId))
+  {
+    ctx.reportError("Mandatory parameter %s missing from section"
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
 
   char tmpLine[MAX_LINE_LENGTH];
   strncpy(tmpLine, nodeId, MAX_LINE_LENGTH);
   char* token1 = strtok(tmpLine, ".");
   char* token2 = strtok(NULL, ".");
   Uint32 id;
-
+  
+  if(!token1)
+  {
+    ctx.reportError("Value for mandatory parameter %s missing from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
   if (token2 == NULL) {                // Only a number given
     errno = 0;
     char* p;
     id = strtol(token1, &p, 10);
-    if (errno != 0) warning("STRTOK1", nodeId);
+    if (errno != 0 || id <= 0x0  || id > MAX_NODES)
+    {
+      ctx.reportError("Illegal value for mandatory parameter %s from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     require(ctx.m_currentSection->put(buf, id, true));
   } else {                             // A pair given (e.g. "uppsala.32")
     errno = 0;
     char* p;
     id = strtol(token2, &p, 10);
-    if (errno != 0) warning("STRTOK2", nodeId);
+    if (errno != 0 || id <= 0x0  || id > MAX_NODES)
+    {
+      ctx.reportError("Illegal value for mandatory parameter %s from section "
+                    "[%s] starting at line: %d",
+                    buf, ctx.fname, ctx.m_sectionLineno);
+      return false;
+    }
     require(ctx.m_currentSection->put(buf, id, true));
     require(ctx.m_currentSection->put(sysbuf, token1));
   }
@@ -3733,16 +3806,16 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       }
     }
     if (db_host_count > 1 && node_group_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:\n%s",node_group_warning.c_str());
+      ctx.reportWarning("Cluster configuration warning:\n%s",node_group_warning.c_str());
     if (!with_arbitration_rank) 
     {
-      ndbout_c("Cluster configuration warning:" 
+      ctx.reportWarning("Cluster configuration warning:" 
          "\n  Neither %s nor %s nodes are configured with arbitrator,"
          "\n  may cause complete cluster shutdown in case of host failure.", 
          MGM_TOKEN, API_TOKEN);
     }
     if (db_host_count > 1 && arbitration_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
+      ctx.reportWarning("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
 	       "\n  Running arbitrator on the same host as a database node may"
 	       "\n  cause complete cluster shutdown in case of host failure.");
   }

@@ -19,6 +19,12 @@
 #include "event_db_repository.h"
 #include "event_queue.h"
 #include "event_scheduler.h"
+#include "sp_head.h" // for Stored_program_creation_ctx
+
+/**
+  @addtogroup Event_Scheduler
+  @{
+*/
 
 /*
  TODO list :
@@ -425,12 +431,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
         event_queue->create_event(thd, new_element, &created);
       /* Binlog the create event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -551,12 +552,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                                   new_element);
       /* Binlog the alter event. */
       DBUG_ASSERT(thd->query && thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      write_bin_log(thd, TRUE, thd->query, thd->query_length);
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -631,12 +627,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
     DBUG_ASSERT(thd->query && thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      thd->clear_error();
-      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
-    }
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);
@@ -713,6 +704,15 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   field_list.push_back(new Item_empty_string("Create Event",
                                              show_str.length()));
 
+  field_list.push_back(
+    new Item_empty_string("character_set_client", MY_CS_NAME_SIZE));
+
+  field_list.push_back(
+    new Item_empty_string("collation_connection", MY_CS_NAME_SIZE));
+
+  field_list.push_back(
+    new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
+
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
@@ -722,7 +722,17 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   protocol->store(et->name.str, et->name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(), system_charset_info);
+  protocol->store(show_str.c_ptr(), show_str.length(),
+                  et->creation_ctx->get_client_cs());
+  protocol->store(et->creation_ctx->get_client_cs()->csname,
+                  strlen(et->creation_ctx->get_client_cs()->csname),
+                  system_charset_info);
+  protocol->store(et->creation_ctx->get_connection_cl()->name,
+                  strlen(et->creation_ctx->get_connection_cl()->name),
+                  system_charset_info);
+  protocol->store(et->creation_ctx->get_db_cl()->name,
+                  strlen(et->creation_ctx->get_db_cl()->name),
+                  system_charset_info);
 
   if (protocol->write())
     DBUG_RETURN(TRUE);
@@ -785,8 +795,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   Check access rights and fill INFORMATION_SCHEMA.events table.
 
   @param[in,out]  thd     Thread context
-  @param[in]      table   The temporary table to fill.
-      cond    Unused
+  @param[in]      tables  The temporary table to fill.
 
   In MySQL INFORMATION_SCHEMA tables are temporary tables that are
   created and filled on demand. In this function, we fill
@@ -1182,3 +1191,7 @@ end:
 
   DBUG_RETURN(ret);
 }
+
+/**
+  @} (End of group Event_Scheduler)
+*/

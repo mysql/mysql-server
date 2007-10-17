@@ -2,6 +2,10 @@
 # Testing of misc functions
 #
 
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 select format(1.5555,0),format(123.5555,1),format(1234.5555,2),format(12345.55555,3),format(123456.5555,4),format(1234567.5555,5),format("12345.2399",2);
 
 select inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"));
@@ -13,6 +17,12 @@ select hex(inet_aton('127.1'));
 select hex(inet_aton('127.1.1'));
 
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
+
+# As we can assume we are the only user for the mysqld server, the difference
+# between two calls should be -1
+set @a= uuid_short();
+set @b= uuid_short();
+select cast(@a - @b as signed);
 
 #
 # Test for core dump with nan
@@ -42,9 +52,6 @@ drop table t1;
 #
 # Bug#16501: IS_USED_LOCK does not appear to work
 #
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (conn CHAR(7), connection_id INT);
 INSERT INTO t1 VALUES ('default', CONNECTION_ID());
@@ -89,7 +96,9 @@ select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 #
 # Test for BUG#9535
 #
+--disable_warnings
 create table t1 as select uuid(), length(uuid());
+--enable_warnings
 show create table t1;
 drop table t1;
 
@@ -190,3 +199,11 @@ drop function func_26093_a;
 drop function func_26093_b;
 
 --echo End of 5.0 tests
+
+#
+# Bug #30389: connection_id() always return 0 in embedded server
+#
+
+select connection_id() > 0;
+
+--echo End of tests

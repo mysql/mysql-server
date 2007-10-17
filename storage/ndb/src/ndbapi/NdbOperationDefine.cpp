@@ -608,7 +608,6 @@ NdbOperation::setAnyValue(Uint32 any_value)
   const NdbColumnImpl* impl =
     &NdbColumnImpl::getImpl(* NdbDictionary::Column::ANY_VALUE);
   OperationType tOpType = theOperationType;
-  OperationStatus tStatus = theStatus;
 
   switch(tOpType){
   case DeleteRequest:{

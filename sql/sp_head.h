@@ -23,6 +23,11 @@
 
 #include <stddef.h>
 
+/**
+  @defgroup Stored_Routines Stored Routines
+  @ingroup Runtime_Environment
+  @{
+*/
 // Values for the type enum. This reflects the order of the enum declaration
 // in the CREATE TABLE command.
 #define TYPE_ENUM_FUNCTION  1
@@ -44,6 +49,58 @@ class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
 struct sp_cond_type;
 struct sp_variable;
+
+/*************************************************************************/
+
+/**
+  Stored_program_creation_ctx -- base class for creation context of stored
+  programs (stored routines, triggers, events).
+*/
+
+class Stored_program_creation_ctx :public Default_object_creation_ctx
+{
+public:
+  CHARSET_INFO *get_db_cl()
+  {
+    return m_db_cl;
+  }
+
+public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) = 0;
+
+protected:
+  Stored_program_creation_ctx(THD *thd)
+    : Default_object_creation_ctx(thd),
+      m_db_cl(thd->variables.collation_database)
+  { }
+
+  Stored_program_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl,
+                              CHARSET_INFO *db_cl)
+    : Default_object_creation_ctx(client_cs, connection_cl),
+      m_db_cl(db_cl)
+  { }
+
+protected:
+  virtual void change_env(THD *thd) const
+  {
+    thd->variables.collation_database= m_db_cl;
+
+    Default_object_creation_ctx::change_env(thd);
+  }
+
+protected:
+  /**
+    db_cl stores the value of the database collation. Both character set
+    and collation attributes are used.
+
+    Database collation is included into the context because it defines the
+    default collation for stored-program variables.
+  */
+  CHARSET_INFO *m_db_cl;
+};
+
+/*************************************************************************/
 
 class sp_name : public Sql_alloc
 {
@@ -126,19 +183,41 @@ public:
   int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
-  create_field m_return_field_def; /* This is used for FUNCTIONs only. */
+  Create_field m_return_field_def; /* This is used for FUNCTIONs only. */
 
   const char *m_tmp_query;	// Temporary pointer to sub query string
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name
+  /**
+    Key representing routine in the set of stored routines used by statement.
+    [routine_type]db.name
+    @sa sp_name::m_sroutines_key
+  */
+  LEX_STRING m_sroutines_key;
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
   LEX_STRING m_body;
+  LEX_STRING m_body_utf8;
   LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
+
+private:
+  Stored_program_creation_ctx *m_creation_ctx;
+
+public:
+  inline Stored_program_creation_ctx *get_creation_ctx()
+  {
+    return m_creation_ctx;
+  }
+
+  inline void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
+  {
+    m_creation_ctx= creation_ctx->clone(mem_root);
+  }
+
   longlong m_created;
   longlong m_modified;
   /* Recursion level of the current SP instance. The levels are numbered from 0 */
@@ -176,8 +255,13 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  const char *m_param_begin, *m_param_end, *m_body_begin;
+  const char *m_param_begin;
+  const char *m_param_end;
 
+private:
+  const char *m_body_begin;
+
+public:
   /*
     Security context for stored routine which should be run under
     definer privileges.
@@ -200,9 +284,13 @@ public:
   void
   init_sp_name(THD *thd, sp_name *spname);
 
-  // Initialize strings after parsing header
+  /** Set the body-definition start position. */
   void
-  init_strings(THD *thd, LEX *lex);
+  set_body_start(THD *thd, const char *begin_ptr);
+
+  /** Set the statement-definition (body-definition) end position. */
+  void
+  set_stmt_end(THD *thd);
 
   int
   create(THD *thd);
@@ -214,8 +302,10 @@ public:
   destroy();
 
   bool
-  execute_trigger(THD *thd, const char *db, const char *table,
-                  GRANT_INFO *grant_onfo);
+  execute_trigger(THD *thd,
+                  const LEX_STRING *db_name,
+                  const LEX_STRING *table_name,
+                  GRANT_INFO *grant_info);
 
   bool
   execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
@@ -223,11 +313,8 @@ public:
   bool
   execute_procedure(THD *thd, List<Item> *args);
 
-  int
-  show_create_procedure(THD *thd);
-
-  int
-  show_create_function(THD *thd);
+  bool
+  show_create_routine(THD *thd, int type);
 
   void
   add_instr(sp_instr *instr);
@@ -243,7 +330,7 @@ public:
   {
     sp_instr *i;
 
-    get_dynamic(&m_instr, (gptr)&i, m_instr.elements-1);
+    get_dynamic(&m_instr, (uchar*)&i, m_instr.elements-1);
     return i;
   }
 
@@ -291,7 +378,7 @@ public:
 
   bool fill_field_definition(THD *thd, LEX *lex,
                              enum enum_field_types field_type,
-                             create_field *field_def);
+                             Create_field *field_def);
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
@@ -325,7 +412,7 @@ public:
     sp_instr *ip;
 
     if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&ip, i);
+      get_dynamic(&m_instr, (uchar*)&ip, i);
     else
       ip= NULL;
     return ip;
@@ -379,7 +466,7 @@ public:
       the substatements not).
     */
     if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      lex->binlog_row_based_if_mixed= TRUE;
+      lex->set_stmt_unsafe();
   }
 
 
@@ -990,6 +1077,12 @@ public:
 
   virtual void print(String *str);
 
+  /* This instruction will not be short cut optimized. */
+  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  {
+    return m_ip;
+  }
+
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
@@ -1233,5 +1326,9 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+/**
+  @} (end of group Stored_Routines)
+*/
 
 #endif /* _SP_HEAD_H_ */

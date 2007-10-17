@@ -43,10 +43,15 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 storage/myisam/myisampack.def \
                                 storage/myisam/myisam_ftdump.def
 
+BUILT_SOURCES =                 link_sources init_db.sql test_db.sql
+CLEANFILES = 			$(BUILT_SOURCES)
+
+all: $(BUILT_SOURCES)
+
 link_sources:
 	for f in $(netware_build_files); do \
 	  rm -f ../$$f; \
-	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
+	  org=`basename $$f`; \
 	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
 	done
 	echo timestamp > link_sources
@@ -83,7 +88,7 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		perror.def \
 		mysql_client_test.def \
 		replace.def resolve_stack_dump.def resolveip.def \
-		static_init_db.sql \
+		static_init_db.sql init_db.sql test_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
 		BUILD/compile-linux-tools BUILD/compile-netware-END \
 		BUILD/compile-netware-START BUILD/compile-netware-all\
@@ -93,6 +98,8 @@ EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def install_test_db.ncf \
 		BUILD/cron-build BUILD/crontab BUILD/knetware.imp \
 		BUILD/mwasmnlm BUILD/mwccnlm BUILD/mwenv BUILD/mwldnlm \
 		BUILD/nwbootstrap BUILD/openssl.imp BUILD/save-patch
+
+endif
 
 
 # Build init_db.sql from the files that contain
@@ -111,9 +118,7 @@ init_db.sql: $(top_srcdir)/scripts/mysql_system_tables.sql \
 test_db.sql: init_db.sql $(top_srcdir)/scripts/mysql_test_data_timezone.sql
 	@echo "Building $@";
 	@cat init_db.sql \
-	     $(top_srcdir)/scripts/mysql_test_data_timezone.sql >> $@;
-
-endif
+	     $(top_srcdir)/scripts/mysql_test_data_timezone.sql  > $@;
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

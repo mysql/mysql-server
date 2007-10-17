@@ -60,26 +60,22 @@ class ha_myisam: public handler
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
-  virtual bool check_if_locking_is_allowed(uint sql_command,
-                                           ulong type, TABLE *table,
-                                           uint count, uint current,
-                                           uint *system_count,
-                                           bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int write_row(byte * buf);
-  int update_row(const byte * old_data, byte * new_data);
-  int delete_row(const byte * buf);
-  int index_read(byte *buf, const byte *key, key_part_map keypart_map,
-                 enum ha_rkey_function find_flag);
-  int index_read_idx(byte *buf, uint index, const byte *key,
-                     key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int index_read_last(byte *buf, const byte *key, key_part_map keypart_map);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
-  int index_next_same(byte *buf, const byte *key, uint keylen);
+  int write_row(uchar * buf);
+  int update_row(const uchar * old_data, uchar * new_data);
+  int delete_row(const uchar * buf);
+  int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
+                     enum ha_rkey_function find_flag);
+  int index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag);
+  int index_read_last_map(uchar *buf, const uchar *key, key_part_map keypart_map);
+  int index_next(uchar * buf);
+  int index_prev(uchar * buf);
+  int index_first(uchar * buf);
+  int index_last(uchar * buf);
+  int index_next_same(uchar *buf, const uchar *key, uint keylen);
   int ft_init()
   {
     if (!ft_handler)
@@ -90,15 +86,15 @@ class ha_myisam: public handler
   FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
   {
     return ft_init_search(flags,file,inx,
-                          (byte *)key->ptr(), key->length(), key->charset(),
+                          (uchar *)key->ptr(), key->length(), key->charset(),
                           table->record[0]);
   }
-  int ft_read(byte *buf);
+  int ft_read(uchar *buf);
   int rnd_init(bool scan);
-  int rnd_next(byte *buf);
-  int rnd_pos(byte * buf, byte *pos);
-  int restart_rnd_next(byte *buf, byte *pos);
-  void position(const byte *record);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar * buf, uchar *pos);
+  int restart_rnd_next(uchar *buf, uchar *pos);
+  void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -136,5 +132,12 @@ class ha_myisam: public handler
 #ifdef HAVE_REPLICATION
   int dump(THD* thd, int fd);
   int net_read_dump(NET* net);
+#endif
+#ifdef HAVE_QUERY_CACHE
+  my_bool register_query_cache_table(THD *thd, char *table_key,
+                                     uint key_length,
+                                     qc_engine_callback
+                                     *engine_callback,
+                                     ulonglong *engine_data);
 #endif
 };

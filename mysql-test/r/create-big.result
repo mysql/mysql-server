@@ -1,0 +1,247 @@
+drop table if exists t1,t2,t3,t4,t5;
+set session debug="+d,sleep_create_select_before_create";
+create table t1 select 1 as i;;
+create table t1 (j char(5));
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select 1 as i;;
+create table t1 select "Test" as j;
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t3 (j char(5));
+create table t1 select 1 as i;;
+create table t1 like t3;
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select 1 as i;;
+rename table t3 to t1;
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select 1 as i;;
+alter table t3 rename to t1;
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select 1 as i;;
+alter table t3 rename to t1, add k int;
+ERROR 42S01: Table 't1' already exists
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t3;
+set session debug="-d,sleep_create_select_before_create:+d,sleep_create_select_before_open";
+create table t1 select 1 as i;;
+drop table t1;
+create table t1 select 1 as i;;
+rename table t1 to t2;
+drop table t2;
+create table t1 select 1 as i;;
+select * from t1;
+i
+1
+drop table t1;
+create table t1 select 1 as i;;
+insert into t1 values (2);
+select * from t1;
+i
+1
+2
+drop table t1;
+set @a:=0;
+create table t1 select 1 as i;;
+create trigger t1_bi before insert on t1 for each row set @a:=1;
+select @a;
+@a
+0
+drop table t1;
+set session debug="-d,sleep_create_select_before_open:+d,sleep_create_select_before_lock";
+create table t1 select 1 as i;;
+drop table t1;
+create table t1 select 1 as i;;
+rename table t1 to t2;
+drop table t2;
+create table t1 select 1 as i;;
+select * from t1;
+i
+1
+drop table t1;
+create table t1 select 1 as i;;
+insert into t1 values (2);
+select * from t1;
+i
+1
+2
+drop table t1;
+set @a:=0;
+create table t1 select 1 as i;;
+create trigger t1_bi before insert on t1 for each row set @a:=1;
+select @a;
+@a
+0
+drop table t1;
+set session debug="-d,sleep_create_select_before_lock:+d,sleep_create_select_before_check_if_exists";
+create table t1 (i int);
+create table if not exists t1 select 1 as i;;
+drop table t1;
+Warnings:
+Note	1050	Table 't1' already exists
+create table t1 (i int);
+set @a:=0;
+create table if not exists t1 select 1 as i;;
+create trigger t1_bi before insert on t1 for each row set @a:=1;
+Warnings:
+Note	1050	Table 't1' already exists
+select @a;
+@a
+0
+select * from t1;
+i
+1
+drop table t1;
+set session debug="-d,sleep_create_select_before_check_if_exists";
+create table t2 (a int);
+create table t4 (b int);
+lock table t4 write;
+select 1;
+1
+1
+create table t3 as select * from t4;;
+create table t1 select * from t2, t3;;
+unlock tables;
+select * from t1;
+a	b
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t3;
+lock table t4 read;
+select 1;
+1
+1
+rename table t4 to t3;;
+create table if not exists t1 select 1 as i from t2, t3;;
+create table t5 (j int);
+rename table t5 to t1;
+unlock tables;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+j
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
+drop table if exists t1,t2;
+create table t1 (i int);
+set session debug="+d,sleep_create_like_before_check_if_exists";
+reset master;
+create table t2 like t1;;
+insert into t1 values (1);
+drop table t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2;
+show binlog events in 'master-bin.000001' from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_check_if_exists:+d,sleep_create_like_before_copy";
+create table t2 like t1;;
+create table if not exists t2 (j int);
+Warnings:
+Note	1050	Table 't2' already exists
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2;
+reset master;
+create table t2 like t1;;
+drop table t1;
+drop table t2;
+show binlog events in 'master-bin.000001' from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_copy:+d,sleep_create_like_before_ha_create";
+reset master;
+create table t2 like t1;;
+insert into t2 values (1);
+drop table t2;
+create table t2 like t1;;
+drop table t2;
+create table t2 like t1;;
+drop table t1;
+drop table t2;
+show binlog events in 'master-bin.000001' from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+create table t1 (i int);
+set session debug="-d,sleep_create_like_before_ha_create:+d,sleep_create_like_before_binlogging";
+reset master;
+create table t2 like t1;;
+insert into t2 values (1);
+drop table t2;
+create table t2 like t1;;
+drop table t2;
+create table t2 like t1;;
+drop table t1;
+drop table t2;
+show binlog events in 'master-bin.000001' from 106;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (1)
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+master-bin.000001	#	Query	1	#	use `test`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t1
+master-bin.000001	#	Query	1	#	use `test`; drop table t2
+set session debug="-d,sleep_create_like_before_binlogging";

@@ -37,7 +37,7 @@
 class Create_native_func : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -46,7 +46,7 @@ public:
     @param item_list The function parameters, none of which are named
     @return An item representing the function call
   */
-  virtual Item* create_native(THD *thd, LEX_STRING name,
+  virtual Item *create_native(THD *thd, LEX_STRING name,
                               List<Item> *item_list) = 0;
 
 protected:
@@ -64,14 +64,14 @@ protected:
 class Create_func_arg0 : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
     @param thd The current thread
     @return An item representing the function call
   */
-  virtual Item* create(THD *thd) = 0;
+  virtual Item *create(THD *thd) = 0;
 
 protected:
   /** Constructor. */
@@ -88,7 +88,7 @@ protected:
 class Create_func_arg1 : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with one argument.
@@ -96,7 +96,7 @@ public:
     @param arg1 The first argument of the function
     @return An item representing the function call
   */
-  virtual Item* create(THD *thd, Item *arg1) = 0;
+  virtual Item *create(THD *thd, Item *arg1) = 0;
 
 protected:
   /** Constructor. */
@@ -113,7 +113,7 @@ protected:
 class Create_func_arg2 : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with two arguments.
@@ -122,7 +122,7 @@ public:
     @param arg2 The second argument of the function
     @return An item representing the function call
   */
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2) = 0;
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2) = 0;
 
 protected:
   /** Constructor. */
@@ -139,7 +139,7 @@ protected:
 class Create_func_arg3 : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with three arguments.
@@ -149,7 +149,7 @@ public:
     @param arg3 The third argument of the function
     @return An item representing the function call
   */
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3) = 0;
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3) = 0;
 
 protected:
   /** Constructor. */
@@ -166,7 +166,7 @@ protected:
 class Create_sp_func : public Create_qfunc
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
+  virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
                        bool use_explicit_name, List<Item> *item_list);
 
   static Create_sp_func s_singleton;
@@ -189,7 +189,7 @@ protected:
 class Create_func_no_geom : public Create_func
 {
 public:
-  virtual Item* create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /** Singleton. */
   static Create_func_no_geom s_singleton;
@@ -212,7 +212,7 @@ protected:
 class Create_func_abs : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_abs s_singleton;
 
@@ -225,7 +225,7 @@ protected:
 class Create_func_acos : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_acos s_singleton;
 
@@ -238,7 +238,7 @@ protected:
 class Create_func_addtime : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_addtime s_singleton;
 
@@ -251,7 +251,7 @@ protected:
 class Create_func_aes_encrypt : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_aes_encrypt s_singleton;
 
@@ -264,7 +264,7 @@ protected:
 class Create_func_aes_decrypt : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_aes_decrypt s_singleton;
 
@@ -278,7 +278,7 @@ protected:
 class Create_func_area : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_area s_singleton;
 
@@ -293,7 +293,7 @@ protected:
 class Create_func_as_wkb : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_as_wkb s_singleton;
 
@@ -308,7 +308,7 @@ protected:
 class Create_func_as_wkt : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_as_wkt s_singleton;
 
@@ -322,7 +322,7 @@ protected:
 class Create_func_asin : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_asin s_singleton;
 
@@ -335,7 +335,7 @@ protected:
 class Create_func_atan : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_atan s_singleton;
 
@@ -348,7 +348,7 @@ protected:
 class Create_func_benchmark : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_benchmark s_singleton;
 
@@ -361,7 +361,7 @@ protected:
 class Create_func_bin : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_bin s_singleton;
 
@@ -374,7 +374,7 @@ protected:
 class Create_func_bit_count : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_bit_count s_singleton;
 
@@ -387,7 +387,7 @@ protected:
 class Create_func_bit_length : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_bit_length s_singleton;
 
@@ -400,7 +400,7 @@ protected:
 class Create_func_ceiling : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_ceiling s_singleton;
 
@@ -414,7 +414,7 @@ protected:
 class Create_func_centroid : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_centroid s_singleton;
 
@@ -428,7 +428,7 @@ protected:
 class Create_func_char_length : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_char_length s_singleton;
 
@@ -441,7 +441,7 @@ protected:
 class Create_func_coercibility : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_coercibility s_singleton;
 
@@ -454,7 +454,7 @@ protected:
 class Create_func_compress : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_compress s_singleton;
 
@@ -467,7 +467,7 @@ protected:
 class Create_func_concat : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_concat s_singleton;
 
@@ -480,7 +480,7 @@ protected:
 class Create_func_concat_ws : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_concat_ws s_singleton;
 
@@ -493,7 +493,7 @@ protected:
 class Create_func_connection_id : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_connection_id s_singleton;
 
@@ -507,7 +507,7 @@ protected:
 class Create_func_contains : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_contains s_singleton;
 
@@ -521,7 +521,7 @@ protected:
 class Create_func_conv : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_conv s_singleton;
 
@@ -534,7 +534,7 @@ protected:
 class Create_func_convert_tz : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_convert_tz s_singleton;
 
@@ -547,7 +547,7 @@ protected:
 class Create_func_cos : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_cos s_singleton;
 
@@ -560,7 +560,7 @@ protected:
 class Create_func_cot : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_cot s_singleton;
 
@@ -573,7 +573,7 @@ protected:
 class Create_func_crc32 : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_crc32 s_singleton;
 
@@ -587,7 +587,7 @@ protected:
 class Create_func_crosses : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_crosses s_singleton;
 
@@ -601,7 +601,7 @@ protected:
 class Create_func_date_format : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_date_format s_singleton;
 
@@ -614,7 +614,7 @@ protected:
 class Create_func_datediff : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_datediff s_singleton;
 
@@ -627,7 +627,7 @@ protected:
 class Create_func_dayname : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_dayname s_singleton;
 
@@ -640,7 +640,7 @@ protected:
 class Create_func_dayofmonth : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_dayofmonth s_singleton;
 
@@ -653,7 +653,7 @@ protected:
 class Create_func_dayofweek : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_dayofweek s_singleton;
 
@@ -666,7 +666,7 @@ protected:
 class Create_func_dayofyear : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_dayofyear s_singleton;
 
@@ -679,7 +679,7 @@ protected:
 class Create_func_decode : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_decode s_singleton;
 
@@ -692,7 +692,7 @@ protected:
 class Create_func_degrees : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_degrees s_singleton;
 
@@ -705,7 +705,7 @@ protected:
 class Create_func_des_decrypt : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_des_decrypt s_singleton;
 
@@ -718,7 +718,7 @@ protected:
 class Create_func_des_encrypt : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_des_encrypt s_singleton;
 
@@ -732,7 +732,7 @@ protected:
 class Create_func_dimension : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_dimension s_singleton;
 
@@ -747,7 +747,7 @@ protected:
 class Create_func_disjoint : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_disjoint s_singleton;
 
@@ -761,7 +761,7 @@ protected:
 class Create_func_elt : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_elt s_singleton;
 
@@ -774,7 +774,7 @@ protected:
 class Create_func_encode : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_encode s_singleton;
 
@@ -787,7 +787,7 @@ protected:
 class Create_func_encrypt : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_encrypt s_singleton;
 
@@ -801,7 +801,7 @@ protected:
 class Create_func_endpoint : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_endpoint s_singleton;
 
@@ -816,7 +816,7 @@ protected:
 class Create_func_envelope : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_envelope s_singleton;
 
@@ -831,7 +831,7 @@ protected:
 class Create_func_equals : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_equals s_singleton;
 
@@ -845,7 +845,7 @@ protected:
 class Create_func_exp : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_exp s_singleton;
 
@@ -858,7 +858,7 @@ protected:
 class Create_func_export_set : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_export_set s_singleton;
 
@@ -872,7 +872,7 @@ protected:
 class Create_func_exteriorring : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_exteriorring s_singleton;
 
@@ -886,7 +886,7 @@ protected:
 class Create_func_field : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_field s_singleton;
 
@@ -899,7 +899,7 @@ protected:
 class Create_func_find_in_set : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_find_in_set s_singleton;
 
@@ -912,7 +912,7 @@ protected:
 class Create_func_floor : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_floor s_singleton;
 
@@ -925,7 +925,7 @@ protected:
 class Create_func_format : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_format s_singleton;
 
@@ -938,7 +938,7 @@ protected:
 class Create_func_found_rows : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_found_rows s_singleton;
 
@@ -951,7 +951,7 @@ protected:
 class Create_func_from_days : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_from_days s_singleton;
 
@@ -964,7 +964,7 @@ protected:
 class Create_func_from_unixtime : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_from_unixtime s_singleton;
 
@@ -978,7 +978,7 @@ protected:
 class Create_func_geometry_from_text : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_geometry_from_text s_singleton;
 
@@ -993,7 +993,7 @@ protected:
 class Create_func_geometry_from_wkb : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_geometry_from_wkb s_singleton;
 
@@ -1008,7 +1008,7 @@ protected:
 class Create_func_geometry_type : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_geometry_type s_singleton;
 
@@ -1023,7 +1023,7 @@ protected:
 class Create_func_geometryn : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_geometryn s_singleton;
 
@@ -1037,7 +1037,7 @@ protected:
 class Create_func_get_lock : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_get_lock s_singleton;
 
@@ -1051,7 +1051,7 @@ protected:
 class Create_func_glength : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_glength s_singleton;
 
@@ -1065,7 +1065,7 @@ protected:
 class Create_func_greatest : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_greatest s_singleton;
 
@@ -1078,7 +1078,7 @@ protected:
 class Create_func_hex : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_hex s_singleton;
 
@@ -1091,7 +1091,7 @@ protected:
 class Create_func_ifnull : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_ifnull s_singleton;
 
@@ -1104,7 +1104,7 @@ protected:
 class Create_func_inet_ntoa : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_inet_ntoa s_singleton;
 
@@ -1117,7 +1117,7 @@ protected:
 class Create_func_inet_aton : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_inet_aton s_singleton;
 
@@ -1130,7 +1130,7 @@ protected:
 class Create_func_instr : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_instr s_singleton;
 
@@ -1144,7 +1144,7 @@ protected:
 class Create_func_interiorringn : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_interiorringn s_singleton;
 
@@ -1159,7 +1159,7 @@ protected:
 class Create_func_intersects : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_intersects s_singleton;
 
@@ -1173,7 +1173,7 @@ protected:
 class Create_func_is_free_lock : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_is_free_lock s_singleton;
 
@@ -1186,7 +1186,7 @@ protected:
 class Create_func_is_used_lock : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_is_used_lock s_singleton;
 
@@ -1200,7 +1200,7 @@ protected:
 class Create_func_isclosed : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_isclosed s_singleton;
 
@@ -1215,7 +1215,7 @@ protected:
 class Create_func_isempty : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_isempty s_singleton;
 
@@ -1229,7 +1229,7 @@ protected:
 class Create_func_isnull : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_isnull s_singleton;
 
@@ -1243,7 +1243,7 @@ protected:
 class Create_func_issimple : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_issimple s_singleton;
 
@@ -1257,7 +1257,7 @@ protected:
 class Create_func_last_day : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_last_day s_singleton;
 
@@ -1270,7 +1270,7 @@ protected:
 class Create_func_last_insert_id : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_last_insert_id s_singleton;
 
@@ -1283,7 +1283,7 @@ protected:
 class Create_func_lcase : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_lcase s_singleton;
 
@@ -1296,7 +1296,7 @@ protected:
 class Create_func_least : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_least s_singleton;
 
@@ -1309,7 +1309,7 @@ protected:
 class Create_func_length : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_length s_singleton;
 
@@ -1322,7 +1322,7 @@ protected:
 class Create_func_ln : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_ln s_singleton;
 
@@ -1335,7 +1335,7 @@ protected:
 class Create_func_load_file : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_load_file s_singleton;
 
@@ -1348,7 +1348,7 @@ protected:
 class Create_func_locate : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_locate s_singleton;
 
@@ -1361,7 +1361,7 @@ protected:
 class Create_func_log : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_log s_singleton;
 
@@ -1374,7 +1374,7 @@ protected:
 class Create_func_log10 : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_log10 s_singleton;
 
@@ -1387,7 +1387,7 @@ protected:
 class Create_func_log2 : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_log2 s_singleton;
 
@@ -1400,7 +1400,7 @@ protected:
 class Create_func_lpad : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_lpad s_singleton;
 
@@ -1413,7 +1413,7 @@ protected:
 class Create_func_ltrim : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_ltrim s_singleton;
 
@@ -1426,7 +1426,7 @@ protected:
 class Create_func_makedate : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_makedate s_singleton;
 
@@ -1439,7 +1439,7 @@ protected:
 class Create_func_maketime : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_maketime s_singleton;
 
@@ -1452,7 +1452,7 @@ protected:
 class Create_func_make_set : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_make_set s_singleton;
 
@@ -1465,7 +1465,7 @@ protected:
 class Create_func_master_pos_wait : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_master_pos_wait s_singleton;
 
@@ -1478,7 +1478,7 @@ protected:
 class Create_func_md5 : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_md5 s_singleton;
 
@@ -1491,7 +1491,7 @@ protected:
 class Create_func_monthname : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_monthname s_singleton;
 
@@ -1504,7 +1504,7 @@ protected:
 class Create_func_name_const : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_name_const s_singleton;
 
@@ -1517,7 +1517,7 @@ protected:
 class Create_func_nullif : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_nullif s_singleton;
 
@@ -1531,7 +1531,7 @@ protected:
 class Create_func_numgeometries : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_numgeometries s_singleton;
 
@@ -1546,7 +1546,7 @@ protected:
 class Create_func_numinteriorring : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_numinteriorring s_singleton;
 
@@ -1561,7 +1561,7 @@ protected:
 class Create_func_numpoints : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_numpoints s_singleton;
 
@@ -1575,7 +1575,7 @@ protected:
 class Create_func_oct : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_oct s_singleton;
 
@@ -1588,7 +1588,7 @@ protected:
 class Create_func_ord : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_ord s_singleton;
 
@@ -1602,7 +1602,7 @@ protected:
 class Create_func_overlaps : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_overlaps s_singleton;
 
@@ -1616,7 +1616,7 @@ protected:
 class Create_func_period_add : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_period_add s_singleton;
 
@@ -1629,7 +1629,7 @@ protected:
 class Create_func_period_diff : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_period_diff s_singleton;
 
@@ -1642,7 +1642,7 @@ protected:
 class Create_func_pi : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_pi s_singleton;
 
@@ -1656,7 +1656,7 @@ protected:
 class Create_func_pointn : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_pointn s_singleton;
 
@@ -1670,7 +1670,7 @@ protected:
 class Create_func_pow : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_pow s_singleton;
 
@@ -1683,7 +1683,7 @@ protected:
 class Create_func_quote : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_quote s_singleton;
 
@@ -1696,7 +1696,7 @@ protected:
 class Create_func_radians : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_radians s_singleton;
 
@@ -1709,7 +1709,7 @@ protected:
 class Create_func_rand : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_rand s_singleton;
 
@@ -1722,7 +1722,7 @@ protected:
 class Create_func_release_lock : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_release_lock s_singleton;
 
@@ -1735,7 +1735,7 @@ protected:
 class Create_func_reverse : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_reverse s_singleton;
 
@@ -1748,7 +1748,7 @@ protected:
 class Create_func_round : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_round s_singleton;
 
@@ -1761,7 +1761,7 @@ protected:
 class Create_func_row_count : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_row_count s_singleton;
 
@@ -1774,7 +1774,7 @@ protected:
 class Create_func_rpad : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_rpad s_singleton;
 
@@ -1787,7 +1787,7 @@ protected:
 class Create_func_rtrim : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_rtrim s_singleton;
 
@@ -1800,7 +1800,7 @@ protected:
 class Create_func_sec_to_time : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sec_to_time s_singleton;
 
@@ -1813,7 +1813,7 @@ protected:
 class Create_func_sha : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sha s_singleton;
 
@@ -1826,7 +1826,7 @@ protected:
 class Create_func_sign : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sign s_singleton;
 
@@ -1839,7 +1839,7 @@ protected:
 class Create_func_sin : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sin s_singleton;
 
@@ -1852,7 +1852,7 @@ protected:
 class Create_func_sleep : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sleep s_singleton;
 
@@ -1865,7 +1865,7 @@ protected:
 class Create_func_soundex : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_soundex s_singleton;
 
@@ -1878,7 +1878,7 @@ protected:
 class Create_func_space : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_space s_singleton;
 
@@ -1891,7 +1891,7 @@ protected:
 class Create_func_sqrt : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_sqrt s_singleton;
 
@@ -1905,7 +1905,7 @@ protected:
 class Create_func_srid : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_srid s_singleton;
 
@@ -1920,7 +1920,7 @@ protected:
 class Create_func_startpoint : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_startpoint s_singleton;
 
@@ -1934,7 +1934,7 @@ protected:
 class Create_func_str_to_date : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_str_to_date s_singleton;
 
@@ -1947,7 +1947,7 @@ protected:
 class Create_func_strcmp : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_strcmp s_singleton;
 
@@ -1960,7 +1960,7 @@ protected:
 class Create_func_substr_index : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_substr_index s_singleton;
 
@@ -1973,7 +1973,7 @@ protected:
 class Create_func_subtime : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_subtime s_singleton;
 
@@ -1986,7 +1986,7 @@ protected:
 class Create_func_tan : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_tan s_singleton;
 
@@ -1999,7 +1999,7 @@ protected:
 class Create_func_time_format : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_time_format s_singleton;
 
@@ -2012,7 +2012,7 @@ protected:
 class Create_func_time_to_sec : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_time_to_sec s_singleton;
 
@@ -2025,7 +2025,7 @@ protected:
 class Create_func_timediff : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_timediff s_singleton;
 
@@ -2038,7 +2038,7 @@ protected:
 class Create_func_to_days : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_to_days s_singleton;
 
@@ -2052,7 +2052,7 @@ protected:
 class Create_func_touches : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_touches s_singleton;
 
@@ -2066,7 +2066,7 @@ protected:
 class Create_func_ucase : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_ucase s_singleton;
 
@@ -2079,7 +2079,7 @@ protected:
 class Create_func_uncompress : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_uncompress s_singleton;
 
@@ -2092,7 +2092,7 @@ protected:
 class Create_func_uncompressed_length : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_uncompressed_length s_singleton;
 
@@ -2105,7 +2105,7 @@ protected:
 class Create_func_unhex : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_unhex s_singleton;
 
@@ -2118,7 +2118,7 @@ protected:
 class Create_func_unix_timestamp : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_unix_timestamp s_singleton;
 
@@ -2131,7 +2131,7 @@ protected:
 class Create_func_uuid : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_uuid s_singleton;
 
@@ -2141,10 +2141,23 @@ protected:
 };
 
 
+class Create_func_uuid_short : public Create_func_arg0
+{
+public:
+  virtual Item *create(THD *thd);
+
+  static Create_func_uuid_short s_singleton;
+
+protected:
+  Create_func_uuid_short() {}
+  virtual ~Create_func_uuid_short() {}
+};
+
+
 class Create_func_version : public Create_func_arg0
 {
 public:
-  virtual Item* create(THD *thd);
+  virtual Item *create(THD *thd);
 
   static Create_func_version s_singleton;
 
@@ -2157,7 +2170,7 @@ protected:
 class Create_func_weekday : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_weekday s_singleton;
 
@@ -2170,7 +2183,7 @@ protected:
 class Create_func_weekofyear : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_weekofyear s_singleton;
 
@@ -2184,7 +2197,7 @@ protected:
 class Create_func_within : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_within s_singleton;
 
@@ -2199,7 +2212,7 @@ protected:
 class Create_func_x : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_x s_singleton;
 
@@ -2213,7 +2226,7 @@ protected:
 class Create_func_xml_extractvalue : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_xml_extractvalue s_singleton;
 
@@ -2226,7 +2239,7 @@ protected:
 class Create_func_xml_update : public Create_func_arg3
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_xml_update s_singleton;
 
@@ -2240,7 +2253,7 @@ protected:
 class Create_func_y : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item *create(THD *thd, Item *arg1);
 
   static Create_func_y s_singleton;
 
@@ -2254,7 +2267,7 @@ protected:
 class Create_func_year_week : public Create_native_func
 {
 public:
-  virtual Item* create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   static Create_func_year_week s_singleton;
 
@@ -2313,7 +2326,7 @@ Item*
 Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
-  if (thd->copy_db_to(&db.str, &db.length))
+  if (thd->lex->copy_db_to(&db.str, &db.length))
     return NULL;
 
   return create(thd, db, name, false, item_list);
@@ -2341,7 +2354,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-  thd->lex->binlog_row_based_if_mixed= TRUE;
+  thd->lex->set_stmt_unsafe();
 
   DBUG_ASSERT(   (udf->type == UDFTYPE_FUNCTION)
               || (udf->type == UDFTYPE_AGGREGATE));
@@ -2424,6 +2437,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "UDF return type");
   }
   }
+  thd->lex->safe_to_cache_query= 0;
   return func;
 }
 #endif
@@ -3325,6 +3339,7 @@ Create_func_found_rows Create_func_found_rows::s_singleton;
 Item*
 Create_func_found_rows::create(THD *thd)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_found_rows();
 }
@@ -3916,6 +3931,7 @@ Create_func_master_pos_wait Create_func_master_pos_wait::s_singleton;
 Item*
 Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
                                            List<Item> *item_list)
+
 {
   Item *func= NULL;
   int arg_count= 0;
@@ -4219,6 +4235,7 @@ Create_func_row_count Create_func_row_count::s_singleton;
 Item*
 Create_func_row_count::create(THD *thd)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_row_count();
 }
@@ -4527,8 +4544,20 @@ Create_func_uuid Create_func_uuid::s_singleton;
 Item*
 Create_func_uuid::create(THD *thd)
 {
-  thd->lex->binlog_row_based_if_mixed= TRUE;
+  thd->lex->set_stmt_unsafe();
+  thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_uuid();
+}
+
+
+Create_func_uuid_short Create_func_uuid_short::s_singleton;
+
+Item*
+Create_func_uuid_short::create(THD *thd)
+{
+  thd->lex->set_stmt_unsafe();
+  thd->lex->safe_to_cache_query= 0;
+  return new (thd->mem_root) Item_func_uuid_short();
 }
 
 
@@ -4681,215 +4710,217 @@ struct Native_func_registry
 
 static Native_func_registry func_array[] =
 {
-  { C_STRING_WITH_LEN("ABS"), BUILDER(Create_func_abs)},
-  { C_STRING_WITH_LEN("ACOS"), BUILDER(Create_func_acos)},
-  { C_STRING_WITH_LEN("ADDTIME"), BUILDER(Create_func_addtime)},
-  { C_STRING_WITH_LEN("AES_DECRYPT"), BUILDER(Create_func_aes_decrypt)},
-  { C_STRING_WITH_LEN("AES_ENCRYPT"), BUILDER(Create_func_aes_encrypt)},
-  { C_STRING_WITH_LEN("AREA"), GEOM_BUILDER(Create_func_area)},
-  { C_STRING_WITH_LEN("ASBINARY"), GEOM_BUILDER(Create_func_as_wkb)},
-  { C_STRING_WITH_LEN("ASIN"), BUILDER(Create_func_asin)},
-  { C_STRING_WITH_LEN("ASTEXT"), GEOM_BUILDER(Create_func_as_wkt)},
-  { C_STRING_WITH_LEN("ASWKB"), GEOM_BUILDER(Create_func_as_wkb)},
-  { C_STRING_WITH_LEN("ASWKT"), GEOM_BUILDER(Create_func_as_wkt)},
-  { C_STRING_WITH_LEN("ATAN"), BUILDER(Create_func_atan)},
-  { C_STRING_WITH_LEN("ATAN2"), BUILDER(Create_func_atan)},
-  { C_STRING_WITH_LEN("BENCHMARK"), BUILDER(Create_func_benchmark)},
-  { C_STRING_WITH_LEN("BIN"), BUILDER(Create_func_bin)},
-  { C_STRING_WITH_LEN("BIT_COUNT"), BUILDER(Create_func_bit_count)},
-  { C_STRING_WITH_LEN("BIT_LENGTH"), BUILDER(Create_func_bit_length)},
-  { C_STRING_WITH_LEN("CEIL"), BUILDER(Create_func_ceiling)},
-  { C_STRING_WITH_LEN("CEILING"), BUILDER(Create_func_ceiling)},
-  { C_STRING_WITH_LEN("CENTROID"), GEOM_BUILDER(Create_func_centroid)},
-  { C_STRING_WITH_LEN("CHARACTER_LENGTH"), BUILDER(Create_func_char_length)},
-  { C_STRING_WITH_LEN("CHAR_LENGTH"), BUILDER(Create_func_char_length)},
-  { C_STRING_WITH_LEN("COERCIBILITY"), BUILDER(Create_func_coercibility)},
-  { C_STRING_WITH_LEN("COMPRESS"), BUILDER(Create_func_compress)},
-  { C_STRING_WITH_LEN("CONCAT"), BUILDER(Create_func_concat)},
-  { C_STRING_WITH_LEN("CONCAT_WS"), BUILDER(Create_func_concat_ws)},
-  { C_STRING_WITH_LEN("CONNECTION_ID"), BUILDER(Create_func_connection_id)},
-  { C_STRING_WITH_LEN("CONV"), BUILDER(Create_func_conv)},
-  { C_STRING_WITH_LEN("CONVERT_TZ"), BUILDER(Create_func_convert_tz)},
-  { C_STRING_WITH_LEN("COS"), BUILDER(Create_func_cos)},
-  { C_STRING_WITH_LEN("COT"), BUILDER(Create_func_cot)},
-  { C_STRING_WITH_LEN("CRC32"), BUILDER(Create_func_crc32)},
-  { C_STRING_WITH_LEN("CROSSES"), GEOM_BUILDER(Create_func_crosses)},
-  { C_STRING_WITH_LEN("DATEDIFF"), BUILDER(Create_func_datediff)},
-  { C_STRING_WITH_LEN("DATE_FORMAT"), BUILDER(Create_func_date_format)},
-  { C_STRING_WITH_LEN("DAYNAME"), BUILDER(Create_func_dayname)},
-  { C_STRING_WITH_LEN("DAYOFMONTH"), BUILDER(Create_func_dayofmonth)},
-  { C_STRING_WITH_LEN("DAYOFWEEK"), BUILDER(Create_func_dayofweek)},
-  { C_STRING_WITH_LEN("DAYOFYEAR"), BUILDER(Create_func_dayofyear)},
-  { C_STRING_WITH_LEN("DECODE"), BUILDER(Create_func_decode)},
-  { C_STRING_WITH_LEN("DEGREES"), BUILDER(Create_func_degrees)},
-  { C_STRING_WITH_LEN("DES_DECRYPT"), BUILDER(Create_func_des_decrypt)},
-  { C_STRING_WITH_LEN("DES_ENCRYPT"), BUILDER(Create_func_des_encrypt)},
-  { C_STRING_WITH_LEN("DIMENSION"), GEOM_BUILDER(Create_func_dimension)},
-  { C_STRING_WITH_LEN("DISJOINT"), GEOM_BUILDER(Create_func_disjoint)},
-  { C_STRING_WITH_LEN("ELT"), BUILDER(Create_func_elt)},
-  { C_STRING_WITH_LEN("ENCODE"), BUILDER(Create_func_encode)},
-  { C_STRING_WITH_LEN("ENCRYPT"), BUILDER(Create_func_encrypt)},
-  { C_STRING_WITH_LEN("ENDPOINT"), GEOM_BUILDER(Create_func_endpoint)},
-  { C_STRING_WITH_LEN("ENVELOPE"), GEOM_BUILDER(Create_func_envelope)},
-  { C_STRING_WITH_LEN("EQUALS"), GEOM_BUILDER(Create_func_equals)},
-  { C_STRING_WITH_LEN("EXP"), BUILDER(Create_func_exp)},
-  { C_STRING_WITH_LEN("EXPORT_SET"), BUILDER(Create_func_export_set)},
-  { C_STRING_WITH_LEN("EXTERIORRING"), GEOM_BUILDER(Create_func_exteriorring)},
-  { C_STRING_WITH_LEN("EXTRACTVALUE"), BUILDER(Create_func_xml_extractvalue)},
-  { C_STRING_WITH_LEN("FIELD"), BUILDER(Create_func_field)},
-  { C_STRING_WITH_LEN("FIND_IN_SET"), BUILDER(Create_func_find_in_set)},
-  { C_STRING_WITH_LEN("FLOOR"), BUILDER(Create_func_floor)},
-  { C_STRING_WITH_LEN("FORMAT"), BUILDER(Create_func_format)},
-  { C_STRING_WITH_LEN("FOUND_ROWS"), BUILDER(Create_func_found_rows)},
-  { C_STRING_WITH_LEN("FROM_DAYS"), BUILDER(Create_func_from_days)},
-  { C_STRING_WITH_LEN("FROM_UNIXTIME"), BUILDER(Create_func_from_unixtime)},
-  { C_STRING_WITH_LEN("GEOMCOLLFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("GEOMCOLLFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("GEOMETRYFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("GEOMETRYFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("GEOMETRYN"), GEOM_BUILDER(Create_func_geometryn)},
-  { C_STRING_WITH_LEN("GEOMETRYTYPE"), GEOM_BUILDER(Create_func_geometry_type)},
-  { C_STRING_WITH_LEN("GEOMFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("GEOMFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("GET_LOCK"), BUILDER(Create_func_get_lock)},
-  { C_STRING_WITH_LEN("GLENGTH"), GEOM_BUILDER(Create_func_glength)},
-  { C_STRING_WITH_LEN("GREATEST"), BUILDER(Create_func_greatest)},
-  { C_STRING_WITH_LEN("HEX"), BUILDER(Create_func_hex)},
-  { C_STRING_WITH_LEN("IFNULL"), BUILDER(Create_func_ifnull)},
-  { C_STRING_WITH_LEN("INET_ATON"), BUILDER(Create_func_inet_aton)},
-  { C_STRING_WITH_LEN("INET_NTOA"), BUILDER(Create_func_inet_ntoa)},
-  { C_STRING_WITH_LEN("INSTR"), BUILDER(Create_func_instr)},
-  { C_STRING_WITH_LEN("INTERIORRINGN"), GEOM_BUILDER(Create_func_interiorringn)},
-  { C_STRING_WITH_LEN("INTERSECTS"), GEOM_BUILDER(Create_func_intersects)},
-  { C_STRING_WITH_LEN("ISCLOSED"), GEOM_BUILDER(Create_func_isclosed)},
-  { C_STRING_WITH_LEN("ISEMPTY"), GEOM_BUILDER(Create_func_isempty)},
-  { C_STRING_WITH_LEN("ISNULL"), BUILDER(Create_func_isnull)},
-  { C_STRING_WITH_LEN("ISSIMPLE"), GEOM_BUILDER(Create_func_issimple)},
-  { C_STRING_WITH_LEN("IS_FREE_LOCK"), BUILDER(Create_func_is_free_lock)},
-  { C_STRING_WITH_LEN("IS_USED_LOCK"), BUILDER(Create_func_is_used_lock)},
-  { C_STRING_WITH_LEN("LAST_DAY"), BUILDER(Create_func_last_day)},
-  { C_STRING_WITH_LEN("LAST_INSERT_ID"), BUILDER(Create_func_last_insert_id)},
-  { C_STRING_WITH_LEN("LCASE"), BUILDER(Create_func_lcase)},
-  { C_STRING_WITH_LEN("LEAST"), BUILDER(Create_func_least)},
-  { C_STRING_WITH_LEN("LENGTH"), BUILDER(Create_func_length)},
-  { C_STRING_WITH_LEN("LINEFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("LINEFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("LINESTRINGFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("LINESTRINGFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("LN"), BUILDER(Create_func_ln)},
-  { C_STRING_WITH_LEN("LOAD_FILE"), BUILDER(Create_func_load_file)},
-  { C_STRING_WITH_LEN("LOCATE"), BUILDER(Create_func_locate)},
-  { C_STRING_WITH_LEN("LOG"), BUILDER(Create_func_log)},
-  { C_STRING_WITH_LEN("LOG10"), BUILDER(Create_func_log10)},
-  { C_STRING_WITH_LEN("LOG2"), BUILDER(Create_func_log2)},
-  { C_STRING_WITH_LEN("LOWER"), BUILDER(Create_func_lcase)},
-  { C_STRING_WITH_LEN("LPAD"), BUILDER(Create_func_lpad)},
-  { C_STRING_WITH_LEN("LTRIM"), BUILDER(Create_func_ltrim)},
-  { C_STRING_WITH_LEN("MAKEDATE"), BUILDER(Create_func_makedate)},
-  { C_STRING_WITH_LEN("MAKETIME"), BUILDER(Create_func_maketime)},
-  { C_STRING_WITH_LEN("MAKE_SET"), BUILDER(Create_func_make_set)},
-  { C_STRING_WITH_LEN("MASTER_POS_WAIT"), BUILDER(Create_func_master_pos_wait)},
-  { C_STRING_WITH_LEN("MBRCONTAINS"), GEOM_BUILDER(Create_func_contains)},
-  { C_STRING_WITH_LEN("MBRDISJOINT"), GEOM_BUILDER(Create_func_disjoint)},
-  { C_STRING_WITH_LEN("MBREQUAL"), GEOM_BUILDER(Create_func_equals)},
-  { C_STRING_WITH_LEN("MBRINTERSECTS"), GEOM_BUILDER(Create_func_intersects)},
-  { C_STRING_WITH_LEN("MBROVERLAPS"), GEOM_BUILDER(Create_func_overlaps)},
-  { C_STRING_WITH_LEN("MBRTOUCHES"), GEOM_BUILDER(Create_func_touches)},
-  { C_STRING_WITH_LEN("MBRWITHIN"), GEOM_BUILDER(Create_func_within)},
-  { C_STRING_WITH_LEN("MD5"), BUILDER(Create_func_md5)},
-  { C_STRING_WITH_LEN("MLINEFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MLINEFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("MONTHNAME"), BUILDER(Create_func_monthname)},
-  { C_STRING_WITH_LEN("MPOINTFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MPOINTFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("MPOLYFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MPOLYFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("MULTILINESTRINGFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MULTILINESTRINGFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("MULTIPOINTFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MULTIPOINTFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("MULTIPOLYGONFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("MULTIPOLYGONFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("NAME_CONST"), BUILDER(Create_func_name_const)},
-  { C_STRING_WITH_LEN("NULLIF"), BUILDER(Create_func_nullif)},
-  { C_STRING_WITH_LEN("NUMGEOMETRIES"), GEOM_BUILDER(Create_func_numgeometries)},
-  { C_STRING_WITH_LEN("NUMINTERIORRINGS"), GEOM_BUILDER(Create_func_numinteriorring)},
-  { C_STRING_WITH_LEN("NUMPOINTS"), GEOM_BUILDER(Create_func_numpoints)},
-  { C_STRING_WITH_LEN("OCT"), BUILDER(Create_func_oct)},
-  { C_STRING_WITH_LEN("OCTET_LENGTH"), BUILDER(Create_func_length)},
-  { C_STRING_WITH_LEN("ORD"), BUILDER(Create_func_ord)},
-  { C_STRING_WITH_LEN("OVERLAPS"), GEOM_BUILDER(Create_func_overlaps)},
-  { C_STRING_WITH_LEN("PERIOD_ADD"), BUILDER(Create_func_period_add)},
-  { C_STRING_WITH_LEN("PERIOD_DIFF"), BUILDER(Create_func_period_diff)},
-  { C_STRING_WITH_LEN("PI"), BUILDER(Create_func_pi)},
-  { C_STRING_WITH_LEN("POINTFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("POINTFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("POINTN"), GEOM_BUILDER(Create_func_pointn)},
-  { C_STRING_WITH_LEN("POLYFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("POLYFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("POLYGONFROMTEXT"), GEOM_BUILDER(Create_func_geometry_from_text)},
-  { C_STRING_WITH_LEN("POLYGONFROMWKB"), GEOM_BUILDER(Create_func_geometry_from_wkb)},
-  { C_STRING_WITH_LEN("POW"), BUILDER(Create_func_pow)},
-  { C_STRING_WITH_LEN("POWER"), BUILDER(Create_func_pow)},
-  { C_STRING_WITH_LEN("QUOTE"), BUILDER(Create_func_quote)},
-  { C_STRING_WITH_LEN("RADIANS"), BUILDER(Create_func_radians)},
-  { C_STRING_WITH_LEN("RAND"), BUILDER(Create_func_rand)},
-  { C_STRING_WITH_LEN("RELEASE_LOCK"), BUILDER(Create_func_release_lock)},
-  { C_STRING_WITH_LEN("REVERSE"), BUILDER(Create_func_reverse)},
-  { C_STRING_WITH_LEN("ROUND"), BUILDER(Create_func_round)},
-  { C_STRING_WITH_LEN("ROW_COUNT"), BUILDER(Create_func_row_count)},
-  { C_STRING_WITH_LEN("RPAD"), BUILDER(Create_func_rpad)},
-  { C_STRING_WITH_LEN("RTRIM"), BUILDER(Create_func_rtrim)},
-  { C_STRING_WITH_LEN("SEC_TO_TIME"), BUILDER(Create_func_sec_to_time)},
-  { C_STRING_WITH_LEN("SHA"), BUILDER(Create_func_sha)},
-  { C_STRING_WITH_LEN("SHA1"), BUILDER(Create_func_sha)},
-  { C_STRING_WITH_LEN("SIGN"), BUILDER(Create_func_sign)},
-  { C_STRING_WITH_LEN("SIN"), BUILDER(Create_func_sin)},
-  { C_STRING_WITH_LEN("SLEEP"), BUILDER(Create_func_sleep)},
-  { C_STRING_WITH_LEN("SOUNDEX"), BUILDER(Create_func_soundex)},
-  { C_STRING_WITH_LEN("SPACE"), BUILDER(Create_func_space)},
-  { C_STRING_WITH_LEN("SQRT"), BUILDER(Create_func_sqrt)},
-  { C_STRING_WITH_LEN("SRID"), GEOM_BUILDER(Create_func_srid)},
-  { C_STRING_WITH_LEN("STARTPOINT"), GEOM_BUILDER(Create_func_startpoint)},
-  { C_STRING_WITH_LEN("STRCMP"), BUILDER(Create_func_strcmp)},
-  { C_STRING_WITH_LEN("STR_TO_DATE"), BUILDER(Create_func_str_to_date)},
-  { C_STRING_WITH_LEN("SUBSTRING_INDEX"), BUILDER(Create_func_substr_index)},
-  { C_STRING_WITH_LEN("SUBTIME"), BUILDER(Create_func_subtime)},
-  { C_STRING_WITH_LEN("TAN"), BUILDER(Create_func_tan)},
-  { C_STRING_WITH_LEN("TIMEDIFF"), BUILDER(Create_func_timediff)},
-  { C_STRING_WITH_LEN("TIME_FORMAT"), BUILDER(Create_func_time_format)},
-  { C_STRING_WITH_LEN("TIME_TO_SEC"), BUILDER(Create_func_time_to_sec)},
-  { C_STRING_WITH_LEN("TOUCHES"), GEOM_BUILDER(Create_func_touches)},
-  { C_STRING_WITH_LEN("TO_DAYS"), BUILDER(Create_func_to_days)},
-  { C_STRING_WITH_LEN("UCASE"), BUILDER(Create_func_ucase)},
-  { C_STRING_WITH_LEN("UNCOMPRESS"), BUILDER(Create_func_uncompress)},
-  { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH"), BUILDER(Create_func_uncompressed_length)},
-  { C_STRING_WITH_LEN("UNHEX"), BUILDER(Create_func_unhex)},
-  { C_STRING_WITH_LEN("UNIX_TIMESTAMP"), BUILDER(Create_func_unix_timestamp)},
-  { C_STRING_WITH_LEN("UPDATEXML"), BUILDER(Create_func_xml_update)},
-  { C_STRING_WITH_LEN("UPPER"), BUILDER(Create_func_ucase)},
-  { C_STRING_WITH_LEN("UUID"), BUILDER(Create_func_uuid)},
-  { C_STRING_WITH_LEN("VERSION"), BUILDER(Create_func_version)},
-  { C_STRING_WITH_LEN("WEEKDAY"), BUILDER(Create_func_weekday)},
-  { C_STRING_WITH_LEN("WEEKOFYEAR"), BUILDER(Create_func_weekofyear)},
-  { C_STRING_WITH_LEN("WITHIN"), GEOM_BUILDER(Create_func_within)},
-  { C_STRING_WITH_LEN("X"), GEOM_BUILDER(Create_func_x)},
-  { C_STRING_WITH_LEN("Y"), GEOM_BUILDER(Create_func_y)},
-  { C_STRING_WITH_LEN("YEARWEEK"), BUILDER(Create_func_year_week)},
+  { { C_STRING_WITH_LEN("ABS") }, BUILDER(Create_func_abs)},
+  { { C_STRING_WITH_LEN("ACOS") }, BUILDER(Create_func_acos)},
+  { { C_STRING_WITH_LEN("ADDTIME") }, BUILDER(Create_func_addtime)},
+  { { C_STRING_WITH_LEN("AES_DECRYPT") }, BUILDER(Create_func_aes_decrypt)},
+  { { C_STRING_WITH_LEN("AES_ENCRYPT") }, BUILDER(Create_func_aes_encrypt)},
+  { { C_STRING_WITH_LEN("AREA") }, GEOM_BUILDER(Create_func_area)},
+  { { C_STRING_WITH_LEN("ASBINARY") }, GEOM_BUILDER(Create_func_as_wkb)},
+  { { C_STRING_WITH_LEN("ASIN") }, BUILDER(Create_func_asin)},
+  { { C_STRING_WITH_LEN("ASTEXT") }, GEOM_BUILDER(Create_func_as_wkt)},
+  { { C_STRING_WITH_LEN("ASWKB") }, GEOM_BUILDER(Create_func_as_wkb)},
+  { { C_STRING_WITH_LEN("ASWKT") }, GEOM_BUILDER(Create_func_as_wkt)},
+  { { C_STRING_WITH_LEN("ATAN") }, BUILDER(Create_func_atan)},
+  { { C_STRING_WITH_LEN("ATAN2") }, BUILDER(Create_func_atan)},
+  { { C_STRING_WITH_LEN("BENCHMARK") }, BUILDER(Create_func_benchmark)},
+  { { C_STRING_WITH_LEN("BIN") }, BUILDER(Create_func_bin)},
+  { { C_STRING_WITH_LEN("BIT_COUNT") }, BUILDER(Create_func_bit_count)},
+  { { C_STRING_WITH_LEN("BIT_LENGTH") }, BUILDER(Create_func_bit_length)},
+  { { C_STRING_WITH_LEN("CEIL") }, BUILDER(Create_func_ceiling)},
+  { { C_STRING_WITH_LEN("CEILING") }, BUILDER(Create_func_ceiling)},
+  { { C_STRING_WITH_LEN("CENTROID") }, GEOM_BUILDER(Create_func_centroid)},
+  { { C_STRING_WITH_LEN("CHARACTER_LENGTH") }, BUILDER(Create_func_char_length)},
+  { { C_STRING_WITH_LEN("CHAR_LENGTH") }, BUILDER(Create_func_char_length)},
+  { { C_STRING_WITH_LEN("COERCIBILITY") }, BUILDER(Create_func_coercibility)},
+  { { C_STRING_WITH_LEN("COMPRESS") }, BUILDER(Create_func_compress)},
+  { { C_STRING_WITH_LEN("CONCAT") }, BUILDER(Create_func_concat)},
+  { { C_STRING_WITH_LEN("CONCAT_WS") }, BUILDER(Create_func_concat_ws)},
+  { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
+  { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
+  { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
+  { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
+  { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
+  { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
+  { { C_STRING_WITH_LEN("CROSSES") }, GEOM_BUILDER(Create_func_crosses)},
+  { { C_STRING_WITH_LEN("DATEDIFF") }, BUILDER(Create_func_datediff)},
+  { { C_STRING_WITH_LEN("DATE_FORMAT") }, BUILDER(Create_func_date_format)},
+  { { C_STRING_WITH_LEN("DAYNAME") }, BUILDER(Create_func_dayname)},
+  { { C_STRING_WITH_LEN("DAYOFMONTH") }, BUILDER(Create_func_dayofmonth)},
+  { { C_STRING_WITH_LEN("DAYOFWEEK") }, BUILDER(Create_func_dayofweek)},
+  { { C_STRING_WITH_LEN("DAYOFYEAR") }, BUILDER(Create_func_dayofyear)},
+  { { C_STRING_WITH_LEN("DECODE") }, BUILDER(Create_func_decode)},
+  { { C_STRING_WITH_LEN("DEGREES") }, BUILDER(Create_func_degrees)},
+  { { C_STRING_WITH_LEN("DES_DECRYPT") }, BUILDER(Create_func_des_decrypt)},
+  { { C_STRING_WITH_LEN("DES_ENCRYPT") }, BUILDER(Create_func_des_encrypt)},
+  { { C_STRING_WITH_LEN("DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
+  { { C_STRING_WITH_LEN("DISJOINT") }, GEOM_BUILDER(Create_func_disjoint)},
+  { { C_STRING_WITH_LEN("ELT") }, BUILDER(Create_func_elt)},
+  { { C_STRING_WITH_LEN("ENCODE") }, BUILDER(Create_func_encode)},
+  { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
+  { { C_STRING_WITH_LEN("ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint)},
+  { { C_STRING_WITH_LEN("ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
+  { { C_STRING_WITH_LEN("EQUALS") }, GEOM_BUILDER(Create_func_equals)},
+  { { C_STRING_WITH_LEN("EXP") }, BUILDER(Create_func_exp)},
+  { { C_STRING_WITH_LEN("EXPORT_SET") }, BUILDER(Create_func_export_set)},
+  { { C_STRING_WITH_LEN("EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
+  { { C_STRING_WITH_LEN("EXTRACTVALUE") }, BUILDER(Create_func_xml_extractvalue)},
+  { { C_STRING_WITH_LEN("FIELD") }, BUILDER(Create_func_field)},
+  { { C_STRING_WITH_LEN("FIND_IN_SET") }, BUILDER(Create_func_find_in_set)},
+  { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
+  { { C_STRING_WITH_LEN("FORMAT") }, BUILDER(Create_func_format)},
+  { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
+  { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
+  { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, BUILDER(Create_func_from_unixtime)},
+  { { C_STRING_WITH_LEN("GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("GEOMCOLLFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("GEOMETRYFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("GEOMETRYFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("GEOMETRYN") }, GEOM_BUILDER(Create_func_geometryn)},
+  { { C_STRING_WITH_LEN("GEOMETRYTYPE") }, GEOM_BUILDER(Create_func_geometry_type)},
+  { { C_STRING_WITH_LEN("GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
+  { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength)},
+  { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
+  { { C_STRING_WITH_LEN("HEX") }, BUILDER(Create_func_hex)},
+  { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},
+  { { C_STRING_WITH_LEN("INET_ATON") }, BUILDER(Create_func_inet_aton)},
+  { { C_STRING_WITH_LEN("INET_NTOA") }, BUILDER(Create_func_inet_ntoa)},
+  { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
+  { { C_STRING_WITH_LEN("INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
+  { { C_STRING_WITH_LEN("INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
+  { { C_STRING_WITH_LEN("ISCLOSED") }, GEOM_BUILDER(Create_func_isclosed)},
+  { { C_STRING_WITH_LEN("ISEMPTY") }, GEOM_BUILDER(Create_func_isempty)},
+  { { C_STRING_WITH_LEN("ISNULL") }, BUILDER(Create_func_isnull)},
+  { { C_STRING_WITH_LEN("ISSIMPLE") }, GEOM_BUILDER(Create_func_issimple)},
+  { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, BUILDER(Create_func_is_free_lock)},
+  { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
+  { { C_STRING_WITH_LEN("LAST_DAY") }, BUILDER(Create_func_last_day)},
+  { { C_STRING_WITH_LEN("LAST_INSERT_ID") }, BUILDER(Create_func_last_insert_id)},
+  { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
+  { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
+  { { C_STRING_WITH_LEN("LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("LINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("LN") }, BUILDER(Create_func_ln)},
+  { { C_STRING_WITH_LEN("LOAD_FILE") }, BUILDER(Create_func_load_file)},
+  { { C_STRING_WITH_LEN("LOCATE") }, BUILDER(Create_func_locate)},
+  { { C_STRING_WITH_LEN("LOG") }, BUILDER(Create_func_log)},
+  { { C_STRING_WITH_LEN("LOG10") }, BUILDER(Create_func_log10)},
+  { { C_STRING_WITH_LEN("LOG2") }, BUILDER(Create_func_log2)},
+  { { C_STRING_WITH_LEN("LOWER") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LPAD") }, BUILDER(Create_func_lpad)},
+  { { C_STRING_WITH_LEN("LTRIM") }, BUILDER(Create_func_ltrim)},
+  { { C_STRING_WITH_LEN("MAKEDATE") }, BUILDER(Create_func_makedate)},
+  { { C_STRING_WITH_LEN("MAKETIME") }, BUILDER(Create_func_maketime)},
+  { { C_STRING_WITH_LEN("MAKE_SET") }, BUILDER(Create_func_make_set)},
+  { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, BUILDER(Create_func_master_pos_wait)},
+  { { C_STRING_WITH_LEN("MBRCONTAINS") }, GEOM_BUILDER(Create_func_contains)},
+  { { C_STRING_WITH_LEN("MBRDISJOINT") }, GEOM_BUILDER(Create_func_disjoint)},
+  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_equals)},
+  { { C_STRING_WITH_LEN("MBRINTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
+  { { C_STRING_WITH_LEN("MBROVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},
+  { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("MBRWITHIN") }, GEOM_BUILDER(Create_func_within)},
+  { { C_STRING_WITH_LEN("MD5") }, BUILDER(Create_func_md5)},
+  { { C_STRING_WITH_LEN("MLINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MLINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("MONTHNAME") }, BUILDER(Create_func_monthname)},
+  { { C_STRING_WITH_LEN("MPOINTFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MPOINTFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("MPOLYFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MPOLYFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("MULTILINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MULTILINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("MULTIPOINTFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MULTIPOINTFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("MULTIPOLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("MULTIPOLYGONFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("NAME_CONST") }, BUILDER(Create_func_name_const)},
+  { { C_STRING_WITH_LEN("NULLIF") }, BUILDER(Create_func_nullif)},
+  { { C_STRING_WITH_LEN("NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries)},
+  { { C_STRING_WITH_LEN("NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring)},
+  { { C_STRING_WITH_LEN("NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints)},
+  { { C_STRING_WITH_LEN("OCT") }, BUILDER(Create_func_oct)},
+  { { C_STRING_WITH_LEN("OCTET_LENGTH") }, BUILDER(Create_func_length)},
+  { { C_STRING_WITH_LEN("ORD") }, BUILDER(Create_func_ord)},
+  { { C_STRING_WITH_LEN("OVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},
+  { { C_STRING_WITH_LEN("PERIOD_ADD") }, BUILDER(Create_func_period_add)},
+  { { C_STRING_WITH_LEN("PERIOD_DIFF") }, BUILDER(Create_func_period_diff)},
+  { { C_STRING_WITH_LEN("PI") }, BUILDER(Create_func_pi)},
+  { { C_STRING_WITH_LEN("POINTFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("POINTFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("POINTN") }, GEOM_BUILDER(Create_func_pointn)},
+  { { C_STRING_WITH_LEN("POLYFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("POLYFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("POLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
+  { { C_STRING_WITH_LEN("POLYGONFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("POW") }, BUILDER(Create_func_pow)},
+  { { C_STRING_WITH_LEN("POWER") }, BUILDER(Create_func_pow)},
+  { { C_STRING_WITH_LEN("QUOTE") }, BUILDER(Create_func_quote)},
+  { { C_STRING_WITH_LEN("RADIANS") }, BUILDER(Create_func_radians)},
+  { { C_STRING_WITH_LEN("RAND") }, BUILDER(Create_func_rand)},
+  { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock)},
+  { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
+  { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
+  { { C_STRING_WITH_LEN("ROW_COUNT") }, BUILDER(Create_func_row_count)},
+  { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
+  { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},
+  { { C_STRING_WITH_LEN("SEC_TO_TIME") }, BUILDER(Create_func_sec_to_time)},
+  { { C_STRING_WITH_LEN("SHA") }, BUILDER(Create_func_sha)},
+  { { C_STRING_WITH_LEN("SHA1") }, BUILDER(Create_func_sha)},
+  { { C_STRING_WITH_LEN("SIGN") }, BUILDER(Create_func_sign)},
+  { { C_STRING_WITH_LEN("SIN") }, BUILDER(Create_func_sin)},
+  { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
+  { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
+  { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
+  { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
+  { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},
+  { { C_STRING_WITH_LEN("STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint)},
+  { { C_STRING_WITH_LEN("STRCMP") }, BUILDER(Create_func_strcmp)},
+  { { C_STRING_WITH_LEN("STR_TO_DATE") }, BUILDER(Create_func_str_to_date)},
+  { { C_STRING_WITH_LEN("SUBSTRING_INDEX") }, BUILDER(Create_func_substr_index)},
+  { { C_STRING_WITH_LEN("SUBTIME") }, BUILDER(Create_func_subtime)},
+  { { C_STRING_WITH_LEN("TAN") }, BUILDER(Create_func_tan)},
+  { { C_STRING_WITH_LEN("TIMEDIFF") }, BUILDER(Create_func_timediff)},
+  { { C_STRING_WITH_LEN("TIME_FORMAT") }, BUILDER(Create_func_time_format)},
+  { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
+  { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
+  { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
+  { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},
+  { { C_STRING_WITH_LEN("UNHEX") }, BUILDER(Create_func_unhex)},
+  { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
+  { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
+  { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
+  { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
+  { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
+  { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
+  { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},
+  { { C_STRING_WITH_LEN("WITHIN") }, GEOM_BUILDER(Create_func_within)},
+  { { C_STRING_WITH_LEN("X") }, GEOM_BUILDER(Create_func_x)},
+  { { C_STRING_WITH_LEN("Y") }, GEOM_BUILDER(Create_func_y)},
+  { { C_STRING_WITH_LEN("YEARWEEK") }, BUILDER(Create_func_year_week)},
 
   { {0, 0}, NULL}
 };
 
 static HASH native_functions_hash;
 
-extern "C" byte*
-get_native_fct_hash_key(const byte *buff, uint *length, my_bool /* unused */)
+extern "C" uchar*
+get_native_fct_hash_key(const uchar *buff, size_t *length,
+                        my_bool /* unused */)
 {
   Native_func_registry *func= (Native_func_registry*) buff;
   *length= func->name.length;
-  return (byte*) func->name.str;
+  return (uchar*) func->name.str;
 }
 
 /*
@@ -4916,7 +4947,7 @@ int item_create_init()
 
   for (func= func_array; func->builder != NULL; func++)
   {
-    if (my_hash_insert(& native_functions_hash, (byte*) func))
+    if (my_hash_insert(& native_functions_hash, (uchar*) func))
       DBUG_RETURN(1);
   }
 
@@ -4924,8 +4955,8 @@ int item_create_init()
   for (uint i=0 ; i < native_functions_hash.records ; i++)
   {
     func= (Native_func_registry*) hash_element(& native_functions_hash, i);
-    DBUG_PRINT("info", ("native function %s, length %d",
-                        func->name.str, func->name.length));
+    DBUG_PRINT("info", ("native function: %s  length: %u",
+                        func->name.str, (uint) func->name.length));
   }
 #endif
 
@@ -4953,7 +4984,7 @@ find_native_function_builder(THD *thd, LEX_STRING name)
 
   /* Thread safe */
   func= (Native_func_registry*) hash_search(& native_functions_hash,
-                                            (byte*) name.str,
+                                            (uchar*) name.str,
                                              name.length);
 
   if (func)
@@ -4970,11 +5001,15 @@ find_qualified_function_builder(THD *thd)
   return & Create_sp_func::s_singleton;
 }
 
-Item*
-create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
+
+Item *
+create_func_cast(THD *thd, Item *a, Cast_target cast_type,
+                 const char *c_len, const char *c_dec,
                  CHARSET_INFO *cs)
 {
   Item *res;
+  ulong len;
+  uint dec;
   LINT_INIT(res);
 
   switch (cast_type) {
@@ -4998,18 +5033,33 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    int tmp_len= (len>0) ? len : 10;
-    if (tmp_len < dec)
+    len= c_len ? atoi(c_len) : 0;
+    dec= c_dec ? atoi(c_dec) : 0;
+    my_decimal_trim(&len, &dec);
+    if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
       return 0;
     }
-    res= new (thd->mem_root) Item_decimal_typecast(a, tmp_len, dec);
+    if (len > DECIMAL_MAX_PRECISION)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
+               DECIMAL_MAX_PRECISION);
+      return 0;
+    }
+    if (dec > DECIMAL_MAX_SCALE)
+    {
+      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
+               DECIMAL_MAX_SCALE);
+      return 0;
+    }
+    res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
     break;
   }
   case ITEM_CAST_CHAR:
   {
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
+    len= c_len ? atoi(c_len) : -1;
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;
   }
@@ -5022,4 +5072,3 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type, int len, int dec,
   }
   return res;
 }
-

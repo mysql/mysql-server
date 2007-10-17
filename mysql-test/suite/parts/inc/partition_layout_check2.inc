@@ -55,6 +55,7 @@ let $run= `SELECT @aux`;
 if ($run)
 {
    --vertical_results
+   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
    SELECT state,
    REPLACE(create_command,'\n',' ') AS "Table definition",
    REPLACE(file_list     ,'\n',' ') AS "File list"

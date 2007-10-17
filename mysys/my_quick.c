@@ -19,14 +19,14 @@
 #include "my_nosys.h"
 
 
-uint my_quick_read(File Filedes,byte *Buffer,uint Count,myf MyFlags)
+size_t my_quick_read(File Filedes,uchar *Buffer,size_t Count,myf MyFlags)
 {
-  uint readbytes;
+  size_t readbytes;
 
-  if ((readbytes = (uint) read(Filedes, Buffer, Count)) != Count)
+  if ((readbytes = read(Filedes, Buffer, Count)) != Count)
   {
 #ifndef DBUG_OFF
-    if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
+    if ((readbytes == 0 || readbytes == (size_t) -1) && errno == EINTR)
     {  
       DBUG_PRINT("error", ("my_quick_read() was interrupted and returned %d"
                            ".  This function does not retry the read!",
@@ -40,20 +40,20 @@ uint my_quick_read(File Filedes,byte *Buffer,uint Count,myf MyFlags)
 }
 
 
-uint my_quick_write(File Filedes,const byte *Buffer,uint Count)
+size_t my_quick_write(File Filedes,const uchar *Buffer,size_t Count)
 {
 #ifndef DBUG_OFF
-  uint writtenbytes;
+  size_t writtenbytes;
 #endif
 
   if ((
 #ifndef DBUG_OFF
        writtenbytes =
 #endif
-       (uint) write(Filedes,Buffer,Count)) != Count)
+       (size_t) write(Filedes,Buffer,Count)) != Count)
   {
 #ifndef DBUG_OFF
-    if ((writtenbytes == 0 || (int) writtenbytes == -1) && errno == EINTR)
+    if ((writtenbytes == 0 || writtenbytes == (size_t) -1) && errno == EINTR)
     {  
       DBUG_PRINT("error", ("my_quick_write() was interrupted and returned %d"
                            ".  This function does not retry the write!",
@@ -61,7 +61,7 @@ uint my_quick_write(File Filedes,const byte *Buffer,uint Count)
     }
 #endif
     my_errno=errno;
-    return (uint) -1;
+    return (size_t) -1;
   }
   return 0;
 }

@@ -151,6 +151,32 @@ EXPLAIN SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
 DROP table t1;  
 
+#
+# Bug #29911: HAVING clause depending on constant table and evaluated to false
+#
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+CREATE TABLE t2 (b int PRIMARY KEY, a int);
+CREATE TABLE t3 (b int, flag int);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1), (3,1);
+INSERT INTO t3(b,flag) VALUES (2, 1);
+
+SELECT t1.a
+  FROM t1 INNER JOIN t2 ON t1.a=t2.a LEFT JOIN t3 ON t2.b=t3.b
+    GROUP BY t1.a, t2.b HAVING MAX(t3.flag)=0;
+
+SELECT DISTINCT t1.a, MAX(t3.flag)
+  FROM t1 INNER JOIN t2 ON t1.a=t2.a LEFT JOIN t3 ON t2.b=t3.b
+    GROUP BY t1.a, t2.b HAVING MAX(t3.flag)=0;
+
+SELECT DISTINCT t1.a
+  FROM t1 INNER JOIN t2 ON t1.a=t2.a LEFT JOIN t3 ON t2.b=t3.b
+    GROUP BY t1.a, t2.b HAVING MAX(t3.flag)=0;
+
+DROP TABLE t1,t2,t3;
+
 # End of 4.1 tests
 
 #

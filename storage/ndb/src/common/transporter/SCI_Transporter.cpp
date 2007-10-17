@@ -65,13 +65,10 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
  
    
   m_initLocal=false; 
-  m_swapCounter=0; 
   m_failCounter=0; 
   m_remoteNodes[0]=remoteSciNodeId0; 
   m_remoteNodes[1]=remoteSciNodeId1; 
   m_adapters = nAdapters;   
-  // The maximum number of times to try and create,  
-  // start and destroy a sequence 
   m_ActiveAdapterId=0; 
   m_StandbyAdapterId=1; 
   
@@ -102,8 +99,6 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 } 
  
- 
- 
 void SCI_Transporter::disconnectImpl() 
 { 
   DBUG_ENTER("SCI_Transporter::disconnectImpl");
@@ -129,7 +124,8 @@ void SCI_Transporter::disconnectImpl()
       
       if(err != SCI_ERR_OK)  { 
 	report_error(TE_SCI_UNABLE_TO_CLOSE_CHANNEL); 
-        DBUG_PRINT("error", ("Cannot close channel to the driver. Error code 0x%x",  
+        DBUG_PRINT("error",
+        ("Cannot close channel to the driver. Error code 0x%x",  
 		    err)); 
       } 
     } 
@@ -164,19 +160,18 @@ bool SCI_Transporter::initTransporter() {
   m_sendBuffer.m_buffer = new Uint32[m_sendBuffer.m_sendBufferSize / 4];
   m_sendBuffer.m_dataSize = 0;
  
-  DBUG_PRINT("info", ("Created SCI Send Buffer with buffer size %d and packet size %d",
+  DBUG_PRINT("info",
+  ("Created SCI Send Buffer with buffer size %d and packet size %d",
               m_sendBuffer.m_sendBufferSize, m_PacketSize * 4));
   if(!getLinkStatus(m_ActiveAdapterId) ||  
      (m_adapters > 1 &&
      !getLinkStatus(m_StandbyAdapterId))) { 
-    DBUG_PRINT("error", ("The link is not fully operational. Check the cables and the switches")); 
-    //reportDisconnect(remoteNodeId, 0); 
-    //doDisconnect(); 
+    DBUG_PRINT("error",
+    ("The link is not fully operational. Check the cables and the switches")); 
     //NDB should terminate 
     report_error(TE_SCI_LINK_ERROR); 
     DBUG_RETURN(false); 
   } 
-  
   DBUG_RETURN(true); 
 } // initTransporter()  
 
@@ -235,7 +230,8 @@ sci_error_t SCI_Transporter::initLocalSegment() {
       DBUG_PRINT("info", ("SCInode iD %d  adapter %d\n",  
 	         sciAdapters[i].localSciNodeId, i)); 
       if(err != SCI_ERR_OK) { 
-        DBUG_PRINT("error", ("Cannot open an SCI virtual device. Error code 0x%x", 
+        DBUG_PRINT("error",
+        ("Cannot open an SCI virtual device. Error code 0x%x", 
 		   err)); 
 	DBUG_RETURN(err); 
       } 
@@ -269,7 +265,8 @@ sci_error_t SCI_Transporter::initLocalSegment() {
 		      &err); 
      
     if(err != SCI_ERR_OK) { 
-      DBUG_PRINT("error", ("Local Segment is not accessible by an SCI adapter. Error code 0x%x\n",
+      DBUG_PRINT("error",
+    ("Local Segment is not accessible by an SCI adapter. Error code 0x%x\n",
                   err)); 
       DBUG_RETURN(err); 
     } 
@@ -303,15 +300,13 @@ sci_error_t SCI_Transporter::initLocalSegment() {
 			   &err); 
      
     if(err != SCI_ERR_OK) { 
-      DBUG_PRINT("error", ("Local Segment is not available for remote connections. Error code 0x%x\n",
+      DBUG_PRINT("error",
+   ("Local Segment is not available for remote connections. Error code 0x%x\n",
                  err)); 
       DBUG_RETURN(err); 
     } 
   } 
-  
-  
   setupLocalSegment(); 
-  
   DBUG_RETURN(err); 
    
 } // initLocalSegment() 
@@ -343,12 +338,6 @@ bool SCI_Transporter::doSend() {
     if(sizeToSend==4097) 
       i4097++; 
 #endif
-    if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-      DBUG_PRINT("error", ("Start sequence failed")); 
-      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
-      return false; 
-    } 
-    
       
   tryagain:
     retry++;
@@ -374,119 +363,36 @@ bool SCI_Transporter::doSend() {
 		SCI_FLAG_ERROR_CHECK, 
 		&err);   
       
-      
       if (err != SCI_ERR_OK) { 
-      if(err == SCI_ERR_OUT_OF_RANGE) { 
-        DBUG_PRINT("error", ("Data transfer : out of range error")); 
-	goto tryagain; 
-      } 
-      if(err == SCI_ERR_SIZE_ALIGNMENT) { 
-        DBUG_PRINT("error", ("Data transfer : alignment error")); 
-        DBUG_PRINT("info", ("sendPtr 0x%x, sizeToSend = %d", sendPtr, sizeToSend));
-	goto tryagain; 
-      } 
-      if(err == SCI_ERR_OFFSET_ALIGNMENT) { 
-        DBUG_PRINT("error", ("Data transfer : offset alignment")); 
-	goto tryagain; 
-      }   
-      if(err == SCI_ERR_TRANSFER_FAILED) { 
-	//(m_TargetSegm[m_StandbyAdapterId].writer)->heavyLock(); 
-	if(getLinkStatus(m_ActiveAdapterId)) { 
-	  goto tryagain; 
-	}
-        if (m_adapters == 1) {
-          DBUG_PRINT("error", ("SCI Transfer failed"));
+        if (err == SCI_ERR_OUT_OF_RANGE ||
+            err == SCI_ERR_SIZE_ALIGNMENT ||
+            err == SCI_ERR_OFFSET_ALIGNMENT) { 
+          DBUG_PRINT("error", ("Data transfer error = %d", err));
           report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
 	  return false; 
-        }
-	m_failCounter++; 
-	Uint32 temp=m_ActiveAdapterId;	    	     
-	switch(m_swapCounter) { 
-	case 0:  
-	  /**swap from active (0) to standby (1)*/ 
-	  if(getLinkStatus(m_StandbyAdapterId)) { 
-            DBUG_PRINT("error", ("Swapping from adapter 0 to 1")); 
+        } 
+        if(err == SCI_ERR_TRANSFER_FAILED) { 
+	  if(getLinkStatus(m_ActiveAdapterId))
+	    goto tryagain; 
+          if (m_adapters == 1) {
+            DBUG_PRINT("error", ("SCI Transfer failed"));
+            report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+	    return false; 
+          }
+	  m_failCounter++; 
+	  Uint32 temp=m_ActiveAdapterId;	    	     
+	  if (getLinkStatus(m_StandbyAdapterId)) { 
 	    failoverShmWriter();		 
 	    SCIStoreBarrier(m_TargetSegm[m_StandbyAdapterId].sequence,0); 
 	    m_ActiveAdapterId=m_StandbyAdapterId; 
 	    m_StandbyAdapterId=temp; 
-	    SCIRemoveSequence((m_TargetSegm[m_StandbyAdapterId].sequence),
-			      FLAGS,  
-			      &err); 
-	    if(err!=SCI_ERR_OK) { 
-	      report_error(TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
-              DBUG_PRINT("error", ("Unable to remove sequence"));
-	      return false; 
-	    } 
-	    if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-              DBUG_PRINT("error", ("Start sequence failed")); 
-	      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
-	      return false; 
-	    } 
-	    m_swapCounter++; 
-            DBUG_PRINT("info", ("failover complete")); 
-	    goto tryagain; 
-	  }  else {
+            DBUG_PRINT("error", ("Swapping from adapter %u to %u",
+                       m_StandbyAdapterId, m_ActiveAdapterId));
+	  } else {
 	    report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
             DBUG_PRINT("error", ("SCI Transfer failed")); 
-	    return false;
 	  }
-	  return false; 
-	  break; 
-	case 1: 
-	  /** swap back from 1 to 0 
-	      must check that the link is up */ 
-	  
-	  if(getLinkStatus(m_StandbyAdapterId)) { 
-	    failoverShmWriter(); 
-	    m_ActiveAdapterId=m_StandbyAdapterId; 
-	    m_StandbyAdapterId=temp; 
-            DBUG_PRINT("info", ("Swapping from 1 to 0"));	 
-	    if(createSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-              DBUG_PRINT("error", ("Unable to create sequence"));
-	      report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
-	      return false; 
-	    } 
-	    if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-              DBUG_PRINT("error", ("startSequence failed... disconnecting")); 
-	      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
-	      return false; 
-	    } 
-	    
-	    SCIRemoveSequence((m_TargetSegm[m_StandbyAdapterId].sequence) 
-			      , FLAGS,  
-			      &err); 
-	    if(err!=SCI_ERR_OK) { 
-              DBUG_PRINT("error", ("Unable to remove sequence"));
-	      report_error(TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
-	      return false;
-	    } 
-	    
-	    if(createSequence(m_StandbyAdapterId)!=SCI_ERR_OK) { 
-              DBUG_PRINT("error", ("Unable to create sequence on standby"));
-	      report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
-	      return false; 
-	    } 
-	    
-	    m_swapCounter=0; 
-	    
-            DBUG_PRINT("info", ("failover complete..")); 
-	    goto tryagain; 
-	    
-	  } else {
-            DBUG_PRINT("error", ("Unrecoverable data transfer error")); 
-	    report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
-	    return false;
-	  }
-	  
-	  break; 
-	default: 
-          DBUG_PRINT("error", ("Unrecoverable data transfer error")); 
-	  report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR); 
-	  return false; 
-	  break; 
-	}  
-      }
+        }
       } else { 
 	SHM_Writer * writer = (m_TargetSegm[m_ActiveAdapterId].writer);
 	writer->updateWritePtr(sizeToSend); 
@@ -497,7 +403,6 @@ bool SCI_Transporter::doSend() {
 	m_sendBuffer.m_dataSize = 0;
 	m_sendBuffer.m_forceSendLimit = sendLimit;
       } 
-      
     } else { 
       /** 
        * If we end up here, the SCI segment is full.  
@@ -552,14 +457,11 @@ void SCI_Transporter::setupLocalSegment()
    DBUG_VOID_RETURN;
 } //setupLocalSegment 
  
- 
- 
 void SCI_Transporter::setupRemoteSegment()   
 { 
    DBUG_ENTER("SCI_Transporter::setupRemoteSegment");
    Uint32 sharedSize = 0; 
    sharedSize =4096;   //start of the buffer is page aligned 
- 
  
    Uint32 sizeOfBuffer = m_BufferSize; 
    const Uint32 slack = MAX_MESSAGE_SIZE;
@@ -666,7 +568,6 @@ SCI_Transporter::init_remote()
         DBUG_PRINT("error", ("Error connecting segment, err 0x%x", err));
         DBUG_RETURN(false);
       }
-
     }
     // Map the remote memory segment into program space  
     for(Uint32 i=0; i < m_adapters ; i++) {
@@ -679,13 +580,14 @@ SCI_Transporter::init_remote()
                             FLAGS,
                             &err);
 
-
-        if(err!= SCI_ERR_OK) {
-          DBUG_PRINT("error", ("Cannot map a segment to the remote node %d. Error code 0x%x",m_RemoteSciNodeId, err));
-          //NDB SHOULD TERMINATE AND COMPUTER REBOOTED! 
-          report_error(TE_SCI_CANNOT_MAP_REMOTESEGMENT);
-          DBUG_RETURN(false);
-        }
+      if(err!= SCI_ERR_OK) {
+        DBUG_PRINT("error",
+          ("Cannot map a segment to the remote node %d. Error code 0x%x",
+          m_RemoteSciNodeId, err));
+        //NDB SHOULD TERMINATE AND COMPUTER REBOOTED! 
+        report_error(TE_SCI_CANNOT_MAP_REMOTESEGMENT);
+        DBUG_RETURN(false);
+      }
     }
     m_mapped=true;
     setupRemoteSegment();
@@ -713,7 +615,6 @@ SCI_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(false);
   }
-
   if (!init_local()) {
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(false);
@@ -788,28 +689,8 @@ sci_error_t SCI_Transporter::createSequence(Uint32 adapterid) {
 		       &(m_TargetSegm[adapterid].sequence),  
 		       SCI_FLAG_FAST_BARRIER,  
 		       &err);  
-  
-  
   return err; 
 } // createSequence()  
- 
- 
-sci_error_t SCI_Transporter::startSequence(Uint32 adapterid) { 
-  
-  sci_error_t err; 
-  /** Perform preliminary error check on an SCI adapter before starting a 
-   * sequence of read and write operations on the mapped segment. 
-   */ 
-  m_SequenceStatus = SCIStartSequence( 
-				       (m_TargetSegm[adapterid].sequence),  
-				       FLAGS, &err); 
-   
-   
-  // If there still is an error then data cannot be safely send 
-  return err; 
-} // startSequence() 
- 
-   
  
 bool SCI_Transporter::disconnectLocal()  
 {
@@ -878,9 +759,6 @@ SCI_Transporter::~SCI_Transporter() {
   DBUG_VOID_RETURN;
 } // ~SCI_Transporter() 
  
- 
- 
- 
 void SCI_Transporter::closeSCI() { 
   // Termination of SCI 
   sci_error_t err; 
@@ -897,8 +775,9 @@ void SCI_Transporter::closeSCI() {
   SCIClose(activeSCIDescriptor, FLAGS, &err);  
    
   if(err != SCI_ERR_OK) {
-    DBUG_PRINT("error", ("Cannot close SCI channel to the driver. Error code 0x%x",  
-	        err)); 
+    DBUG_PRINT("error",
+      ("Cannot close SCI channel to the driver. Error code 0x%x",  
+      err)); 
   }
   SCITerminate(); 
   DBUG_VOID_RETURN;
@@ -973,7 +852,6 @@ SCI_Transporter::getConnectionStatus() {
     return false; 
 } 
  
- 
 void  
 SCI_Transporter::setConnected() { 
   *m_remoteStatusFlag = SCICONNECTED; 
@@ -982,7 +860,6 @@ SCI_Transporter::setConnected() {
   }
   *m_localStatusFlag = SCICONNECTED; 
 } 
- 
  
 void  
 SCI_Transporter::setDisconnect() { 
@@ -993,7 +870,6 @@ SCI_Transporter::setDisconnect() {
       *m_remoteStatusFlag2 = SCIDISCONNECT; 
   }
 } 
- 
  
 bool 
 SCI_Transporter::checkConnected() { 
@@ -1015,8 +891,9 @@ SCI_Transporter::initSCI() {
     SCIInitialize(0, &error); 
     if(error != SCI_ERR_OK)  { 
       DBUG_PRINT("error", ("Cannot initialize SISCI library."));
-      DBUG_PRINT("error", ("Inconsistency between SISCI library and SISCI driver. Error code 0x%x",
-                 error)); 
+      DBUG_PRINT("error",
+      ("Inconsistency between SISCI library and SISCI driver. Error code 0x%x",
+      error)); 
       DBUG_RETURN(false);
     } 
     init = true; 
@@ -1029,3 +906,4 @@ SCI_Transporter::get_free_buffer() const
 {
   return (m_TargetSegm[m_ActiveAdapterId].writer)->get_free_buffer();
 }
+

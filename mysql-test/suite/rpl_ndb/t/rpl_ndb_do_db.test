@@ -1,0 +1,56 @@
+###########################################################
+# Author: Jeb
+# Date: 14-12-2006
+# Purpose: To test --replicate-do-database=db_name
+#          using cluster. Only replica should replicate.
+##########################################################
+
+--source include/have_ndb.inc
+--source include/ndb_master-slave.inc
+
+--disable_warnings
+DROP DATABASE IF EXISTS replica;
+--enable_warnings
+
+# Create database and tables for the test.
+CREATE DATABASE replica;
+CREATE TABLE t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+CREATE TABLE t2 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+USE replica;
+CREATE TABLE replica.t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+CREATE TABLE replica.t2 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+
+# Insert data into db that should not be picked up by slave
+USE test;
+INSERT INTO t1 VALUES(1, repeat('abc',10));
+INSERT INTO t2 VALUES(1, repeat('abc',10));
+SHOW TABLES;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+# Insert data into db that should be replicated
+USE replica;
+INSERT INTO replica.t1 VALUES(2, repeat('def',200));
+INSERT INTO replica.t2 VALUES(2, repeat('def',200));
+SHOW TABLES;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+# Check results on slave
+--sync_slave_with_master
+SHOW TABLES;
+USE replica;
+SHOW TABLES;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+USE test;
+SHOW TABLES;
+
+# Cleanup from testing
+connection master;
+USE test;
+DROP TABLE t1, t2;
+DROP DATABASE IF EXISTS replica;
+--sync_slave_with_master
+
+# End 5.1 test case

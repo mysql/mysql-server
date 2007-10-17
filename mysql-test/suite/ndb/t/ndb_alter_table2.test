@@ -1,0 +1,84 @@
+-- source include/have_multi_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+connect (con3,localhost,root,,test);
+connect (con4,localhost,root,,test);
+connect (con5,localhost,root,,test);
+connect (con6,localhost,root,,test);
+
+CREATE TABLE t1 (
+  a INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+
+connection con1;
+BEGIN;
+INSERT INTO t1 VALUES (9410,9412);
+connection con2;
+BEGIN;
+--send
+INSERT INTO t1 VALUES (9411,9412);
+connection con3;
+BEGIN;
+--send
+INSERT INTO t1 VALUES (9412,9412);
+connection con4;
+BEGIN;
+--send
+INSERT INTO t1 VALUES (9413,9412);
+connection con5;
+BEGIN;
+--send
+INSERT INTO t1 VALUES (9414,9412);
+connection con6;
+BEGIN;
+--send
+INSERT INTO t1 VALUES (9415,9412);
+connection con1;
+sleep 1;
+
+ROLLBACK;
+connection con2;
+reap;
+ROLLBACK;
+connection con3;
+reap;
+ROLLBACK;
+connection con4;
+reap;
+ROLLBACK;
+connection con5;
+reap;
+ROLLBACK;
+connection con6;
+reap;
+ROLLBACK;
+
+connection server2;
+
+drop table t1;
+CREATE TABLE t1 (
+  a INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL,
+  c INT NOT NULL
+) ENGINE=ndbcluster;
+
+connection server1;
+
+--disable_result_log
+--error 0,1412
+select * from t1;
+--enable_result_log
+select * from t1;
+select * from t1;
+select * from t1;
+select * from t1;
+select * from t1;
+
+drop table t1;

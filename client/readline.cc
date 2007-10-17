@@ -22,8 +22,8 @@
 
 static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);
-static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str);
-static uint fill_buffer(LINE_BUFFER *buffer);
+static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
+static size_t fill_buffer(LINE_BUFFER *buffer);
 static char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length);
 
 
@@ -35,7 +35,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
     return 0;
   if (init_line_buffer(line_buff,fileno(file),IO_SIZE,max_size))
   {
-    my_free((char*) line_buff,MYF(0));
+    my_free(line_buff,MYF(0));
     return 0;
   }
   return line_buff;
@@ -62,13 +62,13 @@ void batch_readline_end(LINE_BUFFER *line_buff)
 {
   if (line_buff)
   {
-    my_free((gptr) line_buff->buffer,MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*) line_buff,MYF(0));
+    my_free(line_buff->buffer,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(line_buff,MYF(0));
   }
 }
 
 
-LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, my_string str)
+LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, char * str)
 {
   if (!line_buff)
     if (!(line_buff=(LINE_BUFFER*)
@@ -76,7 +76,7 @@ LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, my_string str)
       return 0;
   if (init_line_buffer_from_string(line_buff,str))
   {
-    my_free((char*) line_buff,MYF(0));
+    my_free(line_buff,MYF(0));
     return 0;
   }
   return line_buff;
@@ -106,13 +106,13 @@ init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
   several times. the resulting buffer will contain a
   concatenation of all strings separated by spaces
 */
-static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
+static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str)
 {
   uint old_length=(uint)(buffer->end - buffer->buffer);
   uint length= (uint) strlen(str);
   if (!(buffer->buffer= buffer->start_of_line= buffer->end_of_line=
-	(char*)my_realloc(buffer->buffer, old_length+length+2,
-                          MYF(MY_FAE|MY_ALLOW_ZERO_PTR))))
+	(char*) my_realloc((uchar*) buffer->buffer, old_length+length+2,
+                           MYF(MY_FAE|MY_ALLOW_ZERO_PTR))))
     return 1;
   buffer->end= buffer->buffer + old_length;
   if (old_length)
@@ -133,9 +133,9 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
   bytes read from disk.
 */
 
-static uint fill_buffer(LINE_BUFFER *buffer)
+static size_t fill_buffer(LINE_BUFFER *buffer)
 {
-  uint read_count;
+  size_t read_count;
   uint bufbytes= (uint) (buffer->end - buffer->start_of_line);
 
   if (buffer->eof)
@@ -166,11 +166,11 @@ static uint fill_buffer(LINE_BUFFER *buffer)
   }
 
   /* Read in new stuff. */
-  if ((read_count= my_read(buffer->file, (byte*) buffer->end, read_count,
+  if ((read_count= my_read(buffer->file, (uchar*) buffer->end, read_count,
 			   MYF(MY_WME))) == MY_FILE_ERROR)
-    return read_count;
+    return (size_t) -1;
 
-  DBUG_PRINT("fill_buff", ("Got %d bytes", read_count));
+  DBUG_PRINT("fill_buff", ("Got %lu bytes", (ulong) read_count));
 
   /* Kludge to pretend every nonempty file ends with a newline. */
   if (!read_count && bufbytes && buffer->end[-1] != '\n')
@@ -189,7 +189,7 @@ static uint fill_buffer(LINE_BUFFER *buffer)
 char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length)
 {
   char *pos;
-  uint length;
+  size_t length;
   DBUG_ENTER("intern_read_line");
 
   buffer->start_of_line=buffer->end_of_line;
@@ -202,7 +202,7 @@ char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length)
     {
       if ((uint) (pos - buffer->start_of_line) < buffer->max_size)
       {
-	if (!(length=fill_buffer(buffer)) || length == (uint) -1)
+	if (!(length=fill_buffer(buffer)) || length == (size_t) -1)
 	  DBUG_RETURN(0);
 	continue;
       }

@@ -17,6 +17,8 @@
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 
+#define VER "1.1"
+
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -32,7 +34,8 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose;
+static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag;
+static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
@@ -56,6 +59,11 @@ static struct my_option my_long_options[]=
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibilty",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   (uchar**)&not_used, (uchar**)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd',
    "Not used by mysql_upgrade. Only for backward compatibilty",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -63,26 +71,26 @@ static struct my_option my_long_options[]=
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (gptr *) & default_dbug_option,
-   (gptr *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (uchar* *) & default_dbug_option,
+   (uchar* *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
+   (uchar**) &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (gptr*)&not_used, (gptr*)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
-   (gptr*)&opt_force, (gptr*)&opt_force, 0,
+   (uchar**)&opt_force, (uchar**)&opt_force, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given"
-   " it's solicited on the tty.", (gptr*) &opt_password,(gptr*) &opt_password,
+   " it's solicited on the tty.", (uchar**) &opt_password,(uchar**) &opt_password,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
@@ -100,11 +108,11 @@ static struct my_option my_long_options[]=
 #endif
   {"socket", 'S', "Socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login if not current user.", (gptr*) &opt_user,
-   (gptr*) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
+   (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"verbose", 'v', "Display more output about the process",
-   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0,
+   (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -138,7 +146,7 @@ static void die(const char *fmt, ...)
   va_end(args);
 
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg);
   exit(1);
 }
 
@@ -200,8 +208,9 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
-    printf("MySQL utility for upgrading database to MySQL version %s\n",
-           MYSQL_SERVER_VERSION);
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+           my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    puts("MySQL utility for upgrading databases to new MySQL versions\n");
     my_print_help(my_long_options);
     exit(0);
     break;
@@ -209,6 +218,7 @@ get_one_option(int optid, const struct my_option *opt,
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     add_option= FALSE;
+    debug_check_flag= 1;
     break;
 
   case 'p':
@@ -342,16 +352,11 @@ static my_bool get_full_path_to_executable(char* path)
 
 /*
   Look for the tool in the same directory as mysql_upgrade.
-
-  When running in a not yet installed build the the program
-  will exist but it need to be invoked via it's libtool wrapper.
-  Check if the found tool can executed and if not look in the
-  directory one step higher up where the libtool wrapper normally
-  is found
 */
 
 static void find_tool(char *tool_path, const char *tool_name)
 {
+  size_t path_len;
   char path[FN_REFLEN];
   DYNAMIC_STRING ds_tmp;
   DBUG_ENTER("find_tool");
@@ -385,37 +390,52 @@ static void find_tool(char *tool_path, const char *tool_name)
       path[0]= 0;
     }
   }
-  do
+
+  DBUG_PRINT("info", ("path: '%s'", path));
+
+  /* Chop off binary name (i.e mysql-upgrade) from path */
+  dirname_part(path, path, &path_len);
+
+  /*
+    When running in a not yet installed build and using libtool,
+    the program(mysql_upgrade) will be in .libs/ and executed
+    through a libtool wrapper in order to use the dynamic libraries
+    from this build. The same must be done for the tools(mysql and
+    mysqlcheck). Thus if path ends in .libs/, step up one directory
+    and execute the tools from there
+  */
+  path[max(path_len-1, 0)]= 0;   /* Chop off last / */
+  if (strncmp(path + dirname_length(path), ".libs", 5) == 0)
   {
-    DBUG_PRINT("enter", ("path: %s", path));
+    DBUG_PRINT("info", ("Chopping off .libs from '%s'", path));
 
-    /* Chop off last char(since it might be a /) */
-    path[max((strlen(path)-1), 0)]= 0;
-
-    /* Chop off last dir part */
-    dirname_part(path, path);
-
-    /* Format name of the tool to search for */
-    fn_format(tool_path, tool_name,
-              path, "", MYF(MY_REPLACE_DIR));
-
-    verbose("Looking for '%s' in: %s", tool_name, tool_path);
-
-    /* Make sure the tool exists */
-    if (my_access(tool_path, F_OK) != 0)
-      die("Can't find '%s'", tool_path);
-
-    /*
-      Make sure it can be executed, otherwise try again
-      in higher level directory
-    */
+    /* Chop off .libs */
+    dirname_part(path, path, &path_len);
   }
-  while(run_tool(tool_path,
-                 &ds_tmp, /* Get output from command, discard*/
-                 "--help",
-                 "2>&1",
-                 IF_WIN("> NUL", "> /dev/null"),
-                 NULL));
+
+
+  DBUG_PRINT("info", ("path: '%s'", path));
+
+  /* Format name of the tool to search for */
+  fn_format(tool_path, tool_name,
+            path, "", MYF(MY_REPLACE_DIR));
+
+  verbose("Looking for '%s' in: %s", tool_name, tool_path);
+
+  /* Make sure the tool exists */
+  if (my_access(tool_path, F_OK) != 0)
+    die("Can't find '%s'", tool_path);
+
+  /*
+    Make sure it can be executed
+  */
+  if (run_tool(tool_path,
+               &ds_tmp, /* Get output from command, discard*/
+               "--help",
+               "2>&1",
+               IF_WIN("> NUL", "> /dev/null"),
+               NULL))
+    die("Can't execute '%s'", tool_path);
 
   dynstr_free(&ds_tmp);
 
@@ -440,12 +460,13 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");
 
-  if (my_write(fd, query, strlen(query),
+  if (my_write(fd, (uchar*) query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
     die("Failed to write to '%s'", query_file_path);
 
   ret= run_tool(mysql_path,
                 ds_res,
+                "--no-defaults",
                 ds_args.str,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
@@ -457,6 +478,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                 NULL);
 
   my_close(fd, MYF(0));
+  my_delete(query_file_path, MYF(0));
 
   DBUG_RETURN(ret);
 }
@@ -607,6 +629,7 @@ static int run_mysqlcheck_upgrade(void)
   verbose("Running 'mysqlcheck'...");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
                   ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
@@ -731,6 +754,10 @@ int main(int argc, char **argv)
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))
     die(NULL);
+  if (debug_info_flag)
+    my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
+  if (debug_check_flag)
+    my_end_arg= MY_CHECK_ERROR;
 
   if (tty_password)
   {
@@ -779,7 +806,7 @@ int main(int argc, char **argv)
   create_mysql_upgrade_info_file();
 
   free_used_memory();
-  my_end(MY_CHECK_ERROR);
+  my_end(my_end_arg);
   exit(0);
 }
 

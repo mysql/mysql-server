@@ -18,7 +18,7 @@
 #include <errno.h>
 #include "mysys_err.h"
 
-static void make_ftype(my_string to,int flag);
+static void make_ftype(char * to,int flag);
 
 /*
   Open a file as stream
@@ -76,6 +76,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 	 my_strdup(filename,MyFlags)))
     {
       my_stream_opened++;
+      my_file_total_opened++;
       my_file_info[fileno(fd)].type = STREAM_BY_FOPEN;
       pthread_mutex_unlock(&THR_LOCK_open);
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
@@ -192,7 +193,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
     a+ == O_RDWR|O_APPEND|O_CREAT
 */
 
-static void make_ftype(register my_string to, register int flag)
+static void make_ftype(register char * to, register int flag)
 {
   /* check some possible invalid combinations */  
   DBUG_ASSERT((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));

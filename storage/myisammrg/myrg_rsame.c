@@ -15,7 +15,7 @@
 
 #include "myrg_def.h"
 
-int myrg_rsame(MYRG_INFO *info,byte *record,int inx)
+int myrg_rsame(MYRG_INFO *info,uchar *record,int inx)
 {
   if (inx)					/* not yet used, should be 0 */
     return (my_errno=HA_ERR_WRONG_INDEX);

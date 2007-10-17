@@ -36,7 +36,6 @@
 #define sp_restore_security_context(A,B) while (0) {}
 #endif
 
-
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -143,7 +142,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 #endif
 
   used_tables_cache= not_null_tables_cache= 0;
@@ -196,7 +195,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
 
 bool Item_func::walk(Item_processor processor, bool walk_subquery,
-                     byte *argument)
+                     uchar *argument)
 {
   if (arg_count)
   {
@@ -259,7 +258,7 @@ void Item_func::traverse_cond(Cond_traverser traverser,
     Item returned as the result of transformation of the root node 
 */
 
-Item *Item_func::transform(Item_transformer transformer, byte *argument)
+Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
@@ -312,8 +311,8 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
     Item returned as the result of transformation of the root node 
 */
 
-Item *Item_func::compile(Item_analyzer analyzer, byte **arg_p,
-                         Item_transformer transformer, byte *arg_t)
+Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
+                         Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
     return 0;
@@ -326,7 +325,7 @@ Item *Item_func::compile(Item_analyzer analyzer, byte **arg_p,
         The same parameter value of arg_p must be passed
         to analyze any argument of the condition formula.
       */   
-      byte *arg_v= *arg_p;
+      uchar *arg_v= *arg_p;
       Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
       if (new_item && *arg != new_item)
         current_thd->change_item_tree(arg, new_item);
@@ -466,7 +465,7 @@ Field *Item_func::tmp_table_field(TABLE *table)
 }
 
 
-bool Item_func::is_expensive_processor(byte *arg)
+bool Item_func::is_expensive_processor(uchar *arg)
 {
   return is_expensive();
 }
@@ -650,16 +649,8 @@ bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
 {
   if (Item_int_func::fix_fields(thd, ref))
     return TRUE;
-
-  /*
-    To replicate CONNECTION_ID() properly we should use
-    pseudo_thread_id on slave, which contains the value of thread_id
-    on master.
-  */
-  value= ((thd->slave_thread) ?
-          thd->variables.pseudo_thread_id :
-          thd->thread_id);
-
+  thd->thread_specific_used= TRUE;
+  value= thd->variables.pseudo_thread_id;
   return FALSE;
 }
 
@@ -994,6 +985,8 @@ longlong Item_func_unsigned::val_int()
     my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
     if (!(null_value= args[0]->null_value))
       my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    else
+      value= 0;
     return value;
   }
   else if (args[0]->cast_to_int_type() != STRING_RESULT ||
@@ -1049,6 +1042,8 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
   bool sign;
+  uint precision;
+
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
@@ -1061,9 +1056,11 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
       goto err;
     }
   }
-  if (max_length - 2 - decimals < (uint) my_decimal_intg(dec))
+  precision= my_decimal_length_to_precision(max_length,
+                                            decimals, unsigned_flag);
+  if (precision - decimals < (uint) my_decimal_intg(dec))
   {
-    max_my_decimal(dec, max_length - 2, decimals);
+    max_my_decimal(dec, precision, decimals);
     dec->sign(sign);
     goto err;
   }
@@ -1080,9 +1077,25 @@ err:
 
 void Item_decimal_typecast::print(String *str)
 {
+  char len_buf[20*3 + 1];
+  char *end;
+
+  uint precision= my_decimal_length_to_precision(max_length, decimals,
+                                                 unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(STRING_WITH_LEN(" as decimal)"));
+  str->append(STRING_WITH_LEN(" as decimal("));
+
+  end=int10_to_str(precision, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(',');
+
+  end=int10_to_str(decimals, len_buf,10);
+  str->append(len_buf, (uint32) (end - len_buf));
+
+  str->append(')');
+  str->append(')');
 }
 
 
@@ -1499,16 +1512,20 @@ void Item_func_neg::fix_length_and_dec()
     Use val() to get value as arg_type doesn't mean that item is
     Item_int or Item_real due to existence of Item_param.
   */
-  if (hybrid_type == INT_RESULT &&
-      args[0]->type() == INT_ITEM &&
-      ((ulonglong) args[0]->val_int() >= (ulonglong) LONGLONG_MIN))
+  if (hybrid_type == INT_RESULT && args[0]->const_item())
   {
-    /*
-      Ensure that result is converted to DECIMAL, as longlong can't hold
-      the negated number
-    */
-    hybrid_type= DECIMAL_RESULT;
-    DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    longlong val= args[0]->val_int();
+    if ((ulonglong) val >= (ulonglong) LONGLONG_MIN &&
+        ((ulonglong) val != (ulonglong) LONGLONG_MIN ||
+          args[0]->type() != INT_ITEM))        
+    {
+      /*
+        Ensure that result is converted to DECIMAL, as longlong can't hold
+        the negated number
+      */
+      hybrid_type= DECIMAL_RESULT;
+      DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    }
   }
   unsigned_flag= 0;
   DBUG_VOID_RETURN;
@@ -1933,7 +1950,13 @@ void Item_func_round::fix_length_and_dec()
   {
     max_length= args[0]->max_length;
     decimals= args[0]->decimals;
-    hybrid_type= REAL_RESULT;
+    if (args[0]->result_type() == DECIMAL_RESULT)
+    {
+      max_length++;
+      hybrid_type= DECIMAL_RESULT;
+    }
+    else
+      hybrid_type= REAL_RESULT;
     return;
   }
 
@@ -2003,9 +2026,9 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
-  if (dec_negative && isinf(tmp))
+  if (dec_negative && my_isinf(tmp))
     tmp2= 0;
-  else if (!dec_negative && isinf(value * tmp))
+  else if (!dec_negative && my_isinf(value * tmp))
     tmp2= value;
   else if (truncate)
   {
@@ -2344,7 +2367,7 @@ double Item_func_min_max::val_real()
   double value=0.0;
   if (compare_as_dates)
   {
-    ulonglong result;
+    ulonglong result= 0;
     (void)cmp_datetimes(&result);
     return (double)result;
   }
@@ -2371,7 +2394,7 @@ longlong Item_func_min_max::val_int()
   longlong value=0;
   if (compare_as_dates)
   {
-    ulonglong result;
+    ulonglong result= 0;
     (void)cmp_datetimes(&result);
     return (longlong)result;
   }
@@ -2400,7 +2423,7 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 
   if (compare_as_dates)
   {
-    ulonglong value;
+    ulonglong value= 0;
     (void)cmp_datetimes(&value);
     ulonglong2decimal(value, dec);
     return dec;
@@ -2472,7 +2495,6 @@ longlong Item_func_coercibility::val_int()
 
 void Item_func_locate::fix_length_and_dec()
 {
-  maybe_null= 0;
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
   agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
@@ -2782,7 +2804,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
+  uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 #endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
@@ -2894,7 +2916,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->ptr();
+          f_args.args[i]= (char*) res->c_ptr();
+          f_args.lengths[i]= res->length();
           break;
         }
         case INT_RESULT:
@@ -3220,8 +3243,8 @@ static HASH hash_user_locks;
 
 class User_level_lock
 {
-  char *key;
-  uint key_length;
+  uchar *key;
+  size_t key_length;
 
 public:
   int count;
@@ -3230,16 +3253,16 @@ public:
   my_thread_id thread_id;
   void set_thread(THD *thd) { thread_id= thd->thread_id; }
 
-  User_level_lock(const char *key_arg,uint length, ulong id) 
+  User_level_lock(const uchar *key_arg,uint length, ulong id) 
     :key_length(length),count(1),locked(1), thread_id(id)
   {
-    key=(char*) my_memdup((byte*) key_arg,length,MYF(0));
+    key= (uchar*) my_memdup(key_arg,length,MYF(0));
     pthread_cond_init(&cond,NULL);
     if (key)
     {
-      if (my_hash_insert(&hash_user_locks,(byte*) this))
+      if (my_hash_insert(&hash_user_locks,(uchar*) this))
       {
-	my_free((gptr) key,MYF(0));
+	my_free(key,MYF(0));
 	key=0;
       }
     }
@@ -3248,22 +3271,22 @@ public:
   {
     if (key)
     {
-      hash_delete(&hash_user_locks,(byte*) this);
-      my_free((gptr) key,MYF(0));
+      hash_delete(&hash_user_locks,(uchar*) this);
+      my_free(key, MYF(0));
     }
     pthread_cond_destroy(&cond);
   }
   inline bool initialized() { return key != 0; }
   friend void item_user_lock_release(User_level_lock *ull);
-  friend char *ull_get_key(const User_level_lock *ull, uint *length,
-                           my_bool not_used);
+  friend uchar *ull_get_key(const User_level_lock *ull, size_t *length,
+                            my_bool not_used);
 };
 
-char *ull_get_key(const User_level_lock *ull, uint *length,
-		  my_bool not_used __attribute__((unused)))
+uchar *ull_get_key(const User_level_lock *ull, size_t *length,
+                   my_bool not_used __attribute__((unused)))
 {
-  *length=(uint) ull->key_length;
-  return (char*) ull->key;
+  *length= ull->key_length;
+  return ull->key;
 }
 
 
@@ -3333,8 +3356,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   THD* thd=current_thd;
   User_level_lock* ull;
   struct timespec abstime;
-  int lock_name_len;
-  lock_name_len=strlen(lock_name);
+  size_t lock_name_len;
+  lock_name_len= strlen(lock_name);
   pthread_mutex_lock(&LOCK_user_locks);
 
   if (thd->ull)
@@ -3349,8 +3372,9 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     this case, we will not be waiting, but rather, just waste CPU and
     memory on the whole deal
   */
-  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks, lock_name,
-				 lock_name_len))))
+  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
+                                             (uchar*) lock_name,
+                                             lock_name_len))))
   {
     pthread_mutex_unlock(&LOCK_user_locks);
     return;
@@ -3417,6 +3441,7 @@ longlong Item_func_get_lock::val_int()
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
+  DBUG_ENTER("Item_func_get_lock::val_int");
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3426,7 +3451,7 @@ longlong Item_func_get_lock::val_int()
     it's not guaranteed to be same as on master.
   */
   if (thd->slave_thread)
-    return 1;
+    DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3434,8 +3459,10 @@ longlong Item_func_get_lock::val_int()
   {
     pthread_mutex_unlock(&LOCK_user_locks);
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s, thd=%ld", res->length(), res->ptr(),
+                      (long) thd->real_id));
   null_value=0;
 
   if (thd->ull)
@@ -3445,23 +3472,26 @@ longlong Item_func_get_lock::val_int()
   }
 
   if (!(ull= ((User_level_lock *) hash_search(&hash_user_locks,
-                                              (byte*) res->ptr(),
-                                              res->length()))))
+                                              (uchar*) res->ptr(),
+                                              (size_t) res->length()))))
   {
-    ull=new User_level_lock(res->ptr(),res->length(), thd->thread_id);
+    ull= new User_level_lock((uchar*) res->ptr(), (size_t) res->length(),
+                             thd->thread_id);
     if (!ull || !ull->initialized())
     {
       delete ull;
       pthread_mutex_unlock(&LOCK_user_locks);
       null_value=1;				// Probably out of memory
-      return 0;
+      DBUG_RETURN(0);
     }
     ull->set_thread(thd);
     thd->ull=ull;
     pthread_mutex_unlock(&LOCK_user_locks);
-    return 1;					// Got new lock
+    DBUG_PRINT("info", ("made new lock"));
+    DBUG_RETURN(1);				// Got new lock
   }
   ull->count++;
+  DBUG_PRINT("info", ("ull->count=%d", ull->count));
 
   /*
     Structure is now initialized.  Try to get the lock.
@@ -3475,9 +3505,13 @@ longlong Item_func_get_lock::val_int()
   error= 0;
   while (ull->locked && !thd->killed)
   {
+    DBUG_PRINT("info", ("waiting on lock"));
     error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
     if (error == ETIMEDOUT || error == ETIME)
+    {
+      DBUG_PRINT("info", ("lock wait timeout"));
       break;
+    }
     error= 0;
   }
 
@@ -3501,6 +3535,7 @@ longlong Item_func_get_lock::val_int()
     ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
+    DBUG_PRINT("info", ("got the lock"));
   }
   pthread_mutex_unlock(&LOCK_user_locks);
 
@@ -3510,7 +3545,7 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
-  return !error ? 1 : 0;
+  DBUG_RETURN(!error ? 1 : 0);
 }
 
 
@@ -3528,32 +3563,40 @@ longlong Item_func_release_lock::val_int()
   String *res=args[0]->val_str(&value);
   User_level_lock *ull;
   longlong result;
+  THD *thd=current_thd;
+  DBUG_ENTER("Item_func_release_lock::val_int");
   if (!res || !res->length())
   {
     null_value=1;
-    return 0;
+    DBUG_RETURN(0);
   }
+  DBUG_PRINT("info", ("lock %.*s", res->length(), res->ptr()));
   null_value=0;
 
   result=0;
   pthread_mutex_lock(&LOCK_user_locks);
   if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
-                                             (const byte*) res->ptr(),
-                                             res->length()))))
+                                             (const uchar*) res->ptr(),
+                                             (size_t) res->length()))))
   {
     null_value=1;
   }
   else
   {
+    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%lu thd=%lu", 
+                        (int) ull->locked,
+                        (long)ull->thread_id,
+                        (long)thd->thread_id));
     if (ull->locked && current_thd->thread_id == ull->thread_id)
     {
+      DBUG_PRINT("info", ("release lock"));
       result=1;					// Release is ok
       item_user_lock_release(ull);
-      current_thd->ull=0;
+      thd->ull=0;
     }
   }
   pthread_mutex_unlock(&LOCK_user_locks);
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -3684,7 +3727,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 {
   user_var_entry *entry;
 
-  if (!(entry = (user_var_entry*) hash_search(hash, (byte*) name.str,
+  if (!(entry = (user_var_entry*) hash_search(hash, (uchar*) name.str,
 					      name.length)) &&
       create_if_not_exists)
   {
@@ -3699,7 +3742,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
-    entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->collation.set(NULL, DERIVATION_IMPLICIT, 0);
     entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -3714,7 +3757,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
-    if (my_hash_insert(hash,(byte*) entry))
+    if (my_hash_insert(hash,(uchar*) entry))
     {
       my_free((char*) entry,MYF(0));
       return 0;
@@ -3772,6 +3815,23 @@ Item_func_set_user_var::fix_length_and_dec()
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
   collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
+}
+
+
+/*
+  Mark field in read_map
+
+  NOTES
+    This is used by filesort to register used fields in a a temporary
+    column read set or to register used fields in a view
+*/
+
+bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
+{
+  TABLE *table= (TABLE *) arg;
+  if (result_field->table == table || !table)
+    bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+  return 0;
 }
 
 
@@ -4011,7 +4071,8 @@ bool
 Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
-  DBUG_ASSERT(!use_result_field || result_field);
+  if (use_result_field && !result_field)
+    use_result_field= FALSE;
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4155,6 +4216,40 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
+double Item_func_set_user_var::val_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+String *Item_func_set_user_var::str_result(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
 void Item_func_set_user_var::print(String *str)
 {
   str->append(STRING_WITH_LEN("(@"));
@@ -4237,9 +4332,11 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
+int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                          bool can_use_result_field)
 {
-  bool use_result_field= (result_field && result_field != field);
+  bool use_result_field= (!can_use_result_field ? 0 :
+                          (result_field && result_field != field));
   int error;
 
   /* Update the value of the user variable */
@@ -4279,11 +4376,11 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions)
   else if (result_type() == DECIMAL_RESULT)
   {
     my_decimal decimal_value;
-    my_decimal *value= entry->val_decimal(&null_value, &decimal_value);
+    my_decimal *val= entry->val_decimal(&null_value, &decimal_value);
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    error=field->store_decimal(value);
+    error=field->store_decimal(val);
   }
   else
   {
@@ -4399,7 +4496,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     List<set_var_base> tmp_var_list;
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
-    lex_start(thd, NULL, 0);
+    lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */
@@ -4431,7 +4528,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     > set @a:=1;
     > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
     We have to write to binlog value @a= 1.
-    
+
     We allocate the user_var_event on user_var_events_alloc pool, not on
     the this-statement-execution pool because in SPs user_var_event objects 
     may need to be valid after current [SP] statement execution pool is
@@ -4441,7 +4538,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
         alloc_root(thd->user_var_events_alloc, size)))
     goto err;
-  
+
   user_var_event->value= (char*) user_var_event +
     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
   user_var_event->user_var_event= var_entry;
@@ -4461,9 +4558,9 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;
-  if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
+  if (insert_dynamic(&thd->user_var_events, (uchar*) &user_var_event))
     goto err;
-  
+
   *out_entry= var_entry;
   return 0;
 
@@ -4471,7 +4568,6 @@ err:
   *out_entry= var_entry;
   return 1;
 }
-
 
 void Item_func_get_user_var::fix_length_and_dec()
 {
@@ -4483,10 +4579,19 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   error= get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry);
 
+  /*
+    If the variable didn't exist it has been created as a STRING-type.
+    'var_entry' is NULL only if there occured an error during the call to
+    get_var_with_binlog.
+  */
   if (var_entry)
   {
+    m_cached_result_type= var_entry->type;
+    unsigned_flag= var_entry->unsigned_flag;
+    max_length= var_entry->length;
+
     collation.set(var_entry->collation);
-    switch (var_entry->type) {
+    switch(m_cached_result_type) {
     case REAL_RESULT:
       max_length= DBL_DIG + 8;
       break;
@@ -4511,6 +4616,8 @@ void Item_func_get_user_var::fix_length_and_dec()
   {
     collation.set(&my_charset_bin, DERIVATION_IMPLICIT);
     null_value= 1;
+    m_cached_result_type= STRING_RESULT;
+    max_length= MAX_BLOB_WIDTH;
   }
 
   if (error)
@@ -4528,12 +4635,7 @@ bool Item_func_get_user_var::const_item() const
 
 enum Item_result Item_func_get_user_var::result_type() const
 {
-  user_var_entry *entry;
-  if (!(entry = (user_var_entry*) hash_search(&current_thd->user_vars,
-					      (byte*) name.str,
-					      name.length)))
-    return STRING_RESULT;
-  return entry->type;
+  return m_cached_result_type;
 }
 
 
@@ -4968,7 +5070,7 @@ double Item_func_match::val_real()
     if ((null_value= (a == 0)) || !a->length())
       DBUG_RETURN(0);
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
-				      (byte *)a->ptr(), a->length()));
+				      (uchar *)a->ptr(), a->length()));
   }
   DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
                                                  table->record[0], 0));
@@ -5038,7 +5140,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
     component_name= &component;			// Empty string
   }
 
-  if (!(var= find_sys_var(base_name->str, base_name->length)))
+  if (!(var= find_sys_var(thd, base_name->str, base_name->length)))
     return 0;
   if (component.str)
   {
@@ -5083,8 +5185,8 @@ longlong Item_func_is_free_lock::val_int()
   }
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
-			  res->length());
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (uchar*) res->ptr(),
+                                       (size_t) res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 1;
@@ -5102,8 +5204,8 @@ longlong Item_func_is_used_lock::val_int()
     return 0;
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
-			  res->length());
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (uchar*) res->ptr(),
+                                       (size_t) res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 0;
@@ -5163,10 +5265,11 @@ Item_func_sp::func_name() const
 {
   THD *thd= current_thd;
   /* Calculate length to avoid reallocation of string for sure */
-  uint len= ((m_name->m_explicit_name ? m_name->m_db.length : 0 +
+  uint len= (((m_name->m_explicit_name ? m_name->m_db.length : 0) +
               m_name->m_name.length)*2 + //characters*quoting
              2 +                         // ` and `
-             1 +                         // .
+             (m_name->m_explicit_name ?
+              3 : 0) +                   // '`', '`' and '.' for the db
              1 +                         // end of string
              ALIGN_SIZE(1));             // to avoid String reallocation
   String qname((char *)alloc_root(thd->mem_root, len), len,
@@ -5201,14 +5304,13 @@ Item_func_sp::func_name() const
   @retval TRUE is returned on an error
   @retval FALSE is returned on success.
 */
+
 bool
 Item_func_sp::init_result_field(THD *thd)
 {
-  DBUG_ENTER("Item_func_sp::init_result_field");
-
   LEX_STRING empty_name= { C_STRING_WITH_LEN("") };
-  
   TABLE_SHARE *share;
+  DBUG_ENTER("Item_func_sp::init_result_field");
 
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
@@ -5235,30 +5337,34 @@ Item_func_sp::init_result_field(THD *thd)
   share->table_cache_key = empty_name;
   share->table_name = empty_name;
 
-  if (!(sp_result_field= m_sp->create_result_field(max_length, name, dummy_table)))
+  if (!(sp_result_field= m_sp->create_result_field(max_length, name,
+                                                   dummy_table)))
   {
    DBUG_RETURN(TRUE);
   }
   
   if (sp_result_field->pack_length() > sizeof(result_buf))
   {
-    sp_result_field->move_field(sql_alloc(sp_result_field->pack_length()));
-  } else {
-    sp_result_field->move_field(result_buf);
+    void *tmp;
+    if (!(tmp= sql_alloc(sp_result_field->pack_length())))
+      DBUG_RETURN(TRUE);
+    sp_result_field->move_field((uchar*) tmp);
   }
+  else
+    sp_result_field->move_field(result_buf);
   
   sp_result_field->null_ptr= (uchar *) &null_value;
   sp_result_field->null_bit= 1;
-  
-
   DBUG_RETURN(FALSE);
 }
+
 
 /**
   @brief Initialize local members with values from the Field interface.
 
   @note called from Item::fix_fields.
 */
+
 void Item_func_sp::fix_length_and_dec()
 {
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
@@ -5273,6 +5379,7 @@ void Item_func_sp::fix_length_and_dec()
   DBUG_VOID_RETURN;
 }
 
+
 /**
   @brief Execute function & store value in field.
 
@@ -5286,18 +5393,14 @@ Item_func_sp::execute()
 {
   THD *thd= current_thd;
   
-  /*
-    Get field in virtual tmp table to store result. Create the field if
-    invoked first time.
-  */
-
-
   /* Execute function and store the return value in the field. */
 
   if (execute_impl(thd))
   {
     null_value= 1;
     context->process_error(thd);
+    if (thd->killed)
+      thd->send_kill_message();
     return TRUE;
   }
 
@@ -5489,5 +5592,52 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
   DBUG_RETURN(res);
+}
+
+
+void Item_func_sp::update_used_tables()
+{
+  Item_func::update_used_tables();
+  if (!m_sp->m_chistics->detistic)
+   used_tables_cache |= RAND_TABLE_BIT;
+}
+
+
+/*
+  uuid_short handling.
+
+  The short uuid is defined as a longlong that contains the following bytes:
+
+  Bytes  Comment
+  1      Server_id & 255
+  4      Startup time of server in seconds
+  3      Incrementor
+
+  This means that an uuid is guaranteed to be unique
+  even in a replication environment if the following holds:
+
+  - The last byte of the server id is unique
+  - If you between two shutdown of the server don't get more than
+    an average of 2^24 = 16M calls to uuid_short() per second.
+*/
+
+ulonglong uuid_value;
+
+void uuid_short_init()
+{
+  uuid_value= ((((ulonglong) server_id) << 56) + 
+               (((ulonglong) server_start_time) << 24));
+}
+
+
+longlong Item_func_uuid_short::val_int()
+{
+  ulonglong val;
+  pthread_mutex_lock(&LOCK_uuid_generator);
+  val= uuid_value++;
+  pthread_mutex_unlock(&LOCK_uuid_generator);
+  return (longlong) val;
 }

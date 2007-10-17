@@ -156,7 +156,8 @@ int Instance_options::get_default_option(char *result, size_t result_len,
     goto err;
 
   /* +2 eats first "--" from the option string (E.g. "--datadir") */
-  rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
+  rc= parse_output_and_get_value((char*) cmd.buffer,
+                                 option_name + 2, strlen(option_name + 2),
                                  result, result_len, GET_VALUE);
 err:
   return rc;
@@ -194,8 +195,8 @@ bool Instance_options::fill_instance_version()
 
   bzero(result, MAX_VERSION_LENGTH);
 
-  if (parse_output_and_get_value(cmd.buffer, "Ver", result,
-                                 MAX_VERSION_LENGTH, GET_LINE))
+  if (parse_output_and_get_value((char*) cmd.buffer, STRING_WITH_LEN("Ver"),
+                                 result, MAX_VERSION_LENGTH, GET_LINE))
   {
     log_error("Failed to get version of '%s': unexpected output.",
               (const char *) mysqld_path.str);
@@ -206,8 +207,7 @@ bool Instance_options::fill_instance_version()
 
   {
     char *start;
-    /* chop the newline from the end of the version string */
-    result[strlen(result) - NEWLINE_LEN]= '\0';
+
     /* trim leading whitespaces */
     start= result;
     while (my_isspace(default_charset_info, *start))
@@ -255,7 +255,8 @@ bool Instance_options::fill_mysqld_real_path()
 
   bzero(result, FN_REFLEN);
 
-  if (parse_output_and_get_value(cmd.buffer, "Usage: ",
+  if (parse_output_and_get_value((char*) cmd.buffer,
+                                 STRING_WITH_LEN("Usage: "),
                                  result, FN_REFLEN,
                                  GET_LINE))
   {
@@ -466,13 +467,9 @@ bool Instance_options::complete_initialization()
       Need to copy the path to allocated memory, as convert_dirname() might
       need to change it
     */
-    mysqld_path.str=
-      alloc_root(&alloc, strlen(Options::Main::default_mysqld_path) + 1);
-
+    mysqld_path.str= strdup_root(&alloc, Options::Main::default_mysqld_path);
     if (!mysqld_path.str)
       return TRUE;
-
-    strcpy(mysqld_path.str, Options::Main::default_mysqld_path);
   }
 
   mysqld_path.length= strlen(mysqld_path.str);

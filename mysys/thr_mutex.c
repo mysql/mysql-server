@@ -394,15 +394,11 @@ ulong mutex_delay(ulong delayloops)
 #define MY_PTHREAD_FASTMUTEX_SPINS 8
 #define MY_PTHREAD_FASTMUTEX_DELAY 4
 
+static int cpu_count= 0;
+
 int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
                               const pthread_mutexattr_t *attr)
 {
-  static int cpu_count= 0;
-#ifdef _SC_NPROCESSORS_CONF
-  if (!cpu_count && (attr == MY_MUTEX_INIT_FAST))
-    cpu_count= sysconf(_SC_NPROCESSORS_CONF);
-#endif
-  
   if ((cpu_count > 1) && (attr == MY_MUTEX_INIT_FAST))
     mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
   else
@@ -432,4 +428,13 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
   }
   return pthread_mutex_lock(&mp->mutex);
 }
+
+
+void fastmutex_global_init(void)
+{
+#ifdef _SC_NPROCESSORS_CONF
+  cpu_count= sysconf(_SC_NPROCESSORS_CONF);
+#endif
+}
+  
 #endif /* defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 

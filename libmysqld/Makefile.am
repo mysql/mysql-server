@@ -22,7 +22,7 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(libdir)
 
-EXTRA_DIST =		libmysqld.def
+EXTRA_DIST =		libmysqld.def CMakeLists.txt
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -79,7 +79,8 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc
 
-libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
+libmysqld_int_a_SOURCES= $(libmysqld_sources)
+nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=
 
 sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
@@ -96,6 +97,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
+                @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
 		$(yassl_inc_libs)
 

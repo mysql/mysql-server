@@ -150,9 +150,30 @@ ulint	ibuf_flush_count	= 0;
 #define IBUF_COUNT_N_PAGES	2000
 
 /* Buffered entry counts for file pages, used in debugging */
-static ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
+static ulint	ibuf_counts[IBUF_COUNT_N_SPACES][IBUF_COUNT_N_PAGES];
 
-static ibool	ibuf_counts_inited	= FALSE;
+/**********************************************************************
+Checks that the indexes to ibuf_counts[][] are within limits. */
+UNIV_INLINE
+void
+ibuf_count_check(
+/*=============*/
+	ulint	space_id,	/* in: space identifier */
+	ulint	page_no)	/* in: page number */
+{
+	if (space_id < IBUF_COUNT_N_SPACES && page_no < IBUF_COUNT_N_PAGES) {
+		return;
+	}
+
+	fprintf(stderr,
+		"InnoDB: UNIV_IBUF_DEBUG limits space_id and page_no\n"
+		"InnoDB: and breaks crash recovery.\n"
+		"InnoDB: space_id=%lu, should be 0<=space_id<%lu\n"
+		"InnoDB: page_no=%lu, should be 0<=page_no<%lu\n",
+		(ulint) space_id, (ulint) IBUF_COUNT_N_SPACES,
+		(ulint) page_no, (ulint) IBUF_COUNT_N_PAGES);
+	ut_error;
+}
 #endif
 
 /* The start address for an insert buffer bitmap page bitmap */
@@ -328,15 +349,9 @@ ibuf_count_get(
 	ulint	space,	/* in: space id */
 	ulint	page_no)/* in: page number */
 {
-	ut_ad(space < IBUF_COUNT_N_SPACES);
-	ut_ad(page_no < IBUF_COUNT_N_PAGES);
+	ibuf_count_check(space, page_no);
 
-	if (!ibuf_counts_inited) {
-
-		return(0);
-	}
-
-	return(*(ibuf_counts[space] + page_no));
+	return(ibuf_counts[space][page_no]);
 }
 
 /**********************************************************************
@@ -349,11 +364,10 @@ ibuf_count_set(
 	ulint	page_no,/* in: page number */
 	ulint	val)	/* in: value to set */
 {
-	ut_a(space < IBUF_COUNT_N_SPACES);
-	ut_a(page_no < IBUF_COUNT_N_PAGES);
+	ibuf_count_check(space, page_no);
 	ut_a(val < UNIV_PAGE_SIZE);
 
-	*(ibuf_counts[space] + page_no) = val;
+	ibuf_counts[space][page_no] = val;
 }
 #endif
 
@@ -378,22 +392,6 @@ ibuf_init_at_db_start(void)
 
 	ibuf->size = 0;
 
-#ifdef UNIV_IBUF_DEBUG
-	{
-		ulint	i, j;
-
-		for (i = 0; i < IBUF_COUNT_N_SPACES; i++) {
-
-			ibuf_counts[i] = mem_alloc(sizeof(ulint)
-						   * IBUF_COUNT_N_PAGES);
-			for (j = 0; j < IBUF_COUNT_N_PAGES; j++) {
-				ibuf_count_set(i, j, 0);
-			}
-		}
-
-		ibuf_counts_inited = TRUE;
-	}
-#endif
 	mutex_create(&ibuf_pessimistic_insert_mutex,
 		     SYNC_IBUF_PESS_INSERT_MUTEX);
 
@@ -464,7 +462,8 @@ ibuf_data_init_for_space(
 	page_t*		root;
 	page_t*		header_page;
 	mtr_t		mtr;
-	char		buf[50];
+	char*		buf;
+	mem_heap_t*	heap;
 	dict_table_t*	table;
 	dict_index_t*	index;
 	ulint		n_used;
@@ -518,16 +517,20 @@ ibuf_data_init_for_space(
 
 	ibuf_exit();
 
+	heap = mem_heap_create(450);
+	buf = mem_heap_alloc(heap, 50);
+
 	sprintf(buf, "SYS_IBUF_TABLE_%lu", (ulong) space);
 	/* use old-style record format for the insert buffer */
 	table = dict_mem_table_create(buf, space, 2, 0);
 
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "TYPES", DATA_BINARY, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
-	dict_table_add_to_cache(table);
+	dict_table_add_to_cache(table, heap);
+	mem_heap_free(heap);
 
 	index = dict_mem_index_create(
 		buf, "CLUST_IND", space,
@@ -567,7 +570,8 @@ ibuf_bitmap_page_init(
 
 	bit_offset = XDES_DESCRIBED_PER_PAGE * IBUF_BITS_PER_PAGE;
 
-	byte_offset = bit_offset / 8 + 1; /* better: (bit_offset + 7) / 8 */
+	byte_offset = bit_offset / 8 + 1;
+	/* better: byte_offset = UT_BITS_IN_BYTES(bit_offset); */
 
 	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 
@@ -1140,7 +1144,7 @@ ibuf_dummy_index_add_col(
 	ulint		len)	/* in: length of the column */
 {
 	ulint	i	= index->table->n_def;
-	dict_mem_table_add_col(index->table, "DUMMY",
+	dict_mem_table_add_col(index->table, NULL, NULL,
 			       dtype_get_mtype(type),
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
@@ -1161,11 +1165,6 @@ ibuf_dummy_index_free(
 	dict_mem_index_free(index);
 	dict_mem_table_free(table);
 }
-
-void
-dict_index_print_low(
-/*=================*/
-	dict_index_t*	index);	/* in: index */
 
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
@@ -1441,6 +1440,9 @@ ibuf_entry_build(
 		*buf2++ = 0; /* write the compact format indicator */
 	}
 	for (i = 0; i < n_fields; i++) {
+		ulint			fixed_len;
+		const dict_field_t*	ifield;
+
 		/* We add 4 below because we have the 4 extra fields at the
 		start of an ibuf record */
 
@@ -1448,10 +1450,30 @@ ibuf_entry_build(
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
+		ifield = dict_index_get_nth_field(index, i);
+		/* Prefix index columns of fixed-length columns are of
+		fixed length.  However, in the function call below,
+		dfield_get_type(entry_field) contains the fixed length
+		of the column in the clustered index.  Replace it with
+		the fixed length of the secondary index column. */
+		fixed_len = ifield->fixed_len;
+
+#ifdef UNIV_DEBUG
+		if (fixed_len) {
+			/* dict_index_add_col() should guarantee these */
+			ut_ad(fixed_len <= (ulint) entry_field->type.len);
+			if (ifield->prefix_len) {
+				ut_ad(ifield->prefix_len == fixed_len);
+			} else {
+				ut_ad(fixed_len
+				      == (ulint) entry_field->type.len);
+			}
+		}
+#endif /* UNIV_DEBUG */
+
 		dtype_new_store_for_order_and_null_size(
 			buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
-			dfield_get_type(entry_field),
-			dict_index_get_nth_field(index, i)->prefix_len);
+			dfield_get_type(entry_field), fixed_len);
 	}
 
 	/* Store the type info in buf2 to field 3 of tuple */

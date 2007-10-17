@@ -158,7 +158,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   }
   sprintf(msg_buf,"%-.16s %-.16s\n",user,passwd);
   msg_len=strlen(msg_buf);
-  if (my_net_write(&con->net,msg_buf,msg_len) || net_flush(&con->net))
+  if (my_net_write(&con->net,(uchar*) msg_buf,msg_len) || net_flush(&con->net))
   {
     con->last_errno=con->net.last_errno;
     strmov(con->last_error,"Write error on socket");
@@ -206,10 +206,10 @@ void STDCALL mysql_manager_close(MYSQL_MANAGER* con)
     allocated in my_multimalloc() along with con->host, freeing
     con->hosts frees the whole block
   */
-  my_free((gptr)con->host,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((uchar*)con->host,MYF(MY_ALLOW_ZERO_PTR));
   net_end(&con->net);
   if (con->free_me)
-    my_free((gptr)con,MYF(0));
+    my_free((uchar*)con,MYF(0));
 }
 
 
@@ -218,7 +218,7 @@ int STDCALL mysql_manager_command(MYSQL_MANAGER* con,const char* cmd,
 {
   if (!cmd_len)
     cmd_len=strlen(cmd);
-  if (my_net_write(&con->net,(char*)cmd,cmd_len) || net_flush(&con->net))
+  if (my_net_write(&con->net,(const uchar*)cmd,cmd_len) || net_flush(&con->net))
   {
     con->last_errno=errno;
     strmov(con->last_error,"Write error on socket");

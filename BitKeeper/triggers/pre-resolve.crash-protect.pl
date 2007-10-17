@@ -47,6 +47,7 @@ my @bad_csets=
       'stewart@mysql.com|ChangeSet|20060525073521|11169',
       'stewart@mysql.com|ChangeSet|20060605154220|12975',
       'stewart@mysql.com|ChangeSet|20060606040001|15337',
+      'hartmut@mysql.com/linux.site|ChangeSet|20070413121444|50289'
       );
 
 # Read the list of changesets.

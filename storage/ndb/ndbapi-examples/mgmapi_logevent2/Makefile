@@ -1,6 +1,6 @@
 TARGET = mgmapi_logevent2
-SRCS = $(TARGET).cpp
-OBJS = $(TARGET).o
+SRCS = main.cpp
+OBJS = main.o
 CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 CXXFLAGS = 
@@ -17,7 +17,7 @@ SYS_LIB =
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
 
-$(TARGET).o: $(SRCS)
+$(OBJS): $(SRCS)
 	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/mgmapi  -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 
 clean:

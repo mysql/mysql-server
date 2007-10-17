@@ -25,7 +25,7 @@ select v='a' from t1;
 select binary v='a' from t1;
 select binary v='a ' from t1;
 insert into t1 values('a');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 alter table t1 add primary key (v);
 drop table t1;
 create table t1 (v varbinary(20));

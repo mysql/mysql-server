@@ -612,10 +612,11 @@ static
 my_bool 
 parse_mycnf_opt(int, const struct my_option * opt, char * value)
 {
+  long *app_type= (long*) &opt->app_type;
   if(opt->comment)
-    ((struct my_option *)opt)->app_type++;
+    (*app_type)++;
   else
-    ((struct my_option *)opt)->app_type = order++;
+    *app_type = order++;
   return 0;
 }
 
@@ -780,19 +781,19 @@ InitConfigFileParser::parse_mycnf()
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (gptr*)malloc(sizeof(int));
+	opt.value = (uchar **)malloc(sizeof(int));
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT: 
-	opt.value = (gptr*)malloc(sizeof(int));
+	opt.value = (uchar**)malloc(sizeof(int));
 	opt.var_type = GET_INT;
 	break;
       case ConfigInfo::CI_INT64:
-	opt.value = (gptr*)malloc(sizeof(Int64));
+	opt.value = (uchar**)malloc(sizeof(Int64));
 	opt.var_type = GET_LL;
 	break;
       case ConfigInfo::CI_STRING: 
-	opt.value = (gptr*)malloc(sizeof(char *));
+	opt.value = (uchar**)malloc(sizeof(char *));
 	opt.var_type = GET_STR;
 	break;
       default:
@@ -818,28 +819,28 @@ InitConfigFileParser::parse_mycnf()
     bzero(&opt, sizeof(opt));
     opt.name = "ndbd";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "mysqld";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndbapi";
     opt.id = 256;
-    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.value = (uchar**)malloc(sizeof(char*));
     opt.var_type = GET_STR;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
@@ -948,22 +949,6 @@ end:
 
 template class Vector<struct my_option>;
 
-#if 0
-struct my_option
-{
-  const char *name;                     /* Name of the option */
-  int        id;                        /* unique id or short option */
-  const char *comment;                  /* option comment, for autom. --help */
-  gptr       *value;                    /* The variable value */
-  gptr       *u_max_value;              /* The user def. max variable value */
-  const char **str_values;              /* Pointer to possible values */
-  ulong     var_type;
-  enum get_opt_arg_type arg_type;
-  longlong   def_value;                 /* Default value */
-  longlong   min_value;                 /* Min allowed value */
-  longlong   max_value;                 /* Max allowed value */
-  longlong   sub_size;                  /* Subtract this from given value */
-  long       block_size;                /* Value should be a mult. of this */
-  int        app_type;                  /* To be used by an application */
-};
-#endif
+/*
+  See include/my_getopt.h for the declaration of struct my_option
+*/

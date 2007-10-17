@@ -1055,6 +1055,7 @@ class Ndb
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_internal;
 #endif
 
 public:
@@ -1280,6 +1281,16 @@ public:
    */
 
   /**
+   * Structure for passing in pointers to startTransaction
+   *
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
    * Start a transaction
    *
    * @note When the transaction is completed it must be closed using
@@ -1299,6 +1310,30 @@ public:
 				   const char  *keyData = 0, 
 				   Uint32       keyLen = 0);
 
+  /**
+   * Compute hash value given table/keys
+   *
+   * @param  hashvalueptr - OUT, is set to hashvalue if return value is 0
+   * @param  table    Pointer to table object
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return 0 - ok - hashvalueptr is set
+   *         else - fail, return error code
+   */
+  static int computeHash(Uint32* hashvalueptr,
+                         const NdbDictionary::Table*, 
+                         const struct Key_part_ptr * keyData,
+                         void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+  
   /**
    * Close a transaction.
    *
@@ -1488,12 +1523,15 @@ public:
   int initAutoIncrement();
 
   int getAutoIncrementValue(const char* aTableName, 
-                            Uint64 & tupleId, Uint32 cacheSize);
+                            Uint64 & tupleId, Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
-                            Uint64 & tupleId, Uint32 cacheSize);
+                            Uint64 & tupleId, Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
                             TupleIdRange & range, Uint64 & tupleId,
-                            Uint32 cacheSize);
+                            Uint32 cacheSize,
+                            Uint64 step = 1, Uint64 start = 1);
   int readAutoIncrementValue(const char* aTableName,
                              Uint64 & tupleId);
   int readAutoIncrementValue(const NdbDictionary::Table * aTable,
@@ -1510,7 +1548,7 @@ public:
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
                         TupleIdRange & range, Uint64 & tupleId,
-                        Uint32 cacheSize);
+                        Uint32 cacheSize, Uint64 step = 1, Uint64 start = 1);
   int readTupleIdFromNdb(const NdbTableImpl* table,
                          TupleIdRange & range, Uint64 & tupleId);
   int setTupleIdInNdb(const NdbTableImpl* table,

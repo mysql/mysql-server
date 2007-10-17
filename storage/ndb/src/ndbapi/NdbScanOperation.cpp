@@ -1202,7 +1202,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     Uint32 tupKeyLen = theTupKeyLen;
     union {
       Uint32 tempData[2000];
-      Uint64 __align;
+      Uint64 __my_align;
     };
     Uint64 *valPtr;
     if(remaining > totalLen && aligned && nobytes){
@@ -1311,7 +1311,7 @@ NdbIndexScanOperation::getKeyFromSCANTABREQ(Uint32* data, Uint32 size)
     }
     pos += rem;
   }
-  DBUG_DUMP("key", (char*)data, size << 2);
+  DBUG_DUMP("key", (uchar*) data, size << 2);
   DBUG_RETURN(size);
 }
 

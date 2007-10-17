@@ -1,14 +1,15 @@
 
 #include "mysql_priv.h"
+#include "rpl_rli.h"
 #include "rpl_record_old.h"
 
-my_size_t
+size_t
 pack_row_old(TABLE *table, MY_BITMAP const* cols,
-             byte *row_data, const byte *record)
+             uchar *row_data, const uchar *record)
 {
   Field **p_field= table->field, *field;
   int n_null_bytes= table->s->null_bytes;
-  byte *ptr;
+  uchar *ptr;
   uint i;
   my_ptrdiff_t const rec_offset= record - table->record[0];
   my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
@@ -22,11 +23,11 @@ pack_row_old(TABLE *table, MY_BITMAP const* cols,
       my_ptrdiff_t const offset=
         field->is_null(rec_offset) ? def_offset : rec_offset;
       field->move_field_offset(offset);
-      ptr= (byte*)field->pack((char *) ptr, field->ptr);
+      ptr= field->pack(ptr, field->ptr);
       field->move_field_offset(-offset);
     }
   }
-  return (static_cast<my_size_t>(ptr - row_data));
+  return (static_cast<size_t>(ptr - row_data));
 }
 
 
@@ -69,15 +70,15 @@ pack_row_old(TABLE *table, MY_BITMAP const* cols,
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
-unpack_row_old(RELAY_LOG_INFO *rli,
-               TABLE *table, uint const colcnt, byte *record,
-               char const *row, MY_BITMAP const *cols,
-               char const **row_end, ulong *master_reclength,
+unpack_row_old(Relay_log_info *rli,
+               TABLE *table, uint const colcnt, uchar *record,
+               uchar const *row, MY_BITMAP const *cols,
+               uchar const **row_end, ulong *master_reclength,
                MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
   DBUG_ASSERT(record && row);
-  my_ptrdiff_t const offset= record - (byte*) table->record[0];
-  my_size_t master_null_bytes= table->s->null_bytes;
+  my_ptrdiff_t const offset= record - (uchar*) table->record[0];
+  size_t master_null_bytes= table->s->null_bytes;
 
   if (colcnt != table->s->fields)
   {
@@ -108,7 +109,7 @@ unpack_row_old(RELAY_LOG_INFO *rli,
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
-  char const *ptr= row + master_null_bytes;
+  uchar const *ptr= row + master_null_bytes;
   Field **const end_ptr= begin_ptr + colcnt;
   for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
   {
@@ -130,7 +131,7 @@ unpack_row_old(RELAY_LOG_INFO *rli,
   if (master_reclength)
   {
     if (*field_ptr)
-      *master_reclength = (*field_ptr)->ptr - (char*) table->record[0];
+      *master_reclength = (*field_ptr)->ptr - table->record[0];
     else
       *master_reclength = table->s->reclength;
   }
@@ -157,11 +158,11 @@ unpack_row_old(RELAY_LOG_INFO *rli,
     if (event_type == WRITE_ROWS_EVENT &&
         ((*field_ptr)->flags & mask) == mask)
     {
-      slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
-                      "Field `%s` of table `%s`.`%s` "
-                      "has no default value and cannot be NULL",
-                      (*field_ptr)->field_name, table->s->db.str,
-                      table->s->table_name.str);
+      rli->report(ERROR_LEVEL, ER_NO_DEFAULT_FOR_FIELD,
+                  "Field `%s` of table `%s`.`%s` "
+                  "has no default value and cannot be NULL",
+                  (*field_ptr)->field_name, table->s->db.str,
+                  table->s->table_name.str);
       error = ER_NO_DEFAULT_FOR_FIELD;
     }
     else

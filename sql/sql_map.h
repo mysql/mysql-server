@@ -21,11 +21,11 @@
 #endif
 
 class mapped_files;
-mapped_files *map_file(const my_string name,byte *magic,uint magic_length);
+mapped_files *map_file(const char * name,uchar *magic,uint magic_length);
 void unmap_file(mapped_files *map);
 
 class mapped_files :public ilink {
-  byte *map;
+  uchar *map;
   ha_rows size;
   char *name;					// name of mapped file
   File file;					// >= 0 if open
@@ -33,11 +33,11 @@ class mapped_files :public ilink {
   uint use_count;
 
 public:
-  mapped_files(const my_string name,byte *magic,uint magic_length);
+  mapped_files(const char * name,uchar *magic,uint magic_length);
   ~mapped_files();
 
   friend class mapped_file;
-  friend mapped_files *map_file(const my_string name,byte *magic,
+  friend mapped_files *map_file(const char * name,uchar *magic,
 				uint magic_length);
   friend void unmap_file(mapped_files *map);
 };
@@ -47,7 +47,7 @@ class mapped_file
 {
   mapped_files *file;
 public:
-  mapped_file(const my_string name,byte *magic,uint magic_length)
+  mapped_file(const char * name,uchar *magic,uint magic_length)
   {
     file=map_file(name,magic,magic_length);	/* old or new map */
   }
@@ -55,7 +55,7 @@ public:
   {
     unmap_file(file);				/* free map */
   }
-  byte *map()
+  uchar *map()
   {
     return file->map;
   }

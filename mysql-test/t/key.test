@@ -150,7 +150,7 @@ create table t1
 );
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a'); 
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'b'); 
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1, 1, 1, 1, 'a');
 drop table t1;
 
@@ -243,13 +243,13 @@ show create table t1;
 insert t1 values ('cccc', 'tttt'),
   (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
   (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t1 (c) values ('cc22');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t1 (t) values ('ttt22');
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
 select c from t1 where c='cccc';
 select t from t1 where t='tttt';
@@ -438,7 +438,7 @@ insert into t1 values(1, 'b', 'b', NULL);
 # Drop some indexes for new adds.
 alter table t1 drop index i3, drop index i2, drop index i1;
 # Add indexes, one is unique on non-unique values.
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 alter table t1 add index i3 (c3), add index i2 (c2), add unique index i1 (c1);
 drop table t1;
 

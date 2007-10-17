@@ -33,3 +33,69 @@ SELECT SUM(id) FROM t3;
 SUM(id)
 2199024304128
 DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (f1 int NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2 (f2 int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi before INSERT
+ON t1 FOR EACH ROW
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '40001' SET @a:= 'deadlock';
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
+INSERT INTO t2 (f2) VALUES (1);
+DELETE FROM t2 WHERE f2 = 1;
+END;|
+CREATE PROCEDURE proc24989()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '40001' SET @b:= 'deadlock';
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
+INSERT INTO t2 (f2) VALUES (1);
+DELETE FROM t2 WHERE f2 = 1;
+END;|
+create procedure proc24989_2()
+deterministic
+begin
+declare continue handler for sqlexception
+select 'Outer handler' as 'exception';
+insert into t1 values(1);
+select "continued";
+end|
+start transaction;
+insert into t1 values(1);
+start transaction;
+insert into t2 values(123);
+insert into t1 values(1);
+insert into t1 values(1);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+select @a;
+@a
+NULL
+select * from t2;
+f2
+commit;
+start transaction;
+insert into t1 values(1);
+start transaction;
+insert into t2 values(123);
+call proc24989();
+insert into t1 values(1);
+select @a,@b;
+@a	@b
+exception	deadlock
+select * from t2;
+f2
+commit;
+start transaction;
+insert into t1 values(1);
+start transaction;
+insert into t2 values(123);
+call proc24989_2();
+insert into t1 values(1);
+commit;
+exception
+Outer handler
+continued
+continued
+select * from t2;
+f2
+drop procedure proc24989;
+drop procedure proc24989_2;
+drop table t1,t2;

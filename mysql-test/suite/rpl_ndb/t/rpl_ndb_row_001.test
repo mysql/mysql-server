@@ -1,0 +1,7 @@
+########################################################
+# By JBM 2005-02-15 Wrapped to allow reuse of test code#
+########################################################
+--source include/have_ndb.inc
+-- source include/ndb_master-slave.inc
+let $engine_type=NDB;
+-- source extra/rpl_tests/rpl_row_001.test

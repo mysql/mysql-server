@@ -28,7 +28,7 @@ extern char* heap_start;
 #define init_stacktrace() do {                                 \
                             heap_start = (char*) &__bss_start; \
                           } while(0);
-void print_stacktrace(gptr stack_bottom, ulong thread_stack);
+void print_stacktrace(uchar* stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
 #endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
 #endif /* TARGET_OS_LINUX */

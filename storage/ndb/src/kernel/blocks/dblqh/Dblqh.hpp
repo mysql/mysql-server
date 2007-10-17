@@ -71,7 +71,6 @@ class Dbtup;
 /*       CONSTANTS OF THE LOG PAGES                                          */
 /* ------------------------------------------------------------------------- */
 #define ZPAGE_HEADER_SIZE 32
-#define ZNO_MBYTES_IN_FILE 16
 #define ZPAGE_SIZE 8192
 #define ZPAGES_IN_MBYTE 32
 #define ZTWOLOG_NO_PAGES_IN_MBYTE 5
@@ -115,9 +114,6 @@ class Dbtup;
 /* ------------------------------------------------------------------------- */
 /*       VARIOUS CONSTANTS USED AS FLAGS TO THE FILE MANAGER.                */
 /* ------------------------------------------------------------------------- */
-#define ZOPEN_READ 0
-#define ZOPEN_WRITE 1
-#define ZOPEN_READ_WRITE 2
 #define ZVAR_NO_LOG_PAGE_WORD 1
 #define ZLIST_OF_PAIRS 0
 #define ZLIST_OF_PAIRS_SYNCH 16
@@ -142,7 +138,7 @@ class Dbtup;
 /*       IN THE MBYTE.                                                       */
 /* ------------------------------------------------------------------------- */
 #define ZFD_HEADER_SIZE 3
-#define ZFD_PART_SIZE 48
+#define ZFD_MBYTE_SIZE 3
 #define ZLOG_HEAD_SIZE 8
 #define ZNEXT_LOG_SIZE 2
 #define ZABORT_LOG_SIZE 3
@@ -169,7 +165,6 @@ class Dbtup;
 #define ZPOS_LOG_TYPE 0
 #define ZPOS_NO_FD 1
 #define ZPOS_FILE_NO 2
-#define ZMAX_LOG_FILES_IN_PAGE_ZERO 40
 /* ------------------------------------------------------------------------- */
 /*       THE POSITIONS WITHIN A PREPARE LOG RECORD AND A NEW PREPARE         */
 /*       LOG RECORD.                                                         */
@@ -1437,17 +1432,17 @@ public:
      *       header of each log file.  That information is used during
      *       system restart to find the tail of the log.  
      */
-    UintR logLastPrepRef[16];
+    UintR *logLastPrepRef;
     /**
      *       The max global checkpoint completed before the mbyte in the
      *       log file was started.  One variable per mbyte.  
      */
-    UintR logMaxGciCompleted[16];
+    UintR *logMaxGciCompleted;
     /**
      *       The max global checkpoint started before the mbyte in the log
      *       file was started.  One variable per mbyte.
      */
-    UintR logMaxGciStarted[16];
+    UintR *logMaxGciStarted;
     /**
      *       This variable contains the file name as needed by the file 
      *       system when opening the file.
@@ -1591,7 +1586,8 @@ public:
       ACTIVE_WRITE_LOG = 17,             ///< A write operation during 
                                         ///< writing of log
       READ_SR_INVALIDATE_PAGES = 18,
-      WRITE_SR_INVALIDATE_PAGES = 19
+      WRITE_SR_INVALIDATE_PAGES = 19,
+      WRITE_SR_INVALIDATE_PAGES_UPDATE_PAGE0 = 20
     };
     /**
      * We have to remember the log pages read. 
@@ -2163,6 +2159,7 @@ private:
   void execSTART_RECREF(Signal* signal);
 
   void execGCP_SAVEREQ(Signal* signal);
+  void execFSOPENREF(Signal* signal);
   void execFSOPENCONF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);
   void execFSWRITECONF(Signal* signal);
@@ -2385,7 +2382,7 @@ private:
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal);
-  void readFileInInvalidate(Signal *signal);
+  void readFileInInvalidate(Signal *signal, bool stepNext);
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
@@ -2671,6 +2668,8 @@ private:
   LogPartRecord *logPartRecord;
   LogPartRecordPtr logPartPtr;
   UintR clogPartFileSize;
+  Uint32 clogFileSize; // In MBYTE
+  Uint32 cmaxLogFilesInPageZero; //
 
 // Configurable
   LogFileRecord *logFileRecord;
@@ -2678,13 +2677,15 @@ private:
   UintR cfirstfreeLogFile;
   UintR clogFileFileSize;
 
-#define ZLFO_FILE_SIZE 256            /* MAX 256 OUTSTANDING FILE OPERATIONS */
+#define ZLFO_MIN_FILE_SIZE 256
+// RedoBuffer/32K minimum ZLFO_MIN_FILE_SIZE
   LogFileOperationRecord *logFileOperationRecord;
   LogFileOperationRecordPtr lfoPtr;
   UintR cfirstfreeLfo;
   UintR clfoFileSize;
 
   LogPageRecord *logPageRecord;
+  void *logPageRecordUnaligned;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
   UintR clogPageFileSize;
@@ -2695,7 +2696,7 @@ private:
   UintR cfirstfreePageRef;
   UintR cpageRefFileSize;
 
-#define ZSCANREC_FILE_SIZE 100
+// Configurable
   ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
   UintR cscanNoFreeRec;
@@ -2888,6 +2889,7 @@ private:
   UintR ctransidHash[1024];
   
   Uint32 c_diskless;
+  Uint32 c_o_direct;
   Uint32 c_error_insert_table_id;
   
 public:

@@ -18,20 +18,19 @@
   a shared library
 */
 
-#if !defined(stdin)
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "my_alarm.h"
-#endif
 
 my_bool timed_mutexes= 0;
 
 	/* from my_init */
-my_string	home_dir=0;
+char *	home_dir=0;
 const char      *my_progname=0;
 char		NEAR curr_dir[FN_REFLEN]= {0},
 		NEAR home_dir_buff[FN_REFLEN]= {0};
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;
+ulong           my_file_total_opened= 0;
 int		NEAR my_umask=0664, NEAR my_umask_dir=0777;
 #ifndef THREAD
 int		NEAR my_errno=0;
@@ -47,9 +46,6 @@ struct st_remember _my_sig_remember[MAX_SIGNALS]={{0,0}};
 #ifdef THREAD
 sigset_t my_signals;			/* signals blocked by mf_brkhant */
 #endif
-
-	/* from mf_keycache.c */
-my_bool key_cache_inited=0;
 
 	/* from mf_reccache.c */
 ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
@@ -77,8 +73,8 @@ uint sf_malloc_prehunc=0,		/* If you have problem with core- */
 ulong sf_malloc_cur_memory= 0L;		/* Current memory usage */
 ulong sf_malloc_max_memory= 0L;		/* Maximum memory usage */
 uint  sf_malloc_count= 0;		/* Number of times NEW() was called */
-byte *sf_min_adress= (byte*) ~(unsigned long) 0L,
-     *sf_max_adress= (byte*) 0L;
+uchar *sf_min_adress= (uchar*) ~(unsigned long) 0L,
+     *sf_max_adress= (uchar*) 0L;
 /* Root of the linked list of struct st_irem */
 struct st_irem *sf_malloc_root = NULL;
 
@@ -95,6 +91,11 @@ int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
     my_message_no_curses;
 int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
+
+#ifdef __WIN__
+/* from my_getsystime.c */
+ulonglong query_performance_frequency, query_performance_offset;
+#endif
 
 	/* How to disable options */
 my_bool NEAR my_disable_locking=0;

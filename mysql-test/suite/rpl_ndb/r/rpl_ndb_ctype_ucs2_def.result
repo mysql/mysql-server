@@ -1,0 +1,9 @@
+show variables like 'collation_server';
+Variable_name	Value
+collation_server	ucs2_unicode_ci
+show variables like "%character_set_ser%";
+Variable_name	Value
+character_set_server	ucs2
+DROP TABLE IF EXISTS t1;
+create table t1 (a int);
+drop table t1;

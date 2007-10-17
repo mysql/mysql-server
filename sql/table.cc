@@ -19,7 +19,19 @@
 #include "mysql_priv.h"
 #include "sql_trigger.h"
 #include <m_ctype.h>
-#include "md5.h"
+#include "my_md5.h"
+
+/* INFORMATION_SCHEMA name */
+LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
+
+/* MYSQL_SCHEMA name */
+LEX_STRING MYSQL_SCHEMA_NAME= {C_STRING_WITH_LEN("mysql")};
+
+/* GENERAL_LOG name */
+LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
+
+/* SLOW_LOG name */
+LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
 
 	/* Functions defined in this file */
 
@@ -29,18 +41,141 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
-static uint find_field(Field **fields, byte *record, uint start, uint length);
+static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+inline bool is_system_table_name(const char *name, uint length);
+
+/**************************************************************************
+  Object_creation_ctx implementation.
+**************************************************************************/
+
+Object_creation_ctx *Object_creation_ctx::set_n_backup(THD *thd)
+{
+  Object_creation_ctx *backup_ctx;
+  DBUG_ENTER("Object_creation_ctx::set_n_backup");
+
+  backup_ctx= create_backup_ctx(thd);
+  change_env(thd);
+
+  DBUG_RETURN(backup_ctx);
+}
+
+void Object_creation_ctx::restore_env(THD *thd, Object_creation_ctx *backup_ctx)
+{
+  if (!backup_ctx)
+    return;
+
+  backup_ctx->change_env(thd);
+
+  delete backup_ctx;
+}
+
+/**************************************************************************
+  Default_object_creation_ctx implementation.
+**************************************************************************/
+
+Default_object_creation_ctx::Default_object_creation_ctx(THD *thd)
+  : m_client_cs(thd->variables.character_set_client),
+    m_connection_cl(thd->variables.collation_connection)
+{ }
+
+Default_object_creation_ctx::Default_object_creation_ctx(
+  CHARSET_INFO *client_cs, CHARSET_INFO *connection_cl)
+  : m_client_cs(client_cs),
+    m_connection_cl(connection_cl)
+{ }
+
+Object_creation_ctx *
+Default_object_creation_ctx::create_backup_ctx(THD *thd) const
+{
+  return new Default_object_creation_ctx(thd);
+}
+
+void Default_object_creation_ctx::change_env(THD *thd) const
+{
+  thd->variables.character_set_client= m_client_cs;
+  thd->variables.collation_connection= m_connection_cl;
+
+  thd->update_charset();
+}
+
+/**************************************************************************
+  View_creation_ctx implementation.
+**************************************************************************/
+
+View_creation_ctx *View_creation_ctx::create(THD *thd)
+{
+  View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
+
+  return ctx;
+}
+
+/*************************************************************************/
+
+View_creation_ctx * View_creation_ctx::create(THD *thd,
+                                              TABLE_LIST *view)
+{
+  View_creation_ctx *ctx= new (thd->mem_root) View_creation_ctx(thd);
+
+  /* Throw a warning if there is NULL cs name. */
+
+  if (!view->view_client_cs_name.str ||
+      !view->view_connection_cl_name.str)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_VIEW_NO_CREATION_CTX,
+                        ER(ER_VIEW_NO_CREATION_CTX),
+                        (const char *) view->db,
+                        (const char *) view->table_name);
+
+    ctx->m_client_cs= system_charset_info;
+    ctx->m_connection_cl= system_charset_info;
+
+    return ctx;
+  }
+
+  /* Resolve cs names. Throw a warning if there is unknown cs name. */
+
+  bool invalid_creation_ctx;
+
+  invalid_creation_ctx= resolve_charset(view->view_client_cs_name.str,
+                                        system_charset_info,
+                                        &ctx->m_client_cs);
+
+  invalid_creation_ctx= resolve_collation(view->view_connection_cl_name.str,
+                                          system_charset_info,
+                                          &ctx->m_connection_cl) ||
+                        invalid_creation_ctx;
+
+  if (invalid_creation_ctx)
+  {
+    sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
+                      "names (client: '%s'; connection: '%s').",
+                      (const char *) view->db,
+                      (const char *) view->table_name,
+                      (const char *) view->view_client_cs_name.str,
+                      (const char *) view->view_connection_cl_name.str);
+
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_VIEW_INVALID_CREATION_CTX,
+                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        (const char *) view->db,
+                        (const char *) view->table_name);
+  }
+
+  return ctx;
+}
+
+/*************************************************************************/
 
 /* Get column name from column hash */
 
-static byte *get_field_name(Field **buff, uint *length,
-			    my_bool not_used __attribute__((unused)))
+static uchar *get_field_name(Field **buff, size_t *length,
+                             my_bool not_used __attribute__((unused)))
 {
   *length= (uint) strlen((*buff)->field_name);
-  return (byte*) (*buff)->field_name;
+  return (uchar*) (*buff)->field_name;
 }
-
 
 
 /*
@@ -70,6 +205,49 @@ char *fn_rext(char *name)
   if (res && !strcmp(res, reg_ext))
     return res;
   return name + strlen(name);
+}
+
+TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
+{
+  DBUG_ASSERT(db != NULL);
+  DBUG_ASSERT(name != NULL);
+
+  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    INFORMATION_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    return TABLE_CATEGORY_INFORMATION;
+  }
+
+  if ((db->length == MYSQL_SCHEMA_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                    MYSQL_SCHEMA_NAME.str,
+                    db->str) == 0))
+  {
+    if (is_system_table_name(name->str, name->length))
+    {
+      return TABLE_CATEGORY_SYSTEM;
+    }
+
+    if ((name->length == GENERAL_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      GENERAL_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+
+    if ((name->length == SLOW_LOG_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      SLOW_LOG_NAME.str,
+                      name->str) == 0))
+    {
+      return TABLE_CATEGORY_PERFORMANCE;
+    }
+  }
+
+  return TABLE_CATEGORY_USER;
 }
 
 
@@ -177,7 +355,8 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
 
   bzero((char*) share, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  share->tmp_table=  	         INTERNAL_TMP_TABLE;
+  share->table_category=         TABLE_CATEGORY_TEMPORARY;
+  share->tmp_table=              INTERNAL_TMP_TABLE;
   share->db.str=                 (char*) key;
   share->db.length=		 strlen(key);
   share->table_cache_key.str=    (char*) key;
@@ -237,6 +416,9 @@ void free_table_share(TABLE_SHARE *share)
     pthread_cond_destroy(&share->cond);
   }
   hash_free(&share->name_hash);
+  
+  plugin_unlock(NULL, share->db_plugin);
+  share->db_plugin= NULL;
 
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
@@ -340,10 +522,25 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
-    if (strchr(share->table_name.str, '@'))
+    /*
+      We don't try to open 5.0 unencoded name, if
+      - non-encoded name contains '@' signs, 
+        because '@' can be misinterpreted.
+        It is not clear if '@' is escape character in 5.1,
+        or a normal character in 5.0.
+        
+      - non-encoded db or table name contain "#mysql50#" prefix.
+        This kind of tables must have been opened only by the
+        my_open() above.
+    */
+    if (strchr(share->table_name.str, '@') ||
+        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
+        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
       goto err_not_open;
 
-    /* Try unecoded 5.0 name */
+    /* Try unencoded 5.0 name */
     uint length;
     strxnmov(path, sizeof(path)-1,
              mysql_data_home, "/", share->db.str, "/",
@@ -370,14 +567,22 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   }
 
   error= 4;
-  if (my_read(file,(byte*) head, 64, MYF(MY_NABP)))
+  if (my_read(file, head, 64, MYF(MY_NABP)))
     goto err;
 
   if (head[0] == (uchar) 254 && head[1] == 1)
   {
     if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
         (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+    {
+      /* Open view only */
+      if (db_flags & OPEN_VIEW_ONLY)
+      {
+        error_given= 1;
+        goto err;
+      }
       table_type= 1;
+    }
     else
     {
       error= 6;                                 // Unkown .frm version
@@ -406,27 +611,10 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
-
-    if (share->db.length == 5 && !(lower_case_table_names ?
-        my_strcasecmp(system_charset_info, share->db.str, "mysql") :
-        strcmp(share->db.str, "mysql")))
-    {
-      /*
-        We can't mark all tables in 'mysql' database as system since we don't
-        allow to lock such tables for writing with any other tables (even with
-        other system tables) and some privilege tables need this.
-      */
-      share->system_table= is_system_table_name(share->table_name.str,
-                                                share->table_name.length);
-      if (!share->system_table)
-      {
-        share->log_table= check_if_log_table(share->db.length, share->db.str,
-                                             share->table_name.length,
-                                             share->table_name.str, 0);
-      }
-    }
     error_given= 1;
   }
+
+  share->table_category= get_table_category(& share->db, & share->table_name);
 
   if (!error)
     thd->status_var.opened_shares++;
@@ -460,7 +648,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint extra_rec_buf_length;
   uint i,j;
   bool use_hash;
-  char *keynames, *record, *names, *comment_pos;
+  char *keynames, *names, *comment_pos;
+  uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
   handler *handler_file= 0;
@@ -500,7 +689,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
-  share->db_type= ha_checktype(thd, legacy_db_type, 0, 0);
+  DBUG_ASSERT(share->db_plugin == NULL);
+  /*
+    if the storage engine is dynamic, no point in resolving it by its
+    dynamically allocated legacy_db_type. We will resolve it later by name.
+  */
+  if (legacy_db_type > DB_TYPE_UNKNOWN && 
+      legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
+    share->db_plugin= ha_lock_engine(NULL, 
+                                     ha_checktype(thd, legacy_db_type, 0, 0));
   share->db_create_options= db_create_options= uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
@@ -508,7 +705,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share-> row_type= (row_type) head[40];
+    share->transactional= (ha_choice) head[39];
+    share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
@@ -537,7 +735,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Read keyinformation */
   key_info_length= (uint) uint2korr(head+28);
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
-  if (read_string(file,(gptr*) &disk_buff,key_info_length))
+  if (read_string(file,(uchar**) &disk_buff,key_info_length))
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
   {
@@ -636,19 +834,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    char *buff, *next_chunk, *buff_end;
+    uchar *buff, *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
+    if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
+    if (my_pread(file, buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
       my_free(buff, MYF(0));
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
-    if (! (share->connect_string.str= strmake_root(&share->mem_root,
-            next_chunk + 2, share->connect_string.length)))
+    if (!(share->connect_string.str= strmake_root(&share->mem_root,
+                                                  (char*) next_chunk + 2,
+                                                  share->connect_string.
+                                                  length)))
     {
       my_free(buff, MYF(0));
       goto err;
@@ -658,25 +858,51 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
-      LEX_STRING name= { next_chunk + 2, str_db_type_length };
-      handlerton *tmp_db_type= ha_resolve_by_name(thd, &name);
-      if (tmp_db_type != NULL)
+      LEX_STRING name;
+      name.str= (char*) next_chunk + 2;
+      name.length= str_db_type_length;
+
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
+      if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
-        share->db_type= tmp_db_type;
+        if (legacy_db_type > DB_TYPE_UNKNOWN &&
+            legacy_db_type < DB_TYPE_FIRST_DYNAMIC &&
+            legacy_db_type != ha_legacy_type(
+                plugin_data(tmp_plugin, handlerton *)))
+        {
+          /* bad file, legacy_db_type did not match the name */
+          my_free(buff, MYF(0));
+          goto err;
+        }
+        /*
+          tmp_plugin is locked with a local lock.
+          we unlock the old value of share->db_plugin before
+          replacing it with a globally locked version of tmp_plugin
+        */
+        plugin_unlock(NULL, share->db_plugin);
+        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
-                            ha_legacy_type(share->db_type)));
+                            ha_legacy_type(share->db_type())));
       }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       else
       {
-        if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
+        LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
+        if (str_db_type_length == pname.length &&
+            !strncmp((char *) next_chunk + 2, pname.str, pname.length))
         {
-          /* Use partition handler */
-          share->db_type= partition_hton;
+          /*
+            Use partition handler
+            tmp_plugin is locked with a local lock.
+            we unlock the old value of share->db_plugin before
+            replacing it with a globally locked version of tmp_plugin
+          */
+          plugin_unlock(NULL, share->db_plugin);
+          share->db_plugin= ha_lock_engine(NULL, partition_hton);
           DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                               str_db_type_length, next_chunk + 2,
-                              ha_legacy_type(share->db_type)));
+                              ha_legacy_type(share->db_type())));
         }
       }
 #endif
@@ -686,9 +912,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       uint32 partition_info_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((share->partition_info_len= partition_info_len))
+      if ((share->partition_info_buffer_size=
+             share->partition_info_len= partition_info_len))
       {
-        if (!(share->partition_info=
+        if (!(share->partition_info= (char*)
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_len + 1)))
         {
@@ -740,9 +967,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           my_free(buff, MYF(0));
           goto err;
         }
-        parser_name.str= next_chunk;
-        parser_name.length= strlen(next_chunk);
-        keyinfo->parser= plugin_lock(&parser_name, MYSQL_FTPARSER_PLUGIN);
+        parser_name.str= (char*) next_chunk;
+        parser_name.length= strlen((char*) next_chunk);
+        keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
+                                                MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
@@ -759,16 +987,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   extra_rec_buf_length= uint2korr(head+59);
   rec_buff_length= ALIGN_SIZE(share->reclength + 1 + extra_rec_buf_length);
   share->rec_buff_length= rec_buff_length;
-  if (!(record= (char *) alloc_root(&share->mem_root,
-                                    rec_buff_length)))
+  if (!(record= (uchar *) alloc_root(&share->mem_root,
+                                     rec_buff_length)))
     goto err;                                   /* purecov: inspected */
-  share->default_values= (byte *) record;
-  if (my_pread(file,(byte*) record, (uint) share->reclength,
+  share->default_values= record;
+  if (my_pread(file, record, (size_t) share->reclength,
                record_offset, MYF(MY_NABP)))
     goto err;                                   /* purecov: inspected */
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
-  if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
+  if (my_read(file, head,288,MYF(MY_NABP)))
     goto err;
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
@@ -798,14 +1026,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
 			   interval_count*sizeof(TYPELIB)+
 			   (share->fields+interval_parts+
-			    keys+3)*sizeof(my_string)+
+			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length)))))
     goto err;                                   /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length));
-  if (read_string(file,(gptr*) &disk_buff,read_length))
+  if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
@@ -858,10 +1086,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
-                                      share->db_type)))
+                                      share->db_type())))
     goto err;
 
-  record= (char*) share->default_values-1;	/* Fieldstart = 1 */
+  record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
   {
     null_flags= null_pos= (uchar*) record+1;
@@ -1055,7 +1283,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     if (use_hash)
       (void) my_hash_insert(&share->name_hash,
-                            (byte*) field_ptr); // never fail
+                            (uchar*) field_ptr); // never fail
   }
   *field_ptr=0;					// End marker
 
@@ -1114,7 +1342,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         key_part->type= field->key_type();
         if (field->null_ptr)
         {
-          key_part->null_offset=(uint) ((byte*) field->null_ptr -
+          key_part->null_offset=(uint) ((uchar*) field->null_ptr -
                                         share->default_values);
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
@@ -1172,7 +1400,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             the primary key, then we can use any key to find this column
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
+          {
             field->part_of_key= share->keys_in_use;
+            if (field->part_of_sortkey.is_set(key))
+              field->part_of_sortkey= share->keys_in_use;
+          }
         }
         if (field->key_length() != key_part->length)
         {
@@ -1255,7 +1487,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   else
     share->primary_key= MAX_KEY;
-  x_free((gptr) disk_buff);
+  x_free((uchar*) disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)
   {
@@ -1327,7 +1559,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
-  x_free((gptr) disk_buff);
+  x_free((uchar*) disk_buff);
   delete crypted;
   delete handler_file;
   hash_free(&share->name_hash);
@@ -1369,7 +1601,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   int error;
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
-  byte *record, *bitmaps;
+  uchar *record, *bitmaps;
   Field **field_ptr;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
@@ -1391,9 +1623,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->keys_in_use_for_query.init();
 
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
-                                        share->db_type)))
-    goto err;
+  outparam->file= 0;
+  if (!(prgflag & OPEN_FRM_FILE_ONLY))
+  {
+    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+                                          share->db_type())))
+      goto err;
+  }
+  else
+  {
+    DBUG_ASSERT(!db_stat);
+  }
 
   error= 4;
   outparam->reginfo.lock_type= TL_UNLOCK;
@@ -1404,7 +1644,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
 
-  if (!(record= (byte*) alloc_root(&outparam->mem_root,
+  if (!(record= (uchar*) alloc_root(&outparam->mem_root,
                                    share->rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
 
@@ -1444,7 +1684,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   outparam->field= field_ptr;
 
-  record= (byte*) outparam->record[0]-1;	/* Fieldstart = 1 */
+  record= (uchar*) outparam->record[0]-1;	/* Fieldstart = 1 */
   if (share->null_field_first)
     outparam->null_flags= (uchar*) record+1;
   else
@@ -1513,7 +1753,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->partition_info_len)
+  if (share->partition_info_len && outparam->file)
   {
   /*
     In this execution we must avoid calling thd->change_item_tree since
@@ -1532,21 +1772,30 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
     thd->stmt_arena= &part_func_arena;
     bool tmp;
+    bool work_part_info_used;
 
     tmp= mysql_unpack_partition(thd, share->partition_info,
                                 share->partition_info_len,
                                 share->part_state,
                                 share->part_state_len,
                                 outparam, is_create_table,
-                                share->default_part_db_type);
+                                share->default_part_db_type,
+                                &work_part_info_used);
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    if (!tmp)
+    /* we should perform the fix_partition_func in either local or
+       caller's arena depending on work_part_info_used value
+    */
+    if (!tmp && !work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
     thd->stmt_arena= backup_stmt_arena_ptr;
     thd->restore_active_arena(&part_func_arena, &backup_arena);
     if (!tmp)
+    {
+      if (work_part_info_used)
+        tmp= fix_partition_func(thd, outparam, is_create_table);
       outparam->part_info->item_free_list= part_func_arena.free_list;
+    }
     if (tmp)
     {
       if (is_create_table)
@@ -1566,7 +1815,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (byte*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -1632,6 +1881,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bzero((char*) bitmaps, bitmap_size*3);
 #endif
 
+  outparam->no_replicate= outparam->file &&
+                          test(outparam->file->ha_table_flags() &
+                               HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
@@ -1676,7 +1928,7 @@ int closefrm(register TABLE *table, bool free_share)
   {
     if (key_info->flags & HA_USES_PARSER)
     {
-      plugin_unlock(key_info->parser);
+      plugin_unlock(NULL, key_info->parser);
       key_info->flags= 0;
     }
   }
@@ -1733,7 +1985,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   DBUG_ENTER("get_form_pos");
 
   names=uint2korr(head+8);
-  a_length=(names+2)*sizeof(my_string);		/* Room for two extra */
+  a_length=(names+2)*sizeof(char *);		/* Room for two extra */
 
   if (!save_names)
     a_length=0;
@@ -1744,12 +1996,12 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   {
     length=uint2korr(head+4);
     VOID(my_seek(file,64L,MY_SEEK_SET,MYF(0)));
-    if (!(buf= (uchar*) my_malloc((uint) length+a_length+names*4,
+    if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
 				  MYF(MY_WME))) ||
-	my_read(file,(byte*) buf+a_length,(uint) (length+names*4),
+	my_read(file, buf+a_length, (size_t) (length+names*4),
 		MYF(MY_NABP)))
     {						/* purecov: inspected */
-      x_free((gptr) buf);			/* purecov: inspected */
+      x_free((uchar*) buf);			/* purecov: inspected */
       DBUG_RETURN(0L);				/* purecov: inspected */
     }
     pos= buf+a_length+length;
@@ -1758,7 +2010,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   if (! save_names)
   {
     if (names)
-      my_free((gptr) buf,MYF(0));
+      my_free((uchar*) buf,MYF(0));
   }
   else if (!names)
     bzero((char*) save_names,sizeof(save_names));
@@ -1772,19 +2024,24 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
 }
 
 
-	/* Read string from a file with malloc */
+/*
+  Read string from a file with malloc
 
-int read_string(File file, gptr *to, uint length)
+  NOTES:
+    We add an \0 at end of the read string to make reading of C strings easier
+*/
+
+int read_string(File file, uchar**to, size_t length)
 {
   DBUG_ENTER("read_string");
 
-  x_free((gptr) *to);
-  if (!(*to= (gptr) my_malloc(length+1,MYF(MY_WME))) ||
-      my_read(file,(byte*) *to,length,MYF(MY_NABP)))
+  x_free(*to);
+  if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
+      my_read(file, *to, length,MYF(MY_NABP)))
   {
-    x_free((gptr) *to); /* purecov: inspected */
-    *to= 0; /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
+    x_free(*to);                              /* purecov: inspected */
+    *to= 0;                                   /* purecov: inspected */
+    DBUG_RETURN(1);                           /* purecov: inspected */
   }
   *((char*) *to+length)= '\0';
   DBUG_RETURN (0);
@@ -1798,7 +2055,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 {
   uint i,bufflength,maxlength,n_length,length,names;
   ulong endpos,newpos;
-  char buff[IO_SIZE];
+  uchar buff[IO_SIZE];
   uchar *pos;
   DBUG_ENTER("make_new_entry");
 
@@ -1818,17 +2075,17 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
     while (endpos > maxlength)
     {
       VOID(my_seek(file,(ulong) (endpos-bufflength),MY_SEEK_SET,MYF(0)));
-      if (my_read(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME)))
+      if (my_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
       VOID(my_seek(file,(ulong) (endpos-bufflength+IO_SIZE),MY_SEEK_SET,
 		   MYF(0)));
-      if ((my_write(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME))))
+      if ((my_write(file, buff,bufflength,MYF(MY_NABP+MY_WME))))
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
     bzero(buff,IO_SIZE);			/* Null new block */
     VOID(my_seek(file,(ulong) maxlength,MY_SEEK_SET,MYF(0)));
-    if (my_write(file,(byte*) buff,bufflength,MYF(MY_NABP+MY_WME)))
+    if (my_write(file,buff,bufflength,MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
     maxlength+=IO_SIZE;				/* Fix old ref */
     int2store(fileinfo+6,maxlength);
@@ -1843,15 +2100,15 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   if (n_length == 1 )
   {						/* First name */
     length++;
-    VOID(strxmov(buff,"/",newname,"/",NullS));
+    VOID(strxmov((char*) buff,"/",newname,"/",NullS));
   }
   else
-    VOID(strxmov(buff,newname,"/",NullS)); /* purecov: inspected */
+    VOID(strxmov((char*) buff,newname,"/",NullS)); /* purecov: inspected */
   VOID(my_seek(file,63L+(ulong) n_length,MY_SEEK_SET,MYF(0)));
-  if (my_write(file,(byte*) buff,(uint) length+1,MYF(MY_NABP+MY_WME)) ||
-      (names && my_write(file,(byte*) (*formnames->type_names+n_length-1),
+  if (my_write(file, buff, (size_t) length+1,MYF(MY_NABP+MY_WME)) ||
+      (names && my_write(file,(uchar*) (*formnames->type_names+n_length-1),
 			 names*4, MYF(MY_NABP+MY_WME))) ||
-      my_write(file,(byte*) fileinfo+10,(uint) 4,MYF(MY_NABP+MY_WME)))
+      my_write(file, fileinfo+10, 4,MYF(MY_NABP+MY_WME)))
     DBUG_RETURN(0L); /* purecov: inspected */
 
   int2store(fileinfo+8,names+1);
@@ -1887,10 +2144,10 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     handler *file= 0;
     const char *datext= "";
     
-    if (share->db_type != NULL)
+    if (share->db_type() != NULL)
     {
       if ((file= get_new_handler(share, current_thd->mem_root,
-                                 share->db_type)))
+                                 share->db_type())))
       {
         if (!(datext= *file->bas_ext()))
           datext= "";
@@ -2011,7 +2268,7 @@ TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
    #  field number +1
 */
 
-static uint find_field(Field **fields, byte *record, uint start, uint length)
+static uint find_field(Field **fields, uchar *record, uint start, uint length)
 {
   Field **field;
   uint i, pos;
@@ -2124,7 +2381,7 @@ File create_frm(THD *thd, const char *name, const char *db,
 {
   register File file;
   ulong length;
-  char fill[IO_SIZE];
+  uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -2150,7 +2407,19 @@ File create_frm(THD *thd, const char *name, const char *db,
           ha_checktype(thd,ha_legacy_type(create_info->db_type),0,0));
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
-    key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
+    /*
+      Keep in sync with pack_keys() in unireg.cc
+      For each key:
+      8 bytes for the key header
+      9 bytes for each key-part (MAX_REF_PARTS)
+      NAME_LEN bytes for the name
+      1 byte for the NAMES_SEP_CHAR (before the name)
+      For all keys:
+      6 bytes for the header
+      1 byte for the NAMES_SEP_CHAR (after the last name)
+      9 extra bytes (padding for safety? alignment?)
+    */
+    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16;
     length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
@@ -2167,6 +2436,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
+    fileinfo[39]= (uchar) create_info->transactional;
     fileinfo[40]= (uchar) create_info->row_type;
     /* Next few bytes were for RAID support */
     fileinfo[41]= 0;
@@ -2187,7 +2457,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
-      if (my_write(file,(byte*) fill,IO_SIZE,MYF(MY_WME | MY_NABP)))
+      if (my_write(file,fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
       {
 	VOID(my_close(file,MYF(0)));
 	VOID(my_delete(name,MYF(0)));
@@ -2218,6 +2488,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->row_type= share->row_type;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
+  create_info->comment= share->comment;
 
   DBUG_VOID_RETURN;
 }
@@ -2298,7 +2569,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
     given a buffer with a key value, and a map of keyparts
     that are present in this value, returns the length of the value
 */
-uint calculate_key_len(TABLE *table, uint key, const byte *buf,
+uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
                        key_part_map keypart_map)
 {
   /* works only with key prefixes */
@@ -2650,16 +2921,16 @@ void st_table::reset_item_list(List<Item> *item_list) const
   calculate md5 of query
 
   SYNOPSIS
-    st_table_list::calc_md5()
+    TABLE_LIST::calc_md5()
     buffer	buffer for md5 writing
 */
 
-void  st_table_list::calc_md5(char *buffer)
+void  TABLE_LIST::calc_md5(char *buffer)
 {
   my_MD5_CTX context;
   uchar digest[16];
   my_MD5Init(&context);
-  my_MD5Update(&context,(uchar *) query.str, query.length);
+  my_MD5Update(&context,(uchar *) select_stmt.str, select_stmt.length);
   my_MD5Final(digest, &context);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
@@ -2679,10 +2950,10 @@ void  st_table_list::calc_md5(char *buffer)
     it (it is a kind of optimisation)
 
   SYNOPSIS
-    st_table_list::set_underlying_merge()
+    TABLE_LIST::set_underlying_merge()
 */
 
-void st_table_list::set_underlying_merge()
+void TABLE_LIST::set_underlying_merge()
 {
   TABLE_LIST *tbl;
 
@@ -2717,7 +2988,7 @@ void st_table_list::set_underlying_merge()
   setup fields of placeholder of merged VIEW
 
   SYNOPSIS
-    st_table_list::setup_underlying()
+    TABLE_LIST::setup_underlying()
     thd		    - thread handler
 
   DESCRIPTION
@@ -2730,9 +3001,9 @@ void st_table_list::set_underlying_merge()
     TRUE  - error
 */
 
-bool st_table_list::setup_underlying(THD *thd)
+bool TABLE_LIST::setup_underlying(THD *thd)
 {
-  DBUG_ENTER("st_table_list::setup_underlying");
+  DBUG_ENTER("TABLE_LIST::setup_underlying");
 
   if (!field_translation && merge_underlying_list)
   {
@@ -2743,7 +3014,7 @@ bool st_table_list::setup_underlying(THD *thd)
     List_iterator_fast<Item> it(select->item_list);
     uint field_count= 0;
 
-    if (check_stack_overrun(thd, STACK_MIN_SIZE, (char *)&field_count))
+    if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*) &field_count))
     {
       DBUG_RETURN(TRUE);
     }
@@ -2795,7 +3066,7 @@ bool st_table_list::setup_underlying(THD *thd)
   Prepare where expression of view
 
   SYNOPSIS
-    st_table_list::prep_where()
+    TABLE_LIST::prep_where()
     thd             - thread handler
     conds           - condition of this JOIN
     no_where_clause - do not build WHERE or ON outer qwery do not need it
@@ -2809,10 +3080,10 @@ bool st_table_list::setup_underlying(THD *thd)
     TRUE  - error
 */
 
-bool st_table_list::prep_where(THD *thd, Item **conds,
+bool TABLE_LIST::prep_where(THD *thd, Item **conds,
                                bool no_where_clause)
 {
-  DBUG_ENTER("st_table_list::prep_where");
+  DBUG_ENTER("TABLE_LIST::prep_where");
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -2868,10 +3139,51 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
 
 
 /*
+  Merge ON expressions for a view
+
+  SYNOPSIS
+    merge_on_conds()
+    thd             thread handle
+    table           table for the VIEW
+    is_cascaded     TRUE <=> merge ON expressions from underlying views
+
+  DESCRIPTION
+    This function returns the result of ANDing the ON expressions
+    of the given view and all underlying views. The ON expressions
+    of the underlying views are added only if is_cascaded is TRUE.
+
+  RETURN
+    Pointer to the built expression if there is any.
+    Otherwise and in the case of a failure NULL is returned.
+*/
+
+static Item *
+merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
+{
+  DBUG_ENTER("merge_on_conds");
+
+  Item *cond= NULL;
+  DBUG_PRINT("info", ("alias: %s", table->alias));
+  if (table->on_expr)
+    cond= table->on_expr->copy_andor_structure(thd);
+  if (!table->nested_join)
+    DBUG_RETURN(cond);
+  List_iterator<TABLE_LIST> li(table->nested_join->join_list);
+  while (TABLE_LIST *tbl= li++)
+  {
+    if (tbl->view && !is_cascaded)
+      continue;
+    cond= and_conds(cond, merge_on_conds(thd, tbl, is_cascaded));
+  }
+  DBUG_RETURN(cond);
+}
+
+
+/*
   Prepare check option expression of table
 
   SYNOPSIS
-    st_table_list::prep_check_option()
+    TABLE_LIST::prep_check_option()
     thd             - thread handler
     check_opt_type  - WITH CHECK OPTION type (VIEW_CHECK_NONE,
                       VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
@@ -2883,51 +3195,55 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
                       VIEW_CHECK_LOCAL option.
 
   NOTE
-    This method build check options for every call
-    (usual execution or every SP/PS call)
+    This method builds check option condition to use it later on
+    every call (usual execution or every SP/PS call).
     This method have to be called after WHERE preparation
-    (st_table_list::prep_where)
+    (TABLE_LIST::prep_where)
 
   RETURN
     FALSE - OK
     TRUE  - error
 */
 
-bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
+bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 {
-  DBUG_ENTER("st_table_list::prep_check_option");
+  DBUG_ENTER("TABLE_LIST::prep_check_option");
+  bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     /* see comment of check_opt_type parameter */
-    if (tbl->view &&
-        tbl->prep_check_option(thd,
-                               ((check_opt_type == VIEW_CHECK_CASCADED) ?
-                                VIEW_CHECK_CASCADED :
-                                VIEW_CHECK_NONE)))
-    {
+    if (tbl->view && tbl->prep_check_option(thd, (is_cascaded ?
+                                                  VIEW_CHECK_CASCADED :
+                                                  VIEW_CHECK_NONE)))
       DBUG_RETURN(TRUE);
-    }
   }
 
-  if (check_opt_type)
+  if (check_opt_type && !check_option_processed)
   {
-    Item *item= 0;
+    Query_arena *arena= thd->stmt_arena, backup;
+    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
     if (where)
     {
       DBUG_ASSERT(where->fixed);
-      item= where->copy_andor_structure(thd);
+      check_option= where->copy_andor_structure(thd);
     }
-    if (check_opt_type == VIEW_CHECK_CASCADED)
+    if (is_cascaded)
     {
       for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       {
         if (tbl->check_option)
-          item= and_conds(item, tbl->check_option);
+          check_option= and_conds(check_option, tbl->check_option);
       }
     }
-    if (item)
-      thd->change_item_tree(&check_option, item);
+    check_option= and_conds(check_option,
+                            merge_on_conds(thd, this, is_cascaded));
+
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    check_option_processed= TRUE;
+
   }
 
   if (check_option)
@@ -2950,12 +3266,12 @@ bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
   Hide errors which show view underlying table information
 
   SYNOPSIS
-    st_table_list::hide_view_error()
+    TABLE_LIST::hide_view_error()
     thd     thread handler
 
 */
 
-void st_table_list::hide_view_error(THD *thd)
+void TABLE_LIST::hide_view_error(THD *thd)
 {
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
@@ -2986,7 +3302,7 @@ void st_table_list::hide_view_error(THD *thd)
   table_to_find (TABLE)
 
   SYNOPSIS
-    st_table_list::find_underlying_table()
+    TABLE_LIST::find_underlying_table()
     table_to_find table to find
 
   RETURN
@@ -2994,7 +3310,7 @@ void st_table_list::hide_view_error(THD *thd)
     found table reference
 */
 
-st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
+TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
 {
   /* is this real table and table which we are looking for? */
   if (table == table_to_find && merge_underlying_list == 0)
@@ -3013,10 +3329,10 @@ st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
   cleunup items belonged to view fields translation table
 
   SYNOPSIS
-    st_table_list::cleanup_items()
+    TABLE_LIST::cleanup_items()
 */
 
-void st_table_list::cleanup_items()
+void TABLE_LIST::cleanup_items()
 {
   if (!field_translation)
     return;
@@ -3032,7 +3348,7 @@ void st_table_list::cleanup_items()
   check CHECK OPTION condition
 
   SYNOPSIS
-    check_option()
+    TABLE_LIST::view_check_option()
     ignore_failure ignore check option fail
 
   RETURN
@@ -3041,7 +3357,7 @@ void st_table_list::cleanup_items()
     VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int st_table_list::view_check_option(THD *thd, bool ignore_failure)
+int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
@@ -3066,7 +3382,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
   table belong to given mask
 
   SYNOPSIS
-    st_table_list::check_single_table()
+    TABLE_LIST::check_single_table()
     table_arg	reference on variable where to store found table
 		(should be 0 on call, to find table, or point to table for
 		unique test)
@@ -3078,9 +3394,9 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
     TRUE  found several tables
 */
 
-bool st_table_list::check_single_table(st_table_list **table_arg,
+bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
                                        table_map map,
-                                       st_table_list *view_arg)
+                                       TABLE_LIST *view_arg)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
@@ -3113,12 +3429,12 @@ bool st_table_list::check_single_table(st_table_list **table_arg,
     TRUE  - out of memory
 */
 
-bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
+bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 {
   if (table)
   {
     if (!table->insert_values &&
-        !(table->insert_values= (byte *)alloc_root(mem_root,
+        !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                    table->s->rec_buff_length)))
       return TRUE;
   }
@@ -3137,7 +3453,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   Test if this is a leaf with respect to name resolution.
 
   SYNOPSIS
-    st_table_list::is_leaf_for_name_resolution()
+    TABLE_LIST::is_leaf_for_name_resolution()
 
   DESCRIPTION
     A table reference is a leaf with respect to name resolution if
@@ -3149,7 +3465,7 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   RETURN
     TRUE if a leaf, FALSE otherwise.
 */
-bool st_table_list::is_leaf_for_name_resolution()
+bool TABLE_LIST::is_leaf_for_name_resolution()
 {
   return (view || is_natural_join || is_join_columns_complete ||
           !nested_join);
@@ -3161,7 +3477,7 @@ bool st_table_list::is_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::first_leaf_for_name_resolution()
+    TABLE_LIST::first_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -3179,7 +3495,7 @@ bool st_table_list::is_leaf_for_name_resolution()
     else return 'this'
 */
 
-TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref;
   NESTED_JOIN *cur_nested_join;
@@ -3219,7 +3535,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
   respect to name resolution.
 
   SYNOPSIS
-    st_table_list::last_leaf_for_name_resolution()
+    TABLE_LIST::last_leaf_for_name_resolution()
 
   DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
@@ -3237,7 +3553,7 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     - else - 'this'
 */
 
-TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
+TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref= this;
   NESTED_JOIN *cur_nested_join;
@@ -3279,7 +3595,7 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
     want_access          Acess which we require
 */
 
-void st_table_list::register_want_access(ulong want_access)
+void TABLE_LIST::register_want_access(ulong want_access)
 {
   /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
   want_access&= ~SHOW_VIEW_ACL;
@@ -3298,7 +3614,7 @@ void st_table_list::register_want_access(ulong want_access)
   Load security context information for this view
 
   SYNOPSIS
-    st_table_list::prepare_view_securety_context()
+    TABLE_LIST::prepare_view_securety_context()
     thd                  [in] thread handler
 
   RETURN
@@ -3307,9 +3623,9 @@ void st_table_list::register_want_access(ulong want_access)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool st_table_list::prepare_view_securety_context(THD *thd)
+bool TABLE_LIST::prepare_view_securety_context(THD *thd)
 {
-  DBUG_ENTER("st_table_list::prepare_view_securety_context");
+  DBUG_ENTER("TABLE_LIST::prepare_view_securety_context");
   DBUG_PRINT("enter", ("table: %s", alias));
 
   DBUG_ASSERT(!prelocking_placeholder && view);
@@ -3358,17 +3674,17 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
   Find security context of current view
 
   SYNOPSIS
-    st_table_list::find_view_security_context()
+    TABLE_LIST::find_view_security_context()
     thd                  [in] thread handler
 
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-Security_context *st_table_list::find_view_security_context(THD *thd)
+Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 {
   Security_context *sctx;
   TABLE_LIST *upper_view= this;
-  DBUG_ENTER("st_table_list::find_view_security_context");
+  DBUG_ENTER("TABLE_LIST::find_view_security_context");
 
   DBUG_ASSERT(view);
   while (upper_view && !upper_view->view_suid)
@@ -3397,7 +3713,7 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
   Prepare security context and load underlying tables priveleges for view
 
   SYNOPSIS
-    st_table_list::prepare_security()
+    TABLE_LIST::prepare_security()
     thd                  [in] thread handler
 
   RETURN
@@ -3405,11 +3721,11 @@ Security_context *st_table_list::find_view_security_context(THD *thd)
     TRUE   Error
 */
 
-bool st_table_list::prepare_security(THD *thd)
+bool TABLE_LIST::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
-  DBUG_ENTER("st_table_list::prepare_security");
+  DBUG_ENTER("TABLE_LIST::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
 
@@ -4158,10 +4474,10 @@ void st_table::mark_columns_needed_for_insert()
   Cleanup this table for re-execution.
 
   SYNOPSIS
-    st_table_list::reinit_before_use()
+    TABLE_LIST::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD *thd)
+void TABLE_LIST::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
@@ -4188,7 +4504,7 @@ void st_table_list::reinit_before_use(THD *thd)
   Return subselect that contains the FROM list this table is taken from
 
   SYNOPSIS
-    st_table_list::containing_subselect()
+    TABLE_LIST::containing_subselect()
  
   RETURN
     Subselect item for the subquery that contains the FROM list
@@ -4197,7 +4513,7 @@ void st_table_list::reinit_before_use(THD *thd)
 
 */
 
-Item_subselect *st_table_list::containing_subselect()
+Item_subselect *TABLE_LIST::containing_subselect()
 {    
   return (select_lex ? select_lex->master_unit()->item : 0);
 }
@@ -4211,7 +4527,7 @@ Item_subselect *st_table_list::containing_subselect()
 
   DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
-    (st_table_list::index_hints). Using the information in this tagged list
+    (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
     st_table::force_index and st_table::covering_keys.
@@ -4253,11 +4569,11 @@ Item_subselect *st_table_list::containing_subselect()
     FALSE                no errors found
     TRUE                 found and reported an error.
 */
-bool st_table_list::process_index_hints(TABLE *table)
+bool TABLE_LIST::process_index_hints(TABLE *tbl)
 {
   /* initialize the result variables */
-  table->keys_in_use_for_query= table->keys_in_use_for_group_by= 
-    table->keys_in_use_for_order_by= table->s->keys_in_use;
+  tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
+    tbl->keys_in_use_for_order_by= tbl->s->keys_in_use;
 
   /* index hint list processing */
   if (index_hints)
@@ -4265,11 +4581,11 @@ bool st_table_list::process_index_hints(TABLE *table)
     key_map index_join[INDEX_HINT_FORCE + 1];
     key_map index_order[INDEX_HINT_FORCE + 1];
     key_map index_group[INDEX_HINT_FORCE + 1];
-    index_hint *hint;
+    Index_hint *hint;
     int type;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;
-    List_iterator <index_hint> iter(*index_hints);
+    List_iterator <Index_hint> iter(*index_hints);
 
     /* initialize temporary variables used to collect hints of each kind */
     for (type= INDEX_HINT_IGNORE; type <= INDEX_HINT_FORCE; type++)
@@ -4309,8 +4625,8 @@ bool st_table_list::process_index_hints(TABLE *table)
         Check if an index with the given name exists and get his offset in 
         the keys bitmask for the table 
       */
-      if (table->s->keynames.type_names == 0 ||
-          (pos= find_type(&table->s->keynames, hint->key_name.str,
+      if (tbl->s->keynames.type_names == 0 ||
+          (pos= find_type(&tbl->s->keynames, hint->key_name.str,
                           hint->key_name.length, 1)) <= 0)
       {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
@@ -4346,7 +4662,7 @@ bool st_table_list::process_index_hints(TABLE *table)
         !index_order[INDEX_HINT_FORCE].is_clear_all() ||
         !index_group[INDEX_HINT_FORCE].is_clear_all())
     {
-      table->force_index= TRUE;
+      tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
       index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
       index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
@@ -4354,21 +4670,39 @@ bool st_table_list::process_index_hints(TABLE *table)
 
     /* apply USE INDEX */
     if (!index_join[INDEX_HINT_USE].is_clear_all() || have_empty_use_join)
-      table->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_query.intersect(index_join[INDEX_HINT_USE]);
     if (!index_order[INDEX_HINT_USE].is_clear_all() || have_empty_use_order)
-      table->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_order_by.intersect (index_order[INDEX_HINT_USE]);
     if (!index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)
-      table->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
+      tbl->keys_in_use_for_group_by.intersect (index_group[INDEX_HINT_USE]);
 
     /* apply IGNORE INDEX */
-    table->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);
-    table->keys_in_use_for_order_by.subtract (index_order[INDEX_HINT_IGNORE]);
-    table->keys_in_use_for_group_by.subtract (index_group[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_query.subtract (index_join[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_order_by.subtract (index_order[INDEX_HINT_IGNORE]);
+    tbl->keys_in_use_for_group_by.subtract (index_group[INDEX_HINT_IGNORE]);
   }
 
   /* make sure covering_keys don't include indexes disabled with a hint */
-  table->covering_keys.intersect(table->keys_in_use_for_query);
+  tbl->covering_keys.intersect(tbl->keys_in_use_for_query);
   return 0;
+}
+
+
+size_t max_row_length(TABLE *table, const uchar *data)
+{
+  TABLE_SHARE *table_s= table->s;
+  size_t length= table_s->reclength + 2 * table_s->fields;
+  uint *const beg= table_s->blob_field;
+  uint *const end= beg + table_s->blob_fields;
+
+  for (uint *ptr= beg ; ptr != end ; ++ptr)
+  {
+    Field_blob* const blob= (Field_blob*) table->field[*ptr];
+    length+= blob->get_length((const uchar*)
+                              (data + blob->offset(table->record[0]))) +
+      HA_KEY_BLOB_LENGTH;
+  }
+  return length;
 }
 
 /*****************************************************************************

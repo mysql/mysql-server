@@ -5,9 +5,7 @@
 # did some tests manually on a slave; tables are replicated fine and
 # Exec_Master_Log_Pos advances as expected.
 
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
-
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 
@@ -246,12 +244,12 @@ set autocommit=0;
 CREATE TABLE t1 (a int, b int) engine=myisam;
 reset master;
 INSERT INTO t1 values (1,1),(1,2);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
 # This should give warning
 DROP TABLE if exists t2;
 INSERT INTO t1 values (3,3);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 # This should give warning
@@ -259,12 +257,12 @@ DROP TABLE IF EXISTS t2;
 
 CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
 INSERT INTO t1 VALUES (4,4);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
 INSERT INTO t1 VALUES (5,5);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * FROM t2;
 DROP TABLE t2;
@@ -274,25 +272,25 @@ CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
 INSERT INTO t1 values (7,7);
 ROLLBACK;
 INSERT INTO t1 values (8,8);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t1 values (9,9);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;
 TRUNCATE table t2;
 INSERT INTO t1 values (10,10);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 INSERT INTO t2 select * from t1;
 SELECT * from t1;
 INSERT INTO t2 values (100,100);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 COMMIT;
 INSERT INTO t2 values (101,101);
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 ROLLBACK;
 SELECT * from t2;

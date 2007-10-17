@@ -423,11 +423,11 @@ select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
 
 explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
 
-SET @TMP=NOW();
+SET @TMP='2007-08-01 12:22:49';
 CREATE TABLE t1 (d DATETIME);
-INSERT INTO t1 VALUES (NOW());
-INSERT INTO t1 VALUES (NOW());
-INSERT INTO t1 VALUES (NOW());
+INSERT INTO t1 VALUES ('2007-08-01 12:22:59');
+INSERT INTO t1 VALUES ('2007-08-01 12:23:01');
+INSERT INTO t1 VALUES ('2007-08-01 12:23:20');
 SELECT count(*) FROM t1 WHERE d>FROM_DAYS(TO_DAYS(@TMP)) AND d<=FROM_DAYS(TO_DAYS(@TMP)+1);
 DROP TABLE t1;
 
@@ -731,6 +731,31 @@ DROP TABLE t1;
 # Check if using GROUP BY with TIME_FORMAT() produces correct results
 
 SELECT TIME_FORMAT(SEC_TO_TIME(a),"%H:%i:%s") FROM (SELECT 3020399 AS a UNION SELECT 3020398 ) x GROUP BY 1;
+
+#
+# Bug#28875 Conversion between ASCII and LATIN1 charsets does not function
+#
+set names latin1;
+create table t1 (a varchar(15) character set ascii not null);
+insert into t1 values ('070514-000000');
+# Conversion of date_format() result to ASCII
+# is safe with the default locale en_US
+--replace_column 1 #
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+# Error for swe7: it is not ASCII compatible
+set names swe7;
+--error 1267
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+set names latin1;
+# Conversion of date_format() result to ASCII
+# is not safe with the non-default locale fr_FR
+# because month and day names can have accented characters
+set lc_time_names=fr_FR;
+--error 1267
+select concat(a,ifnull(min(date_format(now(), '%Y-%m-%d')),' ull')) from t1;
+set lc_time_names=en_US;
+drop table t1;
+
 --echo End of 5.0 tests
 
 #

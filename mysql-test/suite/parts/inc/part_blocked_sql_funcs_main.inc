@@ -17,6 +17,18 @@
 --echo ---   All SQL functions should be rejected, otherwise BUG (see 18198)
 --echo -------------------------------------------------------------------------
 
+let $sqlfunc = ascii(col1);
+let $valsqlfunc = ascii('a');
+let $coltype = char(30);
+--source suite/parts/inc/partition_blocked_sql_funcs.inc
+# --source include/partition_blocked_sql_funcs.inc
+
+let $sqlfunc = ord(col1);
+let $valsqlfunc = ord('a');
+let $coltype = char(30);
+--source suite/parts/inc/partition_blocked_sql_funcs.inc
+# --source include/partition_blocked_sql_funcs.inc
+
 let $sqlfunc = greatest(col1,15);
 let $valsqlfunc = greatest(1,15);
 let $coltype = int;
@@ -151,12 +163,6 @@ let $coltype = int;
 --source suite/parts/inc/partition_blocked_sql_funcs.inc
 # --source include/partition_blocked_sql_funcs.inc
 
-let $sqlfunc = datediff(col1,col1);
-let $valsqlfunc = datediff('1997-11-30 23:59:59','1997-12-31');
-let $coltype = datetime;
---source suite/parts/inc/partition_blocked_sql_funcs.inc
-# --source include/partition_blocked_sql_funcs.inc
-
 let $sqlfunc = period_add(col1,5);
 let $valsqlfunc = period_add(9804,5);
 let $coltype = datetime;
@@ -186,6 +192,12 @@ let $coltype = date;
 
 let $sqlfunc = week(col1);
 let $valsqlfunc = week('2002-05-01');
+let $coltype = datetime;
+--source suite/parts/inc/partition_blocked_sql_funcs.inc
+# --source include/partition_blocked_sql_funcs.inc
+
+let $sqlfunc = weekofyear(col1);
+let $valsqlfunc = weekofyear('2002-05-01');
 let $coltype = datetime;
 --source suite/parts/inc/partition_blocked_sql_funcs.inc
 # --source include/partition_blocked_sql_funcs.inc

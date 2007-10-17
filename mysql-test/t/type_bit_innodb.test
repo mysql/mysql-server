@@ -40,7 +40,7 @@ drop table t1;
 create table t1 (a bit) engine=innodb;
 insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 select hex(a) from t1;
---error ER_DUP_ENTRY_WITH_KEY_NAME
+--error ER_DUP_ENTRY
 alter table t1 add unique (a);
 drop table t1;
 

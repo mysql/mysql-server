@@ -2,11 +2,5 @@ use events_test;
 select @@event_scheduler;
 @@event_scheduler
 ON
-"Should get 3 rows : abc1, abc2, abc3
-select distinct name from execution_log order by name;
-name
-abc1
-abc2
-abc3
 drop table execution_log;
 drop database events_test;

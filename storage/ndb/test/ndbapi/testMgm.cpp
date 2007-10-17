@@ -212,6 +212,76 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   }
 }
 
+int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+  int result= NDBT_FAILED;
+  int cc= 0;
+  int mgmd_nodeid= 0;
+  ndb_mgm_reply reply;
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+
+  ndbout << "TEST connect timeout" << endl;
+
+  ndb_mgm_set_timeout(h, 3000);
+
+  struct timeval tstart, tend;
+  int secs;
+  timerclear(&tstart);
+  timerclear(&tend);
+  gettimeofday(&tstart,NULL);
+
+  ndb_mgm_connect(h,0,0,0);
+
+  gettimeofday(&tend,NULL);
+
+  secs= tend.tv_sec - tstart.tv_sec;
+  ndbout << "Took about: " << secs <<" seconds"<<endl;
+
+  if(secs < 4)
+    result= NDBT_OK;
+  else
+    goto done;
+
+  ndb_mgm_set_connectstring(h, mgm);
+
+  ndbout << "TEST connect timeout" << endl;
+
+  ndb_mgm_destroy_handle(&h);
+
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, "1.1.1.1");
+
+  ndbout << "TEST connect timeout (invalid host)" << endl;
+
+  ndb_mgm_set_timeout(h, 3000);
+
+  timerclear(&tstart);
+  timerclear(&tend);
+  gettimeofday(&tstart,NULL);
+
+  ndb_mgm_connect(h,0,0,0);
+
+  gettimeofday(&tend,NULL);
+
+  secs= tend.tv_sec - tstart.tv_sec;
+  ndbout << "Took about: " << secs <<" seconds"<<endl;
+
+  if(secs < 4)
+    result= NDBT_OK;
+  else
+    result= NDBT_FAILED;
+
+done:
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+
+  return result;
+}
+
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
   char *mgm= ctx->getRemoteMgm();
@@ -726,6 +796,11 @@ TESTCASE("SingleUserMode",
 TESTCASE("ApiSessionFailure",
 	 "Test failures in MGMAPI session"){
   INITIALIZER(runTestApiSession);
+
+}
+TESTCASE("ApiConnectTimeout",
+	 "Connect timeout tests for MGMAPI"){
+  INITIALIZER(runTestApiConnectTimeout);
 
 }
 TESTCASE("ApiTimeoutBasic",

@@ -42,7 +42,7 @@
 #include <my_sys.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
-#include <ndb_version.h>
+#include <util/version.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2

@@ -423,7 +423,8 @@ dict_load_columns(
 
 		ut_a(name_of_col_is(sys_columns, sys_index, 8, "PREC"));
 
-		dict_mem_table_add_col(table, name, mtype, prtype, col_len);
+		dict_mem_table_add_col(table, heap, name,
+				       mtype, prtype, col_len);
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -746,7 +747,7 @@ dict_load_table(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	heap = mem_heap_create(1000);
+	heap = mem_heap_create(32000);
 
 	mtr_start(&mtr);
 
@@ -852,7 +853,9 @@ err_exit:
 
 	dict_load_columns(table, heap);
 
-	dict_table_add_to_cache(table);
+	dict_table_add_to_cache(table, heap);
+
+	mem_heap_empty(heap);
 
 	dict_load_indexes(table, heap);
 

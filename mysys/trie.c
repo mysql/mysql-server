@@ -101,7 +101,7 @@ void trie_free (TRIE *trie)
 
 /*
   SYNOPSIS
-    my_bool trie_insert (TRIE *trie, const byte *key, uint keylen);
+    my_bool trie_insert (TRIE *trie, const uchar *key, uint keylen);
     trie - valid pointer to `TRIE'
     key - valid pointer to key to insert
     keylen - non-0 key length
@@ -118,11 +118,11 @@ void trie_free (TRIE *trie)
     However it can be freed with trie_free().
 */
 
-my_bool trie_insert (TRIE *trie, const byte *key, uint keylen)
+my_bool trie_insert (TRIE *trie, const uchar *key, uint keylen)
 {
   TRIE_NODE *node;
   TRIE_NODE *next;
-  byte p;
+  uchar p;
   uint k;
   DBUG_ENTER("trie_insert");
   DBUG_ASSERT(trie && key && keylen);
@@ -211,7 +211,7 @@ my_bool ac_trie_prepare (TRIE *trie)
         fail= fail->fail;
     }
   }
-  my_free((gptr)tmp_nodes, MYF(0));
+  my_free((uchar*)tmp_nodes, MYF(0));
   DBUG_RETURN(FALSE);
 }
 

@@ -2606,8 +2606,11 @@ btr_index_rec_validate(
 
 		rec_get_nth_field(rec, offsets, i, &len);
 
-		/* Note that prefix indexes are not fixed size even when
-		their type is CHAR. */
+		/* Note that if fixed_size != 0, it equals the
+		length of a fixed-size column in the clustered index.
+		A prefix index of the column is of fixed, but different
+		length.  When fixed_size == 0, prefix_len is the maximum
+		length of the prefix index column. */
 
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
 		     && len != UNIV_SQL_NULL && fixed_size

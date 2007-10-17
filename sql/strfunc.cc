@@ -265,10 +265,8 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
   my_wc_t wc;
   char *to_start= to;
   uchar *to_end= (uchar*) to + to_length - 1;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
-	       const uchar *)= from_cs->cset->mb_wc;
-  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
-    to_cs->cset->wc_mb;
+  my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
+  my_charset_conv_wc_mb wc_mb= to_cs->cset->wc_mb;
   uint error_count= 0;
 
   while (1)

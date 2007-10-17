@@ -1025,6 +1025,12 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
 #endif
 
+#ifdef UNIV_IBUF_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Crash recovery will fail with UNIV_IBUF_DEBUG\n");
+#endif
+
 #ifdef UNIV_SYNC_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");

@@ -78,12 +78,12 @@ FT_WORD * ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
   DBUG_RETURN(wlist);
 }
 
-my_bool ft_boolean_check_syntax_string(const byte *str)
+my_bool ft_boolean_check_syntax_string(const uchar *str)
 {
   uint i, j;
 
   if (!str ||
-      (strlen(str)+1 != sizeof(ft_boolean_syntax)) ||
+      (strlen((char*) str)+1 != sizeof(ft_boolean_syntax)) ||
       (str[0] != ' ' && str[1] != ' '))
     return 1;
   for (i=0; i<sizeof(ft_boolean_syntax); i++)
@@ -106,12 +106,13 @@ my_bool ft_boolean_check_syntax_string(const byte *str)
   3 - right bracket
   4 - stopword found
 */
-byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
-                 FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
+uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
+                  FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
-  byte *doc=*start;
+  uchar *doc=*start;
   int ctype;
-  uint mwc, length, mbl;
+  uint mwc, length;
+  int mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->weight_adjust= param->wasign= 0;
@@ -119,14 +120,14 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 
   while (doc<end)
   {
-    for (; doc < end; doc+= (mbl > 0 ? mbl : 1))
+    for (; doc < end; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
         break;
       if (*doc == FTB_RQUOT && param->quot)
       {
-        param->quot=doc;
+        param->quot= (char*) doc;
         *start=doc+1;
         param->type= FT_TOKEN_RIGHT_PAREN;
         goto ret;
@@ -137,7 +138,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
         {
           /* param->prev=' '; */
           *start=doc+1;
-          if (*doc == FTB_LQUOT) param->quot=*start;
+          if (*doc == FTB_LQUOT)
+            param->quot= (char*) *start;
           param->type= (*doc == FTB_RBR ? FT_TOKEN_RIGHT_PAREN : FT_TOKEN_LEFT_PAREN);
           goto ret;
         }
@@ -157,7 +159,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     }
 
     mwc=length=0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -172,7 +175,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (((length >= ft_min_word_len && !is_stopword(word->pos, word->len))
+    if (((length >= ft_min_word_len && !is_stopword((char*) word->pos,
+                                                    word->len))
          || param->trunc) && length < ft_max_word_len)
     {
       *start=doc;
@@ -188,7 +192,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
   }
   if (param->quot)
   {
-    param->quot=*start=doc;
+    *start= doc;
+    param->quot= (char*) doc;
     param->type= 3; /* FT_RBR */
     goto ret;
   }
@@ -196,17 +201,18 @@ ret:
   return param->type;
 }
 
-byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
-                        FT_WORD *word, my_bool skip_stopwords)
+uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
+                         FT_WORD *word, my_bool skip_stopwords)
 {
-  byte *doc= *start;
-  uint mwc, length, mbl;
+  uchar *doc= *start;
+  uint mwc, length;
+  int mbl;
   int ctype;
   DBUG_ENTER("ft_simple_get_word");
 
   do
   {
-    for (;; doc+= (mbl > 0 ? mbl : 1))
+    for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       if (doc >= end)
         DBUG_RETURN(0);
@@ -216,7 +222,8 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
     }
 
     mwc= length= 0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -231,7 +238,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
 
     if (skip_stopwords == FALSE ||
         (length >= ft_min_word_len && length < ft_max_word_len &&
-         !is_stopword(word->pos, word->len)))
+         !is_stopword((char*) word->pos, word->len)))
     {
       *start= doc;
       DBUG_RETURN(1);
@@ -260,14 +267,14 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
   wtree= ft_param->wtree;
   if (param->flags & MYSQL_FTFLAGS_NEED_COPY)
   {
-    byte *ptr;
+    uchar *ptr;
     DBUG_ASSERT(wtree->with_delete == 0);
-    ptr= (byte *)alloc_root(ft_param->mem_root, word_len);
+    ptr= (uchar *)alloc_root(ft_param->mem_root, word_len);
     memcpy(ptr, word, word_len);
     w.pos= ptr;
   }
   else
-    w.pos= word;
+    w.pos= (uchar*) word;
   w.len= word_len;
   if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
   {
@@ -279,24 +286,25 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
-                             char *doc, int doc_len)
+                             char *doc_arg, int doc_len)
 {
-  byte   *end=doc+doc_len;
+  uchar *doc= (uchar*) doc_arg;
+  uchar *end= doc + doc_len;
   MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   TREE *wtree= ft_param->wtree;
   FT_WORD w;
   DBUG_ENTER("ft_parse_internal");
 
   while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (param->mysql_add_word(param, w.pos, w.len, 0))
+    if (param->mysql_add_word(param, (char*) w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
 
-int ft_parse(TREE *wtree, byte *doc, int doclen,
-                    struct st_mysql_ftparser *parser,
-                    MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
+int ft_parse(TREE *wtree, uchar *doc, int doclen,
+             struct st_mysql_ftparser *parser,
+             MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");
@@ -309,7 +317,7 @@ int ft_parse(TREE *wtree, byte *doc, int doclen,
   param->mysql_add_word= ft_add_word;
   param->mysql_ftparam= &my_param;
   param->cs= wtree->custom_arg;
-  param->doc= doc;
+  param->doc= (char*) doc;
   param->length= doclen;
   param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
   DBUG_RETURN(parser->parse(param));
@@ -387,7 +395,9 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
        mysql_add_word == 0 - parser is not initialized
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
-    info->ftparser_param[ftparser_nr].mysql_add_word= (void *)1;
+    info->ftparser_param[ftparser_nr].mysql_add_word=
+      (int (*)(struct st_mysql_ftparser_param *, char *, int,
+              MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;
   }

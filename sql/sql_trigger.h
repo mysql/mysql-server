@@ -17,7 +17,7 @@
 /*
   This class holds all information about triggers of table.
 
-  QQ: Will it be merged into TABLE in future ?
+  QQ: Will it be merged into TABLE in the future ?
 */
 
 class Table_triggers_list: public Sql_alloc
@@ -56,14 +56,6 @@ class Table_triggers_list: public Sql_alloc
     updating trigger definitions during RENAME TABLE.
   */
   List<LEX_STRING>  on_table_names_list;
-  /*
-    Key representing triggers for this table in set of all stored
-    routines used by statement.
-    TODO: We won't need this member once triggers namespace will be
-    database-wide instead of table-wide because then we will be able
-    to use key based on sp_name as for other stored routines.
-  */
-  LEX_STRING        sroutines_key;
 
   /*
     Grant information for each trigger (pair: subject table, trigger definer).
@@ -83,6 +75,14 @@ public:
 
   List<LEX_STRING>  definers_list;
 
+  /* Character set context, used for parsing and executing triggers. */
+
+  List<LEX_STRING> client_cs_names;
+  List<LEX_STRING> connection_cl_names;
+  List<LEX_STRING> db_cl_names;
+
+  /* End of character ser context. */
+
   Table_triggers_list(TABLE *table_arg):
     record1_field(0), trigger_table(table_arg)
   {
@@ -97,11 +97,26 @@ public:
   bool process_triggers(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         bool old_row_is_record1);
+
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
                         ulong *sql_mode,
-                        LEX_STRING *definer);
+                        LEX_STRING *definer,
+                        LEX_STRING *client_cs_name,
+                        LEX_STRING *connection_cl_name,
+                        LEX_STRING *db_cl_name);
+
+  void get_trigger_info(THD *thd,
+                        int trigger_idx,
+                        LEX_STRING *trigger_name,
+                        ulonglong *sql_mode,
+                        LEX_STRING *sql_original_stmt,
+                        LEX_STRING *client_cs_name,
+                        LEX_STRING *connection_cl_name,
+                        LEX_STRING *db_cl_name);
+
+  int find_trigger_by_name(const LEX_STRING *trigger_name);
 
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table, bool names_only);
@@ -143,6 +158,17 @@ private:
 extern const LEX_STRING trg_action_time_type_names[];
 extern const LEX_STRING trg_event_type_names[];
 
-int
-add_table_for_trigger(THD *thd, sp_name *trig, bool if_exists,
-                      TABLE_LIST **table);
+bool add_table_for_trigger(THD *thd,
+                           const sp_name *trg_name,
+                           bool continue_if_not_exist,
+                           TABLE_LIST **table);
+
+void build_trn_path(THD *thd, const sp_name *trg_name, LEX_STRING *trn_path);
+
+bool check_trn_exists(const LEX_STRING *trn_path);
+
+bool load_table_name_for_trigger(THD *thd,
+                                 const sp_name *trg_name,
+                                 const LEX_STRING *trn_path,
+                                 LEX_STRING *tbl_name);
+

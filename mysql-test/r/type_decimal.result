@@ -790,3 +790,12 @@ Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1292	Incorrect datetime value: '0000-00-00'
 Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
+CREATE TABLE t1 (
+qty decimal(16,6) default NULL, 
+dps tinyint(3) unsigned default NULL 
+);
+INSERT INTO t1 VALUES (1.1325,3);
+SELECT ROUND(qty,3), dps, ROUND(qty,dps) FROM t1;
+ROUND(qty,3)	dps	ROUND(qty,dps)
+1.133	3	1.133
+DROP TABLE t1;

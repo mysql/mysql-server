@@ -77,4 +77,14 @@ SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 MONTH;
 SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 YEAR;
 SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 WEEK;
 
+#
+# Bug#28450: The Item_date_add_interval in select list may fail the field 
+#            type assertion.
+#
+create table t1 (a int, b varchar(10));
+insert into t1 values (1, '2001-01-01'),(2, '2002-02-02'); 
+select '2007-01-01' + interval a day from t1;
+select b + interval a day from t1;
+drop table t1;
+
 --echo End of 5.0 tests

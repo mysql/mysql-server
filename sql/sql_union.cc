@@ -144,17 +144,25 @@ void
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
 {
   thd_arg->lex->current_select= fake_select_lex;
-  fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
-					   (byte **)
+  fake_select_lex->table_list.link_in_list((uchar *)&result_table_list,
+					   (uchar **)
 					   &result_table_list.next_local);
-  fake_select_lex->context.table_list= fake_select_lex->context.first_name_resolution_table= 
+  fake_select_lex->context.table_list= 
+    fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
+  if (!fake_select_lex->first_execution)
+  {
+    for (ORDER *order= (ORDER *) global_parameters->order_list.first;
+         order;
+         order= order->next)
+      order->item= &order->item_ptr;
+  }
   for (ORDER *order= (ORDER *)global_parameters->order_list.first;
        order;
        order=order->next)
   {
     (*order->item)->walk(&Item::change_context_processor, 0,
-                         (byte*) &fake_select_lex->context);
+                         (uchar*) &fake_select_lex->context);
   }
 }
 
@@ -539,6 +547,10 @@ bool st_select_lex_unit::exec()
 	/*
 	  allocate JOIN for fake select only once (prevent
 	  mysql_select automatic allocation)
+          TODO: The above is nonsense. mysql_select() will not allocate the
+          join if one already exists. There must be some other reason why we
+          don't let it allocate the join. Perhaps this is because we need
+          some special parameter values passed to join constructor?
 	*/
 	if (!(fake_select_lex->join= new JOIN(thd, item_list,
 					      fake_select_lex->options, result)))
@@ -546,33 +558,52 @@ bool st_select_lex_unit::exec()
 	  fake_select_lex->table_list.empty();
 	  DBUG_RETURN(TRUE);
 	}
+        fake_select_lex->join->no_const_tables= TRUE;
 
 	/*
 	  Fake st_select_lex should have item list for correctref_array
 	  allocation.
 	*/
 	fake_select_lex->item_list= item_list;
+        saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
+                              &result_table_list,
+                              0, item_list, NULL,
+                              global_parameters->order_list.elements,
+                              (ORDER*)global_parameters->order_list.first,
+                              (ORDER*) NULL, NULL, (ORDER*) NULL,
+                              fake_select_lex->options | SELECT_NO_UNLOCK,
+                              result, this, fake_select_lex);
       }
       else
       {
-	JOIN_TAB *tab,*end;
-	for (tab=join->join_tab, end=tab+join->tables ;
-	     tab && tab != end ;
-	     tab++)
-	{
-	  delete tab->select;
-	  delete tab->quick;
-	}
-	join->init(thd, item_list, fake_select_lex->options, result);
+        if (describe)
+        {
+          /*
+            In EXPLAIN command, constant subqueries that do not use any
+            tables are executed two times:
+             - 1st time is a real evaluation to get the subquery value
+             - 2nd time is to produce EXPLAIN output rows.
+            1st execution sets certain members (e.g. select_result) to perform
+            subquery execution rather than EXPLAIN line production. In order 
+            to reset them back, we re-do all of the actions (yes it is ugly):
+          */
+	  join->init(thd, item_list, fake_select_lex->options, result);
+          saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
+                                &result_table_list,
+                                0, item_list, NULL,
+                                global_parameters->order_list.elements,
+                                (ORDER*)global_parameters->order_list.first,
+                                (ORDER*) NULL, NULL, (ORDER*) NULL,
+                                fake_select_lex->options | SELECT_NO_UNLOCK,
+                                result, this, fake_select_lex);
+        }
+        else
+        {
+          join->examined_rows= 0;
+          saved_error= join->reinit();
+          join->exec();
+        }
       }
-      saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
-                            &result_table_list,
-                            0, item_list, NULL,
-                            global_parameters->order_list.elements,
-                            (ORDER*)global_parameters->order_list.first,
-                            (ORDER*) NULL, NULL, (ORDER*) NULL,
-                            fake_select_lex->options | SELECT_NO_UNLOCK,
-                            result, this, fake_select_lex);
 
       fake_select_lex->table_list.empty();
       if (!saved_error)

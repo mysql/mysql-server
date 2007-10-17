@@ -15,14 +15,6 @@ dnl  Add defines so yassl is built and linked with
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_USE_BUNDLED_YASSL], [
 
-  AC_CONFIG_FILES(extra/yassl/Makefile dnl
-    extra/yassl/taocrypt/Makefile dnl
-    extra/yassl/taocrypt/benchmark/Makefile dnl
-    extra/yassl/taocrypt/src/Makefile dnl
-    extra/yassl/taocrypt/test/Makefile dnl
-    extra/yassl/src/Makefile dnl
-    extra/yassl/testsuite/Makefile)
-
   with_bundled_yassl="yes"
 
   yassl_dir="yassl"
@@ -104,7 +96,7 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
   # compiler warnings when using gcc 3.x
   if test "$openssl_include" != "/usr/include"
   then
-    openssl_includes="-I$ssl_include"
+    openssl_includes="-I$openssl_include"
   fi
 
   #
@@ -167,6 +159,15 @@ dnl   macro bails out with error.
 dnl
 dnl ------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_SSL], [
+
+  AC_CONFIG_FILES(extra/yassl/Makefile dnl
+    extra/yassl/taocrypt/Makefile dnl
+    extra/yassl/taocrypt/benchmark/Makefile dnl
+    extra/yassl/taocrypt/src/Makefile dnl
+    extra/yassl/taocrypt/test/Makefile dnl
+    extra/yassl/src/Makefile dnl
+    extra/yassl/testsuite/Makefile)
+
 AC_MSG_CHECKING(for SSL)
   AC_ARG_WITH([ssl],
               [  --with-ssl[=DIR]    Include SSL support],

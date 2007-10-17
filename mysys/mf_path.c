@@ -29,22 +29,24 @@ static char *find_file_in_path(char *to,const char *name);
 	   own_path_name_part is concatinated to result.
 	   my_path puts result in to and returns to */
 
-my_string my_path(my_string to, const char *progname,
-		  const char *own_pathname_part)
+char * my_path(char * to, const char *progname,
+               const char *own_pathname_part)
 {
-  my_string start,end,prog;
+  char *start, *end, *prog;
+  size_t to_length;
   DBUG_ENTER("my_path");
 
   start=to;					/* Return this */
-  if (progname && (dirname_part(to, progname) ||
+  if (progname && (dirname_part(to, progname, &to_length) ||
 		   find_file_in_path(to,progname) ||
-		   ((prog=getenv("_")) != 0 && dirname_part(to,prog))))
+		   ((prog=getenv("_")) != 0 &&
+                    dirname_part(to, prog, &to_length))))
   {
     VOID(intern_filename(to,to));
     if (!test_if_hard_path(to))
     {
       if (!my_getwd(curr_dir,FN_REFLEN,MYF(0)))
-	bchange(to,0,curr_dir, (uint) strlen(curr_dir), (uint) strlen(to)+1);
+	bchange((uchar*) to, 0, (uchar*) curr_dir, strlen(curr_dir), strlen(to)+1);
     }
   }
   else

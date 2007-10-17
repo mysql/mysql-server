@@ -101,3 +101,41 @@ select hex(col1) from t1;
 insert into t1 values ('b'),('b ');
 select hex(col1) from t1;
 drop table t1;
+
+#
+# Bug #29087: assertion abort for a search in a BINARY non-nullable index 
+#             by a key with trailing spaces 
+#
+
+CREATE TABLE t1 (
+  a binary(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0', 
+  index idx(a)
+);
+INSERT INTO t1 SET a=unhex('1F9480179366F2BF567E1C4B964C1EF029087575');
+INSERT INTO t1 SET a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
+INSERT INTO t1 SET a=unhex('1F9480179366F2BF567E1C4B964C1EF029080707');
+
+SELECT hex(a) FROM t1 order by a;
+EXPLAIN SELECT hex(a) FROM t1 order by a;
+
+SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
+EXPLAIN
+SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
+
+SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF02908');
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  id numeric(20) NOT NULL,
+  lang varchar(8) NOT NULL,
+  msg varchar(32) NOT NULL,
+  PRIMARY KEY (id,lang)
+);
+INSERT INTO t1 VALUES (33, 'en', 'zzzzzzz');
+INSERT INTO t1 VALUES (31, 'en', 'xxxxxxx');
+INSERT INTO t1 VALUES (32, 'en', 'yyyyyyy');
+SELECT * FROM t1 WHERE id=32;
+
+DROP TABLE t1;
+

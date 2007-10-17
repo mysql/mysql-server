@@ -16,27 +16,27 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#define MAX_SLAVE_ERRMSG      1024
-
 #include "rpl_tblmap.h"
+#include "rpl_reporting.h"
+#include "rpl_utility.h"
 
 struct RPL_TABLE_LIST;
-
+class Master_info;
 
 /****************************************************************************
 
   Replication SQL Thread
 
-  st_relay_log_info contains:
+  Relay_log_info contains:
     - the current relay log
     - the current relay log offset
     - master log name
     - master log sequence corresponding to the last update
     - misc information specific to the SQL thread
 
-  st_relay_log_info is initialized from the slave.info file if such exists.
-  Otherwise, data members are intialized with defaults. The initialization is
-  done with init_relay_log_info() call.
+  Relay_log_info is initialized from the slave.info file if such
+  exists.  Otherwise, data members are intialized with defaults. The
+  initialization is done with init_relay_log_info() call.
 
   The format of slave.info file:
 
@@ -49,8 +49,9 @@ struct RPL_TABLE_LIST;
 
 *****************************************************************************/
 
-typedef struct st_relay_log_info
+class Relay_log_info : public Slave_reporting_capability
 {
+public:
   /**
      Flags for the state of the replication.
    */
@@ -120,8 +121,8 @@ typedef struct st_relay_log_info
   */
   pthread_cond_t start_cond, stop_cond, data_cond;
 
-  /* parent MASTER_INFO structure */
-  class MASTER_INFO *mi;
+  /* parent Master_info structure */
+  Master_info *mi;
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
@@ -186,7 +187,6 @@ typedef struct st_relay_log_info
 
   time_t last_master_timestamp;
 
-  void clear_slave_error();
   void clear_until_condition();
 
   /*
@@ -200,11 +200,9 @@ typedef struct st_relay_log_info
   pthread_mutex_t log_space_lock;
   pthread_cond_t log_space_cond;
   THD * sql_thd;
-  int last_slave_errno;
 #ifndef DBUG_OFF
   int events_till_abort;
 #endif  
-  char last_slave_error[MAX_SLAVE_ERRMSG];
 
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
@@ -258,8 +256,8 @@ typedef struct st_relay_log_info
   char ign_master_log_name_end[FN_REFLEN];
   ulonglong ign_master_log_pos_end;
 
-  st_relay_log_info();
-  ~st_relay_log_info();
+  Relay_log_info();
+  ~Relay_log_info();
 
   /*
     Invalidate cached until_log_name and group_relay_log_name comparison 
@@ -304,6 +302,15 @@ typedef struct st_relay_log_info
   RPL_TABLE_LIST *tables_to_lock;           /* RBR: Tables to lock  */
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
+
+  inline table_def *get_tabledef(TABLE *tbl)
+  {
+    table_def *td= 0;
+    for (TABLE_LIST *ptr= tables_to_lock; ptr && !td; ptr= ptr->next_global)
+      if (ptr->table == tbl)
+        td= &((RPL_TABLE_LIST *)ptr)->m_tabledef;
+    return (td);
+  }
 
   /*
     Last charset (6 bytes) seen by slave SQL thread is cached here; it helps
@@ -385,11 +392,11 @@ typedef struct st_relay_log_info
 
 private:
   uint32 m_flags;
-} RELAY_LOG_INFO;
+};
 
 
 // Defined in rpl_rli.cc
-int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
+int init_relay_log_info(Relay_log_info* rli, const char* info_fname);
 
 
 #endif /* RPL_RLI_H */

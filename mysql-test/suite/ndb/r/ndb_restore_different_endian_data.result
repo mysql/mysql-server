@@ -1,0 +1,200 @@
+USE test;
+DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis;
+SHOW TABLES;
+Tables_in_test
+t_gis
+t_string_1
+t_datetime
+t_num
+t_string_2
+SHOW CREATE TABLE t_num;
+Table	Create Table
+t_num	CREATE TABLE `t_num` (
+  `t_pk` int(11) NOT NULL,
+  `t_bit` bit(64) DEFAULT NULL,
+  `t_tinyint` tinyint(4) DEFAULT NULL,
+  `t_bool` tinyint(1) DEFAULT NULL,
+  `t_smallint` smallint(6) DEFAULT NULL,
+  `t_mediumint` mediumint(9) DEFAULT NULL,
+  `t_int` int(11) DEFAULT NULL,
+  `t_bigint` bigint(20) DEFAULT NULL,
+  `t_float` float DEFAULT NULL,
+  `t_double` double DEFAULT NULL,
+  `t_decimal` decimal(37,16) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_datetime;
+Table	Create Table
+t_datetime	CREATE TABLE `t_datetime` (
+  `t_pk` int(11) NOT NULL,
+  `t_date` date DEFAULT NULL,
+  `t_datetime` datetime DEFAULT NULL,
+  `t_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `t_time` time DEFAULT NULL,
+  `t_year` year(4) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_string_1;
+Table	Create Table
+t_string_1	CREATE TABLE `t_string_1` (
+  `t_pk` int(11) NOT NULL,
+  `t_char` char(255) DEFAULT NULL,
+  `t_varchar` varchar(655) DEFAULT NULL,
+  `t_binary` binary(255) DEFAULT NULL,
+  `t_varbinary` varbinary(6553) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_string_2;
+Table	Create Table
+t_string_2	CREATE TABLE `t_string_2` (
+  `t_pk` int(11) NOT NULL,
+  `t_tinyblob` tinyblob,
+  `t_tinytext` tinytext,
+  `t_blob` blob,
+  `t_text` text,
+  `t_mediumblob` mediumblob,
+  `t_mediumtext` mediumtext,
+  `t_longblob` longblob,
+  `t_longtext` longtext,
+  `t_enum` enum('001001','001004','001010','001018','001019','001020','001021','001027','001028','001029','001030','001031','001100','002003','002004','002005','002007') NOT NULL DEFAULT '001001',
+  `t_set` set('a','B') DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_gis;
+Table	Create Table
+t_gis	CREATE TABLE `t_gis` (
+  `t_pk` int(11) NOT NULL,
+  `t_point` point DEFAULT NULL,
+  `t_linestring` linestring DEFAULT NULL,
+  `t_polygon` polygon DEFAULT NULL,
+  `t_multipoint` multipoint DEFAULT NULL,
+  `t_multilinestring` multilinestring DEFAULT NULL,
+  `t_multipolygon` multipolygon DEFAULT NULL,
+  `t_geometrycollection` geometrycollection DEFAULT NULL,
+  `t_geometry` geometry DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t_datetime;
+t_pk	t_date	t_datetime	t_timestamp	t_time	t_year
+1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
+SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
+t_pk	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
+1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e+20	1e+150	331.0000000000000000
+SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
+t_pk	t_char	t_varchar	hex(t_binary)	hex(t_varbinary)
+1	abcdefghijklmn	abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn	612020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000	4100
+SELECT * FROM t_string_2;
+t_pk	t_tinyblob	t_tinytext	t_blob	t_text	t_mediumblob	t_mediumtext	t_longblob	t_longtext	t_enum	t_set
+1	abcdefghijklmnabcdefghijklmn	abcdefghijklmnabcdefghijklmn	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	001001	a
+SELECT AsText(t_point), AsText(t_linestring),AsText(t_polygon) FROM t_gis ORDER by t_pk;
+AsText(t_point)	AsText(t_linestring)	AsText(t_polygon)
+POINT(10 10)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
+POINT(10 20)	LINESTRING(10 10,40 10)	POLYGON((0 0,30 0,30 30,0 0))
+SELECT AsText(t_multipoint), AsText(t_multilinestring),AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
+AsText(t_multipoint)	AsText(t_multilinestring)	AsText(t_multipolygon)
+MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+SELECT AsText(t_geometrycollection), AsText(t_geometry) FROM t_gis ORDER by t_pk;
+AsText(t_geometrycollection)	AsText(t_geometry)
+GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
+DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
+SHOW TABLES;
+Tables_in_test
+t_gis
+t_string_1
+t_datetime
+t_num
+t_string_2
+SHOW CREATE TABLE t_num;
+Table	Create Table
+t_num	CREATE TABLE `t_num` (
+  `t_pk` int(11) NOT NULL,
+  `t_bit` bit(64) DEFAULT NULL,
+  `t_tinyint` tinyint(4) DEFAULT NULL,
+  `t_bool` tinyint(1) DEFAULT NULL,
+  `t_smallint` smallint(6) DEFAULT NULL,
+  `t_mediumint` mediumint(9) DEFAULT NULL,
+  `t_int` int(11) DEFAULT NULL,
+  `t_bigint` bigint(20) DEFAULT NULL,
+  `t_float` float DEFAULT NULL,
+  `t_double` double DEFAULT NULL,
+  `t_decimal` decimal(37,16) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_datetime;
+Table	Create Table
+t_datetime	CREATE TABLE `t_datetime` (
+  `t_pk` int(11) NOT NULL,
+  `t_date` date DEFAULT NULL,
+  `t_datetime` datetime DEFAULT NULL,
+  `t_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `t_time` time DEFAULT NULL,
+  `t_year` year(4) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_string_1;
+Table	Create Table
+t_string_1	CREATE TABLE `t_string_1` (
+  `t_pk` int(11) NOT NULL,
+  `t_char` char(255) DEFAULT NULL,
+  `t_varchar` varchar(655) DEFAULT NULL,
+  `t_binary` binary(255) DEFAULT NULL,
+  `t_varbinary` varbinary(6553) DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_string_2;
+Table	Create Table
+t_string_2	CREATE TABLE `t_string_2` (
+  `t_pk` int(11) NOT NULL,
+  `t_tinyblob` tinyblob,
+  `t_tinytext` tinytext,
+  `t_blob` blob,
+  `t_text` text,
+  `t_mediumblob` mediumblob,
+  `t_mediumtext` mediumtext,
+  `t_longblob` longblob,
+  `t_longtext` longtext,
+  `t_enum` enum('001001','001004','001010','001018','001019','001020','001021','001027','001028','001029','001030','001031','001100','002003','002004','002005','002007') NOT NULL DEFAULT '001001',
+  `t_set` set('a','B') DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_gis;
+Table	Create Table
+t_gis	CREATE TABLE `t_gis` (
+  `t_pk` int(11) NOT NULL,
+  `t_point` point DEFAULT NULL,
+  `t_linestring` linestring DEFAULT NULL,
+  `t_polygon` polygon DEFAULT NULL,
+  `t_multipoint` multipoint DEFAULT NULL,
+  `t_multilinestring` multilinestring DEFAULT NULL,
+  `t_multipolygon` multipolygon DEFAULT NULL,
+  `t_geometrycollection` geometrycollection DEFAULT NULL,
+  `t_geometry` geometry DEFAULT NULL,
+  PRIMARY KEY (`t_pk`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t_datetime;
+t_pk	t_date	t_datetime	t_timestamp	t_time	t_year
+1	1998-01-01	2006-08-10 10:11:12	2002-10-29 16:51:06	19:38:34	2155
+SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
+t_pk	hex(t_bit)	t_tinyint	t_bool	t_smallint	t_mediumint	t_int	t_bigint	t_float	t_double	t_decimal
+1	AAAAAAAAAAAAAAAA	125	1	32765	8388606	2147483647	9223372036854775807	1e+20	1e+150	331.0000000000000000
+SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
+t_pk	t_char	t_varchar	hex(t_binary)	hex(t_varbinary)
+1	abcdefghijklmn	abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn	612020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000	4100
+SELECT * FROM t_string_2;
+t_pk	t_tinyblob	t_tinytext	t_blob	t_text	t_mediumblob	t_mediumtext	t_longblob	t_longtext	t_enum	t_set
+1	abcdefghijklmnabcdefghijklmn	abcdefghijklmnabcdefghijklmn	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	a123456789b123456789c123456789d123456789e123456789f123456789g123456789	001001	a
+SELECT AsText(t_point), AsText(t_linestring),AsText(t_polygon) FROM t_gis ORDER by t_pk;
+AsText(t_point)	AsText(t_linestring)	AsText(t_polygon)
+POINT(10 10)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
+POINT(10 20)	LINESTRING(10 10,40 10)	POLYGON((0 0,30 0,30 30,0 0))
+SELECT AsText(t_multipoint), AsText(t_multilinestring),AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
+AsText(t_multipoint)	AsText(t_multilinestring)	AsText(t_multipolygon)
+MULTIPOINT(1 1,11 11,11 21,21 21)	MULTILINESTRING((10 48,10 21,10 0))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+MULTIPOINT(3 6,4 10)	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+SELECT AsText(t_geometrycollection), AsText(t_geometry) FROM t_gis ORDER by t_pk;
+AsText(t_geometrycollection)	AsText(t_geometry)
+GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
+DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;

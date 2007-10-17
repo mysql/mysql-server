@@ -56,8 +56,8 @@ typedef struct st_table_ref
   uint          key_parts;                // num of ...
   uint          key_length;               // length of key_buff
   int           key;                      // key no
-  byte          *key_buff;                // value to look for with key
-  byte          *key_buff2;               // key_buff+key_length
+  uchar         *key_buff;                // value to look for with key
+  uchar         *key_buff2;               // key_buff+key_length
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
   /*  
@@ -79,7 +79,7 @@ typedef struct st_table_ref
   key_part_map  null_rejecting;
   table_map	depend_map;		  // Table depends on these tables.
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
-  byte          *null_ref_key;
+  uchar          *null_ref_key;
 } TABLE_REF;
 
 
@@ -89,8 +89,8 @@ typedef struct st_table_ref
 */
 
 typedef struct st_cache_field {
-  char *str;
-  uint length,blob_length;
+  uchar *str;
+  uint length, blob_length;
   Field_blob *blob_field;
   bool strip;
 } CACHE_FIELD;
@@ -160,6 +160,13 @@ typedef struct st_join_table {
   Read_record_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
+  /* 
+    Currently the following two fields are used only for a [NOT] IN subquery
+    if it is executed by an alternative full table scan when the left operand of
+    the subquery predicate is evaluated to NULL.
+  */  
+  Read_record_func save_read_first_record;/* to save read_first_record */ 
+  int (*save_read_record) (READ_RECORD *);/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/* Keys with constant part */
   key_map	checked_keys;			/* Keys checked in find_best */
@@ -187,6 +194,12 @@ typedef struct st_join_table {
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   bool		sorted;
+  /* 
+    If it's not 0 the number stored this field indicates that the index
+    scan has been chosen to access the table data and we expect to scan 
+    this number of rows for the table.
+  */ 
+  ha_rows       limit; 
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
@@ -309,11 +322,27 @@ public:
   SELECT_LEX_UNIT *unit;
   // select that processed
   SELECT_LEX *select_lex;
+  /* 
+    TRUE <=> optimizer must not mark any table as a constant table.
+    This is needed for subqueries in form "a IN (SELECT .. UNION SELECT ..):
+    when we optimize the select that reads the results of the union from a
+    temporary table, we must not mark the temp. table as constant because
+    the number of rows in it may vary from one subquery execution to another.
+  */
+  bool no_const_tables; 
   
   JOIN *tmp_join; // copy of this JOIN to be used with temporary tables
   ROLLUP rollup;				// Used with rollup
 
   bool select_distinct;				// Set if SELECT DISTINCT
+  /*
+    If we have the GROUP BY statement in the query,
+    but the group_list was emptied by optimizer, this
+    flag is TRUE.
+    It happens when fields in the GROUP BY are from
+    constant table
+  */
+  bool group_optimized_away;
 
   /*
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
@@ -422,6 +451,7 @@ public:
     zero_result_cause= 0;
     optimized= 0;
     cond_equal= 0;
+    group_optimized_away= 0;
 
     all_fields= fields_arg;
     fields_list= fields_arg;
@@ -429,6 +459,8 @@ public:
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
+
+    no_const_tables= FALSE;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
@@ -502,8 +534,8 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ulonglong select_options, ha_rows rows_limit,
 			char* alias);
 void free_tmp_table(THD *thd, TABLE *entry);
-void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
-		       bool reset_with_sum_func);
+void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+                       List<Item> &fields, bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       Item **ref_pointer_array,
 		       List<Item> &new_list1, List<Item> &new_list2,
@@ -531,20 +563,20 @@ class store_key :public Sql_alloc
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
-  store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
+  store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)
   {
     if (field_arg->type() == MYSQL_TYPE_BLOB)
     {
         /* Key segments are always packed with a 2 byte length prefix */
-      to_field= new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
+      to_field= new Field_varstring(ptr, length, 2, null, 1, 
                                     Field::NONE, field_arg->field_name,
                                     field_arg->table->s, field_arg->charset());
       to_field->init(field_arg->table);
     }
     else
       to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,
-                                        ptr, (uchar*) null, 1);
+                                        ptr, null, 1);
   }
   virtual ~store_key() {}			/* Not actually needed */
   virtual const char *name() const=0;
@@ -572,8 +604,8 @@ public:
 
  protected:
   Field *to_field;				// Store data here
-  char *null_ptr;
-  char err;
+  uchar *null_ptr;
+  uchar err;
 
   virtual enum store_key_result copy_inner()=0;
 };
@@ -584,11 +616,12 @@ class store_key_field: public store_key
   Copy_field copy_field;
   const char *field_name;
  public:
-  store_key_field(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg,
 		  uint length, Field *from_field, const char *name_arg)
     :store_key(thd, to_field_arg,ptr,
 	       null_ptr_arg ? null_ptr_arg : from_field->maybe_null() ? &err
-	       : NullS,length), field_name(name_arg)
+	       : (uchar*) 0, length), field_name(name_arg)
   {
     if (to_field)
     {
@@ -616,11 +649,11 @@ class store_key_item :public store_key
  protected:
   Item *item;
 public:
-  store_key_item(THD *thd, Field *to_field_arg, char *ptr, char *null_ptr_arg,
-		 uint length, Item *item_arg)
-    :store_key(thd, to_field_arg,ptr,
+  store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                 uchar *null_ptr_arg, uint length, Item *item_arg)
+    :store_key(thd, to_field_arg, ptr,
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-	       &err : NullS, length), item(item_arg)
+	       &err : (uchar*) 0, length), item(item_arg)
   {}
   const char *name() const { return "func"; }
 
@@ -642,12 +675,12 @@ class store_key_const_item :public store_key_item
 {
   bool inited;
 public:
-  store_key_const_item(THD *thd, Field *to_field_arg, char *ptr,
-		       char *null_ptr_arg, uint length,
+  store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
+		       uchar *null_ptr_arg, uint length,
 		       Item *item_arg)
     :store_key_item(thd, to_field_arg,ptr,
 		    null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-		    &err : NullS, length, item_arg), inited(0)
+		    &err : (uchar*) 0, length, item_arg), inited(0)
   {
   }
   const char *name() const { return "const"; }

@@ -207,3 +207,25 @@ EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+# Bug#29261: Sort order of the collation wasn't used when comparing trailing
+#            spaces.
+#
+create table t1(f1 varchar(10) character set latin2 collate latin2_hungarian_ci, key(f1));
+insert into t1 set f1=0x3F3F9DC73F;
+insert into t1 set f1=0x3F3F1E563F;
+insert into t1 set f1=0x3F3F;
+check table t1 extended;
+drop table t1;
+
+#
+# Bug#29461: Sort order of the collation wasn't used when comparing characters
+#            with the space character.
+#
+create table t1 (a varchar(2) character set latin7 collate latin7_general_ci,key(a));
+insert into t1 set a=0x4c20;
+insert into t1 set a=0x6c;
+insert into t1 set a=0x4c98;
+check table t1 extended;
+drop table t1;

@@ -22,3 +22,5 @@ LDADD              = -lmytap
 
 noinst_PROGRAMS    = simple-t skip-t todo-t skip_all-t no_plan-t core-t
 
+# Don't update the files from bitkeeper
+%::SCCS/s.%

@@ -795,7 +795,8 @@ UNIV_INLINE
 void
 rec_offs_set_n_alloc(
 /*=================*/
-	ulint*	offsets,	/* in: array for rec_get_offsets() */
+	ulint*	offsets,	/* out: array for rec_get_offsets(),
+				must be allocated */
 	ulint	n_alloc)	/* in: number of elements */
 {
 	ut_ad(offsets);
@@ -1282,7 +1283,8 @@ UNIV_INLINE
 void
 rec_offs_set_n_fields(
 /*==================*/
-	ulint*	offsets,	/* in: array returned by rec_get_offsets() */
+	ulint*	offsets,	/* in/out: array returned by
+				rec_get_offsets() */
 	ulint	n_fields)	/* in: number of fields */
 {
 	ut_ad(offsets);

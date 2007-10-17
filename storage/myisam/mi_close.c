@@ -87,8 +87,8 @@ int mi_close(register MI_INFO *info)
 #endif
     if (share->decode_trees)
     {
-      my_free((gptr) share->decode_trees,MYF(0));
-      my_free((gptr) share->decode_tables,MYF(0));
+      my_free((uchar*) share->decode_trees,MYF(0));
+      my_free((uchar*) share->decode_tables,MYF(0));
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
@@ -102,19 +102,19 @@ int mi_close(register MI_INFO *info)
       }
     }
 #endif
-    my_free((gptr) info->s,MYF(0));
+    my_free((uchar*) info->s,MYF(0));
   }
   pthread_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param)
   {
-    my_free((gptr)info->ftparser_param, MYF(0));
+    my_free((uchar*)info->ftparser_param, MYF(0));
     info->ftparser_param= 0;
   }
   if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
     error = my_errno;
 
   myisam_log_command(MI_LOG_CLOSE,info,NULL,0,error);
-  my_free((gptr) info,MYF(0));
+  my_free((uchar*) info,MYF(0));
 
   if (error)
   {

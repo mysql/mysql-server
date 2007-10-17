@@ -30,7 +30,7 @@ pthread_key(struct st_my_thread_var, THR_KEY_mysys);
 #endif /* USE_TLS */
 pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,
 	        THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_myisam,THR_LOCK_heap,
-                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads;
+                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time;
 pthread_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
@@ -47,7 +47,7 @@ pthread_mutexattr_t my_fast_mutexattr;
 pthread_mutexattr_t my_errorcheck_mutexattr;
 #endif
 
-#ifdef NPTL_PTHREAD_EXIT_BUG                    /* see my_pthread.h */
+#ifdef TARGET_OS_LINUX
 
 /*
   Dummy thread spawned in my_thread_global_init() below to avoid
@@ -61,7 +61,8 @@ nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
   pthread_exit(0);
   return 0;
 }
-#endif
+
+#endif /* TARGET_OS_LINUX */
 
 
 static uint get_thread_lib(void);
@@ -87,20 +88,21 @@ my_bool my_thread_global_init(void)
     fprintf(stderr,"Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
-  
-#ifdef NPTL_PTHREAD_EXIT_BUG
+
+#ifdef TARGET_OS_LINUX
   /*
-    BUG#24507: Race conditions inside current NPTL pthread_exit() 
+    BUG#24507: Race conditions inside current NPTL pthread_exit()
     implementation.
 
     To avoid a possible segmentation fault during concurrent
     executions of pthread_exit(), a dummy thread is spawned which
     initializes internal variables of pthread lib. See bug description
     for a full explanation.
-  
+
     TODO: Remove this code when fixed versions of glibc6 are in common
     use.
   */
+  if (thd_lib_detected == THD_LIB_NPTL)
   {
     pthread_t       dummy_thread;
     pthread_attr_t  dummy_thread_attr;
@@ -111,7 +113,7 @@ my_bool my_thread_global_init(void)
     pthread_create(&dummy_thread,&dummy_thread_attr,
                    nptl_pthread_exit_hack_handler, NULL);
   }
-#endif
+#endif /* TARGET_OS_LINUX */
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   /*
@@ -145,6 +147,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_threads,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&THR_LOCK_time,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&THR_COND_threads, NULL);
 #if defined( __WIN__) || defined(OS2)
   win_pthread_init();
@@ -177,10 +180,17 @@ void my_thread_global_end(void)
                                       &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
+#ifdef HAVE_PTHREAD_KILL
+      /*
+        We shouldn't give an error here, because if we don't have
+        pthread_kill(), programs like mysqld can't ensure that all threads
+        are killed when we enter here.
+      */
       if (THR_thread_count)
         fprintf(stderr,
                 "Error in my_thread_global_end(): %d threads didn't exit\n",
                 THR_thread_count);
+#endif
       all_threads_killed= 0;
       break;
     }
@@ -201,11 +211,12 @@ void my_thread_global_end(void)
   pthread_mutex_destroy(&THR_LOCK_myisam);
   pthread_mutex_destroy(&THR_LOCK_heap);
   pthread_mutex_destroy(&THR_LOCK_net);
+  pthread_mutex_destroy(&THR_LOCK_time);
   pthread_mutex_destroy(&THR_LOCK_charset);
   if (all_threads_killed)
   {
     pthread_mutex_destroy(&THR_LOCK_threads);
-    pthread_cond_destroy (&THR_COND_threads);
+    pthread_cond_destroy(&THR_COND_threads);
   }
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   pthread_mutex_destroy(&LOCK_localtime_r);

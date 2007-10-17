@@ -184,7 +184,7 @@ static uchar NEAR sort_order_ujis[]=
 #define isujis_ss3(c) (((c)&0xff) == 0x8f)
 
 
-static int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -194,7 +194,7 @@ static int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static int mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 1);
 }
@@ -261,18 +261,6 @@ my_wc_mb_jisx0201(CHARSET_INFO *cs __attribute__((unused)),
   if (wc >= 0xFF61 && wc <= 0xFF9F)
   {
     *s = (uchar) (wc - 0xFEC0);
-    return 1;
-  }
-  
-  if (wc == 0x00A5)
-  {
-    *s = 0x5C;
-    return 1;
-  }
-  
-  if (wc == 0x203E)
-  {
-    *s =  0x7E;
     return 1;
   }
   
@@ -8252,9 +8240,9 @@ my_jisx0212_uni_onechar(int code){
 */
 
 static
-uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *beg, const char *end,
-                             uint pos, int *error)
+size_t my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
+                               const char *beg, const char *end,
+                               size_t pos, int *error)
 {
   const uchar *b= (uchar *) beg;
   
@@ -8270,7 +8258,7 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
     if (b >= (uchar *) end)         /* need more bytes */
     {
       *error= 1;
-      return (uint) (chbeg - beg);  /* unexpected EOL  */ 
+      return (size_t) (chbeg - beg);            /* unexpected EOL  */ 
     }
     
     if (ch == 0x8E)                 /* [x8E][xA0-xDF] */
@@ -8278,7 +8266,7 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
       if (*b >= 0xA0 && *b <= 0xDF)
         continue;
       *error= 1;
-      return (uint) (chbeg - beg);  /* invalid sequence */
+      return (size_t) (chbeg - beg);  /* invalid sequence */
     }
     
     if (ch == 0x8F)                 /* [x8F][xA1-xFE][xA1-xFE] */
@@ -8287,7 +8275,7 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
       if (b >= (uchar*) end)
       {
         *error= 1;
-        return (uint) (chbeg - beg); /* unexpected EOL */
+        return (size_t) (chbeg - beg); /* unexpected EOL */
       }
     }
     
@@ -8295,19 +8283,19 @@ uint my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
         *b >= 0xA1 && *b <= 0xFE)   /* [xA1-xFE][xA1-xFE] */
       continue;
     *error= 1;
-    return (uint) (chbeg - beg);    /* invalid sequence */
+    return (size_t) (chbeg - beg);    /* invalid sequence */
   }
-  return (uint) (b - (uchar *) beg);
+  return (size_t) (b - (uchar *) beg);
 }
 
 
 static
-uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
                        const char *str, const char *str_end)
 {
-  uint clen= 0;
-  const unsigned char *b= (const unsigned char *) str;
-  const unsigned char *e= (const unsigned char *) str_end;
+  size_t clen;
+  const uchar *b= (const uchar *) str;
+  const uchar *e= (const uchar *) str_end;
   
   for (clen= 0; b < e; )
   {
@@ -8334,6 +8322,7 @@ uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
   }
   return clen;
 }
+
 
 static int
 my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
@@ -8422,10 +8411,11 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
   return MY_CS_ILSEQ;
 }
 
+
 static int
-my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
+my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, uchar *s, uchar *e)
 {
-  unsigned char c1;
+  uchar c1;
   int jp;
   
   if (s >= e)

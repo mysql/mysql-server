@@ -142,7 +142,7 @@ void Item_row::print(String *str)
 }
 
 
-bool Item_row::walk(Item_processor processor, bool walk_subquery, byte *arg)
+bool Item_row::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
   for (uint i= 0; i < arg_count; i++)
   {
@@ -153,7 +153,7 @@ bool Item_row::walk(Item_processor processor, bool walk_subquery, byte *arg)
 }
 
 
-Item *Item_row::transform(Item_transformer transformer, byte *arg)
+Item *Item_row::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 

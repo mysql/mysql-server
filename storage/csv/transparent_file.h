@@ -21,7 +21,7 @@
 class Transparent_file
 {
   File filedes;
-  byte *buff;  /* in-memory window to the file or mmaped area */
+  uchar *buff;  /* in-memory window to the file or mmaped area */
   /* current window sizes */
   off_t lower_bound;
   off_t upper_bound;
@@ -33,7 +33,7 @@ public:
   ~Transparent_file();
 
   void init_buff(File filedes_arg);
-  byte *ptr();
+  uchar *ptr();
   off_t start();
   off_t end();
   char get_value (off_t offset);

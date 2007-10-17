@@ -44,37 +44,20 @@ sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
 int
 sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
 
-int
-sp_create_procedure(THD *thd, sp_head *sp);
+bool
+sp_show_create_routine(THD *thd, int type, sp_name *name);
 
 int
-sp_drop_procedure(THD *thd, sp_name *name);
-
-
-int
-sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics);
+sp_show_status_routine(THD *thd, int type, const char *wild);
 
 int
-sp_show_create_procedure(THD *thd, sp_name *name);
+sp_create_routine(THD *thd, int type, sp_head *sp);
 
 int
-sp_show_status_procedure(THD *thd, const char *wild);
+sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
 
 int
-sp_create_function(THD *thd, sp_head *sp);
-
-int
-sp_drop_function(THD *thd, sp_name *name);
-
-int
-sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics);
-
-int
-sp_show_create_function(THD *thd, sp_name *name);
-
-int
-sp_show_status_function(THD *thd, const char *wild);
-
+sp_drop_routine(THD *thd, int type, sp_name *name);
 
 /*
   Procedures for pre-caching of stored routines and building table list
@@ -93,23 +76,13 @@ int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
 int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                                   TABLE_LIST *table);
 
-extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
+extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
+                                  my_bool first);
 
 /*
   Routines which allow open/lock and close mysql.proc table even when
   we already have some tables open and locked.
 */
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
-
-
-/*
-  Do a "use new_db". The current db is stored at old_db.  If new_db is the
-  same as the current one, nothing is changed.  dbchangedp is set to true if
-  the db was actually changed.
-*/
-
-int
-sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
-	      bool no_access_check, bool *dbchangedp);
 
 #endif /* _SP_H_ */

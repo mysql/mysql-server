@@ -19,7 +19,7 @@
 
 #include "mysql_priv.h"
 #include "my_xml.h"
-
+#include "sp_pcontext.h"
 
 /*
   TODO: future development directions:
@@ -570,13 +570,13 @@ String *Item_nodeset_func_rootelement::val_nodeset(String *nodeset)
 
 String * Item_nodeset_func_union::val_nodeset(String *nodeset)
 {
-  uint numnodes= pxml->length() / sizeof(MY_XML_NODE);
+  uint num_nodes= pxml->length() / sizeof(MY_XML_NODE);
   String set0, *s0= args[0]->val_nodeset(&set0);
   String set1, *s1= args[1]->val_nodeset(&set1);
   String both_str;
-  both_str.alloc(numnodes);
+  both_str.alloc(num_nodes);
   char *both= (char*) both_str.ptr();
-  bzero((void*)both, numnodes);
+  bzero((void*)both, num_nodes);
   MY_XPATH_FLT *flt;
 
   fltbeg= (MY_XPATH_FLT*) s0->ptr();
@@ -590,7 +590,7 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
     both[flt->num]= 1;
 
   nodeset->length(0);
-  for (uint i= 0, pos= 0; i < numnodes; i++)
+  for (uint i= 0, pos= 0; i < num_nodes; i++)
   {
     if (both[i])
      ((XPathFilter*)nodeset)->append_element(i, pos++);
@@ -923,8 +923,8 @@ static Item *create_comparator(MY_XPATH *xpath,
   else if (a->type() == Item::XPATH_NODESET &&
            b->type() == Item::XPATH_NODESET)
   {
-    uint len= context->end - context->beg;
-    set_if_bigger(len, 32);
+    uint len= xpath->query.end - context->beg;
+    set_if_smaller(len, 32);
     my_printf_error(ER_UNKNOWN_ERROR,
                     "XPATH error: "
                     "comparison of two nodesets is not supported: '%.*s'",
@@ -2412,21 +2412,78 @@ my_xpath_parse_QName(MY_XPATH *xpath)
 }
 
 
-/*
+/**
   Scan Variable reference
 
-  SYNOPSYS
+  @details Implements parsing of two syntax structures:
 
-    [36] VariableReference ::= '$' QName
-  RETURN
-    1 - success
-    0 - failure
+    1. Standard XPath syntax [36], for SP variables:
+
+      VariableReference ::= '$' QName     
+
+      Finds a SP variable with the given name.
+      If outside of a SP context, or variable with
+      the given name doesn't exists, then error is returned.
+
+    2. Non-standard syntax - MySQL extension for user variables:
+
+      VariableReference ::= '$' '@' QName
+
+    Item, corresponding to the variable, is returned
+    in xpath->item in both cases.
+
+  @param  xpath pointer to XPath structure
+
+  @return Operation status
+    @retval 1 Success
+    @retval 0 Failure
 */
+
 static int
 my_xpath_parse_VariableReference(MY_XPATH *xpath)
 {
-  return my_xpath_parse_term(xpath, MY_XPATH_LEX_DOLLAR) &&
-         my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT);
+  LEX_STRING name;
+  int user_var;
+  const char *dollar_pos;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_DOLLAR) ||
+      (!(dollar_pos= xpath->prevtok.beg)) ||
+      (!((user_var= my_xpath_parse_term(xpath, MY_XPATH_LEX_AT) &&
+         my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))) &&
+       !my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT)))
+    return 0;
+
+  name.length= xpath->prevtok.end - xpath->prevtok.beg;
+  name.str= (char*) xpath->prevtok.beg;
+  
+  if (user_var)
+    xpath->item= new Item_func_get_user_var(name);
+  else
+  {
+    sp_variable_t *spv;
+    sp_pcontext *spc;
+    LEX *lex;
+    if ((lex= current_thd->lex) &&
+        (spc= lex->spcont) &&
+        (spv= spc->find_variable(&name)))
+    {
+      Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);
+#ifndef DBUG_OFF
+      if (splocal)
+        splocal->m_sp= lex->sphead;
+#endif
+      xpath->item= (Item*) splocal;
+    }
+    else
+    {
+      xpath->item= NULL;
+      DBUG_ASSERT(xpath->query.end > dollar_pos);
+      uint len= xpath->query.end - dollar_pos;
+      set_if_smaller(len, 32);
+      my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'", 
+                      MYF(0), len, dollar_pos);
+    }
+  }
+  return xpath->item ? 1 : 0;
 }
 
 
@@ -2534,12 +2591,10 @@ void Item_xml_str_func::fix_length_and_dec()
 
   if (!rc)
   {
-    char context[32];
     uint clen= xpath.query.end - xpath.lasttok.beg;
-    set_if_bigger(clen, sizeof(context) - 1);
-    strmake(context, xpath.lasttok.beg, clen);
-    my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%s'", 
-                    MYF(0), context);
+    set_if_smaller(clen, 32);
+    my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%.*s'",
+                    MYF(0), clen, xpath.lasttok.beg);
     return;
   }
 
@@ -2601,7 +2656,9 @@ static uint xml_parent_tag(MY_XML_NODE *items, uint nitems, uint level)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_enter(MY_XML_PARSER *st,const char *attr, uint len)
+extern "C" int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2632,7 +2689,9 @@ static int xml_enter(MY_XML_PARSER *st,const char *attr, uint len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_value(MY_XML_PARSER *st,const char *attr, uint len)
+extern "C" int xml_value(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_value(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();
@@ -2662,7 +2721,9 @@ static int xml_value(MY_XML_PARSER *st,const char *attr, uint len)
   RETURN
     Currently only MY_XML_OK
 */
-static int xml_leave(MY_XML_PARSER *st,const char *attr, uint len)
+extern "C" int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len);
+
+int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
   DBUG_ASSERT(data->level > 0);
@@ -2712,9 +2773,9 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %d: %s",
+    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
                 my_xml_error_lineno(&p) + 1,
-                my_xml_error_pos(&p) + 1,
+                (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE,
@@ -2767,6 +2828,16 @@ String *Item_func_xml_update::val_str(String *str)
   }
 
   nodebeg+= fltbeg->num;
+
+  if (!nodebeg->level)
+  {
+    /*
+      Root element, without NameTest:
+      UpdateXML(xml, '/', 'replacement');
+      Just return the replacement string.
+    */
+    return rep;
+  }
 
   tmp_value.length(0);
   tmp_value.set_charset(collation.collation);

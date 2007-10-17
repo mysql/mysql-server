@@ -47,7 +47,7 @@ int mi_delete_all_rows(MI_INFO *info)
   for (i=0 ; i < share->base.keys ; i++)
     state->key_root[i]= HA_OFFSET_ERROR;
 
-  myisam_log_command(MI_LOG_DELETE_ALL,info,(byte*) 0,0,0);
+  myisam_log_command(MI_LOG_DELETE_ALL,info,(uchar*) 0,0,0);
   /*
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the key cache

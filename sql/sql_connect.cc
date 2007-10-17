@@ -80,7 +80,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
-					       (byte*) temp_user, temp_len)))
+					       (uchar*) temp_user, temp_len)))
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
@@ -97,8 +97,8 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
-    uc->intime= thd->thr_create_time;
-    if (my_hash_insert(&hash_user_connections, (byte*) uc))
+    uc->reset_utime= thd->thr_create_utime;
+    if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       my_free((char*) uc,0);
       net_send_error(thd, 0, NullS);		// Out of memory
@@ -200,7 +200,7 @@ void decrease_user_connections(USER_CONN *uc)
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(byte*) uc);
+    (void) hash_delete(&hash_user_connections,(uchar*) uc);
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
@@ -223,16 +223,16 @@ void decrease_user_connections(USER_CONN *uc)
 
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 {
-  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
+  ulonglong check_time= thd->start_utime;
   DBUG_ENTER("time_out_user_resource_limits");
 
   /* If more than a hour since last check, reset resource checking */
-  if (check_time  - uc->intime >= 3600)
+  if (check_time  - uc->reset_utime >= LL(3600000000))
   {
     uc->questions=1;
     uc->updates=0;
     uc->conn_per_hour=0;
-    uc->intime=check_time;
+    uc->reset_utime= check_time;
   }
 
   DBUG_VOID_RETURN;
@@ -512,11 +512,11 @@ int check_user(THD *thd, enum enum_server_command command,
   started with corresponding variable that is greater then 0.
 */
 
-extern "C" byte *get_key_conn(user_conn *buff, uint *length,
+extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
 			      my_bool not_used __attribute__((unused)))
 {
-  *length=buff->len;
-  return (byte*) buff->user;
+  *length= buff->len;
+  return (uchar*) buff->user;
 }
 
 
@@ -559,7 +559,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
     if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(byte*) temp_user, temp_len)))
+						(uchar*) temp_user, temp_len)))
     {
       uc->questions=0;
       get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
@@ -747,8 +747,8 @@ static int check_connection(THD *thd)
                  SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323) + 1;
 
     /* At this point we write connection message and read reply */
-    if (net_write_command(net, (uchar) protocol_version, "", 0, buff,
-			  (uint) (end-buff)) ||
+    if (net_write_command(net, (uchar) protocol_version, (uchar*) "", 0,
+                          (uchar*) buff, (size_t) (end-buff)) ||
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
@@ -837,9 +837,12 @@ static int check_connection(THD *thd)
     password both send '\0'.
 
     This strlen() can't be easily deleted without changing protocol.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127+ after casting to uint.
   */
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-    *passwd++ : strlen(passwd);
+    (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
   /* strlen() can't be easily deleted without changing protocol */
@@ -936,8 +939,8 @@ bool login_connection(THD *thd)
   net->no_send_error= 0;
 
   /* Use "connect_timeout" value during connection phase */
-  net_set_read_timeout(net, connect_timeout);
-  net_set_write_timeout(net, connect_timeout);
+  my_net_set_read_timeout(net, connect_timeout);
+  my_net_set_write_timeout(net, connect_timeout);
 
   if ((error=check_connection(thd)))
   {						// Wrong permissions
@@ -951,8 +954,8 @@ bool login_connection(THD *thd)
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
-  net_set_read_timeout(net, thd->variables.net_read_timeout);
-  net_set_write_timeout(net, thd->variables.net_write_timeout);
+  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_write_timeout(net, thd->variables.net_write_timeout);
   DBUG_RETURN(0);
 }
 
@@ -967,6 +970,7 @@ bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= &thd->net;
+  plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
     decrease_user_connections(thd->user_connect);
   if (net->error && net->vio != 0 && net->report_error)
@@ -1004,6 +1008,11 @@ void prepare_new_connection_state(THD* thd)
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
+  /*
+    Much of this is duplicated in create_embedded_thd() for the
+    embedded server library.
+    TODO: refactor this to avoid code duplication there
+  */
   thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;
@@ -1049,8 +1058,8 @@ void prepare_new_connection_state(THD* thd)
 pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
-  uint launch_time  =
-    (uint) ((thd->thr_create_time = time(NULL)) - thd->connect_time);
+  ulong launch_time= (ulong) ((thd->thr_create_utime= my_micro_time()) -
+                              thd->connect_utime);
 
   if (thread_scheduler.init_new_connection_thread())
   {
@@ -1059,7 +1068,7 @@ pthread_handler_t handle_one_connection(void *arg)
     thread_scheduler.end_thread(thd,0);
     return 0;
   }
-  if (launch_time >= slow_launch_time)
+  if (launch_time >= slow_launch_time*1000000L)
     statistic_increment(slow_launch_threads,&LOCK_status);
 
   /*
