@@ -2733,7 +2733,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_print(thd, COM_QUERY, "%s", thd->query);
+      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
 
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
