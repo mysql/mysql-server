@@ -740,6 +740,9 @@ bool slow_log_print(THD *thd, const char *query, uint query_length,
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
 
+bool general_log_write(THD *thd, enum enum_server_command command,
+                       const char *query, uint query_length);
+
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
