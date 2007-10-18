@@ -499,6 +499,8 @@ public:
   void lock_exclusive() { rw_wrlock(&LOCK_logger); }
   void unlock() { rw_unlock(&LOCK_logger); }
   bool is_log_table_enabled(uint log_table_type);
+  bool log_command(THD *thd, enum enum_server_command command);
+
   /*
     We want to initialize all log mutexes as soon as possible,
     but we cannot do it in constructor, as safe_mutex relies on
@@ -518,6 +520,8 @@ public:
                       ulonglong current_utime);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
+  bool general_log_write(THD *thd, enum enum_server_command command,
+                         const char *query, uint query_length);
 
   /* we use this function to setup all enabled log event handlers */
   int set_handlers(uint error_log_printer,
