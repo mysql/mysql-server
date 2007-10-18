@@ -920,6 +920,7 @@ prepare long_query from "select ? as long_query";
 --disable_result_log
 execute long_query using @lparam;
 --enable_result_log
+set global general_log = off;
 select command_type, argument from mysql.general_log;
 deallocate prepare long_query;
 set global general_log = @old_general_log_state;
