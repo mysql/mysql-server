@@ -9,7 +9,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "page0page.h"
 #include "buf0types.h"
 
-
+#ifdef UNIV_DEBUG
 /*************************************************************
 Gets pointer to the page frame where the cursor is positioned. */
 UNIV_INLINE
@@ -64,6 +64,7 @@ page_cur_get_rec(
 
 	return(cur->rec);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************
 Sets the cursor object to point before the first user record
@@ -72,11 +73,11 @@ UNIV_INLINE
 void
 page_cur_set_before_first(
 /*======================*/
-	buf_block_t*	block,	/* in: index page */
-	page_cur_t*	cur)	/* in: cursor */
+	const buf_block_t*	block,	/* in: index page */
+	page_cur_t*		cur)	/* in: cursor */
 {
-	cur->rec = page_get_infimum_rec(buf_block_get_frame(block));
-	cur->block = block;
+	cur->block = (buf_block_t*) block;
+	cur->rec = page_get_infimum_rec(buf_block_get_frame(cur->block));
 }
 
 /*************************************************************
@@ -86,11 +87,11 @@ UNIV_INLINE
 void
 page_cur_set_after_last(
 /*====================*/
-	buf_block_t*	block,	/* in: index page */
-	page_cur_t*	cur)	/* in: cursor */
+	const buf_block_t*	block,	/* in: index page */
+	page_cur_t*		cur)	/* in: cursor */
 {
-	cur->rec = page_get_supremum_rec(buf_block_get_frame(block));
-	cur->block = block;
+	cur->block = (buf_block_t*) block;
+	cur->rec = page_get_supremum_rec(buf_block_get_frame(cur->block));
 }
 
 /*************************************************************
@@ -123,15 +124,16 @@ UNIV_INLINE
 void
 page_cur_position(
 /*==============*/
-	rec_t*		rec,	/* in: record on a page */
-	buf_block_t*	block,	/* in: buffer block containing the record */
-	page_cur_t*	cur)	/* out: page cursor */
+	const rec_t*		rec,	/* in: record on a page */
+	const buf_block_t*	block,	/* in: buffer block containing
+					the record */
+	page_cur_t*		cur)	/* out: page cursor */
 {
 	ut_ad(rec && block && cur);
 	ut_ad(page_align(rec) == block->frame);
 
-	cur->rec = rec;
-	cur->block = block;
+	cur->rec = (rec_t*) rec;
+	cur->block = (buf_block_t*) block;
 }
 
 /**************************************************************
@@ -140,7 +142,7 @@ UNIV_INLINE
 void
 page_cur_invalidate(
 /*================*/
-	page_cur_t*	cur)	/* in: page cursor */
+	page_cur_t*	cur)	/* out: page cursor */
 {
 	ut_ad(cur);
 
@@ -154,7 +156,7 @@ UNIV_INLINE
 void
 page_cur_move_to_next(
 /*==================*/
-	page_cur_t*	cur)	/* in: cursor; must not be after last */
+	page_cur_t*	cur)	/* in/out: cursor; must not be after last */
 {
 	ut_ad(!page_cur_is_after_last(cur));
 
@@ -167,7 +169,7 @@ UNIV_INLINE
 void
 page_cur_move_to_prev(
 /*==================*/
-	page_cur_t*	cur)	/* in: page cursor, not before first */
+	page_cur_t*	cur)	/* in/out: page cursor, not before first */
 {
 	ut_ad(!page_cur_is_before_first(cur));
 

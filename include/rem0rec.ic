@@ -232,13 +232,13 @@ rec_set_bit_field_2(
 The following function is used to get the pointer of the next chained record
 on the same page. */
 UNIV_INLINE
-rec_t*
-rec_get_next_ptr(
-/*=============*/
-			/* out: pointer to the next chained record, or
-			NULL if none */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+const rec_t*
+rec_get_next_ptr_const(
+/*===================*/
+				/* out: pointer to the next chained record, or
+				NULL if none */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp)	/* in: nonzero=compact page format */
 {
 	ulint	field_value;
 
@@ -283,6 +283,21 @@ rec_get_next_ptr(
 		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
 		       + field_value);
 	}
+}
+
+/**********************************************************
+The following function is used to get the pointer of the next chained record
+on the same page. */
+UNIV_INLINE
+rec_t*
+rec_get_next_ptr(
+/*=============*/
+			/* out: pointer to the next chained record, or
+			NULL if none */
+	rec_t*	rec,	/* in: physical record */
+	ulint	comp)	/* in: nonzero=compact page format */
+{
+	return((rec_t*) rec_get_next_ptr_const(rec, comp));
 }
 
 /**********************************************************

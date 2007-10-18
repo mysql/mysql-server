@@ -70,14 +70,14 @@ Looks for the directory slot which owns the given record. */
 ulint
 page_dir_find_owner_slot(
 /*=====================*/
-			/* out: the directory slot number */
-	rec_t*	rec)	/* in: the physical record */
+				/* out: the directory slot number */
+	const rec_t*	rec)	/* in: the physical record */
 {
-	page_t*				page;
+	const page_t*			page;
 	register uint16			rec_offs_bytes;
-	register page_dir_slot_t*	slot;
+	register const page_dir_slot_t*	slot;
 	register const page_dir_slot_t*	first_slot;
-	register rec_t*			r = rec;
+	register const rec_t*		r = rec;
 
 	ut_ad(page_rec_check(rec));
 
@@ -87,13 +87,13 @@ page_dir_find_owner_slot(
 
 	if (page_is_comp(page)) {
 		while (rec_get_n_owned_new(r) == 0) {
-			r = rec_get_next_ptr(r, TRUE);
+			r = rec_get_next_ptr_const(r, TRUE);
 			ut_ad(r >= page + PAGE_NEW_SUPREMUM);
 			ut_ad(r < page + (UNIV_PAGE_SIZE - PAGE_DIR));
 		}
 	} else {
 		while (rec_get_n_owned_old(r) == 0) {
-			r = rec_get_next_ptr(r, FALSE);
+			r = rec_get_next_ptr_const(r, FALSE);
 			ut_ad(r >= page + PAGE_OLD_SUPREMUM);
 			ut_ad(r < page + (UNIV_PAGE_SIZE - PAGE_DIR));
 		}
@@ -1220,8 +1220,8 @@ page_dir_delete_slot(
 
 	/* 3. Destroy the slot by copying slots */
 	for (i = slot_no + 1; i < n_slots; i++) {
-		rec_t*	rec;
-		rec = page_dir_slot_get_rec(page_dir_get_nth_slot(page, i));
+		rec_t*	rec = (rec_t*)
+			page_dir_slot_get_rec(page_dir_get_nth_slot(page, i));
 		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i - 1), rec);
 	}
 
@@ -1292,7 +1292,7 @@ page_dir_split_slot(
 	records owned by the slot. */
 
 	prev_slot = page_dir_get_nth_slot(page, slot_no - 1);
-	rec = page_dir_slot_get_rec(prev_slot);
+	rec = (rec_t*) page_dir_slot_get_rec(prev_slot);
 
 	for (i = 0; i < n_owned / 2; i++) {
 		rec = page_rec_get_next(rec);
@@ -1370,7 +1370,7 @@ page_dir_balance_slot(
 
 		/* In this case we can just transfer one record owned
 		by the upper slot to the property of the lower slot */
-		old_rec = page_dir_slot_get_rec(slot);
+		old_rec = (rec_t*) page_dir_slot_get_rec(slot);
 
 		if (page_is_comp(page)) {
 			new_rec = rec_get_next_ptr(old_rec, TRUE);
@@ -1429,7 +1429,7 @@ page_get_middle_rec(
 
 	ut_ad(i > 0);
 	slot = page_dir_get_nth_slot(page, i - 1);
-	rec = page_dir_slot_get_rec(slot);
+	rec = (rec_t*) page_dir_slot_get_rec(slot);
 	rec = page_rec_get_next(rec);
 
 	/* There are now count records behind rec */
@@ -1448,12 +1448,12 @@ The number includes infimum and supremum records. */
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
-			/* out: number of records */
-	rec_t*	rec)	/* in: the physical record */
+				/* out: number of records */
+	const rec_t*	rec)	/* in: the physical record */
 {
-	page_dir_slot_t*	slot;
-	rec_t*			slot_rec;
-	page_t*			page;
+	const page_dir_slot_t*	slot;
+	const rec_t*		slot_rec;
+	const page_t*		page;
 	ulint			i;
 	lint			n	= 0;
 
@@ -1463,7 +1463,7 @@ page_rec_get_n_recs_before(
 	if (page_is_comp(page)) {
 		while (rec_get_n_owned_new(rec) == 0) {
 
-			rec = rec_get_next_ptr(rec, TRUE);
+			rec = rec_get_next_ptr_const(rec, TRUE);
 			n--;
 		}
 
@@ -1481,7 +1481,7 @@ page_rec_get_n_recs_before(
 	} else {
 		while (rec_get_n_owned_old(rec) == 0) {
 
-			rec = rec_get_next_ptr(rec, FALSE);
+			rec = rec_get_next_ptr_const(rec, FALSE);
 			n--;
 		}
 
@@ -1752,14 +1752,18 @@ bug fixed in 4.0.14 has caused corruption to users' databases. */
 void
 page_check_dir(
 /*===========*/
-	page_t*	page)	/* in: index page */
+	const page_t*	page)	/* in: index page */
 {
 	ulint	n_slots;
+	ulint	infimum_offs;
+	ulint	supremum_offs;
 
 	n_slots = page_dir_get_n_slots(page);
+	infimum_offs = mach_read_from_2(page_dir_get_nth_slot(page, 0));
+	supremum_offs = mach_read_from_2(page_dir_get_nth_slot(page,
+							       n_slots - 1));
 
-	if (UNIV_UNLIKELY(page_dir_slot_get_rec(page_dir_get_nth_slot(page, 0))
-			  != page_get_infimum_rec(page))) {
+	if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
 
 		fprintf(stderr,
 			"InnoDB: Page directory corruption:"
@@ -1767,9 +1771,7 @@ page_check_dir(
 		buf_page_print(page, 0);
 	}
 
-	if (UNIV_UNLIKELY
-	    (page_dir_slot_get_rec(page_dir_get_nth_slot(page, n_slots - 1))
-	     != page_get_supremum_rec(page))) {
+	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
 
 		fprintf(stderr,
 			"InnoDB: Page directory corruption:"

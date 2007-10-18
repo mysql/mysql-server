@@ -2578,8 +2578,8 @@ lock_move_reorganize_page(
 		page_cur_t	cur1;
 		page_cur_t	cur2;
 
-		page_cur_set_before_first((buf_block_t*) block, &cur1);
-		page_cur_set_before_first((buf_block_t*) oblock, &cur2);
+		page_cur_set_before_first(block, &cur1);
+		page_cur_set_before_first(oblock, &cur2);
 
 		/* Set locks according to old locks */
 		for (;;) {
@@ -2690,13 +2690,13 @@ lock_move_rec_list_end(
 		page_cur_t	cur2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_position((rec_t*) rec, (buf_block_t*) block, &cur1);
+		page_cur_position(rec, block, &cur1);
 
 		if (page_cur_is_before_first(&cur1)) {
 			page_cur_move_to_next(&cur1);
 		}
 
-		page_cur_set_before_first((buf_block_t*) new_block, &cur2);
+		page_cur_set_before_first(new_block, &cur2);
 		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
@@ -2785,11 +2785,10 @@ lock_move_rec_list_start(
 		page_cur_t	cur2;
 		const ulint	type_mode = lock->type_mode;
 
-		page_cur_set_before_first((buf_block_t*) block, &cur1);
+		page_cur_set_before_first(block, &cur1);
 		page_cur_move_to_next(&cur1);
 
-		page_cur_position((rec_t*) old_end, (buf_block_t*) new_block,
-				  &cur2);
+		page_cur_position(old_end, new_block, &cur2);
 		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
@@ -3018,7 +3017,7 @@ lock_update_merge_left(
 
 	lock_mutex_enter_kernel();
 
-	left_next_rec = page_rec_get_next((rec_t*) orig_pred);
+	left_next_rec = page_rec_get_next_const(orig_pred);
 
 	if (!page_rec_is_supremum(left_next_rec)) {
 
@@ -3157,11 +3156,11 @@ lock_update_insert(
 	if (page_rec_is_comp(rec)) {
 		receiver_heap_no = rec_get_heap_no_new(rec);
 		donator_heap_no = rec_get_heap_no_new(
-			page_rec_get_next_low((rec_t*) rec, TRUE));
+			page_rec_get_next_low(rec, TRUE));
 	} else {
 		receiver_heap_no = rec_get_heap_no_old(rec);
 		donator_heap_no = rec_get_heap_no_old(
-			page_rec_get_next_low((rec_t*) rec, FALSE));
+			page_rec_get_next_low(rec, FALSE));
 	}
 
 	lock_mutex_enter_kernel();
