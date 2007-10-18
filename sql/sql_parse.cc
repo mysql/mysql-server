@@ -782,7 +782,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, packet_length, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
-      general_log_print(thd, command, "%s",thd->db);
+      general_log_write(thd, command, thd->db, thd->db_length);
       send_ok(thd);
     }
     break;
@@ -980,10 +980,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
-    const char *format= "%.*b";
     const char* found_semicolon= NULL;
 
-    general_log_print(thd, command, format, thd->query_length, thd->query);
+    general_log_write(thd, command, thd->query, thd->query_length);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1142,7 +1141,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      general_log_print(thd, command, db.str);
+      general_log_write(thd, command, db.str, db.length);
       mysql_rm_db(thd, db.str, 0, 0);
       break;
     }
