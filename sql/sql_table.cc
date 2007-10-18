@@ -1476,7 +1476,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
   /* Sort keys in optimized order */
-  qsort((gptr) *key_info_buffer, *key_count, sizeof(KEY),
+  my_qsort((gptr) *key_info_buffer, *key_count, sizeof(KEY),
 	(qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 

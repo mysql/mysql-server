@@ -3658,7 +3658,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   {
     KEYUSE key_end,*prev,*save_pos,*use;
 
-    qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
+    my_qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
 	  (qsort_cmp) sort_keyuse);
 
     bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
@@ -4371,8 +4371,9 @@ choose_plan(JOIN *join, table_map join_tables)
       Apply heuristic: pre-sort all access plans with respect to the number of
       records accessed.
   */
-  qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
-        sizeof(JOIN_TAB*), straight_join?join_tab_cmp_straight:join_tab_cmp);
+  my_qsort(join->best_ref + join->const_tables,
+           join->tables - join->const_tables, sizeof(JOIN_TAB*),
+           straight_join ? join_tab_cmp_straight : join_tab_cmp);
   
   if (straight_join)
   {
@@ -4421,6 +4422,17 @@ choose_plan(JOIN *join, table_map join_tables)
     ptr1 pointer to first JOIN_TAB object
     ptr2 pointer to second JOIN_TAB object
 
+  NOTES
+    The order relation implemented by join_tab_cmp() is not transitive,
+    i.e. it is possible to choose such a, b and c that (a < b) && (b < c)
+    but (c < a). This implies that result of a sort using the relation
+    implemented by join_tab_cmp() depends on the order in which
+    elements are compared, i.e. the result is implementation-specific.
+    Example:
+      a: dependent = 0x0 table->map = 0x1 found_records = 3 ptr = 0x907e6b0
+      b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
+      c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
+     
   RETURN
     1  if first is bigger
     -1 if second is bigger

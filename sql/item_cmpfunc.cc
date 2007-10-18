@@ -2775,7 +2775,7 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
 
   SYNOPSIS
     cmp_longlong()
-      cmp_arg   an argument passed to the calling function (qsort2)
+      cmp_arg   an argument passed to the calling function (my_qsort2)
       a         left argument
       b         right argument
 
