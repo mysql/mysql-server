@@ -59,6 +59,8 @@ t
 drop table t1;
 CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
 select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
 date_format(a,"%Y-%m-%d")=b	right(a+0,6)=c+0	a=d+0
 1	1	1
