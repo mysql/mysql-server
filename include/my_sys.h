@@ -784,7 +784,7 @@ extern int  get_index_dynamic(DYNAMIC_ARRAY *array, uchar * element);
 #define dynamic_element(array,array_index,type) ((type)((array)->buffer) +(array_index))
 #define push_dynamic(A,B) insert_dynamic((A),(B))
 #define reset_dynamic(array) ((array)->elements= 0)
-#define sort_dynamic(A,cmp) qsort((A)->buffer, (A)->elements, (A)->size_of_element, (cmp))
+#define sort_dynamic(A,cmp) my_qsort((A)->buffer, (A)->elements, (A)->size_of_element, (cmp))
 
 extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 				   size_t init_alloc,size_t alloc_increment);
