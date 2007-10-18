@@ -711,7 +711,7 @@ row_ins_foreign_report_add_err(
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
 		the user gets a more descriptive error message. */
-		rec = page_rec_get_prev((rec_t*) rec);
+		rec = page_rec_get_prev_const(rec);
 	}
 
 	if (rec) {

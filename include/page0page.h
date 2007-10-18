@@ -326,8 +326,8 @@ The number includes infimum and supremum records. */
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
-			/* out: number of records */
-	rec_t*	rec);	/* in: the physical record */
+				/* out: number of records */
+	const rec_t*	rec);	/* in: the physical record */
 /*****************************************************************
 Gets the number of records in the heap. */
 UNIV_INLINE
@@ -367,15 +367,21 @@ page_dir_set_n_slots(
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	ulint		n_slots);/* in: number of slots */
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Gets pointer to nth directory slot. */
 UNIV_INLINE
 page_dir_slot_t*
 page_dir_get_nth_slot(
 /*==================*/
-			/* out: pointer to dir slot */
-	page_t*	page,	/* in: index page */
-	ulint	n);	/* in: position */
+				/* out: pointer to dir slot */
+	const page_t*	page,	/* in: index page */
+	ulint		n);	/* in: position */
+#else /* UNIV_DEBUG */
+# define page_dir_get_nth_slot(page, n)		\
+	((page) + UNIV_PAGE_SIZE - PAGE_DIR	\
+	 - (n + 1) * PAGE_DIR_SLOT_SIZE)
+#endif /* UNIV_DEBUG */
 /******************************************************************
 Used to check the consistency of a record on a page. */
 UNIV_INLINE
@@ -387,11 +393,11 @@ page_rec_check(
 /*******************************************************************
 Gets the record pointed to by a directory slot. */
 UNIV_INLINE
-rec_t*
+const rec_t*
 page_dir_slot_get_rec(
 /*==================*/
 					/* out: pointer to record */
-	page_dir_slot_t*	slot);	/* in: directory slot */
+	const page_dir_slot_t*	slot);	/* in: directory slot */
 /*******************************************************************
 This is used to set the record offset in a directory slot. */
 UNIV_INLINE
@@ -407,7 +413,7 @@ ulint
 page_dir_slot_get_n_owned(
 /*======================*/
 					/* out: number of records */
-	page_dir_slot_t*	slot);	/* in: page directory slot */
+	const page_dir_slot_t*	slot);	/* in: page directory slot */
 /*******************************************************************
 This is used to set the owned records field of a directory slot. */
 UNIV_INLINE
@@ -434,7 +440,7 @@ ulint
 page_dir_find_owner_slot(
 /*=====================*/
 				/* out: the directory slot number */
-	rec_t*		rec);	/* in: the physical record */
+	const rec_t*	rec);	/* in: the physical record */
 /****************************************************************
 Determine whether the page is in new-style compact format. */
 UNIV_INLINE
@@ -472,12 +478,12 @@ page_is_leaf(
 /****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
-rec_t*
+const rec_t*
 page_rec_get_next_low(
 /*==================*/
-			/* out: pointer to next record */
-	rec_t*	rec,	/* in: pointer to record */
-	ulint	comp);	/* in: nonzero=compact page layout */
+				/* out: pointer to next record */
+	const rec_t*	rec,	/* in: pointer to record */
+	ulint		comp);	/* in: nonzero=compact page layout */
 /****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
@@ -486,6 +492,14 @@ page_rec_get_next(
 /*==============*/
 			/* out: pointer to next record */
 	rec_t*	rec);	/* in: pointer to record */
+/****************************************************************
+Gets the pointer to the next record on the page. */
+UNIV_INLINE
+const rec_t*
+page_rec_get_next_const(
+/*====================*/
+				/* out: pointer to next record */
+	const rec_t*	rec);	/* in: pointer to record */
 /****************************************************************
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
@@ -496,6 +510,15 @@ page_rec_set_next(
 			must not be page supremum */
 	rec_t*	next);	/* in: pointer to next record,
 			must not be page infimum */
+/****************************************************************
+Gets the pointer to the previous record. */
+UNIV_INLINE
+const rec_t*
+page_rec_get_prev_const(
+/*====================*/
+				/* out: pointer to previous record */
+	const rec_t*	rec);	/* in: pointer to record, must not be page
+				infimum */
 /****************************************************************
 Gets the pointer to the previous record. */
 UNIV_INLINE
@@ -924,7 +947,7 @@ bug fixed in 4.0.14 has caused corruption to users' databases. */
 void
 page_check_dir(
 /*===========*/
-	page_t*	page);	/* in: index page */
+	const page_t*	page);	/* in: index page */
 /*******************************************************************
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash

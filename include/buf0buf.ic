@@ -255,8 +255,9 @@ UNIV_INLINE
 mutex_t*
 buf_page_get_mutex(
 /*===============*/
-				/* out: pointer to mutex protecting bpage */
-	buf_page_t*	bpage)	/* in: pointer to control block */
+					/* out: pointer to mutex
+					protecting bpage */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
 {
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_FREE:
@@ -394,7 +395,7 @@ buf_page_can_relocate(
 	const buf_page_t*	bpage)	/* control block being relocated */
 {
 	ut_ad(mutex_own(&buf_pool->mutex));
-	ut_ad(mutex_own(buf_page_get_mutex((buf_page_t*) bpage)));
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 

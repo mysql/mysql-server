@@ -1536,7 +1536,7 @@ btr_page_insert_fits(
 			return(TRUE);
 		}
 
-		rec = page_rec_get_next((rec_t*) rec);
+		rec = page_rec_get_next_const(rec);
 	}
 
 	return(FALSE);

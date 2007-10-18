@@ -533,21 +533,24 @@ page_dir_set_n_heap(
 				 & page_header_get_field(page, PAGE_N_HEAP)));
 }
 
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Gets pointer to nth directory slot. */
 UNIV_INLINE
 page_dir_slot_t*
 page_dir_get_nth_slot(
 /*==================*/
-			/* out: pointer to dir slot */
-	page_t*	page,	/* in: index page */
-	ulint	n)	/* in: position */
+				/* out: pointer to dir slot */
+	const page_t*	page,	/* in: index page */
+	ulint		n)	/* in: position */
 {
 	ut_ad(page_dir_get_n_slots(page) > n);
 
-	return(page + UNIV_PAGE_SIZE - PAGE_DIR
+	return((page_dir_slot_t*)
+	       page + UNIV_PAGE_SIZE - PAGE_DIR
 	       - (n + 1) * PAGE_DIR_SLOT_SIZE);
 }
+#endif /* UNIV_DEBUG */
 
 /******************************************************************
 Used to check the consistency of a record on a page. */
@@ -571,11 +574,11 @@ page_rec_check(
 /*******************************************************************
 Gets the record pointed to by a directory slot. */
 UNIV_INLINE
-rec_t*
+const rec_t*
 page_dir_slot_get_rec(
 /*==================*/
 					/* out: pointer to record */
-	page_dir_slot_t*	slot)	/* in: directory slot */
+	const page_dir_slot_t*	slot)	/* in: directory slot */
 {
 	return(page_align(slot) + mach_read_from_2(slot));
 }
@@ -601,9 +604,9 @@ ulint
 page_dir_slot_get_n_owned(
 /*======================*/
 					/* out: number of records */
-	page_dir_slot_t*	slot)	/* in: page directory slot */
+	const page_dir_slot_t*	slot)	/* in: page directory slot */
 {
-	rec_t*	rec	= page_dir_slot_get_rec(slot);
+	const rec_t*	rec	= page_dir_slot_get_rec(slot);
 	if (page_rec_is_comp(slot)) {
 		return(rec_get_n_owned_new(rec));
 	} else {
@@ -621,7 +624,7 @@ page_dir_slot_set_n_owned(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		n)	/* in: number of records owned by the slot */
 {
-	rec_t*	rec	= page_dir_slot_get_rec(slot);
+	rec_t*	rec	= (rec_t*) page_dir_slot_get_rec(slot);
 	if (page_rec_is_comp(slot)) {
 		rec_set_n_owned_new(rec, page_zip, n);
 	} else {
@@ -647,15 +650,15 @@ page_dir_calc_reserved_space(
 /****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
-rec_t*
+const rec_t*
 page_rec_get_next_low(
 /*==================*/
-			/* out: pointer to next record */
-	rec_t*	rec,	/* in: pointer to record */
-	ulint	comp)	/* in: nonzero=compact page layout */
+				/* out: pointer to next record */
+	const rec_t*	rec,	/* in: pointer to record */
+	ulint		comp)	/* in: nonzero=compact page layout */
 {
-	ulint	offs;
-	page_t*	page;
+	ulint		offs;
+	const page_t*	page;
 
 	ut_ad(page_rec_check(rec));
 
@@ -694,8 +697,21 @@ page_rec_get_next(
 			/* out: pointer to next record */
 	rec_t*	rec)	/* in: pointer to record */
 {
+	return((rec_t*) page_rec_get_next_low(rec, page_rec_is_comp(rec)));
+}
+
+/****************************************************************
+Gets the pointer to the next record on the page. */
+UNIV_INLINE
+const rec_t*
+page_rec_get_next_const(
+/*====================*/
+				/* out: pointer to next record */
+	const rec_t*	rec)	/* in: pointer to record */
+{
 	return(page_rec_get_next_low(rec, page_rec_is_comp(rec)));
 }
+
 /****************************************************************
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
@@ -732,18 +748,18 @@ page_rec_set_next(
 /****************************************************************
 Gets the pointer to the previous record. */
 UNIV_INLINE
-rec_t*
-page_rec_get_prev(
-/*==============*/
-			/* out: pointer to previous record */
-	rec_t*	rec)	/* in: pointer to record, must not be page
-			infimum */
+const rec_t*
+page_rec_get_prev_const(
+/*====================*/
+				/* out: pointer to previous record */
+	const rec_t*	rec)	/* in: pointer to record, must not be page
+				infimum */
 {
-	page_dir_slot_t*	slot;
+	const page_dir_slot_t*	slot;
 	ulint			slot_no;
-	rec_t*			rec2;
-	rec_t*			prev_rec = NULL;
-	page_t*			page;
+	const rec_t*		rec2;
+	const rec_t*		prev_rec = NULL;
+	const page_t*		page;
 
 	ut_ad(page_rec_check(rec));
 
@@ -774,6 +790,19 @@ page_rec_get_prev(
 	ut_a(prev_rec);
 
 	return(prev_rec);
+}
+
+/****************************************************************
+Gets the pointer to the previous record. */
+UNIV_INLINE
+rec_t*
+page_rec_get_prev(
+/*==============*/
+			/* out: pointer to previous record */
+	rec_t*	rec)	/* in: pointer to record, must not be page
+			infimum */
+{
+	return((rec_t*) page_rec_get_prev_const(rec));
 }
 
 /*******************************************************************

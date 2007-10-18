@@ -66,6 +66,17 @@ offsets[] array, first passed to rec_get_offsets() */
 The following function is used to get the pointer of the next chained record
 on the same page. */
 UNIV_INLINE
+const rec_t*
+rec_get_next_ptr_const(
+/*===================*/
+				/* out: pointer to the next chained record, or
+				NULL if none */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp);	/* in: nonzero=compact page format */
+/**********************************************************
+The following function is used to get the pointer of the next chained record
+on the same page. */
+UNIV_INLINE
 rec_t*
 rec_get_next_ptr(
 /*=============*/
