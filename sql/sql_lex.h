@@ -1692,6 +1692,14 @@ typedef struct st_lex : public Query_tables_list
   */
   const char *fname_start;
   const char *fname_end;
+  
+  /**
+    During name resolution search only in the table list given by 
+    Name_resolution_context::first_name_resolution_table and
+    Name_resolution_context::last_name_resolution_table
+    (see Item_field::fix_fields()). 
+  */
+  bool use_only_table_context;
 
   LEX_STRING view_body_utf8;
 
