@@ -250,6 +250,6 @@ static int queue_fix_cmp(QUEUE *queue, void **a, void **b)
 
 void queue_fix(QUEUE *queue)
 {
-  qsort2(queue->root+1,queue->elements, sizeof(void *),
-	 (qsort2_cmp)queue_fix_cmp, queue);
+  my_qsort2(queue->root+1,queue->elements, sizeof(void *),
+            (qsort2_cmp)queue_fix_cmp, queue);
 }

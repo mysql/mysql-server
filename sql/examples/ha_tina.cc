@@ -852,7 +852,7 @@ int ha_tina::rnd_end()
       It also sorts so that we move the final blocks to the
       beginning so that we move the smallest amount of data possible.
     */
-    qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set), (qsort_cmp)sort_set);
+    my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set), (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
     {
       memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
