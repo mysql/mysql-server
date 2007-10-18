@@ -546,7 +546,7 @@ static struct my_option my_long_options[] =
     "Number of rows to insert to used in read and write loads (default is 100).\n",
     (uchar**) &auto_generate_sql_number, (uchar**) &auto_generate_sql_number,
     0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
-  {"commit", OPT_SLAP_COMMIT, "Commit records after X number of statements.",
+  {"commit", OPT_SLAP_COMMIT, "Commit records every X number of statements.",
     (uchar**) &commit_rate, (uchar**) &commit_rate, 0, GET_UINT, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
@@ -577,7 +577,7 @@ static struct my_option my_long_options[] =
     "Delimiter to use in SQL statements supplied in file or command line.",
     (uchar**) &delimiter, (uchar**) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
-  {"detach", OPT_SLAP_DETACH, "Detach connections after X number of requests.",
+  {"detach", OPT_SLAP_DETACH, "Detach connections every X number of requests.",
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
@@ -1766,7 +1766,8 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 pthread_handler_t run_task(void *p)
 {
   ulonglong counter= 0, queries;
-  ulonglong trans_counter;
+  ulonglong detach_counter;
+  unsigned int commit_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1810,12 +1811,16 @@ pthread_handler_t run_task(void *p)
     printf("connected!\n");
   queries= 0;
 
+  commit_counter= 0;
+  if (commit_rate)
+    run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
+
 limit_not_met:
-    for (ptr= con->stmt, trans_counter= 0; 
+    for (ptr= con->stmt, detach_counter= 0; 
          ptr && ptr->length; 
-         ptr= ptr->next, trans_counter++)
+         ptr= ptr->next, detach_counter++)
     {
-      if (!opt_only_print && detach_rate && !(trans_counter % detach_rate))
+      if (!opt_only_print && detach_rate && !(detach_counter % detach_rate))
       {
         mysql_close(mysql);
 
@@ -1886,8 +1891,11 @@ limit_not_met:
       }
       queries++;
 
-      if (commit_rate && commit_rate <= trans_counter)
+      if (commit_rate && (++commit_counter == commit_rate))
+      {
+        commit_counter= 0;
         run_query(mysql, "COMMIT", strlen("COMMIT"));
+      }
 
       if (con->limit && queries == con->limit)
         goto end;
