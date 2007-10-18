@@ -1121,8 +1121,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <cast_type> cast_type
 
-%type <udf_type> udf_func_type
-
 %type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
 
 %type <lex_user> user grant_user
@@ -1181,11 +1179,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	statement sp_suid
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        definer view_replace_or_algorithm view_replace view_algorithm_opt
-        view_algorithm view_or_trigger_or_sp view_or_trigger_or_sp_tail
+        view_replace_or_algorithm view_replace view_algorithm_opt
+        view_algorithm view_or_trigger_or_sp definer_tail
 	view_suid view_tail view_list_opt view_list view_select
-	view_check_option trigger_tail sp_tail
+	view_check_option trigger_tail sp_tail sf_tail udf_tail
         case_stmt_specification simple_case_stmt searched_case_stmt
+        definer_opt no_definer definer
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1571,6 +1570,7 @@ sp_name:
 	  {
             LEX *lex= Lex;
             LEX_STRING db;
+
 	    if (check_routine_name($1))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
@@ -1581,124 +1581,6 @@ sp_name:
 	    $$= new sp_name(db, $1, false);
             if ($$)
 	      $$->init_qname(YYTHD);
-	  }
-	;
-
-create_function_tail:
-	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
-	  {
-	    LEX *lex=Lex;
-            if (lex->definer != NULL)
-            {
-              /*
-                 DEFINER is a concept meaningful when interpreting SQL code.
-                 UDF functions are compiled.
-                 Using DEFINER with UDF has therefore no semantic,
-                 and is considered a parsing error.
-              */
-	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
-              MYSQL_YYABORT;
-            }
-	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
-	    lex->udf.name = lex->spname->m_name;
-	    lex->udf.returns=(Item_result) $2;
-	    lex->udf.dl=$4.str;
-	  }
-	| '('
-	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-	    sp_head *sp;
-
-            /* 
-              First check if AGGREGATE was used, in that case it's a
-              syntax error.
-            */
-            if (lex->udf.type == UDFTYPE_AGGREGATE)
-            {
-              my_error(ER_SP_NO_AGGREGATE, MYF(0));
-              MYSQL_YYABORT;
-            }
-
-	    if (lex->sphead)
-	    {
-	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
-	      MYSQL_YYABORT;
-	    }
-	    /* Order is important here: new - reset - init */
-	    sp= new sp_head();
-	    sp->reset_thd_mem_root(thd);
-	    sp->init(lex);
-            sp->init_sp_name(thd, lex->spname);
-
-	    sp->m_type= TYPE_ENUM_FUNCTION;
-	    lex->sphead= sp;
-	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
-	    sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    lex->sphead->m_param_begin= lip->tok_start+1;
-	  }
-          sp_fdparam_list ')'
-	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-	    lex->sphead->m_param_end= lip->tok_start;
-	  }
-	  RETURNS_SYM
-	  {
-	    LEX *lex= Lex;
-	    lex->charset= NULL;
-	    lex->length= lex->dec= NULL;
-	    lex->interval_list.empty();
-	    lex->type= 0;
-	  }
-	  type
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-
-            if (sp->fill_field_definition(YYTHD, lex,
-                                          (enum enum_field_types) $8,
-                                          &sp->m_return_field_def))
-              MYSQL_YYABORT;
-
-	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	  }
-	  sp_c_chistics
-	  {
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-	    lex->sphead->m_chistics= &lex->sp_chistics;
-	    lex->sphead->m_body_begin= lip->tok_start;
-	  }
-	  sp_proc_stmt
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-
-            if (sp->is_not_allowed_in_function("function"))
-              MYSQL_YYABORT;
-
-	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex);
-            if (!(sp->m_flags & sp_head::HAS_RETURN))
-            {
-              my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
-              MYSQL_YYABORT;
-            }
-	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
-	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
 
@@ -3002,10 +2884,6 @@ opt_select_from:
 	opt_limit_clause {}
 	| select_from select_lock_type;
 
-udf_func_type:
-	/* empty */	{ $$ = UDFTYPE_FUNCTION; }
-	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
-
 udf_type:
 	STRING_SYM {$$ = (int) STRING_RESULT; }
 	| REAL {$$ = (int) REAL_RESULT; }
@@ -3669,7 +3547,7 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-        | ALTER view_algorithm_opt definer view_suid
+        | ALTER view_algorithm_opt definer_opt view_suid
           VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
@@ -5196,8 +5074,30 @@ simple_expr:
             {
               THD *thd= lex->thd;
               LEX_STRING db;
+              if (! thd->db && ! lex->sphead)
+              {
+                /*
+                  The proper error message should be in the lines of:
+                    Can't resolve <name>() to a function call,
+                    because this function:
+                    - is not a native function,
+                    - is not a user defined function,
+                    - can not match a stored function since no database is selected.
+                  Reusing ER_SP_DOES_NOT_EXIST have a message consistent with
+                  the case when a default database exist, see below.
+                */
+                my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                         "FUNCTION", $1.str);
+                MYSQL_YYABORT;
+              }
+              
               if (lex->copy_db_to(&db.str, &db.length))
                 MYSQL_YYABORT;
+
+              /*
+                From here, the parser assumes <name>() is a stored function,
+                as a last choice. This later can lead to ER_SP_DOES_NOT_EXIST.
+              */
               sp_name *name= new sp_name(db, $1, false);
               if (name)
                 name->init_qname(thd);
@@ -6499,9 +6399,11 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP FUNCTION_SYM if_exists sp_name
+	| DROP FUNCTION_SYM if_exists ident '.' ident
 	  {
-	    LEX *lex=Lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            sp_name *spname;
 	    if (lex->sphead)
 	    {
 	      my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -6509,7 +6411,28 @@ drop:
 	    }
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->drop_if_exists= $3;
-	    lex->spname= $4;
+	    spname= new sp_name($4, $6, true);
+	    spname->init_qname(thd);
+	    lex->spname= spname;
+	  }
+	| DROP FUNCTION_SYM if_exists ident
+	  {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            LEX_STRING db= {0, 0};
+            sp_name *spname;
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
+	      MYSQL_YYABORT;
+	    }
+            if (thd->db && lex->copy_db_to(&db.str, &db.length))
+              MYSQL_YYABORT;
+	    lex->sql_command = SQLCOM_DROP_FUNCTION;
+	    lex->drop_if_exists= $3;
+	    spname= new sp_name(db, $4, false);
+	    spname->init_qname(thd);
+	    lex->spname= spname;
 	  }
 	| DROP PROCEDURE if_exists sp_name
 	  {
@@ -9558,19 +9481,27 @@ subselect_end:
 **************************************************************************/
 
 view_or_trigger_or_sp:
-	definer view_or_trigger_or_sp_tail
-	{}
-	| view_replace_or_algorithm definer view_tail
-	{}
+	  definer definer_tail
+	  {}
+	| no_definer no_definer_tail
+	  {}
+	| view_replace_or_algorithm definer_opt view_tail
+	  {}
 	;
 
-view_or_trigger_or_sp_tail:
-	view_tail
-	{}
+definer_tail:
+	  view_tail
 	| trigger_tail
-	{}
 	| sp_tail
-	{}
+	| sf_tail
+	;
+
+no_definer_tail:
+	  view_tail
+	| trigger_tail
+	| sp_tail
+	| sf_tail
+	| udf_tail
 	;
 
 /**************************************************************************
@@ -9579,23 +9510,31 @@ view_or_trigger_or_sp_tail:
 
 **************************************************************************/
 
+definer_opt:
+          no_definer
+        | definer
+        ;
+
+no_definer:
+          /* empty */
+          {
+            /*
+              We have to distinguish missing DEFINER-clause from case when
+              CURRENT_USER specified as definer explicitly in order to properly
+              handle CREATE TRIGGER statements which come to replication thread
+              from older master servers (i.e. to create non-suid trigger in this
+              case).
+             */
+            YYTHD->lex->definer= 0;
+          }
+        ;
+
 definer:
-	/* empty */
-	{
-          /*
-            We have to distinguish missing DEFINER-clause from case when
-            CURRENT_USER specified as definer explicitly in order to properly
-            handle CREATE TRIGGER statements which come to replication thread
-            from older master servers (i.e. to create non-suid trigger in this
-            case).
-           */
-          YYTHD->lex->definer= 0;
-	}
-	| DEFINER_SYM EQ user
-	{
-	  YYTHD->lex->definer= get_current_user(YYTHD, $3);
-	}
-	;
+          DEFINER_SYM EQ user
+          {
+            YYTHD->lex->definer= get_current_user(YYTHD, $3);
+          }
+;
 
 /**************************************************************************
 
@@ -9745,7 +9684,7 @@ trigger_tail:
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
 	    MYSQL_YYABORT;
 	  }
-	
+
 	  if (!(sp= new sp_head()))
 	    MYSQL_YYABORT;
 	  sp->reset_thd_mem_root(thd);
@@ -9807,17 +9746,131 @@ trigger_tail:
 
 **************************************************************************/
 
+udf_tail:
+          AGGREGATE_SYM remember_name FUNCTION_SYM ident
+	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.type= UDFTYPE_AGGREGATE;
+	    lex->stmt_definition_begin= $2;
+	    lex->udf.name = $4;
+	    lex->udf.returns=(Item_result) $6;
+	    lex->udf.dl=$8.str;
+	  }
+        | remember_name FUNCTION_SYM ident
+	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.type= UDFTYPE_FUNCTION;
+	    lex->stmt_definition_begin= $1;
+	    lex->udf.name = $3;
+	    lex->udf.returns=(Item_result) $5;
+	    lex->udf.dl=$7.str;
+	  }
+        ;
+
+sf_tail:
+          remember_name /* $1 */
+          FUNCTION_SYM /* $2 */
+          sp_name /* $3 */
+          '(' /* 44 */
+          { /* $5 */
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+	    sp_head *sp;
+
+	    lex->stmt_definition_begin= $1;
+	    lex->spname= $3;
+
+	    if (lex->sphead)
+	    {
+	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
+	      MYSQL_YYABORT;
+	    }
+
+	    /* Order is important here: new - reset - init */
+	    sp= new sp_head();
+	    sp->reset_thd_mem_root(thd);
+	    sp->init(lex);
+            sp->init_sp_name(thd, lex->spname);
+
+	    sp->m_type= TYPE_ENUM_FUNCTION;
+	    lex->sphead= sp;
+	    /*
+	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
+	     * stored procedure, otherwise yylex will chop it into pieces
+	     * at each ';'.
+	     */
+	    sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
+	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    lex->sphead->m_param_begin= lip->tok_start+1;
+	  }
+          sp_fdparam_list /* $6 */
+          ')' /* $7 */
+          { /* $8 */
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+
+	    lex->sphead->m_param_end= lip->tok_start;
+	  }
+          RETURNS_SYM /* $9 */
+	  { /* $10 */
+	    LEX *lex= Lex;
+	    lex->charset= NULL;
+	    lex->length= lex->dec= NULL;
+	    lex->interval_list.empty();
+	    lex->type= 0;
+	  }
+          type /* $11 */
+          { /* $12 */
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+
+            if (sp->fill_field_definition(YYTHD, lex,
+                                          (enum enum_field_types) $11,
+                                          &sp->m_return_field_def))
+              MYSQL_YYABORT;
+
+	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+	  }
+          sp_c_chistics /* $13 */
+          { /* $14 */
+            THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+            Lex_input_stream *lip= thd->m_lip;
+
+	    lex->sphead->m_chistics= &lex->sp_chistics;
+	    lex->sphead->m_body_begin= lip->tok_start;
+	  }
+          sp_proc_stmt /* $15 */
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+
+            if (sp->is_not_allowed_in_function("function"))
+              MYSQL_YYABORT;
+
+	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
+	    sp->init_strings(YYTHD, lex);
+            if (!(sp->m_flags & sp_head::HAS_RETURN))
+            {
+              my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
+              MYSQL_YYABORT;
+            }
+	    /* Restore flag if it was cleared above */
+	    if (sp->m_old_cmq)
+	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    sp->restore_thd_mem_root(YYTHD);
+	  }
+	;
+
+
 sp_tail:
-	udf_func_type remember_name FUNCTION_SYM sp_name
-	{
-	  LEX *lex=Lex;
-	  lex->udf.type= $1;
-	  lex->stmt_definition_begin= $2;
-	  lex->spname= $4;
-	}
-	create_function_tail
-	{}
-	| PROCEDURE remember_name sp_name
+	PROCEDURE remember_name sp_name
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
