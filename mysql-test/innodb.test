@@ -1311,6 +1311,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+--replace_result 512 511
 show status like "Innodb_buffer_pool_pages_total";
 show status like "Innodb_page_size";
 show status like "Innodb_rows_deleted";
