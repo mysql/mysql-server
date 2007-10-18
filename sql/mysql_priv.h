@@ -731,7 +731,6 @@ pthread_handler_t handle_bootstrap(void *arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 bool mysql_execute_command(THD *thd);
-bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);

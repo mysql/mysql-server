@@ -72,16 +72,7 @@ public:
     Creates temporary sp_name object from key, used mainly
     for SP-cache lookups.
   */
-  sp_name(char *key, uint key_len)
-  {
-    m_sroutines_key.str= key;
-    m_sroutines_key.length= key_len;
-    m_name.str= m_qname.str= key + 1;
-    m_name.length= m_qname.length= key_len - 1;
-    m_db.str= 0;
-    m_db.length= 0;
-    m_explicit_name= false;
-  }
+  sp_name(THD *thd, char *key, uint key_len);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
