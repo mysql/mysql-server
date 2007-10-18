@@ -40,6 +40,7 @@ extern ulint	page_cur_short_succ;
 # endif /* UNIV_SEARCH_PERF_STAT */
 #endif /* PAGE_CUR_ADAPT */
 
+#ifdef UNIV_DEBUG
 /*************************************************************
 Gets pointer to the page frame where the cursor is positioned. */
 UNIV_INLINE
@@ -72,6 +73,12 @@ page_cur_get_rec(
 /*=============*/
 				/* out: record */
 	page_cur_t*	cur);	/* in: page cursor */
+#else /* UNIV_DEBUG */
+# define page_cur_get_page(cur)		page_align((cur)->rec)
+# define page_cur_get_block(cur)	(cur)->block
+# define page_cur_get_page_zip(cur)	buf_block_get_page_zip((cur)->block)
+# define page_cur_get_rec(cur)		(cur)->rec
+#endif /* UNIV_DEBUG */
 /*************************************************************
 Sets the cursor object to point before the first user record
 on the page. */
@@ -79,8 +86,8 @@ UNIV_INLINE
 void
 page_cur_set_before_first(
 /*======================*/
-	buf_block_t*	block,	/* in: index page */
-	page_cur_t*	cur);	/* in: cursor */
+	const buf_block_t*	block,	/* in: index page */
+	page_cur_t*		cur);	/* in: cursor */
 /*************************************************************
 Sets the cursor object to point after the last user record on
 the page. */
@@ -88,8 +95,8 @@ UNIV_INLINE
 void
 page_cur_set_after_last(
 /*====================*/
-	buf_block_t*	block,	/* in: index page */
-	page_cur_t*	cur);	/* in: cursor */
+	const buf_block_t*	block,	/* in: index page */
+	page_cur_t*		cur);	/* in: cursor */
 /*************************************************************
 Returns TRUE if the cursor is before first user record on page. */
 UNIV_INLINE
@@ -112,30 +119,31 @@ UNIV_INLINE
 void
 page_cur_position(
 /*==============*/
-	rec_t*		rec,	/* in: record on a page */
-	buf_block_t*	block,	/* in: buffer block containing the record */
-	page_cur_t*	cur);	/* out: page cursor */
+	const rec_t*		rec,	/* in: record on a page */
+	const buf_block_t*	block,	/* in: buffer block containing
+					the record */
+	page_cur_t*		cur);	/* out: page cursor */
 /**************************************************************
 Invalidates a page cursor by setting the record pointer NULL. */
 UNIV_INLINE
 void
 page_cur_invalidate(
 /*================*/
-	page_cur_t*	cur);	/* in: page cursor */
+	page_cur_t*	cur);	/* out: page cursor */
 /**************************************************************
 Moves the cursor to the next record on page. */
 UNIV_INLINE
 void
 page_cur_move_to_next(
 /*==================*/
-	page_cur_t*	cur);	/* in: cursor; must not be after last */
+	page_cur_t*	cur);	/* in/out: cursor; must not be after last */
 /**************************************************************
 Moves the cursor to the previous record on page. */
 UNIV_INLINE
 void
 page_cur_move_to_prev(
 /*==================*/
-	page_cur_t*	cur);	/* in: cursor; must not before first */
+	page_cur_t*	cur);	/* in/out: cursor; not before first */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -243,24 +251,27 @@ Searches the right position for a page cursor. */
 void
 page_cur_search_with_match(
 /*=======================*/
-	buf_block_t*	block,	/* in: buffer block */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	tuple,	/* in: data tuple */
-	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
-				or PAGE_CUR_GE */
-	ulint*		iup_matched_fields,
-				/* in/out: already matched fields in upper
-				limit record */
-	ulint*		iup_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	ulint*		ilow_matched_fields,
-				/* in/out: already matched fields in lower
-				limit record */
-	ulint*		ilow_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	page_cur_t*	cursor); /* out: page cursor */
+	const buf_block_t*	block,	/* in: buffer block */
+	const dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*		tuple,	/* in: data tuple */
+	ulint			mode,	/* in: PAGE_CUR_L,
+					PAGE_CUR_LE, PAGE_CUR_G, or
+					PAGE_CUR_GE */
+	ulint*			iup_matched_fields,
+					/* in/out: already matched
+					fields in upper limit record */
+	ulint*			iup_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	ulint*			ilow_matched_fields,
+					/* in/out: already matched
+					fields in lower limit record */
+	ulint*			ilow_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	page_cur_t*		cursor);/* out: page cursor */
 /***************************************************************
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */

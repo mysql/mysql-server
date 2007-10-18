@@ -665,8 +665,9 @@ UNIV_INLINE
 mutex_t*
 buf_page_get_mutex(
 /*===============*/
-				/* out: pointer to mutex protecting bpage */
-	buf_page_t*	bpage)	/* in: pointer to control block */
+					/* out: pointer to mutex
+					protecting bpage */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
 	__attribute__((pure));
 
 /*************************************************************************

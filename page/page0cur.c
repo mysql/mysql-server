@@ -30,25 +30,27 @@ UNIV_INLINE
 ibool
 page_cur_try_search_shortcut(
 /*=========================*/
-				/* out: TRUE on success */
-	buf_block_t*	block,	/* in: index page */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	tuple,	/* in: data tuple */
-	ulint*		iup_matched_fields,
-				/* in/out: already matched fields in upper
-				limit record */
-	ulint*		iup_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	ulint*		ilow_matched_fields,
-				/* in/out: already matched fields in lower
-				limit record */
-	ulint*		ilow_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	page_cur_t*	cursor) /* out: page cursor */
+					/* out: TRUE on success */
+	const buf_block_t*	block,	/* in: index page */
+	const dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*		tuple,	/* in: data tuple */
+	ulint*			iup_matched_fields,
+					/* in/out: already matched
+					fields in upper limit record */
+	ulint*			iup_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	ulint*			ilow_matched_fields,
+					/* in/out: already matched
+					fields in lower limit record */
+	ulint*			ilow_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	page_cur_t*		cursor) /* out: page cursor */
 {
-	rec_t*		rec;
+	const rec_t*	rec;
 	const rec_t*	next_rec;
 	ulint		low_match;
 	ulint		low_bytes;
@@ -58,7 +60,7 @@ page_cur_try_search_shortcut(
 	page_cur_t	cursor2;
 #endif
 	ibool		success		= FALSE;
-	page_t*		page		= buf_block_get_frame(block);
+	const page_t*	page		= buf_block_get_frame(block);
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -85,7 +87,7 @@ page_cur_try_search_shortcut(
 		goto exit_func;
 	}
 
-	next_rec = page_rec_get_next(rec);
+	next_rec = page_rec_get_next_const(rec);
 	offsets = rec_get_offsets(next_rec, index, offsets,
 				  dtuple_get_n_fields(tuple), &heap);
 
@@ -194,45 +196,51 @@ Searches the right position for a page cursor. */
 void
 page_cur_search_with_match(
 /*=======================*/
-	buf_block_t*	block,	/* in: buffer block */
-	dict_index_t*	index,	/* in: record descriptor */
-	const dtuple_t*	tuple,	/* in: data tuple */
-	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
-				or PAGE_CUR_GE */
-	ulint*		iup_matched_fields,
-				/* in/out: already matched fields in upper
-				limit record */
-	ulint*		iup_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	ulint*		ilow_matched_fields,
-				/* in/out: already matched fields in lower
-				limit record */
-	ulint*		ilow_matched_bytes,
-				/* in/out: already matched bytes in a field
-				not yet completely matched */
-	page_cur_t*	cursor) /* out: page cursor */
+	const buf_block_t*	block,	/* in: buffer block */
+	const dict_index_t*	index,	/* in: record descriptor */
+	const dtuple_t*		tuple,	/* in: data tuple */
+	ulint			mode,	/* in: PAGE_CUR_L,
+					PAGE_CUR_LE, PAGE_CUR_G, or
+					PAGE_CUR_GE */
+	ulint*			iup_matched_fields,
+					/* in/out: already matched
+					fields in upper limit record */
+	ulint*			iup_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	ulint*			ilow_matched_fields,
+					/* in/out: already matched
+					fields in lower limit record */
+	ulint*			ilow_matched_bytes,
+					/* in/out: already matched
+					bytes in a field not yet
+					completely matched */
+	page_cur_t*		cursor)	/* out: page cursor */
 {
-	ulint	up;
-	ulint	low;
-	ulint	mid;
-	page_t*	page;
-	page_dir_slot_t* slot;
-	rec_t*	up_rec;
-	rec_t*	low_rec;
-	rec_t*	mid_rec;
-	ulint	up_matched_fields;
-	ulint	up_matched_bytes;
-	ulint	low_matched_fields;
-	ulint	low_matched_bytes;
-	ulint	cur_matched_fields;
-	ulint	cur_matched_bytes;
-	int	cmp;
+	ulint		up;
+	ulint		low;
+	ulint		mid;
+	const page_t*	page;
+	const page_dir_slot_t* slot;
+	const rec_t*	up_rec;
+	const rec_t*	low_rec;
+	const rec_t*	mid_rec;
+	ulint		up_matched_fields;
+	ulint		up_matched_bytes;
+	ulint		low_matched_fields;
+	ulint		low_matched_bytes;
+	ulint		cur_matched_fields;
+	ulint		cur_matched_bytes;
+	int		cmp;
 #ifdef UNIV_SEARCH_DEBUG
-	int	dbg_cmp;
-	ulint	dbg_matched_fields;
-	ulint	dbg_matched_bytes;
+	int		dbg_cmp;
+	ulint		dbg_matched_fields;
+	ulint		dbg_matched_bytes;
 #endif
+#ifdef UNIV_ZIP_DEBUG
+	const page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+#endif /* UNIV_ZIP_DEBUG */
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -253,7 +261,6 @@ page_cur_search_with_match(
 #endif /* UNIV_DEBUG */
 	page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
-	page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -366,9 +373,9 @@ up_slot_match:
 	/* Perform linear search until the upper and lower records come to
 	distance 1 of each other. */
 
-	while (page_rec_get_next(low_rec) != up_rec) {
+	while (page_rec_get_next_const(low_rec) != up_rec) {
 
-		mid_rec = page_rec_get_next(low_rec);
+		mid_rec = page_rec_get_next_const(low_rec);
 
 		ut_pair_min(&cur_matched_fields, &cur_matched_bytes,
 			    low_matched_fields, low_matched_bytes,
@@ -436,7 +443,7 @@ up_rec_match:
 		ut_a(dbg_cmp >= 0);
 	}
 
-	if (low_rec != page_get_infimum_rec(page)) {
+	if (!page_rec_is_infimum(low_rec)) {
 
 		ut_a(low_matched_fields == dbg_matched_fields);
 		ut_a(low_matched_bytes == dbg_matched_bytes);
@@ -460,7 +467,7 @@ up_rec_match:
 		ut_a(dbg_cmp == -1);
 	}
 
-	if (up_rec != page_get_supremum_rec(page)) {
+	if (!page_rec_is_supremum(up_rec)) {
 
 		ut_a(up_matched_fields == dbg_matched_fields);
 		ut_a(up_matched_bytes == dbg_matched_bytes);
@@ -1791,7 +1798,7 @@ page_cur_delete_rec(
 	ut_ad(cur_slot_no > 0);
 	prev_slot = page_dir_get_nth_slot(page, cur_slot_no - 1);
 
-	rec = page_dir_slot_get_rec(prev_slot);
+	rec = (rec_t*) page_dir_slot_get_rec(prev_slot);
 
 	/* rec now points to the record of the previous directory slot. Look
 	for the immediate predecessor of current_rec in a loop. */
