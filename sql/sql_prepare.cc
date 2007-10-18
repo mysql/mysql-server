@@ -2947,12 +2947,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->spcont == NULL)
-    {
-      const char *format= "[%lu] %.*b";
-      general_log_print(thd, COM_STMT_PREPARE, format, id,
-                        query_length, query);
-
-    }
+      general_log_write(thd, COM_STMT_PREPARE, query, query_length);
   }
   DBUG_RETURN(error);
 }
@@ -3150,11 +3145,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     the general log.
   */
   if (error == 0 && thd->spcont == NULL)
-  {
-    const char *format= "[%lu] %.*b";
-    general_log_print(thd, COM_STMT_EXECUTE, format, id,
-                      thd->query_length, thd->query);
-  }
+    general_log_write(thd, COM_STMT_EXECUTE, thd->query, thd->query_length);
 
 error:
   flags&= ~ (uint) IS_IN_USE;
