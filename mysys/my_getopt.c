@@ -20,14 +20,6 @@
 #include <mysys_err.h>
 #include <my_getopt.h>
 
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-#define getopt_ul                       getopt_ll
-#define getopt_ul_limit_value           getopt_ll_limit_value
-#else
-#define getopt_ul                       getopt_ull
-#define getopt_ul_limit_value           getopt_ull_limit_value
-#endif
-
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
@@ -602,14 +594,16 @@ static int setval(const struct my_option *opts, uchar* *value, char *argument,
       *((my_bool*) result_pos)= (my_bool) atoi(argument) != 0;
       break;
     case GET_INT:
-    case GET_UINT:           /* fall through */
       *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
+      break;
+    case GET_UINT:
+      *((uint*) result_pos)= (uint) getopt_ull(argument, opts, &err);
       break;
     case GET_LONG:
       *((long*) result_pos)= (long) getopt_ll(argument, opts, &err);
       break;
     case GET_ULONG:
-      *((long*) result_pos)= (long) getopt_ul(argument, opts, &err);
+      *((long*) result_pos)= (long) getopt_ull(argument, opts, &err);
       break;
     case GET_LL:
       *((longlong*) result_pos)= getopt_ll(argument, opts, &err);
@@ -781,13 +775,19 @@ static longlong getopt_ll_limit_value(longlong num,
                                       const struct my_option *optp)
 {
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
+  longlong old= num;
+  char buf1[255] __attribute__((unused)), buf2[255] __attribute__((unused));
 
   if (num > 0 && (ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
     num= (ulonglong) optp->max_value;
   num= ((num - optp->sub_size) / block_size);
   num= (longlong) (num * block_size);
-  return max(num, optp->min_value);
+  num= max(num, optp->min_value);
+  if (num != old)
+    DBUG_PRINT("options", ("option '%s' adjusted %s -> %s",
+                        optp->name, llstr(old, buf1), llstr(num, buf2)));
+  return num;
 }
 
 /*
@@ -806,6 +806,9 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
 {
+  ulonglong old= num;
+  char buf1[255] __attribute__((unused)), buf2[255] __attribute__((unused));
+
   if ((ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
     num= (ulonglong) optp->max_value;
@@ -816,6 +819,9 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp)
   }
   if (num < (ulonglong) optp->min_value)
     num= (ulonglong) optp->min_value;
+  if (num != old)
+    DBUG_PRINT("options", ("option '%s' adjusted %s -> %s",
+                        optp->name, ullstr(old, buf1), ullstr(num, buf2)));
   return num;
 }
 
@@ -872,7 +878,7 @@ static void init_one_value(const struct my_option *optp, uchar* *variable,
     *((int*) variable)= (int) getopt_ll_limit_value(value, optp);
     break;
   case GET_UINT:
-    *((uint*) variable)= (uint) getopt_ll_limit_value(value, optp);
+    *((uint*) variable)= (uint) getopt_ull_limit_value(value, optp);
     break;
   case GET_ENUM:
     *((uint*) variable)= (uint) value;
@@ -881,7 +887,7 @@ static void init_one_value(const struct my_option *optp, uchar* *variable,
     *((long*) variable)= (long) getopt_ll_limit_value(value, optp);
     break;
   case GET_ULONG:
-    *((ulong*) variable)= (ulong) getopt_ul_limit_value(value, optp);
+    *((ulong*) variable)= (ulong) getopt_ull_limit_value(value, optp);
     break;
   case GET_LL:
     *((longlong*) variable)= (longlong) getopt_ll_limit_value(value, optp);
