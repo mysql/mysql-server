@@ -7748,7 +7748,17 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
+  {
+    /*
+      If error in mysql_lock_tables(), open_ltable doesn't close the
+      table. Thread kill during mysql_lock_tables() is such error. But
+      open tables cannot be accepted when restoring the open tables
+      state.
+    */
+    if (thd->killed)
+      close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+  }
 
   thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);
