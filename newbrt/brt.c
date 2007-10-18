@@ -82,7 +82,7 @@ void fix_up_parent_pointers_of_children (BRT t, BRTNODE node) {
 	    BRTNODE child = v;
 	    //printf("%s:%d pin %p\n", __FILE__, __LINE__, v);
 	    child->parent_brtnode = node;
-	    r=cachetable_unpin(t->cf, node->u.n.children[i], 0);
+	    r=cachetable_unpin_size(t->cf, node->u.n.children[i], child->dirty, brtnode_size(child));
 	}
     }
 }
@@ -97,7 +97,7 @@ void fix_up_parent_pointers_of_children_now_that_parent_is_gone (CACHEFILE cf, B
 	    BRTNODE child = v;
 	    //printf("%s:%d pin %p\n", __FILE__, __LINE__, v);
 	    child->parent_brtnode = 0;
-	    r=cachetable_unpin(cf, node->u.n.children[i], 0);
+	    r=cachetable_unpin_size(cf, node->u.n.children[i], child->dirty, brtnode_size(child));
 	}
     }
 }
@@ -1311,16 +1311,19 @@ int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
 	assert(nodeb->nodesize>0);
     }
     int dirty;
+    long size;
     if (did_split) {
         r = brt_init_new_root(brt, nodea, nodeb, splitk, rootp);
         assert(r == 0);
         dirty = 1;
+        size = 0;
     } else {
 	if (node->height>0)
 	    assert(node->u.n.n_children<=TREE_FANOUT);
         dirty = node->dirty;
+        size = brtnode_size(node);
     }
-    cachetable_unpin_size(brt->cf, *rootp, dirty, 0);
+    cachetable_unpin_size(brt->cf, *rootp, dirty, size);
     r = unpin_brt_header(brt);
     assert(r == 0);
     //assert(0==cachetable_assert_all_unpinned(brt->cachetable));
