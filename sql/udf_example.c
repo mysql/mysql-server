@@ -1106,11 +1106,12 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
 }
 
 
+
 my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
   {
-    strmov(message, "IS_CONST accepts only one argument");
+    strmov(message, "CHECK_CONST_LEN accepts only one argument");
     return 1;
   }
   if (args->args[0] == 0)
@@ -1138,7 +1139,6 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
   *is_null= 0;
   return result;
 }
-
 
 
 #endif /* HAVE_DLOPEN */

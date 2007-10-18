@@ -427,6 +427,22 @@ f1
 Warnings:
 Warning	1292	Incorrect datetime value: '2007010100000' for column 'f1' at row 1
 drop table t1;
+create table t1 (f1 time);
+insert into t1 set f1 = '45:44:44';
+insert into t1 set f1 = '15:44:44';
+select * from t1 where (convert(f1,datetime)) != 1;
+f1
+15:44:44
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00 45:44:44'
+drop table t1;
+create table t1 (a tinyint);
+insert into t1 values (), (), ();
+select sum(a) from t1 group by convert(a, datetime);
+sum(a)
+NULL
+drop table t1;
+End of 5.0 tests
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
 Warnings:
