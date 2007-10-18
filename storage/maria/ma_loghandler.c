@@ -2670,12 +2670,15 @@ static uint16 translog_get_chunk_header_length(uchar *page, uint16 offset)
 
 static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
 {
+  uchar *page;
+  TRANSLOG_ADDRESS current_page;
   uint32 next_page_offset, page_rest;
   uint32 i;
   File fd;
-  char path[FN_REFLEN], page[TRANSLOG_PAGE_SIZE];
+  TRANSLOG_VALIDATOR_DATA data;
+  char path[FN_REFLEN];
+  uchar page_buff[TRANSLOG_PAGE_SIZE];
   DBUG_ENTER("translog_truncate_log");
-  translog_lock();
   /* TODO: write warning to the client */
   DBUG_PRINT("warning", ("removing all records from (%lx,0x%lx) "
                          "till (%lx,0x%lx)",
@@ -2696,19 +2699,30 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
                      ((next_page_offset - 1) % TRANSLOG_PAGE_SIZE + 1) +
                      TRANSLOG_PAGE_SIZE);
   page_rest= next_page_offset - LSN_OFFSET(addr);
-  memset(page, TRANSLOG_FILLER, TRANSLOG_PAGE_SIZE);
+  memset(page_buff, TRANSLOG_FILLER, page_rest);
   if ((fd= open_logfile_by_number_no_cache(LSN_FILE_NO(addr))) < 0 ||
       my_chsize(fd, next_page_offset, TRANSLOG_FILLER, MYF(MY_WME)) ||
-      (page_rest && my_pwrite(fd, page, page_rest, LSN_OFFSET(addr),
+      (page_rest && my_pwrite(fd, page_buff, page_rest, LSN_OFFSET(addr),
                               log_write_flags)) ||
       my_sync(fd, MYF(MY_WME)) ||
       my_close(fd, MYF(MY_WME)))
-  {
-    translog_unlock();
     DBUG_RETURN(1);
-  }
+  /* fix the horizon */
   log_descriptor.horizon= addr;
-  translog_unlock();
+  /* fix the buffer data */
+  current_page= MAKE_LSN(LSN_FILE_NO(addr), (next_page_offset -
+                                             TRANSLOG_PAGE_SIZE));
+  data.addr= &current_page;
+  if ((page= translog_get_page(&data, log_descriptor.buffers->buffer, NULL)) ==
+      NULL)
+    DBUG_RETURN(1);
+  if (page != log_descriptor.buffers->buffer)
+    memcpy(log_descriptor.buffers->buffer, page, TRANSLOG_PAGE_SIZE);
+  log_descriptor.bc.buffer->offset= current_page;
+  log_descriptor.bc.buffer->size= LSN_OFFSET(addr) - LSN_OFFSET(current_page);
+  log_descriptor.bc.ptr=
+    log_descriptor.buffers->buffer + log_descriptor.bc.buffer->size;
+  log_descriptor.bc.current_page_fill= log_descriptor.bc.buffer->size;
   DBUG_RETURN(0);
 }
 
