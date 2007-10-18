@@ -2931,8 +2931,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(TRUE);
   }
   /* Sort keys in optimized order */
-  qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	(qsort_cmp) sort_keys);
+  my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
+	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
   DBUG_RETURN(FALSE);
