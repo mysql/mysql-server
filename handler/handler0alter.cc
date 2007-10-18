@@ -737,6 +737,17 @@ err_exit:
 		trx->table_id = indexed_table->id;
 	}
 
+	ut_ad(!error);
+
+	/* Acquire an exclusive lock on the table
+	before creating any indexes. */
+	error = row_merge_lock_table(trx, innodb_table);
+
+	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
+
+		goto error_handling;
+	}
+
 	num_created = 0;
 
 	/* Create the indexes in SYS_INDEXES and load into dictionary. */
@@ -754,7 +765,7 @@ err_exit:
 		num_created++;
 	}
 
-	ut_ad(!error);
+	ut_ad(error == DB_SUCCESS);
 
 	/* Raise version number of the table to track this table's
 	definition changes. */
@@ -766,13 +777,6 @@ err_exit:
 
 	ut_a(trx->n_active_thrs == 0);
 	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
-
-	error = row_merge_lock_table(trx, innodb_table);
-
-	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-
-		goto error_handling;
-	}
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
