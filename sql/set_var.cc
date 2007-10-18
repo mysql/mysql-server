@@ -2900,7 +2900,8 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted)
 
     /* sort into order */
     if (sorted)
-      qsort(result, count + fixed_count, sizeof(SHOW_VAR), (qsort_cmp)show_cmp);
+      my_qsort(result, count + fixed_count, sizeof(SHOW_VAR),
+               (qsort_cmp) show_cmp);
     
     /* make last element empty */
     bzero(show, sizeof(SHOW_VAR));
