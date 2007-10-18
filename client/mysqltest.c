@@ -1563,10 +1563,22 @@ void check_result(DYNAMIC_STRING* ds)
       and then show the diff
     */
     char reject_file[FN_REFLEN];
-    str_to_file(fn_format(reject_file, result_file_name, opt_logdir, ".reject",
-                          *opt_logdir ? MY_REPLACE_DIR | MY_REPLACE_EXT :
-                          MY_REPLACE_EXT),
-                ds->str, ds->length);
+    size_t reject_length;
+    dirname_part(reject_file, result_file_name, &reject_length);
+
+    if (access(reject_file, W_OK) == 0)
+    {
+      /* Result file directory is writable, save reject file there */
+      fn_format(reject_file, result_file_name, NULL,
+                ".reject", MY_REPLACE_EXT);
+    }
+    else
+    {
+      /* Put reject file in opt_logdir */
+      fn_format(reject_file, result_file_name, opt_logdir,
+                ".reject", MY_REPLACE_DIR | MY_REPLACE_EXT);
+    }
+    str_to_file(reject_file, ds->str, ds->length);
 
     dynstr_set(ds, NULL); /* Don't create a .log file */
 
@@ -4946,7 +4958,13 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (uchar**) &opt_port,
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   (uchar**) &opt_port,
    (uchar**) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (uchar**) &ps_protocol, (uchar**) &ps_protocol, 0,

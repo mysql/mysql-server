@@ -5664,12 +5664,10 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
   
-  hi=(int) s[0];
-  
   if (s >= e)
     return MY_CS_TOOSMALL;
   
-  if (hi<0x80)
+  if ((hi= s[0]) < 0x80)
   {
     pwc[0]=hi;
     return 1;
