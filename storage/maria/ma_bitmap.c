@@ -84,7 +84,7 @@
   - Size of each blob field
 
   The bitmap handler will get all the above information and return
-  either one page or a set of pages to put the different parts.  
+  either one page or a set of pages to put the different parts.
 
   Bitmaps are read on demand in response to insert/delete/update operations.
   The following bitmap pointers will be cached and stored on disk on close:
@@ -216,7 +216,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
     page cache yet.
     Pretend we have a dummy, full and not changed bitmap page in memory.
  */
-  
+
   bitmap->page= ~(ulonglong) 0;
   bitmap->used_size= bitmap->total_size;
   bfill(bitmap->map, share->block_size, 255);
@@ -448,7 +448,7 @@ const char *bits_to_txt[]=
   "tail 00-40 % full", "tail 40-80 % full", "tail/blob full"
 };
 
-static void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap)
+static void _ma_print_bitmap_changes(MARIA_FILE_BITMAP *bitmap)
 {
   uchar *pos, *end, *org_pos;
   ulong page;
@@ -485,6 +485,46 @@ static void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap)
   fputc('\n', DBUG_FILE);
   DBUG_UNLOCK_FILE;
   memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+}
+
+
+/* Print content of bitmap for debugging */
+
+void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
+                      ulonglong page)
+{
+  uchar *pos, *end;
+  char llbuff[22];
+
+  end= bitmap->map + bitmap->used_size;
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE,"\nDump of bitmap page at %s\n", llstr(page, llbuff));
+
+  page++;                                       /* Skip bitmap page */
+  for (pos= data, end= pos + bitmap->total_size;
+       pos < end ;
+       pos+= 6)
+  {
+    ulonglong bits= uint6korr(pos);    /* 6 bytes = 6*8/3= 16 patterns */
+
+    /*
+      Test if there is any changes in the next 16 bitmaps (to not have to
+      loop through all bits if we know they are the same)
+    */
+    if (bits)
+    {
+      uint i;
+      for (i= 0; i < 16 ; i++, bits>>= 3)
+      {
+        if (bits & 7)
+          fprintf(DBUG_FILE, "Page: %8s  %s\n", llstr(page+i, llbuff),
+                  bits_to_txt[bits & 7]);
+      }
+    }
+    page+= 16;
+  }
+  fputc('\n', DBUG_FILE);
+  DBUG_UNLOCK_FILE;
 }
 
 #endif /* DBUG_OFF */
@@ -698,7 +738,7 @@ static void fill_block(MARIA_FILE_BITMAP *bitmap,
   tmp= (tmp & ~(7 << offset)) | (fill_pattern << offset);
   int2store(data, tmp);
   bitmap->changed= 1;
-  DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
 }
 
 
@@ -1037,7 +1077,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     int6store(best_data, best_prefix_bits);
     if (!(best_area_size-= best_prefix_area_size))
     {
-      DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+      DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
       DBUG_RETURN(block->page_count);
     }
     best_data+= 6;
@@ -1055,7 +1095,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   if (data_end < best_data)
     bitmap->used_size= (uint) (best_data - bitmap->map);
   bitmap->changed= 1;
-  DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   DBUG_RETURN(block->page_count);
 }
 
@@ -1318,7 +1358,7 @@ static void use_head(MARIA_HA *info, ulonglong page, uint size,
   tmp= (tmp & ~(7 << offset)) | (FULL_HEAD_PAGE << offset);
   int2store(data, tmp);
   bitmap->changed= 1;
-  DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
 }
 
 
@@ -1564,6 +1604,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   my_bool res= 1;
   uint full_page_size, position;
   uint head_length, row_length, rest_length, extents_length;
+  ulonglong bitmap_page;
   DBUG_ENTER("_ma_bitmap_find_new_place");
 
   blocks->count= 0;
@@ -1572,9 +1613,11 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   info->bitmap_blocks.elements= ELEMENTS_RESERVED_FOR_MAIN_PART;
 
   pthread_mutex_lock(&share->bitmap.bitmap_lock);
-  if (share->bitmap.page != page / share->bitmap.pages_covered &&
-      _ma_change_bitmap_page(info, &share->bitmap,
-                             page / share->bitmap.pages_covered))
+  bitmap_page= page / share->bitmap.pages_covered;
+  bitmap_page*= share->bitmap.pages_covered;
+
+  if (share->bitmap.page != bitmap_page &&
+      _ma_change_bitmap_page(info, &share->bitmap, bitmap_page))
     goto abort;
 
   /*
@@ -1673,7 +1716,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   int2store(data, tmp);
 
   bitmap->changed= 1;
-  DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   if (fill_pattern != 3 && fill_pattern != 7)
     set_if_smaller(info->s->state.first_bitmap_with_space, bitmap_page);
   /*
@@ -1757,7 +1800,7 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   DBUG_ENTER("_ma_reset_full_page_bits");
   DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
   safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
-  
+
   bitmap_page= page - page % bitmap->pages_covered;
   if (bitmap_page != bitmap->page &&
       _ma_change_bitmap_page(info, bitmap, bitmap_page))
@@ -1800,7 +1843,81 @@ my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   }
   set_if_smaller(info->s->state.first_bitmap_with_space, bitmap_page);
   bitmap->changed= 1;
-  DBUG_EXECUTE("bitmap", _ma_print_bitmap(bitmap););
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
+  DBUG_RETURN(0);
+}
+
+/*
+  Set all pages in a region as used
+
+  SYNOPSIS
+    _ma_set_full_page_bits()
+    info                Maria handler
+    bitmap              Bitmap handler
+    page                Start page
+    page_count          Number of pages
+
+  NOTES
+    We assume that all pages in region is covered by same bitmap
+    One must have a lock on info->s->bitmap.bitmap_lock
+
+  RETURN
+    0  ok
+    1  Error (when reading bitmap)
+*/
+
+my_bool _ma_set_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                               ulonglong page, uint page_count)
+{
+  ulonglong bitmap_page;
+  uint offset, bit_start, bit_count, tmp;
+  uchar *data;
+  DBUG_ENTER("_ma_set_full_page_bits");
+  DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
+  safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
+
+  bitmap_page= page - page % bitmap->pages_covered;
+  if (bitmap_page != bitmap->page &&
+      _ma_change_bitmap_page(info, bitmap, bitmap_page))
+    DBUG_RETURN(1);
+
+  /* Find page number from start of bitmap */
+  page= page - bitmap->page - 1;
+
+  /* Set bits from 'page * 3' -> '(page + page_count) * 3' */
+  bit_start= page * 3;
+  bit_count= page_count * 3;
+
+  data= bitmap->map + bit_start / 8;
+  offset= bit_start & 7;
+
+  tmp= (255 << offset);                         /* Bits to keep */
+  if (bit_count + offset < 8)
+  {
+    /* Only set bits between 'offset' and 'offset+bit_count-1' */
+    tmp^= (255 << (offset + bit_count));
+  }
+  *data|= tmp;
+
+  if ((int) (bit_count-= (8 - offset)) > 0)
+  {
+    uint fill;
+    data++;
+    /*
+      -1 is here to avoid one 'if' statement and to let the following code
+      handle the last byte
+    */
+    if ((fill= (bit_count - 1) / 8))
+    {
+      bfill(data, fill, 255);
+      data+= fill;
+    }
+    bit_count-= fill * 8;                       /* Bits left to set */
+    tmp= (1 << bit_count) - 1;
+    *data|= tmp;
+  }
+  bitmap->changed= 1;
+  DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   DBUG_RETURN(0);
 }
 
@@ -1863,7 +1980,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
       set_page_bits(info, bitmap, block->page, bits))
     goto err;
 
-  
+
   /* Handle all full pages and tail pages (for head page and blob) */
   for (block++; block < end; block++)
   {
@@ -1930,16 +2047,17 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
   DBUG_ENTER("_ma_bitmap_free_full_pages");
 
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
-  for (; count--; extents += ROW_EXTENT_SIZE)
+  for (; count--; extents+= ROW_EXTENT_SIZE)
   {
     ulonglong page=  uint5korr(extents);
     uint page_count= uint2korr(extents + ROW_EXTENT_PAGE_SIZE);
     if (!(page_count & TAIL_BIT))
     {
+      if (page == 0 && page_count == 0)
+        continue;                               /* Not used extent */
       if (pagecache_delete_pages(info->s->pagecache, &info->dfile, page,
-                                 page_count, PAGECACHE_LOCK_WRITE, 1))
-        DBUG_RETURN(1);
-      if (_ma_reset_full_page_bits(info, &info->s->bitmap, page, page_count))
+                                 page_count, PAGECACHE_LOCK_WRITE, 1) ||
+          _ma_reset_full_page_bits(info, &info->s->bitmap, page, page_count))
       {
         pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
         DBUG_RETURN(1);
@@ -2081,7 +2199,7 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
 */
 
 int _ma_bitmap_create_first(MARIA_SHARE *share)
-{ 
+{
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
   char marker[sizeof(maria_bitmap_marker)];

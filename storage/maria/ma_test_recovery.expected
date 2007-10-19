@@ -44,23 +44,23 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 ---
 > Datafile length:               114688  Keyfile length:                   8192
 ========DIFF END=======
-TEST WITH ma_test2 -s -M -T -c -b
+TEST WITH ma_test2 -s -M -T -c -b65000
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 11c11
-< Datafile length:               114688  Keyfile length:                 155648
+< Datafile length:              2531328  Keyfile length:                 155648
 ---
-> Datafile length:               114688  Keyfile length:                   8192
+> Datafile length:              2531328  Keyfile length:                   8192
 ========DIFF END=======
 testing idempotency
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
 ========DIFF START=======
 11c11
-< Datafile length:               114688  Keyfile length:                 155648
+< Datafile length:              2531328  Keyfile length:                 155648
 ---
-> Datafile length:               114688  Keyfile length:                   8192
+> Datafile length:              2531328  Keyfile length:                   8192
 ========DIFF END=======
 Testing the REDO AND UNDO PHASE
 TEST WITH ma_test1 -s -M -T -c -N  --testflag=1 (commit at end)
@@ -623,7 +623,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
@@ -636,7 +636,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
@@ -649,7 +649,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                   8192
+> Datafile length:               155648  Keyfile length:                   8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=2 (additional aborted work)
@@ -770,7 +770,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
@@ -783,7 +783,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
@@ -796,7 +796,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                   8192
+> Datafile length:               155648  Keyfile length:                   8192
 ========DIFF END=======
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=1 (commit at end)
 TEST WITH ma_test1 -s -M -T -c -N -b --testflag=2 --test-undo=3 (additional aborted work)
@@ -917,7 +917,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing idempotency
 applying log
@@ -930,7 +930,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                 212992
+> Datafile length:               155648  Keyfile length:                 212992
 ========DIFF END=======
 testing applying of CLRs to recreate table
 applying log
@@ -943,5 +943,5 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 11c11
 < Datafile length:                 8192  Keyfile length:                   8192
 ---
-> Datafile length:               114688  Keyfile length:                   8192
+> Datafile length:               155648  Keyfile length:                   8192
 ========DIFF END=======

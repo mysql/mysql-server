@@ -1169,7 +1169,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
-    buffpek->base= (uchar*) strpos;
+    buffpek->base= strpos;
     buffpek->max_keys= maxcount;
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
                                                  rec_length));
@@ -1296,12 +1296,12 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= (uchar*) buffpek->key+offset;
+      strpos= buffpek->key+offset;
       for (end= strpos+buffpek->mem_count*rec_length ;
            strpos != end ;
            strpos+= rec_length)
       {     
-        if (my_b_write(to_file, (uchar *) strpos, res_length))
+        if (my_b_write(to_file, strpos, res_length))
         {
           error=1; goto err;                        
         }

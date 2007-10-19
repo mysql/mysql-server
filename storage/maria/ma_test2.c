@@ -1005,7 +1005,7 @@ static void get_options(int argc, char **argv)
       pack_type= HA_BINARY_PACK_KEY;
       break;
     case 'b':
-      use_blob= 1;
+      use_blob= 1000;
       if (*++pos)
         use_blob= atol(pos);
       break;

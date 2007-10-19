@@ -96,7 +96,7 @@ echo "Testing the REDO PHASE ALONE"
 # identical to the saved original.
 # Does not test the index file as we don't have logging for it yet.
 
-set -- "ma_test1 $silent -M -T -c" "ma_test2 $silent -L -K -W -P -M -T -c" "ma_test2 $silent -M -T -c -b"
+set -- "ma_test1 $silent -M -T -c" "ma_test2 $silent -L -K -W -P -M -T -c" "ma_test2 $silent -M -T -c -b65000"
 while [ $# != 0 ]
 do
   prog=$1

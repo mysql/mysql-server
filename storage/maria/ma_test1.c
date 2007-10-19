@@ -33,6 +33,7 @@ static int rec_pointer_size=0, flags[50], testflag;
 static int key_field=FIELD_SKIP_PRESPACE,extra_field=FIELD_SKIP_ENDSPACE;
 static int key_type=HA_KEYTYPE_NUM;
 static int create_flag=0;
+static ulong blob_length;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 static uint insert_count, update_count, remove_count;
@@ -690,7 +691,8 @@ static struct my_option my_long_options[] =
   {"key-binary-pack", 'B', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-blob", 'b', "Undocumented",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (uchar**) &blob_length, (uchar**) &blob_length,
+   0, GET_ULONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"key-cache", 'K', "Undocumented", (uchar**) &pagecacheing,
    (uchar**) &pagecacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key-length", 'k', "Undocumented", (uchar**) &key_length,

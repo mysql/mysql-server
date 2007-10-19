@@ -399,11 +399,18 @@ static LOG_DESC INIT_LOGREC_REDO_PURGE_ROW_TAIL=
  NULL, write_hook_for_redo, NULL, 0,
  "redo_purge_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-static LOG_DESC INIT_LOGREC_REDO_PURGE_BLOCKS=
+static LOG_DESC INIT_LOGREC_REDO_FREE_BLOCKS=
 {LOGRECTYPE_VARIABLE_LENGTH, 0,
  FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
  NULL, write_hook_for_redo, NULL, 0,
- "redo_purge_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+ "redo_free_blocks", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+
+static LOG_DESC INIT_LOGREC_REDO_FREE_HEAD_OR_TAIL=
+{LOGRECTYPE_FIXEDLENGTH,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE,
+ NULL, write_hook_for_redo, NULL, 0,
+ "redo_free_head_or_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 /* not yet used; for when we have versioning */
 static LOG_DESC INIT_LOGREC_REDO_DELETE_ROW=
@@ -528,8 +535,10 @@ static void loghandler_init()
     INIT_LOGREC_REDO_PURGE_ROW_HEAD;
   log_record_type_descriptor[LOGREC_REDO_PURGE_ROW_TAIL]=
     INIT_LOGREC_REDO_PURGE_ROW_TAIL;
-  log_record_type_descriptor[LOGREC_REDO_PURGE_BLOCKS]=
-    INIT_LOGREC_REDO_PURGE_BLOCKS;
+  log_record_type_descriptor[LOGREC_REDO_FREE_BLOCKS]=
+    INIT_LOGREC_REDO_FREE_BLOCKS;
+  log_record_type_descriptor[LOGREC_REDO_FREE_HEAD_OR_TAIL]=
+    INIT_LOGREC_REDO_FREE_HEAD_OR_TAIL;
   log_record_type_descriptor[LOGREC_REDO_DELETE_ROW]=
     INIT_LOGREC_REDO_DELETE_ROW;
   log_record_type_descriptor[LOGREC_REDO_UPDATE_ROW_HEAD]=

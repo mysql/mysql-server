@@ -7755,6 +7755,7 @@ mysqld_get_one_option(int optid,
     int method;
     LINT_INIT(method_conv);
 
+    myisam_stats_method_str= argument;
     method= find_type_or_exit(argument, &myisam_stats_method_typelib,
                               opt->name);
     switch (method-1) {

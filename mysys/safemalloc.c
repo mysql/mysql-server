@@ -436,7 +436,6 @@ void TERMINATE(FILE *file, uint flag)
   This is usefull to call from withing a debugger
 */
 
-
 void sf_malloc_report_allocated(void *memory)
 {
   struct st_irem *irem;  

@@ -679,10 +679,18 @@ test.t1	3235292310
 checksum table t1 extended;
 Table	Checksum
 test.t1	3235292310
-alter table t1 engine=myisam;
+alter table t1 row_format=fixed;
 checksum table t1;
 Table	Checksum
 test.t1	3235292310
+alter table t1 row_format=dynamic;
+checksum table t1;
+Table	Checksum
+test.t1	4183529555
+alter table t1 engine=myisam;
+checksum table t1;
+Table	Checksum
+test.t1	4183529555
 drop table t1;
 show variables like 'maria_stats_method';
 Variable_name	Value
@@ -1856,7 +1864,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a int) row_format=dynamic transactional=1;
 Warnings:
-Note	1475	Row format set to PAGE because of TRANSACTIONAL=1 option
+Note	1477	Row format set to PAGE because of TRANSACTIONAL=1 option
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1870,7 +1878,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 row_format=DYNAMIC;
 Warnings:
-Note	1475	Row format set to PAGE because of TRANSACTIONAL=1 option
+Note	1477	Row format set to PAGE because of TRANSACTIONAL=1 option
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1965,6 +1973,21 @@ update t1 set c=repeat('a',8192*2) where a between 200 and 202;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=maria;
+insert into t1 values (1,1,"aaa"),(1,2,null);
+checksum table t1;
+Table	Checksum
+test.t1	1112804611
+lock table t1 write;
+insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
+update t1 set v="row5" where b=4;
+delete from t1 where b=3;
+select a, b, length(v) from t1;
+a	b	length(v)
+1	1	3
+1	2	NULL
+4	4	4
 drop table t1;
 CREATE TABLE t1 (
 auto int(5) unsigned NOT NULL auto_increment,

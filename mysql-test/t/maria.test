@@ -622,7 +622,6 @@ update t1 set c2='A  B' where c1=2;
 check table t1;
 drop table t1;
 
-
 #
 # Test CHECKSUM TABLE
 #
@@ -646,9 +645,9 @@ INSERT INTO t1 VALUES (11,91);
 check table t1 extended;
 checksum table t1;
 checksum table t1 extended;
-alter table t1 row_format=static;
+alter table t1 row_format=fixed;
 checksum table t1;
-alter table t1 row_format=packed;
+alter table t1 row_format=dynamic;
 checksum table t1;
 alter table t1 engine=myisam;
 checksum table t1;
@@ -1229,6 +1228,20 @@ update t1 set b=repeat('a',100) where a between 1 and 100;
 check table t1;
 update t1 set c=repeat('a',8192*2) where a between 200 and 202;
 check table t1;
+drop table t1;
+
+#
+# Test where we shrink varchar
+#
+
+CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=maria;
+insert into t1 values (1,1,"aaa"),(1,2,null);
+checksum table t1;
+lock table t1 write;
+insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
+update t1 set v="row5" where b=4;
+delete from t1 where b=3;
+select a, b, length(v) from t1;
 drop table t1;
 
 #

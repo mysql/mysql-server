@@ -1740,6 +1740,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     switch ((enum en_page_type) page_type) {
     case UNALLOCATED_PAGE:
     case MAX_PAGE_TYPE:
+    default:
       DBUG_ASSERT(0);                           /* Impossible */
       break;
     case HEAD_PAGE:
@@ -1777,10 +1778,10 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                               "Page: %9s: Wrong bitmap for data on page",
                               llstr(pos, llbuff));
       else
-      _ma_check_print_error(param,
-                            "Page %9s:  Wrong data in bitmap.  Page_type: %d  empty_space: %u  Bitmap-bits: %d",
-                            llstr(pos, llbuff), page_type, empty_space,
-                            bitmap_pattern);
+        _ma_check_print_error(param,
+                              "Page %9s:  Wrong data in bitmap.  Page_type: %d  empty_space: %u  Bitmap-bits: %d",
+                              llstr(pos, llbuff), page_type, empty_space,
+                              bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
     }
@@ -1798,6 +1799,32 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if (check_head_page(param, info, record, extend, pos, page_buff,
                         row_count))
       goto err;
+  }
+
+  /* Verify that rest of bitmap is zero */
+
+  if ((pos / block_size) % info->s->bitmap.pages_covered)
+  {
+    /* Not at end of bitmap */
+    uint bitmap_pattern;
+    offset_page= (((pos / block_size) % info->s->bitmap.pages_covered) -1) * 3;
+    offset= offset_page & 7;
+    data= bitmap_buff + offset_page / 8;
+    bitmap_pattern= uint2korr(data);
+    if (((bitmap_pattern >> offset)) ||
+        (data + 2 < bitmap_buff + info->s->bitmap.total_size &&
+         _ma_check_if_zero(data+2, bitmap_buff + info->s->bitmap.total_size -
+                           data - 2)))
+    {
+      ulonglong bitmap_page;
+      bitmap_page= pos / block_size / info->s->bitmap.pages_covered;
+      bitmap_page*= info->s->bitmap.pages_covered;
+
+      _ma_check_print_error(param, "Bitmap at %s has pages reserved outside of data file length",
+                            llstr(bitmap_page, llbuff));
+      DBUG_EXECUTE("bitmap", _ma_print_bitmap(&info->s->bitmap, bitmap_buff,
+                                              bitmap_page););
+    }
   }
 
   _ma_scan_end_block_record(info);

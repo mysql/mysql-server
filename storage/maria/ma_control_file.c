@@ -32,7 +32,9 @@
 #define CONTROL_FILE_MAGIC_STRING "\xfe\xfe\xc\1MACF"
 #define CONTROL_FILE_MAGIC_STRING_OFFSET 0
 #define CONTROL_FILE_MAGIC_STRING_SIZE (sizeof(CONTROL_FILE_MAGIC_STRING)-1)
-#define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
+#define CONTROL_FILE_UUID_OFFSET (CONTROL_FILE_MAGIC_STRING_OFFSET + CONTROL_FILE_MAGIC_STRING_SIZE)
+#define CONTROL_FILE_UUID_SIZE MY_UUID_SIZE
+#define CONTROL_FILE_CHECKSUM_OFFSET (CONTROL_FILE_UUID_OFFSET + CONTROL_FILE_UUID_SIZE)
 #define CONTROL_FILE_CHECKSUM_SIZE 4
 #define CONTROL_FILE_LSN_OFFSET (CONTROL_FILE_CHECKSUM_OFFSET + CONTROL_FILE_CHECKSUM_SIZE)
 #define CONTROL_FILE_LSN_SIZE LSN_STORE_SIZE
@@ -122,6 +124,10 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                                     open_flags, MYF(MY_SYNC_DIR))) < 0)
       DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
+    /* Create unique uuid for the control file */
+    my_uuid_init((ulong) &buffer, (ulong) &maria_uuid);
+    my_uuid(maria_uuid);
+
     /*
       To be safer we should make sure that there are no logs or data/index
       files around (indeed it could be that the control file alone was deleted
@@ -190,6 +196,9 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     error= CONTROL_FILE_BAD_MAGIC_STRING;
     goto err;
   }
+  memcpy(maria_uuid, buffer + CONTROL_FILE_UUID_OFFSET,
+         CONTROL_FILE_UUID_SIZE);
+
   if (my_checksum(0, buffer + CONTROL_FILE_LSN_OFFSET,
                   CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
       uint4korr(buffer + CONTROL_FILE_CHECKSUM_OFFSET))
@@ -252,6 +261,8 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
 
   memcpy(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
          CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE);
+  memcpy(buffer + CONTROL_FILE_UUID_OFFSET, maria_uuid,
+         CONTROL_FILE_UUID_SIZE);
 
   if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LSN)
     update_checkpoint_lsn= TRUE;

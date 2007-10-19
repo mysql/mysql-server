@@ -74,9 +74,11 @@ prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
+prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
 prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD);
 prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL);
-prototype_redo_exec_hook(REDO_PURGE_BLOCKS);
+prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
+prototype_redo_exec_hook(REDO_FREE_BLOCKS);
 prototype_redo_exec_hook(REDO_DELETE_ALL);
 prototype_redo_exec_hook(UNDO_ROW_INSERT);
 prototype_redo_exec_hook(UNDO_ROW_DELETE);
@@ -1137,6 +1139,33 @@ end:
 }
 
 
+prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS)
+{
+  int error= 1;
+  uchar *buff;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+       rec->record_length)
+  {
+    tprint(tracef, "Failed to read record\n");
+    goto end;
+  }
+  buff= log_record_buffer.str;
+  if (_ma_apply_redo_insert_row_blobs(info, current_group_end_lsn,
+                                      buff + FILEID_STORE_SIZE))
+    goto end;
+  error= 0;
+
+end:
+  return error;
+}
+
+
 prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD)
 {
   int error= 1;
@@ -1169,7 +1198,7 @@ end:
 }
 
 
-prototype_redo_exec_hook(REDO_PURGE_BLOCKS)
+prototype_redo_exec_hook(REDO_FREE_BLOCKS)
 {
   int error= 1;
   uchar *buff;
@@ -1188,8 +1217,24 @@ prototype_redo_exec_hook(REDO_PURGE_BLOCKS)
   }
 
   buff= log_record_buffer.str;
-  if (_ma_apply_redo_purge_blocks(info, current_group_end_lsn,
-                                  buff + FILEID_STORE_SIZE))
+  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn,
+                                 buff + FILEID_STORE_SIZE))
+    goto end;
+  error= 0;
+end:
+  return error;
+}
+
+
+prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL)
+{
+  int error= 1;
+  MARIA_HA *info= get_MARIA_HA_from_REDO_record(rec);
+  if (info == NULL)
+    return 0;
+
+  if (_ma_apply_redo_free_head_or_tail(info, current_group_end_lsn,
+                                       rec->header + FILEID_STORE_SIZE))
     goto end;
   error= 0;
 end:
@@ -1556,9 +1601,11 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   install_redo_exec_hook(FILE_ID);
   install_redo_exec_hook(REDO_INSERT_ROW_HEAD);
   install_redo_exec_hook(REDO_INSERT_ROW_TAIL);
+  install_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
   install_redo_exec_hook(REDO_PURGE_ROW_HEAD);
   install_redo_exec_hook(REDO_PURGE_ROW_TAIL);
-  install_redo_exec_hook(REDO_PURGE_BLOCKS);
+  install_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
+  install_redo_exec_hook(REDO_FREE_BLOCKS);
   install_redo_exec_hook(REDO_DELETE_ALL);
   install_redo_exec_hook(UNDO_ROW_INSERT);
   install_redo_exec_hook(UNDO_ROW_DELETE);
@@ -1888,7 +1935,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   page= page_korr(rec->header + FILEID_STORE_SIZE);
   /**
      @todo RECOVERY BUG
-     - for REDO_PURGE_BLOCKS, page is not at this pos
+     - for REDO_FREE_BLOCKS, page is not at this pos
      - for DELETE_ALL, record ends here! buffer overrun!
      Solution: caller should pass a param enum { i_am_about_data_file,
      i_am_about_index_file, none }.

@@ -32,6 +32,7 @@
    @note if size==0 realloc() may return NULL; my_realloc() treats this as an
    error which is not the intention of realloc()
 */
+
 void* my_realloc(void* oldpoint, size_t size, myf my_flags)
 {
   void *point;

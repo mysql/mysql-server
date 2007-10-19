@@ -35,6 +35,8 @@
 
 #define ROW_EXTENT_PAGE_SIZE	5
 #define ROW_EXTENT_COUNT_SIZE   2
+#define SUB_RANGE_SIZE		2
+#define BLOCK_FILLER_SIZE	2
 #define ROW_EXTENT_SIZE		(ROW_EXTENT_PAGE_SIZE + ROW_EXTENT_COUNT_SIZE)
 #define TAIL_BIT		0x8000	/* Bit in page_count to signify tail */
 /* Number of extents reserved MARIA_BITMAP_BLOCKS to store head part */
@@ -139,6 +141,7 @@ my_bool _ma_once_init_block_record(MARIA_SHARE *share, File dfile);
 my_bool _ma_once_end_block_record(MARIA_SHARE *share);
 my_bool _ma_init_block_record(MARIA_HA *info);
 void _ma_end_block_record(MARIA_HA *info);
+my_bool _ma_check_if_zero(uchar *pos, uint length);
 
 my_bool _ma_update_block_record(MARIA_HA *info, MARIA_RECORD_POS pos,
                                 const uchar *oldrec, const uchar *newrec);
@@ -174,6 +177,8 @@ my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong pos, my_bool head,
                        uint empty_space);
 my_bool _ma_reset_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
                                  ulonglong page, uint page_count);
+my_bool _ma_set_full_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                               ulonglong page, uint page_count);
 uint _ma_free_size_to_head_pattern(MARIA_FILE_BITMAP *bitmap, uint size);
 my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *new_row,
                                   ulonglong page, uint free_size,
@@ -187,6 +192,11 @@ my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        uint *bitmap_pattern);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
+#ifndef DBUG_OFF
+void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
+                      ulonglong page);
+#endif
+
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
                                             const uchar *header,
@@ -195,8 +205,12 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
 uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            uint page_type,
                                            const uchar *header);
-uint _ma_apply_redo_purge_blocks(MARIA_HA *info, LSN lsn,
-                                 const uchar *header);
+uint _ma_apply_redo_free_blocks(MARIA_HA *info, LSN lsn,
+                                const uchar *header);
+uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
+                                      const uchar *header);
+uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
+                                     LSN lsn, const uchar *header);
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header);
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,

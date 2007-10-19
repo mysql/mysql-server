@@ -119,6 +119,8 @@ run_tests()
   $maria_path/maria_chk$suffix -sm test2
   $maria_path/ma_test2$suffix $silent -m10000 -e16384 -E16384 -K -L $row_type
   $maria_path/maria_chk$suffix -sm test2
+  $maria_path/ma_test2$suffix $silent -M -T -c -b65000
+  $maria_path/maria_chk$suffix -se test2
 }
 
 run_repair_tests()

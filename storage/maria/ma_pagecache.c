@@ -3338,14 +3338,14 @@ restart:
       if (! (block->status & PCBLOCK_CHANGED))
           link_to_changed_list(pagecache, block);
 
-      if (! (block->status & PCBLOCK_ERROR))
-      {
-        if (!(size & 511))
-          bmove512(block->buffer + offset, buff, size);
-        else
-          memcpy(block->buffer + offset, buff, size);
-        block->status|= PCBLOCK_READ;
-      }
+      if (!(size & 511))
+        bmove512(block->buffer + offset, buff, size);
+      else
+        memcpy(block->buffer + offset, buff, size);
+      block->status|= PCBLOCK_READ;
+      /* Page is correct again if we made a full write in it */
+      if (size == pagecache->block_size)
+        block->status&= ~PCBLOCK_ERROR;
     }
 
     if (need_lock_change)

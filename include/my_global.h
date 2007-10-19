@@ -88,13 +88,6 @@
 #endif
 #endif /* _WIN32... */
 
-/*
-  STACK_DIRECTION was removed from 5.1 and then that was merged into Maria;
-  then it was added back into 5.1 but not yet merged into Maria.
-  When merge done, remove this.
-*/
-#define STACK_DIRECTION -1
-
 /* Make it easier to add conditionl code for windows */
 #ifdef __WIN__
 #define IF_WIN(A,B) (A)
