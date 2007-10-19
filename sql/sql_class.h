@@ -1466,7 +1466,14 @@ public:
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
-  bool       query_error, bootstrap, cleanup_done;
+  /**
+    True if a slave error. Causes the slave to stop. Not the same
+    as the statement execution error (net.report_error), since
+    a statement may be expected to return an error, e.g. because
+    it returned an error on master, and this is OK on the slave.
+  */
+  bool       is_slave_error;
+  bool       bootstrap, cleanup_done;
   
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
@@ -1695,7 +1702,7 @@ public:
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
-    query_error= 0;
+    is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
