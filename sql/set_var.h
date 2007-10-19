@@ -734,33 +734,6 @@ public:
 };
 
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
-class sys_var_pagecache_param :public sys_var
-{
-protected:
-  size_t offset;
-public:
-  sys_var_pagecache_param(const char *name_arg, size_t offset_arg)
-    :sys_var(name_arg), offset(offset_arg)
-  {}
-  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  bool check_default(enum_var_type type) { return 1; }
-  bool is_struct() { return 1; }
-};
-
-
-class sys_var_pagecache_long :public sys_var_pagecache_param
-{
-public:
-  sys_var_pagecache_long(const char *name_arg, size_t offset_arg)
-    :sys_var_pagecache_param(name_arg, offset_arg)
-  {}
-  bool update(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_LONG; }
-};
-#endif /* WITH_MARIA_STORAGE_ENGINE */
-
-
 class sys_var_thd_date_time_format :public sys_var_thd
 {
   DATE_TIME_FORMAT *SV::*offset;
@@ -1185,10 +1158,6 @@ public:
     my_free((uchar*) name, MYF(0));
   }
   friend bool process_key_caches(process_key_cache_t func);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  friend bool process_pagecaches(int (* func) (const char *name,
-                                               PAGECACHE *));
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   friend void delete_elements(I_List<NAMED_LIST> *list,
 			      void (*free_element)(const char*, uchar*));
 };
@@ -1198,9 +1167,6 @@ public:
 extern sys_var_thd_bool sys_old_alter_table;
 extern sys_var_thd_bool sys_old_passwords;
 extern LEX_STRING default_key_cache_base;
-#ifdef WITH_MARIA_STORAGE_ENGINE
-extern LEX_STRING maria_pagecache_base;
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 /* For sql_yacc */
 struct sys_var_with_base
@@ -1242,8 +1208,3 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));
-#ifdef WITH_MARIA_STORAGE_ENGINE
-PAGECACHE *get_or_create_pagecache(const char *name, uint length);
-void free_pagecache(const char *name, PAGECACHE *pagecache);
-bool process_pagecaches(int (* func) (const char *name, PAGECACHE *));
-#endif /* WITH_MARIA_STORAGE_ENGINE */

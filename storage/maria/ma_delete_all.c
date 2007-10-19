@@ -67,6 +67,10 @@ int maria_delete_all_rows(MARIA_HA *info)
                                        log_array, log_data, NULL) ||
                  translog_flush(lsn)))
       goto err;
+    /*
+      If we fail in this function after this point, log and table will be
+      inconsistent.
+    */
   }
 
   /*
@@ -113,11 +117,6 @@ err:
     int save_errno=my_errno;
     VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    /**
-       @todo RECOVERY if we come here, Recovery may later apply the REDO above,
-       which may be wrong. Not fixing it now, as anyway this way of deleting
-       rows will have to be re-examined when we have versioning.
-    */
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);
   }

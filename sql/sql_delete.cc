@@ -939,7 +939,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
        is correctly created as non-transactional but then, when truncated, is
       recreated as transactional.
     */
-    if (table_type->db_type == DB_TYPE_MARIA)
+    if (table_type == maria_hton)
       create_info.transactional= HA_CHOICE_NO;
 #endif
     close_temporary_table(thd, table, 0, 0);    // Don't free share

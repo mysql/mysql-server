@@ -54,6 +54,7 @@ static my_bool skip_DDLs; /**< if REDO phase should skip DDL records */
 /** @brief to avoid writing a checkpoint if recovery did nothing. */
 static my_bool checkpoint_useful;
 static ulonglong now; /**< for tracking execution time of phases */
+static char preamble[]= "Maria engine: starting recovery; ";
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -89,7 +90,7 @@ prototype_undo_exec_hook(UNDO_ROW_INSERT);
 prototype_undo_exec_hook(UNDO_ROW_DELETE);
 prototype_undo_exec_hook(UNDO_ROW_UPDATE);
 
-static int run_redo_phase(LSN lsn, my_bool apply);
+static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
 static int run_undo_phase(uint unfinished);
 static void display_record_position(const LOG_DESC *log_desc,
@@ -126,20 +127,22 @@ static void enlarge_buffer(const TRANSLOG_HEADER_BUFFER *rec)
                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR));
   }
 }
-static my_bool redo_phase_message_printed;
+/** @brief Tells what kind of progress message was printed to the error log */
+static enum recovery_message_type
+{
+  REC_MSG_NONE= 0, REC_MSG_REDO, REC_MSG_UNDO, REC_MSG_FLUSH
+} recovery_message_printed;
 /** @brief Prints to a trace file if it is not NULL */
 void tprint(FILE *trace_file, const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void tprint(FILE *trace_file __attribute__ ((unused)),
             const char *format __attribute__ ((unused)), ...)
 {
-#ifdef EXTRA_DEBUG
   va_list args;
   va_start(args, format);
   if (trace_file != NULL)
     vfprintf(trace_file, format, args);
   va_end(args);
-#endif
 }
 
 #define ALERT_USER() DBUG_ASSERT(0)
@@ -174,7 +177,8 @@ int maria_recover(void)
 #endif
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
-  res= maria_apply_log(LSN_IMPOSSIBLE, TRUE, trace_file, TRUE, TRUE, TRUE);
+  res= maria_apply_log(LSN_IMPOSSIBLE, MARIA_LOG_APPLY, trace_file,
+                       TRUE, TRUE, TRUE);
   if (!res)
     tprint(trace_file, "SUCCESS\n");
   if (trace_file)
@@ -189,7 +193,7 @@ int maria_recover(void)
 
    @param  from_lsn        LSN from which log reading/applying should start;
                            LSN_IMPOSSIBLE means "use last checkpoint"
-   @param  apply           if log records should be applied or not
+   @param  apply           how log records should be applied or not
    @param  trace_file      trace file where progress/debug messages will go
    @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
                            be skipped by the REDO phase or not
@@ -204,15 +208,17 @@ int maria_recover(void)
      @retval !=0    Error
 */
 
-int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
+int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
+                    FILE *trace_file,
                     my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
                     my_bool take_checkpoints)
 {
   int error= 0;
   uint unfinished_trans;
+  ulonglong old_now;
   DBUG_ENTER("maria_apply_log");
 
-  DBUG_ASSERT(apply || !should_run_undo_phase);
+  DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
@@ -225,10 +231,10 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
   if (!all_active_trans || !all_tables)
     goto err;
 
-  if (take_checkpoints && ma_checkpoint_init(FALSE))
+  if (take_checkpoints && ma_checkpoint_init(0))
     goto err;
 
-  redo_phase_message_printed= FALSE;
+  recovery_message_printed= REC_MSG_NONE;
   tracef= trace_file;
   if (!(skip_DDLs= skip_DDLs_arg))
   {
@@ -277,6 +283,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     }
   }
 
+  now= my_getsystime();
   if (run_redo_phase(from_lsn, apply))
     goto err;
 
@@ -284,6 +291,24 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
     goto err;
 
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_REDO)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
+
+  /**
+     REDO phase does not fill blocks' rec_lsn, so a checkpoint now would be
+     wrong: if a future recovery used it, the REDO phase would always
+     start from the checkpoint and never from before, wrongly skipping REDOs
+     (tested).
+
+     @todo fix this.
+  */
+#if 0
   if (take_checkpoints && checkpoint_useful)
   {
     /*
@@ -294,6 +319,7 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     if (ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
       goto err;
   }
+#endif
 
   if (should_run_undo_phase)
   {
@@ -304,12 +330,30 @@ int maria_apply_log(LSN from_lsn, my_bool apply, FILE *trace_file,
     tprint(tracef, "WARNING: %u unfinished transactions; some tables may be"
            " left inconsistent!\n", unfinished_trans);
 
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_UNDO)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
+
   /*
     we don't use maria_panic() because it would maria_end(), and Recovery does
     not want that (we want to keep some modules initialized for runtime).
   */
   if (close_all_tables())
     goto err;
+
+  old_now= now;
+  now= my_getsystime();
+  if (recovery_message_printed == REC_MSG_FLUSH)
+  {
+    float phase_took= (now - old_now)/10000000.0;
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " (%.1f seconds); ", phase_took);
+  }
 
   if (take_checkpoints && checkpoint_useful)
   {
@@ -335,14 +379,10 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
-  if (tracef != stdout && redo_phase_message_printed)
+  if (recovery_message_printed != REC_MSG_NONE)
   {
-    ulonglong old_now= now;
-    now= my_getsystime();
-    float previous_phase_took= (now - old_now)/10000000.0;
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, " (%.1f seconds)\n", previous_phase_took);
+    fprintf(stderr, "%s.\n", error ? " failed" : "done");
   }
   /* we don't cleanly close tables if we hit some error (may corrupt them) */
   DBUG_RETURN(error);
@@ -376,7 +416,7 @@ static int display_and_apply_record(const LOG_DESC *log_desc,
     return 1;
   }
   if ((error= (*log_desc->record_execute_in_redo_phase)(rec)))
-    tprint(tracef, "Got error when executing redo on record\n");
+    tprint(tracef, "Got error when executing record\n");
   return error;
 }
 
@@ -529,10 +569,31 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   else /* one or two files absent, or header corrupted... */
     tprint(tracef, " can't be opened, probably does not exist");
   /* if does not exist, or is older, overwrite it */
-  /** @todo symlinks */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
     tprint(tracef, ", we will only touch index file");
+  ptr++;
+  kfile_size_before_extension= uint2korr(ptr);
+  ptr+= 2;
+  keystart= uint2korr(ptr);
+  ptr+= 2;
+  uchar *kfile_header= ptr;
+  ptr+= kfile_size_before_extension;
+  /* set create_rename_lsn (for maria_read_log to be idempotent) */
+  lsn_store(kfile_header + sizeof(info->s->state.header) + 2, rec->lsn);
+  /* we also set is_of_horizon, like maria_create() does */
+  lsn_store(kfile_header + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
+            rec->lsn);
+  uchar *data_file_name= ptr;
+  ptr+= strlen(data_file_name) + 1;
+  uchar *index_file_name= ptr;
+  ptr+= strlen(index_file_name) + 1;
+  /** @todo handle symlinks */
+  if (data_file_name[0] || index_file_name[0])
+  {
+    tprint(tracef, ", DATA|INDEX DIRECTORY clauses are not handled\n");
+    goto end;
+  }
   fn_format(filename, name, "", MARIA_NAME_IEXT,
             (MY_UNPACK_FILENAME |
              (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
@@ -546,17 +607,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     tprint(tracef, " Failed to create index file\n");
     goto end;
   }
-  ptr++;
-  kfile_size_before_extension= uint2korr(ptr);
-  ptr+= 2;
-  keystart= uint2korr(ptr);
-  ptr+= 2;
-  /* set create_rename_lsn (for maria_read_log to be idempotent) */
-  lsn_store(ptr + sizeof(info->s->state.header) + 2, rec->lsn);
-  /* we also set is_of_horizon, like maria_create() does */
-  lsn_store(ptr + sizeof(info->s->state.header) + 2 + LSN_STORE_SIZE,
-            rec->lsn);
-  if (my_pwrite(kfile, ptr,
+  if (my_pwrite(kfile, kfile_header,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
       my_chsize(kfile, keystart, 0, MYF(MY_WME)))
   {
@@ -953,10 +1004,21 @@ static int new_table(uint16 sid, const char *name,
     0 (success): leave table open and return 0.
   */
   int error= 1;
+  MARIA_HA *info;
 
   checkpoint_useful= TRUE;
+  if ((name == NULL) || (name[0] == 0))
+  {
+    /*
+      we didn't use DBUG_ASSERT() because such record corruption could
+      silently pass in the "info == NULL" test below.
+    */
+    tprint(tracef, ", record is corrupted");
+    info= NULL;
+    goto end;
+  }
   tprint(tracef, "Table '%s', id %u", name, sid);
-  MARIA_HA *info= maria_open(name, O_RDWR, HA_OPEN_FOR_REPAIR);
+  info= maria_open(name, O_RDWR, HA_OPEN_FOR_REPAIR);
   if (info == NULL)
   {
     tprint(tracef, ", is absent (must have been dropped later?)"
@@ -1578,7 +1640,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE)
 }
 
 
-static int run_redo_phase(LSN lsn, my_bool apply)
+static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 {
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
@@ -1627,7 +1689,6 @@ static int run_redo_phase(LSN lsn, my_bool apply)
 
   len= translog_read_record_header(lsn, &rec);
 
-  /** @todo EOF should be detected */
   if (len == RECHEADER_READ_ERROR)
   {
     tprint(tracef, "Failed to read header of the first record.\n");
@@ -1693,7 +1754,22 @@ static int run_redo_phase(LSN lsn, my_bool apply)
             {
               const LOG_DESC *log_desc2= &log_record_type_descriptor[rec2.type];
               display_record_position(log_desc2, &rec2, 0);
-              if (apply && display_and_apply_record(log_desc2, &rec2))
+              if (apply == MARIA_LOG_CHECK)
+              {
+                translog_size_t read_len;
+                enlarge_buffer(&rec2);
+                read_len=
+                  translog_read_record(rec2.lsn, 0, rec2.record_length,
+                                       log_record_buffer.str, NULL);
+                if (read_len != rec2.record_length)
+                {
+                  tprint(tracef, "Cannot read record's body: read %u of"
+                         " %u bytes\n", read_len, rec2.record_length);
+                  goto err;
+                }
+              }
+              if (apply == MARIA_LOG_APPLY &&
+                  display_and_apply_record(log_desc2, &rec2))
               {
                 translog_destroy_scanner(&scanner2);
                 goto err;
@@ -1715,7 +1791,8 @@ static int run_redo_phase(LSN lsn, my_bool apply)
           translog_destroy_scanner(&scanner2);
         }
       }
-      if (apply && display_and_apply_record(log_desc, &rec))
+      if (apply == MARIA_LOG_APPLY &&
+          display_and_apply_record(log_desc, &rec))
         goto err;
     }
     else /* record does not end group */
@@ -1744,6 +1821,11 @@ static int run_redo_phase(LSN lsn, my_bool apply)
   }
   translog_destroy_scanner(&scanner);
   translog_free_record_header(&rec);
+  if (recovery_message_printed == REC_MSG_REDO)
+  {
+    /** @todo RECOVERY BUG all prints to stderr should go to error log */
+    fprintf(stderr, " 100%%");
+  }
   return 0;
 
 err:
@@ -1846,17 +1928,16 @@ static int run_undo_phase(uint unfinished)
     checkpoint_useful= TRUE;
     if (tracef != stdout)
     {
-      ulonglong old_now= now;
-      now= my_getsystime();
-      float previous_phase_took= (now - old_now)/10000000.0;
+      if (recovery_message_printed == REC_MSG_NONE)
+        fprintf(stderr, preamble);
       /** @todo RECOVERY BUG all prints to stderr should go to error log */
-      fprintf(stderr, " 100%% (%.1f seconds); transactions to roll back:",
-              previous_phase_took);
+      fprintf(stderr, "transactions to roll back:");
+      recovery_message_printed= REC_MSG_UNDO;
     }
     tprint(tracef, "%u transactions will be rolled back\n", unfinished);
     for( ; ; )
     {
-      if (tracef != stdout)
+      if (recovery_message_printed == REC_MSG_UNDO)
         fprintf(stderr, " %u", unfinished);
       if ((unfinished--) == 0)
         break;
@@ -1917,7 +1998,10 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
   */
   if (cmp_translog_addr(share->state.is_of_horizon, horizon) < 0 &&
       cmp_translog_addr(share->lsn_of_file_id, horizon) < 0)
+  {
     share->state.is_of_horizon= horizon;
+    _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
+  }
   _ma_reenable_logging_for_table(share);
 }
 
@@ -1933,15 +2017,20 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   print_redo_phase_progress(rec->lsn);
   sid= fileid_korr(rec->header);
   page= page_korr(rec->header + FILEID_STORE_SIZE);
-  /**
-     @todo RECOVERY BUG
-     - for REDO_FREE_BLOCKS, page is not at this pos
-     - for DELETE_ALL, record ends here! buffer overrun!
-     Solution: caller should pass a param enum { i_am_about_data_file,
-     i_am_about_index_file, none }.
-  */
-  llstr(page, llbuf);
-  tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
+  switch(rec->type)
+  {
+    /* not all REDO records have a page: */
+  case LOGREC_REDO_INSERT_ROW_HEAD:
+  case LOGREC_REDO_INSERT_ROW_TAIL:
+  case LOGREC_REDO_PURGE_ROW_HEAD:
+  case LOGREC_REDO_PURGE_ROW_TAIL:
+    llstr(page, llbuf);
+    tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
+    break;
+    /* other types could print their info here too */
+  default:
+    break;
+  }
   info= all_tables[sid].info;
   if (info == NULL)
   {
@@ -2116,8 +2205,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     LSN first_log_write_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     uint name_len= strlen(ptr) + 1;
+    strmake(name, ptr, sizeof(name)-1);
     ptr+= name_len;
-    strnmov(name, ptr, sizeof(name));
     if (new_table(sid, name, kfile, dfile, first_log_write_lsn))
       return LSN_ERROR;
   }
@@ -2192,32 +2281,45 @@ static int new_page(File fileid, pgcache_page_no_t pageid, LSN rec_lsn,
 static int close_all_tables(void)
 {
   int error= 0;
+  uint count;
   LIST *list_element, *next_open;
   MARIA_HA *info;
   pthread_mutex_lock(&THR_LOCK_maria);
   if (maria_open_list == NULL)
     goto end;
   tprint(tracef, "Closing all tables\n");
-  if (tracef != stdout && redo_phase_message_printed)
+  if (tracef != stdout)
   {
-    ulonglong old_now= now;
-    now= my_getsystime();
-    float previous_phase_took= (now - old_now)/10000000.0;
+    if (recovery_message_printed == REC_MSG_NONE)
+      fprintf(stderr, preamble);
+    for (count= 0, list_element= maria_open_list ;
+         list_element ; count++, (list_element= list_element->next))
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, " (%.1f seconds); flushing tables", previous_phase_took);
+      fprintf(stderr, "tables to flush:");
+    recovery_message_printed= REC_MSG_FLUSH;
   }
-
   /*
     Since the end of end_of_redo_phase(), we may have written new records
     (if UNDO phase ran)  and thus the state is newer than at
     end_of_redo_phase(), we need to bump is_of_horizon again.
   */
   TRANSLOG_ADDRESS addr= translog_get_horizon();
-  for (list_element= maria_open_list ; list_element ; list_element= next_open)
+  for (list_element= maria_open_list ; ; list_element= next_open)
   {
+    if (recovery_message_printed == REC_MSG_FLUSH)
+      fprintf(stderr, " %u", count--);
+    if (list_element == NULL)
+      break;
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
     pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
+    /*
+      Tables which we see here are exactly those which were open at time of
+      crash. They might have open_count>0 as Checkpoint maybe flushed their
+      state while they were used. As Recovery corrected them, don't alarm the
+      user, don't ask for a table check:
+    */
+    info->s->state.open_count= 0;
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);
@@ -2264,12 +2366,12 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
   static ulonglong initial_remainder= -1;
   if (tracef == stdout)
     return;
-  if (!redo_phase_message_printed)
+  if (recovery_message_printed == REC_MSG_NONE)
   {
     /** @todo RECOVERY BUG all prints to stderr should go to error log */
-    fprintf(stderr, "Maria engine: starting recovery; recovered pages: 0%%");
-    redo_phase_message_printed= TRUE;
-    now= my_getsystime();
+    fprintf(stderr, preamble);
+    fprintf(stderr, "recovered pages: 0%%");
+    recovery_message_printed= REC_MSG_REDO;
   }
   if (end_logno == FILENO_IMPOSSIBLE)
   {

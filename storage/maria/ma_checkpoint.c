@@ -20,11 +20,7 @@
 
 /* Here is the implementation of this module */
 
-/**
-   @todo RECOVERY BUG this is unreviewed code, but used in safe conditions:
-   ha_maria takes a checkpoint at end of recovery and one at clean shutdown,
-   that's all. So there never are open tables, dirty pages, transactions.
-*/
+/** @todo RECOVERY BUG this is unreviewed code */
 /*
   Summary:
   checkpoints are done either by a background thread (checkpoint every Nth
@@ -40,25 +36,6 @@
 #include "ma_blockrec.h"
 #include "ma_checkpoint.h"
 #include "ma_loghandler_lsn.h"
-
-
-/** @brief Frequency of background checkpoints, in seconds */
-ulong maria_checkpoint_frequency;
-/*
-  Checkpoints currently happen only at ha_maria's startup (after recovery) and
-  at shutdown, always when there is no open tables.
-  Background page flushing is not used.
-  So, needed pagecache functions for doing this flushing are not yet pushed.
-*/
-#define flush_pagecache_blocks_with_filter(A,B,C,D,E) (int)(((ulong)D) * 0)
-/**
-   filter has to return 0, 1 or 2: 0 means "don't flush this page", 1 means
-   "flush it", 2 means "don't flush this page and following pages".
-   Will move to ma_pagecache.h
-*/
-typedef int (*PAGECACHE_FILTER)(enum pagecache_page_type type,
-                                pgcache_page_no_t page,
-                                LSN rec_lsn, void *arg);
 
 
 /** @brief type of checkpoint currently running */
@@ -89,18 +66,22 @@ struct st_filter_param
   uint max_pages; /**< stop after flushing this number pages */
 }; /**< information to determine which dirty pages should be flushed */
 
-static int filter_flush_data_file_medium(enum pagecache_page_type type,
-                                         pgcache_page_no_t page,
-                                         LSN rec_lsn, void *arg);
-static int filter_flush_data_file_full(enum pagecache_page_type type,
-                                       pgcache_page_no_t page,
-                                       LSN rec_lsn, void *arg);
-static int filter_flush_data_file_indirect(enum pagecache_page_type type,
-                                           pgcache_page_no_t page,
-                                           LSN rec_lsn, void *arg);
-static int filter_flush_data_file_evenly(enum pagecache_page_type type,
-                                         pgcache_page_no_t pageno,
-                                         LSN rec_lsn, void *arg);
+static enum pagecache_flush_filter_result
+filter_flush_data_file_medium(enum pagecache_page_type type,
+                              pgcache_page_no_t page,
+                              LSN rec_lsn, void *arg);
+static enum pagecache_flush_filter_result
+filter_flush_data_file_full(enum pagecache_page_type type,
+                            pgcache_page_no_t page,
+                            LSN rec_lsn, void *arg);
+static enum pagecache_flush_filter_result
+filter_flush_data_file_indirect(enum pagecache_page_type type,
+                                pgcache_page_no_t page,
+                                LSN rec_lsn, void *arg);
+static enum pagecache_flush_filter_result
+filter_flush_data_file_evenly(enum pagecache_page_type type,
+                              pgcache_page_no_t pageno,
+                              LSN rec_lsn, void *arg);
 static int really_execute_checkpoint(void);
 pthread_handler_t ma_checkpoint_background(void *arg);
 static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon);
@@ -191,13 +172,6 @@ static int really_execute_checkpoint(void)
     rules, the log's lock is a mutex).
     "Horizon" is a lower bound of the LSN of the next log record.
   */
-  /**
-     @todo RECOVERY BUG
-     this is an horizon, but it is used as a LSN (REDO phase may start from
-     there! probably log handler would refuse to read then;
-     Sanja proposed to make a loghandler's function which finds the LSN after
-     this horizon.
-  */
   checkpoint_start_log_horizon= translog_get_horizon();
   DBUG_PRINT("info",("checkpoint_start_log_horizon (%lu,0x%lx)",
                      LSN_IN_PARTS(checkpoint_start_log_horizon)));
@@ -263,7 +237,6 @@ static int really_execute_checkpoint(void)
       log_array[TRANSLOG_INTERNAL_PARTS + 1 + i]= record_pieces[i];
       total_rec_length+= record_pieces[i].length;
     }
-
     if (unlikely(translog_write_record(&lsn, LOGREC_CHECKPOINT,
                                        &dummy_transaction_object, NULL,
                                        total_rec_length,
@@ -271,7 +244,6 @@ static int really_execute_checkpoint(void)
                                        log_array, NULL, NULL) ||
                  translog_flush(lsn)))
       goto err;
-
     translog_lock();
     /*
       This cannot be done as a inwrite_rec_hook of LOGREC_CHECKPOINT, because
@@ -336,33 +308,39 @@ end:
 /**
    @brief Initializes the checkpoint module
 
-   @param  create_background_thread If one wants the module to now create a
-                                    thread which will periodically do
-                                    checkpoints, and flush dirty pages, in the
-                                    background.
+   @param  interval           If one wants the module to create a
+                              thread which will periodically do
+                              checkpoints, and flush dirty pages, in the
+                              background, it should specify a non-zero
+                              interval in seconds. The thread will then be
+                              created and will take checkpoints separated by
+                              approximately 'interval' second.
+
+   @note A checkpoint is taken only if there has been some significant
+   activity since the previous checkpoint. Between checkpoint N and N+1 the
+   thread flushes all dirty pages which were already dirty at the time of
+   checkpoint N.
 
    @return Operation status
     @retval 0   ok
     @retval !=0 error
 */
 
-int ma_checkpoint_init(my_bool create_background_thread)
+int ma_checkpoint_init(ulong interval)
 {
   pthread_t th;
   int res= 0;
   DBUG_ENTER("ma_checkpoint_init");
   checkpoint_inited= TRUE;
   checkpoint_thread_die= 2; /* not yet born == dead */
-  /* Background thread will be enabled in a later changeset */
-  create_background_thread= FALSE;
-  if (maria_checkpoint_frequency == 0)
-    create_background_thread= FALSE;
   if (pthread_mutex_init(&LOCK_checkpoint, MY_MUTEX_INIT_SLOW) ||
       pthread_cond_init(&COND_checkpoint, 0))
     res= 1;
-  else if (create_background_thread)
+  else if (interval > 0)
   {
-    if (!(res= pthread_create(&th, NULL, ma_checkpoint_background, NULL)))
+    compile_time_assert(sizeof(void *) >= sizeof(ulong));
+    if (!(res= pthread_create(&th, NULL, ma_checkpoint_background,
+                              (void *)interval)))
       checkpoint_thread_die= 0; /* thread lives, will have to be killed */
   }
   DBUG_RETURN(res);
@@ -417,15 +395,12 @@ void ma_checkpoint_end(void)
    @param  pageno              Page's number
    @param  rec_lsn             Page's rec_lsn
    @param  arg                 filter_param
-
-   @return Operation status
-    @retval 0   don't flush the page
-    @retval 1   flush the page
 */
 
-static int filter_flush_data_file_medium(enum pagecache_page_type type,
-                                         pgcache_page_no_t pageno,
-                                         LSN rec_lsn, void *arg)
+static enum pagecache_flush_filter_result
+filter_flush_data_file_medium(enum pagecache_page_type type,
+                              pgcache_page_no_t pageno,
+                              LSN rec_lsn, void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return ((type == PAGECACHE_LSN_PAGE) &&
@@ -444,17 +419,13 @@ static int filter_flush_data_file_medium(enum pagecache_page_type type,
    @param  pageno              Page's number
    @param  rec_lsn             Page's rec_lsn
    @param  arg                 filter_param
-
-   @return Operation status
-    @retval 0   don't flush the page
-    @retval 1   flush the page
 */
 
-static int filter_flush_data_file_full(enum pagecache_page_type type,
-                                       pgcache_page_no_t pageno,
-                                       LSN rec_lsn
-                                       __attribute__ ((unused)),
-                                       void *arg)
+static enum pagecache_flush_filter_result
+filter_flush_data_file_full(enum pagecache_page_type type,
+                            pgcache_page_no_t pageno,
+                            LSN rec_lsn __attribute__ ((unused)),
+                            void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return (type == PAGECACHE_LSN_PAGE) ||
@@ -472,18 +443,14 @@ static int filter_flush_data_file_full(enum pagecache_page_type type,
    @param  pageno              Page's number
    @param  rec_lsn             Page's rec_lsn
    @param  arg                 filter_param
-
-   @return Operation status
-    @retval 0   don't flush the page
-    @retval 1   flush the page
 */
 
-static int filter_flush_data_file_indirect(enum pagecache_page_type type
-                                           __attribute__ ((unused)),
-                                           pgcache_page_no_t pageno,
-                                           LSN rec_lsn
-                                           __attribute__ ((unused)),
-                                           void *arg)
+static enum pagecache_flush_filter_result
+filter_flush_data_file_indirect(enum pagecache_page_type type
+                                __attribute__ ((unused)),
+                                pgcache_page_no_t pageno,
+                                LSN rec_lsn __attribute__ ((unused)),
+                                void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   return
@@ -505,40 +472,33 @@ static int filter_flush_data_file_indirect(enum pagecache_page_type type
    @param  pageno              Page's number
    @param  rec_lsn             Page's rec_lsn
    @param  arg                 filter_param
-
-   @return Operation status
-    @retval 0   don't flush the page
-    @retval 1   flush the page
-    @retval 2   don't flush the page and following pages
 */
 
-static int filter_flush_data_file_evenly(enum pagecache_page_type type,
-                                         pgcache_page_no_t pageno
-                                         __attribute__ ((unused)),
-                                         LSN rec_lsn, void *arg)
+static enum pagecache_flush_filter_result
+filter_flush_data_file_evenly(enum pagecache_page_type type,
+                              pgcache_page_no_t pageno __attribute__ ((unused)),
+                              LSN rec_lsn, void *arg)
 {
   struct st_filter_param *param= (struct st_filter_param *)arg;
   if (unlikely(param->max_pages == 0)) /* all flushed already */
-    return 2;
+    return FLUSH_FILTER_SKIP_ALL;
   if ((type == PAGECACHE_LSN_PAGE) &&
       (cmp_translog_addr(rec_lsn, param->up_to_lsn) <= 0))
   {
     param->max_pages--;
-    return 1;
+    return FLUSH_FILTER_OK;
   }
-  return 0;
+  return FLUSH_FILTER_SKIP_TRY_NEXT;
 }
 
 
 /**
    @brief Background thread which does checkpoints and flushes periodically.
 
-   Takes a checkpoint every maria_checkpoint_frequency-th second. After taking
-   a checkpoint, all pages dirty at the time of that checkpoint are flushed
-   evenly until it is time to take another checkpoint
-   (maria_checkpoint_frequency seconds later). This ensures that the REDO
-   phase starts at earliest (in LSN time) at the next-to-last checkpoint
-   record ("two-checkpoint rule").
+   Takes a checkpoint. After this, all pages dirty at the time of that
+   checkpoint are flushed evenly until it is time to take another checkpoint.
+   This ensures that the REDO phase starts at earliest (in LSN time) at the
+   next-to-last checkpoint record ("two-checkpoint rule").
 
    @note MikaelR questioned why the same thread does two different jobs, the
    risk could be that while a checkpoint happens no LRD flushing happens.
@@ -549,34 +509,46 @@ static int filter_flush_data_file_evenly(enum pagecache_page_type type,
    writing 2 MB.
 */
 
-pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
+pthread_handler_t ma_checkpoint_background(void *arg)
 {
   /** @brief At least this of log/page bytes written between checkpoints */
   const uint checkpoint_min_activity= 2*1024*1024;
-  uint sleeps= 0;
+  /*
+    If the interval could be changed by the user while we are in this thread,
+    it could be annoying: for example it could cause "case 2" to be executed
+    right after "case 0", thus having 'dfile' unset. So the thread cares only
+    about the interval's value when it started.
+  */
+  const ulong interval= (ulong)arg;
+  uint sleeps;
+  TRANSLOG_ADDRESS log_horizon_at_last_checkpoint= LSN_IMPOSSIBLE;
+  ulonglong pagecache_flushes_at_last_checkpoint= 0;
+  uint pages_bunch_size;
+  struct st_filter_param filter_param;
+  PAGECACHE_FILE *dfile; /**< data file currently being flushed */
+  PAGECACHE_FILE *kfile; /**< index file currently being flushed */
+  LINT_INIT(kfile);
+  LINT_INIT(dfile);
+  LINT_INIT(pages_bunch_size);
 
   my_thread_init();
   DBUG_PRINT("info",("Maria background checkpoint thread starts"));
-  for(;;)
+  DBUG_ASSERT(interval > 0);
+
+  /*
+    Recovery ended with all tables closed and a checkpoint: no need to take
+    one immediately.
+  */
+  sleeps= 1;
+  pages_to_flush_before_next_checkpoint= 0;
+
+  for(;;) /* iterations of checkpoints and dirty page flushing */
   {
 #if 0 /* good for testing, to do a lot of checkpoints, finds a lot of bugs */
     sleeps=0;
 #endif
-    uint pages_bunch_size;
-    struct st_filter_param filter_param;
-    PAGECACHE_FILE *dfile; /**< data file currently being flushed */
-    PAGECACHE_FILE *kfile; /**< index file currently being flushed */
-    TRANSLOG_ADDRESS log_horizon_at_last_checkpoint= LSN_IMPOSSIBLE;
-    ulonglong pagecache_flushes_at_last_checkpoint= 0;
     struct timespec abstime;
-    LINT_INIT(kfile);
-    LINT_INIT(dfile);
-    /*
-      If the frequency could be changed by the user while we are in this loop,
-      it could be annoying: for example it could cause "case 2" to be executed
-      right after "case 0", thus having 'dfile' unset.
-    */
-    switch((sleeps++) % maria_checkpoint_frequency)
+    switch((sleeps++) % interval)
     {
     case 0:
       /*
@@ -620,22 +592,28 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
     case 1:
       /* set up parameters for background page flushing */
       filter_param.up_to_lsn= last_checkpoint_lsn;
-      pages_bunch_size= pages_to_flush_before_next_checkpoint /
-        maria_checkpoint_frequency;
+      pages_bunch_size= pages_to_flush_before_next_checkpoint / interval;
       dfile= dfiles;
       kfile= kfiles;
       /* fall through */
     default:
       if (pages_bunch_size > 0)
       {
+        DBUG_PRINT("info", ("Maria background checkpoint thread: %u pages",
+                            pages_bunch_size));
         /* flush a bunch of dirty pages */
         filter_param.max_pages= pages_bunch_size;
         filter_param.is_data_file= TRUE;
         while (dfile != dfiles_end)
         {
+          /*
+            We use FLUSH_KEEP_LAZY: if a file is already in flush, it's
+            smarter to move to the next file than wait for this one to be
+            completely flushed, which may take long.
+          */
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,
-                                               dfile, FLUSH_KEEP,
+                                               dfile, FLUSH_KEEP_LAZY,
                                                filter_flush_data_file_evenly,
                                                &filter_param);
           /* note that it may just be a pinned page */
@@ -651,7 +629,7 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
         {
           int res=
             flush_pagecache_blocks_with_filter(maria_pagecache,
-                                               dfile, FLUSH_KEEP,
+                                               dfile, FLUSH_KEEP_LAZY,
                                                filter_flush_data_file_evenly,
                                                &filter_param);
           if (unlikely(res))
@@ -682,22 +660,8 @@ pthread_handler_t ma_checkpoint_background(void *arg __attribute__((unused)))
   pthread_mutex_unlock(&LOCK_checkpoint);
   DBUG_PRINT("info",("Maria background checkpoint thread ends"));
   /*
-    A last checkpoint, now that all tables should be closed; to have instant
-    recovery later. We always do it, because the test above about number of
-    log records or flushed pages is only approximative. For example, some log
-    records may have been written while ma_checkpoint_execute() above was
-    running, or some pages may have been flushed during this time. Thus it
-    could be that, while nothing has changed since that checkpoint's *end*, if
-    we recovered from that checkpoint we would have a non-empty dirty pages
-    list, REDOs to execute, and we don't want that, we want a clean shutdown
-    to have an empty recovery (simplifies upgrade/backups: one can just do a
-    clean shutdown, copy its tables to another system without copying the log
-    or control file and it will work because recovery will not need those).
-    Another reason why it's approximative is that a log record may have been
-    written above between ma_checkpoint_execute() and the
-    tranlog_get_horizon() which follows.
-    So, we have at least two checkpoints per start/stop of the engine, and
-    only two if the engine stays idle.
+    That's the final one, which guarantees that a clean shutdown always ends
+    with a checkpoint.
   */
   ma_checkpoint_execute(CHECKPOINT_FULL, FALSE);
   pthread_mutex_lock(&LOCK_checkpoint);
@@ -823,7 +787,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   struct st_filter_param filter_param;
   /* only possible checkpointer, so can do the read below without mutex */
   filter_param.up_to_lsn= last_checkpoint_lsn;
-  PAGECACHE_FILTER filter;
+  PAGECACHE_FLUSH_FILTER filter;
   switch(checkpoint_in_progress)
   {
   case CHECKPOINT_MEDIUM:
@@ -871,6 +835,10 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       /* No need for a mutex to read the above, only us can write this flag */
       continue;
     }
+    /**
+       @todo We should not look at tables which didn't change since last
+       checkpoint.
+    */
     DBUG_PRINT("info",("looking at table '%s'", share->open_file_name));
     if (state_copy == state_copies_end) /* we have no more cached states */
     {
@@ -1055,6 +1023,39 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       only a little slower than CHECKPOINT_INDIRECT).
     */
 
+    /*
+      PageCacheFlushConcurrencyBugs
+      Inside the page cache, calls to flush_pagecache_blocks_int() on the same
+      file are serialized. Examples of concurrency bugs which happened when we
+      didn't have this serialization:
+      - maria_chk_size() (via CHECK TABLE) happens concurrently with
+      Checkpoint: Checkpoint is flushing a page: it pins the page and is
+      pre-empted, maria_chk_size() wants to flush this page too so gets an
+      error because Checkpoint pinned this page. Such error makes
+      maria_chk_size() mark the table as corrupted.
+      - maria_close() happens concurrently with Checkpoint:
+      Checkpoint is flushing a page: it registers a request on the page, is
+      pre-empted ; maria_close() flushes this page too with FLUSH_RELEASE:
+      FLUSH_RELEASE will cause a free_block() which assumes the page is in the
+      LRU, but it is not (as Checkpoint registered a request). Crash.
+      - one thread is evicting a page of the file out of the LRU: it marks it
+      iPC_BLOCK_IN_SWITCH and is pre-empted. Then two other threads do flushes
+      of the same file concurrently (like above). Then one flusher sees the
+      page is in switch, removes it from changed_blocks[] and puts it in its
+      first_in_switch, so the other flusher will not see the page at all and
+      return too early. If it's maria_close() which returns too early, then
+      maria_close() may close the file descriptor, and the other flusher, and
+      the evicter will fail to write their page: corruption.
+    */
+
+    /*
+      We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap pages
+      have been flushed. That's a condition of correctness of Recovery: data
+      pages may have been all flushed, if we write the checkpoint record
+      Recovery will start from after their REDOs. If bitmap page was not
+      flushed, as the REDOs about it will be skipped, it will wrongly not be
+      recovered. If bitmap pages had a rec_lsn it would be different.
+    */
     /**
        @todo we ignore the error because it may be just due a pinned page;
        we should rather fix the function below to distinguish between

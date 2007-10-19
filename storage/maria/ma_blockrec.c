@@ -1610,6 +1610,7 @@ static my_bool write_full_pages(MARIA_HA *info,
             KEYPAGE_CHECKSUM_SIZE, (uchar) 255);
 
     DBUG_ASSERT(share->pagecache->block_size == block_size);
+    /** @todo RECOVERY BUG the page does not get a rec_lsn with this! */
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
                         buff, share->page_type,
@@ -5952,6 +5953,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   MARIA_RECORD_POS record_pos;
   ha_checksum checksum_delta;
   DBUG_ENTER("_ma_apply_undo_row_update");
+  LINT_INIT(checksum_delta);
 
   page=  page_korr(header);
   header+= PAGE_STORE_SIZE;

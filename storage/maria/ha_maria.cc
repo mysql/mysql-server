@@ -44,6 +44,9 @@ C_MODE_END
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
 #endif
 
+ulong pagecache_division_limit, pagecache_age_threshold;
+ulonglong pagecache_buffer_size;
+
 /**
    @todo For now there is no way for a user to set a different value of
    maria_recover_options, i.e. auto-check-and-repair is always disabled.
@@ -54,7 +57,7 @@ C_MODE_END
    still corrupted.
 */
 ulong maria_recover_options= HA_RECOVER_NONE;
-static handlerton *maria_hton;
+handlerton *maria_hton;
 
 /* bits in maria_recover_options */
 const char *maria_recover_names[]=
@@ -78,9 +81,11 @@ TYPELIB maria_stats_method_typelib=
   maria_stats_method_names, NULL
 };
 
-static void update_checkpoint_frequency(MYSQL_THD thd,
-                                        struct st_mysql_sys_var *var,
-                                        void *var_ptr, void *save);
+/** @brief Interval between background checkpoints in seconds */
+static ulong checkpoint_interval;
+static void update_checkpoint_interval(MYSQL_THD thd,
+                                       struct st_mysql_sys_var *var,
+                                       void *var_ptr, void *save);
 
 static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -88,17 +93,37 @@ static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
        MARIA_MAX_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH);
 
-static MYSQL_SYSVAR_ULONG(checkpoint_frequency, maria_checkpoint_frequency,
+static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        PLUGIN_VAR_RQCMDARG,
-       "Frequency of automatic checkpoints, in seconds;"
-       " 0 means 'no checkpoints'.",
-       NULL, update_checkpoint_frequency, 30, 0, UINT_MAX, 1);
+       "Interval between automatic checkpoints, in seconds;"
+       " 0 means 'no automatic checkpoints'.",
+       NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
        "Don't use the fast sort index method to created index if the "
        "temporary file would get bigger than this.",
        0, 0, MAX_FILE_SIZE, 0, MAX_FILE_SIZE, 1024*1024);
+
+static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
+       pagecache_age_threshold, PLUGIN_VAR_RQCMDARG,
+       "This characterizes the number of hits a hot block has to be untouched "
+       "until it is considered aged enough to be downgraded to a warm block. "
+       "This specifies the percentage ratio of that number of hits to the "
+       "total number of blocks in the page cache.", 0, 0,
+        300, 100, ~0L, 100);
+
+static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
+       PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+       "The size of the buffer used for index blocks for Maria tables. "
+       "Increase this to get better index handling (for all reads and multiple "
+       "writes) to as much as you can afford.", 0, 0,
+       KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, IO_SIZE);
+
+static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
+       PLUGIN_VAR_RQCMDARG,
+       "The minimum percentage of warm blocks in key cache", 0, 0,
+       100,  1, 100, 1);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
        "Number of threads to use when repairing maria tables. The value of 1 "
@@ -739,7 +764,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     growing files. Using an open_flag instead of calling ma_extra(...
     HA_EXTRA_MMAP ...) after maxs_open() has the advantage that the
     mapping is not repeated for every open, but just done on the initial
-    open, when the MyISAM share is created. Everytime the server
+    open, when the MyISAM share is created. Every time the server
     requires to open a new instance of a table it calls this method. We
     will always supply HA_OPEN_MMAP for a permanent table. However, the
     Maria storage engine will ignore this flag if this is a secondary
@@ -1300,6 +1325,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 
 int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
 {
+#if 0 && NOT_IMPLEMENTED
   PAGECACHE *new_pagecache= check_opt->pagecache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
@@ -1307,8 +1333,6 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
   TABLE_LIST *table_list= table->pos_in_table_list;
   DBUG_ENTER("ha_maria::assign_to_keycache");
 
-  /* for now, it is disabled */
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 
   table->keys_in_use_for_query.clear_all();
 
@@ -1341,6 +1365,9 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
     _ma_check_print_error(&param, errmsg);
   }
   DBUG_RETURN(error);
+#else
+  return  HA_ADMIN_NOT_IMPLEMENTED;
+#endif
 }
 
 
@@ -2319,8 +2346,9 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
 
 static int maria_hton_panic(handlerton *hton, ha_panic_function flag)
 {
-  ma_checkpoint_execute(CHECKPOINT_FULL, FALSE); /* can't catch error */
-  return maria_panic(flag);
+  /* If no background checkpoints, we need to do one now */
+  return ((checkpoint_interval == 0) ?
+          ma_checkpoint_execute(CHECKPOINT_FULL, FALSE) : 0) | maria_panic(flag);
 }
 
 
@@ -2363,7 +2391,7 @@ static int ha_maria_init(void *p)
   int res;
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
-  maria_hton->db_type= DB_TYPE_MARIA;
+  maria_hton->db_type= DB_TYPE_UNKNOWN;
   maria_hton->create= maria_create_handler;
   maria_hton->panic= maria_hton_panic;
   maria_hton->commit= maria_commit;
@@ -2373,6 +2401,9 @@ static int ha_maria_init(void *p)
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_data_root= mysql_real_data_home;
   res= maria_init() || ma_control_file_create_or_open() ||
+    (init_pagecache(maria_pagecache,
+                    pagecache_buffer_size, pagecache_division_limit,
+                    pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH) == 0) ||
     (init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE) == 0) ||
@@ -2380,7 +2411,7 @@ static int ha_maria_init(void *p)
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS) ||
     maria_recover() ||
-    ma_checkpoint_init(TRUE);
+    ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= TRUE;
   return res;
 }
@@ -2404,7 +2435,7 @@ static int ha_maria_init(void *p)
 
   @return The error code. The engine_data and engine_callback will be set to 0.
     @retval TRUE Success
-    @retval FALSE An error occured
+    @retval FALSE An error occurred
 */
 
 my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
@@ -2463,8 +2494,11 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 
 static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
-  MYSQL_SYSVAR(checkpoint_frequency),
+  MYSQL_SYSVAR(checkpoint_interval),
   MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(pagecache_age_threshold),
+  MYSQL_SYSVAR(pagecache_buffer_size),
+  MYSQL_SYSVAR(pagecache_division_limit),
   MYSQL_SYSVAR(repair_threads),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(stats_method),
@@ -2473,25 +2507,27 @@ static struct st_mysql_sys_var* system_variables[]= {
 
 
 /**
-   @brief Updates the checkpoint frequency and restarts the background thread.
-
-   Background thread has a loop which correctness depends on a constant
-   checkpoint frequency. So when the user wants to modify it, we stop and
-   restart the thread.
+   @brief Updates the checkpoint interval and restarts the background thread.
 */
-static void update_checkpoint_frequency(MYSQL_THD thd,
+
+static void update_checkpoint_interval(MYSQL_THD thd,
                                         struct st_mysql_sys_var *var,
                                         void *var_ptr, void *save)
 {
-  ulong new_value= (ulong)(*(long *)save), *dest= (ulong *)var_ptr;
-  if (new_value != *dest) /* it's actually a change */
-  {
-    ma_checkpoint_end();
-    *dest= new_value;
-    ma_checkpoint_init(TRUE);
-  }
+  ma_checkpoint_end();
+  ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
 }
 
+static SHOW_VAR status_variables[]= {
+  {"Maria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG},
+  {"Maria_pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG},
+  {"Maria_pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG},
+  {"Maria_pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
+  {"Maria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
+  {"Maria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
+  {"Maria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
@@ -2507,7 +2543,7 @@ mysql_declare_plugin(maria)
   ha_maria_init,              /* Plugin Init                     */
   NULL,                       /* Plugin Deinit                   */
   0x0100,                     /* 1.0                             */
-  NULL,                       /* status variables                */
+  status_variables,           /* status variables                */
   system_variables,           /* system variables                */
   NULL
 }

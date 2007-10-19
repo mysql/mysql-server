@@ -20,6 +20,7 @@
 #include <m_string.h>
 #include "ma_control_file.h"
 #include "ma_loghandler.h"
+#include "ma_checkpoint.h"
 #include "trnman.h"
 
 extern PAGECACHE *maria_log_pagecache;
@@ -29,7 +30,7 @@ extern const char *maria_data_root;
 
 static void usage();
 
-static int rec_pointer_size=0, flags[50], testflag;
+static int rec_pointer_size=0, flags[50], testflag, checkpoint;
 static int key_field=FIELD_SKIP_PRESPACE,extra_field=FIELD_SKIP_ENDSPACE;
 static int key_type=HA_KEYTYPE_NUM;
 static int create_flag=0;
@@ -83,7 +84,7 @@ int main(int argc,char *argv[])
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache,
                     TRANSLOG_DEFAULT_FLAGS) ||
-      (transactional && trnman_init(0)))
+      (transactional && (trnman_init(0) || ma_checkpoint_init(0))))
   {
     fprintf(stderr, "Error in initialization");
     exit(1);
@@ -227,6 +228,9 @@ static int run_test(const char *filename)
   if (maria_commit(file) || maria_begin(file))
     goto err;
 
+  if (checkpoint == 1 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
+
   if (testflag == 1)
     goto end;
 
@@ -246,6 +250,9 @@ static int run_test(const char *filename)
       printf("J= NULL  maria_write: %d  errno: %d\n", error,my_errno);
     flags[0]=2;
   }
+
+  if (checkpoint == 2 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (testflag == 2)
   {
@@ -307,6 +314,9 @@ static int run_test(const char *filename)
       printf("Found %ld of %ld rows\n", (ulong) found, (ulong) row_count);
     maria_scan_end(file);
   }
+
+  if (checkpoint == 3 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (testflag == 3)
   {
@@ -370,6 +380,9 @@ static int run_test(const char *filename)
       }
     }
   }
+
+  if (checkpoint == 4 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (testflag == 4)
   {
@@ -673,6 +686,8 @@ static void update_record(uchar *record)
 
 static struct my_option my_long_options[] =
 {
+  {"checkpoint", 'H', "Checkpoint at specified stage", (uchar**) &checkpoint,
+   (uchar**) &checkpoint, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"checksum", 'c', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF

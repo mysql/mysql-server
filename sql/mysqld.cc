@@ -28,9 +28,6 @@
 #include "events.h"
 
 #include "../storage/myisam/ha_myisam.h"
-#ifdef WITH_MARIA_STORAGE_ENGINE
-#include "../storage/maria/ha_maria.h"
-#endif
 
 #include "rpl_injector.h"
 
@@ -528,9 +525,6 @@ FILE *stderror_file=0;
 
 I_List<THD> threads;
 I_List<NAMED_LIST> key_caches;
-#ifdef WITH_MARIA_STORAGE_ENGINE
-I_List<NAMED_LIST> pagecaches;
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 Rpl_filter* rpl_filter;
 Rpl_filter* binlog_filter;
 
@@ -1214,13 +1208,7 @@ void clean_up(bool print_message)
     tc_log->close();
   xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  delete_elements(&pagecaches, (void (*)(const char*, uchar*)) free_pagecache);
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   multi_keycache_free();
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  multi_pagecache_free();
-#endif
   free_status_vars();
   end_thr_alarm(1);			/* Free allocated memory */
   my_free_open_file_info();
@@ -2209,10 +2197,6 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  fprintf(stderr, "page_buffer_size=%lu\n",
-          (ulong) maria_pagecache->mem_size);
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
   fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
@@ -2220,9 +2204,6 @@ and this may fail.\n\n");
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
-#ifdef WITH_MARIA_STORAGE_ENGINE
-                     (ulong) maria_pagecache->mem_size +
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     thread_scheduler.max_threads +
@@ -3419,14 +3400,6 @@ server.");
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
-  /*
-    Maria's pagecache needs to be ready before Maria engine (Recovery uses
-    pagecache, and Checkpoint may happen at startup). Maria engine is taken up
-    in plugin_init().
-  */
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  process_pagecaches(&ha_init_pagecache);
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 
   /* Allow storage engine to give real error messages */
   if (ha_init_errors())
@@ -6045,7 +6018,7 @@ log and this option does nothing anymore.",
    "Max packetlength to send/receive from to server.",
    (uchar**) &global_system_variables.max_allowed_packet,
    (uchar**) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, 0, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (uchar**) &max_binlog_cache_size, (uchar**) &max_binlog_cache_size, 0,
@@ -6123,7 +6096,7 @@ The minimum value for this variable is 4096.",
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
    "The maximum number of active connections for a single user (0 = no limit).",
    (uchar**) &max_user_connections, (uchar**) &max_user_connections, 0, GET_UINT,
-   REQUIRED_ARG, 0, 1, ~0, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, ~0, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    (uchar**) &max_write_lock_count, (uchar**) &max_write_lock_count, 0, GET_ULONG,
@@ -6214,24 +6187,6 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.optimizer_search_depth,
    (uchar**) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  {"pagecache_age_threshold", OPT_PAGECACHE_AGE_THRESHOLD,
-   "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
-   (uchar**) &maria_pagecache_var.param_age_threshold,
-   (uchar**) 0, 0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
-   300, 100, ~0L, 0, 100, 0},
-  {"pagecache_buffer_size", OPT_PAGECACHE_BUFFER_SIZE,
-   "The size of the buffer used for index blocks for Maria tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
-   (uchar**) &maria_pagecache_var.param_buff_size,
-   (uchar**) 0, 0, (GET_ULL | GET_ASK_ADDR), REQUIRED_ARG,
-   KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"pagecache_division_limit", OPT_PAGECACHE_DIVISION_LIMIT,
-   "The minimum percentage of warm blocks in key cache",
-   (uchar**) &maria_pagecache_var.param_division_limit,
-   (uchar**) 0,
-   0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
-   1, 100, 0, 1, 0},
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   {"plugin_dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
@@ -6288,7 +6243,7 @@ The minimum value for this variable is 4096.",
    "Allocation block size for storing ranges during optimization",
    (uchar**) &global_system_variables.range_alloc_block_size,
    (uchar**) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
-   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 4096, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, RANGE_ALLOC_BLOCK_SIZE, ~0L, 0, 1024, 0},
   {"read_buffer_size", OPT_RECORD_BUFFER,
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (uchar**) &global_system_variables.read_buff_size,
@@ -7160,22 +7115,12 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  pagecaches.empty();
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
                                                 default_key_cache_base.length)))
     exit(1);
 
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  if (!(maria_pagecache= get_or_create_pagecache(maria_pagecache_base.str,
-                                                 maria_pagecache_base.length)))
-    exit(1);
-  /* set pagecache_hash.default_value = maria_pagecache */
-  multi_pagecache_init();
-#endif
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -7842,24 +7787,6 @@ mysql_getopt_value(const char *keyname, uint key_length,
       return (uchar**) &key_cache->param_age_threshold;
     }
   }
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  case OPT_PAGECACHE_BUFFER_SIZE:
-  case OPT_PAGECACHE_DIVISION_LIMIT:
-  case OPT_PAGECACHE_AGE_THRESHOLD:
-  {
-    PAGECACHE *pagecache;
-    if (!(pagecache= get_or_create_pagecache(keyname, key_length)))
-      exit(1);
-    switch (option->id) {
-    case OPT_PAGECACHE_BUFFER_SIZE:
-      return (uchar**) &pagecache->param_buff_size;
-    case OPT_PAGECACHE_DIVISION_LIMIT:
-      return (uchar**) &pagecache->param_division_limit;
-    case OPT_PAGECACHE_AGE_THRESHOLD:
-      return (uchar**) &pagecache->param_age_threshold;
-    }
-  }
-#endif
   }
   return option->value;
 }
@@ -8263,9 +8190,6 @@ void refresh_status(THD *thd)
 
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
-#ifdef WITH_MARIA_STORAGE_ENGINE
-  process_pagecaches(reset_pagecache_counters);
-#endif /* WITH_MARIA_STORAGE_ENGINE */
   pthread_mutex_unlock(&LOCK_status);
 
   /*

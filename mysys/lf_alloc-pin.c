@@ -318,9 +318,9 @@ static int match_pins(LF_PINS *el, void *addr)
 }
 
 #if STACK_DIRECTION < 0
-#define available_stack_size(END,CUR) (long) ((char*)(CUR) - (char*)(END))
+#define available_stack_size(CUR,END) (long) ((char*)(CUR) - (char*)(END))
 #else
-#define available_stack_size(END,CUR) (long) ((char*)(END) - (char*)(CUR))
+#define available_stack_size(CUR,END) (long) ((char*)(END) - (char*)(CUR))
 #endif
 
 /*
@@ -413,16 +413,20 @@ LF_REQUIRE_PINS(1);
     first->el->el->....->el->last. Use first==last to free only one element.
 */
 static void alloc_free(struct st_lf_alloc_node *first,
-                       struct st_lf_alloc_node *last,
+                       struct st_lf_alloc_node volatile *last,
                        LF_ALLOCATOR *allocator)
 {
-  struct st_lf_alloc_node *tmp;
-  tmp= allocator->top;
+  /*
+    we need a union here to access type-punned pointer reliably.
+    otherwise gcc -fstrict-aliasing will not see 'tmp' changed in the loop
+  */
+  union { struct st_lf_alloc_node * node; void *ptr; } tmp;
+  tmp.node= allocator->top;
   do
   {
-    last->next= tmp;
-  } while (!my_atomic_casptr((void **)&allocator->top, (void **)&tmp, first) &&
-           LF_BACKOFF);
+    last->next= tmp.node;
+  } while (!my_atomic_casptr((void **)(char *)&allocator->top,
+                             (void **)&tmp.ptr, first) && LF_BACKOFF);
 }
 
 /*
@@ -494,12 +498,13 @@ void *_lf_alloc_new(LF_PINS *pins)
     {
       node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
 #ifdef MY_LF_EXTRA_DEBUG
-      if (likely(node))
+      if (likely(node != 0))
         my_atomic_add32(&allocator->mallocs, 1);
 #endif
       break;
     }
-    if (my_atomic_casptr((void **)&allocator->top, (void *)&node, node->next))
+    if (my_atomic_casptr((void **)(char *)&allocator->top,
+                         (void *)&node, node->next))
       break;
   }
   _lf_unpin(pins, 0);

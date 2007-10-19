@@ -115,11 +115,6 @@
 
 /* TODO: put it to my_static.c */
 my_bool my_disable_flush_pagecache_blocks= 0;
-/**
-   when flushing pages of a file, it can happen that we take some dirty blocks
-   out of changed_blocks[]; Checkpoint must not run at this moment.
-*/
-uint changed_blocks_is_incomplete= 0;
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
@@ -318,6 +313,22 @@ struct st_pagecache_block_link
   uint hits_left;         /* number of hits left until promotion             */
   /** @brief LSN when first became dirty; LSN_MAX means "not yet set"        */
   LSN rec_lsn;
+};
+
+/** @brief information describing a run of flush_pagecache_blocks_int() */
+struct st_file_in_flush
+{
+  PAGECACHE_FILE file;
+  /**
+     @brief threads waiting for the thread currently flushing this file to be
+     done
+  */
+  WQUEUE flush_queue;
+  /**
+     @brief if the thread currently flushing the file has a non-empty
+     first_in_switch list.
+  */
+  my_bool first_in_switch;
 };
 
 #ifndef DBUG_OFF
@@ -678,9 +689,14 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   pagecache->disk_blocks= -1;
   if (! pagecache->inited)
   {
+    if (pthread_mutex_init(&pagecache->cache_lock, MY_MUTEX_INIT_FAST) ||
+        hash_init(&pagecache->files_in_flush, &my_charset_bin, 32,
+                  offsetof(struct st_file_in_flush, file),
+                  sizeof(((struct st_file_in_flush *)NULL)->file),
+                  NULL, NULL, 0))
+      goto err;
     pagecache->inited= 1;
     pagecache->in_init= 0;
-    pthread_mutex_init(&pagecache->cache_lock, MY_MUTEX_INIT_FAST);
     pagecache->resize_queue.last_thread= NULL;
   }
 
@@ -841,7 +857,7 @@ static int flush_all_key_blocks(PAGECACHE *pagecache)
         KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
         if (flush_pagecache_blocks_int(pagecache, &block->hash_link->file,
-                                       FLUSH_RELEASE))
+                                       FLUSH_RELEASE, NULL, NULL))
           return 1;
         break;
       }
@@ -1074,6 +1090,7 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
 
   if (cleanup)
   {
+    hash_free(&pagecache->files_in_flush);
     pthread_mutex_destroy(&pagecache->cache_lock);
     pagecache->inited= pagecache->can_be_used= 0;
     PAGECACHE_DEBUG_CLOSE;
@@ -3489,7 +3506,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   /*
      As all blocks referred in 'cache' are marked by PCBLOCK_IN_FLUSH
-     we are guarantied no thread will change them
+     we are guaranteed that no thread will change them
   */
   qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
 
@@ -3506,6 +3523,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       DBUG_PRINT("info", ("block: %u (0x%lx)  pinned",
                           PCBLOCK_NUMBER(pagecache, block), (ulong)block));
       PCBLOCK_INFO(block);
+      /* undo the mark put by flush_pagecache_blocks_int(): */
+      block->status&= ~PCBLOCK_IN_FLUSH;
       last_errno= -1;
       unreg_request(pagecache, block, 1);
       continue;
@@ -3555,7 +3574,8 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       wqueue_release_queue(&block->wqueue[COND_FOR_SAVED]);
 #endif
     /* type will never be FLUSH_IGNORE_CHANGED here */
-    if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
+    if (! (type == FLUSH_KEEP || type == FLUSH_KEEP_LAZY ||
+           type == FLUSH_FORCE_WRITE))
     {
       pagecache->blocks_changed--;
       pagecache->global_blocks_changed--;
@@ -3573,16 +3593,27 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 
 
 /**
-   @brief flush all key blocks for a file to disk but don't do any mutex locks
+   @brief flush all blocks for a file to disk but don't do any mutex locks
 
    @param  pagecache       pointer to a pagecache data structure
    @param  file            handler for the file to flush to
    @param  flush_type      type of the flush
+   @param  filter          optional function which tells what blocks to flush;
+                           can be non-NULL only if FLUSH_KEEP, FLUSH_KEEP_LAZY
+                           or FLUSH_FORCE_WRITE.
+   @param  filter_arg      an argument to pass to 'filter'. Information about
+                           the block will be passed too.
 
    @note
      This function doesn't do any mutex locks because it needs to be called
      both from flush_pagecache_blocks and flush_all_key_blocks (the later one
      does the mutex lock in the resize_pagecache() function).
+
+   @note
+     This function can cause problems if two threads call it
+     concurrently on the same file (look for "PageCacheFlushConcurrencyBugs"
+     in ma_checkpoint.c); to avoid them, it has internal logic to serialize in
+     this situation.
 
    @return Operation status
      @retval 0      OK
@@ -3591,7 +3622,9 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
 
 static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
                                       PAGECACHE_FILE *file,
-                                      enum flush_type type)
+                                      enum flush_type type,
+                                      PAGECACHE_FLUSH_FILTER filter,
+                                      void *filter_arg)
 {
   PAGECACHE_BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
   int last_errno= 0;
@@ -3607,9 +3640,15 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 
   cache= cache_buff;
   if (pagecache->disk_blocks > 0 &&
-      (!my_disable_flush_pagecache_blocks || type != FLUSH_KEEP))
+      (!my_disable_flush_pagecache_blocks ||
+       (type != FLUSH_KEEP && type != FLUSH_KEEP_LAZY)))
   {
-    /* Key cache exists and flush is not disabled */
+    /*
+      Key cache exists. If my_disable_flush_pagecache_blocks is true it
+      disables the operation but only FLUSH_KEEP[_LAZY]: other flushes still
+      need to be allowed: FLUSH_RELEASE has to free blocks, and
+      FLUSH_FORCE_WRITE is to overrule my_disable_flush_pagecache_blocks.
+    */
     int error= 0;
     uint count= 0;
     PAGECACHE_BLOCK_LINK **pos, **end;
@@ -3618,13 +3657,66 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
 #if defined(PAGECACHE_DEBUG)
     uint cnt= 0;
 #endif
-    uint8 changed_blocks_is_incomplete_incremented= 0;
+
+#ifdef THREAD
+    struct st_file_in_flush us_flusher, *other_flusher;
+    us_flusher.file= *file;
+    us_flusher.flush_queue.last_thread= NULL;
+    us_flusher.first_in_switch= FALSE;
+    while ((other_flusher= (struct st_file_in_flush *)
+            hash_search(&pagecache->files_in_flush, (uchar *)file,
+                        sizeof(*file))))
+    {
+      /*
+        File is in flush already: wait, unless FLUSH_KEEP_LAZY. "Flusher"
+        means "who can mark PCBLOCK_IN_FLUSH", i.e. caller of
+        flush_pagecache_blocks_int().
+      */
+      struct st_my_thread_var *thread;
+      if (type == FLUSH_KEEP_LAZY)
+      {
+        DBUG_PRINT("info",("FLUSH_KEEP_LAZY skips"));
+        DBUG_RETURN(0);
+      }
+      thread= my_thread_var;
+      wqueue_add_to_queue(&other_flusher->flush_queue, thread);
+      do
+      {
+        KEYCACHE_DBUG_PRINT("flush_pagecache_blocks_int: wait1",
+                            ("suspend thread %ld", thread->id));
+        pagecache_pthread_cond_wait(&thread->suspend,
+                                    &pagecache->cache_lock);
+      }
+      while (thread->next);
+    }
+    /* we are the only flusher of this file now */
+    while (my_hash_insert(&pagecache->files_in_flush, (uchar *)&us_flusher))
+    {
+      /*
+        Out of memory, wait for flushers to empty the hash and retry; should
+        rarely happen. Other threads are flushing the file; when done, they
+        are going to remove themselves from the hash, and thus memory will
+        appear again. However, this memory may be stolen by yet another thread
+        (for a purpose unrelated to page cache), before we retry
+        hash_insert(). So the loop may run for long. Only if the thread was
+        killed do we abort the loop, returning 1 (error) which can cause the
+        table to be marked as corrupted (cf maria_chk_size(), maria_close())
+        and thus require a table check.
+      */
+      DBUG_ASSERT(0);
+      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
+      if (my_thread_var->abort)
+        DBUG_RETURN(1);		/* End if aborted by user */
+      sleep(10);
+      pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+    }
+#endif
 
     if (type != FLUSH_IGNORE_CHANGED)
     {
       /*
-         Count how many key blocks we have to cache to be able
-         to flush all dirty pages with minimum seek moves
+        Count how many key blocks we have to cache to be able
+        to flush all dirty pages with minimum seek moves.
       */
       for (block= pagecache->changed_blocks[FILE_HASH(*file)] ;
            block;
@@ -3659,7 +3751,19 @@ restart:
       KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
       next= block->next_changed;
-      if (block->hash_link->file.file == file->file)
+      if (block->hash_link->file.file != file->file)
+        continue;
+      if (filter != NULL)
+      {
+        int filter_res= (*filter)(block->type, block->hash_link->pageno,
+                                  block->rec_lsn, filter_arg);
+        DBUG_PRINT("info",("filter returned %d", filter_res));
+        if (filter_res == FLUSH_FILTER_SKIP_TRY_NEXT)
+          continue;
+        if (filter_res == FLUSH_FILTER_SKIP_ALL)
+          break;
+        DBUG_ASSERT(filter_res == FLUSH_FILTER_OK);
+      }
       {
         /*
            Mark the block with BLOCK_IN_FLUSH in order not to let
@@ -3705,34 +3809,15 @@ restart:
             free_block(pagecache, block);
           }
         }
-        else
+        else if (type != FLUSH_KEEP_LAZY)
         {
-	  /* Link the block into a list of blocks 'in switch' */
+          /*
+            Link the block into a list of blocks 'in switch', and then we will
+            wait for this list to be empty, which means they have been flushed
+          */
           unlink_changed(block);
           link_changed(block, &first_in_switch);
-          /*
-            We have just removed a page from the list of dirty pages
-            ("changed_blocks") though it's still dirty (the flush by another
-            thread has not yet happened). Checkpoint will miss the page and so
-            must be blocked until that flush has happened.
-            Note that if there are two concurrent
-            flush_pagecache_blocks_int() on this file, then the first one may
-            move the block into its first_in_switch, and the second one would
-            just not see the block and wrongly consider its job done.
-            @todo RECOVERY Maria does protect such flushes with intern_lock,
-            but Checkpoint does not (Checkpoint makes sure that
-            changed_blocks_is_incomplete is 0 when it starts, but as
-            flush_cached_blocks() releases mutex, this may change...
-          */
-          /**
-             @todo RECOVERY: check all places where we remove a page from the
-             list of dirty pages
-          */
-          if (unlikely(!changed_blocks_is_incomplete_incremented))
-          {
-            changed_blocks_is_incomplete_incremented= 1;
-            changed_blocks_is_incomplete++;
-          }
+          us_flusher.first_in_switch= TRUE;
         }
       }
     }
@@ -3754,7 +3839,7 @@ restart:
         wqueue_add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
         do
         {
-          KEYCACHE_DBUG_PRINT("flush_pagecache_blocks_int: wait",
+          KEYCACHE_DBUG_PRINT("flush_pagecache_blocks_int: wait2",
                               ("suspend thread %ld", thread->id));
           pagecache_pthread_cond_wait(&thread->suspend,
                                      &pagecache->cache_lock);
@@ -3770,11 +3855,16 @@ restart:
       KEYCACHE_DBUG_ASSERT(cnt <= pagecache->blocks_used);
 #endif
     }
-    changed_blocks_is_incomplete-=
-      changed_blocks_is_incomplete_incremented;
+    us_flusher.first_in_switch= FALSE;
     /* The following happens very seldom */
-    if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
+    if (! (type == FLUSH_KEEP || type == FLUSH_KEEP_LAZY ||
+           type == FLUSH_FORCE_WRITE))
     {
+      /*
+        this code would free all blocks while filter maybe handled only a
+        few, that is not possible.
+      */
+      DBUG_ASSERT(filter == NULL);
 #if defined(PAGECACHE_DEBUG)
       cnt=0;
 #endif
@@ -3796,6 +3886,12 @@ restart:
         }
       }
     }
+#ifdef THREAD
+    /* wake up others waiting to flush this file */
+    hash_delete(&pagecache->files_in_flush, (uchar *)&us_flusher);
+    if (us_flusher.flush_queue.last_thread)
+      wqueue_release_queue(&us_flusher.flush_queue);
+#endif
   }
 
 #ifndef DBUG_OFF
@@ -3810,23 +3906,28 @@ restart:
 }
 
 
-/*
-  Flush all blocks for a file to disk
+/**
+   @brief flush all blocks for a file to disk
 
-  SYNOPSIS
+   @param  pagecache       pointer to a pagecache data structure
+   @param  file            handler for the file to flush to
+   @param  flush_type      type of the flush
+   @param  filter          optional function which tells what blocks to flush;
+                           can be non-NULL only if FLUSH_KEEP, FLUSH_KEEP_LAZY
+                           or FLUSH_FORCE_WRITE.
+   @param  filter_arg      an argument to pass to 'filter'. Information about
+                           the block will be passed too.
 
-    flush_pagecache_blocks()
-      pagecache            pointer to a page cache data structure
-      file                handler for the file to flush to
-      flush_type          type of the flush
-
-  RETURN
-    0  OK
-    1  error
+   @return Operation status
+     @retval 0      OK
+     @retval 1      Error
 */
 
-int flush_pagecache_blocks(PAGECACHE *pagecache,
-                           PAGECACHE_FILE *file, enum flush_type type)
+int flush_pagecache_blocks_with_filter(PAGECACHE *pagecache,
+                                       PAGECACHE_FILE *file,
+                                       enum flush_type type,
+                                       PAGECACHE_FLUSH_FILTER filter,
+                                       void *filter_arg)
 {
   int res;
   DBUG_ENTER("flush_pagecache_blocks");
@@ -3836,7 +3937,7 @@ int flush_pagecache_blocks(PAGECACHE *pagecache,
     DBUG_RETURN(0);
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   inc_counter_for_resize_op(pagecache);
-  res= flush_pagecache_blocks_int(pagecache, file, type);
+  res= flush_pagecache_blocks_int(pagecache, file, type, filter, filter_arg);
   dec_counter_for_resize_op(pagecache);
   pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(res);
@@ -3916,16 +4017,42 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     of memory at most.
   */
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
-  while (changed_blocks_is_incomplete > 0)
+#ifdef THREAD
+  for (;;)
   {
+    struct st_file_in_flush *other_flusher;
+    for (file_hash= 0;
+         (other_flusher= (struct st_file_in_flush *)
+          hash_element(&pagecache->files_in_flush, file_hash)) != NULL &&
+           !other_flusher->first_in_switch;
+         file_hash++)
+    {}
+    if (other_flusher == NULL)
+      break;
     /*
-      Some pages are more recent in memory than on disk (=dirty) and are not
-      in "changed_blocks" so we cannot know them. Wait.
+      other_flusher.first_in_switch is true: some thread is flushing a file
+      and has removed dirty blocks from changed_blocks[] while they were still
+      dirty (they were being evicted (=>flushed) by yet another thread, which
+      may not have flushed the block yet so it may still be dirty).
+      If Checkpoint proceeds now, it will not see the page. If there is a
+      crash right after writing the checkpoint record, before the page is
+      flushed, at recovery the page will be wrongly ignored because it won't
+      be in the dirty pages list in the checkpoint record. So wait.
     */
-    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
-    sleep(1);
-    pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+    {
+      struct st_my_thread_var *thread= my_thread_var;
+      wqueue_add_to_queue(&other_flusher->flush_queue, thread);
+      do
+      {
+        KEYCACHE_DBUG_PRINT("pagecache_collect_çhanged_blocks_with_lsn: wait",
+                            ("suspend thread %ld", thread->id));
+        pagecache_pthread_cond_wait(&thread->suspend,
+                                    &pagecache->cache_lock);
+      }
+      while (thread->next);
+    }
   }
+#endif
 
   /* Count how many dirty pages are interesting */
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
@@ -3941,8 +4068,18 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       */
       DBUG_ASSERT(block->hash_link != NULL);
       DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
+      /**
+         @todo RECOVERY BUG
+         REDO phase uses PAGECACHE_PLAIN_PAGE, so the lines below would
+         confuse the indirect Checkpoint taken at the end of the REDO phase.
+         So we below collect even dirty pages of temporary tables as a result
+         :( Soon we should have the MARIA_SHARE accessible from the
+         pagecache's block and then we can test born_transactional.
+      */
+#ifdef TRANS_TABLES_ALWAYS_USE_LSN_PAGE
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
+#endif
       stored_list_size++;
     }
   }
@@ -3967,8 +4104,10 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
          block;
          block= block->next_changed)
     {
+#ifdef TRANS_TABLES_ALWAYS_USE_LSN_PAGE
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
+#endif
       compile_time_assert(sizeof(block->hash_link->file.file) <= 4);
       compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
       int4store(ptr, block->hash_link->file.file);

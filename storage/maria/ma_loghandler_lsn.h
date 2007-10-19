@@ -83,9 +83,9 @@ typedef LSN LSN_WITH_FLAGS;
 
 #define FILENO_IMPOSSIBLE     0 /**< log file's numbering starts at 1 */
 #define LOG_OFFSET_IMPOSSIBLE 0 /**< log always has a header */
-#define LSN_IMPOSSIBLE        0
+#define LSN_IMPOSSIBLE        ((LSN)0)
 /* following LSN also is impossible */
-#define LSN_ERROR             1
+#define LSN_ERROR             ((LSN)1)
 
 /** @brief some impossible LSN serve as markers */
 #define LSN_REPAIRED_BY_MARIA_CHK ((LSN)2)

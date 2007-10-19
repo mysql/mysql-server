@@ -22,6 +22,7 @@ C_MODE_START
 
 #include "ma_loghandler_lsn.h"
 #include <m_string.h>
+#include <hash.h>
 
 /* Type of the page */
 enum pagecache_page_type
@@ -159,7 +160,20 @@ typedef struct st_pagecache
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
+  HASH    files_in_flush;       /**< files in flush_pagecache_blocks_int() */
 } PAGECACHE;
+
+/** @brief Return values for PAGECACHE_FLUSH_FILTER */
+enum pagecache_flush_filter_result
+{
+  FLUSH_FILTER_SKIP_TRY_NEXT= 0,/**< skip page and move on to next one */
+  FLUSH_FILTER_OK,              /**< flush page and move on to next one */
+  FLUSH_FILTER_SKIP_ALL         /**< skip page and all next ones */
+};
+/** @brief a filter function type for flush_pagecache_blocks_with_filter() */
+typedef enum pagecache_flush_filter_result
+(*PAGECACHE_FLUSH_FILTER)(enum pagecache_page_type type, pgcache_page_no_t page,
+                          LSN rec_lsn, void *arg);
 
 /* The default key cache */
 extern PAGECACHE dflt_pagecache_var, *dflt_pagecache;
@@ -228,9 +242,13 @@ extern void pagecache_unpin(PAGECACHE *pagecache,
 extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
                                     PAGECACHE_BLOCK_LINK *link,
                                     LSN lsn);
-extern int flush_pagecache_blocks(PAGECACHE *keycache,
-                                  PAGECACHE_FILE *file,
-                                  enum flush_type type);
+#define flush_pagecache_blocks(A,B,C)                   \
+  flush_pagecache_blocks_with_filter(A,B,C,NULL,NULL)
+extern int flush_pagecache_blocks_with_filter(PAGECACHE *keycache,
+                                              PAGECACHE_FILE *file,
+                                              enum flush_type type,
+                                              PAGECACHE_FLUSH_FILTER filter,
+                                              void *filter_arg);
 extern my_bool pagecache_delete(PAGECACHE *pagecache,
                                 PAGECACHE_FILE *file,
                                 pgcache_page_no_t pageno,

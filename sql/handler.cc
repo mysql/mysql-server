@@ -28,10 +28,6 @@
 #include <myisampack.h>
 #include <errno.h>
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
-#include <maria.h>
-#endif
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
@@ -2772,97 +2768,6 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 }
 
 
-/*****************************************************************************
-  pagecache handling.
-
-  This code is only relevant for maria tables
-
-  pagecache->cache may be 0 only in the case where a key cache is not
-  initialized or when we where not able to init the key cache in a previous
-  call to ha_init_pagecache() (probably out of memory)
-*****************************************************************************/
-
-
-#ifdef WITH_MARIA_STORAGE_ENGINE
-
-/* Init a pagecache if it has not been initied before */
-
-int ha_init_pagecache(const char *name, PAGECACHE *pagecache)
-{
-  DBUG_ENTER("ha_init_pagecache");
-
-  if (!pagecache->inited)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) pagecache->param_buff_size;
-    uint division_limit= pagecache->param_division_limit;
-    uint age_threshold=  pagecache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!init_pagecache(pagecache,
-				tmp_buff_size, division_limit, age_threshold,
-				MARIA_KEY_BLOCK_LENGTH));
-  }
-  DBUG_RETURN(0);
-}
-
-
-/* Resize key cache */
-/*
-TODO: uncomment when resize will be implemented
-int ha_resize_pagecache(PAGECACHE *pagecache)
-{
-  DBUG_ENTER("ha_resize_pagecache");
-
-  if (pagecache->inited)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) pagecache->param_buff_size;
-    long tmp_block_size= (long) pagecache->param_block_size;
-    uint division_limit= pagecache->param_division_limit;
-    uint age_threshold=  pagecache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_pagecache(pagecache, tmp_block_size,
-				  tmp_buff_size,
-				  division_limit, age_threshold));
-  }
-  DBUG_RETURN(0);
-}
-*/
-
-
-/* Change parameters for key cache (like size) */
-
-int ha_change_pagecache_param(PAGECACHE *pagecache)
-{
-  if (pagecache->inited)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    uint division_limit= pagecache->param_division_limit;
-    uint age_threshold=  pagecache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    change_pagecache_param(pagecache, division_limit, age_threshold);
-  }
-  return 0;
-}
-
-/* Free memory allocated by a key cache */
-
-int ha_end_pagecache(PAGECACHE *pagecache)
-{
-  end_pagecache(pagecache, 1);		// Can never fail
-  return 0;
-}
-
-/* Move all tables from one key cache to another one */
-
-int ha_change_pagecache(PAGECACHE *old_pagecache,
-			PAGECACHE *new_pagecache)
-{
-  maria_change_pagecache(old_pagecache, new_pagecache);
-  return 0;
-}
-
-#endif /* WITH_MARIA_STORAGE_ENGINE */
 
 /** @brief
   Try to discover one table from handler(s)
