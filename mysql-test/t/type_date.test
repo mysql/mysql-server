@@ -136,3 +136,24 @@ insert into t1 values (9912101,9912101,9912101);
 insert into t1 values (11111,11111,11111);
 select * from t1;
 drop table t1;
+
+#
+# Bug #31221: Optimizer incorrectly identifies impossible WHERE clause
+#
+
+CREATE TABLE t1 (a DATE, b int, PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES (DATE(NOW()), 1);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+INSERT INTO t1 VALUES (DATE(NOW()), 2);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests
