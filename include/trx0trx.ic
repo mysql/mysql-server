@@ -145,3 +145,61 @@ trx_get_que_state_str(
 		return("UNKNOWN");
 	}
 }
+
+/**************************************************************************
+Determine if a transaction is a dictionary operation. */
+UNIV_INLINE
+enum trx_dict_op
+trx_get_dict_operation(
+/*===================*/
+				/* out: dictionary operation mode */
+	const trx_t*	trx)	/* in: transaction */
+{
+	enum trx_dict_op op = (enum trx_dict_op) trx->dict_operation;
+
+#ifdef UNIV_DEBUG
+	switch (op) {
+	case TRX_DICT_OP_NONE:
+	case TRX_DICT_OP_TABLE:
+	case TRX_DICT_OP_INDEX:
+	case TRX_DICT_OP_INDEX_MAY_WAIT:
+		return(op);
+	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return((enum trx_dict_op) UNIV_EXPECT(op, TRX_DICT_OP_NONE));
+}
+/**************************************************************************
+Flag a transaction a dictionary operation. */
+UNIV_INLINE
+void
+trx_set_dict_operation(
+/*===================*/
+	trx_t*			trx,	/* in/out: transaction */
+	enum trx_dict_op	op)	/* in: operation, not
+					TRX_DICT_OP_NONE */
+{
+#ifdef UNIV_DEBUG
+	enum trx_dict_op	old_op = trx_get_dict_operation(trx);
+
+	switch (op) {
+	case TRX_DICT_OP_NONE:
+		ut_error;
+		break;
+	case TRX_DICT_OP_TABLE:
+		ut_ad(old_op == TRX_DICT_OP_NONE
+		      || old_op == TRX_DICT_OP_INDEX);
+		break;
+	case TRX_DICT_OP_INDEX:
+		ut_ad(old_op == TRX_DICT_OP_NONE
+		      || old_op == TRX_DICT_OP_INDEX_MAY_WAIT);
+		break;
+	case TRX_DICT_OP_INDEX_MAY_WAIT:
+		ut_ad(old_op == TRX_DICT_OP_NONE
+		      || old_op == TRX_DICT_OP_INDEX);
+		break;
+	}
+#endif /* UNIV_DEBUG */
+
+	trx->dict_operation = op;
+}
