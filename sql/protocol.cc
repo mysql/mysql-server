@@ -84,7 +84,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     DBUG_VOID_RETURN;
   }
 
-  thd->query_error=  1; // needed to catch query errors during replication
+  thd->is_slave_error=  1; // needed to catch query errors during replication
   if (!err)
   {
     if (sql_errno)
@@ -162,7 +162,7 @@ net_printf_error(THD *thd, uint errcode, ...)
     DBUG_VOID_RETURN;
   }
 
-  thd->query_error=  1; // needed to catch query errors during replication
+  thd->is_slave_error=  1; // needed to catch query errors during replication
 #ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety
 #endif
