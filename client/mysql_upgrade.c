@@ -96,8 +96,13 @@ static struct my_option my_long_options[]=
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -462,7 +467,11 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   if (my_write(fd, (uchar*) query, strlen(query),
                MYF(MY_FNABP | MY_WME)))
+  {
+    my_close(fd, MYF(0));
+    my_delete(query_file_path, MYF(0));
     die("Failed to write to '%s'", query_file_path);
+  }
 
   ret= run_tool(mysql_path,
                 ds_res,

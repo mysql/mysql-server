@@ -133,10 +133,23 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       {
 	struct servent *serv_ptr;
 	char	*env;
-	if ((serv_ptr = getservbyname("mysql", "tcp")))
-	  mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
-	if ((env = getenv("MYSQL_TCP_PORT")))
-	  mysql_port =(uint) atoi(env);
+
+        /*
+          if builder specifically requested a default port, use that
+          (even if it coincides with our factory default).
+          only if they didn't do we check /etc/services (and, failing
+          on that, fall back to the factory default of 3306).
+          either default can be overridden by the environment variable
+          MYSQL_TCP_PORT, which in turn can be overridden with command
+          line options.
+        */
+
+#if MYSQL_PORT_DEFAULT == 0
+        if ((serv_ptr = getservbyname("mysql", "tcp")))
+          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+#endif
+        if ((env = getenv("MYSQL_TCP_PORT")))
+          mysql_port =(uint) atoi(env);
       }
 #endif
     }
@@ -3884,7 +3897,19 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       sprintf(buff, "%.*f", (int) field->decimals, value);
       end= strend(buff);
     }
-    fetch_string_with_conversion(param, buff, (uint) (end - buff));
+
+    {
+      size_t length= end - buff;
+      if (field->flags & ZEROFILL_FLAG && length < field->length &&
+          field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
+      {
+        bmove_upp((char*) buff + field->length, buff + length, length);
+        bfill((char*) buff, field->length - length, '0');
+        length= field->length;
+      }
+      fetch_string_with_conversion(param, buff, length);
+    }
+
     break;
   }
   }
