@@ -1783,7 +1783,12 @@ lock_rec_enqueue_waiting(
 
 	trx = thr_get_trx(thr);
 
-	if (UNIV_UNLIKELY(trx->dict_operation)) {
+	switch (trx_get_dict_operation(trx)) {
+	case TRX_DICT_OP_NONE:
+	case TRX_DICT_OP_INDEX_MAY_WAIT:
+		break;
+	case TRX_DICT_OP_TABLE:
+	case TRX_DICT_OP_INDEX:
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: a record lock wait happens"
 		      " in a dictionary operation!\n"
@@ -3641,7 +3646,12 @@ lock_table_enqueue_waiting(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->dict_operation) {
+	switch (trx_get_dict_operation(trx)) {
+	case TRX_DICT_OP_NONE:
+	case TRX_DICT_OP_INDEX_MAY_WAIT:
+		break;
+	case TRX_DICT_OP_TABLE:
+	case TRX_DICT_OP_INDEX:
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: a table lock wait happens"
 		      " in a dictionary operation!\n"

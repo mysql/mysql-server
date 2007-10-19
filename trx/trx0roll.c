@@ -447,7 +447,7 @@ trx_rollback_active(
 
 	trx->mysql_process_no = os_proc_get_number();
 
-	if (trx->dict_operation) {
+	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);
 		dictionary_locked = TRUE;
 	}
@@ -470,7 +470,8 @@ trx_rollback_active(
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx->dict_operation && !ut_dulint_is_zero(trx->table_id)) {
+	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
+	    && !ut_dulint_is_zero(trx->table_id)) {
 
 		/* If the transaction was for a dictionary operation, we
 		drop the relevant table, if it still exists */

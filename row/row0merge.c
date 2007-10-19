@@ -1674,15 +1674,7 @@ run_again:
 	thr->run_node = thr;
 	thr->prev_node = thr->common.parent;
 
-	/* Temporarily clear the dict_operation flag in order to
-	avoid a bogus warning in lock_table_enqueue_waiting(). */
-	ut_ad(trx->dict_operation == 1);
-	trx->dict_operation = 0;
-
 	err = lock_table(0, table, LOCK_X, thr);
-
-	/* Restore the dict_operation flag. */
-	trx->dict_operation = 1;
 
 	trx->error_state = err;
 

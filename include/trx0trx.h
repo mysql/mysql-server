@@ -357,6 +357,45 @@ trx_print(
 	ulint	max_query_len);	/* in: max query length to print, or 0 to
 				   use the default max length */
 
+/** Type of data dictionary operation */
+enum trx_dict_op {
+	/** The transaction is not modifying the data dictionary. */
+	TRX_DICT_OP_NONE = 0,
+	/** The transaction is creating a table or an index, or
+	dropping a table.  The table must be dropped in crash
+	recovery.  This and TRX_DICT_OP_NONE are the only possible
+	operation modes in crash recovery. */
+	TRX_DICT_OP_TABLE = 1,
+	/** The transaction is creating an index in an existing table,
+	In crash recovery, the the data dictionary must be locked, but
+	the table must not be dropped. */
+	TRX_DICT_OP_INDEX = 2,
+	/** The transaction is creating an index in an existing table,
+	In crash recovery, the the data dictionary must be locked, but
+	the table must not be dropped.  A lock wait timeout is allowed
+	to occur. */
+	TRX_DICT_OP_INDEX_MAY_WAIT = 3
+};
+
+/**************************************************************************
+Determine if a transaction is a dictionary operation. */
+UNIV_INLINE
+enum trx_dict_op
+trx_get_dict_operation(
+/*===================*/
+				/* out: dictionary operation mode */
+	const trx_t*	trx)	/* in: transaction */
+	__attribute__((pure));
+/**************************************************************************
+Flag a transaction a dictionary operation. */
+UNIV_INLINE
+void
+trx_set_dict_operation(
+/*===================*/
+	trx_t*			trx,	/* in/out: transaction */
+	enum trx_dict_op	op);	/* in: operation, not
+					TRX_DICT_OP_NONE */
+
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Determines if the currently running transaction has been interrupted. */
@@ -471,12 +510,7 @@ struct trx_struct{
 					were modifications by the transaction;
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
-	unsigned	dict_operation:1;/* nonzero if the trx is used
-					to create a table, create an
-					index, or drop a table. This
-					is a hint that the table may
-					need to be dropped in crash
-					recovery. */
+	unsigned	dict_operation:2;/**< @see enum trx_dict_op */
 	unsigned	duplicates:2;	/* TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	unsigned	active_trans:2;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex

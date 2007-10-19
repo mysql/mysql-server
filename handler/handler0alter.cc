@@ -629,8 +629,8 @@ ha_innobase::add_index(
 	mem_heap_t*     heap;		/* Heap for index definitions */
 	trx_t*		trx;		/* Transaction */
 	ulint		num_of_idx;
-	ulint		num_created;
-	ibool		dict_locked = FALSE;
+	ulint		num_created	= 0;
+	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
 	ulint		error;
 
@@ -684,6 +684,8 @@ err_exit:
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx);
 
+	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
+
 	/* Allocate memory for dictionary index definitions */
 
 	index = (dict_index_t**) mem_heap_alloc(
@@ -695,23 +697,31 @@ err_exit:
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = TRUE;
 
-	/* Flag this transaction as a dictionary operation, so that the
-	data dictionary will be locked in crash recovery.  Clear the
-	table_id, so that no table will be dropped in crash recovery,
-	unless a new primary key is defined. */
-	trx->dict_operation = TRUE;
-	trx->table_id = ut_dulint_zero;
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery.  Prevent
+	warnings if row_merge_lock_table() results in a lock wait. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
+
+	/* Acquire an exclusive lock on the table
+	before creating any indexes. */
+	error = row_merge_lock_table(trx, innodb_table);
+
+	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
+
+		goto error_handling;
+	}
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* If a new primary key is defined for the table we need
 	to drop the original table and rebuild all indexes. */
-
-	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', innodb_table->name);
 
 		/* Clone the table. */
+		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 		indexed_table = row_merge_create_temporary_table(
 			new_table_name, index_defs, innodb_table, trx);
 
@@ -736,19 +746,6 @@ err_exit:
 
 		trx->table_id = indexed_table->id;
 	}
-
-	ut_ad(!error);
-
-	/* Acquire an exclusive lock on the table
-	before creating any indexes. */
-	error = row_merge_lock_table(trx, innodb_table);
-
-	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-
-		goto error_handling;
-	}
-
-	num_created = 0;
 
 	/* Create the indexes in SYS_INDEXES and load into dictionary. */
 
