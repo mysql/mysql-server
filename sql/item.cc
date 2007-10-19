@@ -272,6 +272,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
     my_decimal_set_zero(decimal_value);
+    null_value= 1;                               // set NULL, stop processing
     return 0;
   }
   return date2my_decimal(&ltime, decimal_value);
@@ -3859,7 +3860,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           context->first_name_resolution_table,
                                           context->last_name_resolution_table,
                                           reference,
-                                          IGNORE_EXCEPT_NON_UNIQUE,
+                                          thd->lex->use_only_table_context ?
+                                            REPORT_ALL_ERRORS : 
+                                            IGNORE_EXCEPT_NON_UNIQUE,
                                           !any_privileges,
                                           TRUE)) ==
 	not_found_field)
