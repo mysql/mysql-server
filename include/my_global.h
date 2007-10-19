@@ -107,6 +107,11 @@
 #define NETWARE_SET_SCREEN_MODE(A)
 #endif
 
+/* Workaround for _LARGE_FILES and _LARGE_FILE_API incompatibility on AIX */
+#if defined(_AIX) && defined(_LARGE_FILE_API)
+#undef _LARGE_FILE_API
+#endif
+
 /*
   The macros below are used to allow build of Universal/fat binaries of
   MySQL and MySQL applications under darwin. 
@@ -854,8 +859,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
-#ifndef SSIZE_MAX
-#define SSIZE_MAX ((~((size_t) 0)) / 2)
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ~((size_t) 0)
 #endif
 
 #ifndef HAVE_FINITE

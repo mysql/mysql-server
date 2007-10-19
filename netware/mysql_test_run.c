@@ -175,7 +175,7 @@ void report_stats()
 		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
 		log_msg("hint of what went wrong.\n");
 		log_msg("\nIf you want to report this error, please first read the documentation\n");
-		log_msg("at: http://www.mysql.com/doc/en/MySQL_test_suite.html\n");
+		log_msg("at: http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html\n");
   }
 
   log_msg("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
@@ -1169,7 +1169,8 @@ void setup(char *file)
   setenv("MYSQL_BINLOG", file_path, 1);
   setenv("MASTER_MYPORT", "9306", 1);
   setenv("SLAVE_MYPORT", "9307", 1);
-  setenv("MYSQL_TCP_PORT", "3306", 1);
+  snprintf(file_path, PATH_MAX*2, "%d", MYSQL_PORT);
+  setenv("MYSQL_TCP_PORT", file_path, 1);
   snprintf(file_path, PATH_MAX*2, "%s/mysql_client_test --no-defaults --testcase--user=root --port=%u ", bin_dir, master_port); 
   setenv("MYSQL_CLIENT_TEST",file_path,1);
   snprintf(file_path, PATH_MAX*2, "%s/mysql --no-defaults --user=root --port=%u ", bin_dir, master_port);
