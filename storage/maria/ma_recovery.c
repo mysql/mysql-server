@@ -298,6 +298,15 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
 
+  /**
+     REDO phase does not fill blocks' rec_lsn, so a checkpoint now would be
+     wrong: if a future recovery used it, the REDO phase would always
+     start from the checkpoint and never from before, wrongly skipping REDOs
+     (tested).
+
+     @todo fix this.
+  */
+#if 0
   if (take_checkpoints && checkpoint_useful)
   {
     /*
@@ -308,6 +317,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
     if (ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
       goto err;
   }
+#endif
 
   if (should_run_undo_phase)
   {

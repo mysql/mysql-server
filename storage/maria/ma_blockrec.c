@@ -1537,6 +1537,7 @@ static my_bool write_full_pages(MARIA_HA *info,
     length-= copy_length;
 
     DBUG_ASSERT(share->pagecache->block_size == block_size);
+    /** @todo RECOVERY BUG the page does not get a rec_lsn with this! */
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
                         buff, share->page_type,
