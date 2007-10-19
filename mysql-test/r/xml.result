@@ -1012,3 +1012,14 @@ select ExtractValue('<a>a</a>', '/a[@x=@y0123456789_0123456789_0123456789_012345
 ERROR HY000: XPATH error: comparison of two nodesets is not supported: '=@y0123456789_0123456789_0123456'
 select ExtractValue('<a>a</a>', '/a[@x=$y0123456789_0123456789_0123456789_0123456789]');
 ERROR HY000: Unknown XPATH variable at: '$y0123456789_0123456789_01234567'
+select updatexml(NULL, 1, 1), updatexml(1, NULL, 1), updatexml(1, 1, NULL);
+updatexml(NULL, 1, 1)	updatexml(1, NULL, 1)	updatexml(1, 1, NULL)
+NULL	NULL	NULL
+select updatexml(NULL, NULL, 1), updatexml(1, NULL, NULL), 
+updatexml(NULL, 1, NULL);
+updatexml(NULL, NULL, 1)	updatexml(1, NULL, NULL)	updatexml(NULL, 1, NULL)
+NULL	NULL	NULL
+select updatexml(NULL, NULL, NULL);
+updatexml(NULL, NULL, NULL)
+NULL
+End of 5.1 tests
