@@ -11124,10 +11124,11 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 SELECT COUNT(auto) FROM t2;
 COUNT(auto)
 1213
-INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+INSERT DELAYED INTO t2 VALUES (99999,011403,37,'the','delayed','insert','');
+INSERT INTO t2 VALUES (100000,000001,00,'after','delayed','insert','');
 SELECT COUNT(auto) FROM t2;
 COUNT(auto)
-1214
+1215
 ALTER TABLE t2 DROP COLUMN fld6;
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -11139,7 +11140,7 @@ t2	CREATE TABLE `t2` (
   `fld4` char(35) NOT NULL DEFAULT '',
   `fld5` char(35) NOT NULL DEFAULT ''
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-SELECT * FROM t2;
+SELECT * FROM t2 WHERE auto != 100000;
 auto	fld1	companynr	fld3	fld4	fld5
 1	000001	00	Omaha	teethe	neat
 2	011401	37	breaking	dreaded	Steinberg
@@ -12354,7 +12355,7 @@ auto	fld1	companynr	fld3	fld4	fld5
 2	011401	37	breaking	dreaded	Steinberg
 3	011402	37	Romans	scholastics	jarring
 4	011403	37	intercepted	audiology	tinily
-4	011403	37	intercepted	audiology	tinily
+99999	011403	37	the	delayed	insert
 CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
