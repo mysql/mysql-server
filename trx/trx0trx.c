@@ -97,7 +97,7 @@ trx_create(
 	trx->flush_log_later = FALSE;
 	trx->must_flush_log_later = FALSE;
 
-	trx->dict_operation = FALSE;
+	trx_set_dict_operation(trx, TRX_DICT_OP_NONE);
 	trx->table_id = ut_dulint_zero;
 
 	trx->mysql_thd = NULL;
@@ -469,7 +469,8 @@ trx_lists_init_at_db_start(void)
 			}
 
 			if (undo->dict_operation) {
-				trx->dict_operation = undo->dict_operation;
+				trx_set_dict_operation(
+					trx, TRX_DICT_OP_TABLE);
 				trx->table_id = undo->table_id;
 			}
 
@@ -548,8 +549,8 @@ trx_lists_init_at_db_start(void)
 				trx_list_insert_ordered(trx);
 
 				if (undo->dict_operation) {
-					trx->dict_operation
-						= undo->dict_operation;
+					trx_set_dict_operation(
+						trx, TRX_DICT_OP_TABLE);
 					trx->table_id = undo->table_id;
 				}
 			}

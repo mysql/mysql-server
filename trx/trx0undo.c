@@ -1674,20 +1674,30 @@ trx_undo_mark_as_dict_operation(
 {
 	page_t*	hdr_page;
 
-	ut_a(trx->dict_operation);
-
 	hdr_page = trx_undo_page_get(undo->space, undo->zip_size,
 				     undo->hdr_page_no, mtr);
 
+	switch (trx_get_dict_operation(trx)) {
+	case TRX_DICT_OP_NONE:
+	case TRX_DICT_OP_INDEX_MAY_WAIT:
+		ut_error;
+	case TRX_DICT_OP_INDEX:
+		/* Do not discard the table on recovery. */
+		undo->table_id = ut_dulint_zero;
+		break;
+	case TRX_DICT_OP_TABLE:
+		undo->table_id = trx->table_id;
+		break;
+	}
+
 	mlog_write_ulint(hdr_page + undo->hdr_offset
 			 + TRX_UNDO_DICT_TRANS,
-			 trx->dict_operation, MLOG_1BYTE, mtr);
+			 TRUE, MLOG_1BYTE, mtr);
 
 	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-			  trx->table_id, mtr);
+			  undo->table_id, mtr);
 
-	undo->dict_operation = trx->dict_operation;
-	undo->table_id = trx->table_id;
+	undo->dict_operation = TRUE;
 }
 
 /**************************************************************************
@@ -1743,7 +1753,7 @@ trx_undo_assign_undo(
 		trx->update_undo = undo;
 	}
 
-	if (trx->dict_operation) {
+	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		trx_undo_mark_as_dict_operation(trx, undo, &mtr);
 	}
 

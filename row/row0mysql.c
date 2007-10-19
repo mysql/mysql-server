@@ -1938,7 +1938,7 @@ row_create_table_for_mysql(
 
 	heap = mem_heap_create(512);
 
-	trx->dict_operation = TRUE;
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	node = tab_create_graph_create(table, heap);
 
@@ -2089,7 +2089,7 @@ row_create_index_for_mysql(
 
 	heap = mem_heap_create(512);
 
-	trx->dict_operation = TRUE;
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Note that the space id where we store the index is inherited from
 	the table in dict_build_index_def_step() in dict0crea.c. */
@@ -2161,7 +2161,7 @@ row_table_add_foreign_constraints(
 
 	trx_start_if_not_started(trx);
 
-	trx->dict_operation = TRUE;
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	err = dict_create_foreign_constraints(trx, sql_string, name,
 					      reject_fks);
@@ -3286,7 +3286,7 @@ check_next_foreign:
 
 	lock_reset_all_on_table(table);
 
-	trx->dict_operation = TRUE;
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
 
 	/* We use the private SQL parser of Innobase to generate the
