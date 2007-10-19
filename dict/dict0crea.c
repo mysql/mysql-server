@@ -821,24 +821,22 @@ create:
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 		if (!ut_dulint_cmp(index->id, index_id)) {
-			break;
+			root_page_no = btr_create(type, space, zip_size,
+						  index_id, index, mtr);
+			index->page = (unsigned int) root_page_no;
+			return(root_page_no);
 		}
 	}
 
-	root_page_no = btr_create(type, space, zip_size, index_id, index, mtr);
-	if (index) {
-		index->page = (unsigned int) root_page_no;
-	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Index %lu %lu of table %s is missing\n"
-			"InnoDB: from the data dictionary during TRUNCATE!\n",
-			ut_dulint_get_high(index_id),
-			ut_dulint_get_low(index_id),
-			table->name);
-	}
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Index %lu %lu of table %s is missing\n"
+		"InnoDB: from the data dictionary during TRUNCATE!\n",
+		ut_dulint_get_high(index_id),
+		ut_dulint_get_low(index_id),
+		table->name);
 
-	return(root_page_no);
+	return(FIL_NULL);
 }
 
 /*************************************************************************
