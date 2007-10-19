@@ -38,8 +38,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			netware libmysqld \
 			mysql-test support-files sql-bench server-tools \
 			win \
-			BUILD debian
-
+			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
 # Create permission databases

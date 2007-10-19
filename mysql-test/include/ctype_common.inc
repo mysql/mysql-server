@@ -51,6 +51,15 @@ SELECT c1 as want1result  from t1 where c1 like 'locatio%';
 SELECT c1 as want1result  from t1 where c1 like 'location%';
 DROP TABLE t1;
 
+#
+# Bug #31070: crash during conversion of charsets
+#
+create table t1 (a set('a') not null);
+insert into t1 values (),();
+select cast(a as char(1)) from t1;
+select a sounds like a from t1;
+drop table t1;
+
 DROP DATABASE d1;
 # Restore settings
 USE test;
