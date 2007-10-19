@@ -28,6 +28,7 @@ static inline void *malloc_zero(size_t size) {
 struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     TOKUTXN tokutxn;
+    DB_TXN *parent;
 };
 
 void __toku_db_env_err (const DB_ENV *env __attribute__((__unused__)), int error, const char *fmt, ...) {
@@ -243,7 +244,8 @@ int txn_begin (DB_ENV *env, DB_TXN *stxn, DB_TXN **txn, u_int32_t flags) {
   result->commit = __toku_db_txn_commit;
   result->id     = __toku_db_txn_id;
   result->i      = malloc(sizeof(*result->i));
-  int r = tokutxn_begin(&result->i->tokutxn, next_txn++, env->i->logger);
+  result->i->parent = stxn;
+  int r = tokutxn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
   if (r!=0) return r;
   *txn = result;
   return 0;
@@ -400,12 +402,9 @@ int  __toku_db_open (DB *db, DB_TXN *txn, const char *fname, const char *dbname,
 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
-    // Warning:  new_brt has deficienceis:
-    //  Each tree has its own cache, instead of a big shared cache.
-    //  It doesn't do error checking on insert.
-    //  It's tough to do cursors.
     r=open_brt(db->i->full_fname, dbname, (flags&DB_CREATE), &db->i->brt, 1<<20, db->i->env->i->cachetable,
 	       db->i->bt_compare);
+    printf("r=%d\n", r);
     assert(r==0);
     return 0;
 }

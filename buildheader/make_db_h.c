@@ -24,6 +24,7 @@ void print_db_notices (void) {
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
 void print_defines (void) {
+    printf("#ifndef _TOKUDB_WRAP_H\n");
     dodefine(DB_VERB_DEADLOCK);
     dodefine(DB_VERB_RECOVERY);
     dodefine(DB_VERB_REPLICATION);
@@ -73,6 +74,7 @@ void print_defines (void) {
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     dodefine(DB_RMW);
+    printf("#endif\n");
 }
 
 //#define DECL_LIMIT 100
@@ -183,7 +185,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("#ifndef _TOKUDB_WRAP_H\n");
     printf("#define DB_VERSION_STRING \"Tokutek: TokuDB %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
     printf("#else\n");
-    printf("#define DB_VERSION_STRING \"Tokutek: TokuDB (wrapped bdb)\"\n");
+    printf("#define DB_VERSION_STRING_ydb \"Tokutek: TokuDB (wrapped bdb)\"\n");
     printf("#endif\n");
     
     if (0) {

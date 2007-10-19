@@ -8,11 +8,11 @@ extern "C" {
 #endif
 #endif
 
-int db_env_create_bdbw (struct yobi_db_env **, u_int32_t);
-int txn_abort_bdbw (struct yobi_db_txn *);
-int txn_begin_bdbw (struct yobi_db_env *env, struct yobi_db_txn *stxn, struct yobi_db_txn **txn, u_int32_t flags);
-int txn_commit_bdbw (struct yobi_db_txn *, u_int32_t);
-int db_create_bdbw (struct yobi_db **, struct yobi_db_env *, u_int32_t);
+int db_env_create_bdbw (struct __toku_db_env **, u_int32_t);
+int txn_abort_bdbw (struct __toku_db_txn *);
+int txn_begin_bdbw (struct __toku_db_env *env, struct __toku_db_txn *stxn, struct __toku_db_txn **txn, u_int32_t flags);
+int txn_commit_bdbw (struct __toku_db_txn *, u_int32_t);
+int db_create_bdbw (struct __toku_db **, struct __toku_db_env *, u_int32_t);
 
 
 #if 0
@@ -35,18 +35,18 @@ enum {
   
 };
 
-typedef struct yobi_db DB;
+typedef struct __toku_db DB;
 typedef struct yobi_db_btree_stat DB_BTREE_STAT;
-typedef struct yobi_db_env DB_ENV;
+typedef struct __toku_db_env DB_ENV;
 typedef struct yobi_db_key_range DB_KEY_RANGE;
 typedef struct yobi_db_lsn DB_LSN;
-typedef struct yobi_db_txn DB_TXN;
-typedef struct yobi_db_txn_active DB_TXN_ACTIVE;
-typedef struct yobi_db_txn_stat DB_TXN_STAT;
+typedef struct __toku_db_txn DB_TXN;
+typedef struct __toku_db_txn_active DB_TXN_ACTIVE;
+typedef struct __toku_db_txn_stat DB_TXN_STAT;
 typedef struct yobi_dbc DBC;
 typedef struct yobi_dbt DBT;
 
-struct yobi_db {
+struct __toku_db {
   void *app_private;
   int  (*close) (DB *, u_int32_t);
   int  (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t);
@@ -63,7 +63,7 @@ struct yobi_db {
   int  (*set_flags)    (DB *, u_int32_t);
   int  (*stat) (DB *, void *, u_int32_t);
 
-  struct ydb_db_internal *i;
+  struct __toku_db_internal *i;
 };
 enum {
   DB_DBT_MALLOC = 0x002,
@@ -78,7 +78,7 @@ struct yobi_dbt {
   u_int32_t size;
   u_int32_t ulen;
 };
-struct yobi_db_txn {
+struct __toku_db_txn {
   int (*commit) (DB_TXN*, u_int32_t);
   u_int32_t (*id) (DB_TXN *);
 };
@@ -87,7 +87,7 @@ struct yobi_dbc {
   int (*c_close) (DBC *);
   int (*c_del) (DBC *, u_int32_t);
 };
-struct yobi_db_env {
+struct __toku_db_env {
   // Methods used by MYSQL
   void (*err) (const DB_ENV *, int, const char *, ...);
   int  (*open) (DB_ENV *, const char *, u_int32_t, int);
@@ -123,14 +123,14 @@ struct yobi_db_btree_stat {
   u_int32_t bt_ndata;
   u_int32_t bt_nkeys;
 };
-struct yobi_db_txn_stat {
+struct __toku_db_txn_stat {
   u_int32_t st_nactive;
   DB_TXN_ACTIVE *st_txnarray;
 };
 struct yobi_db_lsn {
   int hello;
 };
-struct yobi_db_txn_active {
+struct __toku_db_txn_active {
   DB_LSN	lsn;
   u_int32_t	txnid;
 };

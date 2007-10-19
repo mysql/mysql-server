@@ -14,6 +14,7 @@ endif
 
 CFLAGS = -Wall -W $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS)
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
 ifdef BRT_FANOUT
 CPPFLAGS += -DBRT_FANOUT=$(BRT_FANOUT)
@@ -66,12 +67,13 @@ check-fanout:
 key.o: brttypes.h key.h
 pma-test.o: pma-internal.h pma.h yerror.h memory.h  ../include/db.h list.h kv-pair.h brttypes.h ybt.h yerror.h
 pma-test: pma.o memory.o key.o ybt.o log.o mempool.o
-pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h  ../include/db.h
+pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h
 brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o header-io.o ybt.o key.o primes.o log.o mempool.o
+log.o: log-internal.h log.h
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h
 brt-serialize-test.o: pma.h yerror.h brt.h ../include/db.h memory.h hashtable.h brttypes.h brt-internal.h
 brt.o: brt.h ../include/db.h mdict.h pma.h brttypes.h memory.h brt-internal.h cachetable.h hashtable.h
