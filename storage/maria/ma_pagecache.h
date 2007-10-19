@@ -22,6 +22,7 @@ C_MODE_START
 
 #include "ma_loghandler_lsn.h"
 #include <m_string.h>
+#include <hash.h>
 
 /* Type of the page */
 enum pagecache_page_type
@@ -159,6 +160,7 @@ typedef struct st_pagecache
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
+  HASH    files_in_flush;       /**< files in flush_pagecache_blocks_int() */
 } PAGECACHE;
 
 /** @brief Return values for PAGECACHE_FLUSH_FILTER */

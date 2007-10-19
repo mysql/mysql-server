@@ -83,7 +83,7 @@ int main(int argc,char *argv[])
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache,
                     TRANSLOG_DEFAULT_FLAGS) ||
-      (transactional && (trnman_init(0) || ma_checkpoint_init(FALSE))))
+      (transactional && (trnman_init(0) || ma_checkpoint_init(0))))
   {
     fprintf(stderr, "Error in initialization");
     exit(1);

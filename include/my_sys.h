@@ -283,7 +283,13 @@ enum flush_type
   FLUSH_IGNORE_CHANGED, /* remove block from the cache */
   /* as my_disable_flush_pagecache_blocks is always 0, it is
      strictly equivalent to FLUSH_KEEP */
-  FLUSH_FORCE_WRITE
+  FLUSH_FORCE_WRITE,
+  /**
+     @brief like FLUSH_KEEP but return immediately if file is already being
+     flushed (even partially) by another thread; only for page cache,
+     forbidden for key cache.
+  */
+  FLUSH_KEEP_LAZY
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */

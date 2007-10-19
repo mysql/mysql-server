@@ -229,7 +229,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   if (!all_active_trans || !all_tables)
     goto err;
 
-  if (take_checkpoints && ma_checkpoint_init(FALSE))
+  if (take_checkpoints && ma_checkpoint_init(0))
     goto err;
 
   recovery_message_printed= REC_MSG_NONE;

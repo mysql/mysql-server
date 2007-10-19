@@ -3557,10 +3557,11 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
               file, keycache->blocks_used, keycache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-    DBUG_EXECUTE("check_keycache",
-                 test_key_cache(keycache, "start of flush_key_blocks", 0););
+  DBUG_EXECUTE("check_keycache",
+               test_key_cache(keycache, "start of flush_key_blocks", 0););
 #endif
 
+  DBUG_ASSERT(type != FLUSH_KEEP_LAZY);
   cache= cache_buff;
   if (keycache->disk_blocks > 0 &&
       (!my_disable_flush_key_blocks || type != FLUSH_KEEP))
