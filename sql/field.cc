@@ -5211,7 +5211,8 @@ uint Field_string::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
                           length / field_charset->mbmaxlen);
   memcpy(buff, ptr, bytes);
   if (bytes < length)
-    bzero(buff + bytes, length - bytes);
+    field_charset->cset->fill(field_charset, buff + bytes, length - bytes,
+                              ' ');
   return bytes;
 }
 
