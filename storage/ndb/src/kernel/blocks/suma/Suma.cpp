@@ -3635,6 +3635,8 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
+    CRASH_INSERTION(13033);
+    
     NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
     sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
 	       SubGcpCompleteRep::SignalLength, JBB);
@@ -3654,8 +3656,8 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   {
     if(m_active_buckets.get(i))
       continue;
-    
-    if(c_buckets[i].m_buffer_tail != RNIL)
+
+    if (!c_subscriber_nodes.isclear())
     {
       //Uint32* dst;
       get_buffer_ptr(signal, i, gci, 0);
