@@ -1435,7 +1435,10 @@ select "this will be executed";
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
+--error 0,1
 remove_file $MYSQLTEST_VARDIR/log/zero_length_file.reject;
+--error 0,1
+remove_file $MYSQL_TEST_DIR/r/zero_length_file.reject;
 
 #
 # Test that a test file that does not generate any output fails.
