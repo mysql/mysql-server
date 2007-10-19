@@ -1447,7 +1447,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       (We should in the future either rewrite handler::print_error() or make
       a nice method of this.
     */
-    bool query_error= thd->query_error;
+    bool is_slave_error= thd->is_slave_error;
     sp_rcontext *spcont= thd->spcont;
     SELECT_LEX *current_select= thd->lex->current_select;
     char buff[sizeof(thd->net.last_error)];
@@ -1455,7 +1455,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     int last_errno= thd->net.last_errno;
 
     strmake(buff, thd->net.last_error, sizeof(buff)-1);
-    thd->query_error= 0;
+    thd->is_slave_error= 0;
     thd->spcont= NULL;
     thd->lex->current_select= 0;
     thd->net.last_error[0]= 0;
@@ -1475,7 +1475,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     strmake(new_error, thd->net.last_error, sizeof(buff)-1);
 
     /* restore thd */
-    thd->query_error= query_error;
+    thd->is_slave_error= is_slave_error;
     thd->spcont= spcont;
     thd->lex->current_select= current_select;
     thd->net.last_errno= last_errno;
