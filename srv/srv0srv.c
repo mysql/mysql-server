@@ -1387,7 +1387,7 @@ srv_suspend_mysql_thread(
 	os_event_t	event;
 	double		wait_time;
 	trx_t*		trx;
-	ibool		had_dict_lock			= FALSE;
+	ulint		had_dict_lock;
 	ibool		was_declared_inside_innodb	= FALSE;
 	ib_longlong	start_time			= 0;
 	ib_longlong	finish_time;
@@ -1459,12 +1459,17 @@ srv_suspend_mysql_thread(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	/* Release possible foreign key check latch */
-	if (trx->dict_operation_lock_mode == RW_S_LATCH) {
+	had_dict_lock = trx->dict_operation_lock_mode;
 
-		had_dict_lock = TRUE;
-
+	switch (had_dict_lock) {
+	case RW_S_LATCH:
+		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
+		break;
+	case RW_X_LATCH:
+		/* Release fast index creation latch */
+		row_mysql_unlock_data_dictionary(trx);
+		break;
 	}
 
 	ut_a(trx->dict_operation_lock_mode == 0);
@@ -1473,9 +1478,13 @@ srv_suspend_mysql_thread(
 
 	os_event_wait(event);
 
-	if (had_dict_lock) {
-
+	switch (had_dict_lock) {
+	case RW_S_LATCH:
 		row_mysql_freeze_data_dictionary(trx);
+		break;
+	case RW_X_LATCH:
+		row_mysql_lock_data_dictionary(trx);
+		break;
 	}
 
 	if (was_declared_inside_innodb) {
